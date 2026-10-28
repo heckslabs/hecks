@@ -1281,11 +1281,7 @@ fn apply_filtered_head_options(
     store: &impl AggregateScan,
 ) -> Result<Vec<(String, Json)>, Refusal> {
     for condition in filtered.conditions {
-        let want = match condition.value {
-            QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
-            QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
-        };
+        let want = condition.value.resolve(args);
         rows = repository::filter_entries(rows, condition.field, condition.comparator, &want);
     }
 
@@ -1310,11 +1306,7 @@ pub(super) fn apply_reference_hops(
     store: &impl AggregateScan,
 ) -> Result<Vec<(String, Json)>, Refusal> {
     for hop in hops {
-        let inner_want = match hop.inner_value {
-            QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
-            QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
-        };
+        let inner_want = hop.inner_value.resolve(args);
         let scan = |aggregate: &str| {
             store
                 .scan(aggregate)
