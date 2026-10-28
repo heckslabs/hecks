@@ -6,7 +6,7 @@ Hecks.hecksagon "Hecks" do
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl]
     .each { |chapter| attaches chapter }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
-  # hecks.local.hecksagon whose `persisted_by` the attached chapters inherit (ADR 0134).
+  # hecks.local.hecksagon whose `persisted_by` the attached chapters inherit (ADR 0136).
 
   # The outside a journaled Custodian command reaches: each port names what its adapter does,
   # and every ask is answered with the record's own arguments or refused with a reason.
