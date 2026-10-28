@@ -46,16 +46,31 @@ module Hecks
 
       # Writes `content` to `path` unless it already holds identical bytes.
       # Returns whether it wrote. `formatted` says the caller already ran `content` through rustfmt.
-      def call(path, content, formatted: false)
+      # `atomic` writes a sibling temp file and renames it into place, so a process reading `path`
+      # while others write the same bytes never sees a truncated or half-written file.
+      def call(path, content, formatted: false, atomic: false)
         record_touch(path)
         content = RustFormat.call(content) if RustFormat.rust?(path) && !formatted
         # `.b` on both sides: String#== is encoding-aware, so UTF-8 vs ASCII-8BIT
         # content can compare unequal even when the bytes are identical.
         return false if File.exist?(path) && File.binread(path) == content.b
 
-        File.write(path, content)
+        atomic ? replace(path, content) : File.write(path, content)
         true
       end
+
+      # Puts `content` at `path` by renaming a finished temp file over it. The temp file is hidden
+      # (a leading dot), so a directory's `*` listing, which prunes what a run did not write, never
+      # sees it, and it keeps the existing file's permissions.
+      def replace(path, content)
+        tmp = File.join(File.dirname(path), ".#{File.basename(path)}.tmp-#{Process.pid}")
+        File.write(tmp, content)
+        File.chmod(File.stat(path).mode & 0o7777, tmp) if File.exist?(path)
+        File.rename(tmp, path)
+      ensure
+        FileUtils.rm_f(tmp)
+      end
+      private_class_method :replace
 
       # Fills `tmp` from the block, then lays it out with rustfmt when `path` is Rust source.
       def write_formatted(tmp, path, &)

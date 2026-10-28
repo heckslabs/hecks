@@ -52,5 +52,47 @@ RSpec.describe "hecks project_rust generation helpers" do
       expect(File.exist?(orphan)).to be(false)
       expect(File.exist?(kept)).to be(true)
     end
+
+    describe "an atomic write" do
+      def write_atomically(name, text) = described_class.call(File.join(@dir, name), text, atomic: true)
+
+      it "puts the bytes in place and leaves no temp file behind", :aggregate_failures do
+        write_atomically("b.rs", "fn b() {}\n")
+
+        expect(File.read(File.join(@dir, "b.rs"))).to eq("fn b() {}\n")
+        expect(Dir.children(@dir)).to eq(["b.rs"])
+      end
+
+      it "keeps the permissions of the file it replaces" do
+        File.write(File.join(@dir, "c.rs"), "fn old() {}\n")
+        File.chmod(0o600, File.join(@dir, "c.rs"))
+        write_atomically("c.rs", "fn new() {}\n")
+
+        expect(File.stat(File.join(@dir, "c.rs")).mode & 0o777).to eq(0o600)
+      end
+
+      it "writes nothing, and keeps the mtime, when the bytes are the same", :aggregate_failures do
+        File.write(File.join(@dir, "d.rs"), "fn same() {}\n")
+        File.utime(Time.at(0), Time.at(0), File.join(@dir, "d.rs"))
+
+        expect(write_atomically("d.rs", "fn same() {}\n")).to be(false)
+        expect(File.mtime(File.join(@dir, "d.rs"))).to eq(Time.at(0))
+      end
+
+      # What a directory's `*` listing, the one a prune walks, holds when the rename happens.
+      def listed_at_rename
+        listed = nil
+        allow(File).to receive(:rename).and_wrap_original do |rename, *args|
+          listed = Dir.glob(File.join(@dir, "*"))
+          rename.call(*args)
+        end
+        write_atomically("e.rs", "fn x() {}\n")
+        listed
+      end
+
+      it "is not seen by the listing a directory's prune walks" do
+        expect(listed_at_rename).to eq([])
+      end
+    end
   end
 end

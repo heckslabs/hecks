@@ -117,7 +117,7 @@ module Hecks
             [File.join(dest, file), File.read(File.join(source, file), encoding: "UTF-8")]
           end
           RustFormat.files(texts).each do |path, text|
-            wrote = WriteIfChanged.call(path, text, formatted: true)
+            wrote = WriteIfChanged.call(path, text, formatted: true, atomic: true)
             puts(wrote ? "wrote #{path}" : "#{path} unchanged")
           end
         end
