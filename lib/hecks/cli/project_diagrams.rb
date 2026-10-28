@@ -3,21 +3,21 @@ require_relative "../../hecks"
 module Hecks
   module CLI
     # The command behind `hecks project_diagrams`: boots a
-    # domain, finds the chapter it names, and writes its Mermaid diagrams
+    # domain, finds the bluebook it names, and writes its Mermaid diagrams
     # (`Projections::Diagrams`) under `docs/generated/diagrams/<chapter>/` below the
     # root. Only this positional form writes; the launcher's `domain=… chapter=…` question
     # prints the same files' text and writes nothing.
     module ProjectDiagrams
       module_function
 
-      # Writes the chapter's diagrams and prints each file written.
+      # Writes the bluebook's diagrams and prints each file written.
       #
-      # @param argv [Array<String>] the domain path, then the chapter's name
+      # @param argv [Array<String>] the domain path, then the bluebook's name
       # @param program [String] the name the usage line shows
       # @param root [String] the directory `docs/generated/diagrams/` lives under
       # @return [void]
       # @raise [SystemExit] with the usage line when an argument is missing, or when the
-      #   domain has no chapter of that name
+      #   domain has no bluebook of that name
       def call(argv, program:, root:)
         usage = "usage: #{program} <domain-path> <ChapterName>"
         domain_path  = argv[0] or abort usage
@@ -30,7 +30,7 @@ module Hecks
       end
 
       # @api private
-      # @return [Array(Object, Object)] the named chapter and its hecksagon
+      # @return [Array(Object, Object)] the named bluebook and its hecksagon
       def boot_chapter(domain_path, chapter_name)
         registry = Hecks.boot(File.expand_path(domain_path, Dir.pwd)).registry
         chapter = registry.bluebook(chapter_name) or abort "no chapter named #{chapter_name}"

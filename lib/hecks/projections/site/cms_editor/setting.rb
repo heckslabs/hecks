@@ -11,7 +11,7 @@ module Hecks
   module Projections
     module Site
       module CmsEditor
-        # The project's `Editor` row, checked: which domain chapter the editor edits, where the
+        # The project's `Editor` row, checked: which domain bluebook the editor edits, where the
         # editor is served, the session cookie it keeps, and the host and sign-in it reads.
         #
         # `docs/site-routes.md` lists the fields. A project that declares no row has no editor to
@@ -38,11 +38,11 @@ module Hecks
           # @return [Hash{Symbol => String}] the checked row, defaults filled
           attr_reader :row
 
-          # Reads and checks the row a chapter declares.
+          # Reads and checks the row a bluebook declares.
           #
-          # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+          # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
           # @param table [Table, nil] the checked route table, to check the login page against
-          # @return [Setting, nil] the checked setting, or nil when the chapter declares no row
+          # @return [Setting, nil] the checked setting, or nil when the bluebook declares no row
           # @raise [Table::Invalid] when the row is refused
           def self.read(chapter, table: nil)
             row = ROW.read(chapter).first
@@ -63,15 +63,15 @@ module Hecks
           # @return [String] the domain's directory, relative to the project
           def domain = row.fetch(:domain)
 
-          # @return [String] the first chapter the editor edits, which names the generated package
+          # @return [String] the first bluebook the editor edits, which names the generated package
           def chapter = chapters.first.to_s
 
-          # @return [Array<String>] every chapter the editor edits, in the order the row names them:
+          # @return [Array<String>] every bluebook the editor edits, in the order the row names them:
           #   `chapter` is one name or several, comma separated
           def chapters = Hecks::Text.comma_list(row.fetch(:chapter))
 
-          # @return [Hash{String => Array<String>}] the roles a chapter's aggregates are limited to,
-          #   from `Chapter=Role,Role;Chapter=Role`; a chapter not named is open to every role the
+          # @return [Hash{String => Array<String>}] the roles a bluebook's aggregates are limited to,
+          #   from `Chapter=Role,Role;Chapter=Role`; a bluebook not named is open to every role the
           #   editor admits
           def chapter_roles
             entries = row.fetch(:chapter_roles).split(";")
@@ -87,8 +87,8 @@ module Hecks
           # @return [Integer] how many instances a list shows to a page
           def page_size = row.fetch(:page_size).to_i
 
-          # @return [String, nil] the other chapter whose picture aggregate the editor's pictures
-          #   use, or nil when the pictures (if any) are in the editor's own chapter
+          # @return [String, nil] the other bluebook whose picture aggregate the editor's pictures
+          #   use, or nil when the pictures (if any) are in the editor's own bluebook
           def media_chapter = row.fetch(:media).strip.then { |name| name.empty? ? nil : name }
 
           # @return [String, nil] the product name the header shows, or nil for the domain's name

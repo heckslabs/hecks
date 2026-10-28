@@ -4,9 +4,9 @@ module Hecks
   module Projections
     module Site
       module CmsEditor
-        # What the `Editor` row's settings for many chapters and long lists must satisfy: chapters
-        # named once each, roles given for a chapter the editor edits, and a page size a list can
-        # hold. A chapter's name is part of an address, so it cannot be spelled as one of the
+        # What the `Editor` row's settings for many bluebooks and long lists must satisfy: bluebooks
+        # named once each, roles given for a bluebook the editor edits, and a page size a list can
+        # hold. A bluebook's name is part of an address, so it cannot be spelled as one of the
         # editor's own paths.
         module ScaleChecks
           # The most instances a list may show to a page.
@@ -15,7 +15,7 @@ module Hecks
           # A whole number from 1, of at most four digits: a page size.
           PAGE_COUNT = /\A[1-9]\d{0,3}\z/
 
-          # The first segments of the editor's own addresses, which no chapter may be named.
+          # The first segments of the editor's own addresses, which no bluebook may be named.
           RESERVED = %w[assets media logout api scheduled].freeze
 
           module_function
@@ -27,7 +27,7 @@ module Hecks
             [*chapter_problems(chapters), *role_problems(row[:chapter_roles], chapters), *page_size_problems(row[:page_size])]
           end
 
-          # @return [Array<String>] the problems with an empty, repeated or reserved chapter name
+          # @return [Array<String>] the problems with an empty, repeated or reserved bluebook name
           def chapter_problems(chapters)
             found = []
             found << "chapter names no chapter" if chapters.reject(&:empty?).empty?
@@ -36,7 +36,7 @@ module Hecks
             [*found, *reserved_problems(chapters)]
           end
 
-          # @return [Array<String>] a problem for each chapter spelled as an address of the editor's
+          # @return [Array<String>] a problem for each bluebook spelled as an address of the editor's
           def reserved_problems(chapters)
             return [] if chapters.size < 2
 

@@ -42,9 +42,9 @@ module Hecks
 
         # Renders `routes.ts` for a route table.
         #
-        # @param bluebook [Bluebook::Chapter] the chapter that declares the route table
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
         # @param options [Hash{Symbol => Object}] `:registry` (Runtime::Registry) the project booted
-        #   into, which holds the Site chapter; `:table` (Table) a table already read, instead
+        #   into, which holds the Site bluebook; `:table` (Table) a table already read, instead
         # @return [Hash{String => String}] `"routes.ts"` to its text
         # @raise [Table::Invalid] when the table is refused
         def call(bluebook:, options: {})

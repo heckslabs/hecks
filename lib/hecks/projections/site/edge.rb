@@ -78,14 +78,14 @@ module Hecks
         # @return [Array<Hash{Symbol => Object}>] each listener rule with the paths it carries
         attr_reader :listener_rules
 
-        # Reads and checks the edge a chapter declares.
+        # Reads and checks the edge a bluebook declares.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
         # @param table [Table] the checked route table
-        # @param vocabulary [Hash{Symbol => Array<String>}] the Site chapter's closed sets
+        # @param vocabulary [Hash{Symbol => Array<String>}] the Site bluebook's closed sets
         # @param template [String, nil] the template the caller names, which stands in for the
         #   `Edge` row's own `template:`
-        # @return [Edge, nil] the checked edge, or nil when the chapter declares none and no route
+        # @return [Edge, nil] the checked edge, or nil when the bluebook declares none and no route
         #   names an edge function
         # @raise [Table::Invalid] when a row is refused or the edge contradicts the routes
         def self.read(chapter, table:, vocabulary:, template: nil)

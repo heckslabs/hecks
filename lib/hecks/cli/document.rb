@@ -38,7 +38,7 @@ module Hecks
         end
       end
 
-      # The domain's own chapter, not a framework member it attached: insertion
+      # The domain's own bluebook, not a framework member it attached: insertion
       # order, the same distinction `Runtime::Loader.dispatcher_for` draws.
       #
       # @api private

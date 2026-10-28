@@ -10,7 +10,7 @@ module Hecks
         # @param command [String, Symbol] a bare verb, or an already-dotted FQN
         # @param on_aggregate [String, Symbol, nil] the aggregate to search, or nil to
         #   search every aggregate of every bluebook
-        # @param bluebooks [Array<Bluebook::Chapter>] every chapter the suite booted
+        # @param bluebooks [Array<Bluebook::Chapter>] every bluebook the suite booted
         # @param kind [Symbol] `:command` or `:query`
         # @return [String] `command` unchanged if already dotted, otherwise its resolved
         #   dotted FQN
@@ -28,10 +28,10 @@ module Hecks
         # @param command [String, Symbol] the bare verb to search for
         # @param on_aggregate [String, Symbol, nil] the aggregate to search, or nil to
         #   search every aggregate of every bluebook
-        # @param bluebooks [Array<Bluebook::Chapter>] every chapter the suite booted
+        # @param bluebooks [Array<Bluebook::Chapter>] every bluebook the suite booted
         # @param kind [Symbol] `:command` or `:query`
         # @return [Array<Array(Bluebook::Chapter, Bluebook::Aggregate)>] every matching
-        #   (chapter, aggregate) pair
+        #   (bluebook, aggregate) pair
         def qualify_candidates(command, on_aggregate, bluebooks, kind)
           members = kind == :query ? :queries : :commands
           aggregate_pairs(bluebooks, on_aggregate)
@@ -39,7 +39,7 @@ module Hecks
         end
 
         # @return [Array<Array(Bluebook::Chapter, Bluebook::Aggregate)>] the named aggregate of
-        #   each chapter that has it, or every aggregate of every chapter when none is named
+        #   each bluebook that has it, or every aggregate of every bluebook when none is named
         def aggregate_pairs(bluebooks, on_aggregate)
           return bluebooks.flat_map { |bb| bb.aggregates.map { |agg| [bb, agg] } } unless on_aggregate
 
@@ -50,10 +50,10 @@ module Hecks
         # than one both refuse, each with a different message.
         #
         # @param candidates [Array<Array(Bluebook::Chapter, Bluebook::Aggregate)>] the
-        #   matching (chapter, aggregate) pairs found by `qualify_candidates`
+        #   matching (bluebook, aggregate) pairs found by `qualify_candidates`
         # @param command [String, Symbol] the bare verb that was searched for
         # @param kind [Symbol] `:command` or `:query`, for the refusal message
-        # @param bluebooks [Array<Bluebook::Chapter>] every chapter the suite booted,
+        # @param bluebooks [Array<Bluebook::Chapter>] every bluebook the suite booted,
         #   for the refusal message
         # @return [String] the one candidate's dotted FQN
         # @raise [ArgumentError] if `candidates` is empty, or holds more than one

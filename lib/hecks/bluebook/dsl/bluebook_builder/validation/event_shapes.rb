@@ -3,7 +3,7 @@ module Hecks
     module DSL
       class BluebookBuilder
         module Validation
-          # The commands of a chapter and the events they emit: every command that emits an event
+          # The commands of a bluebook and the events they emit: every command that emits an event
           # must agree on its shape, and the shapes and identities are looked up by event name.
           module EventShapes
             private
@@ -29,7 +29,7 @@ module Hecks
                     "an event is one fact, and every command that emits it must declare the same fields"
             end
 
-            # Yields every command the chapter declares with its owner's name
+            # Yields every command the bluebook declares with its owner's name
             # ("Aggregate.Entity" for entities).
             def each_command(aggregates)
               return enum_for(:each_command, aggregates) unless block_given?
@@ -42,7 +42,7 @@ module Hecks
               end
             end
 
-            # Not memoised: a chapter split across files is validated once per file, and a
+            # Not memoised: a bluebook split across files is validated once per file, and a
             # cached index would miss the commands later files add.
             def event_emitters(aggregates)
               each_command(aggregates).with_object(Hash.new { |h, k| h[k] = [] }) do |(owner, command), index|

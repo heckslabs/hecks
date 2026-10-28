@@ -64,7 +64,7 @@ module Hecks
             "#{by_hand[index][1].inspect}#{" and left different records" if outcomes == by_hand[index][1]}"
         end
 
-        # Every pair the booted chapters declare, in declaration order.
+        # Every pair the booted bluebooks declare, in declaration order.
         #
         # @param runtime [Runtime::Runtime] the booted domain
         # @return [Array<Pair>]

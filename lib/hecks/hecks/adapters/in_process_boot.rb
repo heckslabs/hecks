@@ -19,7 +19,7 @@ module Hecks
     # Each method returns the text the matching tool prints, so the launcher shows the
     # same bytes; a projection that would have written files answers a map of file name to text
     # instead. Arguments arrive materialized, so a value object is `{ value: "x" }`. A domain or
-    # chapter that cannot be found raises `Runtime::NotFound`, which the launcher words as a
+    # bluebook that cannot be found raises `Runtime::NotFound`, which the launcher words as a
     # refusal.
     #
     # It also answers the asks of journaled commands (`InProcessOperations`): a model check, a run,
@@ -81,9 +81,9 @@ module Hecks
       end
 
       # @param domain [Hash, String] a domain directory
-      # @param chapter [Hash, String] the chapter's name
-      # @return [Hash] `text:` the chapter's declared facts, one sentence a line
-      # @raise [Runtime::NotFound] if the domain or chapter cannot be found
+      # @param bluebook [Hash, String] the bluebook's name
+      # @return [Hash] `text:` the bluebook's declared facts, one sentence a line
+      # @raise [Runtime::NotFound] if the domain or bluebook cannot be found
       def statements(domain:, chapter:)
         report(Projector.call(:statements, bluebook: chapter_of(domain, chapter)).join("\n"))
       end
@@ -119,9 +119,9 @@ module Hecks
       end
 
       # @param domain [Hash, String] a domain directory
-      # @param chapter [Hash, String] the chapter's name
+      # @param bluebook [Hash, String] the bluebook's name
       # @return [Array<Hash{Symbol => String}>] one `name:`/`text:` row per diagram file
-      # @raise [Runtime::NotFound] if the domain or chapter cannot be found
+      # @raise [Runtime::NotFound] if the domain or bluebook cannot be found
       def project_diagrams(domain:, chapter:)
         runtime = boot(domain)
         name    = plain(chapter)
@@ -131,9 +131,9 @@ module Hecks
       end
 
       # @param domain [Hash, String] a domain directory
-      # @param chapter [Hash, String] the chapter's name
+      # @param bluebook [Hash, String] the bluebook's name
       # @return [Array<Hash{Symbol => String}>] one `name:`/`text:` row per glossary file
-      # @raise [Runtime::NotFound] if the domain or chapter cannot be found
+      # @raise [Runtime::NotFound] if the domain or bluebook cannot be found
       def glossary(domain:, chapter:)
         runtime = boot(domain)
         name    = plain(chapter)
@@ -199,7 +199,7 @@ module Hecks
         runtime.bluebook(name) or raise Runtime::NotFound, "no chapter named #{name}"
       end
 
-      # The domain's own chapter, not a framework member it attached: insertion order.
+      # The domain's own bluebook, not a framework member it attached: insertion order.
       def document(projection, domain, aggregate)
         registry = boot(domain).registry
         bluebook = registry.first_bluebook or raise Runtime::NotFound, "no bluebook loaded"

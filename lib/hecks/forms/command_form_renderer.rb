@@ -165,7 +165,7 @@ module Hecks
       # Renders the collapsed "Inspect" panel: the events the command emits, an equivalent
       # `curl` request, its field paths, and its declaration as JSON.
       #
-      # @param domain [String] name of the domain (chapter) the aggregate belongs to
+      # @param domain [String] name of the domain (bluebook) the aggregate belongs to
       # @param aggregate [Bluebook::Aggregate] the aggregate that declares the command
       # @param command [Bluebook::Command] the command being described
       # @param action [String] URL path the form posts to, shown in the `curl` line

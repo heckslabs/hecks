@@ -5,12 +5,12 @@ require_relative "../projection_files"
 module Hecks
   module CLI
     # The command behind `hecks project_expression_tables`: projects the expression machinery's
-    # operator and normalisation tables from the grammar chapter into
+    # operator and normalisation tables from the grammar bluebook into
     # `lib/hecks/bluebook/expression/projection.json`.
     #
     # It never redirects with `>`: the shell would truncate the file the framework requires at
     # boot. The default mode replaces the file atomically, and it refuses a projection that drops
-    # a self-bearing operator (one the chapter's own `status != "retired"` givens evaluate
+    # a self-bearing operator (one the bluebook's own `status != "retired"` givens evaluate
     # through), since that would wedge every later boot. Recover a broken file with
     # `git checkout -- lib/hecks/bluebook/expression/projection.json`.
     module ExpressionProjection

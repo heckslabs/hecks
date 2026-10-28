@@ -5,7 +5,7 @@ require_relative "../tools"
 
 module Hecks
   module Tools
-    # Projects the `CiGate` rows of the Vocabulary chapter into the workflows: each row becomes a
+    # Projects the `CiGate` rows of the Vocabulary bluebook into the workflows: each row becomes a
     # detector job between a pair of marker comments in its `workflow`. The job runs
     # `hecks decide_ci_gate gate=<name>` (`CiGateDecision`), so the decision is made by the binary
     # from the same row, never by shell the workflow carries.

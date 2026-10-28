@@ -5,7 +5,7 @@ module Hecks
     module Driving
       # The launcher's help for someone starting out: a folder with no bluebook in it has no use yet
       # for the commands that act on a domain, so the help lists only the `newcomer` commands the
-      # chapter's `launcher` setting names (`hecks --all` lists the rest).
+      # bluebook's `launcher` setting names (`hecks --all` lists the rest).
       module Newcomer
         # How deep under a directory a bluebook may sit and still make it a project:
         # `Hecks.bluebook` beside it, or `bluebook/pizzas.bluebook` one folder down, as the
@@ -25,10 +25,10 @@ module Hecks
           PROJECT_GLOBS.none? { |pattern| bluebook_under?(dir, pattern) }
         end
 
-        # The help options a newcomer gets: only the setting's `newcomer` commands, and no chapters.
+        # The help options a newcomer gets: only the setting's `newcomer` commands, and no bluebooks.
         #
-        # @param settings [Hash, nil] the chapter's `launcher` setting
-        # @return [Hash{Symbol => Object}, nil] `:only` and `:chapters`, or nil when the chapter
+        # @param settings [Hash, nil] the bluebook's `launcher` setting
+        # @return [Hash{Symbol => Object}, nil] `:only` and `:chapters`, or nil when the bluebook
         #   names no newcomer commands
         def audience(settings)
           return unless settings && settings[:newcomer]

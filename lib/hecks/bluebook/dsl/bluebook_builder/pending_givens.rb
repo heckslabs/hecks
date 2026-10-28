@@ -2,17 +2,17 @@ module Hecks
   module Bluebook
     module DSL
       # The chapter-wide half of a bare `given` reference: resolves every reference the
-      # aggregates and entities deferred, once the chapter's files are loaded.
+      # aggregates and entities deferred, once the bluebook's files are loaded.
       class BluebookBuilder
         # The other half of a chapter-wide `given` reference — resolves every reference
-        # `AggregateBuilder#pending_chapter_given` deferred, once the chapter's files are loaded.
+        # `AggregateBuilder#pending_chapter_given` deferred, once the bluebook's files are loaded.
         #
         # Mutates each placeholder `Given` in place, since it's already embedded by Ruby
         # object reference in the referencing preconditions and commands.
         #
         # @return [void]
         # @raise [Bluebook::DSL::Malformed] if a pending reference's own `description` names no
-        #   precondition any aggregate in this chapter declares, is ambiguous across several
+        #   precondition any aggregate in this bluebook declares, is ambiguous across several
         #   aggregates with no `declared_by:` to disambiguate, or `declared_by:` names an
         #   aggregate that does not declare it
         def resolve_pending_chapter_givens!
@@ -24,7 +24,7 @@ module Hecks
         #
         # @return [void]
         # @raise [Bluebook::DSL::Malformed] if a pending reference's own `description` names no
-        #   precondition any piece in this chapter declares, is ambiguous across several pieces
+        #   precondition any piece in this bluebook declares, is ambiguous across several pieces
         #   with no `declared_by:` to disambiguate, or `declared_by:` names a piece that does
         #   not declare it
         def resolve_pending_chapter_entity_givens!

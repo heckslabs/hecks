@@ -7,7 +7,7 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Writes the launcher forms of `docs/tools.md` from the `RetiredScript` rows of the Vocabulary
-    # chapter. Each row names a command (or, in QualityControl, a query); its form is rendered from
+    # bluebook. Each row names a command (or, in QualityControl, a query); its form is rendered from
     # that command's own arguments, the same projection the launcher parses against, so a form can
     # neither keep an argument the command dropped nor miss one it gained.
     #
@@ -73,7 +73,7 @@ module Hecks
       end
 
       # @param section [String] one of `SECTIONS`
-      # @param context [Context] the booted chapters
+      # @param context [Context] the booted bluebooks
       # @return [String] the section's table, header included
       def table(section, context)
         lines = rows.select { |row| row["section"] == section }.group_by { |row| row["script"] }.map do |script, group|
@@ -87,7 +87,7 @@ module Hecks
       def cell(row, context) = "`#{form(row, context).gsub("|", '\|')}`"
 
       # @param row [Hash{String => String}] a `RetiredScript` row
-      # @param context [Context] the booted chapters
+      # @param context [Context] the booted bluebooks
       # @return [String] the launcher form of the row's command or query
       def form(row, context)
         return row["form"] unless row["form"].to_s.empty?
@@ -173,7 +173,7 @@ module Hecks
         text[/<!-- generated:begin tools section=#{section} -->\n(.*?)<!-- generated:end tools -->/m, 1]
       end
 
-      # The booted Hecks chapters the forms are rendered from, built once.
+      # The booted Hecks bluebooks the forms are rendered from, built once.
       class Context
         # @param root [String] the checkout
         def initialize(root)

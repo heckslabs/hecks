@@ -10,12 +10,12 @@ module Hecks
     module Driving
       module Ruby
         # The bulk form of an aggregate's non-creating commands (ADR 0125): a module method per
-        # command that sends it to every row a query answered, through the Bulk chapter's
+        # command that sends it to every row a query answered, through the Bulk bluebook's
         # `BulkRun`.
         #
         #     Account.freeze_account!(over: Account.open_for_customer(reference: "C-1"))
         module BulkVerbs
-          # The chapter whose `BulkRun` records every run.
+          # The bluebook whose `BulkRun` records every run.
           CHAPTER = "Bulk".freeze
 
           module_function
@@ -26,7 +26,7 @@ module Hecks
           #
           # @param mod [Module] the aggregate module being built
           # @param dispatcher [Runtime::Dispatcher] the booted dispatcher the runs go through
-          # @param domain [String] the aggregate's chapter
+          # @param domain [String] the aggregate's bluebook
           # @param aggregate [Bluebook::Aggregate] the aggregate whose commands get a bulk form
           # @return [void]
           def define(mod, dispatcher, domain, aggregate)

@@ -38,8 +38,8 @@ module Hecks
         load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter])
       end
 
-      # Loads bluebook chapters first, judged once as a deferred group, then everything
-      # else in `DOMAIN_ORDER`. Deferring keeps a chapter split across files from being
+      # Loads bluebooks first, judged once as a deferred group, then everything
+      # else in `DOMAIN_ORDER`. Deferring keeps a bluebook split across files from being
       # judged before its later files exist (see MetaValidator.defer).
       #
       # Then the overlays merge into the base hecksagon/world: the copy's own, then the named
@@ -80,11 +80,11 @@ module Hecks
       end
 
       # Loads every bluebook in a folder as one declaration set, judged after all are loaded
-      # so cross-file references never meet a partial chapter.
+      # so cross-file references never meet a partial bluebook.
       #
-      # @param directory [String] the directory to glob for bluebook chapter files
+      # @param directory [String] the directory to glob for bluebook files
       # @param patterns [Array<String>] glob patterns, relative to `directory`, selecting the
-      #   chapter files to load
+      #   bluebook files to load
       # @return [void]
       def load_bluebooks(directory, patterns = ["*.bluebook"])
         Bluebook::MetaValidator.defer { load_each(directory, patterns) }
@@ -147,7 +147,7 @@ module Hecks
       # Resolves a domain path to the directory that actually holds its bluebook files.
       #
       # @param path [String] a domain directory, holding either a `bluebook/` subdirectory or
-      #   its chapter files directly
+      #   its bluebook files directly
       # @return [String] the `bluebook/` subdirectory's absolute path, if one exists; `path`'s
       #   own absolute path otherwise
       # @raise [Errno::ENOENT] if neither directory exists
@@ -164,7 +164,7 @@ module Hecks
       # Finds the nearest domain directory at or above `from`, or nil if there is not one.
       #
       # Walks up from `from`, like git finding `.git`. A domain is marked by a `.hecksagon`,
-      # not a `.bluebook`, since chapters also appear in translations and fixtures.
+      # not a `.bluebook`, since bluebooks also appear in translations and fixtures.
       #
       # A `bluebook/` subdirectory result is normalised to its parent, the directory
       # a `.world`'s `dir "data"` is relative to.

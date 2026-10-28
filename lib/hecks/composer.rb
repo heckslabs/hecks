@@ -11,7 +11,7 @@ require_relative "composer/check"
 
 module Hecks
   # The Composer's outside, on the hecksagon side: staging a workspace, judging its text and
-  # projecting what it declares. The Composer chapter's bluebook is in `composer/bluebook/`.
+  # projecting what it declares. The Composer bluebook's bluebook is in `composer/bluebook/`.
   module Composer
   end
 end

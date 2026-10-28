@@ -13,7 +13,7 @@ module Hecks
     # The language's closed sets as Rust enums, one `rust/src/kernel/vocab/<table>.rs` per table,
     # matched with no wildcard arm so a new row fails to compile until it is handled.
     #
-    #   Projector.call(:rust_vocabulary, bluebook: <the Bluebook chapter>)
+    #   Projector.call(:rust_vocabulary, bluebook: <the Bluebook bluebook>)
     #   # => { "vocab/mod.rs" => "...", "vocab/refusal_template.rs" => "...", ... }
     module RustVocabulary
       extend Projector::Target

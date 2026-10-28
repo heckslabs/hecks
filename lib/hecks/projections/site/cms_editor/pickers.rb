@@ -13,7 +13,7 @@ module Hecks
         # editor aggregate; a value object of one text part named `<Stem>Ref`, where `<Stem>` is
         # the type of an editor aggregate's identity or its name; and `<Image|Picture|Photo|Media>
         # Ref` with a picture aggregate, which suggests pictures and accepts any other text. A
-        # target is found once: the same chapter's, else the only one of its name; else none.
+        # target is found once: the same bluebook's, else the only one of its name; else none.
         module Pickers
           # The stems that name a picture, for the editor's picture aggregate.
           PICTURE_STEMS = %w[Image Picture Photo Media].freeze

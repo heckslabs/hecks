@@ -6,8 +6,8 @@ require_relative "forms/app"
 module Hecks
   # Per-app `expose` configuration, looked up by the Rack app at request time.
   module Forms
-    # The chapters one app exposes. Plain module state, outside `syntax.bluebook` and
-    # the registry; one `expose` switches on a whole chapter, not a single command or query.
+    # The bluebooks one app exposes. Plain module state, outside `syntax.bluebook` and
+    # the registry; one `expose` switches on a whole bluebook, not a single command or query.
     class Config
       attr_reader :name, :exposes
 
@@ -18,16 +18,16 @@ module Hecks
         @exposes = []
       end
 
-      # Switches on the forms of one whole chapter for this app; called inside the
+      # Switches on the forms of one whole bluebook for this app; called inside the
       # `Forms.configure` block.
       #
-      # @param chapter_name [String, Symbol] name of the chapter (domain) to expose, such as
+      # @param chapter_name [String, Symbol] name of the bluebook (domain) to expose, such as
       #   `"Banking"`; stored as a String
-      # @return [Array<String>] every chapter name exposed so far, in declaration order
+      # @return [Array<String>] every bluebook name exposed so far, in declaration order
       def expose(chapter_name) = @exposes << chapter_name.to_s
     end
 
-    # Declares an app and the chapters it exposes, replacing any earlier configuration
+    # Declares an app and the bluebooks it exposes, replacing any earlier configuration
     # registered under the same name.
     #
     # @param name [String, Symbol] the app name `App.for` later looks the configuration up by

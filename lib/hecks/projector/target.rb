@@ -18,7 +18,7 @@ module Hecks
       # @param key [String, Symbol] key to register `self` under
       # @param requires [Module, Array<Module>, nil] capability module(s) required;
       #   nil/empty means `Bluebook::Behaviour::Chapter`
-      # @param declares [String, Symbol, Array, nil] aggregate name(s) the chapter must declare
+      # @param declares [String, Symbol, Array, nil] aggregate name(s) the bluebook must declare
       # @param emits [Symbol] :artifact (a Hash/String, the default) or :files (a path => tree)
       # @param needs_world [Boolean] true refuses a call made with no `world:` bindings
       # @return [Symbol] the registered key
@@ -37,11 +37,11 @@ module Hecks
       # @return [Symbol, nil] the key given to `projects_as`, or nil before it is called
       def projection_key = @projection_key
 
-      # Empty means "a chapter" — resolved here rather than as a default
+      # Empty means "a bluebook" — resolved here rather than as a default
       # argument, because Behaviour::Chapter is not loaded yet when this
       # file is.
       #
-      # @return [Array<String, Symbol>] aggregate names the chapter must declare; empty
+      # @return [Array<String, Symbol>] aggregate names the bluebook must declare; empty
       #   for none
       def projection_declares = @projection_declares || []
 
@@ -62,7 +62,7 @@ module Hecks
       # so there is no second spelling to drift.
       #
       # @return [Symbol] `:export` if it needs a world, `:meta` if it needs a
-      #   chapter declaring particular aggregates, otherwise `:projection`
+      #   bluebook declaring particular aggregates, otherwise `:projection`
       def projection_category
         return :export if projection_needs_world?
 

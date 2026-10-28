@@ -4,7 +4,7 @@ module Hecks
       class BluebookBuilder
         module Validation
           # Checks that each `projects` reference resolves to an aggregate declaring the remote
-          # field as a scalar or single-field value object, once every aggregate in the chapter
+          # field as a scalar or single-field value object, once every aggregate in the bluebook
           # exists.
           module ProjectedFields
             private

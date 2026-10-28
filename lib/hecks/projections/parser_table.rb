@@ -2,7 +2,7 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # The Rust parser's keyword table, projected from the chapter's own Syntax aggregate,
+    # The Rust parser's keyword table, projected from the bluebook's own Syntax aggregate,
     # so the parser's grammar knowledge is derived rather than hand-typed a second time.
     module ParserTable
       extend Projector::Target
@@ -10,9 +10,9 @@ module Hecks
 
       module_function
 
-      # Projects the Rust parser's keyword and closed-set tables for one chapter.
+      # Projects the Rust parser's keyword and closed-set tables for one bluebook.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter to project; the language's own
+      # @param bluebook [Bluebook::Chapter] the bluebook to project; the language's own
       #   for the ordinary `hecks project_parser_table` run
       # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
       #   `Projector::Target` calling convention
@@ -21,18 +21,18 @@ module Hecks
 
       module_function
 
-      # The chapter's `Syntax` aggregate. Taken from the argument, not the grammar registry,
-      # so the projection is not pinned to the language's own chapter.
+      # The bluebook's `Syntax` aggregate. Taken from the argument, not the grammar registry,
+      # so the projection is not pinned to the language's own bluebook.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter to read the Syntax aggregate
+      # @param bluebook [Bluebook::Chapter] the bluebook to read the Syntax aggregate
       #   from
-      # @return [Bluebook::Aggregate, nil] the chapter's `"Syntax"` aggregate, `nil` if
+      # @return [Bluebook::Aggregate, nil] the bluebook's `"Syntax"` aggregate, `nil` if
       #   it declares none
       def syntax(bluebook) = bluebook.aggregate("Syntax")
 
       # Every cell as text, as spec/syntax_conformance_spec.rb's `rows` helper reads it.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter to read from
+      # @param bluebook [Bluebook::Chapter] the bluebook to read from
       # @param name [String] the closed-set value object's name, such as `"Context"`
       # @return [Array<Hash{Symbol => String}>] one row per declared member, every
       #   field stringified
@@ -43,7 +43,7 @@ module Hecks
 
       # Reads one closed set's member names, for a Rust `&[&str]` constant.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter to read from
+      # @param bluebook [Bluebook::Chapter] the bluebook to read from
       # @param name [String] the closed-set value object's name
       # @return [Array<String>] every declared member's `:name` field
       def closed_set_members(bluebook, name) = rows(bluebook, name).map { |row| row[:name] }
@@ -90,7 +90,7 @@ module Hecks
       # Renders the whole Rust source. Keyword and Argument rows come from `SyntaxBoot.call`,
       # which dispatches the seed rows so `status` is a real lifecycle (ADR 0026).
       #
-      # @param bluebook [Bluebook::Chapter] the chapter to project
+      # @param bluebook [Bluebook::Chapter] the bluebook to project
       # @return [String] the rendered `KEYWORDS`/`ARGUMENTS`/closed-set Rust source
       def render(bluebook)
         table     = Hecks::Bluebook::MetaValidator::SyntaxBoot.call

@@ -9,11 +9,11 @@ module Hecks
 
       # Projects `bluebook` as Markdown usage documentation.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to document
+      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook to document
       # @param options [Hash] optional inputs
       # @option options [Integer, String] :heading the top heading level; defaults to 1
       # @option options [String, Symbol, nil] :aggregate narrows the document to one
-      #   aggregate, omitting the chapter header and closing sections
+      #   aggregate, omitting the bluebook header and closing sections
       # @return [String] the document, ending in a newline
       # @raise [Runtime::NotFound] if `options[:aggregate]` names no declared aggregate
       def call(bluebook:, options: {})
@@ -59,7 +59,7 @@ module Hecks
         out.join("\n")
       end
 
-      # What kind of domain the chapter is and the name it is also known by, when declared.
+      # What kind of domain the bluebook is and the name it is also known by, when declared.
       def classification_lines(bluebook)
         out = []
         out << "#{bluebook.classification.to_s.capitalize} domain." if bluebook.classification

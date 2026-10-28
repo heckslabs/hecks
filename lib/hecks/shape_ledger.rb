@@ -3,17 +3,17 @@ require "json"
 require "hecks"
 
 module Hecks
-  # The committed record of each chapter's storage shape, held against the shapes the chapters
+  # The committed record of each bluebook's storage shape, held against the shapes the bluebooks
   # have now, so a shape cannot change without the translation edge that carries a database across.
   #
   # A database that holds an era refuses a newer shape no edge leads to. The check that catches
   # that at a boot only runs against a real database, which specs and gates do not use, so this one
-  # reads nothing but the loaded chapters and the committed edges: it needs no database.
+  # reads nothing but the loaded bluebooks and the committed edges: it needs no database.
   #
   # @example
-  #   ShapeLedger.check("lib/hecks/hecks")  # => "15 chapter shapes, each the one the ledger holds"
+  #   ShapeLedger.check("lib/hecks/hecks")  # => "15 bluebook shapes, each the one the ledger holds"
   module ShapeLedger
-    # The ledger file, beside the chapters it records.
+    # The ledger file, beside the bluebooks it records.
     FILE = "shapes.json".freeze
 
     # The length of the label a translation edge names a shape by.
@@ -27,9 +27,9 @@ module Hecks
 
     module_function
 
-    # Compares the ledger with the shapes of the chapters under a directory.
+    # Compares the ledger with the shapes of the bluebooks under a directory.
     #
-    # @param directory [String] the domain directory whose chapters the ledger records
+    # @param directory [String] the domain directory whose bluebooks the ledger records
     # @param confirm [Boolean] rewrite the ledger when every moved shape has an edge
     # @param additive [Boolean] with `confirm`, write the empty edge for each shape that moved with
     #   none, on the operator's word that the change only adds; the mint audits every edge against
@@ -44,14 +44,14 @@ module Hecks
       confirm ? rewrite(path, shapes, edges, directory, additive) : verdict(path, shapes, edges)
     end
 
-    # @param registry [Runtime::Registry] the loaded chapters
-    # @return [Hash{String => String}] each chapter's storage-shape hash, by name
+    # @param registry [Runtime::Registry] the loaded bluebooks
+    # @return [Hash{String => String}] each bluebook's storage-shape hash, by name
     def shapes_of(registry)
       registry.bluebooks.to_h { |name, bluebook| [name, Runtime::StorageShape.mint_hash(bluebook)] }
     end
 
-    # @param registry [Runtime::Registry] the loaded chapters
-    # @return [Hash{String => Array<Array(String, String)>}] each chapter's edges as `[from, to]`
+    # @param registry [Runtime::Registry] the loaded bluebooks
+    # @return [Hash{String => Array<Array(String, String)>}] each bluebook's edges as `[from, to]`
     def edges_of(registry)
       registry.translations.group_by(&:domain).transform_values { |edges| pairs(edges) }
     end
@@ -81,7 +81,7 @@ module Hecks
       "#{shapes.size} chapter shapes, each the one the ledger holds"
     end
 
-    # @return [Array<String>] one line per chapter whose shape disagrees with the ledger
+    # @return [Array<String>] one line per bluebook whose shape disagrees with the ledger
     def problems(ledger, shapes, edges)
       moved = shapes.filter_map { |name, now| problem(name, ledger[name], now, edges.fetch(name, [])) }
       moved + (ledger.keys - shapes.keys).map { |name| "#{name}: in the ledger but no longer loaded; #{REWRITE}" }

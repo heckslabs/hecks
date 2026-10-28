@@ -6,7 +6,7 @@ require_relative "cache_dir"
 module Hecks
   # A `.bluebook` written as plain sentences (its first line is `Domain: <name>`) rather than in
   # the Ruby form. The Rust parser is the one reader of the sentences: it renders them as the
-  # Ruby-shaped text that declares the same chapter, and Ruby evaluates that text under the
+  # Ruby-shaped text that declares the same bluebook, and Ruby evaluates that text under the
   # sentence file's own path, so the registry records the file the author wrote.
   module SentenceForm
     # The repository root, where the parser's build lands under `rust/parser/target/`.
@@ -18,7 +18,7 @@ module Hecks
     # The first line of a tool's output, without its newline.
     FIRST_LINE = /\A[^\n]*/
 
-    # A `Hecks.bluebook "Name"` header line, or a `Domain: name` line, capturing the chapter's name.
+    # A `Hecks.bluebook "Name"` header line, or a `Domain: name` line, capturing the bluebook's name.
     CHAPTER_HEADER = /\A\s*(?:Hecks\.bluebook\s+"([^"]+)"|Domain:\s*(\S.*?)\s*\z)/
 
     # Raised when no `hecks-parse` binary can be found.
@@ -37,7 +37,7 @@ module Hecks
     end
 
     # @param path [String] a bluebook file, in either form
-    # @return [String, nil] the chapter name its header declares; a `Domain:` line is read as
+    # @return [String, nil] the bluebook name its header declares; a `Domain:` line is read as
     #   the words capitalised and joined, as the parser reads it
     def chapter_name(path)
       File.foreach(path) do |line|
@@ -59,7 +59,7 @@ module Hecks
     # The Ruby-shaped text of a sentence-form file.
     #
     # @param path [String] a sentence-form `.bluebook`
-    # @return [String] Ruby source declaring the same chapter
+    # @return [String] Ruby source declaring the same bluebook
     # @raise [ParserMissing] if `hecks-parse` is not built
     # @raise [Refused] if the sentences are not ones the parser knows
     def ruby_text(path)
@@ -74,23 +74,23 @@ module Hecks
     # follows, which the behaviors runner runs.
     EXAMPLES_EXTENSION = ".examples".freeze
 
-    # The first line of an examples file, naming the chapter the examples are about.
+    # The first line of an examples file, naming the bluebook the examples are about.
     EXAMPLES_LINE = /\A\s*Examples for:\s*(\S.*?)\s*\z/
 
     # @param path [String] a file the behaviors runner was asked to run
     # @return [Boolean] whether it is an examples file, not a `.behaviors` file
     def examples?(path) = path.to_s.end_with?(EXAMPLES_EXTENSION)
 
-    # The `.behaviors` text that runs an examples file against its chapter.
+    # The `.behaviors` text that runs an examples file against its bluebook.
     #
-    # The chapter's files are the `.bluebook` beside the examples file with the same stem or, when
+    # The bluebook's files are the `.bluebook` beside the examples file with the same stem or, when
     # there is none, every `.bluebook` there (or in a `bluebook/` folder there) that declares the
-    # chapter the examples are about.
+    # bluebook the examples are about.
     #
     # @param path [String] an examples file
     # @return [String] `.behaviors` source
     # @raise [ParserMissing] if `hecks-parse` is not built
-    # @raise [Refused] if no chapter file is found or the examples are not ones the parser accepts
+    # @raise [Refused] if no bluebook file is found or the examples are not ones the parser accepts
     def behaviors_text(path)
       chapter = examples_chapter(path)
       files = chapter_files(path, chapter)
@@ -117,7 +117,7 @@ module Hecks
       generated
     end
 
-    # The Memory-bound hecksagon that answers a chapter's asks while its examples run: the
+    # The Memory-bound hecksagon that answers a bluebook's asks while its examples run: the
     # `<name>_behaviors.hecksagon` beside the examples file, as Pizzas keeps one beside its own.
     #
     # @param path [String] an examples file
@@ -127,7 +127,7 @@ module Hecks
       wiring if File.file?(wiring)
     end
 
-    # @return [String] the chapter an examples file's first line names, capitalised and joined
+    # @return [String] the bluebook an examples file's first line names, capitalised and joined
     def examples_chapter(path)
       line = File.foreach(path).find { |text| text.match?(EXAMPLES_LINE) }
       raise Refused, "#{path}: no `Examples for: <chapter>` line" unless line
@@ -156,11 +156,11 @@ module Hecks
       sentences ? load(path) : Kernel.load(path)
     end
 
-    # Declares the chapter a sentence-form file holds, in the registry now current.
+    # Declares the bluebook a sentence-form file holds, in the registry now current.
     #
     # The Ruby text is loaded from a file of its own, because a predicate's source is recovered
     # from the file it was written in; the registry then records the sentence file as the
-    # chapter's source, not the generated one.
+    # bluebook's source, not the generated one.
     #
     # @param path [String] a sentence-form `.bluebook`
     # @return [void]

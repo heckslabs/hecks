@@ -2,7 +2,7 @@ module Hecks
   module Bluebook
     # An attribute that points at another aggregate's head.
     #
-    # Holds the target name and resolves lazily through the chapter's own IR, since
+    # Holds the target name and resolves lazily through the bluebook's own IR, since
     # `reference_to` may name an aggregate declared later in the file.
     # `to_s` spells `"Reference<Customer>"`, which the export contract pins.
     class Reference
@@ -20,9 +20,9 @@ module Hecks
       # The Aggregate this points at, or nil when the target belongs to another domain.
       #
       # @return [Bluebook::Aggregate, nil] the target aggregate, or `nil` when
-      #   `declared_in`'s own chapter does not declare one by this name
+      #   `declared_in`'s own bluebook does not declare one by this name
       # @raise [DSL::Malformed] if `declared_in` is unset, so there is no
-      #   chapter to resolve the target against
+      #   bluebook to resolve the target against
       def resolve
         unless declared_in
           raise DSL::Malformed,

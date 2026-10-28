@@ -16,10 +16,10 @@ module Hecks
       # from its queries, a detail page per instance and a form per command.
       #
       # It is generic by aggregate. The pages and forms are not written per aggregate; they read
-      # `src/schema.ts`, which is the domain chapter's aggregates, attributes, value objects,
+      # `src/schema.ts`, which is the domain bluebook's aggregates, attributes, value objects,
       # lifecycles, commands and queries as one typed constant. The domain holds no editor data: the
       # editor reads and dispatches through the host like any other client, and the output is a pure
-      # function of the chapter and the `Editor` row, so `--check` can hold it current.
+      # function of the bluebook and the `Editor` row, so `--check` can hold it current.
       module CmsEditor
         extend Projector::Target
 
@@ -45,14 +45,14 @@ module Hecks
           src/ui/blocks.ts src/ui/block_list.js src/browser/blocks.js
         ].freeze
 
-        # The files only an editor of a chapter with a picture aggregate has: the upload, the
+        # The files only an editor of a bluebook with a picture aggregate has: the upload, the
         # storage port with its local-disk adapter, and the picker the rich-text editor opens.
         MEDIA_FILES = %w[
           src/media/sniff.ts src/media/multipart.ts src/media/storage.ts src/media/handler.ts src/browser/media_picker.js
         ].freeze
 
         # What `app.ts` and the body editor hold for a picture upload; each is left out when the
-        # chapter has none.
+        # bluebook has none.
         MEDIA_LINES = {
           "__MEDIA_IMPORT__"  => ["import { mediaHandler, mediaOpen } from \"./media/handler.ts\";",
                                   "import type { MediaStorage } from \"./media/storage.ts\";"].join("\n"),
@@ -69,16 +69,16 @@ module Hecks
 
         # Renders the editor's files for a project that declares an `Editor` row.
         #
-        # @param bluebook [Bluebook::Chapter] the chapter that declares the route table and the row
-        # @param options [Hash{Symbol => Object}] `:domain_chapters` the chapters to edit, in the
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table and the row
+        # @param options [Hash{Symbol => Object}] `:domain_chapters` the bluebooks to edit, in the
         #   order the row names them (`:domain_chapter` for one);
-        #   `:media_chapter` the chapter the row's `media` names, whose picture aggregate the
+        #   `:media_chapter` the bluebook the row's `media` names, whose picture aggregate the
         #   pictures use; `:table` the checked route table, when the login page is to be checked
         #   against it
         # @return [Hash{String => String}] each file's path relative to the editor's directory to
         #   its text; empty when the project declares no `Editor` row
         # @raise [Table::Invalid] when the row is refused
-        # @raise [ArgumentError] when the chapter has no aggregate to edit
+        # @raise [ArgumentError] when the bluebook has no aggregate to edit
         def call(bluebook:, options: {})
           setting = Setting.read(bluebook, table: options[:table])
           return {} unless setting
@@ -95,7 +95,7 @@ module Hecks
           setting.tokens.merge(look_tokens(setting, schema), "__SCHEMA__" => Pretty.generate(schema), **media_tokens(media))
         end
 
-        # @param media [Boolean] whether the chapter has a picture aggregate
+        # @param media [Boolean] whether the bluebook has a picture aggregate
         # @return [Hash{String => String}] each media placeholder to its text, empty when none
         def media_tokens(media)
           return MEDIA_LINES if media
@@ -104,7 +104,7 @@ module Hecks
         end
 
         # @param setting [Setting] the checked row
-        # @param schema [Hash{String => Object}] the chapter as the editor reads it
+        # @param schema [Hash{String => Object}] the bluebook as the editor reads it
         # @return [Hash{String => String}] the brand, the icon sprite and the theme's colours
         def look_tokens(setting, schema)
           { "__BRAND__" => JSON.generate(setting.brand || schema["domain"]), "__ICONS__" => Icons.sprite,

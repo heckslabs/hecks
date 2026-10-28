@@ -7,12 +7,12 @@ module Hecks
     # What the `DomainRuntime` port's adapter does when an `Operation` asks it to give a domain its
     # first administrator.
     module InProcessAccess
-      # Boots the domain and grants the first administrator through its membership chapter.
+      # Boots the domain and grants the first administrator through its membership bluebook.
       #
       # @param held [Hash] the `Operation` record: `subject` (the domain), `email`, and optionally
       #   `name` and `role`
       # @return [Hash{Symbol => Hash}] `output:` the sentence saying who now holds which role
-      # @raise [Runtime::NotFound] if the domain cannot be found or has no membership chapter, or an
+      # @raise [Runtime::NotFound] if the domain cannot be found or has no membership bluebook, or an
       #   administrator already exists
       def bootstrap(**held)
         result = FirstAdmin.new(boot(held[:subject])).call(

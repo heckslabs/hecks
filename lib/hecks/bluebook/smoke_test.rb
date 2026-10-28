@@ -57,7 +57,7 @@ module Hecks
       # @param domain [String] the domain name to smoke-test, a key of
       #   `dispatcher.registry.bluebooks`
       # @return [Array<Failure>] every dispatch or query failure collected, in
-      #   declaration order; empty when `domain` names no loaded chapter or
+      #   declaration order; empty when `domain` names no loaded bluebook or
       #   nothing failed
       def smoke_domain(dispatcher, domain)
         chapter = dispatcher.registry.bluebook(domain)

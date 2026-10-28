@@ -29,7 +29,7 @@ module Hecks
         "#{lines.join("\n")}\n"
       end
 
-      # Reads the plain interview out of an `Interview` record booted from the SME chapter.
+      # Reads the plain interview out of an `Interview` record booted from the SME bluebook.
       #
       # @param interview [Object] the booted record
       # @return [Hash] the plain interview this module takes: `reference`, `subject`, `expert`,

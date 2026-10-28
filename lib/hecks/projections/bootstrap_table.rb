@@ -2,12 +2,12 @@ require_relative "../projector"
 
 module Hecks
   module Projections
-    # Projects lib/hecks/bluebook/dsl/bootstrap_table.rb from the chapter's Keyword rows.
+    # Projects lib/hecks/bluebook/dsl/bootstrap_table.rb from the bluebook's Keyword rows.
     # Committed, not built at boot: it is read before the grammar table exists.
     #
-    #   Projector.call(:bootstrap_table, bluebook: <the Bluebook chapter>)
+    #   Projector.call(:bootstrap_table, bluebook: <the Bluebook bluebook>)
     #
-    # Every live row is included, not only those a bootstrap chapter calls.
+    # Every live row is included, not only those a bootstrap bluebook calls.
     module BootstrapTable
       extend Projector::Target
 

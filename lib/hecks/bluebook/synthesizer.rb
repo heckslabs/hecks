@@ -13,7 +13,7 @@ module Hecks
       # Synthesizes arguments for `command`. A reference whose target is not in `created`
       # gets a placeholder id.
       #
-      # @param chapter [Bluebook::Chapter] resolves value object type names to their shapes
+      # @param bluebook [Bluebook::Chapter] resolves value object type names to their shapes
       # @param aggregate [Bluebook::Aggregate] the aggregate `command` belongs to
       # @param command [Class] the `Bluebook::Command` subclass to synthesize arguments for
       # @param created [Hash{String => Object}] aggregate name mapped to an id minted earlier
@@ -31,7 +31,7 @@ module Hecks
       # Synthesizes a value object: its first member if a closed set, else one value per field.
       # Falls back to searching every aggregate, since a value object need not be local.
       #
-      # @param chapter [Bluebook::Chapter] the chapter to search when
+      # @param bluebook [Bluebook::Chapter] the bluebook to search when
       #   `type_name` is not declared on `aggregate` itself
       # @param aggregate [Bluebook::Aggregate] the aggregate `type_name` is
       #   looked up on first
@@ -61,7 +61,7 @@ module Hecks
 
       # A field's value: a scalar for a primitive type, otherwise the nested value object.
       #
-      # @param chapter [Bluebook::Chapter] see `value_for`
+      # @param bluebook [Bluebook::Chapter] see `value_for`
       # @param aggregate [Bluebook::Aggregate] see `value_for`
       # @param type_name [String] the field's declared type name
       # @return [Integer, Float, true, false, String, Hash{Symbol => Object}] a

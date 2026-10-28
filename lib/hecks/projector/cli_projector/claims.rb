@@ -4,7 +4,7 @@ module Hecks
   module Projector
     module CliProjector
       # The command-line names of a projection: who claims which name, how a command is
-      # qualified, and the launcher names a chapter gives its commands.
+      # qualified, and the launcher names a bluebook gives its commands.
       module Claims
         # Claims the commands and questions of one aggregate and its entities and ports.
         #
@@ -34,7 +34,7 @@ module Hecks
           end
         end
 
-        # Claims each report under its chapter-qualified name. A report belongs to the chapter,
+        # Claims each report under its chapter-qualified name. A report belongs to the bluebook,
         # not an aggregate, so it is addressed `Chapter.Report` (one dot) where a query is
         # `Chapter::Aggregate.Query`.
         def claim_reports(questions, bluebook)
@@ -69,7 +69,7 @@ module Hecks
         # Sets the display name of every spec in each map: its full name, then renamed by `names`.
         #
         # @param maps [Array<Hash{String => Hash}>] the command and question maps, mutated in place
-        # @param names [Hash, nil] the chapter's launcher names
+        # @param names [Hash, nil] the bluebook's launcher names
         # @return [void]
         def display_names(maps, names)
           maps.each do |specs|
@@ -78,7 +78,7 @@ module Hecks
           end
         end
 
-        # Gives a command the launcher name a chapter's `names` table assigns it.
+        # Gives a command the launcher name a bluebook's `names` table assigns it.
         #
         # The alias replaces the short name in help, so it is listed once; the spelling it
         # replaced keeps working (`:short_was`, read by `aliases`). A table entry naming no

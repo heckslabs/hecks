@@ -27,7 +27,7 @@ module Hecks
 
       module_function
 
-      # Parses every bluebook in a staged workspace, one chapter at a time.
+      # Parses every bluebook in a staged workspace, one bluebook at a time.
       #
       # @param stage [String] a staged directory (see {Workspace.stage})
       # @return [Hash, nil] nil when everything parses; otherwise `{file:, line:, message:,
@@ -42,7 +42,7 @@ module Hecks
       end
 
       # @param stage [String] a staged directory
-      # @return [Hash{String => Array<String>}] relative bluebook paths by the chapter their
+      # @return [Hash{String => Array<String>}] relative bluebook paths by the bluebook their
       #   header names
       def bluebooks(stage)
         bluebook_files(stage).group_by { |relative| chapter_name(File.join(stage, relative)) }

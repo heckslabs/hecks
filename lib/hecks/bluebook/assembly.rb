@@ -1,25 +1,25 @@
 module Hecks
   module Bluebook
     # Builds the runtime graph (aggregates, read models, process managers) from
-    # a chapter's declared hash — the pure inverse of `Chapter#to_h`.
+    # a bluebook's declared hash — the pure inverse of `Chapter#to_h`.
     class Assembly
-      # Builds the graph the runtime runs from one chapter's declared hash.
+      # Builds the graph the runtime runs from one bluebook's declared hash.
       #
-      # @param declaration [Hash{Symbol => Object}] a chapter's declarations, in the
+      # @param declaration [Hash{Symbol => Object}] a bluebook's declarations, in the
       #   shape `Chapter#to_h` spells
-      # @return [Bluebook::Chapter] the assembled chapter, with its aggregates, read
+      # @return [Bluebook::Chapter] the assembled bluebook, with its aggregates, read
       #   models and process managers built and wired
       def self.call(declaration) = new(declaration).bluebook
 
-      # @param declaration [Hash{Symbol => Object}] a chapter's declarations, in the
+      # @param declaration [Hash{Symbol => Object}] a bluebook's declarations, in the
       #   shape `Chapter#to_h` spells
       def initialize(declaration)
         @declaration = declaration
       end
 
-      # Assembles this instance's declared hash into the chapter's runtime graph.
+      # Assembles this instance's declared hash into the bluebook's runtime graph.
       #
-      # @return [Bluebook::Chapter] the assembled chapter, with its aggregates, read
+      # @return [Bluebook::Chapter] the assembled bluebook, with its aggregates, read
       #   models and process managers built and wired
       def bluebook
         aggregates = Array(@declaration[:aggregates]).map { |row| AggregateAssembly.new(row).aggregate }
@@ -36,7 +36,7 @@ module Hecks
 
       private
 
-      # Hoists each reaction onto the chapter (for the runtime) and also back onto
+      # Hoists each reaction onto the bluebook (for the runtime) and also back onto
       # the aggregate head that declared it, per the language's own record of which.
       def reactions(aggregates)
         Array(@declaration[:policies]).map { |row| Build.call("Policy", row) }.each do |reaction|

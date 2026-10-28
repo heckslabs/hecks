@@ -4,7 +4,7 @@ module Hecks
     # the evaluator's parse of each canonical expression. Extended onto `Hecks::Grammar`.
     module Operators
       # The operators the language's own guards and invariants (Bluebook, World and
-      # the grammar chapters) evaluate through. Retiring one would leave the
+      # the grammar bluebooks) evaluate through. Retiring one would leave the
       # language unable to read its own rules, so callers refuse it by name.
       #
       # @return [Hash{String => Array<String>}] each self-bearing operator symbol
@@ -22,7 +22,7 @@ module Hecks
         sites.transform_values(&:uniq)
       end
 
-      # @return [Array<Class>] the Bluebook and World chapters plus every grammar chapter
+      # @return [Array<Class>] the Bluebook and World bluebooks plus every grammar bluebook
       def language_chapters
         chapters = Bluebook::MetaValidator.grammar_registry
                                           .then { |reg| %w[Bluebook World].map { |name| reg.bluebook(name) } }
@@ -47,9 +47,9 @@ module Hecks
         end
       end
 
-      # Every grammar/*.bluebook chapter, each booted alone in a scratch registry.
+      # Every grammar/*.bluebook file, each booted alone in a scratch registry.
       #
-      # @return [Array<Class>] each grammar chapter, booted alone in its own scratch
+      # @return [Array<Class>] each grammar bluebook, booted alone in its own scratch
       #   registry
       def grammar_chapters
         Dir[File.join(Grammar::DIR, "*.bluebook")].map do |chapter|

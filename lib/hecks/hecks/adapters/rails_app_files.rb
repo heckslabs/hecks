@@ -9,7 +9,7 @@ module Hecks
     # `Workspace` port's `ProjectRails` question.
     #
     # The domain is read from the app's `bluebook/` without binding an adapter or opening a store.
-    # Each of the app's own chapters gives its controllers; a chapter a hecksagon only attaches
+    # Each of the app's own bluebooks gives its controllers; a bluebook a hecksagon only attaches
     # (Governance, Identity) gives none. A file already in the app is the app's own, so it is
     # reported and left alone.
     class RailsAppFiles
@@ -21,7 +21,7 @@ module Hecks
       # Writes every file the app does not have yet and reports each one.
       #
       # @return [String] one line per file: `wrote <path>` or `kept <path>`
-      # @raise [ConsoleCapture::Failure] when the app has no `bluebook/` or it declares no chapter
+      # @raise [ConsoleCapture::Failure] when the app has no `bluebook/` or it declares no bluebook
       def call
         files = projected_files
         raise ConsoleCapture::Failure, "no chapter declared under #{bluebook_dir}" if files.empty?
@@ -42,8 +42,8 @@ module Hecks
         end
       end
 
-      # The app's chapters: every chapter the boot loaded except a framework member or another
-      # chapter a hecksagon only attaches.
+      # The app's chapters: every bluebook the boot loaded except a framework member or another
+      # bluebook a hecksagon only attaches.
       def own_chapters
         registry = Hecks.describe(bluebook_dir, environment: nil).registry
         registry.bluebooks.values.reject do |chapter|

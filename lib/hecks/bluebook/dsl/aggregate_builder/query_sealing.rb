@@ -100,7 +100,7 @@ module Hecks
 
           # A symbolic right-hand side is a query input; when the compared path lands on this
           # owner's shape its type is known, so no `attribute` line is needed. Reference hops
-          # are inferred later by BluebookBuilder, once the chapter is owner-stamped.
+          # are inferred later by BluebookBuilder, once the bluebook is owner-stamped.
           def infer_local_query_argument(scope, clause)
             name = clause.value
             query = scope.query

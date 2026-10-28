@@ -49,7 +49,7 @@ module Hecks
         # @return [Array<Symbol>] every secret declared so far, this one last
         def secret(name) = @secrets << name.to_sym
 
-        # Names one query this adapter answers, qualified by its chapter and aggregate.
+        # Names one query this adapter answers, qualified by its bluebook and aggregate.
         #
         # @param name [String] the query, such as `"Calendar::Event.Occurrences"`
         # @return [Array<String>] every query named so far, this one last

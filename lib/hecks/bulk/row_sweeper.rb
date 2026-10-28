@@ -26,7 +26,7 @@ module Hecks
 
       private
 
-      # A row's outcome in the shape the chapter's `RowResult` holds.
+      # A row's outcome in the shape the bluebook's `RowResult` holds.
       def row_result(row)
         { row: row[:row], outcome: row[:delivered] ? "delivered" : "refused", reason: row[:reason] }.compact
       end

@@ -59,7 +59,7 @@ module Hecks
 
         # A launcher name in the bluebook's verb form: the aggregate as the bluebook spells it, then
         # the rest of the name (`push_train.board` as `PushTrain.board`). A name that does not start
-        # with its aggregate, such as a short name a chapter gave a command, is left as it is.
+        # with its aggregate, such as a short name a bluebook gave a command, is left as it is.
         def verb_form(spec, name)
           group = spec[:group]
           return name unless group && name.start_with?("#{Naming.snake(group)}.")
@@ -68,7 +68,7 @@ module Hecks
         end
 
         # A spec's name as listed: under its aggregate's heading the aggregate prefix is left out.
-        # A command the chapter gives a short name (`mcp`) is listed by its real name, so the
+        # A command the bluebook gives a short name (`mcp`) is listed by its real name, so the
         # heading and the line still spell a call; `alias_note` says the short name.
         def entry_name(spec, grouped)
           name = label(spec, real: true)
@@ -77,7 +77,7 @@ module Hecks
           name.delete_prefix("#{spec[:group]}.")
         end
 
-        # " (also: mcp!)" for a spec the chapter gave a short name, else nothing. A short name that
+        # " (also: mcp!)" for a spec the bluebook gave a short name, else nothing. A short name that
         # is only the command's own name (`init` for `launch.init`) is already in the line.
         def alias_note(spec)
           return "" if spec[:short_was].nil? || spec[:short_was].split(".").last == spec[:short]
@@ -86,7 +86,7 @@ module Hecks
         end
 
         # A command is written with the `!` that marks it; a query without one. Both are in the
-        # verb form. With `real:`, a short name the chapter gave it gives way to the name it was
+        # verb form. With `real:`, a short name the bluebook gave it gives way to the name it was
         # given for.
         def label(spec, real: false)
           name = verb_form(spec, real && spec.key?(:short_was) ? spec[:short_was] : spec[:short])

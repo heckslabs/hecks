@@ -6,7 +6,7 @@ module Hecks
       # The checks over `ask`: one that resolves to no declared port operation, a port trigger
       # that should be an ask, and a declared ask no policy reaches.
       module AskChecks
-        # @param bluebook [Bluebook::Chapter] the chapter the policy is declared in
+        # @param bluebook [Bluebook::Chapter] the bluebook the policy is declared in
         # @param policy [Bluebook::Policy] the policy to check
         # @return [Finding, nil] an error for an `ask` that names no declared ask (or an
         #   ambiguous one), a warning for a `trigger` that names a port operation, else `nil`
@@ -21,7 +21,7 @@ module Hecks
 
         # A port operation no policy reaches, by `ask` or by a trigger that names it.
         #
-        # @param bluebook [Bluebook::Chapter] the chapter whose aggregates declare the ports
+        # @param bluebook [Bluebook::Chapter] the bluebook whose aggregates declare the ports
         # @return [Array<Finding>] one warning per outbound operation nothing asks
         def unused_ask_findings(bluebook)
           reached = reached_port_verbs(bluebook)

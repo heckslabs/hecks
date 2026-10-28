@@ -66,7 +66,7 @@ module Hecks
               aggregate.commands.map { |c| "#{Naming.snake(c.hecks_name)}!" }.sort
             end
             mod.define_singleton_method(:queries) { aggregate.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
-            # This chapter's own `:docs` projection, narrowed to this aggregate.
+            # This bluebook's own `:docs` projection, narrowed to this aggregate.
             mod.define_singleton_method(:docs) do |**options|
               Projector.call(:docs, bluebook: dispatcher.registry.bluebook(domain),
                                     options:  options.merge(aggregate: aggregate.hecks_name))

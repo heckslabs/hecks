@@ -4,7 +4,7 @@ module Hecks
       class BluebookBuilder
         module Validation
           # Checks every `provides` row of a chapter: against `Capabilities::CONTRACTS` for a
-          # capability the language defines, and against the chapter itself for one its package
+          # capability the language defines, and against the bluebook itself for one its package
           # declares.
           module Provisions
             private
@@ -56,7 +56,7 @@ module Hecks
                                "which names no #{kind} this chapter declares (spelled \"Aggregate.#{kind.capitalize}\")"
             end
 
-            # A package-declared key must name exactly one thing the chapter declares; which kind it
+            # A package-declared key must name exactly one thing the bluebook declares; which kind it
             # names is what the reader of the capability is handed (`Capabilities.resolved_value`).
             def validate_package_provision!(bluebook, capability, row)
               kinds = Capabilities.kinds_of(bluebook, row.verb)

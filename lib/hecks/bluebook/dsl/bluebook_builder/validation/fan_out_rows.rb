@@ -10,7 +10,7 @@ module Hecks
 
             # The names a row of the policy's `for_each` query carries: the row's id, the
             # aggregate's attributes, lifecycle field and projected fields, and the key the
-            # trigger addresses a row by. Nil when the query's aggregate is not in this chapter,
+            # trigger addresses a row by. Nil when the query's aggregate is not in this bluebook,
             # which leaves the source unchecked.
             #
             # @return [Array<Symbol>, nil]

@@ -5,7 +5,7 @@ module Hecks
       module Statecharts
         module_function
 
-        # @param bluebook [Bluebook::Chapter] the assembled chapter
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook
         # @param holder [Object] an aggregate or entity with a lifecycle
         # @return [String] the lifecycle's states and the commands that move between them
         def lifecycle_diagram(bluebook, holder)
@@ -22,7 +22,7 @@ module Hecks
           MERMAID
         end
 
-        # @param bluebook [Bluebook::Chapter] the assembled chapter
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook
         # @param saga [Object] a process manager
         # @return [String] the saga's states and what each transition dispatches
         def saga_diagram(bluebook, saga)

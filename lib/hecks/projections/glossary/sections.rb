@@ -7,7 +7,7 @@ module Hecks
       ROLES       = "Roles".freeze
       READ_MODELS = "Read models".freeze
       # Where a term lands when the fact it hangs on is raised by nothing
-      # this chapter declares — pizzas' `PizzaPaymentReceived` comes in
+      # this bluebook declares — pizzas' `PizzaPaymentReceived` comes in
       # through a port, so the policy reacting to it homes to no
       # aggregate. Shown, not dropped: a visible blank is how a reader
       # learns the language has a gap there.

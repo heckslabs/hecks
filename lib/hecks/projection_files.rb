@@ -13,7 +13,7 @@ module Hecks
   #
   # The tables of the language (the model's holding half, the vocabulary, the parser's keywords, the
   # Rust vocabulary, reserved names, field hints, the expression tables and the DSL reference) are
-  # projected from the Bluebook chapter's own declarations. Building them apart from writing them
+  # projected from the Bluebook bluebook's own declarations. Building them apart from writing them
   # lets a caller compare a projection with the tree before anything is changed: a
   # `hecks project_*` verb writes the answer, and the Hecks domain's Language commands report
   # drift and write only when confirmed.
@@ -102,7 +102,7 @@ module Hecks
     end
 
     # @param root [String] the checkout
-    # @return [Result] the model's holding half, one file for each thing the chapter holds
+    # @return [Result] the model's holding half, one file for each thing the bluebook holds
     def model(root)
       require "hecks"
       files = Projector.call(:model, bluebook: chapter)
@@ -191,13 +191,13 @@ module Hecks
     end
 
     # @param projection [Symbol] a projection registered with the projector
-    # @return [String] what it projects from the Bluebook chapter, as the text a file holds
+    # @return [String] what it projects from the Bluebook bluebook, as the text a file holds
     def artifact_text(projection)
       artifact = Projector.call(projection, bluebook: chapter)
       artifact.is_a?(String) ? artifact : "#{JSON.pretty_generate(artifact)}\n"
     end
 
-    # @return [Bluebook::Aggregate] the Bluebook chapter, which every projection reads
+    # @return [Bluebook::Aggregate] the Bluebook bluebook, which every projection reads
     def chapter
       Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
     end

@@ -69,7 +69,7 @@ module Hecks
           def points_at(row, aggregate_id)
             return nil unless row.reference?
 
-            # Built the same way an aggregate id itself is built (chapter +
+            # Built the same way an aggregate id itself is built (bluebook +
             # name), because `repository.find` resolves against that same id.
             Naming.identity([aggregate_id.split(Naming::IDENTITY_JOIN).first, row.target_name])
           end
@@ -78,7 +78,7 @@ module Hecks
           # can't tell 0.0 from a string); `nil` stays `nil`, a real answer.
           def encode_literal(value) = value.nil? ? nil : Literal.render(value)
 
-          # The inverse of `points_at`: strips the id's chapter prefix, joined
+          # The inverse of `points_at`: strips the id's bluebook prefix, joined
           # with `Naming::IDENTITY_JOIN` rather than the wire format's `::`.
           def reference_type(points_at_id) = "Reference<#{points_at_id.to_s.split(Naming::IDENTITY_JOIN).last}>"
 
