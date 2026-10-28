@@ -6,13 +6,25 @@ Hecks.bluebook "ContextMap" do
 
     # What the map's body fills: the contexts it names, the relationships between them and the
     # pairs declared apart, each written as the builder reads it.
-    attribute :contexts,      String
-    attribute :relationships, String
-    attribute :separate_ways, String
+    attribute :contexts,      ContextBody
+    attribute :relationships, RelationshipBody
+    attribute :separate_ways, SeparateWaysBody
 
     value_object "MapName" do
       attribute :value, String
       invariant("a context map names its system") { !value.to_s.empty? }
+    end
+
+    value_object "ContextBody" do
+      attribute :value, String
+    end
+
+    value_object "RelationshipBody" do
+      attribute :value, String
+    end
+
+    value_object "SeparateWaysBody" do
+      attribute :value, String
     end
 
     command "Declare" do
