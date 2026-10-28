@@ -3,6 +3,7 @@ require "stringio"
 require_relative "../../ports/identity_generation"
 require_relative "../../runtime/errors"
 require_relative "cli"
+require_relative "launcher_bluebook_keys"
 require_relative "../../text"
 
 module Hecks
@@ -89,18 +90,9 @@ module Hecks
         def audience(settings, maintainer)
           return {} unless settings
 
-          named = names_under(settings, :bluebooks, :chapters)
-          named += names_under(settings, :maintainer_bluebooks, :maintainer_chapters) if maintainer
-          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: named.map(&:to_s) }
-        end
-
-        # @param settings [Hash] the bluebook's `launcher` setting
-        # @param key [Symbol] the key that names bluebooks
-        # @param retired [Symbol] its retired spelling, still read
-        # @return [Array<String>] the names under both keys
-        def names_under(settings, key, retired)
-          warn "hecks: the launcher setting #{retired} is deprecated, use #{key}" if settings.key?(retired)
-          Array(settings[key]) + Array(settings[retired])
+          named = LauncherBluebookKeys.names(settings, :bluebooks, :chapters)
+          named += LauncherBluebookKeys.names(settings, :maintainer_bluebooks, :maintainer_chapters) if maintainer
+          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: named }
         end
 
         # Runs the block with standard error held back, so the wiring notes hecks prints about its
