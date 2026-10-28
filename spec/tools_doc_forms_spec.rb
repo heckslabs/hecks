@@ -26,7 +26,7 @@ RSpec.describe Hecks::Tools::ToolsDoc do
   it "spells the verbs the launcher names its own way by that name", :aggregate_failures do
     expect(forms.fetch("console")).to start_with("hecks console")
     expect(forms.fetch("hecks_mcp_door")).to start_with("hecks mcp")
-    expect(forms.fetch("stores")).to eq("hecks stores <domain>")
+    expect(forms.fetch("stores")).to eq("hecks stores <domain> [aggregate=] [record=] [--flat]")
     expect(forms.fetch("model_check")).to include("[--strict]")
   end
 

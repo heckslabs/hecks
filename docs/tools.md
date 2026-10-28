@@ -26,7 +26,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 |---|---|
 | `hecks ir [<domain>] [--translations] [--meta]` | `bin/ir` |
 | `hecks introspection.shape <domain>` | `bin/shape` |
-| `hecks stores <domain>` | `bin/stores` |
+| `hecks stores <domain> [aggregate=] [record=] [--flat]` | `bin/stores` |
 | `hecks introspection.history <domain>` | `bin/history` |
 | `hecks introspection.statements <domain> bluebook=` | `bin/statements` |
 | `hecks narrate [<domain>] [aggregate=]` | `bin/narrate` |
