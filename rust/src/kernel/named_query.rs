@@ -61,6 +61,21 @@ pub enum QueryConditionValue {
     /// A caller-bound attribute name, read from the call's `args`; a missing key reads as
     /// `Json::Null`, as Ruby's `resolve_query_value` does.
     Arg(&'static str),
+    /// `where(field: nil)`: resolves to `Json::Null`, which a field that is unset or null equals,
+    /// as `nil == nil` holds in Ruby. Emitted for an `eq`/`ne` against nil.
+    Null,
+}
+
+impl QueryConditionValue {
+    /// The operand this condition compares a row's field against, before `comparable` reduces it.
+    pub fn resolve(self, args: &Json) -> Json {
+        match self {
+            Self::Literal(text) => Json::Str(text.to_string()),
+            Self::NumericLiteral(n) => Json::Num(n, None),
+            Self::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
+            Self::Null => Json::Null,
+        }
+    }
 }
 
 /// Runs a declared query: chained `filter_entries` per condition (keeping id order), then
@@ -101,11 +116,7 @@ pub fn run_cross_domain(
         .conditions
         .iter()
         .map(|condition| {
-            let want = match condition.value {
-                QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-                QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
-                QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
-            };
+            let want = condition.value.resolve(args);
             (condition, super::query_comparators::comparable(&want))
         })
         .collect();
@@ -243,11 +254,7 @@ pub fn run_entity(
     }
 
     for condition in def.conditions {
-        let want = match condition.value {
-            QueryConditionValue::Literal(text) => Json::Str(text.to_string()),
-            QueryConditionValue::NumericLiteral(n) => Json::Num(n, None),
-            QueryConditionValue::Arg(name) => args.get(name).cloned().unwrap_or(Json::Null),
-        };
+        let want = condition.value.resolve(args);
         entries = repository::filter_entries(entries, condition.field, condition.comparator, &want);
     }
 
@@ -400,5 +407,75 @@ mod cursor_tests {
                 after: None
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod null_condition_tests {
+    use super::{run, AggregateScan, QueryCondition, QueryConditionValue, QueryDef};
+    use crate::kernel::query_comparators::QueryComparator;
+    use crate::kernel::Json;
+
+    struct Rows(Vec<(String, Json)>);
+
+    impl AggregateScan for Rows {
+        fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+            (aggregate == "Grant").then(|| self.0.clone())
+        }
+    }
+
+    const EQ_NULL: &[QueryCondition] = &[QueryCondition {
+        field: "ends_at",
+        comparator: QueryComparator::Eq,
+        value: QueryConditionValue::Null,
+    }];
+    const NE_NULL: &[QueryCondition] = &[QueryCondition {
+        field: "ends_at",
+        comparator: QueryComparator::Ne,
+        value: QueryConditionValue::Null,
+    }];
+
+    fn query(conditions: &'static [QueryCondition]) -> QueryDef {
+        QueryDef {
+            verb: "Grant.Live",
+            aggregate: "Grant",
+            conditions,
+            reference_hop_conditions: &[],
+            order_by: None,
+            offset: None,
+            limit: None,
+            cursor: false,
+            authorization: None,
+        }
+    }
+
+    fn rows() -> Rows {
+        let ended = Json::obj(vec![(
+            "ends_at",
+            Json::obj(vec![("value", Json::str("2026-01-01".to_string()))]),
+        )]);
+        let null = Json::obj(vec![("ends_at", Json::Null)]);
+        let absent = Json::obj(vec![("role", Json::str("Admin".to_string()))]);
+        Rows(vec![
+            ("ended".to_string(), ended),
+            ("null".to_string(), null),
+            ("absent".to_string(), absent),
+        ])
+    }
+
+    fn ids(conditions: &'static [QueryCondition]) -> Vec<String> {
+        let found = run(&rows(), &query(conditions), &Json::obj(vec![]), None).unwrap();
+        found.into_iter().map(|(id, _)| id).collect()
+    }
+
+    // `where(ends_at: nil)`: a field that is null or unset equals nil, as in Ruby.
+    #[test]
+    fn eq_null_keeps_the_rows_whose_field_is_null_or_unset() {
+        assert_eq!(ids(EQ_NULL), ["absent", "null"]);
+    }
+
+    #[test]
+    fn ne_null_keeps_the_rows_whose_field_is_set() {
+        assert_eq!(ids(NE_NULL), ["ended"]);
     }
 }

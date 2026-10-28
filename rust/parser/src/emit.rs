@@ -280,10 +280,11 @@ fn given_json(g: &ir::Given) -> JsonValue {
     ])
 }
 
-/// `IR::Aggregate#to_h`'s `acknowledgements:` entry: `{finding:, reason:}`.
+/// `IR::Aggregate#to_h`'s `acknowledgements:` entry: `{finding:, subject:, reason:}`.
 fn acknowledgement_json(a: &ir::Acknowledgement) -> JsonValue {
     JsonValue::Object(vec![
         ("finding".to_string(), JsonValue::str(a.finding.clone())),
+        ("subject".to_string(), JsonValue::str(a.subject.clone())),
         ("reason".to_string(), JsonValue::str(a.reason.clone())),
     ])
 }

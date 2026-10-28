@@ -22,6 +22,7 @@ RSpec.describe Hecks::Projector::Exporter do
     provider:             "Governance",
     grant:                "Governance::RoleAssignment.Assign",
     assignments:          "Governance::RoleAssignment.AssignmentsForActor",
+    live_assignments:     "Governance::RoleAssignment.LiveAssignmentsForActor",
     assignment_aggregate: "Governance::RoleAssignment"
   }.freeze
 

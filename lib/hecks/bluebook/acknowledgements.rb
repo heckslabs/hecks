@@ -4,7 +4,12 @@ module Hecks
     # reason, and a kind the check really emits (ADR 0150).
     module Acknowledgements
       # The finding kinds an aggregate may acknowledge.
-      AGGREGATE_KINDS = %i[large_aggregate].freeze
+      AGGREGATE_KINDS = %i[large_aggregate key_by_value orphaned_reference].freeze
+
+      # The kinds that are reported once per attribute or per referenced aggregate, so an
+      # acknowledgement of one names which (`of:`): the attribute for `key_by_value`, the
+      # referenced aggregate for `orphaned_reference`.
+      SUBJECT_KINDS = %i[key_by_value orphaned_reference].freeze
 
       # The finding kinds a context-map relationship may acknowledge: those about the relationship
       # itself. An undeclared coupling or a separate-ways breach has no relationship to carry the
@@ -25,6 +30,29 @@ module Hecks
         kind
       end
 
+      # @param owner [String] the declaration carrying the word, for the message
+      # @param kind [Symbol] the kind being acknowledged
+      # @param subject [Symbol, String, nil] what `of:` named
+      # @return [String, nil] the subject as text, once the kind and subject agree
+      # @raise [DSL::Malformed] if a per-subject kind names none, or another kind names one
+      def self.subject!(owner, kind, subject)
+        named = subject.to_s unless subject.nil? || subject.to_s.strip.empty?
+        return named if SUBJECT_KINDS.include?(kind) == !named.nil?
+
+        raise DSL::Malformed, subject_message(owner, kind)
+      end
+
+      # @return [String] why the subject and the kind disagree
+      def self.subject_message(owner, kind)
+        if SUBJECT_KINDS.include?(kind)
+          "#{owner} acknowledges :#{kind} without saying which — add `of:` naming the " \
+            "#{kind == :key_by_value ? "attribute" : "referenced aggregate"} it is for"
+        else
+          "#{owner} acknowledges :#{kind} with `of:`, which names a subject only :key_by_value and " \
+            ":orphaned_reference have"
+        end
+      end
+
       # @raise [DSL::Malformed] always, naming the kinds that can be acknowledged
       def self.refuse_kind!(owner, kind, among)
         raise DSL::Malformed,
@@ -40,9 +68,13 @@ module Hecks
 
       # @param aggregate [Bluebook::Aggregate] the aggregate to read
       # @param kind [Symbol] a finding kind
-      # @return [Boolean] whether the aggregate acknowledges that kind
-      def self.held?(aggregate, kind)
-        aggregate.acknowledgements.any? { |held| held.finding.to_sym == kind }
+      # @param subject [Symbol, String, nil] the attribute or referenced aggregate, for the kinds
+      #   reported once per subject
+      # @return [Boolean] whether the aggregate acknowledges that kind (for that subject)
+      def self.held?(aggregate, kind, subject: nil)
+        aggregate.acknowledgements.any? do |held|
+          held.finding.to_sym == kind && (subject.nil? || held.subject.to_s == subject.to_s)
+        end
       end
     end
   end

@@ -1157,33 +1157,28 @@ pub async fn set_person_role(
     Ok(outcome)
 }
 
-/// Whether `identity_id` holds a live Admin/Owner assignment in this
-/// domain's authorization provider; `None` provider means never admin.
-pub fn holds_admin(
-    instances: &Value,
-    identity_id: &str,
-    provider: Option<&crate::ir::AuthorizationProvider>,
-) -> bool {
-    let Some(provider) = provider else {
-        return false;
-    };
-    let prefix = format!("{}#", provider.assignment_aggregate);
-    instances.as_object().is_some_and(|obj| {
-        obj.iter().any(|(key, state)| {
-            key.starts_with(&prefix)
-                && state
-                    .get("actor_id")
-                    .and_then(|v| v.get("value"))
-                    .and_then(|v| v.as_str())
-                    == Some(identity_id)
-                && state
-                    .get("role_name")
-                    .and_then(|v| v.get("value"))
-                    .and_then(|v| v.as_str())
-                    .is_some_and(is_admin_role)
-                && state.get("ends_at").is_none_or(serde_json::Value::is_null)
-        })
+/// Whether any of `rows` — the provider's `live_assignments` answer for one actor — grants an
+/// Admin or Owner role. The bluebook's query decides which assignments are live, so this reads
+/// no `ends_at`.
+pub fn holds_admin(rows: &[Value]) -> bool {
+    rows.iter().any(|row| {
+        row.get("role_name")
+            .and_then(|v| v.get("value"))
+            .and_then(|v| v.as_str())
+            .is_some_and(is_admin_role)
     })
+}
+
+/// The rows of a kernel query answer (`{"queries":[{"rows":[...]}]}`).
+pub fn answer_rows(answer: &Value) -> Vec<Value> {
+    answer
+        .get("queries")
+        .and_then(|q| q.as_array())
+        .and_then(|q| q.first())
+        .and_then(|q| q.get("rows"))
+        .and_then(|r| r.as_array())
+        .cloned()
+        .unwrap_or_default()
 }
 
 fn now_secs() -> u64 {
@@ -1480,21 +1475,18 @@ mod tests {
     }
 
     #[test]
-    fn holds_admin_reads_straight_off_instances() {
-        let instances = json!({
-            "Governance::RoleAssignment#id-1:Admin": {
-                "actor_id": {"value": "id-1"}, "role_name": {"value": "Admin"}, "ends_at": null,
-            },
-        });
+    fn holds_admin_reads_the_live_assignment_rows() {
+        let live = [json!({"actor_id": {"value": "id-1"}, "role_name": {"value": "Admin"}})];
+        assert!(holds_admin(&live));
+        // No live assignment answered: no role is held, whatever was granted before.
+        assert!(!holds_admin(&[]));
+    }
 
-        let provider = crate::ir::AuthorizationProvider {
-            grant: "Governance::RoleAssignment.Assign".to_string(),
-            assignment_aggregate: "Governance::RoleAssignment".to_string(),
-        };
-        assert!(holds_admin(&instances, "id-1", Some(&provider)));
-        assert!(!holds_admin(&instances, "id-2", Some(&provider)));
-        // No declared provider: no assignment can exist, so never admin.
-        assert!(!holds_admin(&instances, "id-1", None));
+    #[test]
+    fn answer_rows_reads_the_first_query_of_a_kernel_answer() {
+        let answer = json!({"queries": [{"query": "G.Live", "rows": [{"id": "a"}]}]});
+        assert_eq!(answer_rows(&answer), vec![json!({"id": "a"})]);
+        assert!(answer_rows(&json!({"queries": []})).is_empty());
     }
 
     #[test]
@@ -1584,15 +1576,12 @@ mod tests {
 
     #[test]
     fn holds_admin_accepts_an_owner_assignment_and_refuses_other_roles() {
-        let provider = crate::ir::AuthorizationProvider {
-            grant: "G".to_string(),
-            assignment_aggregate: "Governance::RoleAssignment".to_string(),
-        };
-        let assignment = |role: &str| json!({"Governance::RoleAssignment#a": {"actor_id": {"value": "id-1"}, "role_name": {"value": role}, "ends_at": null}});
-        assert!(holds_admin(&assignment("Admin"), "id-1", Some(&provider)));
-        assert!(holds_admin(&assignment("Owner"), "id-1", Some(&provider)));
-        assert!(!holds_admin(&assignment("Member"), "id-1", Some(&provider)));
-        assert!(!holds_admin(&assignment("owner"), "id-1", Some(&provider)));
+        let rows =
+            |role: &str| [json!({"actor_id": {"value": "id-1"}, "role_name": {"value": role}})];
+        assert!(holds_admin(&rows("Admin")));
+        assert!(holds_admin(&rows("Owner")));
+        assert!(!holds_admin(&rows("Member")));
+        assert!(!holds_admin(&rows("owner")));
     }
 
     #[test]

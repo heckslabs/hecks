@@ -1,0 +1,3 @@
+Hecks.hecksagon "Outbound" do
+  Outbound::Parcel.persisted_by("Memory")
+end

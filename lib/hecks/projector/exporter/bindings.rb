@@ -11,22 +11,16 @@ module Hecks
         #
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
         # @param domain_name [String] the domain to export the authorization binding for
-        # @return [Hash{Symbol => String, nil}] `:provider` (name), `:grant`, `:assignments`
-        #   (both provided-verb names), and `:assignment_aggregate` (`:assignments`' own
-        #   leading aggregate name); `{}` if nothing this domain attaches provides
+        # @return [Hash{Symbol => String, nil}] `:provider` (name), `:grant`, `:assignments` and
+        #   `:live_assignments` (provided-verb names), and `:assignment_aggregate`
+        #   (`:assignments`' own leading aggregate name); `{}` if nothing this domain attaches provides
         #   authorization
         def authorization(registry, domain_name)
           provider = registry.authorization_provider_for(domain_name)
           return {} unless provider
 
-          capability = Bluebook::Capabilities::AUTHORIZATION
-          assignments = provider.provided_verb(capability, :assignments)
-          {
-            provider:             provider.name,
-            grant:                provider.provided_verb(capability, :grant),
-            assignments:          assignments,
-            assignment_aggregate: aggregate_of(assignments)
-          }
+          verbs = verbs_of(provider, Bluebook::Capabilities::AUTHORIZATION, :grant, :assignments, :live_assignments)
+          { provider: provider.name, **verbs, assignment_aggregate: aggregate_of(verbs[:assignments]) }
         end
 
         # Which bluebook answers "who may sign in" (`Registry#membership_provider_for`),

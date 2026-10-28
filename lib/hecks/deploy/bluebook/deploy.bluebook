@@ -402,6 +402,9 @@ Hecks.bluebook "Deploy" do
   aggregate "Tenant" do
     description "One tenant's validated identity — which realm and Postgres schema `hecks deploy tenant.provision` provisions before booting a domain directory under Runtime.boot's own `environment:` overlay for it."
 
+    acknowledges :key_by_value, "names a domain that may deploy by a kind other than a Lambda, and LambdaTarget is one kind",
+                 of: :domain
+
     identified_by :slug
 
     attribute :slug,      Slug

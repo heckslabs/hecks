@@ -1183,6 +1183,16 @@
               "pattern": null,
               "relationship": null,
               "type": "Description"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "FieldName"
             }
           ],
           "emits": [
@@ -1220,7 +1230,8 @@
             {
               "fields": {
                 "finding": ":finding",
-                "reason": ":reason"
+                "reason": ":reason",
+                "subject": ":subject"
               },
               "op": "append",
               "sign": "",
@@ -1808,6 +1819,16 @@
               "list": false,
               "name": "finding",
               "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "optional": true,
               "pattern": null,
               "relationship": null,
               "type": "String"
@@ -4115,6 +4136,36 @@
               [
                 "coerce",
                 "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "of"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "subject"
               ]
             ],
             [
