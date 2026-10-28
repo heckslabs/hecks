@@ -106,7 +106,7 @@ RSpec.describe "the language's own definition" do
     registry = Hecks::Bluebook::MetaValidator.grammar_registry
     raw = Hecks::Bluebook::MetaValidator.load_grammar_into(Hecks::Runtime::Registry.new)
 
-    Hecks::Bluebook::MetaValidator::LANGUAGE_CHAPTERS.each do |name|
+    Hecks::Bluebook::MetaValidator::LANGUAGE_BLUEBOOKS.each do |name|
       expect(stringify_members(registry.bluebook(name).to_h)).to eq(stringify_members(raw.bluebook(name).to_h))
     end
   end

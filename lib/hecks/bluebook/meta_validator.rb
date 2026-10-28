@@ -29,7 +29,7 @@ module Hecks
 
       # The bluebooks loaded raw at bootstrap, then judged through themselves
       # and replaced by their own self-assembled graphs.
-      LANGUAGE_CHAPTERS = %w[Bluebook World Hecksagon].freeze
+      LANGUAGE_BLUEBOOKS = %w[Bluebook World Hecksagon].freeze
 
       # Process-wide judging cache, keyed on a SHA-256 digest of the judged
       # artifact so a changed bluebook is always re-judged.
@@ -127,7 +127,7 @@ module Hecks
       def self.call(bluebook)
         return bluebook if disabled? || bootstrapping? || shadow_parsing?
 
-        return defer_chapter(bluebook) if deferring?
+        return defer_bluebook(bluebook) if deferring?
 
         held = held_verdict(bluebook)
         unless held[:refusals].empty?
@@ -140,8 +140,8 @@ module Hecks
 
       # @param bluebook [Object] a built bluebook graph
       # @return [Object] `bluebook`, queued for `judge_deferred!`
-      def self.defer_chapter(bluebook)
-        deferred_chapters << bluebook.hecks_name
+      def self.defer_bluebook(bluebook)
+        deferred_bluebooks << bluebook.hecks_name
         bluebook
       end
 
@@ -195,7 +195,7 @@ module Hecks
         # judged by that assembled graph, not the raw bootstrap one. Must
         # run after load_grammar_into's ensure clears @bootstrapping.
         while_forcing_fixpoint do
-          LANGUAGE_CHAPTERS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
+          LANGUAGE_BLUEBOOKS.each { |name| registry.add_bluebook(call(registry.bluebook(name))) }
           load_attached_grammar_into(registry)
         end
         # Keyed on this registry's object identity, not a bare boolean, so

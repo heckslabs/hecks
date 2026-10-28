@@ -4,28 +4,28 @@ require_relative "support/editor_fixture_project"
 
 # One editor over several bluebooks, and what it derives from the bluebooks' own declarations: the
 # relationship pickers, the moments, and the listing. The neutral project in
-# spec/fixtures/site/editor_chapters has two bluebooks (writing and pictures) that share an
-# aggregate name; the files that differ from the single-chapter editor's are held as goldens,
+# spec/fixtures/site/editor_bluebooks has two bluebooks (writing and pictures) that share an
+# aggregate name; the files that differ from the single-bluebook editor's are held as goldens,
 # rewritten with `GOLDEN=rewrite`.
 RSpec.describe "the editor over several bluebooks" do
-  let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_chapters") }
+  let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_bluebooks") }
 
   include_context "with an editor fixture project"
 
   # The files whose text depends on the project; every other file is the same template.
   def golden_files = %w[package.json src/config.ts src/schema.ts src/app.ts]
 
-  def aggregate(name, chapter, dir = project)
-    schema(dir)["aggregates"].find { |agg| agg["name"] == name && agg["bluebook"] == chapter }
+  def aggregate(name, declaration, dir = project)
+    schema(dir)["aggregates"].find { |agg| agg["name"] == name && agg["bluebook"] == declaration }
   end
 
-  def attribute(name, chapter, attr, dir = project)
-    aggregate(name, chapter, dir)["attributes"].find { |candidate| candidate["name"] == attr }
+  def attribute(name, declaration, attr, dir = project)
+    aggregate(name, declaration, dir)["attributes"].find { |candidate| candidate["name"] == attr }
   end
 
   # The project with its Editor row changed, for the refusals.
   def with_row(from, to)
-    Dir.mktmpdir("cms_editor_chapters") do |dir|
+    Dir.mktmpdir("cms_editor_bluebooks") do |dir|
       FileUtils.cp_r(File.join(project, "."), dir)
       file = File.join(dir, "bluebook/press_site.bluebook")
       File.write(file, File.read(file).sub(from, to))
@@ -60,13 +60,13 @@ RSpec.describe "the editor over several bluebooks" do
       expect(schema["media"]).to include("aggregate" => "MediaItem", "domain" => "Library", "listing" => "Pictures")
     end
 
-    it "leaves out an aggregate named with its bluebook, and only that chapter's" do
+    it "leaves out an aggregate named with its bluebook, and only that bluebook's" do
       with_row('title: "Press editor"', 'title: "Press editor", skip: "Library::Category"') do |dir|
         expect(schema(dir)["aggregates"].map { |agg| "#{agg["bluebook"]}.#{agg["name"]}" }).not_to include("Library.Category")
       end
     end
 
-    it "is the single-chapter editor's schema, unchanged, for an editor of one bluebook", :aggregate_failures do
+    it "is the single-bluebook editor's schema, unchanged, for an editor of one bluebook", :aggregate_failures do
       other = File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor")
       text = Hecks::Tools::SiteRoutes.projection(other, out: "/w", editor: "/w/e").fetch("/w/e/src/schema.ts")
       single = JSON.parse(text[/SCHEMA: Schema = (\{.*\});\n/m, 1])
@@ -77,7 +77,7 @@ RSpec.describe "the editor over several bluebooks" do
   end
 
   describe "the relationships it finds" do
-    it "offers the same chapter's category for a list of category slugs, by what the declarations say", :aggregate_failures do
+    it "offers the same bluebook's category for a list of category slugs, by what the declarations say", :aggregate_failures do
       picker = attribute("Article", "Press", "categories")["picker"]
 
       expect(picker).to include("target" => "Category", "bluebook" => "Press", "key" => "slug", "label" => "name")

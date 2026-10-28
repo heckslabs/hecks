@@ -79,10 +79,10 @@ RSpec.describe "none_in_state on an ordinary AGGREGATE-level query" do
       scratch_directory :dir, "hecks-none-in-state-"
 
       def boot_anti_join(adapter, adapter_files)
-        chapter = domain
-        boot(format(ANTI_JOIN_SOURCE, domain: chapter), chapter, root: @dir, adapters: adapter_files) do
-          Object.const_get(chapter)::Claim.persisted_by(adapter)
-          Object.const_get(chapter)::Board.persisted_by(adapter)
+        declaration = domain
+        boot(format(ANTI_JOIN_SOURCE, domain: declaration), declaration, root: @dir, adapters: adapter_files) do
+          Object.const_get(declaration)::Claim.persisted_by(adapter)
+          Object.const_get(declaration)::Board.persisted_by(adapter)
         end
       end
 

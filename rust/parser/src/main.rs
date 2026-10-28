@@ -77,21 +77,21 @@ fn run(args: &[String]) -> Result<(), RunError> {
 }
 
 /// The bluebook a `bluebook` or `render` call names and the files it reads, as `(path, source)`.
-fn read_chapter_args(
+fn read_bluebook_args(
     subcommand: &str,
     args: &[String],
 ) -> Result<(String, Vec<(String, String)>), RunError> {
-    let mut chapter_name: Option<String> = None;
+    let mut declaration_name: Option<String> = None;
     let mut files: Vec<String> = Vec::new();
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         if arg == "--bluebook" {
-            chapter_name = iter.next().cloned();
+            declaration_name = iter.next().cloned();
         } else {
             files.push(arg.clone());
         }
     }
-    let chapter_name = chapter_name.ok_or_else(|| {
+    let declaration_name = declaration_name.ok_or_else(|| {
         RunError::Usage(format!(
             "hecks-parse {subcommand} --bluebook <Name> <files...>"
         ))
@@ -110,13 +110,13 @@ fn read_chapter_args(
             Ok((path.clone(), source))
         })
         .collect::<Result<_, RunError>>()?;
-    Ok((chapter_name, loaded))
+    Ok((declaration_name, loaded))
 }
 
 /// `hecks-parse bluebook --bluebook <Name> <files...>`: emits the bluebook's `ir.json` on stdout.
 fn run_bluebook(args: &[String]) -> Result<(), RunError> {
-    let (chapter_name, loaded) = read_chapter_args("bluebook", args)?;
-    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let (declaration_name, loaded) = read_bluebook_args("bluebook", args)?;
+    let bluebook = parse::declaration::parse_bluebook(&declaration_name, &loaded)?;
     println!("{}", emit::write(&emit::bluebook_json(&bluebook)));
     Ok(())
 }
@@ -125,8 +125,8 @@ fn run_bluebook(args: &[String]) -> Result<(), RunError> {
 /// bluebook text that declares the same IR, so a bluebook written as sentences can be loaded by
 /// Ruby.
 fn run_render(args: &[String]) -> Result<(), RunError> {
-    let (chapter_name, loaded) = read_chapter_args("render", args)?;
-    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let (declaration_name, loaded) = read_bluebook_args("render", args)?;
+    let bluebook = parse::declaration::parse_bluebook(&declaration_name, &loaded)?;
     let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
     let text = render_ruby::ruby_form(&bluebook)
         .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
@@ -154,10 +154,10 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
             "hecks-parse examples --bluebook <Name> --examples <file> <files...>".to_string(),
         )
     })?;
-    let (chapter_name, loaded) = read_chapter_args("examples", &rest)?;
+    let (declaration_name, loaded) = read_bluebook_args("examples", &rest)?;
     let source = fs::read_to_string(&examples_path)
         .map_err(|e| RunError::Usage(format!("could not read '{examples_path}': {e}")))?;
-    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let bluebook = parse::declaration::parse_bluebook(&declaration_name, &loaded)?;
     // The suite boots the bluebook's files and then any `--also` files (the Memory-bound
     // hecksagon that answers the bluebook's asks), each by its absolute path.
     let absolute: Vec<String> = loaded
@@ -177,8 +177,8 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
 /// `hecks-parse format --bluebook <Name> <files...>`: prints the bluebook, whichever form its files
 /// are written in, as canonical sentences.
 fn run_format(args: &[String]) -> Result<(), RunError> {
-    let (chapter_name, loaded) = read_chapter_args("format", args)?;
-    let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
+    let (declaration_name, loaded) = read_bluebook_args("format", args)?;
+    let bluebook = parse::declaration::parse_bluebook(&declaration_name, &loaded)?;
     let first = loaded.first().map_or("<none>", |(path, _)| path.as_str());
     let text = sentence::format::sentences(&bluebook)
         .map_err(|why| RunError::Parse(diag::Diagnostic::new(first, 1, why)))?;
@@ -242,17 +242,17 @@ fn run_complete(args: &[String]) -> Result<(), RunError> {
 ///
 /// `--bluebook` is required because one file can hold several `Hecks.hecksagon` blocks.
 fn run_resolve(args: &[String]) -> Result<(), RunError> {
-    let mut chapter_name: Option<String> = None;
+    let mut declaration_name: Option<String> = None;
     let mut path: Option<&String> = None;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         if arg == "--bluebook" {
-            chapter_name = iter.next().cloned();
+            declaration_name = iter.next().cloned();
         } else {
             path = Some(arg);
         }
     }
-    let chapter_name = chapter_name.ok_or_else(|| {
+    let declaration_name = declaration_name.ok_or_else(|| {
         RunError::Usage("hecks-parse resolve --bluebook <Name> <file.hecksagon>".to_string())
     })?;
     let path = path.ok_or_else(|| {
@@ -262,7 +262,7 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
     let source = fs::read_to_string(path)
         .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))?;
     let (framework_names, vendored_names) =
-        parse::chapter::resolve_hecksagon_dependencies(&chapter_name, path, &source)?;
+        parse::declaration::resolve_hecksagon_dependencies(&declaration_name, path, &source)?;
 
     let gem_bluebooks = || {
         emit::JsonValue::Array(
@@ -274,7 +274,7 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
         )
     };
     let value = emit::JsonValue::Object(vec![
-        ("domain".to_string(), emit::JsonValue::String(chapter_name)),
+        ("domain".to_string(), emit::JsonValue::String(declaration_name)),
         ("gem_bluebooks".to_string(), gem_bluebooks()),
         (
             "vendored_packages".to_string(),

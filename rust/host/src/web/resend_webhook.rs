@@ -84,7 +84,7 @@ pub(super) async fn resend_webhook_route(
     let Some(provider) = loaded_ir().and_then(newsletter_issues_provider) else {
         return Some(respond(200, "text/plain", ""));
     };
-    // `record_delivery` names `<Chapter>::Delivery.Record`; the open and click
+    // `record_delivery` names `<Bluebook>::Delivery.Record`; the open and click
     // commands sit on the same aggregate.
     let Some(delivery_aggregate) = provider
         .record_delivery

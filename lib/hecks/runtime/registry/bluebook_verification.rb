@@ -3,13 +3,13 @@ module Hecks
     class Registry
       # Checks the bluebooks a boot loaded: no reserved name from outside the gem, and no two
       # unrelated packages sharing a name. Mixed into {Verification}.
-      module ChapterVerification
+      module BluebookVerification
         # The directory holding the gem's own Hecks bluebook, the only place a bluebook named
         # `Hecks` may be declared from.
-        GEM_CHAPTER_DIR = File.expand_path("../../hecks", __dir__).freeze
+        GEM_BLUEBOOK_DIR = File.expand_path("../../hecks", __dir__).freeze
 
         # The bluebook names only the gem itself may declare (ADR 0080, section 9).
-        RESERVED_CHAPTER_NAMES = %w[Hecks].freeze
+        RESERVED_BLUEBOOK_NAMES = %w[Hecks].freeze
 
         private
 
@@ -17,19 +17,19 @@ module Hecks
         # the gem's own bluebook directory. A rename is the only fix, so the message says so.
         #
         # @raise [WiringError] naming the reserved word and the offending file(s)
-        def refuse_reserved_chapter_names!
-          RESERVED_CHAPTER_NAMES.each do |reserved|
+        def refuse_reserved_bluebook_names!
+          RESERVED_BLUEBOOK_NAMES.each do |reserved|
             next unless @declared.bluebooks.key?(reserved)
 
             sources = Array(@declared.bluebook_sources[reserved]).compact
-            foreign = sources.reject { |path| gem_chapter_source?(path) }
+            foreign = sources.reject { |path| gem_bluebook_source?(path) }
             next if foreign.empty? && !sources.empty?
 
-            raise WiringError, reserved_chapter_message(reserved, foreign)
+            raise WiringError, reserved_bluebook_message(reserved, foreign)
           end
         end
 
-        def reserved_chapter_message(reserved, foreign)
+        def reserved_bluebook_message(reserved, foreign)
           where = foreign.empty? ? "" : " (declared in #{foreign.join(", ")})"
           "a bluebook named #{reserved.inspect} is refused: #{reserved.inspect} is a reserved " \
             "word, the name of the gem's own bluebook, and only the gem may declare it#{where}. " \
@@ -38,8 +38,8 @@ module Hecks
         end
 
         # Whether `path` is a file of the gem's own bluebook directory.
-        def gem_chapter_source?(path)
-          File.expand_path(path.to_s).start_with?("#{GEM_CHAPTER_DIR}/")
+        def gem_bluebook_source?(path)
+          File.expand_path(path.to_s).start_with?("#{GEM_BLUEBOOK_DIR}/")
         end
 
         # Two packages can share a bluebook name by coincidence (a stale vendored

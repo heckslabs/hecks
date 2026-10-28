@@ -77,13 +77,13 @@ RSpec.describe "the model checker's client profile" do
   end
 
   def unprofiled(registry)
-    chapter = registry.bluebooks.values.first
-    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name))
+    declaration = registry.bluebooks.values.first
+    Hecks::Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name))
   end
 
   def profiled(registry, profile: :client)
-    chapter = registry.bluebooks.values.first
-    Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), profile: profile)
+    declaration = registry.bluebooks.values.first
+    Hecks::Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name), profile: profile)
   end
 
   describe "without the profile" do

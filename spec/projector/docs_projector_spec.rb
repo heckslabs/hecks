@@ -93,7 +93,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
         expect(banking).to include("no `Customer` exists for the id given as `customer`")
       end
 
-      it "quotes a given in the chapter's own words" do
+      it "quotes a given in the bluebook's own words" do
         given = registry.bluebook("Banking").aggregates.flat_map(&:commands)
                         .flat_map(&:givens).map(&:description).first
         expect(banking).to include(given)

@@ -30,9 +30,9 @@ module Hecks
       # Loaded in the glob's alphabetical order; a package with several
       # files that reopen the same bluebook is named to rely on that.
       files = vendored_bluebooks(name, dir)
-      chapter = FrameworkBluebooks.chapter_name(files.first) || Naming.pascal(name.to_s)
-      load_package(files, dir) unless registry.bluebook(chapter)
-      chapter
+      declaration = FrameworkBluebooks.declaration_name(files.first) || Naming.pascal(name.to_s)
+      load_package(files, dir) unless registry.bluebook(declaration)
+      declaration
     end
 
     # Loads the package's bluebooks, then its plugin adapters, which answer its queries with the

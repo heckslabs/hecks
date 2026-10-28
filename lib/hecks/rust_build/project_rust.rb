@@ -81,25 +81,25 @@ module Hecks
       def generate_with_codegen
         meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
         CodegenRun.new(
-          rust_dir: @rust_dir, out_root: @out_root, meta: TargetIr.json_shaped(meta), chapters: chapters,
-          target: CodegenRun::Chapter.new(@mod_name, @domain, @ir)
+          rust_dir: @rust_dir, out_root: @out_root, meta: TargetIr.json_shaped(meta), declarations: declarations,
+          target: CodegenRun::Declaration.new(@mod_name, @domain, @ir)
         ).call
       end
 
-      def chapters
+      def declarations
         vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
         (@registry.bluebooks.keys - [@domain_name]).map do |name|
           ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
           label = "#{@domain} (#{attachment(name, vendored)})"
-          CodegenRun::Chapter.new(name.downcase, label, TargetIr.json_shaped(ir))
+          CodegenRun::Declaration.new(name.downcase, label, TargetIr.json_shaped(ir))
         end
       end
 
       # How the target attached a bluebook, across every hecksagon the registry loaded: a bluebook a
       # sibling hecksagon vendors in is labelled as vendored.
-      def attachment(chapter_name, vendored)
-        name = vendored.find { |candidate| Hecks::Naming.pascal(candidate.to_s) == chapter_name }
-        name ? "attaches #{name.inspect}, from: :vendor" : "attaches #{chapter_name.inspect}"
+      def attachment(declaration_name, vendored)
+        name = vendored.find { |candidate| Hecks::Naming.pascal(candidate.to_s) == declaration_name }
+        name ? "attaches #{name.inspect}, from: :vendor" : "attaches #{declaration_name.inspect}"
       end
 
       # `src/generated/mod.rs`: every domain ever generated, scanned off disk. A directory is a

@@ -45,8 +45,8 @@ module Hecks
       private
 
       def open_draft(slug, files)
-        chapter = Parse.bluebooks(@workspace).keys.first || "Workspace"
-        @session.open(slug: slug, bluebook_name: chapter, text: files.values.first.to_s)
+        declaration = Parse.bluebooks(@workspace).keys.first || "Workspace"
+        @session.open(slug: slug, bluebook_name: declaration, text: files.values.first.to_s)
       end
 
       # The prompt's intent; a classifier that cannot answer leaves it an edit.

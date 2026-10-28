@@ -27,7 +27,7 @@ RSpec.describe Hecks::FrameworkBluebooks, ".load!" do
     expect { described_class.load!("Deploy") }.to raise_error(/boom after/)
     expect(registry.bluebook("Deploy")).to be_nil
     expect(registry.bluebook_sources).not_to have_key("Deploy")
-    expect(Hecks::Bluebook::MetaValidator.deferred_chapters).not_to include("Deploy")
+    expect(Hecks::Bluebook::MetaValidator.deferred_bluebooks).not_to include("Deploy")
   end
 
   it "loads the bluebook on a retry after a file raised", :aggregate_failures do
@@ -62,7 +62,7 @@ RSpec.describe Hecks::FrameworkBluebooks, ".load!" do
     end
   end
 
-  def declare_user_deploy_chapter
+  def declare_user_deploy_bluebook
     open_session = open_session_command
     Hecks.bluebook("Deploy") do
       aggregate("Session") do
@@ -74,10 +74,10 @@ RSpec.describe Hecks::FrameworkBluebooks, ".load!" do
     end
   end
 
-  it "refuses a user bluebook that shares the attachable chapter's name" do
-    declare_user_deploy_chapter
+  it "refuses a user bluebook that shares the attachable bluebook's name" do
+    declare_user_deploy_bluebook
 
     expect { described_class.load!("Deploy") }
-      .to raise_error(Hecks::Runtime::WiringError, /already declared in .*chapters_load_spec/)
+      .to raise_error(Hecks::Runtime::WiringError, /already declared in .*bluebooks_load_spec/)
   end
 end

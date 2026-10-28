@@ -97,7 +97,7 @@ RSpec.describe "friction at the edges" do
   describe "a sentence-form bluebook" do
     # A bluebook file whose first line is `first_line`, loaded through the one door.
     def load_through_door(first_line)
-      file = Tempfile.new(["chapter", ".bluebook"])
+      file = Tempfile.new(["bluebook", ".bluebook"])
       file.write("#{first_line}\n")
       file.flush
       yield file.path

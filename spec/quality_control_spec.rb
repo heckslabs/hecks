@@ -40,7 +40,7 @@ RSpec.describe "QualityControl" do
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
-      load_quality_control_chapter(tracker, ci_adapter)
+      load_quality_control_bluebook(tracker, ci_adapter)
       sibling_governance!
     end
 
@@ -50,7 +50,7 @@ RSpec.describe "QualityControl" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  def load_quality_control_chapter(tracker, ci_adapter)
+  def load_quality_control_bluebook(tracker, ci_adapter)
     [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
      InMemoryDomain::PRISM_ADAPTER, File.join(QC_ROOT, "quality_control.bluebook")].each { |file| Kernel.load(file) }
     stub_qc_adapters(tracker, ci_adapter)

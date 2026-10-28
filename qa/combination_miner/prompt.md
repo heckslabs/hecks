@@ -46,8 +46,8 @@ restates a covered pair is wasted.
 
 ## Hard rules for each candidate
 
-1. ONE file, one chapter: `Hecks.bluebook "SomeName" do … end`. No `.hecksagon`, no second chapter, no
-   `across` to another domain. The chapter is renamed when checked, so pick any CamelCase name.
+1. ONE file, one bluebook: `Hecks.bluebook "SomeName" do … end`. No `.hecksagon`, no second bluebook, no
+   `across` to another domain. The bluebook is renamed when checked, so pick any CamelCase name.
 2. It must boot under the in-memory adapter. Copy idioms from the corpus rather than inventing syntax.
 3. Prefer shapes the Rust projection can compile — but a valid bluebook Rust cannot compile IS a finding,
    so do not avoid a construct just because you suspect Rust mishandles it. Avoid only names that are

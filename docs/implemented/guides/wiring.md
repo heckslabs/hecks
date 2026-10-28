@@ -553,7 +553,7 @@ says why: `skip_smoke=true` leaves it out, and a project with no `smoke-after-de
 | 40, 41, 42 | `deploy-box.sh`: no instance; the roll did not succeed on the box; the box is not healthy after it |
 
 Any other status is a step that failed under `set -e` (1 from bash, 254 or 255 from the `aws` CLI).
-The design for the other deploy scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md).
+The design for the other deploy scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-bluebook.md).
 
 To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
 `tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs

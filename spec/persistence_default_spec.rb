@@ -37,7 +37,7 @@ RSpec.describe Hecks::Ports::Persistence::BindingPolicy do
     expect { adapter_of("Bubble") }.to raise_error(Hecks::Runtime::WiringError, /forgotten decision/)
   end
 
-  it "hands an attaching domain's root default to the chapter it attaches" do
+  it "hands an attaching domain's root default to the bluebook it attaches" do
     wire { subscribes_to "Elsewhere" }
     attach_with_default("PostgresEra")
     expect(adapter_of("Bubble")).to eq("PostgresEra")

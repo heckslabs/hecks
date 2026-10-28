@@ -15,24 +15,24 @@ module Hecks
           seconds if seconds.is_a?(Integer) && seconds.positive?
         end
 
-        # The seconds a `:duration` verb ("Aggregate.attribute") resolves to in `chapter`.
+        # The seconds a `:duration` verb ("Aggregate.attribute") resolves to in `bluebook`.
         #
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the aggregate
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [Integer, nil] the positive whole seconds, or `nil` when the verb names no such
         #   attribute or its default is not whole seconds
-        def duration_of(chapter, verb)
-          duration_seconds(attribute_default(chapter, verb))
+        def duration_of(declaration, verb)
+          duration_seconds(attribute_default(declaration, verb))
         end
 
-        # The `default:` of the attribute a verb ("Aggregate.attribute") names in `chapter`.
+        # The `default:` of the attribute a verb ("Aggregate.attribute") names in `bluebook`.
         #
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the aggregate
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [Object, nil] that attribute's `default:`, or `nil` when there is none
-        def attribute_default(chapter, verb)
+        def attribute_default(declaration, verb)
           aggregate_name, attribute_name = verb.split(".", 2)
-          aggregate = chapter.aggregate(aggregate_name)
+          aggregate = declaration.aggregate(aggregate_name)
           aggregate&.attributes&.find { |a| a.name.to_s == attribute_name }&.default
         end
 
@@ -44,7 +44,7 @@ module Hecks
           default.is_a?(Hash) ? default.fetch(:value) { default["value"] } : default
         end
 
-        # The string a `:text` verb ("Aggregate.attribute") resolves to in `chapter`: the
+        # The string a `:text` verb ("Aggregate.attribute") resolves to in `bluebook`: the
         # attribute's `default:`, bare or as the `{ value: "..." }` fill of a one-field value
         # object (ADR 0099).
         #
@@ -52,19 +52,19 @@ module Hecks
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [String, nil] the non-empty text, or `nil` when the verb names no such attribute
         #   or its default is not text
-        def text_of(chapter, verb)
-          text = filled_value(attribute_default(chapter, verb))
+        def text_of(declaration, verb)
+          text = filled_value(attribute_default(declaration, verb))
           text if text.is_a?(String) && !text.empty?
         end
 
-        # The attribute name an `:attribute` verb ("Aggregate.attribute") resolves to in `chapter`.
+        # The attribute name an `:attribute` verb ("Aggregate.attribute") resolves to in `bluebook`.
         #
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the aggregate
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [String, nil] the attribute's name, or `nil` when the aggregate lacks it
-        def attribute_of(chapter, verb)
+        def attribute_of(declaration, verb)
           aggregate_name, attribute_name = verb.split(".", 2)
-          found = chapter.aggregate(aggregate_name)&.attributes&.any? { |a| a.name.to_s == attribute_name }
+          found = declaration.aggregate(aggregate_name)&.attributes&.any? { |a| a.name.to_s == attribute_name }
           attribute_name if found
         end
       end

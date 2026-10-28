@@ -61,7 +61,7 @@ aggregate's own execution context and wrong in a piece's own command's.
 | A piece bare-references a description ONLY the OWNING AGGREGATE declares (aggregate-scoped, not piece-scoped) | Still resolves normally through step 4.1 (the piece's own `named_givens` lookup already covers this when threaded correctly) — unaffected by this rule |
 | Two sibling pieces each independently write `given("x") { same predicate }` with their OWN block | Both keep their own LOCAL declaration; the pool holds whichever ran first. Not an error, but not maximally deduped either — a real, still-open hoisting opportunity `hecks corpus_run.ir_duplicates` will keep surfacing until one becomes a bare reference to the other |
 | A piece bare-references a description NEITHER its own scope NOR any sibling under the same aggregate declares | `Malformed`, naming both places checked |
-| Two UNRELATED aggregates' own pieces happen to phrase a rule identically | Never shared — each aggregate holds its own separate pool; cross-AGGREGATE sharing was, at the time this rule shipped, a different, larger, not-yet-built capability. It has SINCE been built, one level up (aggregate-to-aggregate, `chapter-given.md`) and one level down from THAT (piece-to-piece across aggregates, `chapter-entity-given.md`) — see that doc for the widened scope |
+| Two UNRELATED aggregates' own pieces happen to phrase a rule identically | Never shared — each aggregate holds its own separate pool; cross-AGGREGATE sharing was, at the time this rule shipped, a different, larger, not-yet-built capability. It has SINCE been built, one level up (aggregate-to-aggregate, `bluebook-given.md`) and one level down from THAT (piece-to-piece across aggregates, `bluebook-entity-given.md`) — see that doc for the widened scope |
 
 ## Known limitations
 
@@ -70,8 +70,8 @@ aggregate's own execution context and wrong in a piece's own command's.
   independent "customer is active" (aggregate-scoped, not this rule's
   concern) stays three separate declarations; that is real duplication too,
   but a structurally different, bigger problem. **Since resolved, one level
-  down from where `chapter-given.md` resolved the aggregate-to-aggregate
-  case**: see `docs/implemented/resolution-rules/chapter-entity-given.md`
+  down from where `bluebook-given.md` resolved the aggregate-to-aggregate
+  case**: see `docs/implemented/resolution-rules/bluebook-entity-given.md`
   for cross-AGGREGATE, piece-to-piece sharing (`Account::LedgerEntry` /
   `SafeDepositBox::Visit`'s own real corpus duplication, structurally
   identical to this rule's own motivation but crossing the one boundary

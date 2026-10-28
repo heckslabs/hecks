@@ -26,7 +26,7 @@ Hecks.bluebook "World" do
 
     # The connection every bluebook's database-taking persistence adapter
     # uses unless that bluebook's own world says otherwise — a world's
-    # per-chapter `persisted_by ... database` block, written once.
+    # per-bluebook `persisted_by ... database` block, written once.
     value_object "DefaultDatabase" do
       attribute :value, String
       invariant("a default database says something") { !value.to_s.empty? }

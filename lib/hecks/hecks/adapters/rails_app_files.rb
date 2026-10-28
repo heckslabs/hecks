@@ -36,18 +36,18 @@ module Hecks
       def projected_files
         raise ConsoleCapture::Failure, "no bluebook/ in #{@root}" unless File.directory?(bluebook_dir)
 
-        chapters = own_chapters
-        chapters.each_with_object({}) do |chapter, files|
-          files.merge!(Projector.call(:rails_app, bluebook: chapter, options: { route_chapters: chapters }))
+        declarations = own_bluebooks
+        declarations.each_with_object({}) do |declaration, files|
+          files.merge!(Projector.call(:rails_app, bluebook: declaration, options: { route_bluebooks: declarations }))
         end
       end
 
       # The app's bluebooks: every bluebook the boot loaded except a framework member or another
       # bluebook a hecksagon only attaches.
-      def own_chapters
+      def own_bluebooks
         registry = Hecks.describe(bluebook_dir, environment: nil).registry
-        registry.bluebooks.values.reject do |chapter|
-          registry.bounded?(chapter.name) || Hecks::Framework.members.key?(chapter.name)
+        registry.bluebooks.values.reject do |declaration|
+          registry.bounded?(declaration.name) || Hecks::Framework.members.key?(declaration.name)
         end
       end
 

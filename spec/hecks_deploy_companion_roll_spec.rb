@@ -7,7 +7,7 @@ require "fileutils"
 # DeployToolchain port, the Hecks domain binds its adapter, and a stand-in `deploy-umami.sh` (the
 # steps a project's companion script takes: read the task definition, send a Compose project over
 # SSM, check it on the box) runs against a stand-in `aws`. Nothing reaches AWS or a box.
-RSpec.describe "the Deploy chapter's CompanionRoll", :io do
+RSpec.describe "the Deploy bluebook's CompanionRoll", :io do
   AWS_COMPANION_STUB = <<~BASH.freeze
     #!/usr/bin/env bash
     echo "aws $*" >> "$STUB_DIR/calls.log"

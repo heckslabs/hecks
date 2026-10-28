@@ -99,7 +99,7 @@ RSpec.describe "rehearsing a domain's next era" do
     expect(unchecked).to include("the mint itself")
   end
 
-  it "says that an attached chapter's shape is not an era of the domain", :aggregate_failures, :process do
+  it "says that an attached bluebook's shape is not an era of the domain", :aggregate_failures, :process do
     File.write(File.join(shop, "bluebook", "vendored.bluebook"),
                "Hecks.bluebook \"Vendored\" do\n  aggregate \"Page\" do\n    attribute :slug, Slug\n    " \
                "identified_by :slug\n    value_object(\"Slug\") { attribute :value, String }\n  end\nend\n")

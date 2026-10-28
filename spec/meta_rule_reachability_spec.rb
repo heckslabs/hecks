@@ -64,7 +64,7 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
      "same generic Rule-presence check META_RULE_PROVEN already proves at Command.Rule — never dispatched at " \
      "Aggregate.Invariant itself"],
     [["given", "Aggregate.Precondition", "a rule says what it means"],
-     "same generic Rule-presence check, never dispatched at Aggregate.Precondition (the chapter-wide `given` an " \
+     "same generic Rule-presence check, never dispatched at Aggregate.Precondition (the bluebook-wide `given` an " \
      "aggregate's own commands can reference)"],
     [["given", "Aggregate.Precondition", "a rule survives extraction"],
      "same generic Rule-presence check, never dispatched at Aggregate.Precondition"],
@@ -86,7 +86,7 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
     [["invariant", "Aggregate::ListFlag (declared)", "list is true or false"],
      "closed-set invariant on an attribute's list flag; no spec dispatches a value outside {\"true\",\"false\"}"],
     [["ensures", "Bluebook.Attach", "the list grew by exactly one"],
-     "postcondition on attaching a sub-chapter (Paging is the one real user); no spec creates the double-count/no-op " \
+     "postcondition on attaching a sub-bluebook (Paging is the one real user); no spec creates the double-count/no-op " \
      "condition that would make this ensures fail"],
     [["invariant", "Bluebook::BluebookName (declared)", "a bluebook is named"],
      "presence invariant on a bluebook's own name; nothing dispatches Bluebook.Declare with name: \"\""],
@@ -95,7 +95,7 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
     [["invariant", "Bluebook::Version (declared)", "a version says something"],
      "presence invariant on a bluebook's version; no spec dispatches one blank"],
     [["invariant", "Bluebook::BluebookNamespace (declared)", "a namespace is a constant path"],
-     "shape invariant; spec/chapter_namespace_spec.rb builds valid namespaces, none dispatches a malformed one"],
+     "shape invariant; spec/bluebook_namespace_spec.rb builds valid namespaces, none dispatches a malformed one"],
     [["invariant", "Bluebook::FormerlyKnownAs (declared)", "a formerly_known_as says something"],
      "presence invariant; no spec dispatches a blank formerly_known_as entry"],
     [["invariant", "Bluebook::AttachesToContext (declared)", "an attachment names a context"],

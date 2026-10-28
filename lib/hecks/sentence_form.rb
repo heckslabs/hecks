@@ -20,7 +20,7 @@ module Hecks
 
     # A `Hecks.bluebook "Name"` header line, or a `Domain: name` line, capturing the bluebook's
     # name.
-    CHAPTER_HEADER = /\A\s*(?:Hecks\.bluebook\s+"([^"]+)"|Domain:\s*(\S.*?)\s*\z)/
+    BLUEBOOK_HEADER = /\A\s*(?:Hecks\.bluebook\s+"([^"]+)"|Domain:\s*(\S.*?)\s*\z)/
 
     # Raised when no `hecks-parse` binary can be found.
     class ParserMissing < StandardError; end
@@ -40,9 +40,9 @@ module Hecks
     # @param path [String] a bluebook file, in either form
     # @return [String, nil] the bluebook name its header declares; a `Domain:` line is read as
     #   the words capitalised and joined, as the parser reads it
-    def chapter_name(path)
+    def declaration_name(path)
       File.foreach(path) do |line|
-        next unless line =~ CHAPTER_HEADER
+        next unless line =~ BLUEBOOK_HEADER
 
         return Regexp.last_match(1) || capitalised(Regexp.last_match(2))
       end
@@ -64,8 +64,8 @@ module Hecks
     # @raise [ParserMissing] if `hecks-parse` is not built
     # @raise [Refused] if the sentences are not ones the parser knows
     def ruby_text(path)
-      chapter = chapter_name(path) or raise Refused, "#{path}: no `Domain:` line to name the bluebook"
-      out, err, status = Open3.capture3(binary, "render", "--bluebook", chapter, path)
+      declaration = declaration_name(path) or raise Refused, "#{path}: no `Domain:` line to name the bluebook"
+      out, err, status = Open3.capture3(binary, "render", "--bluebook", declaration, path)
       raise Refused, first_line(err) unless status.success?
 
       out
@@ -93,13 +93,13 @@ module Hecks
     # @raise [ParserMissing] if `hecks-parse` is not built
     # @raise [Refused] if no bluebook file is found or the examples are not ones the parser accepts
     def behaviors_text(path)
-      chapter = examples_chapter(path)
-      files = chapter_files(path, chapter)
-      raise Refused, "#{path}: no .bluebook beside it declares #{chapter}" if files.empty?
+      declaration = examples_bluebook(path)
+      files = bluebook_files(path, declaration)
+      raise Refused, "#{path}: no .bluebook beside it declares #{declaration}" if files.empty?
 
       wiring = behaviors_hecksagon(path)
       also = wiring ? ["--also", wiring] : []
-      out, err, status = Open3.capture3(binary, "examples", "--bluebook", chapter, "--examples", path, *also, *files)
+      out, err, status = Open3.capture3(binary, "examples", "--bluebook", declaration, "--examples", path, *also, *files)
       raise Refused, first_line(err) unless status.success?
 
       out
@@ -129,21 +129,21 @@ module Hecks
     end
 
     # @return [String] the bluebook an examples file's first line names, capitalised and joined
-    def examples_chapter(path)
+    def examples_bluebook(path)
       line = File.foreach(path).find { |text| text.match?(EXAMPLES_LINE) }
-      raise Refused, "#{path}: no `Examples for: <chapter>` line" unless line
+      raise Refused, "#{path}: no `Examples for: <bluebook>` line" unless line
 
       line.match(EXAMPLES_LINE)[1].split.map { |word| word[0].upcase + word[1..] }.join
     end
 
     # @return [Array<String>] absolute paths of the `.bluebook` files the examples are about
-    def chapter_files(path, chapter)
+    def bluebook_files(path, declaration)
       dir = File.dirname(File.expand_path(path))
       same_stem = File.join(dir, "#{File.basename(path, EXAMPLES_EXTENSION)}.bluebook")
       return [same_stem] if File.file?(same_stem)
 
       Dir.glob([File.join(dir, "*.bluebook"), File.join(dir, "bluebook", "*.bluebook")])
-         .select { |file| chapter_name(file) == chapter }
+         .select { |file| declaration_name(file) == declaration }
     end
 
     # Loads a bluebook file in whichever form it is written: sentences through the parser, anything

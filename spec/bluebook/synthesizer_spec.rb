@@ -6,7 +6,7 @@ require_relative "../support/memory_ports"
 RSpec.describe Hecks::Bluebook::Synthesizer do
   # Real IR from pizzas.bluebook: a closed set (`Size`), a multi-field value object (`Topping`),
   # and a value object nested in another (`Pizza.price_cents: Price`).
-  let(:chapter) do
+  let(:declaration) do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
@@ -14,7 +14,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
     end
     registry.bluebook("Pizzas")
   end
-  let(:order) { chapter.aggregate("Order") }
+  let(:order) { declaration.aggregate("Order") }
 
   describe ".scalar_for" do
     it "gives Integer a real Integer" do
@@ -38,7 +38,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
   describe ".field_value" do
     let(:field) { Struct.new(:type, :pattern) }
 
-    def value_under(pattern) = described_class.field_value(chapter, order, field.new("String", pattern))
+    def value_under(pattern) = described_class.field_value(declaration, order, field.new("String", pattern))
 
     it "keeps the marker when the field declares no pattern or the pattern admits it" do
       expect([value_under(nil), value_under("^[a-z-]+$")]).to eq(%w[smoke-test smoke-test])
@@ -55,13 +55,13 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
 
   describe ".value_for" do
     it "uses a closed set's own first admitted member, never an arbitrary string" do
-      value = described_class.value_for(chapter, order, "Size")
+      value = described_class.value_for(declaration, order, "Size")
 
       expect(value).to eq({ value: "small" })
     end
 
     it "synthesizes one scalar per declared field for a plain (non-closed) value object" do
-      value = described_class.value_for(chapter, order, "Topping")
+      value = described_class.value_for(declaration, order, "Topping")
 
       expect(value).to eq({ name: "smoke-test", amount: 0 })
     end
@@ -69,13 +69,13 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
     # Regression: `Pizza.price_cents` is a nested value object, not a primitive, and must not
     # collapse to a marker string.
     it "recurses into a nested value object rather than treating it as an opaque scalar" do
-      value = described_class.value_for(chapter, order, "Pizza")
+      value = described_class.value_for(declaration, order, "Pizza")
 
       expect(value).to eq({ price_cents: { cents: 0 }, size: { value: "small" } })
     end
 
     it "falls back to a marker string for a type name declared nowhere in the bluebook" do
-      expect(described_class.value_for(chapter, order, "NoSuchType")).to eq("smoke-test")
+      expect(described_class.value_for(declaration, order, "NoSuchType")).to eq("smoke-test")
     end
   end
 
@@ -114,7 +114,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
     RUBY
 
     it "synthesizes every declared argument for a real command, respecting each field's own type, nested or not" do
-      args = described_class.args_for(chapter, order, order.command("CreatePizza"))
+      args = described_class.args_for(declaration, order, order.command("CreatePizza"))
 
       expect(args).to eq(name: { value: "smoke-test" }, pizza: { price_cents: { cents: 0 }, size: { value: "small" } })
     end
@@ -138,17 +138,17 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
     end
 
     it "reuses an already-created id for a reference argument instead of guessing" do
-      chapter, tag = referencing_command
+      declaration, tag = referencing_command
 
-      args = described_class.args_for(chapter, tag, tag.command("Attach"), { "Item" => "headlamp" })
+      args = described_class.args_for(declaration, tag, tag.command("Attach"), { "Item" => "headlamp" })
 
       expect(args[:item]).to eq("headlamp")
     end
 
     it "falls back to a placeholder id when the referenced target was never created" do
-      chapter, tag = referencing_command
+      declaration, tag = referencing_command
 
-      args = described_class.args_for(chapter, tag, tag.command("Attach"), {})
+      args = described_class.args_for(declaration, tag, tag.command("Attach"), {})
 
       expect(args[:item]).to eq("smoke-test-id")
     end

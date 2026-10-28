@@ -17,7 +17,7 @@ module Hecks
       # @raise [ArgumentError] for any other keyword
       def dispatch(runtime:, command:, summary:, args: {}, **)
         request = Request.new(runtime: runtime, name: command, summary: summary, args: args, **)
-        request.bluebook, request.name = chapter_and_name(runtime, command)
+        request.bluebook, request.name = bluebook_and_name(runtime, command)
         audited(request, request.dry_run ? "dry_run" : "dispatch") { perform_dispatch(request) }
       end
 

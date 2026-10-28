@@ -21,38 +21,40 @@ module Hecks
           module_function
 
           # @param row [Hash{Symbol => String}] the row, defaults filled
-          # @return [Array<String>] every problem with `chapter`, `chapter_roles` and `page_size`
+          # @return [Array<String>] every problem with `bluebook`, `declaration_roles` and
+          #   `page_size`
           def problems(row)
-            chapters = row[:bluebook].split(",").map(&:strip)
-            [*chapter_problems(chapters), *role_problems(row[:bluebook_roles], chapters), *page_size_problems(row[:page_size])]
+            declarations = row[:bluebook].split(",").map(&:strip)
+            [*bluebook_problems(declarations), *role_problems(row[:bluebook_roles], declarations),
+             *page_size_problems(row[:page_size])]
           end
 
           # @return [Array<String>] the problems with an empty, repeated or reserved bluebook name
-          def chapter_problems(chapters)
+          def bluebook_problems(declarations)
             found = []
-            found << "bluebook names nothing" if chapters.reject(&:empty?).empty?
-            repeated = chapters.find { |name| chapters.count(name) > 1 }
+            found << "bluebook names nothing" if declarations.reject(&:empty?).empty?
+            repeated = declarations.find { |name| declarations.count(name) > 1 }
             found << "bluebook names #{repeated.inspect} twice" if repeated
-            [*found, *reserved_problems(chapters)]
+            [*found, *reserved_problems(declarations)]
           end
 
           # @return [Array<String>] a problem for each bluebook spelled as an address of the
           #   editor's
-          def reserved_problems(chapters)
-            return [] if chapters.size < 2
+          def reserved_problems(declarations)
+            return [] if declarations.size < 2
 
-            (chapters & RESERVED).map do |name|
+            (declarations & RESERVED).map do |name|
               "bluebook #{name.inspect} is the first part of an address the editor serves; name it another way"
             end
           end
 
-          # @return [Array<String>] the problems with `Chapter=Role,Role;Chapter=Role` entries
-          def role_problems(text, chapters)
+          # @return [Array<String>] the problems with `Bluebook=Role,Role;Bluebook=Role` entries
+          def role_problems(text, declarations)
             entries = text.split(";")
             entries.map(&:strip).reject(&:empty?).flat_map do |entry|
               name, roles = entry.split("=", 2)
               next ["bluebook_roles #{entry.inspect} must read Bluebook=Role,Role"] if roles.to_s.strip.empty?
-              next [] if chapters.include?(name.strip)
+              next [] if declarations.include?(name.strip)
 
               ["bluebook_roles names #{name.strip.inspect}, which is not a bluebook of this editor"]
             end

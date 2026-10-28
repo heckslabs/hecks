@@ -1,18 +1,18 @@
 module Hecks
   module Bluebook
     # Builds the runtime graph (aggregates, read models, process managers) from
-    # a bluebook's declared hash — the pure inverse of `Chapter#to_h`.
+    # a bluebook's declared hash — the pure inverse of `Bluebook#to_h`.
     class Assembly
       # Builds the graph the runtime runs from one bluebook's declared hash.
       #
       # @param declaration [Hash{Symbol => Object}] a bluebook's declarations, in the
-      #   shape `Chapter#to_h` spells
+      #   shape `Bluebook#to_h` spells
       # @return [Bluebook::Declaration] the assembled bluebook, with its aggregates, read
       #   models and process managers built and wired
       def self.call(declaration) = new(declaration).bluebook
 
       # @param declaration [Hash{Symbol => Object}] a bluebook's declarations, in the
-      #   shape `Chapter#to_h` spells
+      #   shape `Bluebook#to_h` spells
       def initialize(declaration)
         @declaration = declaration
       end

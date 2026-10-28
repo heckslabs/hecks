@@ -15,7 +15,7 @@ RSpec.describe "a graph assembled from declarations" do
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
-  def load_chapter(file)
+  def load_bluebook(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
@@ -28,7 +28,7 @@ RSpec.describe "a graph assembled from declarations" do
   def meta_bluebook = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   def assembled(name)
-    Hecks::Bluebook::Assembly.call(load_chapter(ASSEMBLY_CORPUS.fetch(name)).bluebook(name).to_h)
+    Hecks::Bluebook::Assembly.call(load_bluebook(ASSEMBLY_CORPUS.fetch(name)).bluebook(name).to_h)
   end
 
   # Names the field that moved rather than dumping two documents.
@@ -60,7 +60,7 @@ RSpec.describe "a graph assembled from declarations" do
 
   ASSEMBLY_CORPUS.each do |name, file|
     it "rebuilds #{name} exactly as it was declared" do
-      assert_inverse(load_chapter(file).bluebook(name))
+      assert_inverse(load_bluebook(file).bluebook(name))
     end
   end
 
@@ -249,8 +249,8 @@ RSpec.describe "a graph assembled from declarations" do
     # Every key a real reconstructed declaration carries; a fold must land on one.
     def declaration_keys
       @declaration_keys ||= ASSEMBLY_CORPUS.values.flat_map do |file|
-        built = load_chapter(file).bluebook(File.basename(file, ".bluebook").capitalize) ||
-                load_chapter(file).bluebooks.values.first
+        built = load_bluebook(file).bluebook(File.basename(file, ".bluebook").capitalize) ||
+                load_bluebook(file).bluebooks.values.first
         keys_in(Hecks::Bluebook::MetaValidator.hold(built)[:declaration])
       end.uniq
     end

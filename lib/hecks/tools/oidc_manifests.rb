@@ -6,7 +6,7 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Projects each domain's OIDC client and scope manifest (`Hecks::Projections::OIDC`) into an
-    # `oidc.json` beside the domain, or into one `<chapter>.oidc.json` for each bluebook of a
+    # `oidc.json` beside the domain, or into one `<bluebook>.oidc.json` for each bluebook of a
     # directory that holds several.
     #
     # A domain that has no bluebook is skipped and one that cannot be projected is reported, so a
@@ -52,7 +52,7 @@ module Hecks
         registry = Hecks.boot(File.join(root, path), install_driving: false).registry
         return warn("  #{path}: no bluebook found — skipped") if registry.bluebooks.empty?
 
-        project_chapters(registry, root, path)
+        project_bluebooks(registry, root, path)
       rescue StandardError => e
         warn "  #{path}: cannot project — #{Hecks::Text.first_line(e.message)}"
       end
@@ -65,7 +65,7 @@ module Hecks
       # @param directory [String] the directory that was booted
       # @return [Array<String>] the bluebook names, in load order; the first loaded when none has a
       #   recorded source
-      def chapters_of(registry, directory)
+      def bluebooks_of(registry, directory)
         under = "#{File.expand_path(directory)}/"
         own = registry.bluebooks.keys.select do |name|
           Array(registry.bluebook_sources[name]).any? { |source| File.expand_path(source).start_with?(under) }
@@ -77,8 +77,8 @@ module Hecks
       # @param root [String] the checkout
       # @param path [String] the domain directory, relative to `root`
       # @return [void]
-      def project_chapters(registry, root, path)
-        names = chapters_of(registry, File.join(root, path))
+      def project_bluebooks(registry, root, path)
+        names = bluebooks_of(registry, File.join(root, path))
         names.each do |name|
           file = file_for(names, name)
           write_manifest(registry, name, File.join(root, path, file))
@@ -91,7 +91,7 @@ module Hecks
       #
       # @param names [Array<String>] every bluebook the directory holds
       # @param name [String] the bluebook the manifest is for
-      # @return [String] the manifest's file name: `oidc.json`, or `<chapter>.oidc.json`
+      # @return [String] the manifest's file name: `oidc.json`, or `<bluebook>.oidc.json`
       def file_for(names, name) = names.one? ? "oidc.json" : "#{Naming.snake(name)}.oidc.json"
 
       # @param registry [Hecks::Runtime::Registry] the booted registry

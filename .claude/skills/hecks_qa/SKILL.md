@@ -8,7 +8,7 @@ description: Run one tick of hecks's adversarial QA practice — `exe/hecks qual
 **This skill does not itself loop.** It runs exactly one tick. For
 continuous operation the *caller* wraps it: `/loop hecks_qa`. Everything
 mechanical lives in scripts and in `lib/hecks/quality_control/quality_control.bluebook`
-(the chapter, with its ports and adapters beside it; `qa/` keeps this repository's
+(the bluebook, with its ports and adapters beside it; `qa/` keeps this repository's
 ledger wiring, world, settings and stress domains) (read its header once — three rules: a CHECK compares an expectation
 against an answer; a BUG is logged with the failing test that proves it or
 not at all; everything else is a GATE, refusable, waivable only by a
@@ -123,7 +123,7 @@ number.value=<n> commit.value=<new-sha>`.
 **A suspended target is released only by a person**: `exe/hecks quality_control query sweep.run
 <target> --release --notes "<what you concluded, 40+ chars>"`. It concludes
 the open sweep, counts the bugs it logged, moves the streak, and records
-what the chapter can be compared against. Never release from a subagent.
+what the bluebook can be compared against. Never release from a subagent.
 
 ## On a generated-domain finding
 

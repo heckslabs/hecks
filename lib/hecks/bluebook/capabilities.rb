@@ -4,7 +4,7 @@ require_relative "capabilities/package_declared"
 module Hecks
   module Bluebook
     # What a bluebook may declare it provides — trusted in place of a literal
-    # chapter-name check by role checks, adapters and the fuzzer.
+    # bluebook-name check by role checks, adapters and the fuzzer.
     #
     # The language defines a contract only for the capabilities Hecks itself consumes. Any other
     # `provides` name is the package's own: its keys are checked to name something the bluebook

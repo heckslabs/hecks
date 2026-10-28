@@ -34,9 +34,9 @@ module Hecks
           end
         end
 
-        # Claims each report under its chapter-qualified name. A report belongs to the bluebook,
-        # not an aggregate, so it is addressed `Chapter.Report` (one dot) where a query is
-        # `Chapter::Aggregate.Query`.
+        # Claims each report under its bluebook-qualified name. A report belongs to the bluebook,
+        # not an aggregate, so it is addressed `Bluebook.Report` (one dot) where a query is
+        # `Bluebook::Aggregate.Query`.
         def claim_reports(questions, bluebook)
           bluebook.read_models.each do |model|
             claim(questions, Naming.snake(model.hecks_name), report_spec(bluebook, model))
@@ -138,7 +138,7 @@ module Hecks
           parts.join(".")
         end
 
-        # The command's language name, `Chapter::Aggregate[.Entity].Verb`, for help text.
+        # The command's language name, `Bluebook::Aggregate[.Entity].Verb`, for help text.
         def fqn(bluebook, aggregate, command, entity = nil)
           [bluebook.name, "::", aggregate.hecks_name, ".",
            entity ? "#{entity.hecks_name}." : "", command.hecks_name].join

@@ -375,7 +375,7 @@ pub struct Bluebook {
     pub version: Option<String>,
     pub vision: Option<String>,
     pub classification: Option<String>,
-    // `formerly_known_as "OldName"`: always `None` today because `parse/chapter.rs` refuses it,
+    // `formerly_known_as "OldName"`: always `None` today because `parse/bluebook.rs` refuses it,
     // but the key is emitted on every bluebook.
     pub formerly_known_as: Option<String>,
     // `namespace "Hecks::Domain"`: the Ruby module the bluebook installs under (ADR 0080).
@@ -448,7 +448,7 @@ pub struct Adapter {
     pub secrets: Vec<String>,
     // Field name to default, first-insertion order; a repeated key keeps its first slot.
     pub defaults: Vec<(String, crate::ruby_value::Value)>,
-    // A plugin's qualified queries (`Chapter::Aggregate.Query`), in declaration order.
+    // A plugin's qualified queries (`Bluebook::Aggregate.Query`), in declaration order.
     pub answers: Vec<String>,
     // A plugin's wasm module, beside its `.adapter` file.
     pub runs: Option<String>,

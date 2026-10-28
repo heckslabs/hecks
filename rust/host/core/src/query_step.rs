@@ -27,12 +27,12 @@ pub enum Plan {
 ///
 /// @param domain_ir the domain's IR, when this host has one (`HECKS_IR_PATH`)
 /// @param domain the domain's name, used to qualify a short question
-/// @param question `Aggregate.Query`, or `Chapter::Aggregate.Query` for this domain or one of its
+/// @param question `Aggregate.Query`, or `Bluebook::Aggregate.Query` for this domain or one of its
 ///   attached bluebooks
 /// @return a kernel question for a declared derivable query, a refusal for an unknown query on a
 ///   known aggregate or for a query answered outside the domain
 pub fn plan(domain_ir: Option<&Value>, domain: &str, question: &str) -> Plan {
-    // A question that names its own bluebook (`Chapter::Aggregate.Query`) is asked of that chapter:
+    // A question that names its own bluebook (`Bluebook::Aggregate.Query`) is asked of that bluebook:
     // the kernel's query table is keyed by the bluebook's own domain name, so re-qualifying it with
     // this host's would send an attached bluebook's query to a table that does not hold it.
     let (owner, short) = question.rsplit_once("::").unwrap_or((domain, question));
@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn a_question_a_plugin_answers_goes_to_the_plugin_for_this_domain_or_an_attached_chapter() {
+    fn a_question_a_plugin_answers_goes_to_the_plugin_for_this_domain_or_an_attached_bluebook() {
         let mut ir = domain();
         ir["plugins"] = json!([{
             "adapter": "Occurrences",
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn a_question_naming_an_attached_chapter_keeps_that_chapter() {
+    fn a_question_naming_an_attached_bluebook_keeps_that_bluebook() {
         let ir = domain();
         assert_eq!(
             plan(Some(&ir), "Banking", "Media::MediaItem.Active"),

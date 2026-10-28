@@ -30,7 +30,7 @@ module Hecks
           def problems(row, roles, table)
             base = row[:base_path]
             [*path_problems(row, base), *("Editor roles name no role" if roles.empty?), *login_problems(row[:login], table),
-             *media_problems(row), *media_chapter_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row),
+             *media_problems(row), *media_bluebook_problems(row), *ThemeChecks.problems(row), *ScaleChecks.problems(row),
              *Preview.problems(row[:preview].strip)]
           end
 
@@ -54,7 +54,7 @@ module Hecks
           end
 
           # @return [Array<String>] the problem with a `media` bluebook that is one the editor edits
-          def media_chapter_problems(row)
+          def media_bluebook_problems(row)
             named = row[:media].strip
             return [] unless row[:bluebook].split(",").map(&:strip).include?(named)
 

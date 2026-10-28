@@ -3,7 +3,7 @@ require "spec_helper"
 # Boot, a handle's masking and the cryptoshred reach the Privacy bluebook through what it
 # provides, not through its name, so the verbs they dispatch are the ones the bluebook declares.
 RSpec.describe "privacy and subject_keys capabilities" do
-  let(:privacy) { Hecks::Framework.chapter("Privacy") }
+  let(:privacy) { Hecks::Framework.declaration("Privacy") }
 
   it "is provided by the Privacy bluebook, found by declaration", :aggregate_failures do
     expect(Hecks::Framework.providers_of(Hecks::Bluebook::Capabilities::PRIVACY)).to eq(["Privacy"])

@@ -102,7 +102,7 @@ runtime.registry.adapters["reference_memory"].secrets  # => [:api_key]
 | positional 1 | text | true | answers |
 <!-- generated:end -->
 
-Names one query a plugin answers, written in full as `Chapter::Aggregate.Query`, called once per
+Names one query a plugin answers, written in full as `Bluebook::Aggregate.Query`, called once per
 query. The query is declared in the bluebook with `returns`, as any query answered from outside
 is; what differs is that no hecksagon line binds it. At boot the runtime binds each `returns`
 query no hecksagon binds to the one plugin that says it answers it, so a package that ships its

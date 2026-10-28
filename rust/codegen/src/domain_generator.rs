@@ -22,7 +22,7 @@ pub struct GeneratedDomain {
     pub aggregate_files: Vec<GeneratedFile>,
     pub registry_rs: String,
     pub mod_rs: String,
-    /// Returned so a multi-chapter caller can union aggregates, queries and read models.
+    /// Returned so a multi-bluebook caller can union aggregates, queries and read models.
     pub registry_aggregates: Vec<AggregateEntry>,
     pub query_defs: Vec<crate::queries::QueryDef>,
     pub read_model_defs: Vec<crate::read_models::ReadModelDef>,
@@ -1155,7 +1155,7 @@ pub fn generate(
             entity_commands,
             nested_entity_commands,
             ports: port_operations,
-            chapter_mod: mod_name.to_string(),
+            bluebook_mod: mod_name.to_string(),
             domain_name: domain_name.to_string(),
             reference_specs: crate::reference_specs::reference_specs(
                 domain_name,

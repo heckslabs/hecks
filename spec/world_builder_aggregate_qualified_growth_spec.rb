@@ -31,7 +31,7 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
   # A repeat boot in one process leaves the previous boot's bluebook installed as a top-level
   # constant, so `Widgets` is a real module and only `::` reaches the world's own resolver.
   context "when a facade bluebook of the same name is installed" do
-    let(:chapter) do
+    let(:declaration) do
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         Hecks.bluebook("Widgets") do
@@ -47,11 +47,11 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
           end
         end
       end
-      Hecks::Adapters::Driving::Ruby.chapter_module(Hecks::Runtime::Dispatcher.new(registry),
-                                                    registry.bluebook("Widgets"))
+      Hecks::Adapters::Driving::Ruby.bluebook_module(Hecks::Runtime::Dispatcher.new(registry),
+                                                     registry.bluebook("Widgets"))
     end
 
-    before { stub_const("Widgets", chapter) }
+    before { stub_const("Widgets", declaration) }
 
     it "records a bind on an aggregate the bluebook does not declare" do
       world = build_examples_world { Widgets::Gadget.persisted_by("Heki") { dir "data" } }

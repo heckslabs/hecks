@@ -2,7 +2,7 @@ require "spec_helper"
 require "open3"
 require "rbconfig"
 
-# The on-disk chapter-verdict cache lets a boot skip judging bluebooks an earlier process already
+# The on-disk bluebook-verdict cache lets a boot skip judging bluebooks an earlier process already
 # judged. Every example that touches a file uses its own directory, never the user's cache.
 RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
   let(:cache) { described_class }
@@ -27,7 +27,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       def hold(bluebook) = ($holds = ($holds || 0) + 1) && super
     end)
     registry = Hecks::Bluebook::MetaValidator.grammar_registry
-    irs = registry.bluebooks.sort.map { |name, chapter| [name, JSON.generate(chapter.to_h)] }
+    irs = registry.bluebooks.sort.map { |name, declaration| [name, JSON.generate(declaration.to_h)] }
     puts JSON.generate(holds: $holds || 0, ir: Digest::SHA256.hexdigest(irs.to_json),
                        verdicts: Hecks::Bluebook::MetaValidator.verdicts.keys.sort)
   RUBY

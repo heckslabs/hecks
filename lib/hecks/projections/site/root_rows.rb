@@ -29,8 +29,8 @@ module Hecks
         # @return [Array<Hash{Symbol => Object}>] each checked row, defaults filled; empty when the
         #   bluebook declares none
         # @raise [Table::Invalid] when a row is refused
-        def read(chapter)
-          members = Table.rows_of(chapter, @object)
+        def read(declaration)
+          members = Table.rows_of(declaration, @object)
           problems = []
           problems << "a project declares one #{@object} row, not #{members.size}" if members.size > 1 && !@many
           rows = members.each_with_index.map { |member, index| check(member, index, problems) }

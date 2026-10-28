@@ -17,7 +17,7 @@ RSpec.describe "a provides verb naming a port operation" do
     end
   end
 
-  def probe_chapter(verb)
+  def probe_bluebook(verb)
     Hecks.bluebook "Probe" do
       vision "probe"
       supporting
@@ -42,7 +42,7 @@ RSpec.describe "a provides verb naming a port operation" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      probe_chapter(verb)
+      probe_bluebook(verb)
       probe_hecksagon(port_operation)
     end
     registry

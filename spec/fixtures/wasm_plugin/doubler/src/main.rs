@@ -3,7 +3,7 @@
 //! question is refused, so a test can see a refusal cross the boundary too.
 //!
 //! The contract every plugin keeps: read one question as JSON on stdin,
-//! `{"question": "Chapter::Aggregate.Query", "args": {...}}`, and write one answer as JSON on
+//! `{"question": "Bluebook::Aggregate.Query", "args": {...}}`, and write one answer as JSON on
 //! stdout, `{"rows": [...]}` or `{"refused": "why"}`.
 
 use serde_json::{json, Value};

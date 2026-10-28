@@ -23,19 +23,19 @@ module Hecks
           @read_models      = []
           @policies         = []
           @process_managers = []
-          # The root of the chapter-wide given pool, one level wider than
+          # The root of the bluebook-wide given pool, one level wider than
           # `AggregateBuilder`'s `@entity_named_givens` (S10). See `#given` for
           # what this closes.
-          @chapter_named_givens = {}
-          # Every bare chapter-given reference left unresolved so far, threaded into
-          # every aggregate like `@chapter_named_givens`. See
-          # `AggregateBuilder#pending_chapter_given` for what queues here.
-          @chapter_pending_givens = []
-          # One level wider still — the chapter-wide, entity-scoped pool, the piece
-          # analogue of `@chapter_named_givens`. See `EntityBuilder#given_impl` and
-          # docs/implemented/resolution-rules/chapter-entity-given.md for the algorithm.
-          @chapter_entity_named_givens   = {}
-          @chapter_entity_pending_givens = []
+          @bluebook_named_givens = {}
+          # Every bare bluebook-given reference left unresolved so far, threaded into
+          # every aggregate like `@bluebook_named_givens`. See
+          # `AggregateBuilder#pending_bluebook_given` for what queues here.
+          @bluebook_pending_givens = []
+          # One level wider still — the bluebook-wide, entity-scoped pool, the piece
+          # analogue of `@bluebook_named_givens`. See `EntityBuilder#given_impl` and
+          # docs/implemented/resolution-rules/bluebook-entity-given.md for the algorithm.
+          @bluebook_entity_named_givens   = {}
+          @bluebook_entity_pending_givens = []
         end
 
         # Bluebook metadata belongs to the composed builder, not whichever file sorts
@@ -96,7 +96,7 @@ module Hecks
         def provides_impl(capability, **verbs)
           if verbs.empty?
             raise Malformed, "#{@name}'s provides #{capability.inspect} names no verb — say which of this " \
-                             "chapter's commands and queries answer it"
+                             "bluebook's commands and queries answer it"
           end
 
           rows = verbs.map { |key, verb| Declaration::Provision.new(capability: capability.to_s, key: key.to_s, verb: verb.to_s) }
@@ -119,7 +119,7 @@ module Hecks
         # @return [Symbol] `:generic`
         def generic    = @classification = :generic
 
-        # Declares an aggregate belonging to this bluebook. `@chapter_named_givens` is
+        # Declares an aggregate belonging to this bluebook. `@bluebook_named_givens` is
         # threaded into it — see `AggregateBuilder#given` for the sharing this enables.
         #
         # Bootstrap-reachable (every core bluebook's top-level shape uses it), so also
@@ -131,10 +131,10 @@ module Hecks
         # @raise [Bluebook::DSL::Malformed] if the aggregate's own body fails any check
         #   `AggregateBuilder#build` raises
         def aggregate_impl(name, &)
-          @aggregates << AggregateBuilder.build(name, chapter_named_givens:          @chapter_named_givens,
-                                                      chapter_pending_givens:        @chapter_pending_givens,
-                                                      chapter_entity_named_givens:   @chapter_entity_named_givens,
-                                                      chapter_entity_pending_givens: @chapter_entity_pending_givens, &)
+          @aggregates << AggregateBuilder.build(name, bluebook_named_givens:          @bluebook_named_givens,
+                                                      bluebook_pending_givens:        @bluebook_pending_givens,
+                                                      bluebook_entity_named_givens:   @bluebook_entity_named_givens,
+                                                      bluebook_entity_pending_givens: @bluebook_entity_pending_givens, &)
         end
 
         # Declares a read model belonging to this bluebook.
@@ -169,7 +169,7 @@ module Hecks
         #
         # @param name [String] the policy's own name
         # @yield the policy body, evaluated against a new `PolicyBuilder`
-        # @return [Array<Bluebook::Policy>] every chapter-level policy declared so far,
+        # @return [Array<Bluebook::Policy>] every bluebook-level policy declared so far,
         #   this one last
         def policy(name, &)
           @policies << PolicyBuilder.build(name, &)
@@ -185,11 +185,11 @@ module Hecks
           @process_managers << ProcessManagerBuilder.build(name, &)
         end
 
-        # Assembles this builder's accumulated declarations into a judged `Chapter`.
+        # Assembles this builder's accumulated declarations into a judged `Bluebook`.
         #
         # @return [Bluebook::Declaration] the built bluebook, judged by the language when not
         #   deferring across a multi-file bluebook
-        # @raise [Bluebook::DSL::Malformed] if a chapter-wide given reference cannot be
+        # @raise [Bluebook::DSL::Malformed] if a bluebook-wide given reference cannot be
         #   resolved, if cross-construct validation fails, or if the language's own
         #   whole-document judgment refuses the bluebook
         # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a process
@@ -198,13 +198,13 @@ module Hecks
           # The bluebook is the top of the construct chain — its constructor stamps every
           # aggregate and read model with itself as owner, so `hecks_fqn` resolves by
           # walking up to it.
-          bluebook = Bluebook::Declaration.new(**chapter_identity, **chapter_constructs)
+          bluebook = Bluebook::Declaration.new(**bluebook_identity, **bluebook_constructs)
 
-          # A bare chapter-given may still be pending if a file that would resolve it
+          # A bare bluebook-given may still be pending if a file that would resolve it
           # hasn't loaded yet; deferred to `MetaValidator.judge_deferred!`, before
           # `validate_assembled!`, so nothing downstream reads an unresolved placeholder.
-          resolve_pending_chapter_givens! unless MetaValidator.deferring?
-          resolve_pending_chapter_entity_givens! unless MetaValidator.deferring?
+          resolve_pending_bluebook_givens! unless MetaValidator.deferring?
+          resolve_pending_bluebook_entity_givens! unless MetaValidator.deferring?
 
           # A bluebook may span several files; a hop/projection/event can name a construct
           # not yet loaded, so this is skipped while `MetaValidator.defer` loads the
@@ -217,7 +217,7 @@ module Hecks
           MetaValidator.call(bluebook)
         end
 
-        # Builds a `Chapter` from a `Hecks.bluebook "Name" do ... end` block, reusing one open
+        # Builds a `Bluebook` from a `Hecks.bluebook "Name" do ... end` block, reusing one open
         # builder per bluebook name so several files accumulate into it rather than replacing it.
         #
         # @param name [String] the bluebook's declared name
@@ -247,13 +247,13 @@ module Hecks
         private
 
         # The bluebook's own metadata.
-        def chapter_identity
+        def bluebook_identity
           { name: @name, version: @version, vision: @vision, classification: @classification,
             formerly_known_as: @formerly_known_as, namespace: @namespace }
         end
 
         # What the bluebook declares: its constructs and the contexts and capabilities it names.
-        def chapter_constructs
+        def bluebook_constructs
           { aggregates: @aggregates, read_models: @read_models,
             policies: @aggregates.flat_map(&:policies) + @policies,
             process_managers: @process_managers,

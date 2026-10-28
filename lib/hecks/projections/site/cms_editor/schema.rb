@@ -30,16 +30,16 @@ module Hecks
           # @param bluebooks [Bluebook::Declaration, Array<Bluebook::Declaration>] the bluebook, or
           #   the
           #   bluebooks in the order the row names them; the first names the domain addressed
-          # @param skip [Array<String>] aggregates to leave out: `Name`, or `Chapter::Name`
+          # @param skip [Array<String>] aggregates to leave out: `Name`, or `Bluebook::Name`
           # @param pictures [Bluebook::Declaration, nil] another bluebook whose picture aggregate
           #   the
-          #   editor's pictures use, in place of any in `chapters`
+          #   editor's pictures use, in place of any in `bluebooks`
           # @param roles [Hash{String => Array<String>}] the roles each bluebook is limited to
-          # @return [Hash{String => Object}] the domain's name and its aggregates; `chapters` too
+          # @return [Hash{String => Object}] the domain's name and its aggregates; `bluebooks` too
           #   when there are several
           # @raise [ArgumentError] when no aggregate is left, or `pictures` has no picture aggregate
-          def self.read(chapters, skip: [], pictures: nil, roles: {})
-            list = chapters.is_a?(Array) ? chapters : [chapters]
+          def self.read(declarations, skip: [], pictures: nil, roles: {})
+            list = declarations.is_a?(Array) ? declarations : [declarations]
             shaped = Composition.aggregates(list, skip: skip, roles: roles) { |agg| new(agg).to_h }
             raise ArgumentError, "the #{list.map(&:name).join(", ")} bluebook has no aggregate to edit" if shaped.empty?
 
@@ -50,9 +50,9 @@ module Hecks
           # @return [Hash{String => Object}] the schema: the domain, the bluebooks when several, the
           #   aggregates, and the picture and scheduling aggregates when there are such
           def self.assemble(list, aggregates, media)
-            chapters = list.size > 1 ? { "bluebooks" => list.map(&:name) } : {}
+            declarations = list.size > 1 ? { "bluebooks" => list.map(&:name) } : {}
             scheduling = Scheduling.read(aggregates)
-            { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **(media ? { "media" => media } : {}),
+            { "domain" => list.first.name, **declarations, "aggregates" => aggregates, **(media ? { "media" => media } : {}),
               **(scheduling ? { "scheduling" => scheduling } : {}) }
           end
 
@@ -62,8 +62,8 @@ module Hecks
           # @return [Hash{String => Object}, nil] the picture aggregate, as `Media` describes it
           def self.within(shaped, first)
             found = Media.read(shaped)
-            chapter = found&.delete("bluebook")
-            chapter && chapter != first ? found.merge("domain" => chapter) : found
+            declaration = found&.delete("bluebook")
+            declaration && declaration != first ? found.merge("domain" => declaration) : found
           end
 
           # The picture aggregate of another bluebook: the same record as one in the editor's own
@@ -72,12 +72,12 @@ module Hecks
           #
           # @return [Hash{String => Object}] the picture aggregate, as `Media` describes it
           # @raise [ArgumentError] when the bluebook has no aggregate that registers pictures
-          def self.elsewhere(chapter)
-            shaped = chapter.aggregates.map { |agg| new(agg).to_h }
+          def self.elsewhere(declaration)
+            shaped = declaration.aggregates.map { |agg| new(agg).to_h }
             found = Media.read(shaped)
-            raise ArgumentError, "the #{chapter.name} bluebook has no aggregate that registers pictures" unless found
+            raise ArgumentError, "the #{declaration.name} bluebook has no aggregate that registers pictures" unless found
 
-            found.merge("domain" => chapter.name, "definition" => shaped.find { |agg| agg["name"] == found["aggregate"] })
+            found.merge("domain" => declaration.name, "definition" => shaped.find { |agg| agg["name"] == found["aggregate"] })
           end
 
           # @param aggregate [Bluebook::Aggregate] one aggregate of the bluebook

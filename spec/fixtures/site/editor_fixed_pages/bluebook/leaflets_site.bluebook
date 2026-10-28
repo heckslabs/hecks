@@ -1,6 +1,6 @@
 # A small site whose editor works on pages of a fixed structure: the neutral fixture the editor
 # generator reads for a working copy that is a value object, a picture slot and a writing box outside
-# a block list, and repeated groups that hold groups. Its `Editor` row names two chapters.
+# a block list, and repeated groups that hold groups. Its `Editor` row names two episodes.
 Hecks.bluebook "LeafletsSite" do
   vision "The routes of a small site, with an editor for its fixed-structure pages."
 

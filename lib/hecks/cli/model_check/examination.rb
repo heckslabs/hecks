@@ -24,8 +24,8 @@ module Hecks
         # @api private
         def aggregate_owners_of(booted)
           pairs = booted.flat_map do |_, registry|
-            registry.bluebooks.values.flat_map do |chapter|
-              chapter.aggregates.map { |aggregate| [aggregate.hecks_name, chapter.name.to_s] }
+            registry.bluebooks.values.flat_map do |declaration|
+              declaration.aggregates.map { |aggregate| [aggregate.hecks_name, declaration.name.to_s] }
             end
           end
           pairs.group_by(&:first).transform_values { |rows| rows.map(&:last).uniq }
@@ -64,7 +64,7 @@ module Hecks
         # @api private
         def emitted_events_of(booted)
           booted.flat_map do |_, registry|
-            registry.bluebooks.values.flat_map { |chapter| Bluebook::ModelCheck.emitted_events(chapter) }
+            registry.bluebooks.values.flat_map { |declaration| Bluebook::ModelCheck.emitted_events(declaration) }
           end.to_set
         end
 
@@ -73,13 +73,13 @@ module Hecks
 
           scope = shared.merge(rust_target: rust_target?(name, options.rust_dir), strict: options.strict,
                                profile: options.profile)
-          chapters = registry.bluebooks.values
-          findings = chapters.flat_map do |chapter|
-            Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name), **scope)
+          declarations = registry.bluebooks.values
+          findings = declarations.flat_map do |declaration|
+            Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name), **scope)
           end
 
           remaining = without_allowlisted(name, findings) or return false
-          passes?(remaining, "   clean — #{chapters.size} chapter(s), no dead states, no unreachable protocol steps")
+          passes?(remaining, "   clean — #{declarations.size} bluebook(s), no dead states, no unreachable protocol steps")
         end
 
         # Prints the allowlisted findings and answers the rest.
@@ -105,11 +105,11 @@ module Hecks
         def examine_language(options)
           ok = true
           ["Bluebook", "World"].each do |name|
-            chapter = Bluebook::MetaValidator.grammar_registry.bluebook(name)
-            next unless chapter
+            declaration = Bluebook::MetaValidator.grammar_registry.bluebook(name)
+            next unless declaration
 
             puts "── #{name} (the language itself)"
-            findings = Bluebook::ModelCheck.call(chapter, strict: options.strict, profile: options.profile)
+            findings = Bluebook::ModelCheck.call(declaration, strict: options.strict, profile: options.profile)
             ok = passes?(findings, "   clean — no dead states, no unreachable protocol steps") && ok
           end
           ok

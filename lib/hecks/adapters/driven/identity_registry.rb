@@ -16,7 +16,7 @@ module Hecks
       # @return [String, nil] the linked identity's id, or nil if nothing has linked this pair
       def resolve(registry, issuer:, subject:)
         # The verb comes from the declared identity provider (`provides "identity", resolve:`).
-        provider = registry.bluebooks.values.find { |chapter| chapter.provides?(::Hecks::Bluebook::Capabilities::IDENTITY) }
+        provider = registry.bluebooks.values.find { |declaration| declaration.provides?(::Hecks::Bluebook::Capabilities::IDENTITY) }
         verb = provider&.provided_verb(::Hecks::Bluebook::Capabilities::IDENTITY, :resolve) ||
                "Identity::ExternalIdentifier.ResolvedBy"
         rows = Runtime::Dispatcher.new(registry).query(

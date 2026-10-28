@@ -45,7 +45,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       expect(files.keys).to eq([File.join(project, "generated", "routes.ts"), File.join(project, "deploy/template.yaml")])
     end
 
-    it "derives a domain route from a command with the forms scheme, /Chapter/Aggregate/Verb", :aggregate_failures do
+    it "derives a domain route from a command with the forms scheme, /Bluebook/Aggregate/Verb", :aggregate_failures do
       expect(projected).to include('{ path: "/Studio/Inquiry/Submit", kind: "endpoint"',
                                    'methods: ["POST"]', 'source: "command:Studio.Inquiry.Submit"')
       expect(projected).to include('{ path: "/Studio/Inquiry/Recent", kind: "endpoint", render: "ssr", auth: "admin"')

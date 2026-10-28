@@ -45,10 +45,10 @@ module Hecks
         # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
         # @param bluebook [String] the bluebook the command line speaks to
         # @return [Hash{Symbol => Object}, nil] the setting, or nil when the bluebook did not opt in
-        def settings(runtime, chapter)
+        def settings(runtime, declaration)
           return unless runtime.respond_to?(:registry)
 
-          found = runtime.world(chapter)&.for_verb(SETTING)
+          found = runtime.world(declaration)&.for_verb(SETTING)
           found.nil? || found.empty? ? nil : found
         end
 
@@ -84,12 +84,12 @@ module Hecks
         #
         # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout
-        # @return [Hash{Symbol => Object}] `:hide` and `:chapters`, to merge into the projection
+        # @return [Hash{Symbol => Object}] `:hide` and `:bluebooks`, to merge into the projection
         def audience(settings, maintainer)
           return {} unless settings
 
           named = Array(settings[:bluebooks]) + (maintainer ? Array(settings[:maintainer_bluebooks]) : [])
-          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: named.map(&:to_s) }
+          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), declarations: named.map(&:to_s) }
         end
 
         # Runs the block with standard error held back, so the wiring notes hecks prints about its

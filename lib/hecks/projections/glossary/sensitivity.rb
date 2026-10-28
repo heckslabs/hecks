@@ -9,8 +9,8 @@ module Hecks
       module Sensitivity
         module_function
 
-        def for_aggregate(markings, chapter_name, aggregate)
-          qualified = "#{chapter_name}::#{aggregate.hecks_name}"
+        def for_aggregate(markings, declaration_name, aggregate)
+          qualified = "#{declaration_name}::#{aggregate.hecks_name}"
           markings.select { |marking| marking[:domain].to_s == qualified }
         end
 

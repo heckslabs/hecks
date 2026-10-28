@@ -135,7 +135,7 @@ module Hecks
 
       # @api private
       def verbs(member)
-        chapter.aggregates.flat_map do |aggregate|
+        declaration.aggregates.flat_map do |aggregate|
           aggregate.public_send(member).map do |item|
             ["#{Naming.snake(aggregate.hecks_name)}.#{Naming.snake(item.hecks_name)}", item]
           end
@@ -143,7 +143,7 @@ module Hecks
       end
 
       # @api private
-      def chapter
+      def declaration
         runtime.bluebook("Hecks")
       end
 

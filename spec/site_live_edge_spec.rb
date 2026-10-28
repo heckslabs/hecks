@@ -9,9 +9,9 @@ RSpec.describe Hecks::Projections::Site::LiveEdge do
   before(:all) do
     site = Hecks::Projections::Site
     registry = Hecks::Tools::SiteRoutes.registry_for(File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio"))
-    chapter = site::Table.chapter(registry)
-    table = site::Table.read(chapter, registry: registry)
-    @edge = site::Edge.read(chapter, table: table, vocabulary: site::Table.vocabulary(registry))
+    declaration = site::Table.declaration(registry)
+    table = site::Table.read(declaration, registry: registry)
+    @edge = site::Edge.read(declaration, table: table, vocabulary: site::Table.vocabulary(registry))
   end
 
   let(:edge)  { @edge }

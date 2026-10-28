@@ -188,7 +188,7 @@ RSpec.describe "the DSL surface" do
 
       expect(registry.bluebook("Governance")).not_to be_nil
       expect(registry.bluebook("Governance").aggregate("RoleAssignment")).not_to be_nil
-      expect(registry.hecksagon("Hexed").member_chapters).to eq(["Governance"])
+      expect(registry.hecksagon("Hexed").member_bluebooks).to eq(["Governance"])
     end
 
     it ".hecksagon's bounded marks this bluebook as a bounded context" do
@@ -1374,7 +1374,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    def referencing_chapter
+    def referencing_bluebook
       proc do
         aggregate("Referencer") do
           identified_by :id
@@ -1383,7 +1383,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    def declaring_chapter
+    def declaring_bluebook
       proc do
         aggregate("Declarer") do
           identified_by :id
@@ -1392,7 +1392,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    def referencing_piece_chapter
+    def referencing_piece_bluebook
       proc do
         aggregate("Referencer") do
           identified_by :id
@@ -1404,7 +1404,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    def declaring_piece_chapter
+    def declaring_piece_bluebook
       proc do
         aggregate("Declarer") do
           identified_by :id
@@ -1419,30 +1419,30 @@ RSpec.describe "the DSL surface" do
     # Two separate `Hecks.bluebook` calls under one bluebook name — the shape a bluebook split
     # across real files takes. The reference is deferred, not refused, until
     # `MetaValidator.judge_deferred!` runs after both have loaded.
-    def load_split_chapter(name, *chapters)
+    def load_split_bluebook(name, *declarations)
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Hecks::Bluebook::MetaValidator.defer { chapters.each { |chapter| Hecks.bluebook(name, &chapter) } }
+        Hecks::Bluebook::MetaValidator.defer { declarations.each { |declaration| Hecks.bluebook(name, &declaration) } }
         Hecks::Bluebook::MetaValidator.judge_deferred!(registry)
       end
       registry
     end
 
-    it "resolve_pending_chapter_givens! resolves a bare chapter-given left pending by an earlier file" do
-      registry = load_split_chapter("SplitGiven", referencing_chapter, declaring_chapter)
+    it "resolve_pending_bluebook_givens! resolves a bare bluebook-given left pending by an earlier file" do
+      registry = load_split_bluebook("SplitGiven", referencing_bluebook, declaring_bluebook)
       referencer = registry.bluebook("SplitGiven").aggregates.find { |a| a.hecks_name == "Referencer" }
 
       expect(referencer.preconditions.map(&:canonical)).to eq(["true"])
     end
 
-    it "resolve_pending_chapter_entity_givens! resolves a bare entity-level given left pending by an " \
+    it "resolve_pending_bluebook_entity_givens! resolves a bare entity-level given left pending by an " \
        "earlier file, DECLARED ON A DIFFERENT AGGREGATE'S OWN PIECE" do
       # The entity-scoped analogue, one level down: reference and
       # declaration live on a piece under two different aggregates
       # (Account::LedgerEntry / SafeDepositBox::Visit).
-      registry = load_split_chapter("SplitEntityGiven", referencing_piece_chapter, declaring_piece_chapter)
+      registry = load_split_bluebook("SplitEntityGiven", referencing_piece_bluebook, declaring_piece_bluebook)
       referencer_piece = registry.bluebook("SplitEntityGiven").aggregates
                                  .find { |a| a.hecks_name == "Referencer" }.entities.first
 

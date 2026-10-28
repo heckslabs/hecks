@@ -20,9 +20,9 @@ module Hecks
         #
         # @raise [WiringError] naming the policy, the ask and what the hecksagon would need
         def refuse_unresolved_asks!
-          @declared.bluebooks.each_value do |chapter|
-            chapter.policies.select(&:asks?).each do |policy|
-              outcome = Bluebook::AskResolution.call(chapter, policy)
+          @declared.bluebooks.each_value do |declaration|
+            declaration.policies.select(&:asks?).each do |policy|
+              outcome = Bluebook::AskResolution.call(declaration, policy)
               raise WiringError, outcome.detail unless outcome.resolved?
 
               policy.resolve_ask!(outcome.verb)

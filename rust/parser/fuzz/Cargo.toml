@@ -13,8 +13,8 @@ publish = false
 libfuzzer-sys = "0.4"
 
 [[bin]]
-name = "chapter"
-path = "fuzz_targets/chapter.rs"
+name = "bluebook"
+path = "fuzz_targets/bluebook.rs"
 test = false
 doc = false
 bench = false

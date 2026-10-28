@@ -7,11 +7,11 @@ which is its own workspace and is never built by `cargo build` or `cargo test` i
 rustup toolchain install nightly
 cargo install cargo-fuzz
 cd rust/parser
-cargo +nightly fuzz run chapter -- -max_total_time=60   # bluebook parse + determinism
+cargo +nightly fuzz run bluebook -- -max_total_time=60   # bluebook parse + determinism
 cargo +nightly fuzz run resolve -- -max_total_time=60   # hecksagon `attaches` resolution
 ```
 
-Seed a run from the fixtures: `cargo +nightly fuzz run chapter ../tests/fixtures`. A crash lands
+Seed a run from the fixtures: `cargo +nightly fuzz run bluebook ../tests/fixtures`. A crash lands
 in `fuzz/artifacts/`; copy it to a `.bluebook` and run `hecks-parse bluebook --bluebook Fuzzed
 <file>` to reproduce it.
 

@@ -468,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn mirrored_aggregates_is_just_the_capable_ones_when_no_chapter_provides_membership() {
+    fn mirrored_aggregates_is_just_the_capable_ones_when_no_bluebook_provides_membership() {
         let ir = serde_json::json!({
             "name": "Shop",
             "lineage": { "capable_aggregates": [{ "name": "Order", "storage_name": "order" }] }

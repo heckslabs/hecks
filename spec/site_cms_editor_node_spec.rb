@@ -975,14 +975,14 @@ RSpec.describe "the generated editor, run by node" do
       expect(out["nav"]).not_to include("MediaItem")
     end
 
-    it "registers an upload with the picture chapter's domain", :aggregate_failures, :process do
+    it "registers an upload with the picture episode's domain", :aggregate_failures, :process do
       out = run
 
       expect(out["upload"]).to eq(201)
       expect(out["registered"].map { |sent| sent["verb"] }).to eq(["Library::MediaItem.RegisterPicture"])
     end
 
-    it "lists the pictures from the picture chapter's query", :process do
+    it "lists the pictures from the picture episode's query", :process do
       out = run
 
       expect(out["asked"]).to eq([{ "query" => "Library::MediaItem.Pictures", "args" => {} }])

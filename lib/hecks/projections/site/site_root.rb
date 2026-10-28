@@ -59,11 +59,11 @@ module Hecks
         end
 
         # @return [String, nil] the template, or nil with no `Env` rows
-        def env_template(chapter)
-          vars = ENV_ROWS.read(chapter)
+        def env_template(declaration)
+          vars = ENV_ROWS.read(declaration)
           return nil if vars.empty?
 
-          secrets = SECRETS.read(chapter).first
+          secrets = SECRETS.read(declaration).first
           if secrets.nil? && vars.any? { |var| !var.key?(:value) }
             raise Table::Invalid, "Env rows without a value are secrets; the project declares no Secrets row"
           end

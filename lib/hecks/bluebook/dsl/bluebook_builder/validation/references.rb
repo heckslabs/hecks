@@ -42,7 +42,7 @@ module Hecks
 
             # A reference ring means no aggregate in it is a consistency boundary. Checked at
             # bluebook level because seeing a cycle needs every end declared (ADR 0025). Catches
-            # any ring length; self-reference stays legal, and a cross-chapter target is a
+            # any ring length; self-reference stays legal, and a cross-bluebook target is a
             # dangling name, not an edge.
             def validate_no_bidirectional_references!(aggregates)
               cycle = find_reference_cycle(reference_edges(aggregates))

@@ -89,7 +89,7 @@ RSpec.describe Hecks::Projections::ContextRelationships do
   end
 
   it "reads an attaches of the context's own vendored package as no relationship" do
-    attachments = %w[RelLocal Governance].map { |name| Struct.new(:chapter_name).new(name) }
+    attachments = %w[RelLocal Governance].map { |name| Struct.new(:declaration_name).new(name) }
     wired = Struct.new(:domain, :attachments).new("RelLocal", attachments)
 
     expect(described_class.attach_edges(wired).map(&:to)).to eq(["Governance"])

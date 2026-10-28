@@ -2,7 +2,7 @@ require "spec_helper"
 
 RSpec.describe "relationship declarations" do
   # One aggregate declares all four relationship kinds so IR and assembly are checked together.
-  PORTFOLIO_CHAPTER = proc do
+  PORTFOLIO_BLUEBOOK = proc do
     vision "relationships read as the domain concepts they represent"
 
     aggregate "Customer" do
@@ -44,7 +44,7 @@ RSpec.describe "relationship declarations" do
   ].freeze
 
   # Same declarations on an owned entity rather than an aggregate.
-  CASE_CHAPTER = proc do
+  CASE_BLUEBOOK = proc do
     vision "owned pieces may retain structural relationships"
 
     aggregate "Customer" do
@@ -76,7 +76,7 @@ RSpec.describe "relationship declarations" do
     end
   end
 
-  EMPTY_HAS_MANY_CHAPTER = proc do
+  EMPTY_HAS_MANY_BLUEBOOK = proc do
     vision "an empty relationship collection already means none"
 
     aggregate("Account") { identified_by { attribute :number, String } }
@@ -87,7 +87,7 @@ RSpec.describe "relationship declarations" do
     end
   end
 
-  OPTIONAL_HAS_MANY_CHAPTER = proc do
+  OPTIONAL_HAS_MANY_BLUEBOOK = proc do
     vision "optional is not collection cardinality"
     aggregate("Account") { identified_by { attribute :number, String } }
     aggregate("Portfolio") do
@@ -98,7 +98,7 @@ RSpec.describe "relationship declarations" do
 
   # `Naming.singularize` must undo the "-es" suffix `plural` mints, or
   # `has_many Boxes` resolves to a phantom "Boxe" instead of Box.
-  BOXES_CHAPTER = proc do
+  BOXES_BLUEBOOK = proc do
     vision "a plural ending in -es still resolves to its real singular"
 
     aggregate("Box") { identified_by { attribute :number, String } }
@@ -109,7 +109,7 @@ RSpec.describe "relationship declarations" do
     end
   end
 
-  def build_chapter(&block)
+  def build_bluebook(&block)
     Hecks::Bluebook::DSL::BluebookBuilder.build("RelationshipFixture", &block)
   end
 
@@ -118,33 +118,33 @@ RSpec.describe "relationship declarations" do
   end
 
   it "preserves relationship kind and cardinality through canonical IR and assembly", :aggregate_failures do
-    chapter = build_chapter(&PORTFOLIO_CHAPTER)
-    fields = chapter.aggregate("Portfolio").attributes.last(4)
+    declaration = build_bluebook(&PORTFOLIO_BLUEBOOK)
+    fields = declaration.aggregate("Portfolio").attributes.last(4)
 
     expect(relationship_rows(fields)).to eq(PORTFOLIO_RELATIONSHIPS)
-    expect(Hecks::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
+    expect(Hecks::Bluebook::Assembly.call(declaration.to_h).to_h).to eq(declaration.to_h)
   end
 
   it "uses the same relationship declarations on an entity" do
-    review = build_chapter(&CASE_CHAPTER).aggregate("Case").entities.fetch(0)
+    review = build_bluebook(&CASE_BLUEBOOK).aggregate("Case").entities.fetch(0)
 
     expect(review.attributes.last(3).map { |field| [field.name, field.list?, field.relationship] })
       .to eq([[:customer, false, "belongs_to"], [:related_accounts, true, "has_many"], [:reviewer, false, "reference_to"]])
   end
 
   it "uses an empty list for no has_many members" do
-    portfolio = build_chapter(&EMPTY_HAS_MANY_CHAPTER).aggregate("Portfolio")
+    portfolio = build_bluebook(&EMPTY_HAS_MANY_BLUEBOOK).aggregate("Portfolio")
 
     expect(Hecks::Runtime::Instance.new(aggregate: portfolio, id: "p-1")[:accounts]).to eq([])
   end
 
   it "refuses optional cardinality on has_many" do
-    expect { build_chapter(&OPTIONAL_HAS_MANY_CHAPTER) }
+    expect { build_bluebook(&OPTIONAL_HAS_MANY_BLUEBOOK) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /has_many takes no optional/)
   end
 
   it "resolves has_many against a real aggregate whose plural adds -es", :aggregate_failures do
-    shelf = build_chapter(&BOXES_CHAPTER).aggregate("Shelf")
+    shelf = build_bluebook(&BOXES_BLUEBOOK).aggregate("Shelf")
 
     expect(shelf.attributes.last.type.to_s).to eq("Reference<Box>")
     expect(shelf.reference_targets).to include("Box")

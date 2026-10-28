@@ -15,7 +15,7 @@ it — the same domain, wired twice:
 
 ```ruby bluebook
 Hecks.bluebook "WorldReference", version: "2" do
-  vision "A chapter that pins a contract version, so a world has something to pin to."
+  vision "A bluebook that pins a contract version, so a world has something to pin to."
 
   aggregate "Beacon" do
     attribute :callsign, Callsign

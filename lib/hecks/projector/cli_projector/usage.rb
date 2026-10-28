@@ -40,7 +40,7 @@ module Hecks
           shown = [commands, questions].map { |specs| CliAudience.audience_specs(specs, options) }
           [usage_header(bluebook, program),
            tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)),
-           CliAudience.chapter_lines(program, options[:chapters]),
+           CliAudience.bluebook_lines(program, options[:declarations]),
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
         end
 

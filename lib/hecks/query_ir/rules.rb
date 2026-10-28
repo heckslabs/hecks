@@ -8,11 +8,11 @@ module Hecks
       # Object identity carries no signal: `MetaValidator.call` rebuilds the graph from flat rows,
       # so a bare `given("x")` reference and its block declaration are distinct objects by then.
       # @param registry [Runtime::Registry] the booted registry to walk
-      # @param chapter_name [String, nil] one bluebook to walk, every booted bluebook when nil
+      # @param declaration_name [String, nil] one bluebook to walk, every booted bluebook when nil
       # @return [Array<Rule>]
-      def collect_rules(registry, chapter_name = nil)
-        chapters = chapter_name ? [registry.bluebook(chapter_name)] : registry.bluebooks.values
-        chapters.flat_map { |chapter| chapter.aggregates.flat_map { |aggregate| aggregate_rules(aggregate) } }
+      def collect_rules(registry, declaration_name = nil)
+        declarations = declaration_name ? [registry.bluebook(declaration_name)] : registry.bluebooks.values
+        declarations.flat_map { |declaration| declaration.aggregates.flat_map { |aggregate| aggregate_rules(aggregate) } }
       end
 
       # A rule's owner: the path a "(declared)" location names, or a command-level location
@@ -102,7 +102,7 @@ module Hecks
       # A rule owned by a nested entity is also covered by a "(declared)" entry anywhere under the
       # same root aggregate, matching the DSL's shared given pool.
       #
-      # Known gap: a bare chapter-wide `given(desc)` reference still shows as its own "(declared)"
+      # Known gap: a bare bluebook-wide `given(desc)` reference still shows as its own "(declared)"
       # owner, because the built IR cannot tell a reference from a declaration. Verify a flagged
       # group by hand before treating it as fresh duplication.
       # @param rules [Array<Rule>] one duplicate-key group's own rules

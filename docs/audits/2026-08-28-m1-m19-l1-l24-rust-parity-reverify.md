@@ -36,7 +36,7 @@ independently and coincidentally.
 | M7 | FIXED | `bluebook/expression/canonical_form.rb:72` |
 | M8 | FIXED | `bluebook/expression/resolver.rb:657-661` |
 | M9 | FIXED | `bluebook/expression/resolver.rb:688-698`, `evaluator.rb:120-143` |
-| M10 | **PARTIAL** | `bluebook/chapter.rb:47` — see below |
+| M10 | **PARTIAL** | `bluebook/bluebook.rb:47` — see below |
 | M11 | FIXED | `bluebook/process_manager.rb:90` |
 | M12 | FIXED | `bluebook/dsl/attribute_collector.rb:201-205` |
 | M13 | FIXED | `bluebook/meta_validator/judge.rb:470-471` |
@@ -48,7 +48,7 @@ independently and coincidentally.
 | M19 | FIXED | `adapters/driven/sqlite/projection.rb:36-70` |
 
 **M10 detail:** `formerly_known_as` is fixed (present in `to_h`, confirmed
-by `spec/round_trip_spec.rb`). Chapter-level `@ports` is still genuinely
+by `spec/round_trip_spec.rb`). Bluebook-level `@ports` is still genuinely
 absent from `to_h` — but this is now an explicit, documented, deliberately
 deferred gap (`RECONSTRUCTION_KNOWN_GAPS = %i[ports]`), not a silent
 omission: the self-hosted meta-domain has no grammar representation for

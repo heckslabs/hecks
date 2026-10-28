@@ -92,7 +92,7 @@ spec/query_answers_from_outside_spec.rb:1.63
 spec/referral_chain_spec.rb:10.02
 spec/runtime/boot_loads_bound_plugins_spec.rb:0.82
 spec/runtime/era_check_postgres_vendored_bluebook_spec.rb:0.64
-spec/runtime/era_check_postgres_vendored_chapter_name_spec.rb:0.46
+spec/runtime/era_check_postgres_vendored_bluebook_name_spec.rb:0.46
 spec/runtime/outbox_postgres_spec.rb:0.70
 spec/runtime/postgres_era_shared_connection_spec.rb:1.44
 spec/runtime/postgres_era_storage_name_collision_spec.rb:1.92

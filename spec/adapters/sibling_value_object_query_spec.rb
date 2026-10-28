@@ -44,7 +44,7 @@ RSpec.describe "a query over a value object a sibling aggregate declares", :io d
     FileUtils.remove_entry(@dir) if @dir
   end
 
-  let(:aggregate) { SiblingValueObjectDomain.chapter.aggregate("Booking") }
+  let(:aggregate) { SiblingValueObjectDomain.declaration.aggregate("Booking") }
 
   # Every engine that can run here, by name, so a failure says which one.
   let(:engines) do

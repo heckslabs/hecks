@@ -11,7 +11,7 @@ asks whether a `corrects` command re-validates a reference that has gone
 dangling since the event being corrected was recorded). `ReadModel#
 aggregate_heads` (multi-head `include` composition beyond the one
 `aggregation_matches_recompute` already checks) rides along, exercised here
-for the first time over a chapter reached only by a cross-domain policy.
+for the first time over a bluebook reached only by a cross-domain policy.
 
 **`bin/qa_domain_novelty` reports "no new pair" — read that as a gap in the
 census, not in this domain, the same way `qa/stress_domains/corrections`'
@@ -44,11 +44,11 @@ host`'s own `lambda_client.rs`") and is never loaded into the same
 registry Banking itself boots into for fuzzing (`bin/fuzz`, `bin/qa_sweep`,
 `spec/rust_conformance_fuzz_spec.rb`) — so under every fuzz run that
 exists today, all four of those dispatches hit a `DOMAIN_REFUSAL` (the
-target chapter simply isn't there), get recorded `delivered: false` by
+target bluebook simply isn't there), get recorded `delivered: false` by
 `PolicyInterpreter#deliver`'s own rescue, and are never genuinely
 exercised end to end.
 
-This domain's second chapter (`review.bluebook`, `"VendorCompliance"`)
+This domain's second bluebook (`review.bluebook`, `"VendorCompliance"`)
 sits in the SAME `bluebook/` directory as `case_escalation.bluebook`
 (`"CaseEscalation"`), and `Adapters::Folder#load_domain`
 (`lib/hecks/adapters/driven/folder.rb:127`) — the same glob `Hecks::
@@ -114,7 +114,7 @@ Rust's own, given `corrections`' own BUG#31 already found Rust's generated
 `emit_entity_command` skips the admissibility check `corrects` needs
 entirely at the entity level); whether `bin/qa_sweep`'s self-consistency
 axis (cold rehydration, replay idempotency) agrees with itself across a
-`FlagAmendment` reaction that crosses chapters; and whether
+`FlagAmendment` reaction that crosses bluebooks; and whether
 persistence-parity (Memory vs. real Postgres) holds for a read model
-composed over an `across`-reached chapter. That is `bin/qa_sweep`'s own
+composed over an `across`-reached bluebook. That is `bin/qa_sweep`'s own
 job, not this note's.

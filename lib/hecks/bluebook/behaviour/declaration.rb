@@ -5,7 +5,7 @@ module Hecks
     module Behaviour
       # What a bluebook does. The declared half is the roll-call of what a
       # bluebook holds; these are the finders over it, plus `verbs`.
-      module Chapter
+      module Declaration
         include Owns
 
         # Marks this bluebook the root of the owner chain, attaches the ports
@@ -62,7 +62,7 @@ module Hecks
         #
         # @param capability [String, Symbol] the capability's name
         # @param key [String, Symbol] the provided key to resolve
-        # @return [String, nil] the verb qualified as `"ChapterName::verb"`, or `nil` if this
+        # @return [String, nil] the verb qualified as `"BluebookName::verb"`, or `nil` if this
         #   bluebook provides no such capability or key
         def provided_verb(capability, key)
           local = provision(capability)&.fetch(key.to_sym, nil)

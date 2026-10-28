@@ -21,10 +21,10 @@ module Hecks
       # Switches on the forms of one whole bluebook for this app; called inside the
       # `Forms.configure` block.
       #
-      # @param chapter_name [String, Symbol] name of the bluebook (domain) to expose, such as
+      # @param declaration_name [String, Symbol] name of the bluebook (domain) to expose, such as
       #   `"Banking"`; stored as a String
       # @return [Array<String>] every bluebook name exposed so far, in declaration order
-      def expose(chapter_name) = @exposes << chapter_name.to_s
+      def expose(declaration_name) = @exposes << declaration_name.to_s
     end
 
     # Declares an app and the bluebooks it exposes, replacing any earlier configuration

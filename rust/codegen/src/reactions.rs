@@ -373,8 +373,8 @@ pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]
     )
 }
 
-pub fn emit_reference_key_table(exemplar: &Exemplar, chapters: &[(String, Vec<String>)]) -> String {
-    let arms: Vec<String> = chapters
+pub fn emit_reference_key_table(exemplar: &Exemplar, declarations: &[(String, Vec<String>)]) -> String {
+    let arms: Vec<String> = declarations
         .iter()
         .flat_map(|(domain_name, aggregate_names)| {
             aggregate_names.iter().map(move |name| {
@@ -626,7 +626,7 @@ mod tests {
     use super::*;
 
     // Mirrors the fixtures in `spec/rust_project/reactions_merge_spec.rb`; no real corpus
-    // domain exercises this merged-chapter shape.
+    // domain exercises this merged-bluebook shape.
     fn policy(
         name: &str,
         on_event: &str,
@@ -643,7 +643,7 @@ mod tests {
     }
 
     #[test]
-    fn merged_policy_table_carries_the_target_and_a_vendored_chapters_own_same_domain_policy() {
+    fn merged_policy_table_carries_the_target_and_a_vendored_bluebooks_own_same_domain_policy() {
         let orders_policies = vec![policy("OnOrderPlaced", "OrderPlaced", "Invoice.Open", None)];
         let payments_policies = vec![
             policy(
@@ -684,7 +684,7 @@ mod tests {
     }
 
     #[test]
-    fn merged_cross_domain_policy_table_carries_only_a_vendored_chapters_own_cross_domain_policy() {
+    fn merged_cross_domain_policy_table_carries_only_a_vendored_bluebooks_own_cross_domain_policy() {
         let orders_policies = vec![policy("OnOrderPlaced", "OrderPlaced", "Invoice.Open", None)];
         let payments_policies = vec![
             policy(

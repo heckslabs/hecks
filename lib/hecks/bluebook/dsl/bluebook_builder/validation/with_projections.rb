@@ -21,7 +21,7 @@ module Hecks
             private
 
             # Checks `with:` projections against the source event's shape and the target's fields.
-            # Same-chapter only: an unresolvable cross-chapter source or target is skipped.
+            # Same-bluebook only: an unresolvable cross-bluebook source or target is skipped.
             # A for_each policy's source is the event plus a query row; the row's names are known
             # only when the query's aggregate is in this bluebook, otherwise only the target is
             # checked.

@@ -62,8 +62,8 @@ module Hecks
             chosen && describe(chosen, chosen["bluebook"], listing(chosen)).merge("strict" => true)
           end
 
-          def describe(agg, chapter, listing)
-            { "target" => agg["name"], "bluebook" => chapter, "key" => agg["identity"], "label" => label(agg),
+          def describe(agg, declaration, listing)
+            { "target" => agg["name"], "bluebook" => declaration, "key" => agg["identity"], "label" => label(agg),
               "listing" => listing }.compact
           end
 

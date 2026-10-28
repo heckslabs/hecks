@@ -39,35 +39,35 @@ pub fn is_sentence_form(source: &str) -> bool {
 }
 
 /// Parses every sentence-form file of one bluebook and merges their aggregates.
-pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
+pub fn parse_bluebook(declaration_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
     let grammar = Grammar::load()?;
     let mut merged: Option<ir::Bluebook> = None;
     for (path, source) in files {
         let parsed = Parser::new(path, &grammar, read_lines(path, source)?).file()?;
-        if parsed.name != chapter_name {
+        if parsed.name != declaration_name {
             return Err(Diagnostic::new(
                 path,
                 1,
                 format!(
-                    "--bluebook {chapter_name} was requested, but this file declares '{}'",
+                    "--bluebook {declaration_name} was requested, but this file declares '{}'",
                     parsed.name
                 ),
             ));
         }
         match merged.as_mut() {
             None => merged = Some(parsed),
-            Some(chapter) => {
-                chapter.aggregates.extend(parsed.aggregates);
-                chapter.policies.extend(parsed.policies);
-                chapter.read_models.extend(parsed.read_models);
-                chapter.process_managers.extend(parsed.process_managers);
-                if chapter.vision.is_none() {
-                    chapter.vision = parsed.vision;
+            Some(declaration) => {
+                declaration.aggregates.extend(parsed.aggregates);
+                declaration.policies.extend(parsed.policies);
+                declaration.read_models.extend(parsed.read_models);
+                declaration.process_managers.extend(parsed.process_managers);
+                if declaration.vision.is_none() {
+                    declaration.vision = parsed.vision;
                 }
             }
         }
     }
-    let mut chapter = merged.ok_or_else(|| {
+    let mut declaration = merged.ok_or_else(|| {
         Diagnostic::new(
             "<none>",
             0,
@@ -75,8 +75,8 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         )
     })?;
     let first = files.first().map_or("<none>", |(path, _)| path.as_str());
-    crate::build::query_inference::apply(first, &mut chapter)?;
-    Ok(chapter)
+    crate::build::query_inference::apply(first, &mut declaration)?;
+    Ok(declaration)
 }
 
 /// One admitted phrase with its pattern compiled.

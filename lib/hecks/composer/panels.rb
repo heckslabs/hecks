@@ -39,7 +39,7 @@ module Hecks
       # @param body [Hash] `buffers`
       # @return [Hash] `bluebook` and `commands` (see {Live#commands}), or `error`
       def commands(body)
-        with_live(body) { |live| { bluebook: live.chapter_name, commands: live.commands } }
+        with_live(body) { |live| { bluebook: live.declaration_name, commands: live.commands } }
       end
 
       # @param body [Hash] `buffers`, `verb`, `to` and `with`

@@ -186,10 +186,10 @@ module Hecks
         #   name it on the command line
         # @raise [SystemExit] when the row names no command or query
         def spec_for(row)
-          chapter = %w[Custodian Codebase].include?(row["section"]) ? "Hecks" : row["section"]
+          declaration = %w[Custodian Codebase].include?(row["section"]) ? "Hecks" : row["section"]
           name = "#{Naming.snake(row["aggregate"])}.#{row["verb"]}"
-          spec = find_spec(projection(chapter), name) or abort "tools_doc: #{chapter} has no command or query #{name}"
-          [spec, words(chapter, name, row)]
+          spec = find_spec(projection(declaration), name) or abort "tools_doc: #{declaration} has no command or query #{name}"
+          [spec, words(declaration, name, row)]
         end
 
         private
@@ -199,27 +199,27 @@ module Hecks
           cli[:commands][cli[:names][:command][name]] || cli[:questions][cli[:names][:question][name]]
         end
 
-        def projection(chapter)
-          @projections[chapter] ||= begin
-            launcher = Adapters::Driving::LauncherOptions.settings(@runtime, chapter)
+        def projection(declaration)
+          @projections[declaration] ||= begin
+            launcher = Adapters::Driving::LauncherOptions.settings(@runtime, declaration)
             options = Adapters::Driving::LauncherOptions.projection(launcher, "hecks")
-            Projector.call(:cli, bluebook: @runtime.bluebook(chapter), options: options)
+            Projector.call(:cli, bluebook: @runtime.bluebook(declaration), options: options)
           end
         end
 
         # `hecks ir`, `hecks console`, `hecks quality_control sweep.run`, `hecks host.check_era`.
         # The launcher takes a name that is only a query as a query, so no `query` word is needed.
-        def words(chapter, name, row)
-          route = route_for(Adapters::Driving::LauncherOptions.settings(@runtime, chapter) || {}, chapter, name, row)
+        def words(declaration, name, row)
+          route = route_for(Adapters::Driving::LauncherOptions.settings(@runtime, declaration) || {}, declaration, name, row)
           return [route] if route
 
-          [*(Naming.snake(chapter) unless chapter == "Hecks"), name]
+          [*(Naming.snake(declaration) unless declaration == "Hecks"), name]
         end
 
         # @return [String, nil] the one word the launcher routes the name by, when it has one
-        def route_for(settings, chapter, name, row)
+        def route_for(settings, declaration, name, row)
           route = (settings[:names] || {}).key(name)
-          route || (row["verb"] if chapter == "Hecks" && Array(settings[:legacy]).include?(row["verb"]))
+          route || (row["verb"] if declaration == "Hecks" && Array(settings[:legacy]).include?(row["verb"]))
         end
       end
     end

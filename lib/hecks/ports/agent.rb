@@ -63,7 +63,7 @@ module Hecks
       # @param state [Hash] declaration plus gaps
       # @return [Array<Ports::Agent::Proposal>]
       # @raise [Ports::Agent::ValidationError] unless the answer is a Hash whose `"proposals"`
-      #   rows have a `Chapter::Aggregate.Command` verb, a rationale and named arguments
+      #   rows have a `Bluebook::Aggregate.Command` verb, a rationale and named arguments
       # @raise [Ports::Agent::Unavailable] if the adapter cannot answer
       # @raise [Runtime::WiringError] unless exactly one adapter implements the port
       def interpret(registry, prose:, state:)

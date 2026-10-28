@@ -81,7 +81,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
         expect(banking).not_to include("anything other than")
       end
 
-      it "quotes a given in the chapter's own words, without the docs projector's \"not:\" prefix", :aggregate_failures do
+      it "quotes a given in the bluebook's own words, without the docs projector's \"not:\" prefix", :aggregate_failures do
         given = registry.bluebook("Banking").aggregates.flat_map(&:commands)
                         .flat_map(&:givens).map(&:description).first
         expect(banking).to include(given)

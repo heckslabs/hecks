@@ -28,16 +28,16 @@ FIXED_PAGES_NODE_SCENARIO = <<~JS.freeze
   const now = 1_800_000_000;
   const v = (value) => ({ value });
   const words = (...texts) => ({ blocks: texts.map((text) => ({ kind: "paragraph", spans: [{ text, marks: [] }], items: [] })) });
-  const chapters = Array.from({ length: 12 }, (_, at) => ({
-    heading: `Chapter ${at + 1}`,
-    body: words(`Words of chapter ${at + 1}.`),
+  const episodes = Array.from({ length: 12 }, (_, at) => ({
+    heading: `Episode ${at + 1}`,
+    body: words(`Words of episode ${at + 1}.`),
     parts: at % 3 === 0 ? [{ heading: "Part A", body: words("A.") }, { heading: "Part B", body: words("B.") }] : [],
     ...(at % 4 === 0 ? { band: { media_ref: "aa.png", alt: "A red door", align: v("center") } } : {}),
   }));
   const hero = { heading: "Opening", picture: { media_ref: "aa.png", alt: "A red door" } };
   const instances = {
-    "Leaflets::ChaptersPage#page:story": { key: v("page:story"), content: { hero, chapters }, draft_content: { hero, chapters: chapters.slice(0, 2) } },
-    "Leaflets::ChaptersPage#page:fresh": { key: v("page:fresh"), content: { chapters: chapters.slice(0, 3) } },
+    "Leaflets::EpisodesPage#page:story": { key: v("page:story"), content: { hero, episodes }, draft_content: { hero, episodes: episodes.slice(0, 2) } },
+    "Leaflets::EpisodesPage#page:fresh": { key: v("page:fresh"), content: { episodes: episodes.slice(0, 3) } },
     "Leaflets::NotePage#page:note": { key: v("page:note"), content: { heading: "A note", summary: "Short.\\nTwo lines.", body: words("Hello."), rows: [{ title: "R1", cells: [{ text: "a" }, { text: "b" }] }] } },
     "Leaflets::GalleryPage#page:pics": { key: v("page:pics"), content: { heading: "Pictures", photos: [{ media_ref: "aa.png", alt: "Red door" }, { media_ref: "bb.png", alt: "Blue gate" }] } },
     "Leaflets::RosterPage#page:team": { key: v("page:team"), people: [{ name: "Ann", role: "Lead", about: "Ann leads.", portrait: { media_ref: "aa.png", alt: "Ann smiling" } }], draft_people: [{ name: "Ben" }] },
@@ -56,18 +56,18 @@ FIXED_PAGES_NODE_SCENARIO = <<~JS.freeze
   const cookie = (await call(`/editor/api/sso?token=${token}`)).headers.get("set-cookie").split(";")[0];
   const admin = (path, init = {}) => call(path, { ...init, headers: { cookie, ...(init.headers ?? {}) } });
   const post = (body, extra = {}) => ({ method: "POST", body, headers: { ...form, ...extra } });
-  const STORY = "/editor/Leaflets/ChaptersPage/id/page%3Astory";
+  const STORY = "/editor/Leaflets/EpisodesPage/id/page%3Astory";
   const out = {};
 
   out.storyDraft = await (await admin(`${STORY}/SaveDraft`)).text();
-  out.freshDraft = await (await admin("/editor/Leaflets/ChaptersPage/id/page%3Afresh/SaveDraft")).text();
+  out.freshDraft = await (await admin("/editor/Leaflets/EpisodesPage/id/page%3Afresh/SaveDraft")).text();
   out.storyDetail = await (await admin(STORY)).text();
   out.noteDraft = await (await admin("/editor/Leaflets/NotePage/id/page%3Anote/SaveDraft")).text();
   out.galleryDraft = await (await admin("/editor/Leaflets/GalleryPage/id/page%3Apics/SaveDraft")).text();
   out.rosterDraft = await (await admin("/editor/Leaflets/RosterPage/id/page%3Ateam/SaveDraft")).text();
-  out.newStory = await (await admin("/editor/Leaflets/ChaptersPage/new/Write")).text();
+  out.newStory = await (await admin("/editor/Leaflets/EpisodesPage/new/Write")).text();
 
-  const story = SCHEMA.aggregates.find((agg) => agg.name === "ChaptersPage");
+  const story = SCHEMA.aggregates.find((agg) => agg.name === "EpisodesPage");
   const roster = SCHEMA.aggregates.find((agg) => agg.name === "RosterPage");
   const encode = (agg, body, name = "SaveDraft") => {
     const command = agg.commands.find((candidate) => candidate.name === name);
@@ -75,14 +75,14 @@ FIXED_PAGES_NODE_SCENARIO = <<~JS.freeze
   };
   const c = "draft_content";
   out.encoding = {
-    whole: encode(story, `${c}.hero.heading=Hi&${c}.hero.picture.media_ref=aa.png&${c}.hero.picture.alt=Door&${c}.chapters.0.heading=One&${c}.chapters.0.band.media_ref=bb.png&${c}.chapters.0.band.alt=Gate&${c}.chapters.0.band.align.value=center&${c}.chapters.1.verse.body.blocks.0.kind=paragraph&${c}.chapters.1.verse.body.blocks.0.spans.0.text=Verse&${c}.chapters.1.parts.0.heading=P&${c}.chapters.1.parts.0.body.blocks.0.kind=paragraph&${c}.chapters.1.parts.0.body.blocks.0.spans.0.text=Part`),
-    blankGroupsLeftOut: encode(story, `${c}.hero.heading=&${c}.hero.picture.media_ref=&${c}.hero.picture.alt=&${c}.chapters.0.heading=One&${c}.chapters.0.verse.heading=&${c}.chapters.0.band.media_ref=&${c}.chapters.0.band.alt=&${c}.chapters.0.band.align.value=`),
-    halfFilledGroupKept: encode(story, `${c}.chapters.0.heading=One&${c}.chapters.0.band.media_ref=bb.png&${c}.chapters.0.band.alt=`),
-    blankMemberDropped: encode(story, `${c}.chapters.0.heading=&${c}.chapters.0.parts.0.heading=&${c}.chapters.1.heading=Two`),
-    blankPartDropped: encode(story, `${c}.chapters.0.heading=One&${c}.chapters.0.parts.0.heading=&${c}.chapters.0.parts.1.heading=Kept`),
-    order: encode(story, `${c}.chapters.1.heading=Second&${c}.chapters.0.heading=First&${c}.chapters.2.heading=Third`).draft_content.chapters.map((one) => one.heading),
-    noChapters: encode(story, `${c}.hero.heading=Hi`),
-    partsOrder: encode(story, `${c}.chapters.0.heading=One&${c}.chapters.0.parts.1.heading=B&${c}.chapters.0.parts.1.body.blocks.0.kind=paragraph&${c}.chapters.0.parts.1.body.blocks.0.spans.0.text=b&${c}.chapters.0.parts.0.heading=A&${c}.chapters.0.parts.0.body.blocks.0.kind=paragraph&${c}.chapters.0.parts.0.body.blocks.0.spans.0.text=a`).draft_content.chapters[0].parts.map((part) => part.heading),
+    whole: encode(story, `${c}.hero.heading=Hi&${c}.hero.picture.media_ref=aa.png&${c}.hero.picture.alt=Door&${c}.episodes.0.heading=One&${c}.episodes.0.band.media_ref=bb.png&${c}.episodes.0.band.alt=Gate&${c}.episodes.0.band.align.value=center&${c}.episodes.1.verse.body.blocks.0.kind=paragraph&${c}.episodes.1.verse.body.blocks.0.spans.0.text=Verse&${c}.episodes.1.parts.0.heading=P&${c}.episodes.1.parts.0.body.blocks.0.kind=paragraph&${c}.episodes.1.parts.0.body.blocks.0.spans.0.text=Part`),
+    blankGroupsLeftOut: encode(story, `${c}.hero.heading=&${c}.hero.picture.media_ref=&${c}.hero.picture.alt=&${c}.episodes.0.heading=One&${c}.episodes.0.verse.heading=&${c}.episodes.0.band.media_ref=&${c}.episodes.0.band.alt=&${c}.episodes.0.band.align.value=`),
+    halfFilledGroupKept: encode(story, `${c}.episodes.0.heading=One&${c}.episodes.0.band.media_ref=bb.png&${c}.episodes.0.band.alt=`),
+    blankMemberDropped: encode(story, `${c}.episodes.0.heading=&${c}.episodes.0.parts.0.heading=&${c}.episodes.1.heading=Two`),
+    blankPartDropped: encode(story, `${c}.episodes.0.heading=One&${c}.episodes.0.parts.0.heading=&${c}.episodes.0.parts.1.heading=Kept`),
+    order: encode(story, `${c}.episodes.1.heading=Second&${c}.episodes.0.heading=First&${c}.episodes.2.heading=Third`).draft_content.episodes.map((one) => one.heading),
+    noEpisodes: encode(story, `${c}.hero.heading=Hi`),
+    partsOrder: encode(story, `${c}.episodes.0.heading=One&${c}.episodes.0.parts.1.heading=B&${c}.episodes.0.parts.1.body.blocks.0.kind=paragraph&${c}.episodes.0.parts.1.body.blocks.0.spans.0.text=b&${c}.episodes.0.parts.0.heading=A&${c}.episodes.0.parts.0.body.blocks.0.kind=paragraph&${c}.episodes.0.parts.0.body.blocks.0.spans.0.text=a`).draft_content.episodes[0].parts.map((part) => part.heading),
     publishClears: encode(story, "", "PublishDraft"),
     rosterPublishClears: encode(roster, "", "PublishDraft"),
     rosterDiscardClears: encode(roster, "", "DiscardDraft"),
@@ -94,52 +94,52 @@ FIXED_PAGES_NODE_SCENARIO = <<~JS.freeze
   const refused = (error, args) => problemsOf(error, attrs, args, story.valueObjects).map((problem) => ({ path: problem.path, name: problem.name, slots: problem.slots, message: problem.message }));
   const band = { media_ref: "bb.png", alt: "" };
   const given = (value) => JSON.stringify(value);
-  const base = (list) => ({ draft_content: { chapters: list } });
+  const base = (list) => ({ draft_content: { episodes: list } });
   out.refusals = {
     bandNotDescribed: refused(`Band invariant violated — a band is described (given ${given({ ...band, caption: null, align: null })})`, base([{ heading: "One" }, { heading: "Two", band }, { heading: "Three", band: { media_ref: "cc.png", alt: "" } }])),
     onlyOneOfItsType: refused("Verse invariant violated — a verse has writing", base([{ heading: "One" }, { verse: { heading: "V", body: { blocks: [] } } }])),
     ambiguous: refused("Part invariant violated — a part has a heading", base([{ parts: [{ heading: "", body: { blocks: [] } }] }, { parts: [{ heading: "", body: { blocks: [] } }] }])),
-    chapterSaysNothing: refused(`Chapter invariant violated — a chapter says something (given ${given({ verse: null, band: null, heading: null, body: null, parts: [] })})`, base([{ heading: "One" }, { parts: [] }])),
-    partOfAChapter: refused(`Part invariant violated — a part has writing (given ${given({ heading: "B", body: { blocks: [] } })})`, base([{ heading: "One", parts: [{ heading: "A", body: words("a") }, { heading: "B", body: { blocks: [] } }] }])),
-    contentRule: refused("ChaptersContent invariant violated — a page has at least one chapter", { draft_content: { chapters: [] } }),
-    heroPicture: refused(`Picture invariant violated — a picture is described (given ${given({ media_ref: "aa.png", alt: "", caption: null })})`, { draft_content: { hero: { heading: "H", picture: { media_ref: "aa.png", alt: "" } }, chapters: [{ heading: "One" }] } }),
+    episodeSaysNothing: refused(`Episode invariant violated — a episode says something (given ${given({ verse: null, band: null, heading: null, body: null, parts: [] })})`, base([{ heading: "One" }, { parts: [] }])),
+    partOfAEpisode: refused(`Part invariant violated — a part has writing (given ${given({ heading: "B", body: { blocks: [] } })})`, base([{ heading: "One", parts: [{ heading: "A", body: words("a") }, { heading: "B", body: { blocks: [] } }] }])),
+    contentRule: refused("EpisodesContent invariant violated — a page has at least one episode", { draft_content: { episodes: [] } }),
+    heroPicture: refused(`Picture invariant violated — a picture is described (given ${given({ media_ref: "aa.png", alt: "", caption: null })})`, { draft_content: { hero: { heading: "H", picture: { media_ref: "aa.png", alt: "" } }, episodes: [{ heading: "One" }] } }),
     notAboutAValue: refused("Governance refused — not allowed", base([{ heading: "One" }])),
   };
 
   const note = SCHEMA.aggregates.find((agg) => agg.name === "NotePage");
-  out.heavy = { chapters: heavy(story.valueObjects, "Chapter"), part: heavy(story.valueObjects, "Part"), hero: heavy(story.valueObjects, "Hero"), band: heavy(story.valueObjects, "Band"), key: heavy(story.valueObjects, "LeafletKey"), row: heavy(note.valueObjects, "Row"), cell: heavy(note.valueObjects, "Cell") };
+  out.heavy = { episodes: heavy(story.valueObjects, "Episode"), part: heavy(story.valueObjects, "Part"), hero: heavy(story.valueObjects, "Hero"), band: heavy(story.valueObjects, "Band"), key: heavy(story.valueObjects, "LeafletKey"), row: heavy(note.valueObjects, "Row"), cell: heavy(note.valueObjects, "Cell") };
   const gallery = SCHEMA.aggregates.find((agg) => agg.name === "GalleryPage");
   const photos = gallery.valueObjects.GalleryContent.find((part) => part.name === "photos");
   out.summaries = [
     summaryOf({ discriminator: "", kinds: [] }, gallery.valueObjects.Picture, { media_ref: "aa.png", alt: "Red door", caption: "Cap" }, photos.picture),
     summaryOf({ discriminator: "", kinds: [] }, gallery.valueObjects.Picture, { media_ref: "aa.png", alt: "", caption: "Cap" }, photos.picture),
-    summaryOf({ discriminator: "", kinds: [] }, story.valueObjects.Chapter, { heading: "One", parts: [] }),
-    summaryOf({ discriminator: "", kinds: [] }, story.valueObjects.Chapter, { parts: [{ heading: "A" }, { heading: "B" }] }),
+    summaryOf({ discriminator: "", kinds: [] }, story.valueObjects.Episode, { heading: "One", parts: [] }),
+    summaryOf({ discriminator: "", kinds: [] }, story.valueObjects.Episode, { parts: [{ heading: "A" }, { heading: "B" }] }),
   ];
 
   host.sent.length = 0;
-  const body = `${c}.chapters.0.heading=Moved&${c}.chapters.1.heading=Then&__back=%2Feditor`;
+  const body = `${c}.episodes.0.heading=Moved&${c}.episodes.1.heading=Then&__back=%2Feditor`;
   const saved = await admin(`${STORY}/SaveDraft`, post(body));
   out.saved = { status: saved.status, location: saved.headers.get("location"), sent: host.sent.filter((one) => one.verb).map((one) => ({ verb: one.verb, to: one.to, with: one.with })) };
-  out.afterSave = instances["Leaflets::ChaptersPage#page:story"].draft_content.chapters.map((chapter) => chapter.heading);
+  out.afterSave = instances["Leaflets::EpisodesPage#page:story"].draft_content.episodes.map((episode) => episode.heading);
 
   host.sent.length = 0;
-  const auto = await admin(`${STORY}/SaveDraft`, post(`${c}.chapters.0.heading=Auto`, { "x-editor-autosave": "1" }));
+  const auto = await admin(`${STORY}/SaveDraft`, post(`${c}.episodes.0.heading=Auto`, { "x-editor-autosave": "1" }));
   out.autosaved = { status: auto.status, text: await auto.text(), sent: host.sent.filter((one) => one.verb).map((one) => one.verb) };
-  out.liveAfterAutosave = instances["Leaflets::ChaptersPage#page:story"].content.chapters.length;
+  out.liveAfterAutosave = instances["Leaflets::EpisodesPage#page:story"].content.episodes.length;
 
   const violation = (given) => ({ kind: "InvariantViolation", error: `Band invariant violated — a band is described (given ${JSON.stringify(given)})` });
   host.refuseNext("SaveDraft", violation({ media_ref: "bb.png", alt: "", caption: null, align: null }));
-  const refusedAuto = await admin(`${STORY}/SaveDraft`, post(`${c}.chapters.0.heading=One&${c}.chapters.0.band.media_ref=bb.png&${c}.chapters.0.band.alt=`, { "x-editor-autosave": "1" }));
+  const refusedAuto = await admin(`${STORY}/SaveDraft`, post(`${c}.episodes.0.heading=One&${c}.episodes.0.band.media_ref=bb.png&${c}.episodes.0.band.alt=`, { "x-editor-autosave": "1" }));
   out.autosaveRefused = { status: refusedAuto.status, text: await refusedAuto.text(), problems: JSON.parse(decodeURIComponent(refusedAuto.headers.get("x-editor-problems") ?? "null")) };
 
   host.refuseNext("SaveDraft", violation({ media_ref: "bb.png", alt: "", caption: null, align: null }));
-  const refusedPage = await admin(`${STORY}/SaveDraft`, post(`${c}.hero.heading=Kept&${c}.chapters.0.heading=One&${c}.chapters.0.band.media_ref=bb.png&${c}.chapters.0.band.alt=&${c}.chapters.1.heading=Two&${c}.chapters.1.parts.0.heading=P&${c}.chapters.1.parts.0.body.blocks.0.kind=paragraph&${c}.chapters.1.parts.0.body.blocks.0.spans.0.text=Kept`));
+  const refusedPage = await admin(`${STORY}/SaveDraft`, post(`${c}.hero.heading=Kept&${c}.episodes.0.heading=One&${c}.episodes.0.band.media_ref=bb.png&${c}.episodes.0.band.alt=&${c}.episodes.1.heading=Two&${c}.episodes.1.parts.0.heading=P&${c}.episodes.1.parts.0.body.blocks.0.kind=paragraph&${c}.episodes.1.parts.0.body.blocks.0.spans.0.text=Kept`));
   out.refusedPage = { status: refusedPage.status, html: await refusedPage.text() };
 
   host.sent.length = 0;
   await admin(`${STORY}/PublishDraft`, post(""));
-  out.published = { live: instances["Leaflets::ChaptersPage#page:story"].content.chapters.length, draft: "draft_content" in instances["Leaflets::ChaptersPage#page:story"], sent: host.sent.filter((one) => one.verb).map((one) => ({ verb: one.verb, with: one.with })) };
+  out.published = { live: instances["Leaflets::EpisodesPage#page:story"].content.episodes.length, draft: "draft_content" in instances["Leaflets::EpisodesPage#page:story"], sent: host.sent.filter((one) => one.verb).map((one) => ({ verb: one.verb, with: one.with })) };
 
   host.sent.length = 0;
   await admin("/editor/Leaflets/RosterPage/id/page%3Ateam/DiscardDraft", post(""));
@@ -183,7 +183,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     it "starts from the live content when no draft is saved, then says none is", :aggregate_failures, :process do
       html = result("freshDraft")
 
-      expect(html).to include("No draft is saved yet.", 'value="Chapter 1"')
+      expect(html).to include("No draft is saved yet.", 'value="Episode 1"')
       expect(html).to include('confirm-DiscardDraft" hidden data-draft-discard>Discard draft</a>')
     end
 
@@ -197,14 +197,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
        :aggregate_failures, :process do
       html = result("storyDetail")
 
-      expect(html).to include("Changes not published yet", "<ol class=\"grid list-decimal gap-3 pl-6\">", "Chapter 12")
+      expect(html).to include("Changes not published yet", "<ol class=\"grid list-decimal gap-3 pl-6\">", "Episode 12")
       expect(html).not_to include("&quot;blocks&quot;")
     end
 
-    it "offers the creating command the same form, with the first chapter to add", :aggregate_failures, :process do
+    it "offers the creating command the same form, with the first episode to add", :aggregate_failures, :process do
       html = result("newStory")
 
-      expect(html).to include("data-block-list", "No chapters yet.", 'name="content.chapters.ZZI0ZZ.heading"')
+      expect(html).to include("data-block-list", "No episodes yet.", 'name="content.episodes.ZZI0ZZ.heading"')
     end
   end
 
@@ -212,55 +212,55 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     let(:html) { result("storyDraft") }
 
     it "draws a list whose members hold writing, a picture or a list as cards, in order", :aggregate_failures, :process do
-      expect(html).to include('data-block-list data-group data-path="draft_content.chapters" data-noun="chapter" data-depth="0"')
-      ids = html.scan(/ id="(blk-draft-content-chapters-\d+)" data-card data-index/).flatten
+      expect(html).to include('data-block-list data-group data-path="draft_content.episodes" data-noun="episode" data-depth="0"')
+      ids = html.scan(/ id="(blk-draft-content-episodes-\d+)" data-card data-index/).flatten
 
-      expect(ids).to eq(%w[blk-draft-content-chapters-0 blk-draft-content-chapters-1])
+      expect(ids).to eq(%w[blk-draft-content-episodes-0 blk-draft-content-episodes-1])
     end
 
     it "says the limits the holder's rules give, and carries the most as data", :aggregate_failures, :process do
       expect(html).to include("At least 1 and at most 60.", 'data-max="60"')
-      expect(card(html, "draft-content-chapters",
-                  0)).to include('data-path="draft_content.chapters.0.parts" data-noun="part" data-max="12"')
+      expect(card(html, "draft-content-episodes",
+                  0)).to include('data-path="draft_content.episodes.0.parts" data-noun="part" data-max="12"')
     end
 
     it "gives each card move up, move down and remove buttons that name it, and a live region for what moved",
        :aggregate_failures, :process do
-      first = card(html, "draft-content-chapters", 0)
+      first = card(html, "draft-content-episodes", 0)
 
       expect(first).to include('data-action="up"', 'data-action="down"', 'data-action="remove"',
-                               'aria-label="Move up chapter 1, Chapter 1"')
+                               'aria-label="Move up episode 1, Episode 1"')
       expect(html).to include('role="status" aria-live="polite" data-block-say', "data-remove-dialog")
     end
 
     it "carries the markup of a new member as a template, with the index of a nested one left for the script",
        :aggregate_failures, :process do
-      expect(html).to match(/<template data-card-template data-kind="">.*draft_content\.chapters\.ZZI0ZZ\.heading/m)
-      expect(html).to include("draft_content.chapters.ZZI0ZZ.parts.ZZI1ZZ.heading",
-                              'id="blk-draft-content-chapters-ZZI0ZZ-parts-ZZI1ZZ"')
+      expect(html).to match(/<template data-card-template data-kind="">.*draft_content\.episodes\.ZZI0ZZ\.heading/m)
+      expect(html).to include("draft_content.episodes.ZZI0ZZ.parts.ZZI1ZZ.heading",
+                              'id="blk-draft-content-episodes-ZZI0ZZ-parts-ZZI1ZZ"')
     end
 
     it "marks what a member is required to have as its value object declares, and what is optional", :aggregate_failures,
        :process do
-      part = card(html, "draft-content-chapters-0-parts", 0)
+      part = card(html, "draft-content-episodes-0-parts", 0)
 
       expect(part).to include('data-requires="heading body"')
-      expect(part).to match(/for="f-draft-content-chapters-0-parts-0-heading".*?title="Required"/m)
-      expect(card(html, "draft-content-chapters",
+      expect(part).to match(/for="f-draft-content-episodes-0-parts-0-heading".*?title="Required"/m)
+      expect(card(html, "draft-content-episodes",
                   0)).to include("Verse <span class=\"ml-1 text-xs font-normal text-muted\">optional</span>")
     end
 
     it "holds a group of its own as fields named by the member's index and the part's", :aggregate_failures, :process do
-      names = names_in(card(html, "draft-content-chapters", 0))
+      names = names_in(card(html, "draft-content-episodes", 0))
 
-      expect(names).to include("draft_content.chapters.0.heading", "draft_content.chapters.0.parts.0.heading",
-                               "draft_content.chapters.0.parts.0.body.blocks.0.kind", "draft_content.chapters.0.band.align.value")
+      expect(names).to include("draft_content.episodes.0.heading", "draft_content.episodes.0.parts.0.heading",
+                               "draft_content.episodes.0.parts.0.body.blocks.0.kind", "draft_content.episodes.0.band.align.value")
     end
 
     it "draws a closed set as a choice, with none for an optional one", :aggregate_failures, :process do
-      first = card(html, "draft-content-chapters", 0)
+      first = card(html, "draft-content-episodes", 0)
 
-      expect(first).to match(%r{<select[^>]*name="draft_content.chapters.0.band.align.value".*?<option value="">None</option>}m)
+      expect(first).to match(%r{<select[^>]*name="draft_content.episodes.0.band.align.value".*?<option value="">None</option>}m)
       expect(first).to include('<option value="center" selected>Center</option>')
     end
   end
@@ -289,10 +289,10 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     end
 
     it "does the same in a member of a group, at any depth", :aggregate_failures, :process do
-      first = card(html, "draft-content-chapters", 0)
+      first = card(html, "draft-content-episodes", 0)
 
-      expect(first).to include('data-picture data-key="draft_content.chapters.0.band.media_ref"',
-                               'data-alt="draft_content.chapters.0.band.alt"')
+      expect(first).to include('data-picture data-key="draft_content.episodes.0.band.media_ref"',
+                               'data-alt="draft_content.episodes.0.band.alt"')
       expect(first).to include('data-action="pick-picture"')
     end
 
@@ -335,25 +335,25 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       band = { "media_ref" => "bb.png", "alt" => "Gate", "align" => { "value" => "center" } }
 
       expect(content["hero"]).to eq("heading" => "Hi", "picture" => { "media_ref" => "aa.png", "alt" => "Door" })
-      expect(content["chapters"][0]).to include("heading" => "One", "band" => band)
-      expect(content.dig("chapters", 1, "parts", 0, "body", "blocks", 0, "spans", 0, "text")).to eq("Part")
+      expect(content["episodes"][0]).to include("heading" => "One", "band" => band)
+      expect(content.dig("episodes", 1, "parts", 0, "body", "blocks", 0, "spans", 0, "text")).to eq("Part")
     end
 
     it "leaves out an optional group with nothing in it, at any depth", :aggregate_failures, :process do
       content = encoding("blankGroupsLeftOut").fetch("draft_content")
 
       expect(content).not_to have_key("hero")
-      expect(content["chapters"]).to eq([{ "heading" => "One", "parts" => [] }])
+      expect(content["episodes"]).to eq([{ "heading" => "One", "parts" => [] }])
     end
 
     it "keeps a group with something in it whole, a required part sent empty so the domain words the refusal", :process do
-      expect(encoding("halfFilledGroupKept").dig("draft_content", "chapters", 0,
+      expect(encoding("halfFilledGroupKept").dig("draft_content", "episodes", 0,
                                                  "band")).to eq("media_ref" => "bb.png", "alt" => "")
     end
 
     it "drops a member left entirely empty, and keeps one that has anything", :aggregate_failures, :process do
-      expect(encoding("blankMemberDropped").dig("draft_content", "chapters").map { |one| one["heading"] }).to eq(["Two"])
-      expect(encoding("blankPartDropped").dig("draft_content", "chapters", 0, "parts").map do |one|
+      expect(encoding("blankMemberDropped").dig("draft_content", "episodes").map { |one| one["heading"] }).to eq(["Two"])
+      expect(encoding("blankPartDropped").dig("draft_content", "episodes", 0, "parts").map do |one|
         one["heading"]
       end).to eq(["Kept"])
     end
@@ -364,7 +364,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     end
 
     it "sends an empty list for a list nobody filled, so the domain refuses it in its own words", :process do
-      expect(encoding("noChapters").dig("draft_content", "chapters")).to eq([])
+      expect(encoding("noEpisodes").dig("draft_content", "episodes")).to eq([])
     end
 
     it "sends nothing for the clearing argument of a value object, and an empty list for a list's",
@@ -392,14 +392,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     it "finds the group whose value the refusal echoes, and not one that differs in a part", :aggregate_failures, :process do
       found = refusal("bandNotDescribed")
 
-      expect(found.map { |one| one["name"] }).to eq(["draft_content.chapters.1.band"])
+      expect(found.map { |one| one["name"] }).to eq(["draft_content.episodes.1.band"])
       expect(found.first).to include("message" => "A band is described.", "slots" => ["alt"])
     end
 
     it "finds the only group of its type when nothing is echoed, and the slot it lacks", :aggregate_failures, :process do
       found = refusal("onlyOneOfItsType")
 
-      expect(found.map { |one| one["name"] }).to eq(["draft_content.chapters.1.verse"])
+      expect(found.map { |one| one["name"] }).to eq(["draft_content.episodes.1.verse"])
       expect(found.first["slots"]).to eq(["body"])
     end
 
@@ -408,21 +408,21 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     end
 
     it "finds the member of a list by its own rule, with its path in the arguments", :aggregate_failures, :process do
-      found = refusal("chapterSaysNothing")
+      found = refusal("episodeSaysNothing")
 
-      expect(found.map { |one| one["name"] }).to eq(["draft_content.chapters.1"])
-      expect(found.first["path"]).to eq(["draft_content", "chapters", 1])
+      expect(found.map { |one| one["name"] }).to eq(["draft_content.episodes.1"])
+      expect(found.first["path"]).to eq(["draft_content", "episodes", 1])
     end
 
     it "finds a member of a group inside a member, at depth two", :process do
-      expect(refusal("partOfAChapter").map { |one| one["name"] }).to eq(["draft_content.chapters.0.parts.1"])
+      expect(refusal("partOfAEpisode").map { |one| one["name"] }).to eq(["draft_content.episodes.0.parts.1"])
     end
 
     it "finds the rule of the content as a whole, and the part of it that is short", :aggregate_failures, :process do
       found = refusal("contentRule")
 
       expect(found.map { |one| one["name"] }).to eq(["draft_content"])
-      expect(found.first["slots"]).to eq(["chapters"])
+      expect(found.first["slots"]).to eq(["episodes"])
     end
 
     it "finds a picture in a hero as it finds one anywhere", :process do
@@ -438,7 +438,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
     it "takes a member that holds a body or a picture for a card, and a plain one, rows of its own too, for a row",
        :aggregate_failures, :process do
       # A picture is a card when it is a member itself: the list attribute says so (`picture`).
-      expect(result("heavy")).to eq("chapters" => true, "part" => true, "hero" => true, "band" => false, "key" => false,
+      expect(result("heavy")).to eq("episodes" => true, "part" => true, "hero" => true, "band" => false, "key" => false,
                                     "row" => false, "cell" => false)
     end
 
@@ -453,14 +453,14 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       saved = result("saved")
 
       expect(saved["status"]).to eq(303)
-      expect(saved["sent"].map { |sent| sent["verb"] }).to eq(["Leaflets::ChaptersPage.SaveDraft"])
+      expect(saved["sent"].map { |sent| sent["verb"] }).to eq(["Leaflets::EpisodesPage.SaveDraft"])
       expect(result("afterSave")).to eq(%w[Moved Then])
     end
 
     it "saves an autosave as a draft only, never the live content, in plain text", :aggregate_failures, :process do
       auto = result("autosaved")
 
-      expect(auto).to include("status" => 200, "text" => "Saved.", "sent" => ["Leaflets::ChaptersPage.SaveDraft"])
+      expect(auto).to include("status" => 200, "text" => "Saved.", "sent" => ["Leaflets::EpisodesPage.SaveDraft"])
       expect(result("liveAfterAutosave")).to eq(12)
     end
 
@@ -468,8 +468,8 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       refused = result("autosaveRefused")
 
       expect(refused["status"]).to eq(422)
-      expect(refused["problems"]).to eq([{ "path" => ["draft_content", "chapters", 0, "band"],
-                                           "name" => "draft_content.chapters.0.band", "slots" => ["alt"],
+      expect(refused["problems"]).to eq([{ "path" => ["draft_content", "episodes", 0, "band"],
+                                           "name" => "draft_content.episodes.0.band", "slots" => ["alt"],
                                            "message" => "A band is described." }])
     end
 
@@ -477,9 +477,9 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       html = result("refusedPage")["html"]
 
       expect(result("refusedPage")["status"]).to eq(422)
-      expect(html).to match(/name="draft_content\.chapters\.0\.band\.alt"[^>]*aria-invalid="true"[^>]*aria-describedby=/)
-      expect(html).to include('aria-describedby="f-draft-content-chapters-0-band-alt-error"')
-      expect(html).to include('id="f-draft-content-chapters-0-band-alt-error">A band is described.</p>')
+      expect(html).to match(/name="draft_content\.episodes\.0\.band\.alt"[^>]*aria-invalid="true"[^>]*aria-describedby=/)
+      expect(html).to include('aria-describedby="f-draft-content-episodes-0-band-alt-error"')
+      expect(html).to include('id="f-draft-content-episodes-0-band-alt-error">A band is described.</p>')
     end
 
     it "opens the card that holds a refused field, and keeps what was sent", :aggregate_failures, :process do
@@ -493,7 +493,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       published = result("published")
 
       expect(published["live"]).to eq(1)
-      expect(published["sent"].map { |sent| sent["verb"] }).to eq(["Leaflets::ChaptersPage.PublishDraft"])
+      expect(published["sent"].map { |sent| sent["verb"] }).to eq(["Leaflets::EpisodesPage.PublishDraft"])
     end
 
     it "discards a working copy that is a list with an empty list as the clearing argument", :aggregate_failures, :process do

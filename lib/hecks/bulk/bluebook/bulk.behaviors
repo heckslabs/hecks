@@ -10,7 +10,7 @@ Hecks.behaviors "Bulk" do
     expect refused: "must match"
   end
 
-  test "Request declines a run whose command no loaded chapter declares" do
+  test "Request declines a run whose command no loaded bluebook declares" do
     tests "Request", on: "BulkRun"
     input run: { value: "b3" }, verb: { value: "Shop::Order.Cancel" }, over: { value: "Shop::Order.Open" }
     expect status: "declined"
