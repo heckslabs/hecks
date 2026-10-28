@@ -29,6 +29,12 @@ RSpec.describe "the cargo cache of the main crate" do
     expect(saving.uniq).to match_array(savers)
   end
 
+  it "keys the cache on the manifest, the path dependencies and the toolchain pin" do
+    action = File.read(File.join(root, ".github/actions/cargo-cache/action.yml"))
+
+    expect(action.scan(%r{Cargo\.toml'.*?'rust/expr/\*\*', 'rust-toolchain\.toml'}).size).to eq(4)
+  end
+
   it "has the Rust io job save it from leg a alone" do
     steps = YAML.load_file(File.join(root, ".github/workflows/ci-rust-io.yml")).dig("jobs", "rspec_rust_io", "steps")
 

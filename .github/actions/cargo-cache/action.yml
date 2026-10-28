@@ -24,6 +24,12 @@ description: >-
   it — `path` was never anything but "<crate-root>/target" at any of
   this action's 14 call sites, confirmed by grep, not assumed.
 
+  The key also hashes everything that moves cargo's own hashes for the crate's dependencies: its
+  Cargo.toml (features and profile), the sources of its path dependencies (`<crate-root>/core`, which
+  only the host has, and rust/expr) and the toolchain pin. A restored target built from other
+  manifests matches the key but not cargo's hashes, so every crate recompiles and an exact hit never
+  saves a better one.
+
   The key now also hashes `<crate-root>/src/**` alongside Cargo.lock —
   this is the actual Phase 8 win: an unchanged crate (dependencies AND
   source, generated code included for the main crate, since rust/src/
@@ -95,7 +101,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
 
@@ -103,7 +109,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
 
@@ -114,7 +120,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
 
@@ -122,6 +128,6 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
