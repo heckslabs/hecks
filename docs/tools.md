@@ -26,13 +26,13 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 |---|---|
 | `hecks ir [<domain>] [--translations] [--meta]` | `bin/ir` |
 | `hecks introspection.shape <domain>` | `bin/shape` |
-| `hecks stores <domain>` | `bin/stores` |
+| `hecks stores <domain> [aggregate=] [record=]` | `bin/stores` |
 | `hecks introspection.history <domain>` | `bin/history` |
-| `hecks introspection.statements <domain> chapter=` | `bin/statements` |
+| `hecks introspection.statements <domain> bluebook=` | `bin/statements` |
 | `hecks narrate [<domain>] [aggregate=]` | `bin/narrate` |
 | `hecks docs [<domain>] [aggregate=]` | `bin/docs` |
-| `hecks project_diagrams <domain> chapter=` | `bin/project_diagrams` |
-| `hecks introspection.glossary <domain> chapter=` | `bin/project_glossary` |
+| `hecks project_diagrams <domain> bluebook=` | `bin/project_diagrams` |
+| `hecks introspection.glossary <domain> bluebook=` | `bin/project_glossary` |
 | `hecks model_check [<domains>] [profile=] [--strict]` | `bin/model_check` |
 | `hecks run [domain] <verb [name=value …] \| script.json \| - \| '{"steps":[…]}'>` | `bin/run` |
 | `hecks operation.refresh_projections <subject>` | `bin/project` |

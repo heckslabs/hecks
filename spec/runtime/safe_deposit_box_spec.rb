@@ -139,7 +139,7 @@ RSpec.describe "a composite-identified aggregate with two entities" do
     rented_box
     box_command("Surrender")
 
-    expect(runtime.events.map(&:name)).to include("BoxSurrendered", "KeyReturnDue")
+    expect(runtime.events.map(&:name)).to include("BoxSurrendered", "KeyReturnRequested")
     expect(downtown_box.status).to eq("vacant")
   end
 

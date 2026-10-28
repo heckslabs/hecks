@@ -27,11 +27,13 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
   end.freeze
 
   # Bookkeeping no property should single out: identity/foreign-key columns, position indexes
-  # pinned by spec/ir_golden_spec.rb, labels, and the meta-domain's own grammar tables.
+  # pinned by spec/ir_golden_spec.rb, labels, the meta-domain's own grammar tables, and an
+  # acknowledgement, which only `model_check` reads and no dispatch ever does.
   META_DOMAIN_STRUCTURAL_FEATURES = %w[
     Bluebook#name Bluebook#vision Bluebook#classification Bluebook#version
     Bluebook#formerly_known_as Bluebook#namespace Bluebook#normalisations Bluebook#attaches_to
     Aggregate#bluebook Aggregate#name Aggregate#description Aggregate#provenance
+    Aggregate#acknowledgements
     Command#aggregate Command#entity_id Command#name Command#role Command#roles Command#goal Command#provenance
     Query#aggregate Query#entity_id Query#name Query#description
     ValueObject#aggregate ValueObject#name

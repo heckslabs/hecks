@@ -200,6 +200,13 @@ pub fn parse_body(
                     .ok_or_else(|| Diagnostic::new(file, line, "'provenance' requires a from:"))?;
                 aggregate.provenance = Some(ruby_value::read(raw.trim()));
             }
+            "acknowledges" => {
+                aggregate.acknowledgements.push(ir::Acknowledgement {
+                    finding: super::positional_symbol(file, line, "acknowledges", &gated.args, 1)?,
+                    subject: super::named_symbol(&gated.args, "of").unwrap_or_default(),
+                    reason: super::positional_text(file, line, "acknowledges", &gated.args, 2)?,
+                });
+            }
             "attribute" => {
                 let (attr, vo) = super::build_attribute(file, line, "attribute", &gated.args)?;
                 aggregate.attributes.push(attr);

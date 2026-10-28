@@ -4,6 +4,8 @@
 //! not take is the write that links a member (it needs the compiled domain module); the mapping
 //! logic around it is covered with a fake store in the handler tests.
 
+#[allow(unused_imports)]
+use crate::store::{StoreExt, StoreFixtures};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -14,8 +16,8 @@ use tokio_postgres::NoTls;
 use super::extension::PlatformSignin;
 use super::session::{map_member, HostMembers};
 use super::wiring_support::*;
-use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::NeverInvoker;
+use crate::store::journal_sql::LineageConfig;
 
 fn domain_ir() -> Value {
     json!({
@@ -56,7 +58,7 @@ async fn scratch(name: &str) -> Store {
         )
         .await
         .unwrap();
-    Store::postgres(client)
+    crate::store::postgres_store(client)
 }
 
 async fn member(

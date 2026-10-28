@@ -209,7 +209,7 @@ the orchestrator alongside findings 1-3.
 `sets :entries` (bare) on `ReplaceEntries` imports `Ledger`'s own declared
 `list_of(Entry)` attribute onto the command verbatim
 (`CommandBuilder#resolve_bare_set!`), the identical mechanism
-`ConsoleSettings::Collection.ReplaceColumns` already uses for a
+`ConsoleSettings::CollectionLayout.ReplaceColumns` already uses for a
 `list_of(VALUE OBJECT)` — untested for an ENTITY element type until this
 domain (`Hecks::Fuzzing::SequenceGenerator::StepBuilder#args_for`'s own
 comment, `step_builder.rb:79-96`, confirms: "a list-of-ENTITY command

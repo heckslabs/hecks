@@ -3,21 +3,21 @@ Hecks.behaviors "Bluebook" do
 
   loads "bluebook.bluebook", "bluebook.hecksagon"
 
-  test "Declare opens a chapter" do
+  test "Declare opens a bluebook" do
     tests "Declare", on: "Bluebook"
     input name: "Pizzas", vision: "Pizzas, built and sold.", classification: "core"
-    expect emits: ["ChapterDeclared"]
+    expect emits: ["BluebookDeclared"]
   end
 
   test "Declare refuses a classification that is not core, supporting or generic" do
     tests "Declare", on: "Bluebook"
     input name: "Pizzas", vision: "Pizzas, built and sold.", classification: "huge"
-    expect refused: "a chapter is core, supporting, or generic"
+    expect refused: "a bluebook is core, supporting, or generic"
   end
 
-  test "Declare refuses a chapter with no name" do
+  test "Declare refuses a bluebook with no name" do
     tests "Declare", on: "Bluebook"
     input name: "", vision: "Pizzas, built and sold.", classification: "core"
-    expect refused: "a chapter is named"
+    expect refused: "a bluebook is named"
   end
 end

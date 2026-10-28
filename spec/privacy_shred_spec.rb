@@ -1,7 +1,8 @@
 require "spec_helper"
 
-# A shred is a request the key vault answers (ADR 0142): the record reads `shredded` only after
-# the vault destroyed the key, and a vault that refuses leaves the key live and the shred retryable.
+# An issue and a shred are requests the key vault answers (ADR 0142, ADR 0147): the record reads
+# `active` only once the vault named a key it holds, and `shredded` only after it destroyed the key.
+# A vault that refuses leaves the request open and retryable.
 RSpec.describe "shredding a subject's key" do
   VAULT = Hecks::Adapters::InProcessKeyVault
   SUBJECT = { domain: { value: "Studio::Registration" }, subject_id: { value: "attendee-482" } }.freeze
@@ -32,9 +33,8 @@ RSpec.describe "shredding a subject's key" do
   end
 
   def issue_key(runtime)
-    reference = Hecks::Ports::KeyVault.issue(runtime.registry, subject_id: "attendee-482")
-    runtime.dispatch_flat("Privacy::SubjectKey.Issue", SUBJECT.merge(key_reference: { value: reference }))
-    reference
+    runtime.dispatch_flat("Privacy::SubjectKey.Issue", SUBJECT)
+    record(runtime)[:key_reference]&.value
   end
 
   def record(runtime) = runtime.query("Privacy::SubjectKey.ForSubject", **SUBJECT).first
@@ -52,6 +52,17 @@ RSpec.describe "shredding a subject's key" do
       runtime.dispatch_flat("Privacy::SubjectKey.MarkShredded", SUBJECT.merge(key_reference: { value: reference }))
     end
   end
+
+  def reissue_after_refusal
+    other = boot_privacy
+    vault_refuses_issue
+    other.dispatch_flat("Privacy::SubjectKey.Issue", SUBJECT)
+    allow(VAULT).to receive(:issue).and_call_original
+    other.dispatch_flat("Privacy::SubjectKey.Reissue", SUBJECT)
+    other
+  end
+
+  def vault_refuses_issue = allow(VAULT).to receive(:issue).and_raise(RuntimeError, "vault unavailable")
 
   before { VAULT.reset! }
 
@@ -87,5 +98,29 @@ RSpec.describe "shredding a subject's key" do
 
   it "refuses a privacy officer who marks a shred done by hand" do
     expect { mark_shredded_by_hand(runtime, reference) }.to raise_error(Hecks::Refused, /Unauthorized|role/i)
+  end
+
+  describe "issuing a key" do
+    it "records the reference the vault named", :aggregate_failures do
+      expect(record(runtime)[:status]).to eq("active")
+      expect(VAULT.fetch(reference)).to be_a(String)
+    end
+
+    it "leaves the request issue_failed when the vault refuses", :aggregate_failures do
+      VAULT.reset!
+      vault_refuses_issue
+      other = boot_privacy
+      other.dispatch_flat("Privacy::SubjectKey.Issue", SUBJECT)
+      expect([record(other)[:status], record(other)[:refusal].value]).to match(["issue_failed", /vault unavailable/])
+    end
+
+    it "issues again from issue_failed once the vault answers" do
+      expect(record(reissue_after_refusal)[:status]).to eq("active")
+    end
+
+    it "refuses a caller who passes a reference of their own" do
+      expect { runtime.dispatch_flat("Privacy::SubjectKey.Issue", SUBJECT.merge(key_reference: { value: "x" })) }
+        .to raise_error(Hecks::Refused)
+    end
   end
 end

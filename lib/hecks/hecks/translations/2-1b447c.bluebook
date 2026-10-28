@@ -1,0 +1,5 @@
+Hecks.data_translation "Bluebook", from: "bfdb48", to: "1b447c" do
+  aggregate "Bluebook" do
+    retype "ChapterNamespace", to: "BluebookNamespace"
+  end
+end

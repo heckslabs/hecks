@@ -33,7 +33,7 @@ Hecks.bluebook "Bluebook", version: "1" do
     attribute :version,        Version
     # A rename is a declared fact. Absent is not empty.
     attribute :formerly_known_as, FormerlyKnownAs
-    attribute :namespace, ChapterNamespace
+    attribute :namespace, BluebookNamespace
     attribute :normalisations, list_of(NormalisationRule)
     # Core contexts a sub-language bluebook contributes Syntax rows for (ADR 0026).
     # Absent is not empty: most bluebooks attach to nothing.
@@ -68,7 +68,7 @@ Hecks.bluebook "Bluebook", version: "1" do
 
     value_object "BluebookName" do
       attribute :value, String
-      invariant("a chapter is named") { !value.to_s.empty? }
+      invariant("a bluebook is named") { !value.to_s.empty? }
     end
 
     value_object "Vision" do
@@ -78,7 +78,7 @@ Hecks.bluebook "Bluebook", version: "1" do
 
     value_object "Classification" do
       attribute :value, String
-      invariant("a chapter is core, supporting, or generic") do
+      invariant("a bluebook is core, supporting, or generic") do
         value.to_s == "core" || value.to_s == "supporting" || value.to_s == "generic"
       end
     end
@@ -94,7 +94,7 @@ Hecks.bluebook "Bluebook", version: "1" do
     end
 
     # The Ruby module a bluebook's constants install under instead of its own name.
-    value_object "ChapterNamespace" do
+    value_object "BluebookNamespace" do
       attribute :value, String
       invariant("a namespace is a constant path") { value.to_s.match?(/\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\z/) }
     end
@@ -113,7 +113,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :classification, Classification, optional: true
       attribute :version,        Version, optional: true
       attribute :formerly_known_as, FormerlyKnownAs, optional: true
-      attribute :namespace,         ChapterNamespace, optional: true
+      attribute :namespace,         BluebookNamespace, optional: true
 
       sets :name
       sets :vision
@@ -122,7 +122,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       sets :formerly_known_as
       sets :namespace
 
-      emits ChapterDeclared
+      emits BluebookDeclared
     end
 
     # Appends one context; `attaches_to "Query", "ReadModel"` names several at once.
@@ -135,7 +135,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       sets :attaches_to, append: { value: :context }
       # Appending grows the list by exactly one row.
       ensures("the list grew by exactly one") { attaches_to.size == old.attaches_to.size + 1 }
-      emits ChapterAttached
+      emits BluebookAttached
     end
 
     # One row of one capability: `provides "authorization", grant: ...` offers one row per key.
@@ -250,6 +250,10 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
+
+      member keyword: "provides", context: "Bluebook", at: "", named: "live_assignments", kind: "text", required: "false", fills: "provides"
+
+      member keyword: "provides", context: "Bluebook", at: "", named: "live_transitions", kind: "text", required: "false", fills: "provides"
     end
   end
 end

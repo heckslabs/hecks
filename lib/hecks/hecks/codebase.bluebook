@@ -2853,6 +2853,13 @@ Hecks.bluebook "Hecks" do
   aggregate "PublishingRun" do
     description "One release of the gem, or the rehearsal of it: judged by the facts, then carried out."
 
+    acknowledges :key_by_value, "the version this run tags; its Release is made by the run's own Tag, so a reference would require the record the command exists to make",
+                 of: :version
+    acknowledges :key_by_value, "the client package's version, not a gem Release",
+                 of: :client_version
+    acknowledges :key_by_value, "the IR format's version, not a gem Release",
+                 of: :ir_version
+
     attribute :run,            RunKey
     attribute :operation,      Operation, optional: true
     attribute :confirm,        Switch, optional: true

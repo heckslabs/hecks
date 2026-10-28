@@ -154,7 +154,7 @@ jobs:
           target-dir: target-test
 
       - name: Warm the rust/host test build
-        run: cd rust/host && CARGO_TARGET_DIR=target-test cargo test --no-run
+        run: cd rust/host && CARGO_TARGET_DIR=target-test cargo test --workspace --no-run
 
   # Mirrors rspec_rust_host's cache step; builds the two binaries the lineage conformance
   # spec needs.

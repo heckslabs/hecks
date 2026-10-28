@@ -3,7 +3,7 @@ Hecks.behaviors "Bluebook" do
 
   loads "bluebook.bluebook", "policy.bluebook", "bluebook.hecksagon"
 
-  test "Declare puts a policy on a chapter" do
+  test "Declare puts a policy on a bluebook" do
     tests "Declare", on: "Policy"
     setup  "Bluebook::Bluebook.Declare", name: "Pizzas", vision: "Pizzas, built and sold.", classification: "core"
     input  bluebook: "Pizzas", name: "NotifyKitchen", on_event: "OrderPlaced"

@@ -22,8 +22,8 @@ use super::settings::SigninSettings;
 use super::verify::VerifiedClaims;
 use super::{cookie, pages};
 use crate::auth::{self, Session};
-use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
+use crate::store::journal_sql::LineageConfig;
 
 /// Where the account lands after a successful sign-in.
 pub const LANDING_PATH: &str = "/admin.html";

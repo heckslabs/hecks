@@ -168,7 +168,8 @@ module Hecks
         {"glob"=>"*.bluebook"}.freeze,
         {"glob"=>"translations/*.bluebook"}.freeze,
         {"glob"=>"*.hecksagon"}.freeze,
-        {"glob"=>"*.world"}.freeze
+        {"glob"=>"*.world"}.freeze,
+        {"glob"=>"*.contextmap"}.freeze
       ].freeze,
       "MutationOp" => [
         {"name"=>"set", "sign"=>""}.freeze,

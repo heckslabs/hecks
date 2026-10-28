@@ -1,9 +1,11 @@
+#[allow(unused_imports)]
+use crate::store::{StoreExt, StoreFixtures};
 // Route-level tests for payments.rs, run against real Postgres and the compiled
 // checkout_fixture wasm; every Stripe call goes to a local recording server, not the network.
 
 use super::keystore::MemoryStore;
 use super::*;
-use crate::dispatch::tests::{provision_lineage, scratch_db};
+use crate::dispatch_tests::tests::{provision_lineage, scratch_db};
 use crate::host::Host;
 use crate::lambda_client::NeverInvoker;
 use crate::store::Store;

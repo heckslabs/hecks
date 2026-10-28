@@ -9,8 +9,8 @@ on:
     paths:
       - "packages/hecks-client/**"
       - "rust/host/src/server.rs"
-      - "rust/host/src/dispatch.rs"
-      - "rust/host/src/wasm_runner.rs"
+      - "rust/host/core/src/dispatch.rs"
+      - "rust/host/core/src/wasm_runner.rs"
       - "rust/host/src/main.rs"
       - "rust/host/Cargo.lock"
       - "spec/fixtures/rust_host/checkout_fixture/**"

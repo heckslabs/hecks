@@ -1,6 +1,9 @@
 {
   "aggregates": [
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -141,6 +144,16 @@
           "pattern": null,
           "relationship": null,
           "type": "ProjectedField"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "acknowledgements",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Acknowledgement"
         },
         {
           "admits": null,
@@ -660,7 +673,7 @@
             }
           ],
           "emits": [
-            "PieceHeld"
+            "PieceOptionDeclared"
           ],
           "ensures": [
 
@@ -1142,6 +1155,90 @@
             }
           ],
           "name": "Precondition",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "finding",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FieldName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Description"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "FieldName"
+            }
+          ],
+          "emits": [
+            "AcknowledgementAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "finding",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!finding.value.to_s.empty?",
+              "description": "an acknowledged finding is named"
+            }
+          ],
+          "goal": "Allow a finding on the aggregate that means what it says",
+          "idempotent": false,
+          "mutations": [
+            {
+              "fields": {
+                "finding": ":finding",
+                "reason": ":reason",
+                "subject": ":subject"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "acknowledgements"
+            }
+          ],
+          "name": "Acknowledges",
           "needs": [
 
           ],
@@ -1713,6 +1810,48 @@
 
           ],
           "name": "ProjectedField"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "finding",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Acknowledgement"
         },
         {
           "attributes": [
@@ -2550,6 +2689,36 @@
               [
                 "calls",
                 "given_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "acknowledgements"
+              ],
+              [
+                "calls",
+                "acknowledges_impl"
               ]
             ],
             [
@@ -3908,6 +4077,100 @@
             [
               [
                 "keyword",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "finding"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "reason"
+              ],
+              [
+                "coerce",
+                "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "of"
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "subject"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "projects"
               ],
               [
@@ -4137,6 +4400,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -4196,7 +4462,7 @@
           "optional": false,
           "pattern": null,
           "relationship": null,
-          "type": "ChapterNamespace"
+          "type": "BluebookNamespace"
         },
         {
           "admits": null,
@@ -4290,11 +4556,11 @@
               "optional": true,
               "pattern": null,
               "relationship": null,
-              "type": "ChapterNamespace"
+              "type": "BluebookNamespace"
             }
           ],
           "emits": [
-            "ChapterDeclared"
+            "BluebookDeclared"
           ],
           "ensures": [
 
@@ -4383,7 +4649,7 @@
             }
           ],
           "emits": [
-            "ChapterAttached"
+            "BluebookAttached"
           ],
           "ensures": [
             {
@@ -4832,7 +5098,7 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "a chapter is named"
+              "description": "a bluebook is named"
             }
           ],
           "members": [
@@ -4966,7 +5232,7 @@
                 }
               },
               "canonical": "value.to_s == \"core\" || value.to_s == \"supporting\" || value.to_s == \"generic\"",
-              "description": "a chapter is core, supporting, or generic"
+              "description": "a bluebook is core, supporting, or generic"
             }
           ],
           "members": [
@@ -5091,7 +5357,7 @@
           "members": [
 
           ],
-          "name": "ChapterNamespace"
+          "name": "BluebookNamespace"
         },
         {
           "attributes": [
@@ -6487,6 +6753,66 @@
                 "fills",
                 "name"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "live_assignments"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "provides"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "provides"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "live_transitions"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "provides"
+              ]
             ]
           ],
           "name": "ArgumentSeed"
@@ -6494,6 +6820,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -10389,6 +10718,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -11070,7 +11402,7 @@
             }
           ],
           "emits": [
-            "PieceHeld"
+            "PieceOptionDeclared"
           ],
           "ensures": [
 
@@ -13514,6 +13846,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -14851,6 +15186,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -16735,6 +17073,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -17281,7 +17622,7 @@
             }
           ],
           "emits": [
-            "MedianFieldSet"
+            "MedianDeclared"
           ],
           "ensures": [
 
@@ -17344,7 +17685,7 @@
             }
           ],
           "emits": [
-            "SumFieldSet"
+            "SumDeclared"
           ],
           "ensures": [
 
@@ -17407,7 +17748,7 @@
             }
           ],
           "emits": [
-            "AvgFieldSet"
+            "AvgDeclared"
           ],
           "ensures": [
 
@@ -17470,7 +17811,7 @@
             }
           ],
           "emits": [
-            "MinFieldSet"
+            "MinDeclared"
           ],
           "ensures": [
 
@@ -17533,7 +17874,7 @@
             }
           ],
           "emits": [
-            "MaxFieldSet"
+            "MaxDeclared"
           ],
           "ensures": [
 
@@ -17606,7 +17947,7 @@
             }
           ],
           "emits": [
-            "PercentileFieldSet"
+            "PercentileDeclared"
           ],
           "ensures": [
 
@@ -17678,7 +18019,7 @@
             }
           ],
           "emits": [
-            "AnyFieldSet"
+            "AnyDeclared"
           ],
           "ensures": [
 
@@ -17741,7 +18082,7 @@
             }
           ],
           "emits": [
-            "AllFieldSet"
+            "AllDeclared"
           ],
           "ensures": [
 
@@ -19671,6 +20012,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -21890,6 +22234,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -23842,6 +24189,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -24996,6 +25346,12 @@
                 "name",
                 "TranslationAggregate"
               ]
+            ],
+            [
+              [
+                "name",
+                "ContextMap"
+              ]
             ]
           ],
           "name": "Context"
@@ -25361,6 +25717,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -26360,6 +26719,12 @@
               [
                 "glob",
                 "*.world"
+              ]
+            ],
+            [
+              [
+                "glob",
+                "*.contextmap"
               ]
             ]
           ],

@@ -18,10 +18,14 @@ module Hecks
       #
       # `upstream` supplies and `downstream` consumes. `published` lists the upstream events a
       # downstream may depend on; `shared` the names two contexts hold in common (shared kernel).
-      Relationship = Struct.new(:upstream, :downstream, :kind, :published, :shared,
+      # `acknowledged` maps a finding kind about the relationship to the reason it is allowed.
+      Relationship = Struct.new(:upstream, :downstream, :kind, :published, :shared, :acknowledged,
                                 keyword_init: true) do
         # @return [Array(String, String)] the two contexts, sorted, whichever way the arrow runs
         def pair = [upstream, downstream].sort
+
+        # @return [Boolean] whether the relationship allows a finding of this kind
+        def acknowledges?(finding) = (acknowledged || {}).key?(finding.to_sym)
       end
 
       attr_reader :name, :contexts, :relationships, :separate_ways

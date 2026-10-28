@@ -9,9 +9,9 @@ use crate::extension::{self, Ctx};
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
 use crate::host::Host;
 use crate::ir::ir;
-use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::platform_signin::jti::JtiStore;
+use crate::store::journal_sql::LineageConfig;
 use crate::store::Store;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -565,14 +565,14 @@ fn expiry_days(raw: Option<Value>) -> Result<Option<u32>, &'static str> {
 }
 
 async fn is_admin(store: &Store, wasm_path: &Path, domain_ir: &Value, identity_id: &str) -> bool {
-    let provider = crate::ir::authorization_provider(domain_ir);
-    dispatch::read(store, wasm_path).await.is_ok_and(|read| {
-        auth::holds_admin(
-            read.get("instances").unwrap_or(&json!({})),
-            identity_id,
-            provider.as_ref(),
-        )
-    })
+    let Some(query) = crate::ir::authorization_provider(domain_ir).and_then(|p| p.live_assignments)
+    else {
+        return false;
+    };
+    let args = json!({"actor_id": {"value": identity_id}});
+    dispatch::query(store, wasm_path, &query, args)
+        .await
+        .is_ok_and(|answer| auth::holds_admin(&auth::answer_rows(&answer)))
 }
 
 // Verifies the token AND that the person still has access, so a
@@ -2652,6 +2652,8 @@ fn respond_with_cookie(status: u16, content_type: &str, body: &str, cookie: &str
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
 
     // A record's id is user-supplied; left unescaped, a malicious one
     // would render as live markup — these tests pin that it can't.
@@ -3066,8 +3068,8 @@ mod tests {
     // command does not declare is refused as it is over the internal protocol.
     #[tokio::test]
     async fn a_form_submit_dispatches_as_the_signed_in_caller() {
-        let client = crate::dispatch::tests::memory_store();
-        let wasm = crate::dispatch::tests::wasm_path();
+        let client = crate::dispatch_tests::tests::memory_store();
+        let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir: Value = serde_json::from_str(
             &std::fs::read_to_string(
                 std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -3113,8 +3115,8 @@ mod tests {
     // with nothing kept.
     #[tokio::test]
     async fn a_preview_of_a_submitted_form_answers_the_envelope_as_the_signed_in_caller() {
-        let client = crate::dispatch::tests::memory_store();
-        let wasm = crate::dispatch::tests::wasm_path();
+        let client = crate::dispatch_tests::tests::memory_store();
+        let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir: Value = serde_json::from_str(
             &std::fs::read_to_string(
                 std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -3168,8 +3170,8 @@ mod tests {
     // `?schema=1` on a command's JSON route: the JSON Schema the build wrote beside the IR.
     #[tokio::test]
     async fn a_command_json_route_serves_its_schema_when_asked() {
-        let client = crate::dispatch::tests::memory_store();
-        let wasm = crate::dispatch::tests::wasm_path();
+        let client = crate::dispatch_tests::tests::memory_store();
+        let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir_path =
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
         let ir: Value =
@@ -3344,8 +3346,10 @@ mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        crate::store::journal_sql::ensure_schema(&client).await.unwrap();
-        Store::postgres(client)
+        crate::store::journal_sql::ensure_schema(&client)
+            .await
+            .unwrap();
+        crate::store::postgres_store(client)
     }
 
     // Duplicates dispatch.rs's own provision_lineage shape rather than
@@ -3390,7 +3394,10 @@ mod tests {
             // `journal::append_lineage_mutation` write actually targets now.
             let snapshot_table = crate::store::journal_sql::qualified_name(
                 domain,
-                &format!("{}_head_snapshot_{era}", crate::store::journal_sql::snake(name)),
+                &format!(
+                    "{}_head_snapshot_{era}",
+                    crate::store::journal_sql::snake(name)
+                ),
             );
             client
                 .batch_execute(&format!("CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"))

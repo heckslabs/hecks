@@ -9,7 +9,8 @@ module Hecks
 
       module_function
 
-      # Mints a per-subject key; the key material itself never leaves the bound adapter.
+      # Mints a per-subject key; the key material itself never leaves the bound adapter. The
+      # `Keys` port's adapter calls it when a `SubjectKey` asks for a key (ADR 0147).
       def issue(registry, subject_id:) = adapter(registry).issue(subject_id: subject_id)
 
       # Irrevocably destroys a key; ciphertext under it becomes unrecoverable at once —

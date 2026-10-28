@@ -50,5 +50,8 @@ Hecks.hecksagon "ConsoleSettings" do
   attaches "Governance"
   ConsoleSettings::StateStyle.persisted_by("Memory")
   ConsoleSettings::Collection.persisted_by("Memory")
+  ConsoleSettings::CollectionIdentity.persisted_by("Memory")
+  ConsoleSettings::CollectionLayout.persisted_by("Memory")
+  ConsoleSettings::CollectionRules.persisted_by("Memory")
   ConsoleSettings::Overview.persisted_by("Memory")
 end

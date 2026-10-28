@@ -1,0 +1,4 @@
+# The restriction lints (unwrap, expect, panic) guard library code; a test panics to fail.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

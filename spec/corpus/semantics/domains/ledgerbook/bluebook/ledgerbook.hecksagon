@@ -1,0 +1,4 @@
+Hecks.hecksagon "Ledgerbook" do
+  Ledgerbook::Shelf.persisted_by("Memory")
+  Ledgerbook::Register.persisted_by("Memory")
+end

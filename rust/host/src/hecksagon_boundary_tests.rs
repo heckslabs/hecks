@@ -9,28 +9,37 @@
 
 /// The modules that run a domain, with their source.
 const RUNTIME_MODULES: &[(&str, &str)] = &[
-    ("dispatch.rs", include_str!("dispatch.rs")),
-    ("journal.rs", include_str!("journal.rs")),
-    ("wasm_runner.rs", include_str!("wasm_runner.rs")),
-    ("needs.rs", include_str!("needs.rs")),
-    ("query_step.rs", include_str!("query_step.rs")),
-    ("presentation.rs", include_str!("presentation.rs")),
+    ("dispatch.rs", include_str!("../core/src/dispatch.rs")),
+    ("journal.rs", include_str!("../core/src/journal.rs")),
+    ("wasm_runner.rs", include_str!("../core/src/wasm_runner.rs")),
+    ("needs.rs", include_str!("../core/src/needs.rs")),
+    ("query_step.rs", include_str!("../core/src/query_step.rs")),
+    (
+        "presentation.rs",
+        include_str!("../core/src/presentation.rs"),
+    ),
     (
         "presentation_write.rs",
-        include_str!("presentation_write.rs"),
+        include_str!("../core/src/presentation_write.rs"),
     ),
-    ("ir.rs", include_str!("ir.rs")),
-    ("expr_json.rs", include_str!("expr_json.rs")),
-    ("lambda_client.rs", include_str!("lambda_client.rs")),
-    ("clock.rs", include_str!("clock.rs")),
-    ("storage_shape.rs", include_str!("storage_shape.rs")),
+    ("ir.rs", include_str!("../core/src/ir.rs")),
+    ("expr_json.rs", include_str!("../core/src/expr_json.rs")),
+    (
+        "lambda_client.rs",
+        include_str!("../core/src/lambda_client.rs"),
+    ),
+    ("clock.rs", include_str!("../core/src/clock.rs")),
+    (
+        "storage_shape.rs",
+        include_str!("../core/src/storage_shape.rs"),
+    ),
     (
         "reference_transform.rs",
-        include_str!("reference_transform.rs"),
+        include_str!("../core/src/reference_transform.rs"),
     ),
     (
         "reference_validate.rs",
-        include_str!("reference_validate.rs"),
+        include_str!("../core/src/reference_validate.rs"),
     ),
 ];
 
@@ -64,7 +73,7 @@ fn runtime_lines(source: &str) -> Vec<(usize, &str)> {
     let mut kept = Vec::new();
     let mut lines = source.lines().enumerate().peekable();
     while let Some((index, line)) = lines.next() {
-        if line == "#[cfg(test)]" {
+        if line == "#[cfg(test)]" || line == "#[cfg(any(test, feature = \"test-support\"))]" {
             skip_test_item(&mut lines);
             continue;
         }
@@ -117,7 +126,7 @@ fn runtime_modules_know_nothing_of_transport_or_the_environment() {
                         .iter()
                         .filter(move |token| line.contains(*token))
                         .map(move |token| {
-                            format!("rust/host/src/{file}:{number}: `{token}` in {line:?}")
+                            format!("rust/host/core/src/{file}:{number}: `{token}` in {line:?}")
                         })
                 })
         })

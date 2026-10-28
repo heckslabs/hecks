@@ -78,7 +78,7 @@ RSpec.describe "the editor's workflow, derived from the bluebooks" do
     it "relates an aggregate to the aggregates whose identity is a key of its kind, by shape", :aggregate_failures do
       related = aggregate("Post")["related"]
 
-      expect(related.map { |rel| rel.values_at("aggregate", "chapter", "shape") })
+      expect(related.map { |rel| rel.values_at("aggregate", "bluebook", "shape") })
         .to eq([%w[Document Documents document], %w[Gallery Pictures gallery], %w[SearchWording Discovery metadata]])
       expect(related.map { |rel| rel.values_at("create", "edit") })
         .to eq([%w[Begin SaveDraft], %w[Gather Rearrange], %w[Describe Reword]])
@@ -125,7 +125,7 @@ RSpec.describe "the editor's workflow, derived from the bluebooks" do
   describe "the scheduled actions" do
     it "finds the aggregate by the shape of its subject, action, due time, lifecycle and commands", :aggregate_failures do
       expect(schema["scheduling"]).to eq(
-        "aggregate" => "ScheduledAction", "chapter" => "Schedule", "subject" => "subject", "action" => "action",
+        "aggregate" => "ScheduledAction", "bluebook" => "Schedule", "subject" => "subject", "action" => "action",
         "actions" => %w[publish withdraw], "due" => "due_at", "pending" => "pending", "schedule" => "Schedule",
         "reschedule" => "Reschedule", "cancel" => "Cancel", "query" => "ForSubject", "reason" => "reason", "generated" => true
       )

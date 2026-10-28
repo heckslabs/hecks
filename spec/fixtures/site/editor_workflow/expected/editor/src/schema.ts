@@ -15,8 +15,8 @@ export type Kind = "text" | "integer" | "number" | "boolean" | "object" | "refer
  */
 export interface Picker {
   target?: string;
-  /** The target's chapter, when the editor spans several or the target is in another. */
-  chapter?: string;
+  /** The target's bluebook, when the editor spans several or the target is in another. */
+  bluebook?: string;
   /** The target's identity attribute. */
   key?: string;
   /** The attribute that names an instance to a person (its title, name or label, else its identity). */
@@ -120,7 +120,7 @@ export interface Query {
  */
 export interface Related {
   aggregate: string;
-  chapter?: string;
+  bluebook?: string;
   /** The related aggregate's identity attribute, which the key fills. */
   field: string;
   shape: "document" | "gallery" | "metadata";
@@ -140,9 +140,9 @@ export interface Drafts {
 
 export interface Aggregate {
   name: string;
-  /** The chapter that declares the aggregate; set when the editor spans several. */
-  chapter?: string;
-  /** The roles that may edit it, when its chapter limits them; any admitted role otherwise. */
+  /** The bluebook that declares the aggregate; set when the editor spans several. */
+  bluebook?: string;
+  /** The roles that may edit it, when its bluebook limits them; any admitted role otherwise. */
   roles?: string[];
   description: string | null;
   identity: string;
@@ -163,14 +163,14 @@ export interface MediaField {
   wrap: string | null;
 }
 
-/** The aggregate that registers pictures, when the chapter has one: found by shape, never by name. */
+/** The aggregate that registers pictures, when the bluebook has one: found by shape, never by name. */
 export interface Media {
   aggregate: string;
   command: string;
   fields: { key: MediaField; alt: MediaField; mime: MediaField; width?: MediaField; height?: MediaField };
   /** The query that lists the pictures, or null when every instance is read. */
   listing: string | null;
-  /** The chapter that holds the picture aggregate, when it is not this editor's own chapter. */
+  /** The bluebook that holds the picture aggregate, when it is not this editor's own bluebook. */
   domain?: string;
   /** That aggregate, which is then not among the editor's own; see `domain`. */
   definition?: Aggregate;
@@ -183,7 +183,7 @@ export interface Media {
  */
 export interface Scheduling {
   aggregate: string;
-  chapter?: string;
+  bluebook?: string;
   subject: string;
   action: string;
   actions: string[];
@@ -202,10 +202,10 @@ export interface Scheduling {
 }
 
 export interface Schema {
-  /** The first chapter, which names the domain the host is asked for. */
+  /** The first bluebook, which names the domain the host is asked for. */
   domain: string;
-  /** Every chapter, in the order the navigation groups them; set when the editor spans several. */
-  chapters?: string[];
+  /** Every bluebook, in the order the navigation groups them; set when the editor spans several. */
+  bluebooks?: string[];
   aggregates: Aggregate[];
   media?: Media;
   scheduling?: Scheduling;
@@ -213,7 +213,7 @@ export interface Schema {
 
 export const SCHEMA: Schema = {
   "domain": "Publishing",
-  "chapters": [
+  "bluebooks": [
     "Publishing",
     "Documents",
     "Pictures",
@@ -223,7 +223,7 @@ export const SCHEMA: Schema = {
   "aggregates": [
     {
       "name": "Post",
-      "chapter": "Publishing",
+      "bluebook": "Publishing",
       "description": "One post, from draft to withdrawn.",
       "identity": "slug",
       "lifecycle": {
@@ -358,7 +358,7 @@ export const SCHEMA: Schema = {
       "related": [
         {
           "aggregate": "Document",
-          "chapter": "Documents",
+          "bluebook": "Documents",
           "field": "key",
           "shape": "document",
           "create": "Begin",
@@ -366,7 +366,7 @@ export const SCHEMA: Schema = {
         },
         {
           "aggregate": "Gallery",
-          "chapter": "Pictures",
+          "bluebook": "Pictures",
           "field": "key",
           "shape": "gallery",
           "create": "Gather",
@@ -374,7 +374,7 @@ export const SCHEMA: Schema = {
         },
         {
           "aggregate": "SearchWording",
-          "chapter": "Discovery",
+          "bluebook": "Discovery",
           "field": "key",
           "shape": "metadata",
           "create": "Describe",
@@ -384,7 +384,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "Page",
-      "chapter": "Publishing",
+      "bluebook": "Publishing",
       "description": "A page of the site that is not a post.",
       "identity": "slug",
       "lifecycle": null,
@@ -454,7 +454,7 @@ export const SCHEMA: Schema = {
       "related": [
         {
           "aggregate": "Document",
-          "chapter": "Documents",
+          "bluebook": "Documents",
           "field": "key",
           "shape": "document",
           "create": "Begin",
@@ -462,7 +462,7 @@ export const SCHEMA: Schema = {
         },
         {
           "aggregate": "Gallery",
-          "chapter": "Pictures",
+          "bluebook": "Pictures",
           "field": "key",
           "shape": "gallery",
           "create": "Gather",
@@ -470,7 +470,7 @@ export const SCHEMA: Schema = {
         },
         {
           "aggregate": "SearchWording",
-          "chapter": "Discovery",
+          "bluebook": "Discovery",
           "field": "key",
           "shape": "metadata",
           "create": "Describe",
@@ -480,7 +480,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "Document",
-      "chapter": "Documents",
+      "bluebook": "Documents",
       "description": "The text of one post or page, with the draft being written beside it.",
       "identity": "key",
       "lifecycle": null,
@@ -496,7 +496,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "post",
                 "target": "Post",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -504,7 +504,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "page",
                 "target": "Page",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -689,7 +689,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "post",
                     "target": "Post",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -697,7 +697,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "page",
                     "target": "Page",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -763,7 +763,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "MediaItem",
-      "chapter": "Pictures",
+      "bluebook": "Pictures",
       "description": "A picture that has been uploaded: its record only, the bytes are kept elsewhere.",
       "identity": "key",
       "lifecycle": null,
@@ -862,7 +862,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "Gallery",
-      "chapter": "Pictures",
+      "bluebook": "Pictures",
       "description": "The pictures that go with one post or page, in order.",
       "identity": "key",
       "lifecycle": null,
@@ -878,7 +878,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "post",
                 "target": "Post",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -886,7 +886,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "page",
                 "target": "Page",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -902,7 +902,7 @@ export const SCHEMA: Schema = {
           "list": true,
           "picker": {
             "target": "MediaItem",
-            "chapter": "Pictures",
+            "bluebook": "Pictures",
             "key": "key",
             "label": "alt",
             "listing": "Pictures",
@@ -950,7 +950,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "post",
                     "target": "Post",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -958,7 +958,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "page",
                     "target": "Page",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -974,7 +974,7 @@ export const SCHEMA: Schema = {
               "list": true,
               "picker": {
                 "target": "MediaItem",
-                "chapter": "Pictures",
+                "bluebook": "Pictures",
                 "key": "key",
                 "label": "alt",
                 "listing": "Pictures",
@@ -999,7 +999,7 @@ export const SCHEMA: Schema = {
               "list": true,
               "picker": {
                 "target": "MediaItem",
-                "chapter": "Pictures",
+                "bluebook": "Pictures",
                 "key": "key",
                 "label": "alt",
                 "listing": "Pictures",
@@ -1013,7 +1013,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "SearchWording",
-      "chapter": "Discovery",
+      "bluebook": "Discovery",
       "description": "The title and description a search result shows for one post or page.",
       "identity": "key",
       "lifecycle": null,
@@ -1029,7 +1029,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "post",
                 "target": "Post",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -1037,7 +1037,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "page",
                 "target": "Page",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -1109,7 +1109,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "post",
                     "target": "Post",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -1117,7 +1117,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "page",
                     "target": "Page",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -1170,7 +1170,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "ScheduledAction",
-      "chapter": "Schedule",
+      "bluebook": "Schedule",
       "description": "One action on one post or page, to run at a time.",
       "identity": "id",
       "lifecycle": {
@@ -1225,7 +1225,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "post",
                 "target": "Post",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -1233,7 +1233,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "page",
                 "target": "Page",
-                "chapter": "Publishing",
+                "bluebook": "Publishing",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -1342,7 +1342,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "post",
                     "target": "Post",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -1350,7 +1350,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "page",
                     "target": "Page",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -1449,7 +1449,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "post",
                     "target": "Post",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -1457,7 +1457,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "page",
                     "target": "Page",
-                    "chapter": "Publishing",
+                    "bluebook": "Publishing",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -1492,7 +1492,7 @@ export const SCHEMA: Schema = {
   },
   "scheduling": {
     "aggregate": "ScheduledAction",
-    "chapter": "Schedule",
+    "bluebook": "Schedule",
     "subject": "subject",
     "action": "action",
     "actions": [

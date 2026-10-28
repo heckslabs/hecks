@@ -167,13 +167,13 @@ module Hecks
     end
 
     # @param root [String] the checkout
-    # @return [Result] `rust/host/src/field_hints.rs`, the hints the host's form fields guess from
+    # @return [Result] `rust/host/core/src/field_hints.rs`, the hints the host's form fields guess from
     def field_hints(root)
       require "hecks"
       vocabulary = chapter.aggregates.find { |aggregate| aggregate.hecks_name == "Vocabulary" }
       field_hint = vocabulary.value_objects.find { |value_object| value_object.hecks_name == "FieldHint" }
       hints = field_hint.members.map(&:to_h)
-      Result.new({ File.join(root, "rust/host/src/field_hints.rs") => field_hints_text(hints) }, [])
+      Result.new({ File.join(root, "rust/host/core/src/field_hints.rs") => field_hints_text(hints) }, [])
     end
 
     # The DSL reference pages and the README regions generated from the same declarations.

@@ -671,6 +671,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Statements"
     answers_query "Narrate"
     answers_query "Relationships"
+    answers_query "ContextMap"
     answers_query "WorldSkeleton"
     answers_query "Docs"
     answers_query "ProjectDiagrams"
