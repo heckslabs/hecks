@@ -190,6 +190,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "flagged"
       transition "Pass" => "clean",   from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "clean", "flagged"
     end
 
     command "ModelCheck" do
@@ -440,7 +441,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "refused"
       transition "Complete" => "tagged",  from: "requested"
       transition "Abandon"  => "refused", from: "requested"
-      mark :terminal, "refused"
+      mark :terminal, "refused", "tagged"
     end
 
     # `hecks package.release <package> [root=path]`. Tags the package's current version as

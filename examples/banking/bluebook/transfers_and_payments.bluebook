@@ -292,7 +292,7 @@ Hecks.bluebook "Banking" do
       transition "Fail"    => "failed",    from: "scheduled"
       transition "Retry"   => "failed",    from: "failed"
       transition "Abandon" => "abandoned", from: "failed"
-      mark :terminal, "abandoned", "cancelled"
+      mark :terminal, "abandoned", "cancelled", "executed"
     end
 
     command "Schedule" do

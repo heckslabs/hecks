@@ -78,6 +78,7 @@ Hecks.bluebook "Chess" do
 
       lifecycle :status, default: "on_board" do
         transition "Capture" => "captured", from: "on_board"
+        mark :terminal, "captured"
       end
 
       command "Move", from: "on_board" do
