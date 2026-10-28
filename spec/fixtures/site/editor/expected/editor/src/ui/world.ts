@@ -21,15 +21,15 @@ export interface World {
 
 /** The aggregate a `related` entry names. */
 export const relatedAggregate = (rel: Related): Aggregate | undefined =>
-  SCHEMA.aggregates.find((candidate) => candidate.name === rel.aggregate && candidate.chapter === rel.chapter);
+  SCHEMA.aggregates.find((candidate) => candidate.name === rel.aggregate && candidate.bluebook === rel.bluebook);
 
 /** The aggregate that registers pictures, when the editor has it among its own. */
 export function pictureAggregate(): Aggregate | undefined {
   const media = SCHEMA.media;
   if (!media) return undefined;
-  return SCHEMA.aggregates.find((agg) => agg.name === media.aggregate && (media.domain ? agg.chapter === media.domain : !agg.chapter || agg.chapter === SCHEMA.domain));
+  return SCHEMA.aggregates.find((agg) => agg.name === media.aggregate && (media.domain ? agg.bluebook === media.domain : !agg.bluebook || agg.bluebook === SCHEMA.domain));
 }
 
 /** The aggregate whose records are the scheduled actions, when the editor has one. */
 export const schedulingAggregate = (): Aggregate | undefined =>
-  SCHEMA.scheduling && SCHEMA.aggregates.find((candidate) => candidate.name === SCHEMA.scheduling?.aggregate && candidate.chapter === SCHEMA.scheduling?.chapter);
+  SCHEMA.scheduling && SCHEMA.aggregates.find((candidate) => candidate.name === SCHEMA.scheduling?.aggregate && candidate.bluebook === SCHEMA.scheduling?.bluebook);

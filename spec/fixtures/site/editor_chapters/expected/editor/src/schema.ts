@@ -15,8 +15,8 @@ export type Kind = "text" | "integer" | "number" | "boolean" | "object" | "refer
  */
 export interface Picker {
   target?: string;
-  /** The target's chapter, when the editor spans several or the target is in another. */
-  chapter?: string;
+  /** The target's bluebook, when the editor spans several or the target is in another. */
+  bluebook?: string;
   /** The target's identity attribute. */
   key?: string;
   /** The attribute that names an instance to a person (its title, name or label, else its identity). */
@@ -120,7 +120,7 @@ export interface Query {
  */
 export interface Related {
   aggregate: string;
-  chapter?: string;
+  bluebook?: string;
   /** The related aggregate's identity attribute, which the key fills. */
   field: string;
   shape: "document" | "gallery" | "metadata";
@@ -140,9 +140,9 @@ export interface Drafts {
 
 export interface Aggregate {
   name: string;
-  /** The chapter that declares the aggregate; set when the editor spans several. */
-  chapter?: string;
-  /** The roles that may edit it, when its chapter limits them; any admitted role otherwise. */
+  /** The bluebook that declares the aggregate; set when the editor spans several. */
+  bluebook?: string;
+  /** The roles that may edit it, when its bluebook limits them; any admitted role otherwise. */
   roles?: string[];
   description: string | null;
   identity: string;
@@ -163,14 +163,14 @@ export interface MediaField {
   wrap: string | null;
 }
 
-/** The aggregate that registers pictures, when the chapter has one: found by shape, never by name. */
+/** The aggregate that registers pictures, when the bluebook has one: found by shape, never by name. */
 export interface Media {
   aggregate: string;
   command: string;
   fields: { key: MediaField; alt: MediaField; mime: MediaField; width?: MediaField; height?: MediaField };
   /** The query that lists the pictures, or null when every instance is read. */
   listing: string | null;
-  /** The chapter that holds the picture aggregate, when it is not this editor's own chapter. */
+  /** The bluebook that holds the picture aggregate, when it is not this editor's own bluebook. */
   domain?: string;
   /** That aggregate, which is then not among the editor's own; see `domain`. */
   definition?: Aggregate;
@@ -183,7 +183,7 @@ export interface Media {
  */
 export interface Scheduling {
   aggregate: string;
-  chapter?: string;
+  bluebook?: string;
   subject: string;
   action: string;
   actions: string[];
@@ -202,10 +202,10 @@ export interface Scheduling {
 }
 
 export interface Schema {
-  /** The first chapter, which names the domain the host is asked for. */
+  /** The first bluebook, which names the domain the host is asked for. */
   domain: string;
-  /** Every chapter, in the order the navigation groups them; set when the editor spans several. */
-  chapters?: string[];
+  /** Every bluebook, in the order the navigation groups them; set when the editor spans several. */
+  bluebooks?: string[];
   aggregates: Aggregate[];
   media?: Media;
   scheduling?: Scheduling;
@@ -213,14 +213,14 @@ export interface Schema {
 
 export const SCHEMA: Schema = {
   "domain": "Press",
-  "chapters": [
+  "bluebooks": [
     "Press",
     "Library"
   ],
   "aggregates": [
     {
       "name": "Article",
-      "chapter": "Press",
+      "bluebook": "Press",
       "description": "One piece the publisher writes, from draft to archive.",
       "identity": "slug",
       "lifecycle": {
@@ -280,7 +280,7 @@ export const SCHEMA: Schema = {
           "list": true,
           "picker": {
             "target": "Category",
-            "chapter": "Press",
+            "bluebook": "Press",
             "key": "slug",
             "label": "name",
             "listing": "Active",
@@ -295,7 +295,7 @@ export const SCHEMA: Schema = {
           "list": false,
           "picker": {
             "target": "MediaItem",
-            "chapter": "Library",
+            "bluebook": "Library",
             "key": "key",
             "label": "alt",
             "listing": "Pictures",
@@ -389,7 +389,7 @@ export const SCHEMA: Schema = {
               "list": true,
               "picker": {
                 "target": "Category",
-                "chapter": "Press",
+                "bluebook": "Press",
                 "key": "slug",
                 "label": "name",
                 "listing": "Active",
@@ -404,7 +404,7 @@ export const SCHEMA: Schema = {
               "list": false,
               "picker": {
                 "target": "MediaItem",
-                "chapter": "Library",
+                "bluebook": "Library",
                 "key": "key",
                 "label": "alt",
                 "listing": "Pictures",
@@ -444,7 +444,7 @@ export const SCHEMA: Schema = {
               "list": true,
               "picker": {
                 "target": "Category",
-                "chapter": "Press",
+                "bluebook": "Press",
                 "key": "slug",
                 "label": "name",
                 "listing": "Active",
@@ -459,7 +459,7 @@ export const SCHEMA: Schema = {
               "list": false,
               "picker": {
                 "target": "MediaItem",
-                "chapter": "Library",
+                "bluebook": "Library",
                 "key": "key",
                 "label": "alt",
                 "listing": "Pictures",
@@ -497,7 +497,7 @@ export const SCHEMA: Schema = {
       "related": [
         {
           "aggregate": "Gallery",
-          "chapter": "Library",
+          "bluebook": "Library",
           "field": "key",
           "shape": "gallery",
           "create": "Compose"
@@ -506,7 +506,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "Category",
-      "chapter": "Press",
+      "bluebook": "Press",
       "description": "A section of the publisher's writing that articles are filed under.",
       "identity": "slug",
       "lifecycle": {
@@ -607,7 +607,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "Note",
-      "chapter": "Press",
+      "bluebook": "Press",
       "description": "A reminder the publisher keeps for itself.",
       "identity": "key",
       "lifecycle": null,
@@ -702,7 +702,7 @@ export const SCHEMA: Schema = {
       "related": [
         {
           "aggregate": "Gallery",
-          "chapter": "Library",
+          "bluebook": "Library",
           "field": "key",
           "shape": "gallery",
           "create": "Compose"
@@ -711,7 +711,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "MediaItem",
-      "chapter": "Library",
+      "bluebook": "Library",
       "roles": [
         "Admin"
       ],
@@ -813,7 +813,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "Category",
-      "chapter": "Library",
+      "bluebook": "Library",
       "roles": [
         "Admin"
       ],
@@ -892,7 +892,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "Gallery",
-      "chapter": "Library",
+      "bluebook": "Library",
       "roles": [
         "Admin"
       ],
@@ -911,7 +911,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "article",
                 "target": "Article",
-                "chapter": "Press",
+                "bluebook": "Press",
                 "key": "slug",
                 "label": "title",
                 "strict": true
@@ -919,7 +919,7 @@ export const SCHEMA: Schema = {
               {
                 "kind": "note",
                 "target": "Note",
-                "chapter": "Press",
+                "bluebook": "Press",
                 "key": "key",
                 "label": "key",
                 "strict": true
@@ -942,7 +942,7 @@ export const SCHEMA: Schema = {
           "list": true,
           "picker": {
             "target": "MediaItem",
-            "chapter": "Library",
+            "bluebook": "Library",
             "key": "key",
             "label": "alt",
             "listing": "Pictures",
@@ -999,7 +999,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "article",
                     "target": "Article",
-                    "chapter": "Press",
+                    "bluebook": "Press",
                     "key": "slug",
                     "label": "title",
                     "strict": true
@@ -1007,7 +1007,7 @@ export const SCHEMA: Schema = {
                   {
                     "kind": "note",
                     "target": "Note",
-                    "chapter": "Press",
+                    "bluebook": "Press",
                     "key": "key",
                     "label": "key",
                     "strict": true
@@ -1030,7 +1030,7 @@ export const SCHEMA: Schema = {
               "list": true,
               "picker": {
                 "target": "MediaItem",
-                "chapter": "Library",
+                "bluebook": "Library",
                 "key": "key",
                 "label": "alt",
                 "listing": "Pictures",
