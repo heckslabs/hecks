@@ -5,10 +5,12 @@ require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
 require_relative "model_check/context_checks"
+require_relative "model_check/context_map_checks"
 require_relative "model_check/ask_checks"
 require_relative "model_check/reference_checks"
 require_relative "model_check/orphan_checks"
 require_relative "model_check/one_of_checks"
+require_relative "model_check/aggregate_checks"
 require_relative "model_check/verbs"
 
 module Hecks
@@ -35,7 +37,6 @@ module Hecks
         rust_target: false, strict: false
       }.freeze
 
-      extend LifecycleChecks
       extend SagaChecks
       extend PolicyChecks
       extend ContextChecks
@@ -43,6 +44,7 @@ module Hecks
       extend ReferenceChecks
       extend OrphanChecks
       extend OneOfChecks
+      extend AggregateChecks
       extend Verbs
 
       module_function
@@ -70,11 +72,12 @@ module Hecks
         findings
       end
 
-      # Lifecycles, sagas, policies and references: what the model says about itself.
+      # Lifecycles, sagas, policies, references and aggregate size: what the model says about itself.
       def modelled_findings(bluebook, options)
         [
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
           *reference_findings(bluebook),
+          *large_aggregate_findings(bluebook),
           *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
           *reaction_findings(bluebook, options),
           *unused_ask_findings(bluebook)

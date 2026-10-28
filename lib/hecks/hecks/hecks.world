@@ -1,20 +1,21 @@
 # Where the Hecks domain keeps its journal: every command's events, one entry per aggregate.
 #
-# **PostgresEra** is the default, for real runs: a client's `hecks` and a maintainer's on main
-# or stable. The journal then survives the process, and `hecks stores` and
-# `hecks history` read it back. `default_adapter` binds every aggregate of the chapter (and of
-# the attached Governance chapter, see governance.world) in one line, which is what lets the
-# environments/memory.world overlay swap the whole domain to Memory.
+# **Memory** is the default, as for any hexagonal domain: neither this world nor hecks.hecksagon
+# names persistence, so the domain boots with nothing behind it and a run writes nothing it cannot
+# lose. Persistence is an opt-in, made in local files and never in these: a `hecks.local.hecksagon`
+# with `persisted_by "PostgresEra"` (the attached chapters inherit it) and a `hecks.local.world` with
+# the values, beside this file or in the working directory. `.gitignore` keeps them out of the
+# repository, so one copy persists without any other copy knowing. The copy that runs the push
+# train does this, and so does a client who wants `hecks stores` and `hecks history` to read a
+# journal back. A local world on a deployed box, whose password arrives at runtime, reads it with
+# `default_database ENV.fetch("HECKS_DATABASE")`; nothing here depends on that variable.
 #
-# **Memory** is for anything that must not touch a database: specs and pull-request runs.
-# Select it with `HECKS_ENVIRONMENT=memory` (Hecks.boot reads the variable) or
-# `Hecks.boot(path, environment: "memory")`. Queries and refused or dry-run requests record
-# nothing worth keeping, so they behave the same on either.
+# `HECKS_ENVIRONMENT=memory` (Hecks.boot reads the variable) or `Hecks.boot(path, environment:
+# "memory")` selects Memory even when local files name a store: specs and pull-request runs use
+# it. Queries and refused or dry-run requests record nothing worth keeping, so they behave the
+# same on either.
 #
-# The database is `HECKS_DATABASE` when set, so a client points the domain at their own
-# Postgres (a `postgres://` URL, or a bare database name); otherwise a local database named for
-# the domain. One copy can name its own in `environments/local.world` (never committed), such as
-# the copy that runs the push train recording to its own database. It connects as the ordinary role `hecks`, never a superuser: the era write-fence
+# A local world connects as the ordinary role `hecks`, never a superuser: the era write-fence
 # (row-level security) is bypassed by one, so boot refuses it. Create the role once with
 # `hecks quality_control sweep.create_ledger_role hecks` and the database with `createdb -O hecks hecks`.
 #
@@ -41,8 +42,6 @@
 # (`hecks --all` lists the rest), so a first run shows how to start and nothing else.
 Hecks.world "Hecks" do
   realm "Hecks"
-  default_adapter "PostgresEra"
-  default_database ENV.fetch("HECKS_DATABASE", "postgres://hecks@localhost/hecks")
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run

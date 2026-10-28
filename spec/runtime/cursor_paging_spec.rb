@@ -74,7 +74,7 @@ RSpec.describe "a cursor query" do
     it "is swept in full by a bulk run, not only its first page" do
       boot(adapter)
       @runtime.dispatch_flat("Bulk::BulkRun.Request", run: { value: "r1" }, verb: { value: "Banking::Account.FreezeAccount" },
-                                                      over: { value: query_name }, arguments: [], mode: { value: "best_effort" })
+                                                      over: { value: query_name }, arguments: [])
       expect(@runtime.query("Banking::Account.Open")).to be_empty
     end
   end

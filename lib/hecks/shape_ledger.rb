@@ -103,8 +103,8 @@ module Hecks
       edge = %(Hecks.data_translation "#{name}", from: "#{from}", to: "#{now}" do end)
       "for a change that only adds, commit this edge under translations/ (as 2-#{now}.bluebook): #{edge}. " \
         "Data that is renamed or reshaped needs rules: `hecks query era.scaffold_translation " \
-        "domain.value=<directory>` writes them, reading the eras from the records database " \
-        "(HECKS_DATABASE=<url> for that one command). A change that only adds is settled in one step " \
+        "domain.value=<directory>` writes them, reading the eras from the database the domain's " \
+        "own world names. A change that only adds is settled in one step " \
         "by `hecks conformance_run.check_shape_ledger --confirm --additive --wait`"
     end
 

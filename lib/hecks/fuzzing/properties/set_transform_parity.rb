@@ -49,7 +49,7 @@ module Hecks
         end
 
         def sweep(runtime, pair, set_transform)
-          plan = Bulk::Plan.new(verb: pair.verb, over: pair.over, arguments: {}, mode: "best_effort")
+          plan = Bulk::Plan.new(verb: pair.verb, over: pair.over, arguments: {})
           Bulk::Sweep.new(runtime.registry, plan, set_transform: set_transform).outcomes
         rescue StandardError => e
           [:crashed, e.class.name]

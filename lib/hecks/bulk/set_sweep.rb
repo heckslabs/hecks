@@ -9,12 +9,8 @@ module Hecks
     # row and `emits`, with that event's outbox rows; after the commit each row's reactions are
     # delivered in query order. A row the statement skipped is the caller's to dispatch by hand.
     class SetSweep
-      # Raised inside the transaction when an all_or_nothing statement skipped a row, so the
-      # store rolls the rows it updated back.
-      class Skipped < StandardError; end
-
       # What stops a statement before it commits, leaving the run to go row by row.
-      FALLBACKS = [Skipped, Adapters::SetTransform::Uncompilable, Adapters::SetTransform::Declined].freeze
+      FALLBACKS = [Adapters::SetTransform::Uncompilable, Adapters::SetTransform::Declined].freeze
 
       # @param registry [Runtime::Registry] the registry the run's domain is booted in
       # @param plan [Bulk::Plan] the run
@@ -52,7 +48,6 @@ module Hecks
         @repository.transaction do
           ids = read_ids.call
           updated = in_query_order(@repository.apply_set_transform(@statement), ids.map(&:to_s))
-          raise Skipped if @plan.all_or_nothing? && updated.size < ids.size
 
           [ids, updated.to_h { |instance| [instance.id.to_s, record(instance)] }]
         end
