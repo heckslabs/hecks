@@ -240,7 +240,7 @@ module Hecks
                     "../adapters/driven/memory.adapter", "../adapters/driven/prism.adapter"]
         preamble.map { |path| File.expand_path(path, __dir__) } +
           GRAMMAR_FILES + WORLD_GRAMMAR + HECKSAGON_GRAMMAR + [PORT_GRAMMAR, ADAPTER_GRAMMAR] + TRANSLATION_GRAMMAR +
-            CONTEXT_MAP_GRAMMAR
+          CONTEXT_MAP_GRAMMAR
       end
 
       # A dispatcher over the shared grammar registry with its records

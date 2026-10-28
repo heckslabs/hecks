@@ -67,6 +67,16 @@ RSpec.describe "the DSL surface" do
     in_registry { Hecks.data_translation("Translated", from: "1", to: "2", &body) }.translations.first
   end
 
+  def mapped_registry
+    in_registry do
+      Hecks.context_map("Mapped") do
+        context "A"
+        context "B"
+        relate "A" => "B", as: :conformist
+      end
+    end
+  end
+
   def world_of(name, &body)
     in_registry { Hecks.world(name, &body) }.world(name)
   end
@@ -121,8 +131,7 @@ RSpec.describe "the DSL surface" do
     end
 
     it ".context_map registers a system's contexts and how they relate" do
-      registry = in_registry { Hecks.context_map("Mapped") { context("A"); context("B"); relate "A" => "B", as: :conformist } }
-      expect(registry.context_map("Mapped").relationships.map(&:upstream)).to eq(["A"])
+      expect(mapped_registry.context_map("Mapped").relationships.map(&:upstream)).to eq(["A"])
     end
 
     it ".hecksagon registers binds" do
