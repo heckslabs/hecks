@@ -320,9 +320,10 @@ jobs:
       actions: read
 
   # Split from rspec_rust_io: the spec backs up and restores rust/src/generated and Cargo.toml
-  # itself, so it needs its own checkout. Two legs, each with its own: the five domain parity
-  # examples (generated source only, no wasm), and the one that builds wasm and compares it
-  # (wasm32-wasip1 and wasmtime), with the crate's own unit tests.
+  # itself, so it needs its own checkout. Three legs, each with its own: the five domain parity
+  # examples (generated source only, no wasm) in two halves, banking alone against the other four,
+  # and the one that builds wasm and compares it (wasm32-wasip1 and wasmtime), with the crate's own
+  # unit tests. Each example runs both pipelines over one domain, so a half is a set of domains.
   rspec_rust_io_build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -331,11 +332,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - leg: parity
-            example: byte for byte
+          - leg: parity banking
+            examples: --example "examples/banking:"
+            wasm: false
+          - leg: parity rest
+            examples: --example "examples/pizzas:" --example "examples/roster:" --example "examples/compliance:" --example "examples/embryonaut_vendoring_demo:"
             wasm: false
           - leg: wasm
-            example: opted into the all-Rust pipeline
+            examples: --example "opted into the all-Rust pipeline"
             wasm: true
 
     steps:
@@ -364,7 +368,7 @@ jobs:
         if: matrix.wasm
 
       - name: "rspec: hecks-build (Rust-native orchestrator) pipeline parity (${{ matrix.leg }})"
-        run: bundle exec rspec --tag io --example "${{ matrix.example }}" spec/hecks_build_pipeline_spec.rb
+        run: bundle exec rspec --tag io ${{ matrix.examples }} spec/hecks_build_pipeline_spec.rb
 
       # The crate's own unit tests.
       - name: "cargo test: rust/build (hecks-build)"
