@@ -56,13 +56,13 @@ RSpec.describe Hecks::Composer::Web, :io do
     expect(result["statements"]).not_to be_empty
   end
 
-it "names the bluebook to draw by bluebook_name, and still takes the retired chapter_name", :aggregate_failures do
-  expect(read(post("check", buffers: {}, bluebook_name: "Ledger"))["bluebook"]).to eq("Ledger")
-  expect { expect(read(post("check", buffers: {}, chapter_name: "Ledger"))["bluebook"]).to eq("Ledger") }
-    .to output(/chapter_name is deprecated, use bluebook_name/).to_stderr
-end
+  it "names the bluebook to draw by bluebook_name, and still takes the retired chapter_name", :aggregate_failures do
+    expect(read(post("check", buffers: {}, bluebook_name: "Ledger"))["bluebook"]).to eq("Ledger")
+    expect { expect(read(post("check", buffers: {}, chapter_name: "Ledger"))["bluebook"]).to eq("Ledger") }
+      .to output(/chapter_name is deprecated, use bluebook_name/).to_stderr
+  end
 
-it "saves a domain file inside the workspace", :aggregate_failures do
+  it "saves a domain file inside the workspace", :aggregate_failures do
     response = put("file", path: "ledger.bluebook", text: "Hecks.bluebook \"Ledger\" do\nend\n")
 
     expect(read(response)).to eq("saved" => "ledger.bluebook")
