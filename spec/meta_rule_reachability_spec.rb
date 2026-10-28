@@ -75,6 +75,9 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
      "no spec dispatches Aggregate.Projects naming a field that is not a declared reference"],
     [["given", "Aggregate.Projects", "a projected field names a remote field"],
      "no spec dispatches Aggregate.Projects with a blank remote field name"],
+    [["given", "Aggregate.Acknowledges", "an acknowledged finding is named"],
+     "spec/acknowledges_spec.rb proves the DSL refuses an unknown finding and holds a known one; no spec " \
+     "dispatches Aggregate.Acknowledges with a blank finding"],
     [["invariant", "Aggregate::AggregateName (declared)", "an aggregate is named"],
      "presence invariant on the aggregate's own name; every real bluebook and the golden IR fixture always supplies one, " \
      "so nothing ever dispatches Aggregate.Declare with name: \"\""],
@@ -85,13 +88,13 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
     [["ensures", "Bluebook.Attach", "the list grew by exactly one"],
      "postcondition on attaching a sub-chapter (Paging is the one real user); no spec creates the double-count/no-op " \
      "condition that would make this ensures fail"],
-    [["invariant", "Bluebook::BluebookName (declared)", "a chapter is named"],
+    [["invariant", "Bluebook::BluebookName (declared)", "a bluebook is named"],
      "presence invariant on a bluebook's own name; nothing dispatches Bluebook.Declare with name: \"\""],
-    [["invariant", "Bluebook::Classification (declared)", "a chapter is core, supporting, or generic"],
+    [["invariant", "Bluebook::Classification (declared)", "a bluebook is core, supporting, or generic"],
      "closed-set invariant; no spec dispatches a classification outside the three-member set"],
     [["invariant", "Bluebook::Version (declared)", "a version says something"],
      "presence invariant on a bluebook's version; no spec dispatches one blank"],
-    [["invariant", "Bluebook::ChapterNamespace (declared)", "a namespace is a constant path"],
+    [["invariant", "Bluebook::BluebookNamespace (declared)", "a namespace is a constant path"],
      "shape invariant; spec/chapter_namespace_spec.rb builds valid namespaces, none dispatches a malformed one"],
     [["invariant", "Bluebook::FormerlyKnownAs (declared)", "a formerly_known_as says something"],
      "presence invariant; no spec dispatches a blank formerly_known_as entry"],

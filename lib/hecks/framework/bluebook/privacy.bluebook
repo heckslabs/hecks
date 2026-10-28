@@ -74,14 +74,14 @@ Hecks.bluebook "Privacy" do
     end
   end
 
-  # Cryptoshredding: erasure without rewriting events. `key_reference` is an opaque handle
-  # from `Ports::KeyVault.issue`, obtained before `Issue`; key material never appears here.
+  # Cryptoshredding: erasure without rewriting events. `key_reference` is an opaque handle the
+  # key vault answers an issue request with; key material never appears here.
   aggregate "SubjectKey" do
-    description "One data subject's own encryption key, from the moment it exists to the moment it is destroyed."
+    description "One data subject's own encryption key, from the moment it is asked for to the moment it is destroyed."
 
     attribute :domain,        KeyDomain
     attribute :subject_id,    SubjectId
-    attribute :key_reference, KeyReference
+    attribute :key_reference, KeyReference, optional: true
     attribute :refusal,       Report, optional: true
 
     identified_by :domain, :subject_id
@@ -105,29 +105,66 @@ Hecks.bluebook "Privacy" do
       attribute :value, String
     end
 
-    # A shred is asked for, then the vault destroys the key, then it is recorded (ADR 0142). The
-    # record reads `shredded` only after the vault said the key is gone. A refused destruction
-    # leaves it `shred_failed`, which a privacy officer may ask to shred again.
-    lifecycle :status, default: "active" do
-      mark :failure, "shred_failed"
-      transition "Shred"        => "shredding",   from: ["active", "shred_failed"]
-      transition "MarkShredded" => "shredded",    from: "shredding"
-      transition "FailShred"    => "shred_failed", from: "shredding"
+    # A key is asked for, then the vault issues it, then its reference is recorded (ADR 0147): the
+    # record reads `active` only once the vault named a key it holds. A refused issue leaves it
+    # `issue_failed`, which may be asked again. A shred is asked for, then the vault destroys the
+    # key, then it is recorded (ADR 0142): `shredded` only after the vault said the key is gone,
+    # and a refused destruction leaves `shred_failed`, which a privacy officer may ask again.
+    lifecycle :status, default: "issuing" do
+      mark :failure, "issue_failed", "shred_failed"
+      transition "RecordKey"    => "active",        from: "issuing"
+      transition "FailIssue"    => "issue_failed",  from: "issuing"
+      transition "Reissue"      => "issuing",       from: "issue_failed"
+      transition "Shred"        => "shredding",     from: ["active", "shred_failed"]
+      transition "MarkShredded" => "shredded",      from: "shredding"
+      transition "FailShred"    => "shred_failed",  from: "shredding"
     end
 
+    # Asks for the key; it does not claim one. The `IssueTheKeyWhenAsked` policy asks the key vault,
+    # and `RecordKey` records the reference it answers with.
     command "Issue" do
       role "System"
-      goal "Record that a subject's data is now encrypted under a fresh, dedicated key"
+      goal "Ask for a fresh, dedicated key for a subject's data"
 
-      attribute :domain,        KeyDomain
-      attribute :subject_id,    SubjectId
-      attribute :key_reference, KeyReference
+      attribute :domain,     KeyDomain
+      attribute :subject_id, SubjectId
 
       sets :domain
       sets :subject_id
+
+      emits SubjectKeyIssueRequested
+    end
+
+    # The vault named the key it holds. System-only, so no record claims a key by a caller's say-so.
+    command "RecordKey" do
+      role "System"
+      goal "Record the reference to the key the vault issued for this subject"
+
+      reference_to SubjectKey
+      attribute :key_reference, KeyReference
       sets :key_reference
 
-      emits SubjectKeyIssued
+      emits SubjectKeyRecorded
+    end
+
+    command "FailIssue" do
+      role "System"
+      goal "Record why the vault could not issue this subject's key, leaving the request to repeat"
+
+      reference_to SubjectKey
+      attribute :refusal, Report
+      sets :refusal
+
+      emits SubjectKeyIssueFailed
+    end
+
+    command "Reissue" do
+      role "System"
+      goal "Ask again for a key the vault earlier refused to issue"
+
+      reference_to SubjectKey
+
+      emits SubjectKeyIssueRetried
     end
 
     # Asks for the destruction; it does not claim it. The `DestroyTheKeyWhenAsked` policy asks the
@@ -171,8 +208,30 @@ Hecks.bluebook "Privacy" do
     end
   end
 
+  # What an issue does once asked for: the key vault issues the key, and its reference is recorded.
+  # The port is declared in privacy.ports.hecksagon and bound by privacy.key_keeper.adapter.
+  policy "IssueTheKeyWhenAsked" do
+    on  "SubjectKey.SubjectKeyIssueRequested"
+    ask :issue
+  end
+
+  policy "IssueTheKeyAgain" do
+    on  "SubjectKey.SubjectKeyIssueRetried"
+    ask :issue
+  end
+
+  policy "RecordTheKey" do
+    on      "SubjectKey.SubjectKeyIssued"
+    trigger SubjectKey::RecordKey, with: { key_reference: :key_reference }
+  end
+
+  policy "RecordTheIssueRefusal" do
+    on      "SubjectKey.SubjectKeyIssueRefused"
+    trigger SubjectKey::FailIssue, with: { refusal: :refusal }
+  end
+
   # What a shred does once asked for: the key vault destroys the key, and the answer is recorded.
-  # The port is declared in privacy.ports.hecksagon and bound by privacy.key_destroyer.adapter.
+  # The same port, bound by the same adapter.
   policy "DestroyTheKeyWhenAsked" do
     on  "SubjectKey.SubjectKeyShredRequested"
     ask :destroy

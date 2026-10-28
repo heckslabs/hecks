@@ -28,6 +28,7 @@ module Hecks
           ["Aggregate", "attribute"] => :attribute_impl,
           ["Aggregate", "invariant"] => :invariant_impl,
           ["Aggregate", "given"] => :given_impl,
+          ["Aggregate", "acknowledges"] => :acknowledges_impl,
           ["Aggregate", "projects"] => :projects_impl,
           ["Lifecycle", "transition"] => :transition_impl,
           ["Lifecycle", "mark"] => :mark_impl,

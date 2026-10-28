@@ -192,6 +192,15 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
                 .as_ref()
                 .map_or(JsonValue::Null, ruby_value_json),
         ),
+        (
+            "acknowledgements".to_string(),
+            JsonValue::Array(
+                a.acknowledgements
+                    .iter()
+                    .map(acknowledgement_json)
+                    .collect(),
+            ),
+        ),
     ])
 }
 
@@ -268,6 +277,15 @@ fn given_json(g: &ir::Given) -> JsonValue {
             "ast".to_string(),
             crate::expr::ast_json::emit_predicate(&g.canonical),
         ),
+    ])
+}
+
+/// `IR::Aggregate#to_h`'s `acknowledgements:` entry: `{finding:, subject:, reason:}`.
+fn acknowledgement_json(a: &ir::Acknowledgement) -> JsonValue {
+    JsonValue::Object(vec![
+        ("finding".to_string(), JsonValue::str(a.finding.clone())),
+        ("subject".to_string(), JsonValue::str(a.subject.clone())),
+        ("reason".to_string(), JsonValue::str(a.reason.clone())),
     ])
 }
 

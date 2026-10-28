@@ -7,18 +7,22 @@ require "hecks/bluebook/model_check"
 RSpec.describe Hecks::Bluebook::ModelCheck::AggregateChecks do
   let(:mutation)  { Struct.new(:op, :target) }
   let(:command)   { Struct.new(:hecks_name, :mutations) }
-  let(:aggregate) { Struct.new(:hecks_name, :commands, :entities, :lifecycle) }
+  let(:aggregate) { Struct.new(:hecks_name, :commands, :entities, :lifecycle, :acknowledgements) }
   let(:chapter)   { Struct.new(:aggregates) }
 
   def sets(*fields) = fields.map { |field| mutation.new(:set, field) }
 
-  def sprawl(count)
+  def sprawl(count, acknowledged = [])
     annotating = (1..count).map { |number| command.new("Annotate#{number}", sets("note", "id")) }
-    aggregate.new("Sprawl", [command.new("Open", sets("id")), *annotating], [], nil)
+    aggregate.new("Sprawl", [command.new("Open", sets("id")), *annotating], [], nil, acknowledged)
   end
 
-  def findings(count, limit)
-    Hecks::Bluebook::ModelCheck.large_aggregate_findings(chapter.new([sprawl(count)]), limit: limit)
+  def findings(count, limit, acknowledged = [])
+    Hecks::Bluebook::ModelCheck.large_aggregate_findings(chapter.new([sprawl(count, acknowledged)]), limit: limit)
+  end
+
+  def acknowledging(kind)
+    [Hecks::Bluebook::Acknowledgement.new(finding: kind, reason: "one ledger")]
   end
 
   it "reports an aggregate whose commands pass the limit", :aggregate_failures do
@@ -34,5 +38,13 @@ RSpec.describe Hecks::Bluebook::ModelCheck::AggregateChecks do
 
   it "names the commands that set the fewest fields" do
     expect(findings(5, 3).first.message).to include("fewest fields are Open")
+  end
+
+  it "reports nothing for an aggregate that acknowledges the finding" do
+    expect(findings(5, 3, acknowledging(:large_aggregate))).to be_empty
+  end
+
+  it "still reports an aggregate that acknowledges another kind" do
+    expect(findings(5, 3, acknowledging(:other)).size).to eq(1)
   end
 end

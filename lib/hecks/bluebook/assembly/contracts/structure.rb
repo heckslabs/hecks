@@ -32,13 +32,14 @@ module Hecks
             preconditions:    [:preconditions, [:each, :given]],
             # The local half of `projects :name, from: "reference.remote_field"` (ADR 0025).
             projected_fields: [:projected_fields, [:each, :projected_field]],
-            provenance:       [:provenance, :plain]
+            provenance:       [:provenance, :plain],
+            acknowledgements: [:acknowledgements, [:each, :acknowledgement]]
           },
           rows: { transitions: :transition_rows, marks: :mark_rows, value_objects: :value_object_names,
                   identified_by: :identity_rows },
           reads: { identified_by: [:each, :identity_path], attributes: [:each_with_id, :attribute],
                    invariants: [:each, :rule], preconditions: [:each, :rule],
-                   projected_fields: [:each, :projected_field] },
+                   projected_fields: [:each, :projected_field], acknowledgements: [:each, :acknowledgement] },
           derived: {
             position:      :walk,
             state_field:   [:folded, :lifecycle, :field],

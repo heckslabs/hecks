@@ -14,7 +14,7 @@ export interface HostOptions {
   /** The host's address, when not read from the environment variable the Editor row names. */
   url?: string;
   fetch?: typeof fetch;
-  /** The domain to address, when it is not the chapter the editor edits (pictures kept in another chapter). */
+  /** The domain to address, when it is not the bluebook the editor edits (pictures kept in another bluebook). */
   domain?: string;
 }
 

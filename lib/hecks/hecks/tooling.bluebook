@@ -81,6 +81,12 @@ Hecks.bluebook "Hecks" do
       returns Document
     end
 
+    query "ContextMap" do
+      description "A domain's declared context map drawn as a Mermaid diagram beside its wiring, with what holding the wiring to the map finds."
+      attribute :domain, DomainPath
+      returns Document
+    end
+
     query "WorldSkeleton" do
       description "A starting .world for a domain: the settings and secrets its bound adapters declare, with no secret's value."
       attribute :domain, DomainPath
@@ -745,6 +751,9 @@ Hecks.bluebook "Hecks" do
   aggregate "Build" do
     description "One build of a domain for the Rust host, or a check of that build against Ruby."
 
+    acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                 of: :domain
+
     attribute :run,      BuildKey
     attribute :domain,   DomainPath, optional: true
     attribute :script,   ScriptPath, optional: true
@@ -1043,6 +1052,9 @@ Hecks.bluebook "Hecks" do
   # so a hecksagon could not spell an aggregate of that name.
   aggregate "FuzzRun" do
     description "One fuzz sweep or benchmark, and how it ended; and the generated sequences it replays."
+
+    acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                 of: :domain
 
     attribute :domain,     DomainPath,  optional: true
     attribute :run,        FuzzKey

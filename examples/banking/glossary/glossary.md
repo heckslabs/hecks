@@ -1460,7 +1460,7 @@ Allowed only when: the safe deposit box is rented; customer is active.
 
 Moves the safe deposit box from rented to vacant.
 
-Records [Box surrendered](#box-surrendered) and [Key return due](#key-return-due).
+Records [Box surrendered](#box-surrendered) and [Key return requested](#key-return-requested).
 
 ### What it records
 
@@ -1480,7 +1480,7 @@ Recorded after [Surrender](#surrender). Prompts [Review on box surrender](#revie
 
 Recorded after [Issue key](#issue-key).
 
-#### Key return due
+#### Key return requested
 
 Recorded after [Surrender](#surrender). Prompts [Flag key return](#flag-key-return).
 
@@ -1496,7 +1496,7 @@ Recorded after [Annotate](#annotate).
 
 #### Flag key return
 
-When [Key return due](#key-return-due) happens, Notifications is asked to send, in Notifications.
+When [Key return requested](#key-return-requested) happens, Notifications is asked to send, in Notifications.
 
 #### Review on box surrender
 

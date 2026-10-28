@@ -1,42 +1,12 @@
 //! Rust-mints-it-too side of the differential-parity harness: one boot decision per invocation.
 //! Lets the spec mint an edge with no Ruby process so the two `_head` views can be diffed.
 
-// Modules are shared with `bootstrap` by path, not a lib split, so `crate::` in mint.rs resolves
-// here.
-#[allow(dead_code)]
-#[path = "../expr_json.rs"]
-mod expr_json;
-#[allow(dead_code)]
-#[path = "../../../codegen/src/hecks_naming.rs"]
-mod hecks_naming;
-#[allow(dead_code)]
-#[path = "../journal.rs"]
-mod journal;
-
-#[allow(dead_code)]
-#[path = "../store/journal_sql.rs"]
-mod journal_sql;
-#[allow(dead_code)]
-#[path = "../log.rs"]
-mod log;
-#[allow(dead_code)]
-#[path = "../store/mint.rs"]
-mod mint;
-#[allow(dead_code)]
-#[path = "../reference_transform.rs"]
-mod reference_transform;
-#[allow(dead_code)]
-#[path = "../reference_validate.rs"]
-mod reference_validate;
-#[allow(dead_code)]
-#[path = "../storage_shape.rs"]
-mod storage_shape;
-
-// The shared modules' Postgres tests connect through `crate::test_pg`, so the harness's own test
-// build carries the same connection-string helpers.
-#[cfg(test)]
-#[path = "../test_pg.rs"]
-mod test_pg;
+#[allow(unused_imports)]
+use rust_host::store::{journal_sql, mint};
+#[allow(unused_imports)]
+use rust_host_core::{
+    expr_json, journal, log, reference_transform, reference_validate, storage_shape,
+};
 
 use serde_json::{json, Value};
 use std::collections::HashMap;

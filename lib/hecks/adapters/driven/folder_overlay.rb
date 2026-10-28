@@ -9,8 +9,8 @@ module Hecks
 
       # A chapter's local files, `<chapter>.local.hecksagon` and `<chapter>.local.world`: where a
       # copy, or a client's working directory, opts a chapter into persistence, the hecksagon with
-      # `persisted_by` and the world with the values. The base names no persistence, so Memory is the
-      # default.
+      # `persisted_by` and the world with the values. The base names no persistence, so Memory is
+      # the default.
       LOCAL_FILES = %w[*.local.hecksagon *.local.world].freeze
 
       # The name of a file that is local: a `.local.hecksagon` or a `.local.world`.

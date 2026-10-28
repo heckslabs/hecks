@@ -864,6 +864,28 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         authorization: None,
     },
     crate::kernel::QueryDef {
+        verb: "Governance::RoleAssignment.LiveAssignmentsForActor",
+        aggregate: "Governance::RoleAssignment",
+        conditions: &[
+            crate::kernel::QueryCondition {
+                field: "actor_id",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Arg("actor_id"),
+            },
+            crate::kernel::QueryCondition {
+                field: "ends_at",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Null,
+            },
+        ],
+        reference_hop_conditions: &[],
+        order_by: None,
+        offset: None,
+        limit: None,
+        cursor: false,
+        authorization: None,
+    },
+    crate::kernel::QueryDef {
         verb: "Governance::RoleTransition.Allowed",
         aggregate: "Governance::RoleTransition",
         conditions: &[
@@ -885,10 +907,37 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         cursor: false,
         authorization: None,
     },
+    crate::kernel::QueryDef {
+        verb: "Governance::RoleTransition.LiveAllowed",
+        aggregate: "Governance::RoleTransition",
+        conditions: &[
+            crate::kernel::QueryCondition {
+                field: "from_role",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Arg("from_role"),
+            },
+            crate::kernel::QueryCondition {
+                field: "to_role",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Arg("to_role"),
+            },
+            crate::kernel::QueryCondition {
+                field: "ends_at",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Null,
+            },
+        ],
+        reference_hop_conditions: &[],
+        order_by: None,
+        offset: None,
+        limit: None,
+        cursor: false,
+        authorization: None,
+    },
 ];
-/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no bluebook here declares one.
+/// `provides "authorization", live_assignments:` — the query `kernel::check_role_via` reads; `None` when no bluebook here declares one.
 pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> =
-    Some("Governance::RoleAssignment.AssignmentsForActor");
+    Some("Governance::RoleAssignment.LiveAssignmentsForActor");
 /// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.
 pub const ENTITY_QUERIES: &[crate::kernel::named_query::EntityQueryDef] = &[];
 
@@ -915,7 +964,31 @@ pub fn check_query_args(
             }
             Ok(())
         }
+        "Governance::RoleAssignment.LiveAssignmentsForActor" => {
+            if let Some(x) = args.get("actor_id") {
+                crate::generated::governance::roleassignment::IdentityId::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
+            Ok(())
+        }
         "Governance::RoleTransition.Allowed" => {
+            if let Some(x) = args.get("from_role") {
+                crate::generated::governance::roletransition::RoleName::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
+            if let Some(x) = args.get("to_role") {
+                crate::generated::governance::roletransition::RoleName::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
+            Ok(())
+        }
+        "Governance::RoleTransition.LiveAllowed" => {
             if let Some(x) = args.get("from_role") {
                 crate::generated::governance::roletransition::RoleName::from_json(
                     &x.coerce_single_field("value"),

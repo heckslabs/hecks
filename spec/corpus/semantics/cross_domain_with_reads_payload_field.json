@@ -1,0 +1,60 @@
+{
+  "domain": "spec/corpus/semantics/domains/outbound",
+  "spec": [
+    "C10.1"
+  ],
+  "note": "An across policy's with: reads a payload field by name beside a literal.",
+  "steps": [
+    {
+      "verb": "Outbound::Parcel.Annotate",
+      "args": {
+        "tag": {
+          "value": "T1"
+        },
+        "note": {
+          "value": "fragile"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Outbound::Parcel#T1": {
+        "tag": {
+          "value": "T1"
+        },
+        "note": {
+          "value": "fragile"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "ParcelAnnotated",
+        "aggregate": "Outbound::Parcel",
+        "id": "T1",
+        "payload": {
+          "tag": {
+            "value": "T1"
+          },
+          "note": {
+            "value": "fragile"
+          }
+        }
+      }
+    ],
+    "cross_domain": [
+      {
+        "policy": "FileOnAnnotate",
+        "target_verb": "Registry::Filing.Open",
+        "payload": {
+          "subject_kind": "annotation",
+          "detail": {
+            "value": "fragile"
+          }
+        }
+      }
+    ]
+  }
+}

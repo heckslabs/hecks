@@ -3,12 +3,7 @@
 //! domain IR, and prints the violations of each. `spec/rust_host_reference_validate_conformance_spec.rb`
 //! holds those to the answers the Ruby runtime gives the same values.
 
-#[allow(dead_code)]
-#[path = "../expr_json.rs"]
-mod expr_json;
-#[allow(dead_code)]
-#[path = "../reference_validate.rs"]
-mod reference_validate;
+use rust_host_core::reference_validate;
 
 use serde_json::{json, Value};
 use std::io::Read;

@@ -2,35 +2,35 @@
 
 // How an aggregate is named in the three places it has a name: its address in the editor, the name
 // the host knows it by, and the key the navigation and the counts hold it under. An editor of one
-// chapter names an aggregate by its own name in all three. An editor of several chapters names it by
-// its chapter as well, so two aggregates of one name in different chapters stay two.
+// bluebook names an aggregate by its own name in all three. An editor of several bluebooks names it by
+// its bluebook as well, so two aggregates of one name in different bluebooks stay two.
 import { SCHEMA } from "./schema.ts";
 import type { Aggregate } from "./schema.ts";
 
 /** The path segments that address an aggregate under the editor's base path. */
-export const at = (agg: Aggregate): string[] => (agg.chapter ? [agg.chapter, agg.name] : [agg.name]);
+export const at = (agg: Aggregate): string[] => (agg.bluebook ? [agg.bluebook, agg.name] : [agg.name]);
 
-/** The name the host knows an aggregate by: `Chapter::Aggregate` when the editor spans chapters. */
-export const qualified = (agg: Aggregate): string => (agg.chapter ? `${agg.chapter}::${agg.name}` : agg.name);
+/** The name the host knows an aggregate by: `Bluebook::Aggregate` when the editor spans bluebooks. */
+export const qualified = (agg: Aggregate): string => (agg.bluebook ? `${agg.bluebook}::${agg.name}` : agg.name);
 
 /** What the navigation and the counts hold an aggregate under. */
-export const keyOf = (agg: Aggregate): string => (agg.chapter ? `${agg.chapter}.${agg.name}` : agg.name);
+export const keyOf = (agg: Aggregate): string => (agg.bluebook ? `${agg.bluebook}.${agg.name}` : agg.name);
 
-/** The host's name for an aggregate of `chapter` (this editor's first chapter when none is named). */
-export const hostName = (name: string, chapter?: string): string => `${chapter ?? SCHEMA.domain}::${name}`;
+/** The host's name for an aggregate of `bluebook` (this editor's first bluebook when none is named). */
+export const hostName = (name: string, bluebook?: string): string => `${bluebook ?? SCHEMA.domain}::${name}`;
 
 /**
- * The aggregate a path names, and the segments after it. With several chapters the path is
- * `<Chapter>/<Aggregate>/...`, and with one it is `<Aggregate>/...`.
+ * The aggregate a path names, and the segments after it. With several bluebooks the path is
+ * `<Bluebook>/<Aggregate>/...`, and with one it is `<Aggregate>/...`.
  */
 export function locate(segments: string[]): { agg: Aggregate | undefined; rest: string[] } {
-  if (SCHEMA.chapters) {
-    const [chapter, name, ...rest] = segments;
-    return { agg: SCHEMA.aggregates.find((candidate) => candidate.chapter === chapter && candidate.name === name), rest };
+  if (SCHEMA.bluebooks) {
+    const [bluebook, name, ...rest] = segments;
+    return { agg: SCHEMA.aggregates.find((candidate) => candidate.bluebook === bluebook && candidate.name === name), rest };
   }
   const [name, ...rest] = segments;
   return { agg: SCHEMA.aggregates.find((candidate) => candidate.name === name), rest };
 }
 
-/** Whether a person in `role` may edit `agg`: every role may, unless its chapter limits them. */
+/** Whether a person in `role` may edit `agg`: every role may, unless its bluebook limits them. */
 export const mayEdit = (agg: Aggregate, role: string | null): boolean => !agg.roles || (role !== null && agg.roles.includes(role));

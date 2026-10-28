@@ -53,7 +53,21 @@ contends for the same record. `model_check` reports no size at all.
 6. **A finding can be acknowledged on the declaration.** An aggregate that means what it
    says carries a stated reason, and the finding is not reported. Not built. This
    follows ADR 0121's rule that an allowance belongs on its own declaration and not in a
-   list kept apart from it (`ALLOWED_FINDINGS` stays empty).
+   list kept apart from it (`ALLOWED_FINDINGS` stays empty). Built in ADR 0150.
+
+   Decided:
+   - **It lives on the aggregate**, as `acknowledges :large_aggregate, "the reason"`. A
+     finding about size is about the aggregate; a command is only one of the things counted.
+     The reason is required text, so an allowance cannot be written without saying why. It
+     names a finding kind and nothing else, and a kind the check does not emit is refused,
+     so a stale acknowledgement cannot linger after the check changes.
+   - **A process manager's compensations do not count** as declaring a multi-aggregate write.
+     Compensation is a second transaction undoing the first, which is the consistency the
+     boundary rule says to design for; counting it would turn the rule into a way to ask
+     for an exemption by adding a step. Such a write is reported, and acknowledged with a reason.
+   - **Context-map findings** are acknowledged on the relationship in the `.contextmap` file
+     (ADR 0150), not on an aggregate.
+
 7. **Specifications, services and factories stay unmapped as words.** The guides say what
    each DDD pattern is in Hecks: a named `given` or precondition is a specification, the
    owning aggregate of ADR 0081 is the domain service for a rule across records, a command
@@ -84,6 +98,5 @@ contends for the same record. `model_check` reports no size at all.
   before it is documented.
 - The Rust kernel is unaffected: these are static checks over the IR, and no behaviour
   at run time changes.
-- Open: whether a process manager's compensations are enough to count a multi-aggregate
-  write as declared, and whether the acknowledgement belongs on the aggregate or on the
-  command.
+- Decided, in item 6: compensations do not count, and the acknowledgement belongs on the
+  aggregate. The word is built (ADR 0150).

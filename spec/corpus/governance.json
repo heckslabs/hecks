@@ -1,6 +1,6 @@
 {
   "name": "governance-parity",
-  "note": "Assign, a second Assign for the same actor/role at a different starts_at (proves the composite identity is per-event, not per-actor-role), a Revoke addressed by that composite identity, then RoleTransition's own Grant/Revoke/Allowed — a second, unrelated pair — then a SECOND Grant of that same (from_role, to_role) pair after the first was revoked, proving the pair is grantable again (M25) rather than absorbed into a permanently-occupied identity.",
+  "note": "Assign, a second Assign for the same actor/role at a different starts_at (proves the composite identity is per-event, not per-actor-role), a Revoke addressed by that composite identity, then RoleTransition's own Grant/Revoke/Allowed — a second, unrelated pair — then a SECOND Grant of that same (from_role, to_role) pair after the first was revoked, proving the pair is grantable again (M25) rather than absorbed into a permanently-occupied identity. Two live queries read grant liveness from the declared `ends_at: nil` filter: after the Revoke only the later assignment is live, and after the second Grant only the later transition is.",
   "expectations": {
     "events": 6
   },
@@ -45,6 +45,14 @@
         "id": "u-1:Teller:2026-01-01",
         "ends_at": {
           "value": "2026-05-31"
+        }
+      }
+    },
+    {
+      "query": "Governance::RoleAssignment.LiveAssignmentsForActor",
+      "args": {
+        "actor_id": {
+          "value": "u-1"
         }
       }
     },
@@ -109,6 +117,17 @@
     },
     {
       "query": "Governance::RoleTransition.Allowed",
+      "args": {
+        "from_role": {
+          "value": "Customer administrator"
+        },
+        "to_role": {
+          "value": "Customer registrar"
+        }
+      }
+    },
+    {
+      "query": "Governance::RoleTransition.LiveAllowed",
       "args": {
         "from_role": {
           "value": "Customer administrator"

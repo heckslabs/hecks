@@ -8,6 +8,10 @@ module Hecks
     # `reference` is the local reference attribute to walk; `remote_field` the target's scalar.
     ProjectedField = Struct.new(:name, :reference, :remote_field, keyword_init: true)
 
+    # A finding the aggregate means, with the reason it is allowed (`acknowledges :kind, "why"`).
+    # `subject` names the one attribute or referenced aggregate a finding about several is for.
+    Acknowledgement = Struct.new(:finding, :reason, :subject, keyword_init: true)
+
     # An aggregate: carries its own identity and sits in the owner chain below its bluebook.
     # The holding half only; `Behaviour::Aggregate` carries what the declaration cannot derive.
     class Aggregate
@@ -37,18 +41,23 @@ module Hecks
         queries:          many(:queries),
         # Additive: domains that declare no port emit `ports: []`; no existing key moves.
         ports:            many(:ports),
-        provenance:       :provenance
+        provenance:       :provenance,
+        # Additive: an aggregate that acknowledges no finding emits `acknowledgements: []`.
+        acknowledgements: lambda {
+          acknowledgements.map { |held| { finding: held.finding.to_s, subject: held.subject.to_s, reason: held.reason } }
+        }
       )
 
       attr_reader :name, :description, :attributes, :value_objects, :commands, :invariants, :preconditions,
                   :projected_fields, :identified_by, :identity_paths, :identity_heads, :lifecycle,
-                  :entities, :queries, :policies, :ports, :reference_targets, :provenance
+                  :entities, :queries, :policies, :ports, :reference_targets, :provenance,
+                  :acknowledgements
 
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         description: nil, attributes: [], value_objects: [], commands: [], invariants: [],
         preconditions: [], projected_fields: [], identified_by: [], lifecycle: nil, entities: [],
-        queries: [], policies: [], ports: [], reference_targets: [], provenance: nil
+        queries: [], policies: [], ports: [], reference_targets: [], provenance: nil, acknowledgements: []
       }.freeze
 
       # Assigns the declared fields, then `settle` derives identity, name indexes and owner stamps.

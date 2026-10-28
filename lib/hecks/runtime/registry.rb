@@ -7,6 +7,7 @@ require_relative "registry/read_repository"
 require_relative "registry/verification"
 require_relative "registry/saga_persistence"
 require_relative "registry/world_defaults"
+require_relative "registry/context_maps"
 require_relative "registry/adapter_capabilities"
 require_relative "outbox"
 require_relative "../naming"
@@ -28,6 +29,7 @@ module Hecks
       include AdapterCapabilities
       include Providers
       include Merging
+      include ContextMaps
       include ReadRepository
 
       # The thread-local key under which open reaction collections are kept.
@@ -40,7 +42,7 @@ module Hecks
       def_delegators :@declared, :bluebooks, :hecksagons, :ports, :adapters, :worlds, :translations,
                      :bluebook_sources, :pending_privacy_markings
       def_delegators :@state, :event_log, :reaction_log, :saga_log, :saga_instances,
-                     :saga_dispatch_log, :policy_dispatch_log
+                     :saga_dispatch_log, :policy_dispatch_log, :cross_domain_log
 
       # @param root [String, nil] the booting project's root directory, the base
       #   a shared ports/adapters root and a `.world`'s own relative paths resolve

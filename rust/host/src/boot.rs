@@ -4,8 +4,8 @@
 use crate::host::Host;
 use crate::ir::Backend;
 use crate::{
-    auth, aws_lambda_invoker, dispatch, extension, ir, ledger, log, rate_limit,
-    secrets, server, storage_shape,
+    auth, aws_lambda_invoker, dispatch, extension, ir, ledger, log, rate_limit, secrets, server,
+    storage_shape,
     store::{journal_sql as journal, mint, MemoryStore, Store},
 };
 
@@ -558,12 +558,14 @@ async fn boot_postgres(
         None
     };
 
-    Ok((Store::postgres(client), era))
+    Ok((crate::store::postgres_store(client), era))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::{StoreExt, StoreFixtures};
 
     // Distinct domain names per test: the memory store is shared process-wide by domain and schema.
     async fn open_memory(domain: &str, schema: Option<&str>) -> (Store, Option<i32>) {

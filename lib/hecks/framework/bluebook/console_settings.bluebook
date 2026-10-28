@@ -72,7 +72,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :tone, one_of("good", "warn", "danger", "muted", "accent")
 
       sets :tone
-      emits ToneSet
+      emits StateStyleToned
     end
 
     command "SetAttention" do
@@ -83,7 +83,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :attention, Flag
 
       sets :attention
-      emits AttentionSet
+      emits StateStyleFlagged
     end
 
     command "SetExtra" do
@@ -94,12 +94,12 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :extra_json, StateStyleExtra
 
       sets :extra_json
-      emits StateStyleExtraSet
+      emits StateStyleAnnotated
     end
   end
 
   aggregate "Collection" do
-    description "One app aggregate's own console presentation — nav label, curated columns, detail-panel fields (with an optional entity state_filter and a row_columns subset), identity-assignment strategy, field formats, preconditions, and which query lists it. Every list-shaped piece is rows on this root, never a nested list inside a value object — the same 'an open map is rows on a head' shape Wiring::Setting and Query::AskOption already use, and the same reason: no value object here can hold a map, and this sidesteps ever needing to find out whether one can hold a plain list either."
+    description "One app aggregate's own console presentation — how it is named in the nav, where it sits, which field stands in for a whole record, and which query lists it. Its columns, detail-panel fields, identity assignment, preconditions and field formats are each a consistency boundary of their own: CollectionLayout, CollectionIdentity and CollectionRules, keyed by the same `agg`."
 
     attribute :agg,                  SettingsText
 
@@ -110,19 +110,6 @@ Hecks.bluebook "ConsoleSettings" do
     attribute :nav_order,            SettingsNumber, optional: true
     attribute :primary_field,        SettingsText, optional: true
     attribute :list_query,           SettingsText, optional: true
-    attribute :identity_field,       SettingsText, optional: true
-    attribute :identity_strategy,    one_of("slug", "sequence", "port"), optional: true
-    attribute :identity_source,      SettingsText, optional: true
-    attribute :identity_prefix,      SettingsText, optional: true
-    # `pad` (a sequence strategy's zero-padding width, e.g. "C-004" vs "C-4")
-    # is real but unmodeled here, same as identity_source/identity_prefix —
-    # carried opaquely in identity_extra_json below.
-    attribute :identity_extra_json,  CollectionExtra, optional: true
-    attribute :columns,              list_of(Column)
-    attribute :detail_fields,        list_of(DetailField)
-    attribute :detail_field_columns, list_of(DetailFieldColumn)
-    attribute :preconditions,        list_of(Precondition)
-    attribute :field_formats,        list_of(FieldFormat)
     # Carries real, in-use fields this schema doesn't model (e.g. `noun_sing`,
     # `create_label`, `nav_group`) — opaque, same as StateStyle's extra_json.
     attribute :extra_json,           CollectionExtra, optional: true
@@ -136,10 +123,156 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :value, Integer
     end
 
-    # Shared by extra_json and identity_extra_json — both opaque JSON text, no
-    # reason for two wrapper types. A bare `String` fails on an attribute directly.
+    # Opaque JSON text; a bare `String` fails on an attribute directly.
     value_object "CollectionExtra" do
       attribute :value, String
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Give one app aggregate a presentation row, before anything is curated on it yet"
+
+      attribute :agg, SettingsText
+
+      given("a collection names its own aggregate") { !agg.value.to_s.empty? }
+
+      emits CollectionDeclared
+    end
+
+    command "SetLabel" do
+      role "Console"
+      goal "Name a collection's own nav label"
+
+      reference_to Collection
+      attribute :label, SettingsText
+
+      sets :label
+      emits CollectionLabeled
+    end
+
+    command "SetKey" do
+      role "Console"
+      goal "Override a collection's own nav/route key"
+
+      reference_to Collection
+      attribute :key, SettingsText
+
+      sets :key
+      emits CollectionKeyed
+    end
+
+    command "SetNavOrder" do
+      role "Console"
+      goal "Place a collection in the nav"
+
+      reference_to Collection
+      attribute :nav_order, SettingsNumber
+
+      sets :nav_order
+      emits CollectionPlaced
+    end
+
+    command "SetPrimaryField" do
+      role "Console"
+      goal "Name which field stands in for a whole record"
+
+      reference_to Collection
+      attribute :primary_field, SettingsText
+
+      sets :primary_field
+      emits PrimaryFieldChosen
+    end
+
+    command "SetListQuery" do
+      role "Console"
+      goal "Name which of an aggregate's own queries lists its records"
+
+      reference_to Collection
+      attribute :list_query, SettingsText
+
+      sets :list_query
+      emits ListQueryChosen
+    end
+
+    command "SetExtra" do
+      role "Console"
+      goal "Carry whatever per-collection fields aren't individually modeled yet (noun_sing, create_label, nav_group, ...)"
+
+      reference_to Collection
+      attribute :extra_json, CollectionExtra
+
+      sets :extra_json
+      emits CollectionAnnotated
+    end
+  end
+
+  aggregate "CollectionIdentity" do
+    description "How one app aggregate's console assigns its own new records' identity — the field, the strategy (slug, sequence or a port), and the strategy's source and prefix. One consistency boundary: a strategy and its prefix change together or not at all."
+
+    attribute :agg, IdentityText
+
+    identified_by :agg
+
+    attribute :identity_field,       IdentityText, optional: true
+    attribute :identity_strategy,    one_of("slug", "sequence", "port"), optional: true
+    attribute :identity_source,      IdentityText, optional: true
+    attribute :identity_prefix,      IdentityText, optional: true
+    # `pad` (a sequence strategy's zero-padding width, e.g. "C-004" vs "C-4")
+    # is real but unmodeled here, same as identity_source/identity_prefix —
+    # carried opaquely in identity_extra_json below.
+    attribute :identity_extra_json,  IdentityExtra, optional: true
+
+    value_object "IdentityText" do
+      attribute :value, String
+      invariant("names something") { !value.to_s.empty? }
+    end
+
+    value_object "IdentityExtra" do
+      attribute :value, String
+    end
+
+    command "Declare" do
+      role "Console"
+      goal "Give one app aggregate's identity a row, before anything is curated on it yet"
+
+      attribute :agg, IdentityText
+
+      given("a identity names its own aggregate") { !agg.value.to_s.empty? }
+
+      emits CollectionIdentityDeclared
+    end
+
+    command "SetIdentity" do
+      role "Console"
+      goal "Name how a collection assigns its own new records' identity"
+
+      reference_to CollectionIdentity
+      attribute :identity_field,       IdentityText
+      attribute :identity_strategy,    one_of("slug", "sequence", "port")
+
+      sets :identity_field
+      sets :identity_strategy
+      sets :identity_source
+      sets :identity_prefix
+      sets :identity_extra_json
+      emits CollectionIdentified
+    end
+  end
+
+  aggregate "CollectionLayout" do
+    description "What one app aggregate's console shows: the table columns, the detail-panel fields (with an optional entity state_filter and a row_columns subset). Every list-shaped piece is rows on this root, never a nested list inside a value object — no value object here can hold a map, and this sidesteps ever finding out whether one can hold a plain list either. Each list is replaced whole, never patched."
+
+    attribute :agg, LayoutText
+
+    identified_by :agg
+
+    attribute :columns,              list_of(Column)
+    attribute :detail_fields,        list_of(DetailField)
+    attribute :detail_field_columns, list_of(DetailFieldColumn)
+
+    value_object "LayoutText" do
+      attribute :value, String
+      invariant("names something") { !value.to_s.empty? }
     end
 
     # A list/table column. `sortable`/`sort_default` are optional (most columns
@@ -175,6 +308,62 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :field,  String
       attribute :column, String
     end
+    command "Declare" do
+      role "Console"
+      goal "Give one app aggregate's layout a row, before anything is curated on it yet"
+
+      attribute :agg, LayoutText
+
+      given("a layout names its own aggregate") { !agg.value.to_s.empty? }
+
+      emits CollectionLayoutDeclared
+    end
+
+    command "ReplaceColumns" do
+      role "Console"
+      goal "Replace a collection's own whole list of table columns"
+
+      reference_to CollectionLayout
+
+      sets :columns
+      emits ColumnsArranged
+    end
+
+    command "ReplaceDetailFields" do
+      role "Console"
+      goal "Replace a collection's own whole list of detail-panel fields"
+
+      reference_to CollectionLayout
+
+      sets :detail_fields
+      emits DetailFieldsArranged
+    end
+
+    command "ReplaceDetailFieldColumns" do
+      role "Console"
+      goal "Replace every rows-field's own sub-column filter, whole"
+
+      reference_to CollectionLayout
+
+      sets :detail_field_columns
+      emits DetailFieldColumnsArranged
+    end
+  end
+
+  aggregate "CollectionRules" do
+    description "The rules one app aggregate's console applies: the dispatch preconditions that gate a command on a field's state, and the display format of each field. Each list is replaced whole, never patched."
+
+    attribute :agg, RulesText
+
+    identified_by :agg
+
+    attribute :preconditions,        list_of(Precondition)
+    attribute :field_formats,        list_of(FieldFormat)
+
+    value_object "RulesText" do
+      attribute :value, String
+      invariant("names something") { !value.to_s.empty? }
+    end
 
     value_object "Precondition" do
       attribute :field, String
@@ -193,153 +382,42 @@ Hecks.bluebook "ConsoleSettings" do
 
     command "Declare" do
       role "Console"
-      goal "Give one app aggregate a presentation row, before anything is curated on it yet"
+      goal "Give one app aggregate's rules a row, before anything is curated on it yet"
 
-      attribute :agg, SettingsText
+      attribute :agg, RulesText
 
-      given("a collection names its own aggregate") { !agg.value.to_s.empty? }
+      given("a rules names its own aggregate") { !agg.value.to_s.empty? }
 
-      emits CollectionDeclared
-    end
-
-    command "SetLabel" do
-      role "Console"
-      goal "Name a collection's own nav label"
-
-      reference_to Collection
-      attribute :label, SettingsText
-
-      sets :label
-      emits LabelSet
-    end
-
-    command "SetKey" do
-      role "Console"
-      goal "Override a collection's own nav/route key"
-
-      reference_to Collection
-      attribute :key, SettingsText
-
-      sets :key
-      emits KeySet
-    end
-
-    command "SetNavOrder" do
-      role "Console"
-      goal "Place a collection in the nav"
-
-      reference_to Collection
-      attribute :nav_order, SettingsNumber
-
-      sets :nav_order
-      emits NavOrderSet
-    end
-
-    command "SetPrimaryField" do
-      role "Console"
-      goal "Name which field stands in for a whole record"
-
-      reference_to Collection
-      attribute :primary_field, SettingsText
-
-      sets :primary_field
-      emits PrimaryFieldSet
-    end
-
-    command "SetListQuery" do
-      role "Console"
-      goal "Name which of an aggregate's own queries lists its records"
-
-      reference_to Collection
-      attribute :list_query, SettingsText
-
-      sets :list_query
-      emits ListQuerySet
-    end
-
-    command "SetIdentity" do
-      role "Console"
-      goal "Name how a collection assigns its own new records' identity"
-
-      reference_to Collection
-      attribute :identity_field,       SettingsText
-      attribute :identity_strategy,    one_of("slug", "sequence", "port")
-
-      sets :identity_field
-      sets :identity_strategy
-      sets :identity_source
-      sets :identity_prefix
-      sets :identity_extra_json
-      emits IdentitySet
-    end
-
-    command "SetExtra" do
-      role "Console"
-      goal "Carry whatever per-collection fields aren't individually modeled yet (noun_sing, create_label, nav_group, ...)"
-
-      reference_to Collection
-      attribute :extra_json, CollectionExtra
-
-      sets :extra_json
-      emits CollectionExtraSet
-    end
-
-    command "ReplaceColumns" do
-      role "Console"
-      goal "Replace a collection's own whole list of table columns"
-
-      reference_to Collection
-
-      sets :columns
-      emits ColumnsReplaced
-    end
-
-    command "ReplaceDetailFields" do
-      role "Console"
-      goal "Replace a collection's own whole list of detail-panel fields"
-
-      reference_to Collection
-
-      sets :detail_fields
-      emits DetailFieldsReplaced
-    end
-
-    command "ReplaceDetailFieldColumns" do
-      role "Console"
-      goal "Replace every rows-field's own sub-column filter, whole"
-
-      reference_to Collection
-
-      sets :detail_field_columns
-      emits DetailFieldColumnsReplaced
+      emits CollectionRulesDeclared
     end
 
     command "ReplacePreconditions" do
       role "Console"
       goal "Replace a collection's own whole list of dispatch preconditions"
 
-      reference_to Collection
+      reference_to CollectionRules
 
       sets :preconditions
-      emits PreconditionsReplaced
+      emits PreconditionsRestated
     end
 
     command "ReplaceFieldFormats" do
       role "Console"
       goal "Replace a collection's own whole list of field display formats"
 
-      reference_to Collection
+      reference_to CollectionRules
 
       sets :field_formats
-      emits FieldFormatsReplaced
+      emits FieldFormatsChosen
     end
   end
+
 
   # Domain-wide, not per-aggregate: exactly one row, ever, for the whole
   # console. `key` holds a literal constant ("overview") rather than anything
   # chosen, since a creating command still needs some identity to hydrate against.
   aggregate "Overview" do
-    description "The console's own dashboard stat cards, whole. One row, ever — `key` is always the literal 'overview', never chosen. Every stat gets replaced as a whole list on save, the same 'replace whole, never patch one' convention Collection's own columns/detail_fields/preconditions/field_formats already use."
+    description "The console's own dashboard stat cards, whole. One row, ever — `key` is always the literal 'overview', never chosen. Every stat gets replaced as a whole list on save, the same 'replace whole, never patch one' convention CollectionLayout's and CollectionRules' own lists already use."
 
     attribute :key, OverviewKey
 
@@ -381,7 +459,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Overview
 
       sets :stats
-      emits StatsReplaced
+      emits OverviewStatsArranged
     end
   end
 
@@ -397,6 +475,24 @@ Hecks.bluebook "ConsoleSettings" do
   read_model "Curated" do
     description "Every Collection row, nested by the app aggregate it curates."
     include Collection
+    group_by :agg
+  end
+
+  read_model "CuratedIdentities" do
+    description "Every CollectionIdentity row, nested by the app aggregate whose records it identifies."
+    include CollectionIdentity
+    group_by :agg
+  end
+
+  read_model "CuratedLayouts" do
+    description "Every CollectionLayout row, nested by the app aggregate whose columns and detail fields it arranges."
+    include CollectionLayout
+    group_by :agg
+  end
+
+  read_model "CuratedRules" do
+    description "Every CollectionRules row, nested by the app aggregate whose preconditions and formats it states."
+    include CollectionRules
     group_by :agg
   end
 end

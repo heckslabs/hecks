@@ -17,10 +17,13 @@ RSpec.describe "the sentence form against the whole corpus", :io do
   # What the sentence form still refuses. The first two are bluebooks that are incoherent on purpose
   # (a policy triggering a command nobody declares, a transition naming a command nobody declares)
   # or that reach into another bluebook, which a standalone sentence file cannot say; the last is a
-  # report that pages each of several included aggregates on its own.
+  # report that pages each of several included aggregates on its own. The next is Governance's live
+  # queries, which filter on `ends_at: nil`: the sentence form has no "is not set" phrase for a
+  # filter yet, and adding one is a Rust parser change (ADR 0140).
   SENTENCE_UNSAID = [
     /triggers \S+, a command this bluebook does not declare/,
     /names no command \w+ declares/,
+    /no phrase for this filter in query Live\w+/,
     /no phrase for this paging option in report/
   ].freeze
 

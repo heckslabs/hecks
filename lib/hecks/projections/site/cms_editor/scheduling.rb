@@ -38,7 +38,7 @@ module Hecks
             schedule = parts && endings(agg["lifecycle"]).size > 1 && creating(agg, parts)
             return nil unless schedule
 
-            { "aggregate" => agg["name"], "chapter" => agg["chapter"], **parts, "pending" => agg.dig("lifecycle", "default"),
+            { "aggregate" => agg["name"], "bluebook" => agg["bluebook"], **parts, "pending" => agg.dig("lifecycle", "default"),
               "schedule" => schedule["name"], **optional(agg, parts, schedule) }.compact
           end
 

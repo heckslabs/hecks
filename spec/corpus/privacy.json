@@ -2,7 +2,7 @@
   "name": "privacy-parity",
   "note": "Mark one attribute of a foreign domain's aggregate sensitive then unmark it, and issue one subject's own encryption key then shred it — proves Mark/Unmark and Issue/Shred all work end to end, composite identity included both times.",
   "expectations": {
-    "events": 4
+    "events": 6
   },
   "steps": [
     {
@@ -25,8 +25,7 @@
       "verb": "Privacy::SubjectKey.Issue",
       "args": {
         "domain": { "value": "Studio::Registration" },
-        "subject_id": { "value": "attendee-482" },
-        "key_reference": { "value": "9f2c9d2e-2f3f-4b7a-8a2e-6a5b7c9d1e2f" }
+        "subject_id": { "value": "attendee-482" }
       }
     },
     {

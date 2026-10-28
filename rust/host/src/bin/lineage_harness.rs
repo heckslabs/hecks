@@ -11,22 +11,10 @@
 // journal.rs reaches only `crate::hecks_naming`, so it is shared with `bootstrap` by path, not a
 // lib split, and carries that one file with it.
 // The flat-journal functions it also carries are unused here.
-#[allow(dead_code)]
-#[path = "../../../codegen/src/hecks_naming.rs"]
-mod hecks_naming;
-#[allow(dead_code)]
-#[path = "../journal.rs"]
-mod journal;
-
-#[allow(dead_code)]
-#[path = "../store/journal_sql.rs"]
-mod journal_sql;
-
-// journal.rs's Postgres tests connect through `crate::test_pg`, so the harness's own test build
-// carries the same connection-string helpers.
-#[cfg(test)]
-#[path = "../test_pg.rs"]
-mod test_pg;
+#[allow(unused_imports)]
+use rust_host::store::journal_sql;
+#[allow(unused_imports)]
+use rust_host_core::journal;
 
 use serde_json::{json, Value};
 use std::io::Read;
@@ -125,7 +113,8 @@ async fn read_by_id(
 ) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
     let id = require_str(operation, "id")?;
-    let state = journal_sql::read_lineage_head_by_id(client, &config.domain, storage_name, id).await?;
+    let state =
+        journal_sql::read_lineage_head_by_id(client, &config.domain, storage_name, id).await?;
     Ok(json!({ "state": state }))
 }
 

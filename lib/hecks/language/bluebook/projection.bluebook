@@ -153,7 +153,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :median_field
 
-      emits MedianFieldSet
+      emits MedianDeclared
     end
 
     command "Sum" do
@@ -164,7 +164,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :sum_field
 
-      emits SumFieldSet
+      emits SumDeclared
     end
 
     command "Avg" do
@@ -175,7 +175,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :avg_field
 
-      emits AvgFieldSet
+      emits AvgDeclared
     end
 
     command "Min" do
@@ -186,7 +186,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :min_field
 
-      emits MinFieldSet
+      emits MinDeclared
     end
 
     command "Max" do
@@ -197,7 +197,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :max_field
 
-      emits MaxFieldSet
+      emits MaxDeclared
     end
 
     command "Percentile" do
@@ -209,7 +209,7 @@ Hecks.bluebook "Bluebook" do
       sets :percentile_field
       sets :percentile_at
 
-      emits PercentileFieldSet
+      emits PercentileDeclared
     end
 
     command "Any" do
@@ -220,7 +220,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :any_field
 
-      emits AnyFieldSet
+      emits AnyDeclared
     end
 
     command "All" do
@@ -231,7 +231,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :all_field
 
-      emits AllFieldSet
+      emits AllDeclared
     end
 
     command "Option" do

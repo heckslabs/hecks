@@ -14,7 +14,7 @@ RSpec.describe "the DSL surface is fully covered" do
       # declarations-only sibling and `boot_described` finishes a boot from what `describe`
       # loaded; `behaviors` is opt-in but becomes a real singleton method once anything requires it;
       # `bind_runtime` installs the driving adapter over a dispatcher built by hand.
-      %i[boot boot_files describe boot_described with_registry bluebook hecksagon port adapter world
+      %i[boot boot_files describe boot_described with_registry bluebook hecksagon port adapter world context_map
          data_translation current_registry as_caller behaviors bind_runtime]
     ],
     "BluebookBuilder"             => [
@@ -28,7 +28,7 @@ RSpec.describe "the DSL surface is fully covered" do
     "AggregateBuilder"            => [
       Hecks::Bluebook::DSL::AggregateBuilder,
       # These DSL words are covered by their `_impl` dispatch targets, not the bare names.
-      %i[description provenance_impl identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl
+      %i[description provenance_impl acknowledges_impl identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl
          value_object command_impl lifecycle_impl entity_impl query_impl policy_impl attribute list_of attributes
          invariant_impl given_impl projects_impl]
     ],
@@ -96,6 +96,10 @@ RSpec.describe "the DSL surface is fully covered" do
       # spec/driving_adapters/driven_by_spec.rb.
       %i[binds subscribe subscriptions port_impl attaches driven_by
          attachments translates bounded method_missing]
+    ],
+    "ContextMapBuilder"           => [
+      Hecks::Bluebook::DSL::ContextMapBuilder,
+      %i[context relate separate_ways]
     ],
     "TranslationBuilder"          => [
       Hecks::Bluebook::DSL::TranslationBuilder,
