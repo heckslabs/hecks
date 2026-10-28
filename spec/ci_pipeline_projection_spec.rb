@@ -33,14 +33,18 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
   # the drift job, and the suite is split across more shards.
   def deliberately_changed(document)
     job = document.dig("jobs", "rspec_shard")
+    job.dig("strategy", "matrix")["group"] = (1..shard_total).to_a
     steps = job.fetch("steps")
     steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }["with"] = { "domains" => shard_domains }
-    parallel = steps.find { |step| step["name"].to_s.start_with?("rspec: parallel") }
-    parallel["run"] = parallel["run"].sub("--tag ~fuzzing", "--tag ~fuzzing --tag ~generated_all")
-    job.dig("strategy", "matrix")["group"] = (1..shard_total).to_a
-    listing = steps.find { |step| step["name"].to_s.start_with?("Determine") }
-    listing["run"] = listing["run"].sub("groups=4", "groups=#{shard_total}")
+    change_run(steps, "rspec: parallel", "--tag ~fuzzing", "--tag ~fuzzing --tag ~generated_all")
+    change_run(steps, "Determine", "groups=4", "groups=#{shard_total}")
     document
+  end
+
+  # Rewrites part of the command of the step whose name starts with `name`.
+  def change_run(steps, name, from, to)
+    step = steps.find { |candidate| candidate["name"].to_s.start_with?(name) }
+    step["run"] = step["run"].sub(from, to)
   end
 
   def projected_text = @projected_text ||= Hecks::Tools::CiWorkflows.projection(root).fetch(workflow_path)
