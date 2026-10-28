@@ -184,6 +184,12 @@ ci:
       title: codegen drift, the committed generated Rust must match the regeneration this job holds
       run: [git, diff, --exit-code, --stat, --, rust/src/generated, rust/Cargo.toml]
       blocked: regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed.
+    # The rspec shards each hold only the domains they read, so the examples that read the whole
+    # generated tree are tagged `generated_all` and left out of them. This job holds every domain.
+    - id: generated_tree
+      title: whole-tree specs, the examples tagged generated_all against every domain's generated Rust
+      run: [bundle, exec, rspec, --tag, generated_all]
+      blocked: a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`.
     - *check_rust_fmt
     - id: rust_clippy
       title: clippy, every Rust crate with its warnings as errors

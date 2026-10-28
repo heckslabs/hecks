@@ -116,14 +116,14 @@ Hecks.bluebook "CiWorkflows" do
              uses: "./.github/actions/hecks-environment"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "generated_rust",
              uses: "./.github/actions/generated-rust",
-             note: "rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used."
+             note: "rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.\nA shard reads only the domains named below (rust_build_kernel_input_spec), so it holds those and its\ncache moves only with them. Specs that read the whole tree are tagged `generated_all` and run in the\ndrift job, which holds every domain."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "file_list",
              title: "Determine this shard's own file list",
              run: "mkdir -p tmp\nbundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=%{shard_total} runtime_log=.github/rspec_runtime_baseline.log \\\n  > tmp/rspec_shard_files.txt\n",
              note: "`io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io.\nEvery shard must compute its file list from identical inputs or the lists stop\npartitioning the suite, so grouping reads only the committed baseline, never a cache."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "parallel",
              title: "rspec: parallel (this shard's own file list only)",
-             run: "FILES=()\nwhile IFS= read -r line; do FILES+=(\"$line\"); done < tmp/rspec_shard_files.txt\nbundle exec parallel_rspec \"${FILES[@]}\" \\\n  --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \\\n  -o \"--tag ~io --tag ~fuzzing --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log\"\n",
+             run: "FILES=()\nwhile IFS= read -r line; do FILES+=(\"$line\"); done < tmp/rspec_shard_files.txt\nbundle exec parallel_rspec \"${FILES[@]}\" \\\n  --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \\\n  -o \"--tag ~io --tag ~fuzzing --tag ~generated_all --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log\"\n",
              note: "--group-by runtime: without it parallel_rspec splits by file size and one worker can\ndraw the slowest files. --allowed-missing: spec files newer than the baseline get the\naverage cost instead of failing."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "upload_log",
              title: "Upload this shard's runtime log (for hecks refresh_runtime_baseline from_run=)",
@@ -144,6 +144,8 @@ Hecks.bluebook "CiWorkflows" do
 
       member workflow: "ci-rspec.yml", job: "rspec_shard", step: "environment", key: "database",
              value: "${{ secrets.HECKS_JOURNAL_DATABASE }}"
+      member workflow: "ci-rspec.yml", job: "rspec_shard", step: "generated_rust", key: "domains",
+             value: "lease_clock nested_pieces"
 
       member workflow: "ci-rspec.yml", job: "rspec_shard", step: "upload_log", key: "name",
              value: "rspec-runtime-group-${{ matrix.group }}"

@@ -26,6 +26,9 @@ module Hecks
     # `examples/pizzas` or `the self-hosted language (...)`; a chapter's is its own name.
     SOURCE_STAMP = /GENERATED\ by\ hecks\ project_rust\ —\ (.+?)'s\ own\ canonical\ IR,/
 
+    # Raised when a name is not a domain the corpus regenerates; the message lists the valid ones.
+    class UnknownDomain < ArgumentError; end
+
     # The Rust-facing lists: which domains and bluebooks `rust/` carries, read off Cargo's
     # `[features]` and the generated modules rather than typed out by hand. Extended onto
     # `Corpus`.
@@ -43,7 +46,7 @@ module Hecks
       BLUEBOOK_NAME = /^\s*Hecks\.bluebook\s+"([^"]+)"/
 
       # The corpus kinds holding bluebooks the gem carries and a hecksagon attaches by name.
-      GEM_CHAPTER_KINDS = %i[qa deploy site tickets composer tenancy sme bulk].freeze
+      GEM_CHAPTER_KINDS = %i[qa deploy site tickets composer tenancy sme bulk ci_pipeline].freeze
 
       # Every place a Rust-facing domain's own `attaches` attachment could be declared.
       #
@@ -217,6 +220,24 @@ module Hecks
       #   a fresh checkout has no generated output, so the sources, not the output, name them
       def rust_regen_order(root: ROOT)
         rust_domains(root: root)
+      end
+
+      # The named domains of the regeneration order, in that order whatever order they are named in.
+      #
+      # @param names [Array<String>, nil] feature names; nil names every domain
+      # @param root [String] repository root to search under
+      # @return [Array<RustDomain>] the named domains, in regeneration order
+      # @raise [UnknownDomain] when a name is not a domain's feature, listing the valid ones
+      def rust_domains_named(names, root: ROOT)
+        order = rust_regen_order(root: root)
+        return order if names.nil?
+
+        unknown = names - order.map(&:feature)
+        unless unknown.empty?
+          raise UnknownDomain, "unknown domain(s) #{unknown.join(", ")}; valid: #{order.map(&:feature).sort.join(", ")}"
+        end
+
+        order.select { |domain| names.include?(domain.feature) }
       end
     end
   end

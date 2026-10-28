@@ -258,6 +258,13 @@ runs cold. Before adding a spec or a step, check where it runs:
 - **Don't regenerate the corpus a second time in a job.** The `generated-rust`
   action already restores or regenerates `rust/src/generated` and `rust/Cargo.toml`;
   compare against that.
+- **Name the domains a job reads.** `generated-rust` takes `domains:` (feature names,
+  such as `lease_clock nested_pieces`; none means every domain). It regenerates only
+  those and keys its cache on `exe/hecks query corpus_run.generated_key domains=<names>`,
+  a hash of the generator and of those domains' own sources (`files=true` lists what was
+  hashed), so another domain's change leaves the cache alone. A job that builds Rust or
+  checks the whole tree names none. A spec that reads the whole generated tree is tagged
+  `:generated_all`: the shards run `--tag ~generated_all`, and the drift job runs it.
 - **Refresh the runtime baselines when you add io spec files**:
   `exe/hecks test_suite_run.refresh_runtime_baseline from_run=<a green CI run id> --confirm --wait`,
   then `test_suite_run.write_io_parallel_spec_list`. Shards group by these logs, and a

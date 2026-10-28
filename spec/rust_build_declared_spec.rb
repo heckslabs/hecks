@@ -39,4 +39,18 @@ RSpec.describe Hecks::RustBuild::ProjectRust::Declared do
     expect(declared.flags).to eq(["--declared=banking,pizzas", "--default=pizzas"])
     expect(described_class.split(["examples/pizzas", *declared.flags]).first.domains).to eq(declared.domains)
   end
+
+  it "is a whole run unless it says it is partial", :aggregate_failures do
+    expect(described_class.new(%w[banking pizzas], "pizzas")).not_to be_partial
+    expect(described_class.split(["examples/pizzas", "--declared=pizzas", "--default=pizzas"]).first).not_to be_partial
+  end
+
+  it "reads and writes the partial flag", :aggregate_failures do
+    declared = described_class.new(%w[banking pizzas], "pizzas", partial: true)
+    read, rest = described_class.split(["examples/pizzas", *declared.flags])
+
+    expect(declared.flags).to eq(["--declared=banking,pizzas", "--default=pizzas", "--partial"])
+    expect(read).to be_partial
+    expect(rest).to eq(["examples/pizzas"])
+  end
 end

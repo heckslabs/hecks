@@ -72,6 +72,8 @@ module Hecks
         @ir = TargetIr.new(@registry, @domain_name, loader.bluebook_dir).call
         FileUtils.rm_rf(File.join(@out_root, "active"))
         generate_with_codegen
+        return puts("mod.rs and Cargo.toml left to a run of the whole corpus (--partial)") if @declared&.partial?
+
         write_root_mod
         sync_cargo_features
       end
@@ -160,20 +162,6 @@ module Hecks
         manifest.sub(DEFAULT_FEATURE) { "#{Regexp.last_match(0)}\n#{name} = []" }
       end
 
-      FEATURES_HEADER = <<~TOML
-        # One feature per generated domain: it selects which domain's own
-        # generated::<domain>::merged module `generated::active` re-exports
-        # (rust/src/generated/mod.rs). `hecks project_rust` adds a feature when a new domain is
-        # generated and never removes one (the domain's own generated/<name>/ directory is the
-        # source of truth for whether it exists). `default` tracks the domain generated most
-        # recently, so a bare `cargo build` keeps working; any other still-generated domain stays
-        # reachable via `--no-default-features --features <name>`.
-        [features]
-        default = []
-
-      TOML
-      private_constant :FEATURES_HEADER
-
       # The `default = [...]` line of a Cargo manifest's `[features]` table.
       DEFAULT_FEATURE = /^default\s*=.*$/
       # The `[features]` table of a Cargo manifest, up to the next table header.
@@ -184,6 +172,7 @@ module Hecks
 end
 
 require_relative "project_rust/declared"
+require_relative "project_rust/features_header"
 require_relative "project_rust/root_mod"
 require_relative "project_rust/codegen_run"
 require_relative "project_rust/domain_loader"

@@ -3,7 +3,10 @@ require_relative "support/generated_rust"
 
 # Every cargo feature and generated Rust module lands in a check: the Rust-facing half of
 # spec/corpus_accounting_spec.rb.
-RSpec.describe "Hecks::Corpus, Rust-facing" do
+#
+# `generated_all`: it reads the whole generated tree, which the rspec shards do not hold (each holds
+# the domains it reads). They leave it out with `--tag ~generated_all`; the drift job runs it.
+RSpec.describe "Hecks::Corpus, Rust-facing", :generated_all do
   include_context "with the generated Rust tree"
 
   let(:corpus) { Hecks::Corpus }

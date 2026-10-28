@@ -10,13 +10,30 @@ require "hecks/tools/ci_workflows"
 # ci-rspec.yml as flat rows, `hecks regeneration_run.project_ci_pipeline` writes the file from them,
 # and a check compares the file with the rows. This spec holds the projection to the workflow it
 # replaced: spec/fixtures/ci_pipeline/ci-rspec.original.yml is that workflow as it was committed
-# by hand, and the projection must parse to the same document. Comments and key order may differ.
+# by hand, and the projection must parse to the same document, but for the changes made on purpose
+# since (`deliberately_changed`). Comments and key order may differ.
 RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
   def root = Hecks::Tools::ROOT
 
   def workflow_path = File.join(root, ".github/workflows/ci-rspec.yml")
 
-  def original = @original ||= YAML.load_file(File.join(root, "spec/fixtures/ci_pipeline/ci-rspec.original.yml"))
+  # The domains a shard reads of the generated Rust tree, which its generated-rust step holds.
+  def shard_domains = "lease_clock nested_pieces"
+
+  def original
+    @original ||= deliberately_changed(YAML.load_file(File.join(root, "spec/fixtures/ci_pipeline/ci-rspec.original.yml")))
+  end
+
+  # The hand-written workflow with what was changed on purpose since: each shard names the domains
+  # it reads, and leaves out the specs tagged `generated_all`, which read the whole tree and run in
+  # the drift job.
+  def deliberately_changed(document)
+    steps = document.dig("jobs", "rspec_shard", "steps")
+    steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }["with"] = { "domains" => shard_domains }
+    parallel = steps.find { |step| step["name"].to_s.start_with?("rspec: parallel") }
+    parallel["run"] = parallel["run"].sub("--tag ~fuzzing", "--tag ~fuzzing --tag ~generated_all")
+    document
+  end
 
   def projected_text = @projected_text ||= Hecks::Tools::CiWorkflows.projection(root).fetch(workflow_path)
 
@@ -69,6 +86,23 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
       expect(triggers(projected).dig("workflow_call", "secrets")).to eq(
         "HECKS_CI_ATTEST_KEY" => { "required" => false }, "HECKS_JOURNAL_DATABASE" => { "required" => false }
       )
+    end
+
+    it "has each shard hold only the domains it reads, and leave out the specs that read the whole tree",
+       :aggregate_failures do
+      steps = job(projected, "rspec_shard").fetch("steps")
+      generated = steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }
+      parallel = steps.find { |step| step["name"].to_s.start_with?("rspec: parallel") }
+
+      expect(generated.fetch("with")).to eq("domains" => shard_domains)
+      expect(parallel.fetch("run")).to include("--tag ~generated_all")
+    end
+
+    it "names domains the corpus regenerates", :aggregate_failures do
+      known = Hecks::Corpus.rust_domains.map(&:feature)
+
+      expect(shard_domains.split).not_to be_empty
+      expect(shard_domains.split - known).to be_empty
     end
 
     it "writes the one shard total into the matrix and into the command that names it" do

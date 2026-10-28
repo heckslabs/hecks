@@ -39,6 +39,36 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
       expect(lines).to all(satisfy { |line| !line.start_with?("/") })
     end
 
+    describe "the generated key, which SourceTree answers beside these questions" do
+      def key(args = {})
+        Hecks::Adapters::SourceTree.new.generated_key(**args.transform_values { |value| { value: value } }).fetch(:text)
+      end
+
+      it "answers one line: the hash of the named domains' key", :aggregate_failures do
+        answer = key(domains: "lease_clock,nested_pieces")
+
+        expect(answer).to eq(Hecks::Corpus::GeneratedKey.key(%w[lease_clock nested_pieces], root: tree.root))
+        expect(answer.lines.size).to eq(1)
+      end
+
+      it "answers the key of every domain when none is named" do
+        expect(key).to eq(Hecks::Corpus::GeneratedKey.key(nil, root: tree.root))
+      end
+
+      it "lists each file hashed above the hash when asked for them", :aggregate_failures do
+        lines = key(domains: "lease_clock", files: true).lines.map(&:chomp)
+
+        expect(lines.last).to eq(key(domains: "lease_clock"))
+        expect(lines[0..-2]).to all(match(/\A\h{64}  \S+\z/))
+        expect(lines.join("\n")).to include("  qa/stress_domains/lease_clock/bluebook/lease_clock.bluebook")
+      end
+
+      it "refuses a domain that is not one, listing the valid ones" do
+        expect { key(domains: "lease_clock,no_such_domain") }
+          .to raise_error(failure, /no_such_domain; valid: .*lease_clock.*nested_pieces/)
+      end
+    end
+
     context "when every generated module passes" do
       let(:modules) { Hecks::Corpus.generated_modules(root: tree.root) }
 

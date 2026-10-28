@@ -34,11 +34,22 @@ module Hecks
         # @param bluebook [Bluebook::Chapter] the bluebook that declares the rows
         # @param options [Hash{Symbol => Object}] `:registry` (Runtime::Registry) the project booted
         #   into, which holds the CiPipeline bluebook; `:table` (Table) a table already read
-        # @return [Hash{String => String}] each file's path under the checkout to its text
+        # @return [Hash{String => String}] each file's path under the checkout to its text; empty
+        #   when the bluebook declares no `Workflow` rows, as a site's root files are
         # @raise [Table::Invalid] when the rows are refused
         def call(bluebook:, options: {})
-          table = options[:table] || Table.read(bluebook, registry: options.fetch(:registry))
+          table = options[:table] || read(bluebook, options)
+          return {} unless table
+
           table.workflows.to_h { |workflow| ["#{DIRECTORY}/#{workflow.name}", render(workflow)] }
+        end
+
+        # @return [Table, nil] the bluebook's rows checked against the registry's CiPipeline
+        #   chapter, or nil when the bluebook holds none, which needs no registry to say
+        def read(bluebook, options)
+          return if Table.rows_of(bluebook, Table::MARKER).empty?
+
+          Table.read(bluebook, registry: options.fetch(:registry))
         end
 
         # @param workflow [Table::Rows::Workflow] a checked workflow

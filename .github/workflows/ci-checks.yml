@@ -258,6 +258,12 @@ jobs:
       - name: "rust codegen: fail on drift between the committed and the regenerated tree"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=codegen_drift --wait
 
+      # The rspec shards hold only the domains they read, so the examples that read the whole
+      # generated tree (tagged `generated_all`) run here, where every domain is held: the action
+      # above names no domains.
+      - name: "rust codegen: specs that read the whole generated tree"
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=generated_tree --wait
+
   # rustfmt and clippy over the seven Rust crates, each its own workspace. The main crate's
   # generated modules are not committed, so they are restored or regenerated first; the checks
   # themselves live in the `ci` stage of lib/hecks/gate/stages.yml. Not attested: lint is cheap

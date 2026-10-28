@@ -149,6 +149,20 @@ module Hecks
         { text: corpus("corpus_rust_coverage", {}) }
       end
 
+      # @param args [Hash] the query's arguments: `domains` (feature names), `files`
+      # @return [Hash] `text:` the hash of what regenerating those domains reads, with `files` each
+      #   file hashed above it
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when a name is not a domain, listing the valid ones
+      def generated_key(**args)
+        tree.require_checkout!
+        plain_args = args.transform_values { |value| plain(value) }
+        names = plain_args[:domains]&.split(",")
+        { text: Corpus::GeneratedKey.report(names, files: plain_args[:files] == true, root: tree.root) }
+      rescue Corpus::UnknownDomain => e
+        raise ConsoleCapture::Failure, e.message
+      end
+
       # @param args [Hash] the query's arguments: `names`
       # @return [Hash] `text:` each IR construct's diff from its meta-domain
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout

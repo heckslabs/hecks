@@ -1,32 +1,58 @@
 name: Generated Rust
 description: >-
-  Materializes rust/src/generated, which the repository no longer commits (pizzas aside). It
-  restores the output a run on identical inputs wrote, or regenerates the whole corpus with
-  `hecks regeneration_run.regenerate_corpus --confirm` and saves it. Put it before any step that
-  builds, tests or hashes rust/src, and after setup-ruby, which it needs.
+  Materializes rust/src/generated, which the repository no longer commits (pizzas aside), for the
+  domains a job reads. It restores the output a run on identical inputs wrote, or regenerates those
+  domains with `hecks regeneration_run.regenerate_corpus domains=<names> --confirm` and saves it. A
+  job that reads two domains names them and pays for two, and its cache moves only when the generator
+  or those domains' own sources do; a job that names none gets every domain. Put it before any step
+  that builds, tests or hashes rust/src, and after setup-ruby, which it needs.
+inputs:
+  domains:
+    description: >-
+      The corpus domains the job reads, by feature name, separated by spaces or commas. Empty is every
+      domain. A job that builds Rust, or checks the whole tree, names none.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
-    - name: Hash the generator inputs
-      id: inputs
-      uses: ./.github/actions/generated-rust-inputs
+    # `hecks corpus_run.generated_key` hashes the generator and the named domains' own sources, read
+    # from tracked files only, so a bare checkout computes the same key as one that has regenerated.
+    # `files=true` on it lists each file hashed, so a reviewer can see why a key moved.
+    - name: Key the generated Rust by the domains it holds
+      id: key
+      shell: bash
+      env:
+        HECKS_ENVIRONMENT: memory
+        DOMAINS: ${{ inputs.domains }}
+      run: |
+        names="$(echo "$DOMAINS" | tr -s ' ,' ',' | sed 's/^,//; s/,$//')"
+        label="${names//,/-}"
+        hash="$(bundle exec exe/hecks query corpus_run.generated_key ${names:+domains=$names})"
+        {
+          echo "names=$names"
+          echo "label=${label:-all}"
+          echo "hash=$hash"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Restore the generated Rust
       id: cache
       uses: actions/cache@v4
       with:
-        # Cargo.toml too: regeneration rewrites its features, and the codegen_drift check compares
-        # the committed one against what a regeneration on these inputs wrote.
+        # Cargo.toml too: the codegen_drift check compares the committed one against what a
+        # regeneration on these inputs left. mod.rs and pizzas are in the key, so what is restored
+        # over them is what the checkout holds.
         path: |
           rust/src/generated
           rust/Cargo.toml
-        key: generated-rust-${{ runner.os }}-${{ steps.inputs.outputs.hash }}
+        key: generated-rust-${{ runner.os }}-${{ steps.key.outputs.label }}-${{ steps.key.outputs.hash }}
 
     - name: Regenerate the generated Rust
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         HECKS_ENVIRONMENT: memory
+        DOMAINS: ${{ steps.key.outputs.names }}
       # A job that builds into its own target dir (CARGO_TARGET_DIR) must not send hecks-codegen's
       # build there: project_rust builds and runs it from rust/codegen/target.
-      run: env -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait
+      run: env -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus ${DOMAINS:+domains=$DOMAINS} --confirm --wait

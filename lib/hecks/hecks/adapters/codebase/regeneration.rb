@@ -45,8 +45,15 @@ module Hecks
           when "project_lanes" then project_lanes(child, check, set?(held, :live), set?(held, :confirm))
           when "project_tools_doc" then project_tools_doc(child, check)
           when "decide_ci_gate" then decide_ci_gate(child, held)
-          else regenerate(child, check)
+          else regenerate(child, check, domains(held))
           end
+        end
+
+        # @param held [Hash] the `RegenerationRun` record's fields: `domains`
+        # @return [Array<String>] the tool's argument naming the domains to run, empty for every one
+        def domains(held)
+          named = held[:domains].is_a?(Hash) ? held[:domains][:value] : held[:domains]
+          named.to_s.empty? ? [] : ["domains=#{named}"]
         end
 
         # @param held [Hash] the record's fields: `check`, `confirm`
@@ -64,10 +71,11 @@ module Hecks
 
         # @param child [RubyChild] the checkout's tool runner
         # @param check [Boolean] whether to only compare
+        # @param domains [Array<String>] `domains=a,b` when only those are to run, else empty
         # @return [String] how many domains were checked or regenerated
         # @raise [ConsoleCapture::Failure] with the difference, or with what the script printed
-        def regenerate(child, check)
-          result = child.capture("regen_codegen_domains", *("--check" if check))
+        def regenerate(child, check, domains = [])
+          result = child.capture("regen_codegen_domains", *("--check" if check), *domains)
           raise ConsoleCapture::Failure, refusal(result) unless result.ok?
 
           summary(result.out, check)

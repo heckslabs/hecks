@@ -113,6 +113,10 @@ RSpec.describe "the Codebase rows of the ADR command table" do
                              "nothing (the script's output is redirected by the caller), so it is a query" }],
     ["corpus", "CorpusRun", "RustDomains", "rust_domains", { query: true }],
     ["corpus", "CorpusRun", "RegenOrder", "regen_order", { query: true }],
+    ["(new)", "CorpusRun", "GeneratedKey", "generated_key",
+     { query: true, args: %w[domains=lease_clock],
+       renamed: "no bin script: the key a job caches the generated Rust of some domains under, a hash of " \
+                "the generator and of those domains' own sources" }],
     ["corpus", "CorpusRun", "CorpusRustCoverage", "corpus_rust_coverage",
      { query: true, renamed: "the table names the query RustCoverage; Build already has one, " \
                              "so it is CorpusRustCoverage, as the launcher column says" }],

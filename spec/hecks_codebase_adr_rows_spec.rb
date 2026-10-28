@@ -63,6 +63,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "pattern-cases", verbs: %w[record_pattern_cases],
                note: "a query: it prints JSON and writes nothing"),
     AdrRow.new(script: "corpus", verbs: %w[rust_domains regen_order corpus_rust_coverage]),
+    AdrRow.new(script: "generated_key", verbs: %w[generated_key],
+               note: "no bin script: it prints the hash a job caches the generated Rust of some domains under, " \
+                     "from the generator and those domains' own sources; regenerate_corpus takes the same names"),
     AdrRow.new(script: "query_ir", verbs: %w[ir_constructs ir_duplicates ir_impact]),
     AdrRow.new(script: "hecks_query_ir_mcp", verbs: %w[serve_query_ir_mcp]),
     AdrRow.new(script: "present", verbs: %w[present]),

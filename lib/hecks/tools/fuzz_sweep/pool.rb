@@ -21,10 +21,21 @@ module Hecks
           slowest = results.max_by(5) { |_, (_, _, seconds)| seconds }
                            .map { |index, (_, _, seconds)| "#{File.basename(domains[index])} #{seconds.round}s" }
           warn "slowest domains: #{slowest.join(", ")}"
+          warn "domain seconds: #{seconds_by_domain(domains, results)}"
           replay_outputs(results).all?
         end
 
         private
+
+        # Every domain's wall seconds, so a cost table can be read off one run's log.
+        #
+        # @return [String] `directory seconds` for each domain, in domain order, the directory
+        #   relative to the working directory when it lies under it
+        def seconds_by_domain(domains, results)
+          results.sort.map do |index, (_, _, seconds)|
+            "#{domains[index].delete_prefix("#{Dir.pwd}/")} #{seconds.round(1)}"
+          end.join(", ")
+        end
 
         # @return [Hash{Integer => Array}] by domain index: whether the child succeeded, its output
         #   file, and its seconds

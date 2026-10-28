@@ -1,10 +1,9 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "open3"
-require "tmpdir"
 require_relative "../tools"
 require_relative "../corpus"
+require_relative "regeneration_run/scratch"
 
 module Hecks
   module Tools
@@ -17,9 +16,8 @@ module Hecks
     # anyway (sorted by relative path). If the domain set changes, re-run and commit what changed.
     #
     #   hecks regenerate_corpus         # discover, regenerate, print the plan
-    #   hecks regenerate_corpus --check # regenerate into a scratch crate; fail on any difference
-    #
-    # `--check` never writes the working tree: it runs beside the parallel suite.
+    #   hecks regenerate_corpus --check # a scratch crate, never the tree; fail on any difference
+    #   hecks regenerate_corpus domains=a,b # only those; `mod.rs` and Cargo's features stay put
     module RegenerationRun
       # The refusal when no domain is found.
       NO_DOMAINS = "hecks regenerate_corpus: discovered ZERO domains with committed rust/src/generated/ " \
@@ -27,26 +25,30 @@ module Hecks
                    "wrong directory, or something upstream deleted rust/src/generated/ entirely. Refusing " \
                    "to silently treat that as \"nothing to regenerate.\""
 
-      # The refusal when a check finds nothing generated to compare.
-      NOT_MATERIALIZED = "hecks regenerate_corpus --check: rust/src/generated has no generated output to compare. " \
-                         "Only pizzas, mod.rs and Cargo.toml are committed; run " \
-                         "`hecks regenerate_corpus --confirm` first, then the check."
+      # The argument naming the domains to regenerate, comma-separated, as the launcher passes it.
+      DOMAINS_ARG = "domains="
+
+      # The scratch crate of a check: `scratch_crate`, `verdict` and `matches_scratch?`.
+      extend Scratch
 
       module_function
 
       # Regenerates the corpus, or checks it.
       #
-      # @param argv [Array<String>] `--check` to project into a scratch crate and compare
+      # @param argv [Array<String>] `--check` to project into a scratch crate and compare, and
+      #   `domains=a,b` to run only those domains
       # @param root [String] the checkout
       # @return [Integer] 0, or 1 when a check finds a difference
-      # @raise [SystemExit] when no corpus domain is found or a domain fails to regenerate
+      # @raise [SystemExit] when no corpus domain is found, a named domain is not one, or a domain
+      #   fails to regenerate
       def main(argv, root: Tools::ROOT)
         Dir.chdir(root) do
-          domains = plan(root)
+          names = named(argv)
+          domains = plan(root, names)
           # A check projects into a scratch copy of the crate; the forked children inherit the
           # workspace with the process.
           scratch = argv.include?("--check") && scratch_crate(root)
-          run_plan(domains, scratch)
+          run_plan(domains, scratch, partial: !names.nil?)
         end
       end
 
@@ -54,9 +56,10 @@ module Hecks
       #
       # @param domains [Array<String>] the domains, in run order
       # @param scratch [String, false] the scratch crate of a check, removed here
+      # @param partial [Boolean] whether these are some of the corpus's domains, not all
       # @return [Integer] 0, or 1 when a check finds a difference
-      def run_plan(domains, scratch)
-        with_rust_dir(scratch) { regenerate(domains) }
+      def run_plan(domains, scratch, partial: false)
+        with_rust_dir(scratch) { regenerate(domains, partial: partial) }
         scratch ? verdict(scratch) : 0
       ensure
         FileUtils.rm_rf(scratch) if scratch
@@ -70,14 +73,24 @@ module Hecks
         Hecks::RustBuild.in_workspace(scratch, &)
       end
 
+      # @param argv [Array<String>] the arguments of the run
+      # @return [Array<String>, nil] the feature names `domains=` lists, nil when it is not given
+      def named(argv)
+        list = argv.find { |arg| arg.start_with?(DOMAINS_ARG) }
+        list&.delete_prefix(DOMAINS_ARG)&.split(",")
+      end
+
       # `meta` is never in the list: `Hecks::Corpus::RUST_ELSEWHERE` routes it to the check that
       # owns it instead.
       #
       # @param root [String] the checkout
+      # @param names [Array<String>, nil] the features to regenerate; nil for every domain
       # @return [Array<String>] the domains to regenerate, relative to `root`, in run order
-      # @raise [SystemExit] when there are none
-      def plan(root)
-        domains = Hecks::Corpus.rust_regen_order.map { |domain| domain.dir.delete_prefix("#{root}/") }
+      # @raise [SystemExit] when there are none, or a name is not a domain: the message lists the
+      #   valid ones
+      def plan(root, names = nil)
+        chosen = Hecks::Corpus.rust_domains_named(names, root: root)
+        domains = chosen.map { |domain| domain.dir.delete_prefix("#{root}/") }
 
         abort NO_DOMAINS if domains.empty?
 
@@ -85,21 +98,25 @@ module Hecks
         domains.each { |d| puts "  #{d}" }
         puts
         domains
+      rescue Hecks::Corpus::UnknownDomain => e
+        abort "hecks regenerate_corpus: #{e.message}"
       end
 
       # Builds the memoized grammar registry once and forks for each domain, one at a time and in
       # order. Every run is told the declared domains, so `mod.rs` and Cargo's features come from
-      # that list and Cargo's `default` stays put: the order does not change what any run writes.
+      # that list and Cargo's `default` stays put: the order does not change what any run writes. A
+      # partial run (some of the domains) leaves `mod.rs` and Cargo's features alone.
       #
       # @param domains [Array<String>] the domains, in run order
+      # @param partial [Boolean] whether these are some of the corpus's domains, not all
       # @return [void]
-      def regenerate(domains)
+      def regenerate(domains, partial: false)
         require "hecks"
         require "hecks/bluebook/meta_validator"
         require "hecks/rust_build"
         require "hecks/rust_build/project_rust"
         Hecks::Bluebook::MetaValidator.grammar_registry
-        flags = declared_flags
+        flags = declared_flags(partial: partial)
         domains.each { |domain| project_rust_in_fork(domain, flags) }
       end
 
@@ -108,11 +125,14 @@ module Hecks
       # Cargo's `default` stays on the feature the tracked `rust/Cargo.toml` names, or on the last
       # declared domain when it names none.
       #
+      # @param partial [Boolean] whether the run is of some domains: it is told so
       # @return [Array<String>] the flags
-      def declared_flags
+      def declared_flags(partial: false)
+        require "hecks/rust_build/project_rust"
         features = Hecks::Corpus.rust_regen_order.map(&:feature)
         default = Hecks::Corpus.cargo_default || features.last
-        Hecks::RustBuild::ProjectRust::Declared.new(features + Hecks::Corpus::RUST_ELSEWHERE.keys, default).flags
+        declared = Hecks::RustBuild::ProjectRust::Declared
+        declared.new(features + Hecks::Corpus::RUST_ELSEWHERE.keys, default, partial: partial).flags
       end
 
       # Forks so the child inherits the memoized grammar registry instead of rebuilding it. The
@@ -159,43 +179,6 @@ module Hecks
       rescue StandardError => e
         warn "#{e.class}: #{e.message}"
         1
-      end
-
-      # A scratch crate: copies of the generated tree and Cargo.toml, all `hecks project_rust`
-      # writes.
-      #
-      # @param root [String] the checkout
-      # @return [String] the scratch directory
-      def scratch_crate(root)
-        abort NOT_MATERIALIZED unless File.directory?(File.join(root, "rust/src/generated/meta"))
-
-        scratch = Dir.mktmpdir("regen-codegen-check")
-        FileUtils.mkdir_p(File.join(scratch, "src"))
-        FileUtils.cp_r(File.join(root, "rust/src/generated"), File.join(scratch, "src/generated"))
-        FileUtils.cp(File.join(root, "rust/Cargo.toml"), scratch)
-        scratch
-      end
-
-      # The gate: the scratch projection must match the generated sources and Cargo.toml on disk.
-      #
-      # @param scratch [String] the scratch crate, removed here
-      # @return [Integer] 0 when it matches, 1 after printing the difference
-      def verdict(scratch)
-        same = matches_scratch?(scratch)
-        FileUtils.rm_rf(scratch)
-        same ? 0 : 1
-      end
-
-      # @param scratch [String] the scratch crate
-      # @return [Boolean] whether it matches the tree, printing `git diff` output when it does not
-      def matches_scratch?(scratch)
-        pairs = [["rust/src/generated", File.join(scratch, "src/generated")],
-                 ["rust/Cargo.toml", File.join(scratch, "Cargo.toml")]]
-        pairs.map do |on_disk, projected|
-          out, status = Open3.capture2e("git", "diff", "--no-index", "--exit-code", "--", on_disk, projected)
-          print out
-          status.success?
-        end.all?
       end
     end
   end

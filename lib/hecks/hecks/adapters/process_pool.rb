@@ -43,7 +43,7 @@ module Hecks
 
       # The flags of a sweep, and the fields of the record that fill them.
       SWEEP_FLAGS = { "--seeds" => :seeds, "--steps" => :steps, "--workers" => :workers,
-                      "--adapter" => :adapter }.freeze
+                      "--adapter" => :adapter, "--shard" => :shard, "--list-shards" => :list_shards }.freeze
 
       class << self
         # @return [#call, nil] runs a child given `(command, env, chdir)` and answers a `Finished`;
@@ -60,7 +60,8 @@ module Hecks
 
       # Runs a fuzz sweep over one domain, or over every domain of the checkout when none is named.
       #
-      # @param held [Hash] the `Fuzzing` record: `domain`, `seeds`, `steps`, `workers`, `adapter`
+      # @param held [Hash] the `Fuzzing` record: `domain`, `seeds`, `steps`, `workers`, `adapter`,
+      #   `shard` and `list_shards`
       # @return [Hash{Symbol => Hash}] `report:` what the sweep printed
       # @raise [ConsoleCapture::Failure] when the sweep found something, or could not run
       def sweep(**held)

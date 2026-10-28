@@ -1,5 +1,6 @@
 require_relative "fuzzing/target_capabilities"
 require_relative "corpus/adapters"
+require_relative "corpus/generated_key"
 require_relative "corpus/routes"
 require_relative "corpus/rust"
 require_relative "corpus/sources"
@@ -32,19 +33,25 @@ module Hecks
     # prefix, so a nested fixture keeps its subdirectory (`eras/base`)
     # and never collides with a same-named file elsewhere in the kind.
     FILE_KINDS = {
-      grammar:   "lib/hecks/grammar/*.bluebook",
-      framework: "lib/hecks/framework/bluebook/*.bluebook",
-      qa:        "lib/hecks/quality_control/*.bluebook",
-      language:  "lib/hecks/language/**/*.bluebook",
-      deploy:    "lib/hecks/deploy/bluebook/*.bluebook",
-      site:      "lib/hecks/site/bluebook/*.bluebook",
-      rails_app: "lib/hecks/rails_app/bluebook/*.bluebook",
-      tickets:   "lib/hecks/tickets/bluebook/*.bluebook",
-      composer:  "lib/hecks/composer/bluebook/*.bluebook",
-      tenancy:   "lib/hecks/tenancy/bluebook/*.bluebook",
-      bulk:      "lib/hecks/bulk/bluebook/*.bluebook",
-      sme:       "lib/hecks/sme/bluebook/*.bluebook",
-      fixture:   "spec/fixtures/**/*.bluebook"
+      grammar:      "lib/hecks/grammar/*.bluebook",
+      framework:    "lib/hecks/framework/bluebook/*.bluebook",
+      qa:           "lib/hecks/quality_control/*.bluebook",
+      language:     "lib/hecks/language/**/*.bluebook",
+      deploy:       "lib/hecks/deploy/bluebook/*.bluebook",
+      site:         "lib/hecks/site/bluebook/*.bluebook",
+      rails_app:    "lib/hecks/rails_app/bluebook/*.bluebook",
+      tickets:      "lib/hecks/tickets/bluebook/*.bluebook",
+      composer:     "lib/hecks/composer/bluebook/*.bluebook",
+      tenancy:      "lib/hecks/tenancy/bluebook/*.bluebook",
+      bulk:         "lib/hecks/bulk/bluebook/*.bluebook",
+      sme:          "lib/hecks/sme/bluebook/*.bluebook",
+      # The CI chapters keep their bluebook beside their hecksagon, not under a `bluebook/` folder.
+      # CiPipeline is attachable; CiSpeed boots from its own directory; CiWorkflows is the client
+      # whose rows project into .github/workflows.
+      ci_pipeline:  "lib/hecks/ci_pipeline/*.bluebook",
+      ci_speed:     "lib/hecks/ci_speed/*.bluebook",
+      ci_workflows: "lib/hecks/ci_workflows/*.bluebook",
+      fixture:      "spec/fixtures/**/*.bluebook"
     }.freeze
 
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
