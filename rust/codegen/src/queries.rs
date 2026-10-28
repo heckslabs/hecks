@@ -228,17 +228,23 @@ pub fn query_where_skip_reason(
     if raw_value.starts_with(':') {
         return None;
     }
+    let op = where_clause.get("op").map(Json::to_s).unwrap_or_default();
+    // `eq`/`ne` against nil is `QueryConditionValue::Null`; an ordered or membership comparison
+    // against nil means nothing in Ruby either, so it has no generated form.
     if raw_value == "nil" {
+        if matches!(op.as_str(), "eq" | "ne") {
+            return None;
+        }
         return Some(skip(
             "where_literal",
             format!(
-                "where clause on {} compares to nil — QueryConditionValue::Literal holds a &str and the kernel has no null literal, so 'the field is unset' has no generated form yet (the Ruby runtime answers it)",
-                naming::ruby_inspect_string(&field)
+                "where clause on {} uses op {} against nil — only eq and ne compare a field to nil, so this has no generated form",
+                naming::ruby_inspect_string(&field),
+                naming::ruby_inspect_string(&op)
             ),
         ));
     }
 
-    let op = where_clause.get("op").map(Json::to_s).unwrap_or_default();
     if !known_query_comparator(&op) {
         return Some(skip(
             "where_none_in_state",
@@ -851,6 +857,7 @@ pub fn emit_query_condition_value(condition: &Condition) -> String {
                 "crate::kernel::QueryConditionValue::NumericLiteral({})",
                 ruby_float_inspect(*n)
             ),
+            Literal::Nil => "crate::kernel::QueryConditionValue::Null".to_string(),
             _ => format!(
                 "crate::kernel::QueryConditionValue::Literal({})",
                 literal_inspect(lit)
@@ -883,7 +890,7 @@ pub struct QueryDef {
     /// `cursor` is declared: `limit` is the page size and `after` names the position.
     pub cursor: bool,
     pub authorization: Option<String>,
-    /// True when the bluebook's `provides "authorization", assignments:` names this query.
+    /// True when the bluebook's `provides "authorization", live_assignments:` names this query.
     pub assignments: bool,
     /// `Some` for a declared entity query — emitted into `ENTITY_QUERIES`.
     pub entity: Option<EntityScope>,
@@ -895,7 +902,7 @@ pub fn provided_assignments(ir: &Json) -> Option<String> {
         .iter()
         .find(|row| {
             row.get("capability").and_then(Json::as_str) == Some("authorization")
-                && row.get("key").and_then(Json::as_str) == Some("assignments")
+                && row.get("key").and_then(Json::as_str) == Some("live_assignments")
         })
         .and_then(|row| row.get("verb").and_then(Json::as_str))
         .map(str::to_string)
@@ -907,7 +914,7 @@ pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
         |q| format!("Some({})", naming::ruby_inspect_string(&q.verb)),
     );
     format!(
-        "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; `None` when no bluebook here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
+        "/// `provides \"authorization\", live_assignments:` — the query `kernel::check_role_via` reads; `None` when no bluebook here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
     )
 }
 
@@ -1165,12 +1172,29 @@ mod path_tests {
     }
 
     #[test]
-    fn a_nil_comparison_is_skipped_because_the_kernel_has_no_null_literal() {
+    fn the_role_check_reads_the_live_assignments_query_not_every_assignment() {
+        let ir = Json::parse(
+            r#"{"provides":[
+                {"capability":"authorization","key":"assignments","verb":"G.All"},
+                {"capability":"authorization","key":"live_assignments","verb":"G.Live"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(provided_assignments(&ir).as_deref(), Some("G.Live"));
+    }
+
+    #[test]
+    fn a_nil_comparison_is_generated_for_eq_and_ne_only() {
         with_schema(|aggregate, vos| {
-            let nil_title = Json::parse(r#"{"field":"title","op":"eq","value":"nil"}"#).unwrap();
-            let reason = query_where_skip_reason(&nil_title, aggregate, vos).unwrap();
+            for op in ["eq", "ne"] {
+                let nil_title =
+                    Json::parse(&format!(r#"{{"field":"title","op":"{op}","value":"nil"}}"#))
+                        .unwrap();
+                assert!(query_where_skip_reason(&nil_title, aggregate, vos).is_none());
+            }
+            let ordered = Json::parse(r#"{"field":"title","op":"gt","value":"nil"}"#).unwrap();
+            let reason = query_where_skip_reason(&ordered, aggregate, vos).unwrap();
             assert_eq!(reason.construct, "where_literal");
-            assert!(reason.text.contains("compares to nil"));
+            assert!(reason.text.contains("against nil"));
             let open_title =
                 Json::parse(r#"{"field":"title","op":"eq","value":"\"open\""}"#).unwrap();
             assert!(query_where_skip_reason(&open_title, aggregate, vos).is_none());

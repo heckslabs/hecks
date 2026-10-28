@@ -565,14 +565,14 @@ fn expiry_days(raw: Option<Value>) -> Result<Option<u32>, &'static str> {
 }
 
 async fn is_admin(store: &Store, wasm_path: &Path, domain_ir: &Value, identity_id: &str) -> bool {
-    let provider = crate::ir::authorization_provider(domain_ir);
-    dispatch::read(store, wasm_path).await.is_ok_and(|read| {
-        auth::holds_admin(
-            read.get("instances").unwrap_or(&json!({})),
-            identity_id,
-            provider.as_ref(),
-        )
-    })
+    let Some(query) = crate::ir::authorization_provider(domain_ir).and_then(|p| p.live_assignments)
+    else {
+        return false;
+    };
+    let args = json!({"actor_id": {"value": identity_id}});
+    dispatch::query(store, wasm_path, &query, args)
+        .await
+        .is_ok_and(|answer| auth::holds_admin(&auth::answer_rows(&answer)))
 }
 
 // Verifies the token AND that the person still has access, so a

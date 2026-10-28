@@ -31,11 +31,15 @@ the fuzzer) takes its verbs from there.
    `scope` stay what they were: checks the caller opts into, applied to rows that are already
    live.
 
-4. **The Rust generator skips a query that compares to nil.** The kernel's
-   `QueryConditionValue::Literal` holds a `&str` and has no null, and the generator printed
-   `nil` for such a condition, which would not compile. `query_where_skip_reason` now skips it
-   under the existing `where_literal` family, so the two live queries have no generated Rust form
-   and the committed pizzas output is unchanged.
+4. **Rust reads the same queries.** `QueryConditionValue::Null` resolves to `Json::Null`, which a
+   field that is unset or null equals (`Eq`) and a set field does not (`Ne`). The generator emits
+   it for an `eq` or `ne` comparison with nil, so the two live queries have a generated form and
+   the kernel's `holds_role_via` takes `live_assignments` rows as live without testing `ends_at`.
+   The exporter and the build's `authorization` seam carry `live_assignments` into `ir.json`, and
+   the host's `is_admin` asks that query through the kernel instead of scanning the assignment
+   store. An `ir.json` written before the key held no admin: the host holds no role it cannot
+   read from the bluebook. An ordered or membership comparison with nil still has no generated
+   form (`where_literal`).
 
 ## Alternatives considered
 
@@ -44,9 +48,9 @@ the fuzzer) takes its verbs from there.
 - **Fold `as_of` and `scope` into the live query.** The query language has no optional argument,
   so each combination would be a query of its own. Not done; the two checks remain the caller's
   opt-in.
-- **Give the kernel a null literal.** It would make the live queries generate. Not done: the Rust
-  host decides liveness itself and does not call them, so a kernel change would add a variant
-  nothing reads.
+- **Leave the Rust host deciding liveness.** The first version of this ADR did, because the
+  kernel had no null condition and a variant nothing read was not worth adding. The host now
+  reads the queries, so the variant is read.
 - **Change what `assignments` answers.** The fuzzer's role check reads ended grants from it.
   Changing its meaning would move that check's input without saying so.
 
@@ -55,27 +59,10 @@ the fuzzer) takes its verbs from there.
 - A bluebook that declares `provides "authorization"` must add the two keys. Governance is the
   only provider in this repository, and no other provider is known; none was searched for
   outside it.
-- The Rust host decides liveness for itself and still reads Governance by its literal names
-  (ADR 0025, update 2026-09-14). It is unchanged by this, so the two runtimes now take their
-  rule from different places until the host reads the capability.
-
-  The host can run a declared query, so the obstacle is not the host. It runs the provider's
-  `assignments` query through `named_query::run` (`holds_role_via` in the kernel) and then keeps
-  the rows with no `ends_at` itself, and `auth.rs` repeats that test when it scans the assignment
-  store for a session's role. The live queries cannot replace it yet because they cannot be
-  compiled: a query condition's value is `Literal(&str)`, `NumericLiteral(f64)` or `Arg(name)`,
-  none of which is null, so the generator skips `ends_at: nil` (`where_literal`). Moving the rule
-  into the bluebook on the Rust side takes, in order:
-  1. a `QueryConditionValue::Null` that `named_query` resolves to `Json::Null` (an absent field
-     already reads as null, and `Eq` against null matches it);
-  2. the generator emitting it for an `eq` or `ne` comparison with nil, in place of the skip;
-  3. the exporter and the build's `authorization` seam carrying `live_assignments` into `ir.json`,
-     and `provided_assignments` reading that key;
-  4. `holds_role_via` and the host's `auth.rs` scan taking the live query's rows as live, with
-     their own `ends_at` filters removed, and their fixtures moving to the live query;
-  5. a conformance fixture holding Ruby and Rust to the same answer for a revoked grant.
-  That is a cross-cutting change to the IR the host reads, so it is left for its own ADR rather
-  than made here.
+- Both runtimes take the rule from the bluebook. A conformance script (`spec/corpus/governance.json`)
+  asks `LiveAssignmentsForActor` after a revoke and `LiveAllowed` after a second grant, and is
+  replayed through Ruby and a Rust build. The host still reads Governance by its literal names for
+  the grant command (ADR 0025, update 2026-09-14).
 - The fuzzer's grant steering and role check are unchanged: they read `grant` and `assignments`.
 - The sentence form cannot say the live queries. A `where(ends_at: nil)` filter has no phrase
   ("is not set") in the Sentence chapter, so the formatter refuses Governance by naming the
