@@ -1,0 +1,5 @@
+Hecks.port "dispatch" do
+  verb    "dispatched_by"
+  signal  :reply
+  answers :dispatcher
+end
