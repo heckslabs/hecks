@@ -190,12 +190,12 @@ Hecks.bluebook "Hecks" do
   # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.
   policy "LocateTheRepo" do
     on      "AgentRun.AgentRunRequested"
-    trigger AgentRun::Agents::Locate, with: { run: :run }
+    ask     :locate, with: { run: :run }
   end
 
   policy "StartWhenTheRepoIsThere" do
     on      "AgentRun.RepoLocated"
-    trigger AgentRun::Agents::Start, with: { run: :run }
+    ask     :start, with: { run: :run }
   end
 
   policy "RecordTheSession" do
@@ -215,19 +215,19 @@ Hecks.bluebook "Hecks" do
 
   policy "AskTheSession" do
     on      "AgentRun.AgentCheckRequested"
-    trigger AgentRun::Agents::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   # The session is looked at before it is removed; the port says whether a person took it over.
   policy "ReviewBeforeTidy" do
     on      "AgentRun.TidyRequested"
-    trigger AgentRun::Agents::Review, with: { run: :run }
+    ask     :review, with: { run: :run }
   end
 
   policy "RemoveWhenNobodyTookOver" do
     on      "AgentRun.SessionReviewed"
     where   { taken_over == false }
-    trigger AgentRun::Agents::Remove, with: { run: :run }
+    ask     :remove, with: { run: :run }
   end
 
   policy "KeepWhenAPersonTookOver" do

@@ -327,22 +327,22 @@ Hecks.bluebook "Site" do
 
   policy "ProjectWhenRequested" do
     on      "SiteProjection.SiteProjectionRequested"
-    trigger SiteProjection::SiteToolchain::Project, with: { run: :run }
+    ask     :project, with: { run: :run }
   end
 
   policy "CheckWhenRequested" do
     on      "SiteProjection.LiveCheckRequested"
-    trigger SiteProjection::SiteToolchain::Compare, with: { run: :run }
+    ask     :compare, with: { run: :run }
   end
 
   policy "ProbeWhenRequested" do
     on      "SiteProjection.SiteProbeRequested"
-    trigger SiteProjection::SiteToolchain::Probe, with: { run: :run }
+    ask     :probe, with: { run: :run }
   end
 
   policy "RolesWhenRequested" do
     on      "SiteProjection.RolesCheckRequested"
-    trigger SiteProjection::SiteToolchain::Roles, with: { run: :run }
+    ask     :roles, with: { run: :run }
   end
 
   policy "RecordTheProjection" do

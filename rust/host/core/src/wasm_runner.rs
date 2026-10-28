@@ -353,6 +353,9 @@ pub mod tests {
             "spin",
             r#"(module (memory (export "memory") 1) (func (export "_start") (loop br 0)))"#,
         );
+        // Compile first: a cold engine on a loaded runner takes seconds, and that is not the
+        // time the deadline bounds.
+        warm(&path).unwrap();
         let began = std::time::Instant::now();
         let err = run_within(SMALL, &path, "").unwrap_err().to_string();
         assert!(err.contains("200 ms deadline"), "got {err}");
