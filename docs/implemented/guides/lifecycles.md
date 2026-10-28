@@ -159,20 +159,24 @@ lifecycle in the corpus and reports it as a `stuck_state` finding —
 but at `:warning` severity, not `:error`, because a genuinely terminal
 state (`"sold"` in the pizzas example, `"closed"` on a bank account) is
 completely fine. The finding exists so you *notice* and confirm it is
-what you meant, not so the checker blocks you for it. Ask the checker
-yourself, the same way `spec/model_check_spec.rb` does — boot a
-registry, hand the bluebook to `ModelCheck.call`:
+what you meant, not so the checker blocks you for it. You confirm it by
+marking the state in the lifecycle, `mark :terminal, "charged_back"`: a
+marked state is an intended end, so it is no longer reported, and a
+transition that still leaves a marked state is an error. Banking marks
+each of `CardPayment`'s final states, so the checker has nothing left to
+confirm there. Ask the checker yourself, the same way
+`spec/model_check_spec.rb` does — boot a registry, hand the bluebook to
+`ModelCheck.call`:
 
 ```ruby
 require "hecks/bluebook/model_check"
 
 findings = Hecks::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking"))
 cp_findings = findings.select { |f| f.subject == "CardPayment" }
+cp_lifecycle = runtime.registry.bluebook("Banking").aggregate("CardPayment").lifecycle
 
-cp_findings.map { |f| [f.kind, f.severity] }  # => [[:stuck_state, :warning], [:stuck_state, :warning], [:stuck_state, :warning]]
-cp_findings.any? { |f| f.message.include?("voided") }        # => true
-cp_findings.any? { |f| f.message.include?("reversed") }      # => true
-cp_findings.any? { |f| f.message.include?("charged_back") }  # => true
+cp_findings.map { |f| [f.kind, f.severity] }  # => []
+cp_lifecycle.marked(:terminal)                # => ["charged_back", "reversed", "voided"]
 ```
 
 Three findings this time, not one — `CardPayment` has three states
