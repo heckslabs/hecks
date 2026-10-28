@@ -138,7 +138,7 @@ Hecks.bluebook "Change" do
 
   policy "ExamineWhenRequested" do
     on      "Change.ChangeRequested"
-    trigger Change::Script::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "RecordThePlanWhenExamined" do
@@ -148,7 +148,7 @@ Hecks.bluebook "Change" do
 
   policy "PerformWhenConfirmed" do
     on      "Change.ChangeConfirmed"
-    trigger Change::Script::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordTheOutcomeWhenPerformed" do
