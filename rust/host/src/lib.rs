@@ -37,7 +37,6 @@ pub mod journal;
 pub mod lambda_client;
 pub mod ledger;
 pub mod log;
-pub mod mint;
 pub mod needs;
 pub mod payments;
 pub mod platform_signin;

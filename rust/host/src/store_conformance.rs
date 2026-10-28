@@ -16,7 +16,7 @@ use crate::dispatch::tests::{
 };
 use crate::dispatch::{self, Caller, Outcome};
 use crate::host::Host;
-use crate::journal::{self, LineageConfig};
+use crate::store::journal_sql::{self as journal, LineageConfig};
 use crate::store::{Accepted, MemoryFault, MemoryStore, Store};
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -572,6 +572,170 @@ mod cases {
         assert_eq!(keys, ["tr-a", "tr-b", "tr-c"]);
     }
 
+    fn heads_config(era: Option<i32>) -> LineageConfig {
+        LineageConfig {
+            domain: DOMAIN.to_string(),
+            era,
+            mirrored: None,
+            seal_every: None,
+        }
+    }
+
+    fn member(email: &str, role: &str) -> Value {
+        json!({ "email": { "value": email }, "role": { "value": role } })
+    }
+
+    async fn save_head(store: &Store, id: &str, state: &Value) {
+        let mutation = journal::Mutation {
+            aggregate: "Customer",
+            id,
+            operation: "save",
+            state,
+        };
+        store
+            .put_head(&heads_config(Some(1)), &mutation)
+            .await
+            .unwrap();
+    }
+
+    pub(super) async fn a_saved_head_is_read_back_by_id_and_in_full<B: Backend>(db: &str) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+        assert_eq!(
+            store.head_by_id(DOMAIN, "customer", "a").await.unwrap(),
+            None
+        );
+
+        save_head(store, "a", &member("a@x.test", "viewer")).await;
+        save_head(store, "b", &member("b@x.test", "viewer")).await;
+        save_head(store, "a", &member("a@x.test", "admin")).await;
+
+        assert_eq!(
+            store.head_by_id(DOMAIN, "customer", "a").await.unwrap(),
+            Some(member("a@x.test", "admin")),
+            "a later save of one id replaces its head"
+        );
+        assert_eq!(
+            store.head_all(DOMAIN, "customer").await.unwrap(),
+            vec![
+                ("a".to_string(), member("a@x.test", "admin")),
+                ("b".to_string(), member("b@x.test", "viewer")),
+            ]
+        );
+    }
+
+    pub(super) async fn a_head_is_found_by_the_fields_it_holds<B: Backend>(db: &str) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+        save_head(store, "a", &member("a@x.test", "viewer")).await;
+        save_head(store, "b", &member("b@x.test", "admin")).await;
+
+        let found = |matches: Vec<(&'static str, &'static str)>| async move {
+            store
+                .head_find(&[DOMAIN], "customer", &matches)
+                .await
+                .unwrap()
+        };
+        assert_eq!(
+            found(vec![("email", "b@x.test")]).await,
+            Some(member("b@x.test", "admin"))
+        );
+        assert_eq!(
+            found(vec![("email", "b@x.test"), ("role", "admin")]).await,
+            Some(member("b@x.test", "admin"))
+        );
+        assert_eq!(
+            found(vec![("email", "b@x.test"), ("role", "viewer")]).await,
+            None
+        );
+        assert_eq!(found(vec![("email", "nobody@x.test")]).await, None);
+    }
+
+    pub(super) async fn an_amended_head_is_read_and_written_as_one_step<B: Backend>(db: &str) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+        let config = heads_config(Some(1));
+        save_head(store, "a", &member("a@x.test", "viewer")).await;
+
+        let seen = store
+            .amend_head(&config, DOMAIN, "Customer", "customer", |rows| {
+                (
+                    rows.len(),
+                    Some(("a".to_string(), member("a@x.test", "admin"))),
+                )
+            })
+            .await
+            .unwrap();
+        assert_eq!(seen, 1, "the decision saw the head as committed");
+        assert_eq!(
+            store.head_by_id(DOMAIN, "customer", "a").await.unwrap(),
+            Some(member("a@x.test", "admin"))
+        );
+
+        let declined = store
+            .amend_head(&config, DOMAIN, "Customer", "customer", |_| ("no", None))
+            .await
+            .unwrap();
+        assert_eq!(declined, "no");
+        assert_eq!(
+            store.head_all(DOMAIN, "customer").await.unwrap().len(),
+            1,
+            "a decision that writes nothing leaves the heads alone"
+        );
+    }
+
+    pub(super) async fn the_first_domain_that_keeps_heads_answers_every_state<B: Backend>(
+        db: &str,
+    ) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+        assert!(store
+            .head_states(&[DOMAIN, "Chapter"], "customer")
+            .await
+            .unwrap()
+            .is_empty());
+
+        save_head(store, "b", &member("b@x.test", "viewer")).await;
+        save_head(store, "a", &member("a@x.test", "admin")).await;
+
+        assert_eq!(
+            store
+                .head_states(&["Elsewhere", DOMAIN], "customer")
+                .await
+                .unwrap_or_default(),
+            vec![member("a@x.test", "admin"), member("b@x.test", "viewer")],
+            "in id order, from the first domain that has heads"
+        );
+    }
+
+    pub(super) async fn a_head_write_without_an_era_is_refused_and_leaves_nothing<B: Backend>(
+        db: &str,
+    ) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+        let state = member("a@x.test", "viewer");
+        let mutation = journal::Mutation {
+            aggregate: "Customer",
+            id: "a",
+            operation: "save",
+            state: &state,
+        };
+
+        assert!(store
+            .put_head(&heads_config(None), &mutation)
+            .await
+            .is_err());
+        let deleted = journal::Mutation {
+            operation: "delete",
+            ..mutation
+        };
+        assert!(store
+            .put_head(&heads_config(Some(1)), &deleted)
+            .await
+            .is_err());
+        assert!(store.head_all(DOMAIN, "customer").await.unwrap().is_empty());
+    }
+
     pub(super) async fn a_unit_commits_a_saga_and_then_its_deletion<B: Backend>(db: &str) {
         let backend = B::fresh(db).await;
         let saga = |state: &str| journal::SagaRow {
@@ -688,6 +852,21 @@ impl Backend for PostgresBackend {
             &["Customer", "Account", "Transfer"],
         )
         .await;
+        // The head view a minted era leaves over each aggregate's era-1 snapshot table.
+        for storage in ["customer", "account", "transfer"] {
+            let snapshot = journal::qualified_name(DOMAIN, &format!("{storage}_head_snapshot_1"));
+            let view = journal::head_view(DOMAIN, storage);
+            client
+                .lock()
+                .await
+                .batch_execute(&format!(
+                    "CREATE VIEW {} AS SELECT id, state FROM {}",
+                    journal::quote_ident(&view),
+                    journal::quote_ident(&snapshot)
+                ))
+                .await
+                .unwrap();
+        }
         Self {
             db: name.to_string(),
             client,
@@ -852,6 +1031,11 @@ mod postgres {
         a_dispatch_waits_for_the_domain_lock_while_readers_proceed,
         concurrent_dispatches_on_one_domain_never_interleave,
         a_dropped_unit_writes_nothing_and_frees_the_lock,
+        a_saved_head_is_read_back_by_id_and_in_full,
+        a_head_is_found_by_the_fields_it_holds,
+        an_amended_head_is_read_and_written_as_one_step,
+        the_first_domain_that_keeps_heads_answers_every_state,
+        a_head_write_without_an_era_is_refused_and_leaves_nothing,
         a_unit_commits_a_saga_and_then_its_deletion,
     );
 }
@@ -997,6 +1181,11 @@ mod memory {
         a_dispatch_waits_for_the_domain_lock_while_readers_proceed,
         concurrent_dispatches_on_one_domain_never_interleave,
         a_dropped_unit_writes_nothing_and_frees_the_lock,
+        a_saved_head_is_read_back_by_id_and_in_full,
+        a_head_is_found_by_the_fields_it_holds,
+        an_amended_head_is_read_and_written_as_one_step,
+        the_first_domain_that_keeps_heads_answers_every_state,
+        a_head_write_without_an_era_is_refused_and_leaves_nothing,
         a_unit_commits_a_saga_and_then_its_deletion,
     );
 }

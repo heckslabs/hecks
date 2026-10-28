@@ -14,7 +14,7 @@ use tokio_postgres::NoTls;
 use super::extension::PlatformSignin;
 use super::session::{map_member, HostMembers};
 use super::wiring_support::*;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::NeverInvoker;
 
 fn domain_ir() -> Value {

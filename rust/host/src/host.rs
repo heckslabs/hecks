@@ -1,6 +1,6 @@
 //! What a request handler needs to reach the domain, travelling as one value.
 
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::store::Store;
 use std::path::{Path, PathBuf};
