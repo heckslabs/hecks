@@ -7,8 +7,8 @@ module Hecks
   # The capability enums the hand-written Rust kernel is matched against, and the check that every
   # capability the Ruby grammar admits has its hand-written file.
   #
-  # The `pub mod` roster and the enum of `rust/src/kernel/attribute_shapes/mod.rs` and
-  # `rust/src/kernel/expression_operators/mod.rs` are generated; the `<name>.rs` files beside them
+  # The `pub mod` roster and the enum of `rust/expr/src/attribute_shapes/mod.rs` and
+  # `rust/expr/src/expression_operators/mod.rs` are generated; the `<name>.rs` files beside them
   # are hand-written, so a grammar change can leave a `pub mod` naming a file nobody has written.
   # Ground truth is `Coercion::SHAPES` and `Grammar.admitted_operators`, never a copied list.
   # Query comparators are one flat hand-maintained file with no per-variant files to check.
@@ -37,7 +37,7 @@ module Hecks
       require "hecks"
       require "hecks/grammar"
       require "hecks/runtime/value/coercion"
-      kernel = File.join(root, "rust/src/kernel")
+      kernel = File.join(root, "rust/expr/src")
       content = {
         File.join(kernel, "attribute_shapes/mod.rs")     => shapes_module,
         File.join(kernel, "expression_operators/mod.rs") => operators_module
@@ -100,7 +100,7 @@ module Hecks
     # @return [String] the clean verdict
     def coverage_verdict(count)
       "#{count}/#{count} kernel capability files present — every attribute shape and " \
-        "expression-operator category the live Ruby grammar admits has a rust/src/kernel/ file " \
+        "expression-operator category the live Ruby grammar admits has a rust/expr/src/ file " \
         "at its conventional path."
     end
 
@@ -113,13 +113,13 @@ module Hecks
     end
 
     # @param root [String] the checkout
-    # @param category_dir [String] the directory below `rust/src/kernel/`
+    # @param category_dir [String] the directory below `rust/expr/src/`
     # @param names [Array<String>] the capabilities to look for
     # @param source [String] where they are declared
     # @return [Array<Row>] a row for each
     def check(root, category_dir, names, source)
       names.map do |name|
-        path = File.join(root, "rust/src/kernel", category_dir, "#{name}.rs")
+        path = File.join(root, "rust/expr/src", category_dir, "#{name}.rs")
         Row.new(name, path, File.file?(path), source)
       end
     end

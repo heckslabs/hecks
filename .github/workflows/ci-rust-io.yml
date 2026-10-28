@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: rust/target/debug/rust-*
-          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}
+          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/expr/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}
           lookup-only: true
 
   rust_feature_binaries:
@@ -181,7 +181,7 @@ jobs:
 
       - name: Name the feature binaries' cache entry
         id: feature_key
-        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/expr/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}" >> "$GITHUB_OUTPUT"
 
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust

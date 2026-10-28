@@ -9,32 +9,32 @@ RSpec.describe "kernel capability tables (hecks project_kernel_capabilities)" do
         .filter_map { |line| line[/^pub mod (\w+);/, 1] }
   end
 
-  ATTRIBUTE_SHAPE_NAMES = pub_mod_names("rust/src/kernel/attribute_shapes/mod.rs")
-  OPERATOR_CATEGORY_NAMES = pub_mod_names("rust/src/kernel/expression_operators/mod.rs")
+  ATTRIBUTE_SHAPE_NAMES = pub_mod_names("rust/expr/src/attribute_shapes/mod.rs")
+  OPERATOR_CATEGORY_NAMES = pub_mod_names("rust/expr/src/expression_operators/mod.rs")
 
   # rustfmt keeps the `pub mod` lines in alphabetical order, so the roster is compared as a set.
   it "generates attribute_shapes/mod.rs from the SAME shapes Coercion::SHAPES declares" do
     expect(ATTRIBUTE_SHAPE_NAMES.sort).to eq(Hecks::Runtime::Value::Coercion::SHAPES.map(&:to_s).sort),
-                                          "rust/src/kernel/attribute_shapes/mod.rs is stale relative to " \
+                                          "rust/expr/src/attribute_shapes/mod.rs is stale relative to " \
                                           "Coercion::SHAPES — run hecks project_kernel_capabilities"
   end
 
   it "generates expression_operators/mod.rs from the SAME categories Grammar.admitted_operators declares" do
     live = Hecks::Grammar.admitted_operators.map { |op| op[:category].to_s }.uniq
     expect(OPERATOR_CATEGORY_NAMES.sort).to eq(live.sort),
-                                            "rust/src/kernel/expression_operators/mod.rs is stale relative to " \
+                                            "rust/expr/src/expression_operators/mod.rs is stale relative to " \
                                             "Grammar.admitted_operators — run hecks project_kernel_capabilities"
   end
 
   # A `pub mod` line with no hand-written file is an unresolved module; this catches
   # that without a Rust toolchain.
   it "has a hand-written file for every attribute shape it names" do
-    missing = ATTRIBUTE_SHAPE_NAMES.reject { |name| File.exist?(File.join(InMemoryDomain::ROOT, "rust/src/kernel/attribute_shapes/#{name}.rs")) }
+    missing = ATTRIBUTE_SHAPE_NAMES.reject { |name| File.exist?(File.join(InMemoryDomain::ROOT, "rust/expr/src/attribute_shapes/#{name}.rs")) }
     expect(missing).to be_empty, "attribute_shapes/mod.rs names #{missing.inspect} with no matching hand-written file"
   end
 
   it "has a hand-written file for every expression-operator category it names" do
-    missing = OPERATOR_CATEGORY_NAMES.reject { |name| File.exist?(File.join(InMemoryDomain::ROOT, "rust/src/kernel/expression_operators/#{name}.rs")) }
+    missing = OPERATOR_CATEGORY_NAMES.reject { |name| File.exist?(File.join(InMemoryDomain::ROOT, "rust/expr/src/expression_operators/#{name}.rs")) }
     expect(missing).to be_empty, "expression_operators/mod.rs names #{missing.inspect} with no matching hand-written file"
   end
 end

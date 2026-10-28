@@ -10,7 +10,7 @@ RSpec.describe Hecks::Adapters::Codebase::KernelTables do
 
   scratch_directory
 
-  def shapes = File.join(@dir, "rust/src/kernel/attribute_shapes/mod.rs")
+  def shapes = File.join(@dir, "rust/expr/src/attribute_shapes/mod.rs")
 
   def kernel(operation, held = {}, on: tree)
     described_class.call(operation, held, on)
@@ -24,8 +24,8 @@ RSpec.describe Hecks::Adapters::Codebase::KernelTables do
     it "reports drift and writes nothing until confirmed, in another tree", :aggregate_failures do
       dry = kernel("project_kernel_capabilities", {}, on: other)
 
-      expect(dry).to include("dry run, 2 files differ", "new rust/src/kernel/attribute_shapes/mod.rs",
-                             "new rust/src/kernel/expression_operators/mod.rs")
+      expect(dry).to include("dry run, 2 files differ", "new rust/expr/src/attribute_shapes/mod.rs",
+                             "new rust/expr/src/expression_operators/mod.rs")
       expect(File.exist?(shapes)).to be(false)
     end
 
@@ -33,7 +33,7 @@ RSpec.describe Hecks::Adapters::Codebase::KernelTables do
       written = kernel("project_kernel_capabilities", { confirm: { value: true } }, on: other)
 
       expect(written).to start_with("wrote 2 files:")
-      expect(File.read(shapes)).to eq(File.read(tree.path("rust/src/kernel/attribute_shapes/mod.rs")))
+      expect(File.read(shapes)).to eq(File.read(tree.path("rust/expr/src/attribute_shapes/mod.rs")))
     end
   end
 
@@ -41,13 +41,13 @@ RSpec.describe Hecks::Adapters::Codebase::KernelTables do
     it "lists each capability the grammar admits, and the verdict, when every file is there", :aggregate_failures do
       report = kernel("measure_kernel_coverage")
 
-      expect(report).to include("OK    rust/src/kernel/attribute_shapes/")
+      expect(report).to include("OK    rust/expr/src/attribute_shapes/")
       expect(report).to match(%r{^([0-9]+)/\1 kernel capability files present})
     end
 
     it "refuses with each file that is missing, and writes nothing", :aggregate_failures do
       expect { kernel("measure_kernel_coverage", {}, on: other) }
-        .to raise_error(failure, %r{MISS  rust/src/kernel/attribute_shapes/.*\n.*capability file\(s\) missing}m)
+        .to raise_error(failure, %r{MISS  rust/expr/src/attribute_shapes/.*\n.*capability file\(s\) missing}m)
       expect(Dir.children(@dir)).to be_empty
     end
   end

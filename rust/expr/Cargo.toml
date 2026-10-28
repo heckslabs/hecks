@@ -1,0 +1,52 @@
+[package]
+name = "hecks_expr"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "hecks_expr"
+path = "src/lib.rs"
+
+# The expression evaluator: `Expr`, `Value`, the operators and shapes it dispatches to, and the
+# `Refusal` it fails with. One copy, shared by the kernel (compiled into every domain's wasm) and
+# the host. std-only apart from `regex`, which `expression_operators/pattern_match.rs` needs for
+# `.match?` (ADR 0012's one dependency exception); `default-features = false` keeps out the SIMD
+# `perf` feature.
+[dependencies]
+regex = { version = "1", default-features = false, features = ["std", "unicode"] }
+
+# Clippy beyond its defaults: pedantic and nursery, plus the restriction lints that keep a panic
+# out of library code. `hecks gate_run.gate stage=ci only=rust_clippy` makes each of these an error.
+# The same table is in every crate's Cargo.toml; change them together.
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+# Lints that ask for prose or an attribute on every item rather than for better code.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+module_name_repetitions = "allow"
+too_many_lines = "allow"
+too_long_first_doc_paragraph = "allow"
+doc_markdown = "allow"
+# Numeric conversions here are deliberate: JSON numbers are f64 and ids are small.
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+# Naming heuristics that fire on ordinary short names.
+similar_names = "allow"
+many_single_char_names = "allow"
+struct_field_names = "allow"
+# Heuristics that cost more clarity than they buy here.
+redundant_pub_crate = "allow"
+future_not_send = "allow"
+significant_drop_tightening = "allow"
+match_same_arms = "allow"
