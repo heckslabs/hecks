@@ -72,6 +72,19 @@ module Hecks
         output("refreshed #{count} projection(s)")
       end
 
+      # Redelivers the reactions a domain's outbox left undelivered. A claimed row (one that
+      # stalled across a crash, whose effect may or may not have run) is redelivered only when
+      # `claimed` says so.
+      #
+      # @param held [Hash] the `Operation` record: `subject` (the domain) and `claimed` (a switch)
+      # @return [Hash{Symbol => Hash}] `output:` how many rows were redriven
+      # @raise [Runtime::NotFound] if the domain cannot be found
+      def redrive(**held)
+        runtime = Assembly.bind_ported_runtime(boot(held[:subject]))
+        rows = runtime.outbox.redrive!(claimed: plain(held[:claimed]) == true)
+        output("redrove #{rows.size} outbox row(s)")
+      end
+
       # Runs a `.behaviors` file, or every one under a directory.
       #
       # @param held [Hash] the `Operation` record: `subject` (the file or directory)
