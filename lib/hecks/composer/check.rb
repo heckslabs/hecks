@@ -49,7 +49,7 @@ module Hecks
       def project(stage, base, name)
         registry = Hecks.boot(stage, install_driving: false, environment: "memory").registry
         chapter = registry.bluebook(name)
-        base.merge(bluebook: name, chapter: name, wiring: wiring(registry, name),
+        base.merge(bluebook: name, wiring: wiring(registry, name),
                    board: Board.call(chapter, outline: base[:outline]), **read(chapter, registry.hecksagon(name)))
       end
 
@@ -81,7 +81,7 @@ module Hecks
 
       # @api private
       def empty(files, outline)
-        { diagnostic: nil, files: files, outline: outline, bluebook: nil, chapter: nil, diagrams: {},
+        { diagnostic: nil, files: files, outline: outline, bluebook: nil, diagrams: {},
           statements: [], findings: [], wiring: nil, board: nil }
       end
     end

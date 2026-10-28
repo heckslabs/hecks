@@ -49,7 +49,6 @@ RSpec.describe "the Composer's lower panels", :io do
     listed = post("live/commands")
 
     expect(listed["bluebook"]).to eq("Ledger")
-    expect(listed["chapter"]).to eq("Ledger")
     expect(listed["commands"].map { |command| command["verb"] }).to include("Ledger::Account.Open")
   end
 

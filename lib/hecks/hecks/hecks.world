@@ -38,8 +38,6 @@
 # checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
 # `--maintainer` lists them; `bluebooks` names the attached bluebooks the help points at, one line each
 # (`hecks deploy`), and `maintainer_bluebooks` the language's own, added inside a checkout.
-# `renamed_arguments` maps an argument name the commands retired to the one that replaced it, so a
-# command line that still says `chapter=` is read as `bluebook=` and says so (ADR 0134).
 # `newcomer` names the only commands the help lists in a folder holding no bluebook yet
 # (`hecks --all` lists the rest), so a first run shows how to start and nothing else.
 Hecks.world "Hecks" do
@@ -67,7 +65,6 @@ Hecks.world "Hecks" do
                        bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
-                       renamed_arguments: { "chapter" => "bluebook" },
                        legacy: %w[run docs narrate ir stores model_check smoke_test
                                   project_diagrams project_cli mcp]
 end
