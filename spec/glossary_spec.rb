@@ -106,7 +106,7 @@ RSpec.describe "the glossary a domain carries with it" do
     end
 
     it "speaks a cross-domain trigger as words, since there is nothing here to link to" do
-      expect(markdown).to include("Account freeze review is asked to open, in Compliance.")
+      expect(markdown).to include("Review is asked to open, in Compliance.")
     end
   end
 

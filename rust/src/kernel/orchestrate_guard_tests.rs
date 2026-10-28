@@ -94,6 +94,7 @@ const fn cross(name: &'static str, event_name: &'static str) -> CrossDomainPolic
         where_expr: None,
         target_domain: "Other",
         target_verb: "Other::Do",
+        with_spec: &[],
     }
 }
 

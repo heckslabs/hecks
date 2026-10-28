@@ -131,7 +131,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   describe "reactions" do
     it "tabulates each policy as the dispatch it causes, and where it lands", :aggregate_failures do
       expect(banking).to include("## Reactions")
-      expect(banking).to include("| `Account.AccountFrozen` | `AccountFreezeReview.Open` | Compliance |")
+      expect(banking).to include("| `Account.AccountFrozen` | `Review.Open` | Compliance |")
     end
 
     it "describes a saga by where it starts, ends and correlates", :aggregate_failures do

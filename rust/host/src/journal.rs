@@ -895,7 +895,7 @@ mod lineage_tests {
             &client,
             "ReviewOnFreeze",
             "Compliance",
-            "Compliance::AccountFreezeReview.Open",
+            "Compliance::Review.Open",
             &serde_json::json!({ "number": { "value": "acct-1" } }),
             "ResourceNotFoundException: function not found",
             3,
@@ -920,7 +920,7 @@ mod lineage_tests {
         let attempts: i32 = row.get(5);
         assert_eq!(policy, "ReviewOnFreeze");
         assert_eq!(target_domain, "Compliance");
-        assert_eq!(target_verb, "Compliance::AccountFreezeReview.Open");
+        assert_eq!(target_verb, "Compliance::Review.Open");
         assert_eq!(
             payload,
             serde_json::json!({ "number": { "value": "acct-1" } })

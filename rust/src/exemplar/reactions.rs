@@ -25,7 +25,7 @@ crate::kernel::PolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_e
 // Literal rows for the same `const` reason as `policy_table`.
 // TMPL:cross_domain_policy_table BEGIN
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[
-crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb", where_expr: None },
+crate::kernel::CrossDomainPolicyRule { policy_name: "tmpl_policy_name", event_name: "tmpl_event_name", event_qualifier: None, target_domain: "tmpl_target_domain", target_verb: "tmpl_target_verb", with_spec: &[], where_expr: None },
 ];
 // TMPL:cross_domain_policy_table END
 

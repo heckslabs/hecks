@@ -8398,37 +8398,37 @@
       {
         "policy": "ReviewOnFreeze",
         "on": "AccountFrozen",
-        "trigger": "Compliance::AccountFreezeReview.Open",
+        "trigger": "Compliance::Review.Open",
         "delivered": false,
-        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::Review.Open)"
       },
       {
         "policy": "ReviewOnFreeze",
         "on": "AccountFrozen",
-        "trigger": "Compliance::AccountFreezeReview.Open",
+        "trigger": "Compliance::Review.Open",
         "delivered": false,
-        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::Review.Open)"
       },
       {
         "policy": "ReviewOnFreeze",
         "on": "AccountFrozen",
-        "trigger": "Compliance::AccountFreezeReview.Open",
+        "trigger": "Compliance::Review.Open",
         "delivered": false,
-        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::Review.Open)"
       },
       {
         "policy": "ReviewOnFreeze",
         "on": "AccountFrozen",
-        "trigger": "Compliance::AccountFreezeReview.Open",
+        "trigger": "Compliance::Review.Open",
         "delivered": false,
-        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::Review.Open)"
       },
       {
         "policy": "ReviewOnFreeze",
         "on": "AccountFrozen",
-        "trigger": "Compliance::AccountFreezeReview.Open",
+        "trigger": "Compliance::Review.Open",
         "delivered": false,
-        "reason": "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+        "reason": "no domain \"Compliance\" loaded (verb Compliance::Review.Open)"
       },
       {
         "policy": "FreezeAccountsOnSuspension",

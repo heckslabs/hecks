@@ -9,7 +9,10 @@ module Hecks
         module Answers
           # What a dispatch needs beyond the spec: the parsed arguments, whether `--wait` was given,
           # and the bluebook and launcher setting the command belongs to.
-          Invocation = Struct.new(:args, :wait, :bluebook, :launcher)
+          Invocation = Struct.new(:args, :wait, :bluebook, :launcher, :text)
+
+          # The flag that asks for a command's recorded output as plain text and nothing else.
+          TEXT = "--text".freeze
 
           # Parses one resolved command's arguments, runs it as a query or command, and turns the
           # outcome, or the domain's refusal, into `[json_or_message, status]`. With `--wait`, a
@@ -19,10 +22,10 @@ module Hecks
           # @param launcher [Hash, nil] the bluebook's `launcher` world setting; nil when not opted
           #   in
           def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil) # rubocop:disable Metrics/ParameterLists -- the signature is what `call` passes
-            args, wait = command_line(spec, rest, launcher)
+            args, wait, text = command_line(spec, rest, launcher)
             return answer_query(runtime, spec, args, wait, launcher) if spec[:kind] == :query
 
-            run_command(runtime, spec, Invocation.new(args, wait, bluebook, launcher))
+            run_command(runtime, spec, Invocation.new(args, wait, bluebook, launcher, text))
           rescue Runtime::NotFound, Runtime::TypeMismatch => e
             # A bad argument and a missing record both need the same next step: read the help.
             ["#{e.message}\n\n  #{program} #{"query " if asking}#{name} --help", 1]
@@ -36,10 +39,12 @@ module Hecks
             [e.message, 1]
           end
 
-          # The parsed arguments of a command line and whether to wait for the reactions.
+          # The parsed arguments of a command line, whether to wait for the reactions, and whether
+          # `--text` asked for the recorded output alone (which waits).
           def command_line(spec, rest, launcher)
-            rest, wait = LauncherOptions.take_wait(spec, rest) if launcher
-            [Cli.arguments(spec, rest), wait || LauncherOptions.settled?(launcher, spec)]
+            text = launcher ? rest.include?(TEXT) : false
+            rest, wait = LauncherOptions.take_wait(spec, rest - [TEXT]) if launcher
+            [Cli.arguments(spec, rest), text || wait || LauncherOptions.settled?(launcher, spec), text]
           end
 
           # Whether the error is a wrapped tool's refusal. Matched by name: the adapters belong to
@@ -55,7 +60,9 @@ module Hecks
             args, minted = LauncherOptions.run_key(runtime, spec, invocation.args, invocation.launcher)
             handle = runtime.dispatch_flat(spec[:command], normalized_request(spec, args))
             extra  = refusals_and_run(handle, minted)
-            return settled(runtime, spec, handle, invocation.bluebook, invocation.launcher, extra) if invocation.wait
+            if invocation.wait
+              return settled(runtime, spec, handle, invocation.bluebook, invocation.launcher, extra, text: invocation.text)
+            end
 
             [JSON.pretty_generate(outcome(handle, extra)), 0]
           end
