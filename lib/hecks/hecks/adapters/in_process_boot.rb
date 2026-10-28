@@ -60,12 +60,15 @@ module Hecks
       end
 
       # @param domain [Hash, String] a domain directory
-      # @return [Hash] `text:` every aggregate's current records as one JSON document
-      # @raise [Runtime::NotFound] if the domain cannot be found
-      def stores(domain:)
+      # @param aggregate [Hash, String, nil] a storage name, to read only that aggregate
+      # @param record [Hash, String, nil] a record id within `aggregate`, to read only that record
+      # @return [Hash] `text:` every aggregate's current records as one JSON document, or what
+      #   `aggregate` and `record` narrow it to
+      # @raise [Runtime::NotFound] if the domain, aggregate or record cannot be found
+      def stores(domain:, aggregate: nil, record: nil)
         registry = boot(domain).registry
         CLI::PersistenceNotice.announce(registry, program: "hecks stores")
-        report(JSON.generate(CLI::Stores.stores_of(registry)))
+        report(JSON.generate(CLI::Stores.read(registry, plain(aggregate), plain(record))))
       end
 
       # @param domain [Hash, String] a domain directory
