@@ -68,7 +68,7 @@ exe/hecks test_suite_run.run_spec_example! \
 
 `example.value` filters on the full example description; a single space matches
 every example. The report ends with the example and failure counts. Hecks runs in Memory
-unless a local hecksagon opts it into PostgresEra (ADR 0134), so the run needs no database and no
+unless a local hecksagon opts it into PostgresEra (ADR 0136), so the run needs no database and no
 environment variable. Memory changes some behavior: two guide examples that retry a payment
 (`commands.md`, `policies-and-process-managers.md`) fail under it.
 
