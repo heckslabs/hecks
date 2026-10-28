@@ -1,6 +1,6 @@
 # A context map is declared, and the wiring is checked against it
 
-**Status:** Partly built (the map as data, the comparison and the diagram; see Consequences).
+**Status:** Built, with the kinds as builder-checked symbols rather than keyword rows (see Consequences).
 Date: 2026-10-27.
 
 ## Context
@@ -55,8 +55,8 @@ Smaller gaps follow from the same cause:
    dependency, are compared after reversing.
 2. **The kinds are a closed set**: `customer_supplier`, `conformist`,
    `anticorruption_layer`, `shared_kernel`, `open_host`, `partnership`, and
-   `separate_ways`. Each is a keyword row in the language, admitted through the existing
-   `propose!` and `admit!` path rather than a hand-edited table.
+   `separate_ways` (the last is its own word, not an `as:` kind). The builder checks the
+   kind when the file loads.
 3. **`model_check` compares the declared map with the derived one** and reports:
 
    | Finding | Meaning | Severity |
@@ -139,11 +139,24 @@ Smaller gaps follow from the same cause:
   `ContextRelationships`' edges; `Projections::ContextMapDiagram` draws the Mermaid form.
   `ContextRelationships` still labels an attach `shared_kernel`, and the checks accept that
   edge as a `conformist`, a declared `shared_kernel` or an `open_host`.
-- **Not built:** the `.contextmap` file kind and its builder, loading a map beside a system's
-  bluebooks, the `hecks query context_map` verb, running the comparison from `model_check`,
-  the keyword rows for the kinds, and the Rust parser's side of the new file kind. A
-  `published:` check holds only for subscriptions, which name the event they depend on; a
-  policy edge names a policy, which has no event to hold to the list.
+- **The file kind, built:** `Hecks.context_map` is a top-level word (`*.contextmap` is the last
+  glob of the `LoadOrder` vocabulary row), `DSL::ContextMapBuilder` turns the block into the
+  `ContextMap` above, and a boot registers it (`Registry#context_map`). The language declares
+  the words in `lib/hecks/language/context_map/context_map.bluebook` (`context_map`,
+  `context`, `relate`, `separate_ways`), and `project_parser_table!` carries them to the Rust
+  parser's table. `model_check` runs `context_map_findings` for every booted system that
+  declares a map, in its `contexts` section; the `Introspection.context_map` query
+  (`hecks query Introspection.context_map domain.value=<dir>`) answers the Mermaid diagram
+  with each finding as a comment. Banking's map is `examples/banking/bluebook/banking.contextmap`.
+- **The kinds are not keyword rows.** `as:` takes a symbol that the builder checks against
+  `ContextMap::KINDS`, so a typo is refused when the file loads. Making each kind a row
+  admitted through `propose!` and `admit!` would let a project add a kind without touching Ruby,
+  but no check reads a kind the table does not already name, so the rows would carry nothing.
+- **Not verified or not built:** the Rust side only parses the new words; no Rust code reads a
+  context map, and `cargo test` of the parser was not run in this change. A `published:` check
+  holds only for subscriptions, which name the event they depend on; a policy edge names a
+  policy, which has no event to hold to the list. The sentence form (ADR 0131) has no spelling
+  for a map.
 - Open: whether a context's team belongs in the map or in each context's own
   declaration, and whether `partnership` needs a pair of `published:` lists.
 - Not decided here: a subdomain kind (core, supporting, generic) per context. No check

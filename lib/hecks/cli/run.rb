@@ -90,6 +90,7 @@ module Hecks
       # form's "no such script".
       def cli_form(domain, argv, program)
         runtime = Hecks.boot(domain, install_driving: false)
+        Assembly.bind_ported_runtime(runtime)
         text, status = Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv, program: program)
         status.zero? ? puts(text) : abort(text)
         exit 0

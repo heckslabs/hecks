@@ -29,7 +29,7 @@ export const SELECT_MAX = 30;
 export const OFFER_MAX = 500;
 
 /** The host's name for the aggregate a target offers: the key its choices are held under. */
-export const targetKey = (target: Target): string => hostName(target.target ?? "", target.chapter);
+export const targetKey = (target: Target): string => hostName(target.target ?? "", target.bluebook);
 
 const idOf = (key: string): string => `choices-${key.replace(/[^A-Za-z0-9]+/g, "-")}`;
 

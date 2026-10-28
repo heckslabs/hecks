@@ -38,13 +38,14 @@ module Hecks
             return nil unless key && keyed_by?(key, agg)
 
             shape, field = shape_of(other, media)
-            { "aggregate" => other["name"], "chapter" => other["chapter"], "field" => key["name"], "shape" => shape,
+            { "aggregate" => other["name"], "bluebook" => other["bluebook"], "field" => key["name"], "shape" => shape,
               "create" => creating(other, key), "edit" => editing(other, field) }.compact
           end
 
           # @return [Boolean] whether `key` is declared a key of `<agg's snake name>:<slug>`
           def keyed_by?(key, agg)
-            (key.dig("picker", "kinds") || []).any? { |kind| kind["target"] == agg["name"] && kind["chapter"] == agg["chapter"] }
+            kinds = key.dig("picker", "kinds") || []
+            kinds.any? { |kind| kind["target"] == agg["name"] && kind["bluebook"] == agg["bluebook"] }
           end
 
           # @return [Array(String, String)] the shape, and the attribute that gives it

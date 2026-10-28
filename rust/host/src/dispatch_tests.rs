@@ -1676,7 +1676,7 @@ pub mod tests {
     // Pins a real drop: a second cross-domain reaction from the same
     // step must not go dark just because the first one's delivery
     // exhausted its retries. `SafeDepositBox.Surrender` emits both
-    // `BoxSurrendered` (-> Compliance) and `KeyReturnDue` (-> Notifications)
+    // `BoxSurrendered` (-> Compliance) and `KeyReturnRequested` (-> Notifications)
     // from one command.
     #[tokio::test]
     async fn a_failed_cross_domain_delivery_does_not_drop_a_sibling_reaction_from_the_same_step() {

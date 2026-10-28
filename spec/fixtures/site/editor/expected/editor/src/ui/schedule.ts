@@ -30,7 +30,7 @@ function scheduler(): { agg: Aggregate; spec: Scheduling } | null {
 /** Whether a scheduled action's subject can be a record of `agg`: its key's kinds name that aggregate. */
 function subjectIs(sched: Aggregate, spec: Scheduling, agg: Aggregate): boolean {
   const subject = sched.attributes.find((attr) => attr.name === spec.subject);
-  return (subject?.picker?.kinds ?? []).some((kind) => kind.target === agg.name && kind.chapter === agg.chapter);
+  return (subject?.picker?.kinds ?? []).some((kind) => kind.target === agg.name && kind.bluebook === agg.bluebook);
 }
 
 /** Whether records of `agg` have a Schedule panel and the person may use it. */
@@ -138,7 +138,7 @@ function subjectLink(key: string, sched: Aggregate, spec: Scheduling, world: Wor
   const kind = key.slice(0, Math.max(key.indexOf(":"), 0));
   const subject = sched.attributes.find((attr) => attr.name === spec.subject);
   const target = (subject?.picker?.kinds ?? []).find((candidate) => candidate.kind === kind && candidate.target);
-  const aggregate = target && SCHEMA.aggregates.find((candidate) => candidate.name === target.target && candidate.chapter === target.chapter);
+  const aggregate = target && SCHEMA.aggregates.find((candidate) => candidate.name === target.target && candidate.bluebook === target.bluebook);
   const id = aggregate && [key.slice(kind.length + 1), key].find((candidate) => world.lookup(aggregate, candidate));
   return aggregate && id ? `<a class="link" href="${esc(href(...at(aggregate), "id", id))}">${esc(key)}</a>` : esc(key);
 }

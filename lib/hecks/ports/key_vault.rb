@@ -16,9 +16,12 @@ module Hecks
       # how a right-to-erasure request is satisfied without rewriting or deleting events.
       def destroy(registry, key_reference:) = adapter(registry).destroy(key_reference: key_reference)
 
-      # Destroys the subject's key, then dispatches Shred, in that fixed order — never the
-      # reverse, so Shred cannot be dispatched before the key is actually gone. Idempotent:
-      # a subject with no live key, or one already shredded, is left alone and returns false.
+      # Asks for the subject's key to be destroyed by dispatching Shred. The model keeps the
+      # order (ADR 0142): Shred only requests, the vault destroys the key, and the record reads
+      # `shredded` once the vault has answered. Idempotent: a subject with no key, or one already
+      # shredded or being shredded, is left alone and returns false.
+      #
+      # @return [Boolean] whether a shred was asked for; the record's status says how it ended
       def shred!(dispatcher, domain:, subject_id:) # rubocop:disable Naming/PredicateMethod
         provider = dispatcher.registry.provider_of(Bluebook::Capabilities::SUBJECT_KEYS)
         return false unless provider
@@ -26,9 +29,8 @@ module Hecks
         record = dispatcher.query(provider.provided_verb(Bluebook::Capabilities::SUBJECT_KEYS, :key_for),
                                   domain: domain, subject_id: subject_id).first
         return false unless record
-        return false if record[:status].to_s == "shredded"
+        return false if %w[shredded shredding].include?(record[:status].to_s)
 
-        destroy(dispatcher.registry, key_reference: record[:key_reference].value)
         shred = provider.provided_verb(Bluebook::Capabilities::SUBJECT_KEYS, :shred)
         dispatcher.dispatch_flat(shred, domain: { value: domain }, subject_id: { value: subject_id })
         true
