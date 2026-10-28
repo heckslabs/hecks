@@ -128,7 +128,7 @@ level down, in the checker meant to enforce it.
 
 **What the gate does not yet do**, named rather than silently scoped
 around: it doesn't scan `bin/` or the rest of `lib/` for a brand-new
-script or module that reinvents "read a chapter's declaration, answer
+script or module that reinvents "read a bluebook's declaration, answer
 something derived" *outside* `Projector::Target` entirely — the risk
 `bin/expression_projection`'s own header already named for itself
 ("however much its name suggests otherwise"). Building that half

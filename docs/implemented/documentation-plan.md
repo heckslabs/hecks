@@ -27,7 +27,7 @@ disagree with anything":
    against the real runtime by a spec; `# =>` result claims asserted; a lying
    guide goes red in CI.
 2. **Generated DSL reference** — committed Markdown projected from the language's
-   self-describing meta-domain (Syntax chapter Keyword/Argument rows), golden-
+   self-describing meta-domain (Syntax bluebook Keyword/Argument rows), golden-
    checked; hand prose survives regeneration; an undocumented admitted word fails
    the suite.
 3. **Comprehensive README, auto-generated where possible** — generated regions
@@ -70,7 +70,7 @@ inline `# =>` assertion convention; full guide set this pass.
   substring; not raising fails.
 - Failure UX: `Doctest::Mismatch` naming `guide.md:LINE`, expr, expected, actual.
 - Isolation: facade constants leak by design (nothing uninstalls) → harness scans
-  declared chapter names and FAILS LOUDLY on cross-guide collisions (random spec
+  declared bluebook names and FAILS LOUDLY on cross-guide collisions (random spec
   order would make silent rebinds flaky). Each guide uses unique domain names.
 
 ### B. Reference generator — `lib/hecks/doc/reference.rb` (~230 loc) + `bin/reference` (~30 loc) + `spec/reference_golden_spec.rb` (~70 loc)

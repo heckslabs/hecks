@@ -10,7 +10,7 @@ between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 A `.world` is the only file here that carries no domain shape at all, so
-these examples declare a small chapter and then two different worlds for
+these examples declare a small bluebook and then two different worlds for
 it — the same domain, wired twice:
 
 ```ruby bluebook
@@ -91,7 +91,7 @@ end
 Deployment identity — free text, not a closed set (`"RiveGauche"`, `"Examples"`). It is what makes a command or query's FQN addressable (`Realm::Domain::Aggregate.verb`), and `ProjectRegister` refuses to boot a project whose world has no realm, even though the meta-domain's own `Declare` command marks the field optional.
 
 The realm is read back off the registry, not off the bluebook — the
-chapter itself never mentions one:
+bluebook itself never mentions one:
 
 ```ruby
 runtime.registry.world("WorldReference").realm  # => "Examples"
@@ -116,7 +116,7 @@ WorldReference::Beacon.light!(callsign: "w-1").callsign.value  # => "w-1"
 
 Pins which `version:` of the bluebook this world treats as current — an unversioned FQN resolves to whichever version matches `latest`. Optional (a domain with no `version:` needs none), but if it names a version that disagrees with the bluebook's own, the project refuses to boot with `LatestMismatch` rather than silently picking one. None of the examples in this repository set it; every worked domain here is unversioned.
 
-The chapter above is declared `version: "2"`, and this world pins the
+The bluebook above is declared `version: "2"`, and this world pins the
 same:
 
 ```ruby
@@ -124,7 +124,7 @@ runtime.registry.bluebook("WorldReference").version  # => "2"
 runtime.registry.world("WorldReference").latest      # => "2"
 ```
 
-A world may leave it off entirely — an unversioned chapter needs no pin,
+A world may leave it off entirely — an unversioned bluebook needs no pin,
 and `latest` answers `nil` rather than guessing:
 
 ```ruby
@@ -142,25 +142,25 @@ runtime.registry.world("WorldReferenceUnpinned").latest      # => nil
 | positional 1 | text | true | default_database |
 <!-- generated:end -->
 
-Names the database connection every chapter's persistence adapter uses, once, instead of one `persisted_by("Adapter") do database ... end` block per chapter and per adapter. A project that attaches a dozen chapters otherwise repeats the identical block in a world per chapter — and twice each when an environment swaps one adapter for another, since the world cannot know which one the environment binds.
+Names the database connection every bluebook's persistence adapter uses, once, instead of one `persisted_by("Adapter") do database ... end` block per bluebook and per adapter. A project that attaches a dozen bluebooks otherwise repeats the identical block in a world per bluebook — and twice each when an environment swaps one adapter for another, since the world cannot know which one the environment binds.
 
-The default reaches a bind only when three things hold: it is a `persisted_by` bind, its adapter declares a `database` field (`Memory` and `Heki` do not, a projection adapter is never touched), and the chapter's own settings for that adapter name no `database`. Every other setting a chapter declares rides along unchanged. "Takes a `database`" is all the word looks at, so a file-backed adapter such as `SqlitePersistence` receives the default too; an environment that binds one names its own value in an `environments/<name>.world` overlay, which replaces the default for that environment. It is read from the chapter's own world first, then from the project's world — the world of the first chapter the boot loaded.
+The default reaches a bind only when three things hold: it is a `persisted_by` bind, its adapter declares a `database` field (`Memory` and `Heki` do not, a projection adapter is never touched), and the bluebook's own settings for that adapter name no `database`. Every other setting a bluebook declares rides along unchanged. "Takes a `database`" is all the word looks at, so a file-backed adapter such as `SqlitePersistence` receives the default too; an environment that binds one names its own value in an `environments/<name>.world` overlay, which replaces the default for that environment. It is read from the bluebook's own world first, then from the project's world — the world of the first bluebook the boot loaded.
 
 The resolution order, most specific first:
 
-1. the chapter's own `persisted_by("Adapter") do database ... end` block;
-2. `default_database` in the chapter's own world;
+1. the bluebook's own `persisted_by("Adapter") do database ... end` block;
+2. `default_database` in the bluebook's own world;
 3. `default_database` in the project's world;
 4. nothing — a world that declares no default behaves exactly as it did before the word existed.
 
-The resolved settings are what the adapter is built from, identical to spelling the block out per chapter. `Registry#binding_settings` answers them:
+The resolved settings are what the adapter is built from, identical to spelling the block out per bluebook. `Registry#binding_settings` answers them:
 
 ```ruby
 runtime.registry.binding_settings("WorldReference", "persisted_by", "ReferenceStore")
 # => {adapter: "ReferenceStore", database: "data/beacons"}
 ```
 
-A second chapter with no world of its own inherits the project's default:
+A second bluebook with no world of its own inherits the project's default:
 
 ```ruby
 runtime.registry.binding_settings("WorldReferenceUnpinned", "persisted_by", "ReferenceStore")
@@ -183,15 +183,15 @@ runtime.registry.binding_settings("WorldReference", "persisted_by", "Memory")  #
 | positional 1 | text | true | default_adapter |
 <!-- generated:end -->
 
-Names the persistence adapter every aggregate binds to, once, instead of one `persisted_by("Adapter")` line per aggregate in a hecksagon per chapter. It stands in wherever a chapter's hecksagon binds nothing for an aggregate — and for a chapter with no hecksagon at all, in place of the framework's in-memory fallback.
+Names the persistence adapter every aggregate binds to, once, instead of one `persisted_by("Adapter")` line per aggregate in a hecksagon per bluebook. It stands in wherever a bluebook's hecksagon binds nothing for an aggregate — and for a bluebook with no hecksagon at all, in place of the framework's in-memory fallback.
 
 The resolution order, most specific first:
 
-1. the aggregate's own bind in its chapter's hecksagon;
-2. the chapter's domain-level default bind (`persisted_by "Adapter"`, bare);
-3. `default_adapter` in the chapter's own world;
-4. `default_adapter` in the project's world — the world of the first chapter the boot loaded;
-5. the framework's in-memory adapter, for a chapter with no hecksagon; a hecksagon that leaves an aggregate unbound still refuses boot when no world declares a default.
+1. the aggregate's own bind in its bluebook's hecksagon;
+2. the bluebook's domain-level default bind (`persisted_by "Adapter"`, bare);
+3. `default_adapter` in the bluebook's own world;
+4. `default_adapter` in the project's world — the world of the first bluebook the boot loaded;
+5. the framework's in-memory adapter, for a bluebook with no hecksagon; a hecksagon that leaves an aggregate unbound still refuses boot when no world declares a default.
 
 The named adapter must be a persistence adapter; boot refuses one that is unknown, has no implementation, or answers a different port. A world may declare one default adapter; an `environments/<name>.world` overlay replaces it for that environment, so a base world can name the durable adapter while a local environment names a lighter one.
 

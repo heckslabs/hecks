@@ -93,7 +93,7 @@ against, so there is no second copy of the truth to drift from the
 first.
 
 Call it the same way `spec/model_check_spec.rb` does — in process,
-against the chapter you just booted:
+against the bluebook you just booted:
 
 ```ruby
 require "hecks/bluebook/model_check"
@@ -172,7 +172,7 @@ lifecycles, sagas, and policies:
 | `orphaned_reference` | warning | an aggregate that can end holds `reference_to` one whose life ends (a reached, non-default state nothing leaves), and no policy on that ending's event fans out over or triggers a command of the holder; Hecks's stand-in for `dependent: :destroy` (ADR 0121) |
 | `one_of_branch_unhandled` | error | a command `given`/`ensures` or a read model `where` on the owning aggregate compares a `reference_to one_of(...)` attribute's `type` with a name, and the branches leave a variant of the union unhandled, or name a type the union does not hold (ADR 0127) |
 
-The CLI walks every example, every grammar chapter, and the language's
+The CLI walks every example, every grammar bluebook, and the language's
 own two meta-chapters the same way, in one pass:
 
 ```sh
@@ -218,7 +218,7 @@ natively (`SqliteProjection`, `PostgresProjection`) is not refused: the
 `projected_read_models_agree_with_loop` check below compares the
 projection's answer with the in-process loop's.
 
-From Ruby, pass `profile: :client` beside the chapter's hecksagon:
+From Ruby, pass `profile: :client` beside the bluebook's hecksagon:
 
 ```ruby
 registry = runtime.registry
@@ -302,7 +302,7 @@ only asks the adapter about itself could ever have caught it.
 A projection is checked the same way, against the loop rather than
 against itself. On a SQLite or Postgres sweep (`hecks fuzz_run.fuzz
 adapter.value=sqlite`), `projected_read_models_agree_with_loop` boots the
-domain on Memory with every chapter `projected_by` that adapter's
+domain on Memory with every bluebook `projected_by` that adapter's
 projection (`SqliteProjection` or `PostgresProjection`), replays the
 sequence, catches every projection up, and asks every rooted read model,
 reductions included, for every record its reference can name: once

@@ -5,7 +5,7 @@ Hecks.bluebook "Identity" do
   # `supporting` (ADR 0025).
   generic
 
-  # What this chapter answers for every attaching domain, declared rather than named as
+  # What this bluebook answers for every attaching domain, declared rather than named as
   # Governance's `provides "authorization"` is. Field mapping lives on the consuming
   # hecksagon's `translates` ACL; Link's reference is `identity`, not `identity_id` or `to:`.
   provides "identity",

@@ -131,16 +131,16 @@ Hecks::Bluebook::DSL::LifecycleBuilder.build(:status, default: "pending") { mark
 
 A host reads a mark through a capability. A package's `provides "payments"` row
 may add a `holds_seat: "Payment.holds_seat"` entry (spelled
-`Aggregate.mark_name`). It must name something the chapter declares, or the
-chapter is refused when it is built. The exported `ir.json` then carries the
+`Aggregate.mark_name`). It must name something the bluebook declares, or the
+bluebook is refused when it is built. The exported `ir.json` then carries the
 states in its `provides.payments` fact as `holds_seat: ["pending", "succeeded"]`,
-and the Rust host counts seats from that list. A chapter that leaves the entry out exports exactly what it did
+and the Rust host counts seats from that list. A bluebook that leaves the entry out exports exactly what it did
 before, and the host falls back to its built-in default list with one warning.
 
 The `registrations` capability takes one: `frees_seat: "Registration.frees_seat"`, over a
 registration lifecycle's `mark :frees_seat, "archived"`. A registration in one of those
 states gives its seat back, so the host leaves it out of the seats an event has used. The
-fact carries `frees_seat: ["archived"]`; a chapter that omits the entry gets `archived`
+fact carries `frees_seat: ["archived"]`; a bluebook that omits the entry gets `archived`
 and one warning.
 
 The `newsletter` capability takes three such entries, all optional, over the
@@ -159,5 +159,5 @@ provides "newsletter",
 
 Each is exported in the `newsletter` fact as a state list. The host falls back
 per mark to `pending`, `confirmed` and `unsubscribed` with one warning when a
-chapter leaves it out.
+bluebook leaves it out.
 

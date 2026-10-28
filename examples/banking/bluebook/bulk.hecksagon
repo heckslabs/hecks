@@ -8,7 +8,7 @@ Hecks.hecksagon "Banking" do
   attaches "Bulk"
 end
 
-# The chapter brings its shape, not its persistence. Memory here because this is an example
+# The bluebook brings its shape, not its persistence. Memory here because this is an example
 # corpus member.
 Hecks.hecksagon "Bulk" do
   # `Record` and `Decline` are the system's: Governance must be attached for the role to be checked.

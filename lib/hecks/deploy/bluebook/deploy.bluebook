@@ -5,7 +5,7 @@
 # each command below is also `hecks deploy <verb>`. The targets validate the `deployed_to` shape
 # that `world.bluebook`'s untyped `Setting` map leaves open. Each run below records that it was
 # requested before its DeployToolchain port is asked, and what came of it after. No command
-# declares a role: the chapter boots standing alone, without Governance to check one against.
+# declares a role: the bluebook boots standing alone, without Governance to check one against.
 Hecks.bluebook "Deploy" do
   vision "Generate, check and compare deploy recipes, project OIDC manifests and provision tenants."
 
@@ -545,7 +545,7 @@ Hecks.bluebook "Deploy" do
     end
   end
 
-  # `TenantProvisioned` also reaches Tenancy's `RegisterProvisionedTenant` where that chapter is
+  # `TenantProvisioned` also reaches Tenancy's `RegisterProvisionedTenant` where that bluebook is
   # attached, so a provisioned tenant becomes a fact there.
   policy "ProvisionWhenRequested" do
     on      "Tenant.TenantProvisionRequested"
@@ -2806,7 +2806,7 @@ Hecks.bluebook "Deploy" do
     end
 
     command "ProjectOidc" do
-      goal "Write each domain's OIDC client and scope manifest beside it: oidc.json, or one <chapter>.oidc.json for each chapter of a directory that holds several"
+      goal "Write each domain's OIDC client and scope manifest beside it: oidc.json, or one <bluebook>.oidc.json for each bluebook of a directory that holds several"
 
       attribute :domains, DomainList, optional: true
       attribute :run,     RunKey

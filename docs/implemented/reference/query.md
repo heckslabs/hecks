@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 Most of these run against `examples/banking`, whose `Account` and
 `SafeDepositBox` queries carry ordering, limits, and a real tenant
 boundary. `reference_to`, `offset` and `nulls` are written nowhere in
-the corpus, so they get a chapter of their own:
+the corpus, so they get a bluebook of their own:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))

@@ -3,7 +3,7 @@
 ## Motivation
 
 `chapter-given.md` let an AGGREGATE's own `given` be shared with any OTHER
-aggregate in the same chapter. `cross-entity-given.md` let a PIECE's own
+aggregate in the same bluebook. `cross-entity-given.md` let a PIECE's own
 `given` be shared with any sibling piece nested under the SAME aggregate.
 Neither reaches the shape real corpus duplication actually took one level
 further: two pieces nested under two DIFFERENT aggregates, each
@@ -26,16 +26,16 @@ DIFFERENT canonical under the same description (`chapter-given.md`'s own
 
 ## Algorithm
 
-1. A CHAPTER holds one mutable "chapter-entity-given" pool
+1. A Bluebook holds one mutable "chapter-entity-given" pool
    (`@chapter_entity_named_givens` in `BluebookBuilder`), created once,
-   empty, at the chapter's own build start — the entity-scoped analogue of
+   empty, at the bluebook's own build start — the entity-scoped analogue of
    `@chapter_named_givens`, one level down.
-2. That SAME pool object is threaded into every aggregate the chapter
+2. That SAME pool object is threaded into every aggregate the bluebook
    builds (`AggregateBuilder.build(..., chapter_entity_named_givens: pool)`),
    which threads it, unchanged, into every TOP-LEVEL piece it builds
    (`EntityBuilder.build(..., chapter_entity_named_givens: pool, aggregate_name: @name)`),
    which threads it further into any piece nested inside THAT piece,
-   however deep — one pool, reachable from anywhere in the whole chapter's
+   however deep — one pool, reachable from anywhere in the whole bluebook's
    entire entity tree, across every aggregate.
 3. A piece's own `given(description) { predicate }` (block form) does
    everything it already did (write into its own `@named_givens`, and into
@@ -44,7 +44,7 @@ DIFFERENT canonical under the same description (`chapter-given.md`'s own
    **[description, "AggregateName.EntityName"]** — a dotted string, not a
    bare description, since (unlike the same-aggregate cross-entity pool)
    the SAME description can legitimately mean a genuinely different
-   predicate declared by a different piece elsewhere in the chapter, the
+   predicate declared by a different piece elsewhere in the bluebook, the
    identical reason `chapter-given.md`'s own pool is keyed by owner too.
    First declaration under a given [description, owner] pair wins
    (`||=`) — this pool is additive, never overwritten.
@@ -67,26 +67,26 @@ DIFFERENT canonical under the same description (`chapter-given.md`'s own
    the COMMAND level (`CommandBuilder#reference_named_given`), unaffected
    by whether the piece it's reading from declared locally or referenced
    chapter-wide.
-5. A CHAPTER MAY BE SPLIT ACROSS FILES — the identical reason
+5. A Bluebook MAY BE SPLIT ACROSS FILES — the identical reason
    `chapter-given.md`'s own step 5 exists. An unresolved bare reference
    (steps 4.1/4.3, above) hands back a PLACEHOLDER `Given` (embedded, by
    Ruby object reference, in the referencing piece's own `preconditions`)
    and queues the request; `BluebookBuilder#resolve_pending_chapter_entity_
    givens!` — called both from `BluebookBuilder#build` (single-file
-   chapters) and from `MetaValidator.judge_deferred!` (chapters split
+   bluebooks) and from `MetaValidator.judge_deferred!` (bluebooks split
    across files loaded under `MetaValidator.defer`) — mutates every queued
-   placeholder in place once the whole chapter has loaded, against the by-
+   placeholder in place once the whole bluebook has loaded, against the by-
    then-complete pool.
 
 ## Qualifies / does not qualify
 
 | Input | Outcome |
 |---|---|
-| `SafeDepositBox::Visit` bare-references `"customer is active"`; `Account::LedgerEntry` (a different aggregate's own piece) already declared it with a block, and no other piece in the chapter declares this description | Resolves to `Account::LedgerEntry`'s own `Given` object, `declared_by:` omittable (single candidate) — qualifies |
-| Two DIFFERENT pieces (anywhere in the chapter) declare the SAME description with a TEXTUALLY DIFFERENT predicate | Both stay as independent candidates; a later bare reference MUST supply `declared_by:` to pick one, or raises `Malformed` naming both |
+| `SafeDepositBox::Visit` bare-references `"customer is active"`; `Account::LedgerEntry` (a different aggregate's own piece) already declared it with a block, and no other piece in the bluebook declares this description | Resolves to `Account::LedgerEntry`'s own `Given` object, `declared_by:` omittable (single candidate) — qualifies |
+| Two DIFFERENT pieces (anywhere in the bluebook) declare the SAME description with a TEXTUALLY DIFFERENT predicate | Both stay as independent candidates; a later bare reference MUST supply `declared_by:` to pick one, or raises `Malformed` naming both |
 | A piece bare-references a description declared only by a SIBLING piece under its OWN aggregate | Still resolves through the existing same-aggregate cross-entity pool (`@owner_named_givens`) first if that pool already holds it — the chapter-wide pool is a fallback, not a replacement, for the narrower scope `cross-entity-given.md` already covers |
-| A piece bare-references a description NO piece anywhere in the chapter declares, by the time the whole chapter has loaded | `Malformed`, naming the description and that no piece in the chapter declares it |
-| Two UNRELATED chapters' own pieces happen to phrase a rule identically | Never shared — each chapter holds its own separate pool; cross-CHAPTER sharing does not exist and is out of scope here, the same boundary `chapter-given.md`'s own pool respects one level up |
+| A piece bare-references a description NO piece anywhere in the bluebook declares, by the time the whole bluebook has loaded | `Malformed`, naming the description and that no piece in the bluebook declares it |
+| Two UNRELATED bluebooks' own pieces happen to phrase a rule identically | Never shared — each bluebook holds its own separate pool; cross-CHAPTER sharing does not exist and is out of scope here, the same boundary `chapter-given.md`'s own pool respects one level up |
 
 ## Known limitations
 
@@ -134,7 +134,7 @@ DIFFERENT canonical under the same description (`chapter-given.md`'s own
   unchanged into nested pieces).
 - `lib/hecks/bluebook/meta_validator.rb` — `.judge_deferred!` (calls
   `resolve_pending_chapter_entity_givens!` alongside the existing
-  aggregate-level call, for chapters split across files).
+  aggregate-level call, for bluebooks split across files).
 
 ## Reference mirror
 

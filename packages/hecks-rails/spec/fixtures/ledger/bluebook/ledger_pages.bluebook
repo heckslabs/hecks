@@ -1,4 +1,4 @@
-# How the ledger's Rails app is named and listed; the shapes of these rows are the RailsApp chapter's.
+# How the ledger's Rails app is named and listed; the shapes of these rows are the RailsApp bluebook's.
 Hecks.bluebook "LedgerPages" do
   vision "The name of the ledger's app and how its notes are listed."
 

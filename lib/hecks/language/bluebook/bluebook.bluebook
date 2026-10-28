@@ -2,9 +2,9 @@ Hecks.bluebook "Bluebook", version: "1" do
   vision "The bluebook language, declared in itself. Loading a domain becomes dispatching commands into this meta-domain ; the IR it stores must equal the IR the DSL builder produces. The floor that stays hand-written is the interpreter — evaluating a predicate held as data — and IO."
   core
 
-  # A whole bluebook in one read: every declaration gathered around the chapter itself.
+  # A whole bluebook in one read: every declaration gathered around the bluebook itself.
   read_model "WholeBluebook" do
-    description "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read."
+    description "Every declaration of one bluebook, gathered around the bluebook itself — the way back, in a single read."
     reference_to Bluebook
 
     include Bluebook
@@ -24,22 +24,22 @@ Hecks.bluebook "Bluebook", version: "1" do
   aggregate "Bluebook" do
     description "One .bluebook file — the root a domain declaration hangs from."
 
-    # A chapter is identified by its name; commands reach it through the `bluebook_id` reference.
+    # A bluebook is identified by its name; commands reach it through the `bluebook_id` reference.
     identified_by BluebookName, as: :name
 
     attribute :vision,         Vision
     attribute :classification, Classification
-    # Contract version pinned per chapter, e.g. `version: "v2"`. Absent is not empty.
+    # Contract version pinned per bluebook, e.g. `version: "v2"`. Absent is not empty.
     attribute :version,        Version
     # A rename is a declared fact. Absent is not empty.
     attribute :formerly_known_as, FormerlyKnownAs
     attribute :namespace, ChapterNamespace
     attribute :normalisations, list_of(NormalisationRule)
-    # Core contexts a sub-language chapter contributes Syntax rows for (ADR 0026).
-    # Absent is not empty: most chapters attach to nothing.
+    # Core contexts a sub-language bluebook contributes Syntax rows for (ADR 0026).
+    # Absent is not empty: most bluebooks attach to nothing.
     attribute :attaches_to, list_of(AttachesToContext)
-    # Capabilities this chapter answers for other domains, one row per (capability, key, verb).
-    # Absent is not empty: most chapters provide nothing.
+    # Capabilities this bluebook answers for other domains, one row per (capability, key, verb).
+    # Absent is not empty: most bluebooks provide nothing.
     attribute :provides, list_of(Provision)
 
     value_object "Provision" do
@@ -93,7 +93,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       invariant("a formerly_known_as says something") { !value.to_s.empty? }
     end
 
-    # The Ruby module a chapter's constants install under instead of its own name.
+    # The Ruby module a bluebook's constants install under instead of its own name.
     value_object "ChapterNamespace" do
       attribute :value, String
       invariant("a namespace is a constant path") { value.to_s.match?(/\A[A-Z][A-Za-z0-9_]*(::[A-Z][A-Za-z0-9_]*)*\z/) }
@@ -106,7 +106,7 @@ Hecks.bluebook "Bluebook", version: "1" do
 
     command "Declare" do
       role "Language"
-      goal "Open a chapter"
+      goal "Open a bluebook"
 
       attribute :name,           BluebookName
       attribute :vision,         Vision, optional: true
@@ -128,7 +128,7 @@ Hecks.bluebook "Bluebook", version: "1" do
     # Appends one context; `attaches_to "Query", "ReadModel"` names several at once.
     command "Attach" do
       role "Language"
-      goal "Name one core context this chapter's own Syntax rows attach to"
+      goal "Name one core context this bluebook's own Syntax rows attach to"
 
       attribute :context, AttachesToContext
 
@@ -143,7 +143,7 @@ Hecks.bluebook "Bluebook", version: "1" do
     # other capability's keys are its package's own.
     command "Provide" do
       role "Language"
-      goal "Declare one verb this chapter answers a capability with"
+      goal "Declare one verb this bluebook answers a capability with"
 
       attribute :capability, ProvisionText
       attribute :key,        ProvisionText
@@ -163,7 +163,7 @@ Hecks.bluebook "Bluebook", version: "1" do
 
     command "Normalise" do
       role "Language"
-      goal "Attach one canonical-form rule to the chapter"
+      goal "Attach one canonical-form rule to the bluebook"
 
       attribute :strategy,     RuleText
       attribute :source_token, RuleText
@@ -179,7 +179,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       emits NormalisationAttached
     end
 
-    # Keyword rows for this chapter; SyntaxBoot discovers every aggregate-local seed table.
+    # Keyword rows for this bluebook; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

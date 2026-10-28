@@ -2,7 +2,7 @@
 # A bug is logged with the failing test that proves it, or it is not logged.
 
 # Tunable dials for the QA loop: values in qa/settings.yml, what each is in the `QaDial` rows of the
-# Vocabulary chapter.
+# Vocabulary bluebook.
 # `require`, not `require_relative`: isolated fuzz boots load a copy of this file from a tmpdir.
 require "hecks/fuzzing/qa_settings"
 
@@ -13,7 +13,7 @@ unless defined?(QualityControlDials)
     settings = Hecks::Fuzzing::QaSettings.load(ENV.fetch("HECKS_QA_SETTINGS_PATH", Hecks::Fuzzing::QaSettings::DEFAULT_PATH))
 
     # Each dial of qa/settings.yml as a constant named for it: `PR_CAP_PER_DAY` is `pr_cap_per_day`.
-    # What each is and takes is declared once, as its `QaDial` row in the Vocabulary chapter.
+    # What each is and takes is declared once, as its `QaDial` row in the Vocabulary bluebook.
     Hecks::Vocabulary.rows("QaDial").each do |dial|
       const_set(dial.fetch("name").upcase, settings.public_send(dial.fetch("name")))
     end
@@ -29,10 +29,10 @@ Hecks.bluebook "QualityControl" do
 
   core
 
-  # The rotation and its lock: `Claim` is a lifecycle edge, so when two agents race for a chapter
+  # The rotation and its lock: `Claim` is a lifecycle edge, so when two agents race for a bluebook
   # one transition wins and the other is refused.
   aggregate "Target" do
-    description "A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice."
+    description "A bluebook that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice."
 
     identified_by :reference
 
@@ -43,7 +43,7 @@ Hecks.bluebook "QualityControl" do
     attribute :claimed_at, Instant
     attribute :window,     StaleAfter
     attribute :last_swept, SweptIn
-    # Recency-decayed count of how often this chapter was worth sweeping; see `YieldScore`.
+    # Recency-decayed count of how often this bluebook was worth sweeping; see `YieldScore`.
     attribute :yield_score, YieldScore
     # Consecutive `Release`s that came back clean; `hecks quality_control query sweep.run` reads it to choose sweep depth.
     # Zero means no streak yet, shared on purpose by a never-swept target and a just-surprised one.
@@ -111,7 +111,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     # `suspended` is "surprised, waiting for a person": stale-claim arithmetic never reaches it, so
-    # a chapter with an unresolved surprise is not re-fuzzed until a `Release` puts it back.
+    # a bluebook with an unresolved surprise is not re-fuzzed until a `Release` puts it back.
     lifecycle :status, default: "waiting" do
       transition "Claim"   => "held",      from: ["waiting", "held"]
       transition "Release" => "waiting",   from: ["held", "suspended"]
@@ -122,7 +122,7 @@ Hecks.bluebook "QualityControl" do
 
     command "Identify" do
       role "QA engineer"
-      goal "Write down that a chapter exists which nobody has swept"
+      goal "Write down that a bluebook exists which nobody has swept"
 
       attribute :reference, TargetReference
       attribute :path,      TargetPath
@@ -136,7 +136,7 @@ Hecks.bluebook "QualityControl" do
     # read the time.
     command "Claim" do
       role "QA engineer"
-      goal "Take the next chapter in the rotation, or one whose holder has gone quiet"
+      goal "Take the next bluebook in the rotation, or one whose holder has gone quiet"
 
       # The window lives on the record, not in an argument: a caller-supplied window would let any
       # agent take a live claim by asking with a window of one second.
@@ -162,7 +162,7 @@ Hecks.bluebook "QualityControl" do
 
     command "Release" do
       role "QA engineer"
-      goal "Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves"
+      goal "Hand a bluebook back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves"
 
       # `now` is the argument and `last_swept` the field, so the entry point can fill the clock.
       #
@@ -193,7 +193,7 @@ Hecks.bluebook "QualityControl" do
     # Dispatched by `SuspendOnSurprise` as `System`; `reason` is the literal that policy supplies.
     command "Suspend" do
       role "System"
-      goal "Take a chapter out of the rotation because a check surprised, until a person releases it"
+      goal "Take a bluebook out of the rotation because a check surprised, until a person releases it"
 
       reference_to Target
       attribute :reason, TargetReason
@@ -205,7 +205,7 @@ Hecks.bluebook "QualityControl" do
 
     command "Shelve" do
       role "QA engineer"
-      goal "Decide a chapter is not worth the practice's time, and say why"
+      goal "Decide a bluebook is not worth the practice's time, and say why"
 
       reference_to Target
       attribute :reason, TargetReason
@@ -218,7 +218,7 @@ Hecks.bluebook "QualityControl" do
     # `reason` is required so the record's `reason` reads as the last decision in either direction.
     command "Restore" do
       role "QA engineer"
-      goal "Put a shelved chapter back in the rotation, and say what changed"
+      goal "Put a shelved bluebook back in the rotation, and say what changed"
 
       reference_to Target
       attribute :reason, TargetReason
@@ -228,13 +228,13 @@ Hecks.bluebook "QualityControl" do
       emits "TargetRestored"
     end
 
-    # Not a lifecycle move, and reachable whatever the chapter's status: a recorded path can go
+    # Not a lifecycle move, and reachable whatever the bluebook's status: a recorded path can go
     # stale (a worktree removed, a project relocated) at any point in the rotation, and fixing it
     # should not have to wait on whatever status a stale claim or a pending sweep happens to leave
-    # the chapter in.
+    # the bluebook in.
     command "Relocate" do
       role "QA engineer"
-      goal "Correct where a chapter's own domain actually lives, once its recorded path stops resolving"
+      goal "Correct where a bluebook's own domain actually lives, once its recorded path stops resolving"
 
       reference_to Target
       attribute :path, TargetPath
@@ -247,13 +247,13 @@ Hecks.bluebook "QualityControl" do
     # Ordered by `last_swept` alone: `order_by` sorts one stored field, and the yield-weighted
     # blend needs `now`. `RotationPriority.pick` weights these rows in Ruby.
     query "Rotation" do
-      description "Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows."
+      description "Whose turn it is — waiting bluebooks, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows."
       where(status: "waiting")
       order_by :last_swept
     end
 
     query "Untouched" do
-      description "Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere."
+      description "Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept bluebook leaves no rows anywhere."
       where(status: "waiting")
       where(:"last_swept.value" => 0)
       order_by :reference
@@ -272,14 +272,14 @@ Hecks.bluebook "QualityControl" do
     end
 
     query "Suspended" do
-      description "Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back."
+      description "Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back."
       where(status: "suspended")
       order_by :reference
     end
 
-    # Answers from the ledger which waiting chapters a mode could run against.
+    # Answers from the ledger which waiting bluebooks a mode could run against.
     query "EligibleFor" do
-      description "Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which chapters a mode can reach; inference at sweep time is still what decides."
+      description "Waiting bluebooks whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which bluebooks a mode can reach; inference at sweep time is still what decides."
       attribute :mode, Capability
       where(:"capabilities.value" => { contains: :mode })
       where(status: "waiting")
@@ -287,11 +287,11 @@ Hecks.bluebook "QualityControl" do
     end
 
     query "All" do
-      description "Every chapter ever written down — the inventory a runner walking the repository checks its findings against."
+      description "Every bluebook ever written down — the inventory a runner walking the repository checks its findings against."
       order_by :reference
     end
 
-    # The commands that enrol, generate and judge chapters. TargetTools answers each by running the
+    # The commands that enrol, generate and judge bluebooks. TargetTools answers each by running the
     # script's own command as a child process (lib/hecks/quality_control/adapters/target_tools.rb) and
     # handing back what it printed; none reads or writes this aggregate's records, so each is a query.
     # `arguments` is the command's own flags as one string, such as `--domains 3 --rust`.
@@ -348,7 +348,7 @@ Hecks.bluebook "QualityControl" do
   end
 
   aggregate "Sweep" do
-    description "One agent's pass over one chapter — every check it made, what each expected, and what actually came back."
+    description "One agent's pass over one bluebook — every check it made, what each expected, and what actually came back."
 
     reference_to Target
 
@@ -452,7 +452,7 @@ Hecks.bluebook "QualityControl" do
       attribute :observation, Observation, optional: true
       # Sticky: `outcome` is the current verdict and `Remake` resets it, but `Release`'s
       # `next_streak` needs "did anything ever surprise this sweep", which a remake must not erase.
-      # `one_of` rather than a Boolean, which this chapter has no precedent for.
+      # `one_of` rather than a Boolean, which this bluebook has no precedent for.
       attribute :ever_surprised, one_of("no", "yes"), default: { value: "no" }
 
       # `surprising` is not `failed`: it covers the crash and the quiet divergence without
@@ -466,7 +466,7 @@ Hecks.bluebook "QualityControl" do
 
       command "Held" do
         role "QA engineer"
-        goal "Record that the system did what the chapter promised"
+        goal "Record that the system did what the bluebook promised"
 
         attribute :sequence,    CheckSequence
         attribute :observation, Observation
@@ -545,7 +545,7 @@ Hecks.bluebook "QualityControl" do
 
     command "Open" do
       role "QA engineer"
-      goal "Begin a pass over one chapter"
+      goal "Begin a pass over one bluebook"
 
       reference_to Target
       attribute :reference, SweepReference
@@ -769,7 +769,7 @@ Hecks.bluebook "QualityControl" do
     # demonstration. `no` is the escape hatch for a real but flaky finding (`hecks quality_control bug.log
     # --reproduced no`).
     attribute :reproduced,    one_of("yes", "no"), default: { value: "yes" }
-    # Bugs are claimed like chapters so two agents do not fix the same one. A `given` rather than a
+    # Bugs are claimed like bluebooks so two agents do not fix the same one. A `given` rather than a
     # lifecycle edge: holding a bug is orthogonal to how far the fix got.
     attribute :held_by,       Engineer
     attribute :claimed_at,    Instant
@@ -1529,7 +1529,7 @@ Hecks.bluebook "QualityControl" do
 
     # A policy re-enters its target with the event payload verbatim, so `Retry` must accept
     # `refusal` or be refused outright. It is set rather than dropped: an argument taken and
-    # ignored is exactly what this chapter hunts.
+    # ignored is exactly what this bluebook hunts.
     command "Retry" do
       role "System"
       goal "Ask again, up to the limit, carrying what was refused"

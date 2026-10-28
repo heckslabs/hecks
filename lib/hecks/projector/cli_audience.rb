@@ -43,7 +43,7 @@ module Hecks
         return [] if Array(chapters).empty?
 
         width = chapters.map { |word, _| word.length }.max
-        ["", "chapters (`#{program} <chapter>` lists a chapter's own commands and queries):",
+        ["", "bluebooks (`#{program} <bluebook>` lists a bluebook's own commands and queries):",
          *chapters.map { |word, summary| "  #{word.ljust(width)}  #{clipped(summary)}".rstrip }]
       end
 

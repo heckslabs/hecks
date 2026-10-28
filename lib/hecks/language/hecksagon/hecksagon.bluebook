@@ -18,8 +18,8 @@ Hecks.bluebook "Hecksagon" do
       invariant("a subscription names an event") { !value.to_s.empty? }
     end
 
-    # A chapter this hecksagon attaches: `value` is its name, `source` is `gem` for a chapter the
-    # gem carries (a framework member such as Governance, or a language chapter such as Deploy)
+    # A bluebook this hecksagon attaches: `value` is its name, `source` is `gem` for a bluebook the
+    # gem carries (a framework member such as Governance, or a language bluebook such as Deploy)
     # or `vendor` for a package vendored into the consuming project, not shipped in hecks's lib/.
     value_object "Attachment" do
       attribute :value,  String
@@ -66,7 +66,7 @@ Hecks.bluebook "Hecksagon" do
 
     command "Attaches" do
       role "Deployment"
-      goal "Attach a chapter to this hecksagon, from the gem or from vendor"
+      goal "Attach a bluebook to this hecksagon, from the gem or from vendor"
 
       attribute :chapter, ChapterName
       attribute :source,  String, default: "gem"

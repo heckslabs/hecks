@@ -4,7 +4,7 @@ Hecks.hecksagon "Change" do
   persisted_by "Memory"
 
   # The change moves through two asks: `Examine` plans it, `Perform` carries it out. What a
-  # script does is the adapter's, so the chapter never names one.
+  # script does is the adapter's, so the bluebook never names one.
   Change::Change.port "Script" do
     asks "Examine", to: Change do
       attribute :run, RunKey

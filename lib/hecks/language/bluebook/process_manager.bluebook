@@ -4,7 +4,7 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Bluebook
 
-    # The chapter it belongs to, and its name, as for a policy.
+    # The bluebook it belongs to, and its name, as for a policy.
     identified_by :bluebook, :name
 
     attribute :name,      ProcessManagerName
@@ -43,7 +43,7 @@ Hecks.bluebook "Bluebook" do
       attribute :value, String
     end
 
-    # Orders one handler's dispatches; Position orders process managers within a chapter.
+    # Orders one handler's dispatches; Position orders process managers within a bluebook.
     # Part of Dispatch identity: a handler may send the same command several times with different
     # `with:` bindings, so command_name alone collides.
     value_object "DispatchPosition" do
@@ -65,7 +65,7 @@ Hecks.bluebook "Bluebook" do
     end
     command "Declare" do
       role "Language"
-      goal "Open a process manager on a chapter"
+      goal "Open a process manager on a bluebook"
 
       reference_to Bluebook
       attribute :name,      ProcessManagerName

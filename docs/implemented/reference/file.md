@@ -77,9 +77,9 @@ end
 | `version:` | text | false | version |
 <!-- generated:end -->
 
-Opens a `.bluebook` file — one domain's aggregates, value objects, and rules, described as data. `version:` pins a contract version to the whole chapter; most domains declare none, and an unversioned chapter is always the "current" one for its name. A chapter may be split across several files that all open `Hecks.bluebook "Name" do ... end` — their declarations accumulate into one domain rather than the last file replacing the first.
+Opens a `.bluebook` file — one domain's aggregates, value objects, and rules, described as data. `version:` pins a contract version to the whole bluebook; most domains declare none, and an unversioned bluebook is always the "current" one for its name. A bluebook may be split across several files that all open `Hecks.bluebook "Name" do ... end` — their declarations accumulate into one domain rather than the last file replacing the first.
 
-What a chapter holds is readable back off the registry, and it is only
+What a bluebook holds is readable back off the registry, and it is only
 shape — no adapter, no realm, nothing about where it runs:
 
 ```ruby
@@ -124,8 +124,8 @@ runtime.registry.world("FileReference").realm  # => "Examples"
 
 Opens a `.hecksagon` file — how THIS deployment wires an already-declared bluebook: which adapter persists each aggregate, which events it takes from outside, which driving ports it exposes. Says WHERE, never WHAT; see the Hecksagon reference page for the vocabulary inside.
 
-The bind lives here, not in the chapter — `Dispatch` never says how it
-is stored, and the same chapter would run on Postgres by changing this
+The bind lives here, not in the bluebook — `Dispatch` never says how it
+is stored, and the same bluebook would run on Postgres by changing this
 file alone:
 
 ```ruby

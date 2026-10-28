@@ -79,7 +79,7 @@ order.status   # => "sold"
   generated Rust runtime ([ADR 0078](../../decisions/0078-read-model-completes-its-reduction-vocabulary-sum-avg-min-max-percentile-any-all.md)).
   With `group_by` and one reduction, each leaf is the reduction of that
   group's rows; each reducer's empty answer and how two partial answers
-  combine are rows of the Vocabulary chapter that both runtimes read
+  combine are rows of the Vocabulary bluebook that both runtimes read
   ([ADR 0126](../../decisions/0126-a-group-by-reduces-each-group-and-each-reducer-is-a-row.md)).
   A `group_by` with no reduction still holds one row per leaf and refuses
   when several rows share a key path. Reductions run in process, not in
@@ -88,7 +88,7 @@ order.status   # => "sold"
   `PostgresProjection`) is checked against the in-process loop by the fuzz
   property `projected_read_models_agree_with_loop` on every Sqlite or
   Postgres sweep ([ADR 0122](../../decisions/0122-a-projection-answers-what-the-loop-answers.md)).
-- Bulk runs: attaching the `Bulk` chapter lets a caller send one command
+- Bulk runs: attaching the `Bulk` bluebook lets a caller send one command
   to every row of a query, with one outcome kept per row
   ([ADR 0125](../../decisions/0125-a-bulk-run-sends-one-command-to-every-row-of-a-query.md)).
   On Sqlite and Postgres, which declare `provides "set_transform"`

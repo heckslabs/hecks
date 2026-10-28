@@ -217,7 +217,7 @@
           "givens": [
 
           ],
-          "goal": "Open an aggregate inside a chapter",
+          "goal": "Open an aggregate inside a bluebook",
           "idempotent": false,
           "mutations": [
             {
@@ -1274,7 +1274,7 @@
           "role": "Language"
         }
       ],
-      "description": "One aggregate inside a chapter — the head a domain's declarations attach to.",
+      "description": "One aggregate inside a bluebook — the head a domain's declarations attach to.",
       "entities": [
 
       ],
@@ -4303,7 +4303,7 @@
           "givens": [
 
           ],
-          "goal": "Open a chapter",
+          "goal": "Open a bluebook",
           "idempotent": false,
           "mutations": [
             {
@@ -4429,7 +4429,7 @@
           "givens": [
 
           ],
-          "goal": "Name one core context this chapter's own Syntax rows attach to",
+          "goal": "Name one core context this bluebook's own Syntax rows attach to",
           "idempotent": false,
           "mutations": [
             {
@@ -4492,7 +4492,7 @@
           "givens": [
 
           ],
-          "goal": "Declare one verb this chapter answers a capability with",
+          "goal": "Declare one verb this bluebook answers a capability with",
           "idempotent": false,
           "mutations": [
             {
@@ -4577,7 +4577,7 @@
           "givens": [
 
           ],
-          "goal": "Attach one canonical-form rule to the chapter",
+          "goal": "Attach one canonical-form rule to the bluebook",
           "idempotent": false,
           "mutations": [
             {
@@ -13760,7 +13760,7 @@
           "givens": [
 
           ],
-          "goal": "Declare a policy on a chapter",
+          "goal": "Declare a policy on a bluebook",
           "idempotent": false,
           "mutations": [
             {
@@ -15007,7 +15007,7 @@
           "givens": [
 
           ],
-          "goal": "Open a process manager on a chapter",
+          "goal": "Open a process manager on a bluebook",
           "idempotent": false,
           "mutations": [
             {
@@ -17021,7 +17021,7 @@
           "givens": [
 
           ],
-          "goal": "Open a read model on a chapter",
+          "goal": "Open a read model on a bluebook",
           "idempotent": false,
           "mutations": [
             {
@@ -33129,7 +33129,7 @@
               ],
               [
                 "title",
-                "shape ledger, every chapter's storage shape held by the ledger or reached by a translation edge"
+                "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge"
               ],
               [
                 "argv",
@@ -33141,7 +33141,7 @@
               ],
               [
                 "blocked",
-                "a chapter's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
+                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
               ]
             ],
             [
@@ -37500,7 +37500,7 @@
           "many": true
         }
       ],
-      "description": "Every declaration of one chapter, gathered around the chapter itself — the way back, in a single read.",
+      "description": "Every declaration of one bluebook, gathered around the bluebook itself — the way back, in a single read.",
       "group_by": [
 
       ],

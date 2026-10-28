@@ -1,10 +1,10 @@
 Hecks.bluebook "Bluebook" do
   aggregate "Aggregate" do
-    description "One aggregate inside a chapter — the head a domain's declarations attach to."
+    description "One aggregate inside a bluebook — the head a domain's declarations attach to."
 
     reference_to Bluebook
 
-    # The chapter is part of the identity: two chapters may each declare an `Order`.
+    # The bluebook is part of the identity: two bluebooks may each declare an `Order`.
     identified_by :bluebook, :name
 
     attribute :name,          AggregateName
@@ -98,7 +98,7 @@ Hecks.bluebook "Bluebook" do
 
     command "Declare" do
       role "Language"
-      goal "Open an aggregate inside a chapter"
+      goal "Open an aggregate inside a bluebook"
 
       reference_to Bluebook
       attribute :name,          AggregateName
@@ -139,7 +139,7 @@ Hecks.bluebook "Bluebook" do
 
     attribute :position, Position
 
-    # The aggregates declared in a chapter; the parent reference is the query.
+    # The aggregates declared in a bluebook; the parent reference is the query.
     query "DeclaredIn" do
       attribute :bluebook, IdentityField
       where(bluebook: :bluebook)
@@ -333,7 +333,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     # The local half of a cross-aggregate read. The target is checked in
-    # `BluebookBuilder#validate_projected_fields!` once every aggregate in the chapter exists.
+    # `BluebookBuilder#validate_projected_fields!` once every aggregate in the bluebook exists.
     command "Projects" do
       role "Language"
       goal "Declare a field read locally through a reference"

@@ -251,7 +251,7 @@ Hecks.bluebook "Bluebook" do
       emits PieceMarkAttached
     end
 
-    # Keyword rows for this chapter; SyntaxBoot discovers aggregate-local seed tables.
+    # Keyword rows for this bluebook; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"

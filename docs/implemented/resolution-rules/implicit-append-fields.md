@@ -95,7 +95,7 @@ building immediately; each owner's own `#build` drains the queue (entities
 first and fully, then commands, then queries) only after its whole block
 has finished — the same "collect everything, then run cross-referential
 work in a second pass" move `BluebookBuilder` already made one level up
-(build every aggregate in the chapter first, then validate query hops/
+(build every aggregate in the bluebook first, then validate query hops/
 projected fields/reference cycles against the complete set), extended one
 level down. `command "Handler"`/`command "Dispatch"`/`command "Member"` in
 the self-hosted meta-domain (`lib/hecks/language/bluebook/`,

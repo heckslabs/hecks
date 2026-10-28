@@ -62,7 +62,7 @@ Hecks.bluebook "Hecks" do
     end
 
     query "Statements" do
-      description "A chapter's declared facts, as plain English sentences."
+      description "A bluebook's declared facts, as plain English sentences."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
       returns Document
@@ -101,14 +101,14 @@ Hecks.bluebook "Hecks" do
     end
 
     query "ProjectDiagrams" do
-      description "A chapter's Mermaid diagrams, as file names mapped to their text; nothing is written."
+      description "A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
       returns list_of(ProjectedFile)
     end
 
     query "Glossary" do
-      description "A chapter's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
+      description "A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
       attribute :chapter, ChapterName
       returns list_of(ProjectedFile)

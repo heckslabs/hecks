@@ -70,7 +70,7 @@ module Hecks
         # @return [String] the Ruby source
         # @raise [ArgumentError] if a name, path, executable or legacy command is not plain
         def launcher(path, name, program, executable: nil, legacy: nil, memory_commands: nil, opted: !executable.nil?) # rubocop:disable Metrics/ParameterLists -- the generator's documented signature
-          plain!("chapter name", name, NAME)
+          plain!("bluebook name", name, NAME)
           plain!("domain path", path, PATH)
           site = executable ? executable_site(path, executable) : plain_site(path, name, program)
           quiet = !Array(memory_commands).empty?

@@ -1,5 +1,5 @@
 Hecks.behaviors "Bluebook" do
-  vision "A chapter is opened with a name, a vision and a classification, and refuses a classification the language does not admit."
+  vision "A bluebook is opened with a name, a vision and a classification, and refuses a classification the language does not admit."
 
   loads "bluebook.bluebook", "bluebook.hecksagon"
 

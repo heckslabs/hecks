@@ -95,7 +95,7 @@ Rules that keep the suite honest:
 
 ## The reference
 
-`docs/implemented/reference/` is generated from the language's own Syntax chapter by
+`docs/implemented/reference/` is generated from the language's own Syntax bluebook by
 `hecks language_run.project_reference`, and it carries examples under the same harness the
 guides do — with two rules the guides do not have.
 
@@ -113,17 +113,17 @@ guides do — with two rules the guides do not have.
   domain every section above it was written against. One boot per page;
   each section then carries a `​```ruby` fence proving its own word.
 - Prefer the real corpus. A page that loads `examples/banking` invents no
-  chapter name and installs no new constants, which is what keeps the
-  reference pages and the guides sharing one process safely. Declare a chapter of
+  bluebook name and installs no new constants, which is what keeps the
+  reference pages and the guides sharing one process safely. Declare a bluebook of
   your own only for a word nothing ships uses — and then say so in the
   preamble, because that absence is itself worth knowing.
 - Sections run top to bottom against one boot, so a section that changes
   state changes it for every section below. Put it back if it matters
   (`docs/implemented/reference/query.md`'s `where` suspends a customer and reinstates
   it for exactly this reason).
-- Chapter names are claimed once across the guides AND the reference
+- Bluebook names are claimed once across the guides AND the reference
   together — `spec/support/doctest_names.rb` enforces it, because
-  `Adapters::Driving::Ruby.install` puts both chapter and bare aggregate names on
+  `Adapters::Driving::Ruby.install` puts both bluebook and bare aggregate names on
   `Object` and never removes them.
 - A claim marker must sit on a single-line expression. Assign to a local
   first rather than wrapping a call across lines.

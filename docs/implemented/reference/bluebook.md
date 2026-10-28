@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 Most of these run against the corpus — `examples/banking` is `core` and
 carries every structural word; `examples/pizzas` is `supporting`.
 `generic` and `formerly_known_as` are declared by nothing that ships, so
-they get a chapter each:
+they get a bluebook each:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
@@ -90,7 +90,7 @@ Hecks.hecksagon("Ledgering") { Ledgering::Folio.persisted_by("Memory") }
 | positional 1 | text | true | vision |
 <!-- generated:end -->
 
-A one-line statement of what the domain is for. Optional, but not empty if given — the same value-object invariant fires here as on any string field, enforced by the meta-domain that judges the bluebook itself. Stored on the chapter and readable back after boot as `Chapter.vision`.
+A one-line statement of what the domain is for. Optional, but not empty if given — the same value-object invariant fires here as on any string field, enforced by the meta-domain that judges the bluebook itself. Stored on the bluebook and readable back after boot as `Chapter.vision`.
 
 ```ruby
 runtime.registry.bluebook("Pizzas").vision  # => "Put toppings on a pizza and sell it to a customer."
@@ -106,10 +106,10 @@ runtime.registry.bluebook("Pizzas").vision  # => "Put toppings on a pizza and se
 | positional 1 | text | true | formerly_known_as |
 <!-- generated:end -->
 
-A domain's own declared identity can change. Naming what it used to be lets the storage layer recognize its own history under the old name instead of minting a brand-new lineage from nothing — a rename, once applied, bridges the journal, the sequence, every era partition, and the domain-keyed rows in `hecks_eras`/`hecks_era_texts`/`hecks_approvals`/`hecks_attestations` onto the new name, in one transaction, the first time the domain boots under it. Optional, but not empty if given — the same value-object invariant fires here as on any string field. Stored on the chapter and readable back after boot as `Chapter.formerly_known_as`; safe to leave declared permanently, since every later boot after the bridge falls through to the ordinary already-held path.
+A domain's own declared identity can change. Naming what it used to be lets the storage layer recognize its own history under the old name instead of minting a brand-new lineage from nothing — a rename, once applied, bridges the journal, the sequence, every era partition, and the domain-keyed rows in `hecks_eras`/`hecks_era_texts`/`hecks_approvals`/`hecks_attestations` onto the new name, in one transaction, the first time the domain boots under it. Optional, but not empty if given — the same value-object invariant fires here as on any string field. Stored on the bluebook and readable back after boot as `Chapter.formerly_known_as`; safe to leave declared permanently, since every later boot after the bridge falls through to the ordinary already-held path.
 
-The chapter answers to its current name and remembers the old one — the
-old name is a fact about this chapter, not a second chapter:
+The bluebook answers to its current name and remembers the old one — the
+old name is a fact about this bluebook, not a second chapter:
 
 ```ruby
 runtime.registry.bluebook("Ledgering").formerly_known_as  # => "Bookkeeping"
@@ -127,7 +127,7 @@ repository's own corpus renames itself, so the doctest above is
 necessarily synthetic. The word is real, and used for real, outside
 it: a downstream client project's bluebook (a separate repository,
 outside this one) declares `formerly_known_as` with its previous
-domain name on its own chapter, bridging real production journal/
+domain name on its own bluebook, bridging real production journal/
 era/approval rows onto the renamed domain the day it deployed under
 the new name, zero data loss, real Member rows confirmed intact.
 
@@ -141,9 +141,9 @@ the new name, zero data loss, real Member rows confirmed intact.
 | positional 1 | text | true | namespace |
 <!-- generated:end -->
 
-Names the Ruby module the constants of a chapter install under, instead of its own name. Without it, a chapter called `Pizzas` installs as `::Pizzas` and its aggregates as `Pizzas::Order`. With `namespace "Tools::Workbench"`, the chapter installs as `Tools::Workbench` and its aggregates inside it, with no top-level shortcuts. The Hecks domain (ADR 0080) uses it: a chapter named `Hecks` would otherwise install into the gem module of the same name, where aggregates such as `Release` and `Kernel` collide with modules hecks already defines. A chapter whose constants would land in `Hecks` itself refuses at build.
+Names the Ruby module the constants of a bluebook install under, instead of its own name. Without it, a bluebook called `Pizzas` installs as `::Pizzas` and its aggregates as `Pizzas::Order`. With `namespace "Tools::Workbench"`, the bluebook installs as `Tools::Workbench` and its aggregates inside it, with no top-level shortcuts. The Hecks domain (ADR 0080) uses it: a bluebook named `Hecks` would otherwise install into the gem module of the same name, where aggregates such as `Release` and `Kernel` collide with modules hecks already defines. A bluebook whose constants would land in `Hecks` itself refuses at build.
 
-The chapter keeps its own name; only where Ruby installs it changes:
+The bluebook keeps its own name; only where Ruby installs it changes:
 
 ```ruby
 Hecks::Bluebook::Chapter.new(name: "Workbench", namespace: "Tools::Workbench").namespace  # => "Tools::Workbench"
@@ -160,16 +160,16 @@ Hecks::Bluebook::Chapter.new(name: "Workbench", namespace: "Tools::Workbench").n
 <!-- generated:end -->
 
 ADR 0026's own seam for a sub-language chapter: the core grammar does
-not name its extension points, so a chapter that extends one names
+not name its extension points, so a bluebook that extends one names
 ITSELF onto it instead. `attaches_to "Query", "ReadModel"` names the
-core contexts this chapter's own `Syntax` aggregate contributes
+core contexts this bluebook's own `Syntax` aggregate contributes
 `Keyword`/`Argument` rows for — read at boot by `SyntaxBoot`'s own
 generic discovery (`MetaValidator::ATTACHED_GRAMMAR_DIR`), which merges
-every attached chapter's rows into the same grammar table the core's
+every attached bluebook's rows into the same grammar table the core's
 own rows populate, tagged by nothing more than having been found.
 Variadic — accumulates across calls the same reason `identified_by`/
-`group_by` do. Stored on the chapter and readable back after boot as
-`Chapter.attaches_to`. Most chapters attach to nothing, and ABSENT IS
+`group_by` do. Stored on the bluebook and readable back after boot as
+`Chapter.attaches_to`. Most bluebooks attach to nothing, and ABSENT IS
 NOT EMPTY, the same reading `version`/`formerly_known_as` give.
 
 ```ruby
@@ -209,11 +209,11 @@ merged table and cannot tell a core row from an attached one.
 | `key:` | pairs | false | provides |
 <!-- generated:end -->
 
-Declares a capability this chapter answers for every domain that attaches
-it, so nothing downstream has to recognise the chapter by its name. The
+Declares a capability this bluebook answers for every domain that attaches
+it, so nothing downstream has to recognise the bluebook by its name. The
 language defines a contract for the capabilities Hecks itself reads:
 `authorization`, `membership`, `identity`, `privacy` and `subject_keys`.
-`authorization` needs exactly three verbs, each one of this chapter's own:
+`authorization` needs exactly three verbs, each one of this bluebook's own:
 
 - `assignments:` — a query answering every role an actor holds
 - `grant:` — the command that grants an actor a role
@@ -224,7 +224,7 @@ The Governance framework member is the real use
 dispatch, boot's refusal of a `role` in a domain with no provider, the
 authorization adapter and the fuzzer all read these verbs. None of them
 looks for the name "Governance". A missing or extra key, or a verb that
-names no command or query of the right kind, is refused when the chapter
+names no command or query of the right kind, is refused when the bluebook
 is built. Each key becomes one row, in the order written:
 
 ```ruby
@@ -236,7 +236,7 @@ runtime.registry.bluebook("Ledgering").provides  # => []
 
 Any other capability belongs to the package that provides it: the language
 defines no contract for it, and whoever reads it checks the keys it needs. Each
-key must name exactly one thing the chapter declares, and that thing decides what
+key must name exactly one thing the bluebook declares, and that thing decides what
 `ir.json`'s `provides` map hands the reader:
 
 - `"Aggregate.Command"` or `"Aggregate.Query"`: the qualified verb
@@ -254,10 +254,10 @@ provides "checkout", session_hold: "CheckoutSession.hold"
 # ir.json: "provides": { "checkout": { "provider": "...", "session_hold": { "attribute": "hold", "default": 1800 } } }
 ```
 
-A key that names nothing the chapter declares, or names two kinds at once (a mark
-and an attribute of one name), is refused when the chapter is built.
+A key that names nothing the bluebook declares, or names two kinds at once (a mark
+and an attribute of one name), is refused when the bluebook is built.
 
-The Privacy chapter declares two more, so the runtime never looks for its name:
+The Privacy bluebook declares two more, so the runtime never looks for its name:
 `provides "privacy"` (`mark_sensitive:` the command that flags an attribute, `markings_for:`
 the query of one domain's markings) is what boot's seeding of `mark_sensitive` facts and a
 handle's masking of a read dispatch through, and `provides "subject_keys"` (`key_for:` and
@@ -269,13 +269,13 @@ handle's masking of a read dispatch through, and `provides "subject_keys"` (`key
 `core` — fills `classification`
 <!-- generated:end -->
 
-Marks this chapter a core subdomain, in the DDD sense (core/supporting/generic). `core`, `supporting`, and `generic` all just set the one `classification` field, so calling more than one leaves whichever ran last — and, verified against the runtime, nothing else currently reads that field back. It documents intent; it gates nothing.
+Marks this bluebook a core subdomain, in the DDD sense (core/supporting/generic). `core`, `supporting`, and `generic` all just set the one `classification` field, so calling more than one leaves whichever ran last — and, verified against the runtime, nothing else currently reads that field back. It documents intent; it gates nothing.
 
 ```ruby
 runtime.registry.bluebook("Banking").classification  # => "core"
 ```
 
-"Gates nothing" is checkable rather than promised — a `core` chapter
+"Gates nothing" is checkable rather than promised — a `core` bluebook
 dispatches exactly like any other:
 
 ```ruby
@@ -288,7 +288,7 @@ Banking::Account.open!(customer: "bb-1", number: "bb-a1", kind: "current", daily
 `supporting` — fills `classification`
 <!-- generated:end -->
 
-Marks this chapter a supporting subdomain. Same field, same mutual exclusivity, as `core`.
+Marks this bluebook a supporting subdomain. Same field, same mutual exclusivity, as `core`.
 
 ```ruby
 runtime.registry.bluebook("Pizzas").classification  # => "supporting"
@@ -300,7 +300,7 @@ runtime.registry.bluebook("Pizzas").classification  # => "supporting"
 `generic` — fills `classification`
 <!-- generated:end -->
 
-Marks this chapter a generic subdomain — undifferentiated, off-the-shelf territory in the DDD sense. Same field as `core`.
+Marks this bluebook a generic subdomain — undifferentiated, off-the-shelf territory in the DDD sense. Same field as `core`.
 
 ```ruby
 runtime.registry.bluebook("BluebookReference").classification  # => "generic"
@@ -318,7 +318,7 @@ runtime.registry.bluebook("BluebookReference").classification  # => "generic"
 
 Opens the thing with identity in this domain — `identified_by`, its `attribute`s, `command`s, and lifecycle. See the Aggregate reference page for the full vocabulary inside.
 
-Every aggregate a chapter opens becomes an entry point of its own, named after
+Every aggregate a bluebook opens becomes an entry point of its own, named after
 the chapter:
 
 ```ruby
@@ -336,9 +336,9 @@ BluebookReference::Postcode.record!(code: "N1").code.value  # => "N1"
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a read that gathers heads from several aggregates around one spine — declared at the chapter's own top level, not under any single aggregate, because no one aggregate owns it. See the ReadModel reference page for `reference_to`/`include` and the rest. `report` (ADR 0025 reverts it — the IR construct, the registry API, and the docs filename all said `read_model` the whole time) stays answered only for frozen era text still parsed by the legacy grammar; live source refuses it, naming this word.
+Opens a read that gathers heads from several aggregates around one spine — declared at the bluebook's own top level, not under any single aggregate, because no one aggregate owns it. See the ReadModel reference page for `reference_to`/`include` and the rest. `report` (ADR 0025 reverts it — the IR construct, the registry API, and the docs filename all said `read_model` the whole time) stays answered only for frozen era text still parsed by the legacy grammar; live source refuses it, naming this word.
 
-Banking's read models sit on the chapter rather than under any
+Banking's read models sit on the bluebook rather than under any
 aggregate — which is the whole reason the word exists at this level:
 
 ```ruby
@@ -355,7 +355,7 @@ runtime.registry.bluebook("Banking").read_models.map(&:hecks_name)  # => ["Custo
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-The same word as inside an `aggregate` — a reaction to an event, `on`/`trigger` — but written here at the chapter's top level for a policy that isn't one aggregate's own business. Pizzas' `OnPizzaPaymentReceived` (examples/pizzas/bluebook/pizzas.bluebook) is a real example: it triggers `Order.Purchase` but is declared beside the aggregate, not inside it. See the Policy reference page.
+The same word as inside an `aggregate` — a reaction to an event, `on`/`trigger` — but written here at the bluebook's top level for a policy that isn't one aggregate's own business. Pizzas' `OnPizzaPaymentReceived` (examples/pizzas/bluebook/pizzas.bluebook) is a real example: it triggers `Order.Purchase` but is declared beside the aggregate, not inside it. See the Policy reference page.
 
 Banking declares four here and two inside aggregates, and they all land
 in the same place — where a policy was WRITTEN is a readability decision,
@@ -366,7 +366,7 @@ runtime.registry.bluebook("Banking").policies.map(&:name)  # => ["ReviewOnFreeze
 ```
 
 The first two of those are `Account`'s and `ScheduledPayment`'s own,
-declared inside them; the rest are the chapter's.
+declared inside them; the rest are the bluebook's.
 
 ## process_manager
 

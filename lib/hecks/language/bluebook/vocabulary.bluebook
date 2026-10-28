@@ -253,7 +253,7 @@ Hecks.bluebook "Bluebook" do
     # (given/ensures/invariant already describe themselves). Language-level
     # and the same for every domain, so it is declared here and projected
     # into Runtime::RefusalWording (Ruby) / kernel::vocab::RefusalSite (Rust)
-    # rather than read live off this chapter at every call.
+    # rather than read live off this bluebook at every call.
     #
     # `{name}` markers are plain text substitution, not expression syntax —
     # a template is read, never evaluated. Two call sites that raise the
@@ -786,10 +786,10 @@ Hecks.bluebook "Bluebook" do
              script: "",
              blocked: "a comparator is missing a shared case or a cross-engine spec."
       member name: "shape_ledger", id: "shape_ledger",
-             title: "shape ledger, every chapter's storage shape held by the ledger or reached by a translation edge",
+             title: "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge",
              argv: "bundle exec exe/hecks conformance_run.check_shape_ledger --wait",
              script: "",
-             blocked: "a chapter's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
+             blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
       member name: "model_check", id: "model_check",
              title: "model check, unreachable states, dead transitions and orphaned handlers",
              argv: "bundle exec exe/hecks model_check --wait",
@@ -1008,7 +1008,7 @@ Hecks.bluebook "Bluebook" do
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it
     # does. qa/settings.yml holds the values, which are edited and reviewed as a diff; this table
     # holds the rest, so the loader (`Hecks::Fuzzing::QaSettings`) checks the file against it and
-    # the QualityControl chapter reads each value as a constant (`QualityControlDials::PR_CAP_PER_DAY`
+    # the QualityControl bluebook reads each value as a constant (`QualityControlDials::PR_CAP_PER_DAY`
     # for `pr_cap_per_day`) without a second list of the names or their types. `type` is Integer,
     # Numeric (an Integer or a Float), Boolean, String, Array or Hash. A dial's nested shape, where it
     # has one, is checked by the loader.
@@ -1084,8 +1084,8 @@ Hecks.bluebook "Bluebook" do
     # the command dropped nor miss one it gained; the table specs read the same rows.
     #
     # `section` is the part of docs/tools.md the row is listed under (Custodian, Deploy, Site,
-    # Codebase or QualityControl); Custodian and Codebase commands live in the Hecks chapter, the
-    # others in the chapter of their own name. `script` is `(new)` for a command no `bin/` script
+    # Codebase or QualityControl); Custodian and Codebase commands live in the Hecks bluebook, the
+    # others in the bluebook of their own name. `script` is `(new)` for a command no `bin/` script
     # preceded. `aggregate` and `verb` name the command (or, in QualityControl, the query) the way
     # the launcher spells it, `aggregate.verb`.
     #

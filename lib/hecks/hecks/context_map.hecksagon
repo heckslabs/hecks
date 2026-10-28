@@ -1,13 +1,13 @@
 # Sibling bounded-context hecksagons.
 # Same-name blocks merge with hecks.hecksagon, order-independent.
 
-# Governance's aggregates take the store the Hecks domain gives the chapters it attaches, and are
+# Governance's aggregates take the store the Hecks domain gives the bluebooks it attaches, and are
 # in Memory when it gives none.
 Hecks.hecksagon "Governance" do
 end
 
-# The attached chapters (hecks.hecksagon `attaches`): each is a bounded context whose store is the
-# one the Hecks domain's own `persisted_by` gives it, so a copy that opts the Hecks chapter in
+# The attached bluebooks (hecks.hecksagon `attaches`): each is a bounded context whose store is the
+# one the Hecks domain's own `persisted_by` gives it, so a copy that opts the Hecks bluebook in
 # opts them all in.
 %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl].each do |chapter|
   Hecks.hecksagon(chapter) { attaches "Governance" }

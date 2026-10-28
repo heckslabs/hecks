@@ -131,7 +131,7 @@ shipment.ports.find { |port| port.name == "Carrier" }.operations.map(&:hecks_nam
 
 What the outside TELLS this domain — an external fact arriving, translated
 into the domain's own word for it. Identical to `operation`, which is the
-spelling every chapter in this corpus still uses and which keeps working;
+spelling every bluebook in this corpus still uses and which keeps working;
 `tells` is the same word under a name that says which way it points, now
 that it has a twin.
 
