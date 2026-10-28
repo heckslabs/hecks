@@ -49,7 +49,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                 path,
                 1,
                 format!(
-                    "--chapter {chapter_name} was requested, but this file declares '{}'",
+                    "--bluebook {chapter_name} was requested, but this file declares '{}'",
                     parsed.name
                 ),
             ));
@@ -71,7 +71,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         Diagnostic::new(
             "<none>",
             0,
-            "hecks-parse chapter requires at least one file",
+            "hecks-parse bluebook requires at least one file",
         )
     })?;
     let first = files.first().map_or("<none>", |(path, _)| path.as_str());

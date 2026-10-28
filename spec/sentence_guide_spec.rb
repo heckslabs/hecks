@@ -33,7 +33,7 @@ RSpec.describe "the guide to writing a domain in sentences", :io do
   # What the formatter writes for a domain block shown in the guide.
   def formatted(block)
     path = write_file("shown.bluebook", block)
-    out, err, status = Open3.capture3(Hecks::SentenceForm.binary, "format", "--chapter", block[/\ADomain: (\w+)/, 1], path)
+    out, err, status = Open3.capture3(Hecks::SentenceForm.binary, "format", "--bluebook", block[/\ADomain: (\w+)/, 1], path)
     raise err unless status.success?
 
     out

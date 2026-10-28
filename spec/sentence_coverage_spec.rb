@@ -41,10 +41,10 @@ RSpec.describe "the sentence form against the whole corpus", :io do
 
   # Where the Ruby form reads, its IR and its sentences; nil where hecks-parse cannot read it.
   def sentences_of(name, paths)
-    ir, _, read = parse("chapter", "--chapter", name, *paths)
+    ir, _, read = parse("bluebook", "--bluebook", name, *paths)
     return unless read.success?
 
-    text, refusal, said = parse("format", "--chapter", name, *paths)
+    text, refusal, said = parse("format", "--bluebook", name, *paths)
     { name: name, ir: ir, text: text, refusal: said.success? ? nil : refusal }
   end
 
@@ -52,7 +52,7 @@ RSpec.describe "the sentence form against the whole corpus", :io do
     Dir.mktmpdir do |dir|
       path = File.join(dir, "sentences.bluebook")
       File.write(path, found[:text])
-      parse("chapter", "--chapter", found[:name], path).first
+      parse("bluebook", "--bluebook", found[:name], path).first
     end
   end
 
