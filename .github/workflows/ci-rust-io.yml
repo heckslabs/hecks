@@ -142,18 +142,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Two legs, each on its own checkout: the specs mutate rust/ and so cannot share a process or a
-    # tree. The exclusivity spec runs real cargo builds for about 40s; the other files take about
-    # a minute together, so it gets a leg to itself. The two regeneration specs run `hecks-codegen`
-    # in scratch workspaces, so they need this job's codegen cache and leave rust/ alone.
+    # Three legs, each on its own checkout: the specs mutate rust/ and so cannot share a process or a
+    # tree. The exclusivity spec runs real cargo builds for about 40s, so it gets a leg to itself.
+    # The two regeneration specs, about 50s together, run `hecks-codegen` in scratch workspaces:
+    # they need this job's parser and codegen caches and leave rust/ alone, so leg c runs them
+    # without the main crate's cache, the banking build or the feature binaries, which only the
+    # other legs use. The conformance files, which build the crate, stay together in leg a.
     strategy:
       fail-fast: false
       matrix:
         include:
           - leg: a
-            specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb
+            specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
           - leg: b
             specs: spec/rust_generated/domain_feature_exclusivity_spec.rb
+          - leg: c
+            specs: spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb
 
     needs: ci_attestation_rust_io
     if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
@@ -187,8 +191,10 @@ jobs:
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
 
-      # Root crate only, so a dependency bump in rust/parser does not invalidate it.
+      # Root crate only, so a dependency bump in rust/parser does not invalidate it. Leg c builds
+      # nothing of the main crate, so it skips the restore, the slowest step of the job.
       - uses: ./.github/actions/cargo-cache
+        if: matrix.leg != 'c'
         with:
           name: main
           crate-root: rust
@@ -216,6 +222,7 @@ jobs:
       # via RustConformanceHelpers#build_rust_for, and the exemplar step below
       # already type-checks the default feature set.
       - name: Build the Rust conformance binary
+        if: matrix.leg != 'c'
         run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
 
       # The specs build one binary per domain feature, one after another: 23 builds that depend on
@@ -225,10 +232,12 @@ jobs:
       # post-job step saves what the specs built. Binaries left by the cargo cache restore above
       # were built from other sources, so they are removed first.
       - name: Remove pinned feature binaries left by the cargo cache
+        if: matrix.leg != 'c'
         run: rm -f rust/target/debug/rust-*
 
       - name: Restore the built feature binaries
         id: feature_binaries
+        if: matrix.leg != 'c'
         uses: actions/cache@v4
         with:
           path: rust/target/debug/rust-*
@@ -273,7 +282,7 @@ jobs:
       # take what arrived. The post-job step saves them for the next run. Placed after the steps
       # that do not need them, so the wait overlaps their work.
       - name: Wait for the feature binaries the legs build
-        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        if: matrix.leg != 'c' && steps.feature_binaries.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -286,7 +295,7 @@ jobs:
           echo "not every feature-binaries artifact arrived within 300s; the specs build the rest" >&2
 
       - name: Fetch the feature binaries
-        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        if: matrix.leg != 'c' && steps.feature_binaries.outputs.cache-hit != 'true'
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
@@ -296,7 +305,7 @@ jobs:
 
       # An artifact does not keep the executable bit, and NativeBuild takes only an executable binary.
       - name: Mark the fetched binaries executable and built after the sources
-        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        if: matrix.leg != 'c' && steps.feature_binaries.outputs.cache-hit != 'true'
         run: |
           chmod +x rust/target/debug/rust-* 2>/dev/null || true
           touch rust/target/debug/rust-* 2>/dev/null || true
