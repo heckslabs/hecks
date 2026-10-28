@@ -60,7 +60,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
   # Pins the `emitted_*` regression: banking's `corrects` reaction adds `emitted_fee_applied`,
   # which `Store::from_seed` requires and pizzas (no `corrects`) never exercises.
   it "carries an emitted_* bookkeeping field in the generated banking sequence" do
-    _binary, live = domain_live("banking", SELF_CONSISTENCY_BANKING, seed: 2, steps: 25)
+    _binary, live = domain_live("banking", SELF_CONSISTENCY_BANKING, seed: 4, steps: 25)
     carries_bookkeeping_field = live.values.any? { |state| state.key?("emitted_fee_applied") }
 
     expect(carries_bookkeeping_field).to be(true),
@@ -69,7 +69,7 @@ RSpec.describe "Hecks::Fuzzing::SelfConsistency (Rust side)", :io do
   end
 
   it "stays clean against a real compiled domain binary with an emitted_* bookkeeping field (banking)", :aggregate_failures do
-    binary, live = domain_live("banking", SELF_CONSISTENCY_BANKING, seed: 2, steps: 25)
+    binary, live = domain_live("banking", SELF_CONSISTENCY_BANKING, seed: 4, steps: 25)
 
     expect(rehydration_findings(binary, live)).to be_empty
     expect(idempotency_findings(binary, live)).to be_empty

@@ -54,9 +54,12 @@ Every decision says which side it is on.
 - Process managers lose their saga state on restart in Memory; the existing boot warning says so.
 - The attached-chapter default is resolved in the Ruby runtime; Rust reads the resolved bind from
   the exported IR, so the two agree without a Rust change.
-- Follow-ups, not done here: the deploy box templates and their golden fixtures write the local
-  files a box needs; `hecks stores` and `hecks history` say plainly that nothing is persisted in
-  Memory; the `memory_commands` special case in the launcher can go.
+- The deploy recipes name the local world and hecksagon where they used to name `HECKS_DATABASE`,
+  and `hecks stores` and `hecks history` say on standard error when nothing is persisted.
+- The launcher's `memory_commands` stays. It makes `console`, `init` and `interview` run on Memory
+  even in a copy a local hecksagon has opted in, so a person at the terminal never boots, or mints
+  an era in, the copy's database; it also makes them wait and say why they were refused, which has
+  nothing to do with persistence.
 
 ## Rejected alternatives
 
