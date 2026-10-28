@@ -14,7 +14,7 @@ module Hecks
           #
           # A launcher, not a CLI: the commands, their arguments and their refusals are
           # projected from the bluebook beside it every time this runs, so a change
-          # to the chapter shows up here without re-minting anything.
+          # to the bluebook shows up here without re-minting anything.
           #
           #   {{where}}                  every command, and every question
           #   {{where}} <command> --help    what it wants, and how it refuses
@@ -30,7 +30,7 @@ module Hecks
         # An opted-in launcher's middle: usage answered from the projection, a boot only for a
         # line that runs a command.
         DESCRIBED_ENTRY = <<~'RUBY'.freeze
-          # Usage is answered from the projected chapter alone: no adapter is bound and no
+          # Usage is answered from the projected bluebook alone: no adapter is bound and no
           # database is opened. Only a line that runs a command boots the domain,
           # and it boots from what the usage check already loaded.
           domain = {{boot}}
