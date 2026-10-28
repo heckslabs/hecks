@@ -210,8 +210,11 @@ jobs:
           rustc -vV | head -3
           ls rust/host/target/debug | head
           cd rust/host
-          CARGO_LOG=cargo::core::compiler::fingerprint=info cargo build --bin lineage_harness --bin mint_harness 2> "$RUNNER_TEMP/fingerprint.log"
-          grep -E "dirty|Dirty|stale" "$RUNNER_TEMP/fingerprint.log" | head -6
+          CARGO_LOG=cargo::core::compiler::fingerprint=debug cargo build --bin lineage_harness --bin mint_harness 2> "$RUNNER_TEMP/build.log"
+          echo "crates compiled: $(grep -c Compiling "$RUNNER_TEMP/build.log")"
+          grep Finished "$RUNNER_TEMP/build.log"
+          grep -E "stale|dirty|mismatch|changed|not found|missing" "$RUNNER_TEMP/build.log" | cut -c1-300 | head -8 || true
+          wc -l "$RUNNER_TEMP/build.log"
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
         run: bundle exec rspec --tag io --profile 5 spec/rust_host_lineage_conformance_spec.rb
