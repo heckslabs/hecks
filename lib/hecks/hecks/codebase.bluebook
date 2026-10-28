@@ -1008,6 +1008,7 @@ Hecks.bluebook "Hecks" do
     attribute :live,      Switch, optional: true
     attribute :gate,      GateName, optional: true
     attribute :domains,   DomainList, optional: true
+    attribute :workers,   Count, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
     attribute :refusal,   Report, optional: true
@@ -1041,6 +1042,13 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
     end
 
+    # How many domains are generated at once, always at least one.
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
@@ -1054,11 +1062,13 @@ Hecks.bluebook "Hecks" do
 
       attribute :check,   Switch, optional: true
       attribute :domains, DomainList, optional: true
+      attribute :workers, Count, optional: true
       attribute :run,     RunKey
       attribute :confirm, Switch, optional: true
 
       sets :check
       sets :domains
+      sets :workers
       sets :run
       sets :confirm
       sets :operation, to: "regenerate_corpus"

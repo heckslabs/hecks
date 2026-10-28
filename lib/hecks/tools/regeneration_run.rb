@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
+require "etc"
 require "fileutils"
 require_relative "../tools"
 require_relative "../corpus"
 require_relative "regeneration_run/scratch"
+require_relative "regeneration_run/pool"
 
 module Hecks
   module Tools
@@ -12,12 +14,13 @@ module Hecks
     #
     # The domain list comes from `Hecks::Corpus.rust_regen_order`, never a hand-kept list, and is
     # handed to every run as the declared domains: a domain's files, `generated/mod.rs` and
-    # Cargo's features come out the same in whatever order the domains run. The order is fixed
-    # anyway (sorted by relative path). If the domain set changes, re-run and commit what changed.
+    # Cargo's features come out the same in whatever order the domains run. The domains run side
+    # by side, one child per core unless `workers=` says otherwise (see `Pool`).
     #
     #   hecks regenerate_corpus         # discover, regenerate, print the plan
     #   hecks regenerate_corpus --check # a scratch crate, never the tree; fail on any difference
     #   hecks regenerate_corpus domains=a,b # only those; `mod.rs` and Cargo's features stay put
+    #   hecks regenerate_corpus workers=1   # one domain at a time
     module RegenerationRun
       # The refusal when no domain is found.
       NO_DOMAINS = "hecks regenerate_corpus: discovered ZERO domains with committed rust/src/generated/ " \
@@ -28,6 +31,12 @@ module Hecks
       # The argument naming the domains to regenerate, comma-separated, as the launcher passes it.
       DOMAINS_ARG = "domains="
 
+      # The argument saying how many domains are generated at once, as the launcher passes it.
+      WORKERS_ARG = "workers="
+
+      # What a count of workers looks like: a whole number above zero.
+      POSITIVE_WHOLE_NUMBER = /\A[1-9][0-9]*\z/
+
       # The scratch crate of a check: `scratch_crate`, `verdict` and `matches_scratch?`.
       extend Scratch
 
@@ -36,19 +45,20 @@ module Hecks
       # Regenerates the corpus, or checks it.
       #
       # @param argv [Array<String>] `--check` to project into a scratch crate and compare, and
-      #   `domains=a,b` to run only those domains
+      #   `domains=a,b` to run only those domains, `workers=n` to generate n at once
       # @param root [String] the checkout
       # @return [Integer] 0, or 1 when a check finds a difference
-      # @raise [SystemExit] when no corpus domain is found, a named domain is not one, or a domain
-      #   fails to regenerate
+      # @raise [SystemExit] when no corpus domain is found, a named domain is not one, the workers
+      #   are not a positive number, or a domain fails to regenerate
       def main(argv, root: Tools::ROOT)
         Dir.chdir(root) do
           names = named(argv)
+          workers = workers_in(argv)
           domains = plan(root, names)
           # A check projects into a scratch copy of the crate; the forked children inherit the
           # workspace with the process.
           scratch = argv.include?("--check") && scratch_crate(root)
-          run_plan(domains, scratch, partial: !names.nil?)
+          run_plan(domains, scratch, partial: !names.nil?, workers: workers)
         end
       end
 
@@ -57,12 +67,24 @@ module Hecks
       # @param domains [Array<String>] the domains, in run order
       # @param scratch [String, false] the scratch crate of a check, removed here
       # @param partial [Boolean] whether these are some of the corpus's domains, not all
+      # @param workers [Integer] how many domains are generated at once
       # @return [Integer] 0, or 1 when a check finds a difference
-      def run_plan(domains, scratch, partial: false)
-        with_rust_dir(scratch) { regenerate(domains, partial: partial) }
+      def run_plan(domains, scratch, partial: false, workers: default_workers)
+        with_rust_dir(scratch) { regenerate(domains, partial: partial, workers: workers) }
         scratch ? verdict(scratch) : 0
       ensure
         FileUtils.rm_rf(scratch) if scratch
+      end
+
+      # @param argv [Array<String>] the arguments of the run
+      # @return [Integer] what `workers=` gives, one child per core when it is not given
+      # @raise [SystemExit] when it is not a positive whole number
+      def workers_in(argv)
+        given = argv.find { |arg| arg.start_with?(WORKERS_ARG) }&.delete_prefix(WORKERS_ARG)
+        return default_workers unless given
+        return Integer(given) if given.match?(POSITIVE_WHOLE_NUMBER)
+
+        abort "hecks regenerate_corpus: workers=#{given} is not a positive whole number"
       end
 
       # Builds in `scratch` while the block runs; with none, in the workspace already chosen.
@@ -102,22 +124,36 @@ module Hecks
         abort "hecks regenerate_corpus: #{e.message}"
       end
 
-      # Builds the memoized grammar registry once and forks for each domain, one at a time and in
-      # order. Every run is told the declared domains, so `mod.rs` and Cargo's features come from
-      # that list and Cargo's `default` stays put: the order does not change what any run writes. A
-      # partial run (some of the domains) leaves `mod.rs` and Cargo's features alone.
+      # Builds the memoized grammar registry once, then forks `hecks project_rust` for each domain,
+      # `workers` at a time (see `Pool`). Every child is told the declared domains and that it is
+      # partial, so none of them writes `mod.rs` or Cargo's features: a whole run writes them once
+      # here, after the last domain, from the declared list, so they come out the same however the
+      # children interleave. A run of some of the domains leaves them alone.
       #
       # @param domains [Array<String>] the domains, in run order
       # @param partial [Boolean] whether these are some of the corpus's domains, not all
+      # @param workers [Integer] how many domains are generated at once
       # @return [void]
-      def regenerate(domains, partial: false)
+      # @raise [SystemExit] when a domain fails
+      def regenerate(domains, partial: false, workers: default_workers)
         require "hecks"
         require "hecks/bluebook/meta_validator"
         require "hecks/rust_build"
         require "hecks/rust_build/project_rust"
         Hecks::Bluebook::MetaValidator.grammar_registry
-        flags = declared_flags(partial: partial)
-        domains.each { |domain| project_rust_in_fork(domain, flags) }
+        Pool.new(domains, declared(partial: true).flags, workers).call
+        write_manifest unless partial
+      end
+
+      # @return [Integer] how many domains a run generates at once unless told: one per core
+      def default_workers = Etc.nprocessors
+
+      # `mod.rs` and Cargo's features for the whole corpus, written once in the workspace.
+      #
+      # @return [void]
+      def write_manifest
+        declared = declared(partial: false)
+        Hecks::RustBuild::ProjectRust::Manifest.new(Hecks::RustBuild.rust_dir, declared, declared.default).call
       end
 
       # The corpus's declared domains as `hecks project_rust` flags: the domains of the regeneration
@@ -127,58 +163,15 @@ module Hecks
       #
       # @param partial [Boolean] whether the run is of some domains: it is told so
       # @return [Array<String>] the flags
-      def declared_flags(partial: false)
+      def declared_flags(partial: false) = declared(partial: partial).flags
+
+      # @param partial [Boolean] whether the run is of some domains
+      # @return [Hecks::RustBuild::ProjectRust::Declared] the corpus's declared domains
+      def declared(partial: false)
         require "hecks/rust_build/project_rust"
         features = Hecks::Corpus.rust_regen_order.map(&:feature)
         default = Hecks::Corpus.cargo_default || features.last
-        declared = Hecks::RustBuild::ProjectRust::Declared
-        declared.new(features + Hecks::Corpus::RUST_ELSEWHERE.keys, default, partial: partial).flags
-      end
-
-      # Forks so the child inherits the memoized grammar registry instead of rebuilding it. The
-      # child's output goes through a pipe and is printed here, so it reaches whoever captures this
-      # process's stdout.
-      #
-      # @param domain [String] the domain, relative to the checkout
-      # @param flags [Array<String>] the declared-domain flags
-      # @return [void]
-      # @raise [SystemExit] when the child fails
-      def project_rust_in_fork(domain, flags)
-        puts "== hecks project_rust #{domain} =="
-        reader, writer = IO.pipe
-        pid = fork { run_child(reader, writer, [domain, *flags]) }
-        writer.close
-        $stdout.write(reader.read)
-        reader.close
-        _, status = Process.wait2(pid)
-        abort "hecks regenerate_corpus: hecks project_rust #{domain} failed (#{status.inspect})" unless status.success?
-        puts
-      end
-
-      # @param reader [IO] the parent's end of the pipe, closed here
-      # @param writer [IO] the child's end, which becomes its stdout and stderr
-      # @param argv [Array<String>] the arguments of `hecks project_rust`
-      # @return [void] never returns: the child leaves without the parent's exit handlers
-      def run_child(reader, writer, argv)
-        reader.close
-        # The real descriptors, not the globals: a caller may have swapped those for a buffer.
-        STDOUT.reopen(writer) # rubocop:disable Style/GlobalStdStream
-        STDERR.reopen(writer) # rubocop:disable Style/GlobalStdStream
-        $stdout = STDOUT
-        $stderr = STDERR
-        status = child_status(argv)
-        $stdout.flush
-        exit!(status)
-      end
-
-      # @return [Integer] the exit status of `hecks project_rust` with the arguments
-      def child_status(argv)
-        Hecks::RustBuild.run("project_rust", argv, out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
-      rescue SystemExit => e
-        e.status
-      rescue StandardError => e
-        warn "#{e.class}: #{e.message}"
-        1
+        Hecks::RustBuild::ProjectRust::Declared.new(features + Hecks::Corpus::RUST_ELSEWHERE.keys, default, partial: partial)
       end
     end
   end

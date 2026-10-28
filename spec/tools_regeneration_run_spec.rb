@@ -94,7 +94,8 @@ RSpec.describe Hecks::Tools::RegenerationRun do
 
       described_class.main(["domains=lease_clock"], root: root)
 
-      expect(described_class).to have_received(:regenerate).with(["qa/stress_domains/lease_clock"], partial: true)
+      expect(described_class).to have_received(:regenerate)
+        .with(["qa/stress_domains/lease_clock"], partial: true, workers: Etc.nprocessors)
     end
 
     it "runs a whole regeneration as a whole run", :aggregate_failures do
@@ -103,7 +104,56 @@ RSpec.describe Hecks::Tools::RegenerationRun do
 
       described_class.main([], root: root)
 
-      expect(described_class).to have_received(:regenerate).with(["examples/pizzas"], partial: false)
+      expect(described_class).to have_received(:regenerate).with(["examples/pizzas"], partial: false, workers: Etc.nprocessors)
+    end
+  end
+
+  describe "generating the domains side by side" do
+    let(:pool) { instance_double(Hecks::Tools::RegenerationRun::Pool, call: nil) }
+
+    before do
+      allow(Hecks::Bluebook::MetaValidator).to receive(:grammar_registry)
+      allow(Hecks::Tools::RegenerationRun::Pool).to receive(:new).and_return(pool)
+      allow(described_class).to receive(:write_manifest)
+    end
+
+    it "generates one domain per core unless told how many", :aggregate_failures do
+      expect(described_class.workers_in([])).to eq(Etc.nprocessors)
+      expect(described_class.workers_in(["workers=3"])).to eq(3)
+    end
+
+    it "refuses a number of workers that is not a whole number above zero", :aggregate_failures do
+      %w[0 -1 two 1.5].each do |given|
+        expect { described_class.workers_in(["workers=#{given}"]) }
+          .to raise_error(SystemExit).and output(/workers=#{given} is not a positive whole number/).to_stderr
+      end
+    end
+
+    it "gives every child the declared domains and tells it to leave mod.rs and Cargo.toml alone", :aggregate_failures do
+      described_class.regenerate(%w[examples/pizzas], workers: 2)
+
+      expect(Hecks::Tools::RegenerationRun::Pool)
+        .to have_received(:new).with(%w[examples/pizzas], described_class.declared_flags(partial: true), 2)
+      expect(described_class.declared_flags(partial: true)).to end_with("--partial")
+    end
+
+    it "writes mod.rs and Cargo.toml once, after the domains, when it ran them all" do
+      described_class.regenerate(%w[examples/pizzas], workers: 2)
+
+      expect(described_class).to have_received(:write_manifest).once
+    end
+
+    it "leaves mod.rs and Cargo.toml to a run of the whole corpus when it ran only some" do
+      described_class.regenerate(%w[examples/pizzas], partial: true, workers: 2)
+
+      expect(described_class).not_to have_received(:write_manifest)
+    end
+
+    it "does not write them when a domain failed", :aggregate_failures do
+      allow(pool).to receive(:call).and_raise(SystemExit.new(1))
+
+      expect { described_class.regenerate(%w[examples/pizzas]) }.to raise_error(SystemExit)
+      expect(described_class).not_to have_received(:write_manifest)
     end
   end
 

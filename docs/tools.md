@@ -120,7 +120,7 @@ still need a checkout.
 | `hecks conformance_run.check_engine_agreement` | `bin/check_engine_agreement` |
 | `hecks conformance_run.measure_doc_coverage` | `bin/doc_coverage` |
 | `hecks conformance_run.argument_gate_matrix --confirm` | `bin/argument_gate_matrix` |
-| `hecks regeneration_run.regenerate_corpus [domains=] [--check] --confirm` | `bin/regen_codegen_domains` |
+| `hecks regeneration_run.regenerate_corpus [domains=] [workers=] [--check] --confirm` | `bin/regen_codegen_domains` |
 | `hecks style_run.report_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_comments <paths> [only=]`; `hecks style_run.fix_comments <paths> [only=] --confirm`; `hecks style_run.write_comment_baseline [<paths>] --confirm`; `hecks style_run.check_comments_unchanged <ref> [paths=]` | `bin/standardize_comments` |
 | `hecks style_run.report_rust_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_rust_comments <paths> [only=]`; `hecks style_run.fix_rust_comments <paths> [only=] --confirm` | `bin/standardize_comments_rust` |
 | `hecks style_run.canonicalise <file>` | `bin/canonicalise` |

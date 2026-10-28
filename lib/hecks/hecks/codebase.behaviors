@@ -85,6 +85,12 @@ Hecks.behaviors "Codebase" do
     expect refused: "must match"
   end
 
+  test "RegenerateCorpus refuses a count of zero workers" do
+    tests "RegenerateCorpus", on: "RegenerationRun"
+    input run: { value: "no_workers" }, workers: { value: 0 }
+    expect refused: "a count is positive"
+  end
+
   test "RegenerateCorpus keeps a domain that is not there as a faulted request" do
     tests "RegenerateCorpus", on: "RegenerationRun"
     input run: { value: "unknown_domain" }, domains: { value: "no_such_domain" }

@@ -10,10 +10,12 @@ module Hecks
       # domain's committed Rust output, and projecting the CI path gates into the workflows.
       #
       # It runs `Hecks::Tools::RegenerationRun` in this process: the run forks once for each
-      # domain, in a fixed order, because the domains share the files they stamp. With `check` it
-      # projects into a scratch copy of the crate and compares, and never writes the tree. Without
-      # `confirm` the run is that same check, so a regeneration that would rewrite tracked generated
-      # files reports drift and writes only when it is confirmed.
+      # domain, a few at a time (`workers`, one per core unless told), and prints their output in
+      # a fixed domain order. The domains share the chapters they attach, and each writes the same
+      # bytes to them whichever runs first. With `check` it projects into a scratch copy of the
+      # crate and compares, and never writes the tree. Without `confirm` the run is that same
+      # check, so a regeneration that would rewrite tracked generated files reports drift and
+      # writes only when it is confirmed.
       module Regeneration
         # Every operation this family carries out.
         OPERATIONS = %w[regenerate_corpus project_ci_gates project_ci_pipeline project_lanes project_tools_doc
@@ -45,7 +47,7 @@ module Hecks
           when "project_lanes" then project_lanes(child, check, set?(held, :live), set?(held, :confirm))
           when "project_tools_doc" then project_tools_doc(child, check)
           when "decide_ci_gate" then decide_ci_gate(child, held)
-          else regenerate(child, check, domains(held))
+          else regenerate(child, check, [*domains(held), *workers(held)])
           end
         end
 
@@ -54,6 +56,14 @@ module Hecks
         def domains(held)
           named = held[:domains].is_a?(Hash) ? held[:domains][:value] : held[:domains]
           named.to_s.empty? ? [] : ["domains=#{named}"]
+        end
+
+        # @param held [Hash] the `RegenerationRun` record's fields: `workers`
+        # @return [Array<String>] the tool's argument saying how many domains run at once, empty to
+        #   leave it to the tool's default
+        def workers(held)
+          count = held[:workers].is_a?(Hash) ? held[:workers][:value] : held[:workers]
+          count.to_s.empty? ? [] : ["workers=#{count}"]
         end
 
         # @param held [Hash] the record's fields: `check`, `confirm`
@@ -71,7 +81,8 @@ module Hecks
 
         # @param child [RubyChild] the checkout's tool runner
         # @param check [Boolean] whether to only compare
-        # @param domains [Array<String>] `domains=a,b` when only those are to run, else empty
+        # @param domains [Array<String>] `domains=a,b` when only those are to run and `workers=n`
+        #   when told how many at once, else empty
         # @return [String] how many domains were checked or regenerated
         # @raise [ConsoleCapture::Failure] with the difference, or with what the script printed
         def regenerate(child, check, domains = [])

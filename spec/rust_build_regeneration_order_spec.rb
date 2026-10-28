@@ -19,10 +19,25 @@ RSpec.describe "regenerating the corpus in any order", :io do
     @declared = Hecks::Tools::RegenerationRun.declared_flags
     @governance_by_banking = run_in_order(@banking_first, "examples/banking", "examples/compliance")
     @governance_by_compliance = run_in_order(@compliance_first, "examples/compliance", "examples/banking")
+    @side_by_side = Dir.mktmpdir("regen-order-side-by-side")
+    run_side_by_side(@side_by_side, %w[banking compliance].map { |name| File.join(Hecks::RustBuild::ROOT, "examples", name) })
   end
 
   after(:context) do
-    FileUtils.rm_rf([@banking_first, @compliance_first])
+    FileUtils.rm_rf([@banking_first, @compliance_first, @side_by_side])
+  end
+
+  # Generates the domains in one workspace the way a corpus run does: both at once, each told to
+  # leave `mod.rs` and Cargo.toml alone, which the run then writes once. Banking and compliance
+  # both attach Governance, so they write its files at the same time.
+  def run_side_by_side(workspace, domains)
+    seed(workspace)
+    regeneration = Hecks::Tools::RegenerationRun
+    printed = StringIO.new
+    $stdout = printed
+    regeneration.with_rust_dir(workspace) { regeneration.regenerate(domains, workers: domains.size) }
+  ensure
+    $stdout = STDOUT
   end
 
   # A workspace holding what a checkout's `rust/` holds that `hecks project_rust` rewrites.
@@ -63,6 +78,19 @@ RSpec.describe "regenerating the corpus in any order", :io do
 
   it "writes the same Cargo.toml whichever domain runs first" do
     expect(cargo(@banking_first)).to eq(cargo(@compliance_first))
+  end
+
+  it "writes the same tree and mod.rs when the domains are generated side by side", :aggregate_failures do
+    expect(generated(@side_by_side).keys).to include("mod.rs", "governance/metadata.rs", "banking/merged.rs")
+    expect(generated(@side_by_side)).to eq(generated(@banking_first))
+  end
+
+  it "writes the same Cargo.toml when the domains are generated side by side" do
+    expect(cargo(@side_by_side)).to eq(cargo(@banking_first))
+  end
+
+  it "leaves no temp file where it wrote side by side" do
+    expect(Dir.glob(File.join(@side_by_side, "**/*.tmp-*"), File::FNM_DOTMATCH)).to be_empty
   end
 
   it "gives a shared chapter the same files whichever domain generated it", :aggregate_failures do

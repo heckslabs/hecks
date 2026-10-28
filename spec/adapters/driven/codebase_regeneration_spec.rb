@@ -57,6 +57,16 @@ RSpec.describe Hecks::Adapters::Codebase::Regeneration do
     expect(shell.asked.last[:command]).to eq(["regen_codegen_domains"])
   end
 
+  it "hands the tool how many domains to generate at once, and says nothing when it is not told", :aggregate_failures do
+    shell = fake_run(plan)
+
+    regenerate({ confirm: { value: true }, workers: { value: 4 } })
+    regenerate({ confirm: { value: true } })
+
+    expect(shell.asked.first[:command]).to eq(["regen_codegen_domains", "workers=4"])
+    expect(shell.asked.last[:command]).to eq(["regen_codegen_domains"])
+  end
+
   it "checks only the domains it is told to, still into a scratch crate" do
     shell = fake_run(plan)
 
