@@ -285,7 +285,7 @@ different domain entirely, `across` names it:
 # Account, in examples/banking/bluebook/
 policy "ReviewOnFreeze" do
   on      "Account.AccountFrozen"
-  trigger AccountFreezeReview::Open
+  trigger Review::Open, with: { subject_kind: "account_freeze", subject_key: :id }
   across  "Compliance"
 end
 ```
@@ -305,9 +305,9 @@ runtime.dispatch("Banking::Account.Open", with: { customer: "c1", number: "a1",
 before = runtime.reactions.size
 runtime.dispatch_flat("Banking::Account.FreezeAccount", number: "a1")
 runtime.reactions[before..].size     # => 1
-runtime.reactions.last[:trigger]     # => "Compliance::AccountFreezeReview.Open"
+runtime.reactions.last[:trigger]     # => "Compliance::Review.Open"
 runtime.reactions.last[:delivered]   # => false
-runtime.reactions.last[:reason]      # => "no domain \"Compliance\" loaded (verb Compliance::AccountFreezeReview.Open)"
+runtime.reactions.last[:reason]      # => "no domain \"Compliance\" loaded (verb Compliance::Review.Open)"
 
 Banking::Account.find("a1").status   # => "frozen"
 ```

@@ -1,5 +1,6 @@
 require_relative "../../naming"
 require_relative "../errors"
+require_relative "../refusal_wording"
 
 module Hecks
   module Runtime
@@ -14,7 +15,10 @@ module Hecks
           domain, aggregate_name, command_path = Naming.split_verb(verb)
           raise UnknownVerb, "reaction target #{verb.inspect} is not a qualified command" unless command_path
 
-          aggregate = registry.bluebook(domain)&.aggregate(aggregate_name)
+          bluebook = registry.bluebook(domain)
+          raise UnknownVerb, RefusalWording.render_site("UnknownVerb", "no_domain", domain: domain, verb: verb) unless bluebook
+
+          aggregate = bluebook.aggregate(aggregate_name)
           raise UnknownVerb, "reaction target #{verb.inspect} does not resolve to an aggregate" unless aggregate
 
           *entity_names, command_name = command_path.split(".")

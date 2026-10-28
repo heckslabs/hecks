@@ -73,10 +73,10 @@ module Hecks
             def readable_sources(spec, aggregates)
               pm = spec.process_manager
               event_name = spec.event_name
-              # A policy's source also carries the emitter's identity
-              # (`PolicyInterpreter#emitter_identity`); a saga leg's source
+              # A policy's source also carries the emitter's identity, under each head and as `:id`
+              # (`PolicyInterpreter#emitter_identity`, `#emitter_id`); a saga leg's source
               # (`SagaInterpreter#dispatch_args`) merges no such thing.
-              identity = pm.nil? && event_name ? event_identity_heads_for(event_name, aggregates) : []
+              identity = pm.nil? && event_name ? [*event_identity_heads_for(event_name, aggregates), :id] : []
               shapes = [event_name && event_shape_for(event_name, aggregates),
                         pm && event_shape_for(pm.starts_on, aggregates)].compact
               Readable.new(pm&.correlates_by && pm.correlation_head, identity, shapes, spec.row_names.to_a)

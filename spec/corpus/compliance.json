@@ -1,49 +1,51 @@
 {
   "name": "compliance-parity",
-  "note": "All three aggregates through their full lifecycle once each — a frozen account cleared (no finding), a surrendered box escalated (a real finding), a privacy marking cleared — proving Open/Clear/Escalate all work, not just the creating command.",
+  "note": "One review of each kind through its lifecycle — a frozen account cleared (no finding), a surrendered box escalated (a real finding), a privacy marking cleared — proving Open/Clear/Escalate all work on the one generic Review, not just the creating command.",
   "domain": "examples/compliance",
   "expectations": {
     "events": 6
   },
   "steps": [
     {
-      "verb": "Compliance::AccountFreezeReview.Open",
+      "verb": "Compliance::Review.Open",
       "args": {
-        "number": { "value": "acct-1" }
+        "subject_kind": { "value": "account_freeze" },
+        "subject_key": { "value": "acct-1" }
       }
     },
     {
-      "verb": "Compliance::AccountFreezeReview.Clear",
+      "verb": "Compliance::Review.Clear",
       "args": {
-        "number": { "value": "acct-1" }
+        "subject_kind": { "value": "account_freeze" },
+        "subject_key": { "value": "acct-1" }
       }
     },
     {
-      "verb": "Compliance::BoxSurrenderReview.Open",
+      "verb": "Compliance::Review.Open",
       "args": {
-        "branch_code": { "value": "DOWNTOWN" },
-        "box_number": { "value": 12 }
+        "subject_kind": { "value": "box_surrender" },
+        "subject_key": { "value": "DOWNTOWN:12" }
       }
     },
     {
-      "verb": "Compliance::BoxSurrenderReview.Escalate",
+      "verb": "Compliance::Review.Escalate",
       "args": {
-        "branch_code": { "value": "DOWNTOWN" },
-        "box_number": { "value": 12 }
+        "subject_kind": { "value": "box_surrender" },
+        "subject_key": { "value": "DOWNTOWN:12" }
       }
     },
     {
-      "verb": "Compliance::PrivacyReview.Open",
+      "verb": "Compliance::Review.Open",
       "args": {
-        "domain": { "value": "Studio::Registration" },
-        "attribute_path": { "value": "attendee.medications" }
+        "subject_kind": { "value": "privacy_marking" },
+        "subject_key": { "value": "Studio::Registration:attendee.medications" }
       }
     },
     {
-      "verb": "Compliance::PrivacyReview.Clear",
+      "verb": "Compliance::Review.Clear",
       "args": {
-        "domain": { "value": "Studio::Registration" },
-        "attribute_path": { "value": "attendee.medications" }
+        "subject_kind": { "value": "privacy_marking" },
+        "subject_key": { "value": "Studio::Registration:attendee.medications" }
       }
     }
   ]
