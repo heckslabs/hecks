@@ -1,0 +1,7 @@
+# Binds the `Keys` port to `KeyKeeper`, which has the key vault issue and destroy a subject's key.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/adapters/driven/key_keeper"
+
+Hecks.adapter "KeyKeeper" do
+  port "Keys"
+end
