@@ -13,6 +13,7 @@ RSpec.describe Hecks::RustBuild::WasmBrowser do
     FileUtils.mkdir_p(File.join(dir, "src"))
     FileUtils.mkdir_p(File.join(dir, "web", "src"))
     FileUtils.mkdir_p(File.join(dir, "web", "target"))
+    FileUtils.mkdir_p(File.join(dir, "expr", "src"))
     File.write(File.join(dir, "Cargo.toml"), "[features]\ndefault = []\n")
     File.write(File.join(dir, "Cargo.lock"), "")
     File.write(File.join(dir, "src", "lib.rs"), "// kernel\n")
