@@ -21,6 +21,7 @@ const KEYS: &[&str] = &[
     "authorization",
     "grant",
     "assignment_aggregate",
+    "live_assignments",
     "membership",
     "provider",
     "aggregate",

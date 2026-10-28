@@ -195,10 +195,11 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
     super::Json::Object(fields)
 }
 
-/// True when `actor_id` holds `role` through a live (`ends_at` unset) assignment.
+/// True when `actor_id` holds `role` through a live assignment.
 ///
-/// Runs the chapter-declared `assignments` query through `named_query::run`; `None`, or a verb
-/// missing from `queries`, holds no role. Ruby likewise ignores scope and `starts_at`.
+/// Runs the chapter-declared `live_assignments` query through `named_query::run`, which is what
+/// decides an assignment is live (Governance's `ends_at: nil`); `None`, or a verb missing from
+/// `queries`, holds no role. Ruby likewise ignores scope and `starts_at`.
 pub fn holds_role_via(
     store: &impl AggregateScan,
     queries: &[super::QueryDef],
@@ -217,10 +218,7 @@ pub fn holds_role_via(
         return false;
     };
     rows.iter().any(|(_, record)| {
-        let matches_role =
-            record.dig("role_name.value").and_then(super::Json::as_str) == Some(role);
-        let not_revoked = matches!(record.dig("ends_at"), None | Some(super::Json::Null));
-        matches_role && not_revoked
+        record.dig("role_name.value").and_then(super::Json::as_str) == Some(role)
     })
 }
 
@@ -444,8 +442,8 @@ mod check_role_actor_id_tests {
     use crate::kernel::query_comparators::QueryComparator;
     use crate::kernel::{Json, QueryCondition, QueryConditionValue, QueryDef, Refusal};
 
-    /// The assignments query a real Governance attachment declares.
-    const GOVERNANCE_ASSIGNMENTS: &str = "Governance::RoleAssignment.AssignmentsForActor";
+    /// The live assignments query a real Governance attachment declares.
+    const GOVERNANCE_ASSIGNMENTS: &str = "Governance::RoleAssignment.LiveAssignmentsForActor";
 
     fn check_role(
         command_role: Option<&str>,
@@ -482,16 +480,23 @@ mod check_role_actor_id_tests {
         }
     }
 
-    /// The `AssignmentsForActor` `QueryDef` a merged `Store` compiles.
+    /// The `LiveAssignmentsForActor` `QueryDef` a merged `Store` compiles.
     fn assignments_for_actor_query() -> QueryDef {
         QueryDef {
-            verb: "Governance::RoleAssignment.AssignmentsForActor",
+            verb: "Governance::RoleAssignment.LiveAssignmentsForActor",
             aggregate: "Governance::RoleAssignment",
-            conditions: &[QueryCondition {
-                field: "actor_id",
-                comparator: QueryComparator::Eq,
-                value: QueryConditionValue::Arg("actor_id"),
-            }],
+            conditions: &[
+                QueryCondition {
+                    field: "actor_id",
+                    comparator: QueryComparator::Eq,
+                    value: QueryConditionValue::Arg("actor_id"),
+                },
+                QueryCondition {
+                    field: "ends_at",
+                    comparator: QueryComparator::Eq,
+                    value: QueryConditionValue::Null,
+                },
+            ],
             reference_hop_conditions: &[],
             order_by: None,
             offset: None,

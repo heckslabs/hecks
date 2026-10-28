@@ -196,6 +196,10 @@ pub struct AuthorizationProvider {
     /// Qualified aggregate holding the assignments, e.g.
     /// `Governance::RoleAssignment` — instance keys start `<this>#`.
     pub assignment_aggregate: String,
+    /// Qualified query answering the assignments one actor holds right now, e.g.
+    /// `Governance::RoleAssignment.LiveAssignmentsForActor`; the bluebook decides what live
+    /// means. `None` when the IR predates it, which holds no role.
+    pub live_assignments: Option<String>,
 }
 
 pub fn authorization_provider(domain_ir: &Value) -> Option<AuthorizationProvider> {
@@ -203,6 +207,10 @@ pub fn authorization_provider(domain_ir: &Value) -> Option<AuthorizationProvider
     Some(AuthorizationProvider {
         grant: fact.get("grant")?.as_str()?.to_string(),
         assignment_aggregate: fact.get("assignment_aggregate")?.as_str()?.to_string(),
+        live_assignments: fact
+            .get("live_assignments")
+            .and_then(Value::as_str)
+            .map(str::to_string),
     })
 }
 

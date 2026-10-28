@@ -30,7 +30,7 @@ declares an edge for it. Keeping the old names would leave the mismatch for good
   `AttachedBluebookName`, because `BluebookName` already names a bluebook's own name, and its
   `chapter` argument is `bluebook`. The refusal strings say "a bluebook is named" and "a bluebook
   is core, supporting, or generic".
-- **The edge.** The Bluebook shape moved `46ca26` to `029a21`, and `translations/2-029a21.bluebook`
+- **The edge.** The Bluebook shape moved `bfdb48` to `1b447c`, and `translations/2-1b447c.bluebook`
   declares `retype "ChapterNamespace", to: "BluebookNamespace"`. Nothing is stored differently, so
   the edge has no data rules; it states that the two names are one shape, which is what lets the
   ledger accept the move. The Hecksagon's value object is not part of the ledgered shape and needed

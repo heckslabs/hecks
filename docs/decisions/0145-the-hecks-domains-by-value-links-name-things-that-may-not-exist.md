@@ -1,6 +1,6 @@
 # The hecks domain's by-value links name things that may not exist
 
-**Status:** Accepted. Date: 2026-10-27.
+**Status:** Accepted. Date: 2026-10-27. Finished by ADR 0151 on 2026-10-28.
 
 ## Context
 
@@ -36,15 +36,19 @@ gem releases. `Operation.url` is any address an operator checks, not only a reco
 is one kind. `Bug.commit`, `Patch.commit` and `Improvement.commit` are the commit a thing was found
 or opened at, and a `Clearance` exists only once CI has run on that commit.
 
-**Sound, and deferred.** `Adr.settles` names a `Finding` of the same bluebook, a stored record, and
-an ADR that settles a finding should be refused if no such finding exists. The conversion is
-`reference_to Finding, as: :settles, optional: true` on the aggregate and on `Draft`. It turns a
-stored one-field value object into a reference, which reshapes any `settles` already held, so the
-Tickets shape moves and needs a translation edge with rules, not an empty one. That edge cannot be
-written soundly without reading the real stored rows, and rehearsing it needs a copy of the
-database. It waits for that rehearsal.
+**Sound, and built.** `Adr.settles` names a `Finding` of the same bluebook, a stored record, and
+an ADR that settles a finding is refused if no such finding exists. It is now
+`reference_to Finding, as: :settles, optional: true` on the aggregate and on `Draft`. The conversion
+turns a stored one-field value object (`{"value": "<finding>"}`) into a reference (the finding's bare
+key), so the Tickets shape moved and the edge `2-cd96d8.bluebook` carries a rule:
+`derive :settles, as: "settles.value"`. No Adr row exists in any database on this machine, so it was
+rehearsed against a generated copy: a scratch database minted at the old shape, an Adr that settles
+a finding and one that settles none, dumped, and rehearsed with `RehearsalRun.request!`. The
+audit read `{"value":"F-1"}` as `"F-1"` and left the null as null, and the rehearsal answered
+`would_mint` with no refused row. A stored `settles` naming a finding that was never recorded
+migrates as it stands; only a new write is refused.
 
-Of the orphaned references, none gets a policy.
+Of the orphaned references, none gets a policy, and each is acknowledged on the holder (ADR 0151).
 
 - **`Bug` to `Sweep`, and `Improvement` to `Angle`.** A sweep concluding or abandoning, or an angle
   built or discarded, completes the thing the holder cites. It does not end the holder, which stays
@@ -65,7 +69,10 @@ Of the orphaned references, none gets a policy.
 
 ## Consequences
 
-- The warnings stay until a declaration can acknowledge a finding with its reason. The reasons
-  above are the text it would carry.
-- `Adr.settles` is the one real by-value gap in this domain. It needs the stored rows read, a
-  rule written for them, and the edge rehearsed before it ships.
+- Every by-value link and orphaned reference this ADR left alone now says so on the declaration,
+  with the reason above as its text (`acknowledges :key_by_value, "...", of: :commit`, ADR 0151),
+  and `model_check` reports neither kind for the Hecks domain or QualityControl.
+- No policy was added. A policy is sound only where the referenced record truly ends, in the same
+  bluebook, with no side effect outside it, and none of these qualifies: two targets finish
+  rather than end, and two holders mirror an outside system.
+- `Adr.settles` was the one real by-value gap in this domain, and it is closed.

@@ -55,6 +55,14 @@ fields, and the policy language has no way to join two of them. Reading `:id` un
 - A payload that carries a field called `id` hides the record's identity from `:id`. That is
   the rule for every other shared name, so it is consistent, and it is documented on the policy
   reference page.
-- The conformance corpus does not yet hold a fixture for `:id` across the two runtimes. The
-  unit tests in each pin the precedence; a corpus fixture would pin the agreement. Re-verifying
-  against a Rust build of the generated host was not done here.
+- Corpus fixtures pin a plain policy's `:id` and the cross-domain deliveries.
+  `policy_with_reads_emitter_id` holds the plain policy. The `Outbound` corpus domain holds the `across` ones: a `with:` of
+  literals and `:id`, no `with:` (the payload unchanged), and a `with:` reading a payload field.
+  A fixture's `expect.cross_domain` lists each delivery's `policy`, `target_verb` and `payload`;
+  Ruby records them as the policy fires (`Dispatcher#cross_domain_deliveries`) and the kernel's
+  `cross_domain_reactions` supplies them in Rust, and `check_conformance` compares both.
+- Verified under Ruby and under the compiled `outbound` Rust feature (`semantics_corpus_spec`
+  and `Build.check_conformance!`). Not run: the Rust host's own delivery of the payload over the
+  wire, which the host's dispatch test covers separately. The target domain is not loaded in a
+  fixture, so Ruby records the delivery as refused (`no domain "Registry" loaded`) and the
+  fixture pins the payload, not the receiving side.

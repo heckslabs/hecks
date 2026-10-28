@@ -34,6 +34,8 @@ module Hecks
         #   aggregate it references
         def holder_orphan_findings(bluebook, holder, endings)
           referenced_attributes(holder).slice(*endings.keys).flat_map do |target, attributes|
+            next [] if Acknowledgements.held?(holder, :orphaned_reference, subject: target)
+
             unhandled_endings(bluebook, holder, endings[target], target).map do |ending|
               orphan_finding(holder, target, attributes, ending)
             end

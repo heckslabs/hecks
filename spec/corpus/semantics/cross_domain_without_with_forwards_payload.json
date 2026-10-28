@@ -1,0 +1,51 @@
+{
+  "domain": "spec/corpus/semantics/domains/outbound",
+  "spec": [
+    "C10.1"
+  ],
+  "note": "An across policy with no with: hands the other domain the event payload unchanged.",
+  "steps": [
+    {
+      "verb": "Outbound::Parcel.Forward",
+      "args": {
+        "tag": {
+          "value": "T1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Outbound::Parcel#T1": {
+        "tag": {
+          "value": "T1"
+        },
+        "note": null
+      }
+    },
+    "events": [
+      {
+        "name": "ParcelForwarded",
+        "aggregate": "Outbound::Parcel",
+        "id": "T1",
+        "payload": {
+          "tag": {
+            "value": "T1"
+          }
+        }
+      }
+    ],
+    "cross_domain": [
+      {
+        "policy": "FileOnForward",
+        "target_verb": "Registry::Filing.Open",
+        "payload": {
+          "tag": {
+            "value": "T1"
+          }
+        }
+      }
+    ]
+  }
+}

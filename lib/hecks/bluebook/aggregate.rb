@@ -9,7 +9,8 @@ module Hecks
     ProjectedField = Struct.new(:name, :reference, :remote_field, keyword_init: true)
 
     # A finding the aggregate means, with the reason it is allowed (`acknowledges :kind, "why"`).
-    Acknowledgement = Struct.new(:finding, :reason, keyword_init: true)
+    # `subject` names the one attribute or referenced aggregate a finding about several is for.
+    Acknowledgement = Struct.new(:finding, :reason, :subject, keyword_init: true)
 
     # An aggregate: carries its own identity and sits in the owner chain below its bluebook.
     # The holding half only; `Behaviour::Aggregate` carries what the declaration cannot derive.
@@ -43,7 +44,7 @@ module Hecks
         provenance:       :provenance,
         # Additive: an aggregate that acknowledges no finding emits `acknowledgements: []`.
         acknowledgements: lambda {
-          acknowledgements.map { |held| { finding: held.finding.to_s, reason: held.reason } }
+          acknowledgements.map { |held| { finding: held.finding.to_s, subject: held.subject.to_s, reason: held.reason } }
         }
       )
 

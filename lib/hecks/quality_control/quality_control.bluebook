@@ -735,6 +735,11 @@ Hecks.bluebook "QualityControl" do
   aggregate "Bug" do
     description "One thing now known to be wrong, the test that proves it, and how far the fix got."
 
+    acknowledges :key_by_value, "the commit the bug was found at, and a Clearance exists only once CI has run on that commit, so a reference would refuse a commit CI has not seen",
+                 of: :commit
+    acknowledges :orphaned_reference, "a sweep concluding or being abandoned completes the sweep that found the bug and does not end the bug, which stays a true record of what was found",
+                 of: :Sweep
+
     reference_to Sweep
 
     identified_by :reference
@@ -1389,6 +1394,9 @@ Hecks.bluebook "QualityControl" do
   aggregate "Ticket" do
     description "One issue raised in a tracker outside this repository — what it says, whether the tracker took it, and how many times we have asked."
 
+    acknowledges :orphaned_reference, "a Ticket is an issue in an outside tracker, written from what the tracker reports; closing it when its bug is withdrawn would record a close that did not happen there",
+                 of: :Bug
+
     reference_to Bug
 
     identified_by :reference
@@ -1630,6 +1638,11 @@ Hecks.bluebook "QualityControl" do
   aggregate "Patch" do
     description "One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess."
 
+    acknowledges :key_by_value, "the commit the pull request was opened at, and a Clearance exists only once CI has run on that commit, so a reference would refuse a commit CI has not seen",
+                 of: :commit
+    acknowledges :orphaned_reference, "a Patch is a pull request, written from what GitHub reports; closing it when its bug is withdrawn would record a close that did not happen on GitHub",
+                 of: :Bug
+
     reference_to Bug
 
     identified_by :number
@@ -1820,6 +1833,11 @@ Hecks.bluebook "QualityControl" do
   # as `AlreadyExists`.
   aggregate "Improvement" do
     description "One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug's own fix."
+
+    acknowledges :key_by_value, "the commit the work landed at, and a Clearance exists only once CI has run on that commit, so a reference would refuse a commit CI has not seen",
+                 of: :commit
+    acknowledges :orphaned_reference, "an angle being built or discarded completes the lead and does not end the improvement, which stays a true record of what landed",
+                 of: :Angle
 
     # Optional, set only at `Open`: not all deliberate work began as a cited `Angle`, and forcing
     # one would invent a lead after the fact.

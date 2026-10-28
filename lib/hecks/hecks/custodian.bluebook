@@ -6,6 +6,9 @@ Hecks.bluebook "Hecks" do
   aggregate "Operation" do
     description "One thing an operator ran against a domain, and how it ended."
 
+    acknowledges :key_by_value, "any address an operator checks, not only the address of a recorded Host",
+                 of: :url
+
     attribute :run,          OperationKey
     attribute :subject,      Subject,    optional: true
     attribute :script,       Script,     optional: true
@@ -967,6 +970,9 @@ policy "RecordTheEra" do
 
   aggregate "Era" do
     description "One change to a domain's journal of eras, and how it ended: a store's upkeep."
+
+    acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                 of: :domain
 
     attribute :run,                 RunKey
     attribute :domain,              DomainPath
