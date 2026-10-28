@@ -1,0 +1,114 @@
+Domain: Pizzas
+  Put toppings on a pizza and sell it to a customer.
+  This is a supporting domain
+
+Aggregate: Order
+  An order that gathers toppings on a pizza and is eventually sold to a customer.
+
+  An order is identified by its name.
+
+  It has:
+    a name: pizza name
+    a pizza: pizza
+    some toppings: list of topping
+    a customer name: customer name, optional
+
+  A pizza name has a value: text, matching "[^ \t\n\r]".
+    Rule "a pizza is named" holds when the value is not empty
+
+  A price has:
+    a cents: whole number
+    Rule "a price is never negative" holds when the cents is at least 0
+
+  A customer name has a value: text, matching "[^ \t\n\r]".
+    Rule "a customer is named" holds when the value is not empty
+
+  A topping name has a value: text, matching "[^ \t\n\r]".
+    Rule "a topping is named" holds when the value is not empty
+    Rule "a topping name is more than whitespace" holds when this is true: !value.to_s.strip.empty?
+
+  A topping amount has a value: whole number.
+    Rule "an amount is positive" holds when this is true: value.positive?
+
+  A topping has:
+    a name: text, matching "[^ \t\n\r]"
+    an amount: whole number
+
+  A size is one of: small and large.
+
+  A pizza has:
+    a price cents: price
+    a size: size
+
+  Lifecycle: status, starting as available
+    Purchase moves an order from available to sold
+    Mark terminal: sold
+
+  Command: Create Pizza
+    Goal: Put a new pizza on the menu
+    Who: Chef
+    When a name and a pizza are given
+    Then the name and the pizza are set
+    And PizzaCreated is announced
+
+  Command: Add Topping
+    Goal: Customize a pizza with an ingredient
+    Who: Chef
+    It can only happen from available
+    It acts on an existing order
+    It takes:
+      a topping: topping name
+      an amount: topping amount
+    Given "at most 10 toppings" holds when this is true: toppings.size < 10
+    Then a row is added to the toppings with name from the topping, amount from the amount
+    And ToppingAdded is announced
+
+  Command: Purchase
+    Goal: Buy the pizza
+    Who: Customer
+    It can only happen from available
+    It acts on an existing order
+    It takes:
+      an amount: price
+      a customer name: customer name, optional
+    Given "a pizza needs at least one topping" holds when this is true: toppings.size.positive?
+    Given "a payment was actually made" holds when this is true: amount.cents.positive?
+    Given "the payment covers the price" holds when this is true: amount.cents >= pizza.price_cents.cents
+    Then the customer name is set
+    And PizzaPurchased is announced
+
+  Query: Available
+    Where the status is available
+    Ordered by name, ascending
+
+  Query: Everything
+
+  Query: By Price
+    Ordered by pizza.price_cents.cents, ascending
+
+  Query: By Price Descending
+    Ordered by pizza.price_cents.cents, descending
+
+  Query: By Customer
+    Ordered by customer_name.value, ascending
+
+  Query: By Customer Descending
+    Ordered by customer_name.value, descending
+
+  Query: By Customer Unset Last
+    Ordered by customer_name.value, ascending
+    Empty values come last
+
+  Query: Costing Less Than
+    It takes:
+      a ceiling: price
+    Where the pizza.price_cents.cents is less than the ceiling
+    Ordered by name, ascending
+
+  Query: Expensive
+    Where the pizza.price_cents.cents is more than 1000
+    Ordered by name, ascending
+
+Policy: On Pizza Payment Received
+  Whenever PizzaPaymentReceived is announced by an order
+  Then Purchase runs

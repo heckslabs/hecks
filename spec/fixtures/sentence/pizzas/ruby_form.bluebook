@@ -1,0 +1,168 @@
+Hecks.bluebook "Pizzas" do
+  vision "Put toppings on a pizza and sell it to a customer."
+  supporting
+
+  aggregate "Order" do
+    description "An order that gathers toppings on a pizza and is eventually sold to a customer."
+
+    attribute :name,          PizzaName
+    attribute :pizza,         Pizza
+    attribute :toppings,      list_of(Topping)
+    # Optional: unknown until `Purchase` sets it.
+    attribute :customer_name, CustomerName, optional: true
+
+    identified_by :name
+
+    value_object "PizzaName" do
+      attribute :value, String, matches: :present
+
+      invariant("a pizza is named") { !value.to_s.empty? }
+    end
+
+    value_object "Price" do
+      attribute :cents, Integer
+
+      invariant("a price is never negative") { cents >= 0 }
+    end
+
+    value_object "CustomerName" do
+      attribute :value, String, matches: :present
+
+      invariant("a customer is named") { !value.to_s.empty? }
+    end
+
+    value_object "ToppingName" do
+      attribute :value, String, matches: :present
+
+      invariant("a topping is named") { !value.to_s.empty? }
+      # The pattern lets a form feed through; `.strip` is what sees past it.
+      invariant("a topping name is more than whitespace") { !value.to_s.strip.empty? }
+    end
+
+    value_object "ToppingAmount" do
+      attribute :value, Integer
+
+      invariant("an amount is positive") { value.positive? }
+    end
+
+    value_object "Topping" do
+      attribute :name,   String, matches: :present
+      attribute :amount, Integer
+    end
+
+    # A named, reusable closed set as a sibling value object; the inline `one_of(...)` shorthand
+    # cannot be spelled inside a `value_object` block.
+    value_object "Size" do
+      attribute :value, String, one_of: ["small", "large"]
+    end
+
+    # What was ordered; who ordered it and payment state live on Order.
+    value_object "Pizza" do
+      attribute :price_cents, Price
+      attribute :size,        Size
+    end
+
+    lifecycle :status, default: "available" do
+      transition "Purchase" => "sold", from: "available"
+      mark :terminal, "sold"
+    end
+
+    query "Available" do
+      where(status: "available")
+      order_by :name
+    end
+
+    # No `where`: every order answers, by identity when nothing orders them.
+    query "Everything" do
+    end
+
+    # Where-less and ordered. Equal prices keep identity order; the nested path reaches the cents.
+    query "ByPrice" do
+      order_by :"pizza.price_cents.cents"
+    end
+
+    query "ByPriceDescending" do
+      order_by :"pizza.price_cents.cents", :desc
+    end
+
+    # `customer_name` is unset until a purchase, so these show where an unset value sorts.
+    query "ByCustomer" do
+      order_by :"customer_name.value"
+    end
+
+    query "ByCustomerDescending" do
+      order_by :"customer_name.value", :desc
+    end
+
+    query "ByCustomerUnsetLast" do
+      order_by :"customer_name.value"
+      nulls :last
+    end
+
+    # Both price queries reach through the nested Pizza value object with a dotted path.
+    query "CostingLessThan" do
+      attribute :ceiling, Price
+      where(:"pizza.price_cents.cents" => { lt: :ceiling })
+      order_by :name
+    end
+
+    # A literal, not a kwarg: exercises the path where the where-clause number is stringified.
+    query "Expensive" do
+      where(:"pizza.price_cents.cents" => { gt: 1000 })
+      order_by :name
+    end
+
+    command "CreatePizza" do
+      role "Chef"
+      goal "Put a new pizza on the menu"
+
+      attribute :name,  PizzaName
+      attribute :pizza, Pizza
+
+      sets :name
+      sets :pizza
+
+      emits PizzaCreated
+    end
+
+    # AddTopping has no transition, so `from:` is its only lifecycle guard.
+    command "AddTopping", from: "available" do
+      role "Chef"
+      goal "Customize a pizza with an ingredient"
+
+      reference_to Order
+      attribute :topping, ToppingName
+      attribute :amount, ToppingAmount
+
+      given("at most 10 toppings")            { toppings.size < 10 }
+
+      sets :toppings, append: { name: :topping, amount: :amount }
+
+      emits ToppingAdded
+    end
+
+    command "Purchase", from: "available" do
+      role "Customer"
+      goal "Buy the pizza"
+
+      reference_to Order
+      attribute :amount, Price
+
+      given("a pizza needs at least one topping") { toppings.size.positive? }
+      given("a payment was actually made")         { amount.cents.positive? }
+      # Checks the payment itself is plausible (e.g. an underpayment), not whether one happened.
+      given("the payment covers the price") { amount.cents >= pizza.price_cents.cents }
+
+      # The lifecycle transition sets status; a `sets` on the lifecycle field is refused at build.
+      sets :customer_name
+
+      emits PizzaPurchased
+    end
+  end
+
+  # A payment arriving is an external fact; the business rules stay on Purchase.
+  policy "OnPizzaPaymentReceived" do
+    on Order::PizzaPaymentReceived
+    trigger Order::Purchase
+  end
+end
