@@ -898,7 +898,7 @@ pub fn emit_authorization_assignments(query_defs: &[QueryDef]) -> String {
         |q| format!("Some({})", naming::ruby_inspect_string(&q.verb)),
     );
     format!(
-        "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
+        "/// `provides \"authorization\", assignments:` — the query `kernel::check_role_via` reads; `None` when no bluebook here declares one.\npub const AUTHORIZATION_ASSIGNMENTS: Option<&str> = {value};\n"
     )
 }
 
