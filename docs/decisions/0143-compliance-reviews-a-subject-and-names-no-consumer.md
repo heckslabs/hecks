@@ -1,7 +1,7 @@
 # Compliance reviews a subject, and names no consumer
 
 **Status:** Accepted. Built on this branch, not released. Date: 2026-10-27. Needs
-[0144](0144-a-policy-reads-the-emitting-records-identity-as-id.md).
+[0149](0149-a-policy-reads-the-emitting-records-identity-as-id.md).
 
 ## Context
 
@@ -29,7 +29,7 @@ is pinned by `spec/context_map_banking_spec.rb` as a declared customer/supplier 
    `Escalate` (role "Compliance officer"). Its events are `ReviewOpened`, `ReviewCleared` and
    `ReviewEscalated`.
 2. **The consumer maps its fact to a subject.** Each consuming policy names the kind as a
-   literal and reads the key from the event's record as `:id` (ADR 0144):
+   literal and reads the key from the event's record as `:id` (ADR 0149):
    `trigger Review::Open, with: { subject_kind: "account_freeze", subject_key: :id }`. A
    composite identity arrives joined by a colon. The translation sits in the context that
    knows its own events, and Compliance learns no consumer's field names.
@@ -64,7 +64,7 @@ is pinned by `spec/context_map_banking_spec.rb` as a declared customer/supplier 
   comment described a `translates` in a hecksagon that attaches both), so there is nothing to
   rewire; the corpus script now opens a `privacy_marking` review directly.
 - **Rust.** Building this showed the Rust host ignored `with:` on a cross-domain policy, which
-  would have sent Compliance the old arguments; ADR 0144 records the fix. The generated
+  would have sent Compliance the old arguments; ADR 0149 records the fix. The generated
   Compliance and Banking code regenerates, the kernel tests pass, and the host's cross-domain
   tests pass against a rebuilt `banking.wasm`, including the arguments it delivers. The
   conformance fixtures that record the refused reaction were renamed by hand and Ruby answers
