@@ -2,8 +2,8 @@ require "spec_helper"
 
 RSpec.describe Hecks::Projections::Site::RootRows do
   let(:rows) do
-    described_class.new("Editor", fields: { domain: String, bluebook: String }, required: %i[domain bluebook],
-                                  renamed: { chapter: :bluebook })
+    described_class.new("Editor", fields: { domain: String, bluebook: String }, required: %i[domain bluebook])
+                   .renaming(chapter: :bluebook)
   end
   let(:table) { Hecks::Projections::Site::Table }
 
