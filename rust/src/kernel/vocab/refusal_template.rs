@@ -250,7 +250,7 @@ impl RefusalSite {
             Self::InvariantViolationClosedSetMember => "{type} admits {admitted} — got {offered}",
             Self::InvariantViolationValueObjectInvariant => "{name} invariant violated — {description} (given {offered})",
             Self::InvariantViolationAdmitsDeclaredSet => "{name} admits {admits} — {admitted} — got {offered}",
-            Self::InvariantViolationUndeclaredSet => "{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds",
+            Self::InvariantViolationUndeclaredSet => "{name} admits {admits}, which this bluebook does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds",
             Self::InvariantViolationGroupByCollision => "{read_model} groups by {fields}, but rows {ids} share {key} — a group_by leaf holds one row; add a field that tells them apart",
             Self::UnauthorizedTenantRequired => "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to",
             Self::UnauthorizedRoleMismatch => "{command} refused — role: {role}, and the caller stated {caller_role}",
@@ -1753,7 +1753,7 @@ mod tests {
         );
         assert_eq!(
             InvariantViolationUndeclaredSetArgs { name: "name \"x\"", admits: "admits \"x\"" }.render_args(),
-            "name \"x\" admits admits \"x\", which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"
+            "name \"x\" admits admits \"x\", which this bluebook does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"
         );
         assert_eq!(
             InvariantViolationGroupByCollisionArgs { read_model: "read_model \"x\"", fields: &[], ids: &[], key: "key \"x\"" }.render_args(),

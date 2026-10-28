@@ -207,7 +207,7 @@ fn policy_text(
             });
             if !declared {
                 return Err(format!(
-                    "policy {} triggers {command}, a command this chapter does not declare",
+                    "policy {} triggers {command}, a command this bluebook does not declare",
                     policy.name
                 ));
             }

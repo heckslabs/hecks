@@ -359,7 +359,7 @@ impl Parser<'_> {
                         return Err(self.error(
                             then_line,
                             then_col,
-                            format!("'{command}' is not a command of this chapter; if it lives in another domain, add `It crosses into the <domain> domain`"),
+                            format!("'{command}' is not a command of this bluebook; if it lives in another domain, add `It crosses into the <domain> domain`"),
                         ));
                     }
                     policy.trigger_command = Some(command);
@@ -382,7 +382,7 @@ impl Parser<'_> {
                             then_line,
                             then_col,
                             format!(
-                                "'{}' is not one command of this chapter. The commands are: {}",
+                                "'{}' is not one command of this bluebook. The commands are: {}",
                                 spoken(&command),
                                 all.join(", ")
                             ),

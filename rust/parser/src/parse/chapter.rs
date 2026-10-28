@@ -42,7 +42,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             return Err(Diagnostic::not_yet_implemented(
                 path,
                 1,
-                "a .hecksagon beside a chapter written as sentences",
+                "a .hecksagon beside a bluebook written as sentences",
             ));
         }
         let owned: Vec<(String, String)> = sentence_files.into_iter().cloned().collect();
@@ -135,7 +135,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         Diagnostic::new(
             "<none>",
             0,
-            format!("no .bluebook file given for chapter '{chapter_name}'"),
+            format!("no .bluebook file given for bluebook '{chapter_name}'"),
         )
     })?;
 

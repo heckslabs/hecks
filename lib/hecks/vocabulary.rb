@@ -442,7 +442,7 @@ module Hecks
         {"refusal"=>"InvariantViolation", "site"=>"closed_set_member", "template"=>"{type} admits {admitted} — got {offered}"}.freeze,
         {"refusal"=>"InvariantViolation", "site"=>"value_object_invariant", "template"=>"{name} invariant violated — {description} (given {offered})"}.freeze,
         {"refusal"=>"InvariantViolation", "site"=>"admits_declared_set", "template"=>"{name} admits {admits} — {admitted} — got {offered}"}.freeze,
-        {"refusal"=>"InvariantViolation", "site"=>"undeclared_set", "template"=>"{name} admits {admits}, which this chapter does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"}.freeze,
+        {"refusal"=>"InvariantViolation", "site"=>"undeclared_set", "template"=>"{name} admits {admits}, which this bluebook does not declare — a closed set is named Aggregate::SetName, and it must be one the bluebook actually holds"}.freeze,
         {"refusal"=>"InvariantViolation", "site"=>"group_by_collision", "template"=>"{read_model} groups by {fields}, but rows {ids} share {key} — a group_by leaf holds one row; add a field that tells them apart"}.freeze,
         {"refusal"=>"Unauthorized", "site"=>"tenant_required", "template"=>"{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to"}.freeze,
         {"refusal"=>"Unauthorized", "site"=>"role_mismatch", "template"=>"{command} refused — role: {role}, and the caller stated {caller_role}"}.freeze,

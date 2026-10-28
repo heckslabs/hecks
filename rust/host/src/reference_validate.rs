@@ -215,7 +215,7 @@ impl<'a> Checker<'a> {
             self.refuse(
                 violations,
                 format!(
-                    "{name} admits {admits}, which this chapter does not declare — a closed set is named \
+                    "{name} admits {admits}, which this bluebook does not declare — a closed set is named \
                      Aggregate::SetName, and it must be one the bluebook actually holds"
                 ),
             );
@@ -774,7 +774,7 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(
             violations[0]
-                .contains("size admits Order::Missing, which this chapter does not declare"),
+                .contains("size admits Order::Missing, which this bluebook does not declare"),
             "{violations:?}"
         );
     }

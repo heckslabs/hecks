@@ -19,7 +19,7 @@ RSpec.describe "the sentence form against the whole corpus", :io do
   # or that reach into another bluebook, which a standalone sentence file cannot say; the last is a
   # report that pages each of several included aggregates on its own.
   SENTENCE_UNSAID = [
-    /triggers \S+, a command this chapter does not declare/,
+    /triggers \S+, a command this bluebook does not declare/,
     /names no command \w+ declares/,
     /no phrase for this paging option in report/
   ].freeze
