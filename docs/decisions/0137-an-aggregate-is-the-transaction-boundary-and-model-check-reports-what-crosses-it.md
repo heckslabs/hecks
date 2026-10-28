@@ -54,6 +54,27 @@ contends for the same record. `model_check` reports no size at all.
    says carries a stated reason, and the finding is not reported. Not built. This
    follows ADR 0121's rule that an allowance belongs on its own declaration and not in a
    list kept apart from it (`ALLOWED_FINDINGS` stays empty).
+
+   Decided, still not built:
+   - **It lives on the aggregate**, as `acknowledges :large_aggregate, "the reason"`. A
+     finding about size is about the aggregate; a command is only one of the things counted.
+     The reason is required text, so an allowance cannot be written without saying why. It
+     names a finding kind and nothing else, and a kind the check does not emit is refused,
+     so a stale acknowledgement cannot linger after the check changes.
+   - **A process manager's compensations do not count** as declaring a multi-aggregate write.
+     Compensation is a second transaction undoing the first, which is the consistency the
+     boundary rule says to design for; counting it would turn the rule into a way to ask
+     for an exemption by adding a step. Such a write is reported, and acknowledged with a reason.
+   - **Context-map findings are not covered.** They belong to the context map, not to one
+     aggregate's declaration, and the `.contextmap` file kind was being built when this was
+     written, so its findings were not checked for change.
+
+   Why it is not built: the word reaches the Ruby aggregate builder, the language
+   bluebooks that describe the grammar, the Rust parser's keywords, IR and emitter, and the
+   pinned IR golden, which cannot be regenerated where this was written (the installed json
+   differs from the Gemfile pin). The language bluebooks were also being changed by another
+   piece of work. The check itself is a one-line filter in
+   `ModelCheck::AggregateChecks#large_aggregate_findings` once the IR carries the word.
 7. **Specifications, services and factories stay unmapped as words.** The guides say what
    each DDD pattern is in Hecks: a named `given` or precondition is a specification, the
    owning aggregate of ADR 0081 is the domain service for a rule across records, a command
@@ -84,6 +105,5 @@ contends for the same record. `model_check` reports no size at all.
   before it is documented.
 - The Rust kernel is unaffected: these are static checks over the IR, and no behaviour
   at run time changes.
-- Open: whether a process manager's compensations are enough to count a multi-aggregate
-  write as declared, and whether the acknowledgement belongs on the aggregate or on the
-  command.
+- Decided, in item 6: compensations do not count, and the acknowledgement belongs on the
+  aggregate. The word is not built.
