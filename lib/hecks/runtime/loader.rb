@@ -116,7 +116,9 @@ module Hecks
         dispatcher_for(registry)
       end
 
-      # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it.
+      # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it. An
+      # `.adapter` among them stands in for the shared root's adapters, which are then left unloaded, so a
+      # test can answer a port with its own adapter and never construct the domain's real one.
       def self.load_files(loading, files, shared, overlay)
         directory = File.dirname(files.first)
         root      = loading.shared_root(shared, directory)
@@ -124,7 +126,7 @@ module Hecks
 
         Hecks.with_registry(registry) do
           loading.load_library
-          loading.load_project(root)
+          loading.load_project(root, adapters: files.none? { |file| file.end_with?(".adapter") })
           loading.load_selected(files, environment: overlay)
         end
         registry

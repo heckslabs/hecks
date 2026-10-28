@@ -75,7 +75,7 @@ RSpec.describe "the legacy names under the launcher's words" do
 
     it "leaves run and mcp words alone, and project_diagrams' name=value to the launcher", :aggregate_failures do
       expect(words("run", "--wait", "a=b")).to eq([["--wait", "a=b"], nil])
-      expect(Hecks::CLI.launcher_form?(%w[project_diagrams domain=x chapter=Y])).to be(true)
+      expect(Hecks::CLI.launcher_form?(%w[project_diagrams domain=x bluebook=Y])).to be(true)
       expect(Hecks::CLI.launcher_form?(%w[project_diagrams x Y])).to be(false)
       expect(Hecks::CLI.launcher_form?(%w[run a=b])).to be(false)
     end
