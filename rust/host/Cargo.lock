@@ -1332,6 +1332,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hecks_expr"
+version = "0.1.0"
+dependencies = [
+ "regex",
+]
+
+[[package]]
 name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2466,6 +2473,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64",
+ "hecks_expr",
  "regex",
  "serde_json",
  "sha2 0.10.9",

@@ -3,6 +3,7 @@
 
 use crate::attribute_shapes::{optional, scalar};
 use crate::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
+use crate::rendering;
 use crate::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
@@ -17,8 +18,9 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
             .ok_or_else(|| eval_error("router bug: scalar shape always stringifies".to_string())),
         Value::Nil => optional::to_s(&Value::Nil)
             .ok_or_else(|| eval_error("router bug: Nil always stringifies to \"\"".to_string())),
-        v @ (Value::List(_) | Value::Array(_)) => {
-            Err(eval_error(format!("to_s expects a scalar, got {v:?}")))
-        }
+        v @ (Value::List(_) | Value::Array(_) | Value::Object(_)) => Err(eval_error(format!(
+            "to_s expects a scalar, got {}",
+            rendering::describe(&v)
+        ))),
     }
 }

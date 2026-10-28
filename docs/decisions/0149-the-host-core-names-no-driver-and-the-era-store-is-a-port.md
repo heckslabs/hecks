@@ -87,7 +87,22 @@ An outside review of the ports and adapters found the hexagon held in the Ruby r
   `Store::postgres` constructor, `lineage()` and the cfg(test) fixtures, which downcast to the
   concrete backends, and `StoreError`'s conversion from `tokio_postgres::Error`. Those move to the
   adapters crate in the next step.
-- **`expr_json.rs` against the kernel evaluator.** Feature-sized (see the thin adapters notes:
+- **Done: one expression evaluator, the `hecks_expr` crate (`rust/expr`).** It holds `Expr`,
+  `Value` (with a new `Object` variant), the operators, the attribute shapes, `ruby_float`,
+  `rendering` and `Refusal`. The kernel depends on it alone and re-exports its modules at the old
+  paths, so generated code is unchanged; `rust_host_core` depends on it too. The host's
+  `expr_json.rs` is now only its JSON door: `parse` builds the shared `Expr` (names interned to
+  `&'static str`, once each) and `interpret` evaluates it over an instance read as a `Fielded`
+  tree. `Wasm.scratch_copy` carries the new crate, the kernel-capability files live at
+  `rust/expr/src`, and the kernel dependency test holds both crates.
+  Merging them exposed where the kernel had drifted from Ruby, and the shared crate now follows
+  Ruby: float printing switched to scientific notation a decade late (1e15), `%` truncated floats,
+  `.split(" ")` ignored whitespace runs, regex `^`/`$`/`\d`/`m` were not Ruby's, integer/float
+  equality lost precision past 2^53, a path past an integer or list read as nil instead of
+  refusing, `.include?` on a non-list raised instead of answering false, and error messages
+  printed Rust `Debug` instead of Ruby's `describe`. The 210-case Ruby parity spec for the host,
+  and the kernel's operator, numeric, conformance and semantics-corpus specs, all pass.
+- **Superseded: `expr_json.rs` against the kernel evaluator.** Feature-sized (see the thin adapters notes:
   `Value::Object`, `Fielded`, error wording, the 152-case conformance spec). Until it lands, the
   conformance spec is what keeps the two copies from drifting.
 

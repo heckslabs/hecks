@@ -17,9 +17,9 @@ pub fn to_s(v: &Value) -> Option<Value> {
     match v {
         Value::Str(s) => Some(Value::Str(s.clone())),
         Value::Int(i) => Some(Value::Str(i.to_string())),
-        Value::Float(f) => Some(Value::Str(f.to_string())),
+        Value::Float(f) => Some(Value::Str(crate::ruby_float::to_s(*f))),
         Value::Bool(b) => Some(Value::Str(b.to_string())),
-        Value::List(_) | Value::Nil | Value::Array(_) => None,
+        Value::List(_) | Value::Nil | Value::Array(_) | Value::Object(_) => None,
     }
 }
 

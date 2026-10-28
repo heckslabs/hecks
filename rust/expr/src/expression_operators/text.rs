@@ -2,8 +2,10 @@
 //! `.start_with?`, `.end_with?`. String receivers only; `expr.rs` routes only these nodes here.
 
 use crate::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
+use crate::rendering;
 use crate::Refusal;
 
+/// Evaluates `.split`, `.strip`, `.start_with?` and `.end_with?`.
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     match expr {
         Expr::Split {
@@ -11,17 +13,7 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
             separator,
         } => {
             let text = require_str(&eval(receiver, ctx)?, "split")?;
-            // Ruby's `"a::".split("::")` is `["a"]`; Rust's split keeps the trailing "".
-            let mut parts: Vec<&str> = text.split(separator.as_str()).collect();
-            while parts.last() == Some(&"") {
-                parts.pop();
-            }
-            Ok(Value::Array(
-                parts
-                    .into_iter()
-                    .map(|p| Value::Str(p.to_string()))
-                    .collect(),
-            ))
+            Ok(Value::Array(split(&text, separator)))
         }
         Expr::Strip { receiver, side } => {
             let text = require_str(&eval(receiver, ctx)?, "strip")?;
@@ -47,10 +39,31 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     }
 }
 
+/// Ruby's `String#split` with a string separator: `" "` splits on runs of whitespace, `""` on
+/// characters, anything else on the literal text; trailing empty fields are dropped.
+fn split(text: &str, separator: &str) -> Vec<Value> {
+    let mut parts: Vec<String> = match separator {
+        " " => text
+            .split([' ', '\t', '\n', '\u{0b}', '\u{0c}', '\r'])
+            .filter(|p| !p.is_empty())
+            .map(str::to_string)
+            .collect(),
+        "" => text.chars().map(String::from).collect(),
+        sep => text.split(sep).map(str::to_string).collect(),
+    };
+    while parts.last().is_some_and(String::is_empty) {
+        parts.pop();
+    }
+    parts.into_iter().map(Value::Str).collect()
+}
+
 fn require_str(v: &Value, op: &str) -> Result<String, Refusal> {
     match v {
         Value::Str(s) => Ok(s.clone()),
-        other => Err(eval_error(format!("{op} expects a string, got {other:?}"))),
+        other => Err(eval_error(format!(
+            "{op} expects a string, got {}",
+            rendering::describe(other)
+        ))),
     }
 }
 

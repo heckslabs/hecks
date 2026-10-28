@@ -12,6 +12,7 @@ pub struct Comparison {
     pub negated: bool,
 }
 
+/// Evaluates `<`, `==` and their negations.
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let Expr::Compare { op, left, right } = expr else {
         return Err(Refusal::TypeMismatch(format!(
@@ -56,6 +57,8 @@ const fn ruby_class_of(value: &Value) -> &'static str {
         Value::Bool(true) => "TrueClass",
         Value::Bool(false) => "FalseClass",
         Value::List(_) | Value::Array(_) => "Array",
+        // A value object's own class name is not in the data; Hash is the nearest honest answer.
+        Value::Object(_) => "Hash",
     }
 }
 
@@ -66,12 +69,19 @@ fn describe(value: &Value) -> String {
         Value::Nil => "nil".to_string(),
         Value::Int(n) => n.to_string(),
         Value::Bool(b) => b.to_string(),
-        Value::Float(f) => format!("{f:?}"),
+        Value::Float(f) => crate::ruby_float::to_s(*f),
         Value::Str(s) => format!("{s:?}"),
         Value::List(_) => "[]".to_string(),
         Value::Array(items) => {
             let parts: Vec<String> = items.iter().map(describe_json).collect();
             format!("[{}]", parts.join(","))
+        }
+        Value::Object(fields) => {
+            let parts: Vec<String> = fields
+                .iter()
+                .map(|(key, field)| format!("{key:?}:{}", describe_json(field)))
+                .collect();
+            format!("{{{}}}", parts.join(","))
         }
     }
 }
@@ -84,11 +94,33 @@ fn describe_json(value: &Value) -> String {
     }
 }
 
-/// `pub(crate)` so `membership.rs` reuses the numeric-coerced equality for array haystacks.
-#[allow(clippy::float_cmp)] // reason: Ruby's `==` on numerics is exact IEEE equality, not a margin.
+/// An `Int` and a `Float` are equal only when the float is a whole number that is that integer.
+fn int_equals_float(i: i64, f: f64) -> bool {
+    f.is_finite()
+        && f.fract() == 0.0
+        && (-9.223_372_036_854_776e18..9.223_372_036_854_776e18).contains(&f)
+        && f as i64 == i
+}
+
+/// Ruby's `==` after `Evaluator.equal?`: numbers compare across kinds exactly, and lists and
+/// objects compare element by element with the same rule, so `[1] == [1.0]`. `pub(crate)` so
+/// `membership.rs` reuses it for array haystacks.
+#[allow(clippy::float_cmp)] // reason: Ruby's `Float#==` is exact, and this mirrors it.
 pub(crate) fn values_equal(lhs: &Value, rhs: &Value) -> bool {
-    match (scalar::numeric(lhs), scalar::numeric(rhs)) {
-        (Some(l), Some(r)) => l == r,
+    match (lhs, rhs) {
+        (Value::Int(a), Value::Int(b)) => a == b,
+        (Value::Int(i), Value::Float(f)) | (Value::Float(f), Value::Int(i)) => {
+            int_equals_float(*i, *f)
+        }
+        (Value::Float(a), Value::Float(b)) => a == b,
+        (Value::Array(a), Value::Array(b)) => {
+            a.len() == b.len() && a.iter().zip(b).all(|(x, y)| values_equal(x, y))
+        }
+        (Value::Object(a), Value::Object(b)) => {
+            a.len() == b.len()
+                && a.iter()
+                    .all(|(key, x)| b.get(key).is_some_and(|y| values_equal(x, y)))
+        }
         _ => lhs == rhs,
     }
 }
@@ -129,5 +161,19 @@ mod tests {
             ),
             "comparison of TrueClass with [1,null] failed"
         );
+    }
+
+    #[test]
+    fn equality_compares_nested_numbers_across_kinds_like_ruby() {
+        assert!(values_equal(
+            &Value::Array(vec![Value::Int(1)]),
+            &Value::Array(vec![Value::Float(1.0)])
+        ));
+        assert!(!values_equal(
+            &Value::Int(9_007_199_254_740_993),
+            &Value::Float(9_007_199_254_740_992.0)
+        ));
+        assert!(values_equal(&Value::Int(3), &Value::Float(3.0)));
+        assert!(!values_equal(&Value::Int(3), &Value::Float(3.5)));
     }
 }
