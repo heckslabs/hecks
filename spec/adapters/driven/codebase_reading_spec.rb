@@ -17,7 +17,7 @@ RSpec.describe Hecks::Adapters::Codebase::Reading do
     File.binwrite(File.join(root, path), text)
   end
 
-  BLUEBOOK = <<~TEXT.freeze
+  READING_BLUEBOOK = <<~TEXT.freeze
     Hecks.bluebook "Shop" do
       aggregate "Order" do
         command "Place" do
@@ -61,7 +61,7 @@ RSpec.describe Hecks::Adapters::Codebase::Reading do
 
   describe ".outline" do
     it "lists each construct of a bluebook with its extent, indented by nesting" do
-      write("shop.bluebook", BLUEBOOK)
+      write("shop.bluebook", READING_BLUEBOOK)
 
       expect(described_class.outline({ path: "shop.bluebook" }, tree).lines.map(&:chomp)).to eq(
         ['2-10: aggregate "Order"', '  3-5: command "Place"', '  7-9: query "Open"']
@@ -86,7 +86,7 @@ RSpec.describe Hecks::Adapters::Codebase::Reading do
   end
 
   describe ".declaration" do
-    before { write("shop/shop.bluebook", BLUEBOOK) }
+    before { write("shop/shop.bluebook", READING_BLUEBOOK) }
 
     it "names the range where a construct is declared" do
       expect(described_class.declaration({ name: "Place" }, tree)).to eq('shop/shop.bluebook:3-5: command "Place"')
@@ -115,7 +115,7 @@ RSpec.describe Hecks::Adapters::Codebase::Reading do
 
     it "sees a file that changed after the scan" do
       described_class.declaration({ name: "Place" }, tree)
-      write("shop/shop.bluebook", "\n#{BLUEBOOK}")
+      write("shop/shop.bluebook", "\n#{READING_BLUEBOOK}")
 
       expect(described_class.declaration({ name: "Place" }, tree)).to eq('shop/shop.bluebook:4-6: command "Place"')
     end
