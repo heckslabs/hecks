@@ -152,8 +152,8 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: none of the checks below reads rust/src/generated (they read the
+      # bluebooks, the Ruby and the comments), so a cache miss costs this job nothing.
 
       # Only 3 of this job's 5 steps overlap .githooks/pre-push's own checks
       # (lint_deploy_recipes and comment_style run regardless); those 3 gain an `if:` against
@@ -272,6 +272,7 @@ jobs:
 
       # Materializes rust/src/generated and rust/Cargo.toml: the saved output of a regeneration on
       # identical generator inputs, or a fresh `regenerate_corpus --confirm` over every domain.
+      # Every domain, on purpose: this job is the safety net that compares the whole tree.
       - uses: ./.github/actions/generated-rust
 
       # Fails when the committed pizzas, mod.rs or Cargo.toml differ from that regeneration, so a
@@ -302,7 +303,13 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # The main crate's default build compiles the chapters mod.rs declares outright: banking brings
+      # bulk and identity, checkout_fixture consolesettings and payments, embryonaut_vendoring_demo
+      # widgets, and reserved_names_fixture is Cargo's default feature. rust/host's tests include
+      # lease_clock's ir.json. Nothing else is linted, so the other domains are not regenerated.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: banking checkout_fixture embryonaut_vendoring_demo reserved_names_fixture lease_clock
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -361,7 +368,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # Every domain, on purpose: `rust coverage: every generated module` walks the whole tree.
       - uses: ./.github/actions/generated-rust
 
       # The reserved-name tables (RustReservedWord/CargoReservedName in

@@ -87,8 +87,20 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # The features this leg builds, below: every fourth of Cargo.toml's, by the same rule. Each one
+      # builds from its own domain's directory, so the leg regenerates those domains and no others.
+      # `meta` is a feature but not a corpus domain: every regeneration writes it.
+      - name: Name this leg's feature domains
+        id: leg_domains
+        run: |
+          names="$(grep -E '^[a-z0-9_]+ = \[\]$' rust/Cargo.toml | sed 's/ = \[\]$//' | grep -vx default \
+            | awk -v leg=${{ matrix.leg }} 'NR % 4 == leg % 4' | grep -vx meta | paste -sd' ' -)"
+          echo "names=$names" >> "$GITHUB_OUTPUT"
+
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: ${{ steps.leg_domains.outputs.names }}
 
       # `hecks project_rust` runs the hecks-codegen binary, so these builds are restored.
       - uses: ./.github/actions/cargo-cache
@@ -148,15 +160,23 @@ jobs:
     # they need this job's parser and codegen caches and leave rust/ alone, so leg c runs them
     # without the main crate's cache, the banking build or the feature binaries, which only the
     # other legs use. The conformance files, which build the crate, stay together in leg a.
+    #
+    # `domains` is what a leg's generated-rust step regenerates. Leg a names none, which is every
+    # domain: rust_conformance_fuzz_spec builds and fuzzes each one. Leg b builds banking, the
+    # default after the regeneration below, and the two it prefers, pizzas (committed) and roster.
+    # Leg c's subset spec compares what it writes for these two with the checkout's own.
     strategy:
       fail-fast: false
       matrix:
         include:
           - leg: a
+            domains: ""
             specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
           - leg: b
+            domains: banking roster
             specs: spec/rust_generated/domain_feature_exclusivity_spec.rb
           - leg: c
+            domains: lease_clock nested_pieces
             specs: spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb
 
     needs: ci_attestation_rust_io
@@ -190,6 +210,8 @@ jobs:
 
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: ${{ matrix.domains }}
 
       # Root crate only, so a dependency bump in rust/parser does not invalidate it. Leg c builds
       # nothing of the main crate, so it skips the restore, the slowest step of the job.

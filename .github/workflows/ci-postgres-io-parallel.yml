@@ -132,8 +132,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # The io specs that build the main crate in place are self_consistency_rust_spec (pizzas and
+      # banking), referral_chain_spec, has_many_spec and bench_spec (pizzas, committed). The crate
+      # declares every chapter outright, so banking, checkout_fixture and embryonaut_vendoring_demo
+      # supply the six it needs; the other domains are not read.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: banking checkout_fixture embryonaut_vendoring_demo referral_chain has_many_fixture
 
       # Preinstalled and tuned Postgres, not a `services:` container; each leg is its own runner.
       - uses: ./.github/actions/postgres

@@ -76,8 +76,9 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: `hecks build_wasm` regenerates the domain it builds, and the chapters
+      # it attaches, in a scratch copy of rust/, so it reads nothing the checkout holds beyond the
+      # committed mod.rs and pizzas.
 
       - uses: ./.github/actions/wasm-toolchain
         with:
@@ -120,8 +121,12 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # The host's tests read two domains' ir.json: lease_clock's, included at compile time, and
+      # checkout_fixture's, read at run time. The chapters checkout_fixture attaches come with it.
+      # cache-warm.yml's warm_host_test_crate names the same two, so one cache entry serves both.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: lease_clock checkout_fixture
 
       # Preinstalled Postgres rather than a `services:` container; see the action header.
       - uses: ./.github/actions/postgres
@@ -187,8 +192,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: these specs build the host's harness binaries, which compile no
+      # generated module, and build their IR from the bluebooks.
 
       - uses: ./.github/actions/postgres
 

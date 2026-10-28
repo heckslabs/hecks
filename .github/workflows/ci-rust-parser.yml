@@ -52,8 +52,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: the parser never touches the main crate's tree, and neither do the
+      # specs and tests below.
 
       - uses: ./.github/actions/cargo-cache
         with:

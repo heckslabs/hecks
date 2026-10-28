@@ -45,8 +45,8 @@ jobs:
 
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: the refresh reads CI logs through `gh` and writes two committed
+      # baseline files; it reads no generated module.
 
       - uses: ./.github/actions/hecks-environment
         with:

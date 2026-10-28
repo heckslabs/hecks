@@ -68,8 +68,8 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: `hecks build_wasm` regenerates the checkout fixture itself, and the
+      # host build below compiles no generated module.
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

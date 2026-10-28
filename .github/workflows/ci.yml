@@ -342,8 +342,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: the spec runs `hecks project_rust` for each domain it compares, in
+      # the checkout, and puts rust/src/generated back as it found it; rust/build's own tests read
+      # no generated module.
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -378,8 +379,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: `hecks build_wasm` regenerates the domain it builds in a scratch copy
+      # of rust/, so the spec reads nothing the checkout holds beyond the committed mod.rs and pizzas.
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -532,7 +533,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # Every domain, on purpose: spec/fuzzing/rust_gap_manifest_spec.rb reads each domain's
+      # manifest.json, so a domain left out would shrink the gaps its ratchet checks.
       - uses: ./.github/actions/generated-rust
 
       # Preinstalled and tuned, not a `services:` container; see the action's header.
@@ -588,8 +590,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: the specs it repeats (dispatcher_spec.rb and the two concurrent
+      # dispatch specs) boot in-process domains and read no generated module.
 
       # Preinstalled and tuned, not a `services:` container. The durability settings it turns
       # off don't affect Postgres locking or MVCC visibility, so the contention is unchanged.
