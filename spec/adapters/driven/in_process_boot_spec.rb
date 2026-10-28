@@ -98,6 +98,12 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(JSON.parse(answer.fetch(:text))).to eq("book" => { "authoritative" => [] })
   end
 
+  it "takes the flat switch without changing an empty dump" do
+    answer = adapter.stores(domain: domain, aggregate: { value: "book" }, flat: { value: true })
+
+    expect(JSON.parse(answer.fetch(:text))).to eq("book" => { "authoritative" => [] })
+  end
+
   it "refuses an aggregate that is not stored, naming the ones that are" do
     expect { adapter.stores(domain: domain, aggregate: { value: "bok" }) }
       .to raise_error(Hecks::Runtime::NotFound, /stored: book/)

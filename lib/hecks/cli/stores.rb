@@ -45,11 +45,27 @@ module Hecks
       # @param registry [Runtime::Registry] a booted domain's registry
       # @param aggregate [String, nil] a storage name; nil reads every aggregate
       # @param record [String, nil] a record id within `aggregate`
+      # @param flat [Boolean] unwrap the value objects (see `flatten`)
       # @return [Hash] see `narrow`
       # @raise [Runtime::NotFound] see `narrow`
-      def read(registry, aggregate, record)
+      def read(registry, aggregate, record, flat: false)
         document = stores_of(registry, only: aggregate)
-        narrow(document, aggregate, record, names: stored_names(registry))
+        narrowed = narrow(document, aggregate, record, names: stored_names(registry))
+        flat ? flatten(narrowed) : narrowed
+      end
+
+      # Unwraps every value object (`{ "value" => x }`) to `x`, at any depth, so a record reads as
+      # `status: "concluded"` and not `status: { value: "concluded" }`. A hash with any other key
+      # is kept as it is, with its own values unwrapped.
+      #
+      # @param node [Object] a hash, an array or a scalar from a stores document
+      # @return [Object] the same shape with each single-`value` hash replaced by its value
+      def flatten(node)
+        case node
+        when Hash then node.keys == ["value"] ? flatten(node["value"]) : node.transform_values { |inner| flatten(inner) }
+        when Array then node.map { |inner| flatten(inner) }
+        else node
+        end
       end
 
       # Narrows the whole document to what was asked for: all of it, one aggregate's dump, or

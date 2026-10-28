@@ -63,6 +63,7 @@ Hecks.bluebook "Hecks" do
       attribute :domain,    DomainPath
       attribute :aggregate, AggregateName, optional: true
       attribute :record,    RecordId,      optional: true
+      attribute :flat,      Boolean,       optional: true
       returns Document
     end
 
