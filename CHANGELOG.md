@@ -5,7 +5,9 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased] - planned 6.0.0
+## [Unreleased]
+
+## [6.0.0] - 2026-10-28
 
 - **A Rails app over a bluebook has working pages with no view files of its own.** `hecks-rails` renders a list for each aggregate that takes commands, with a form for each creating command; a record page that offers only the commands the signed-in person may run now and names the ones the domain would refuse; and, when a command is refused, the same page again with that command's form open, the person's input kept and the domain's reasons beside the fields. An app's own view of the same name wins. A project changes the pages with `member` rows of a value object named `App` (`title`, `home`) or `Listing` (`aggregate`, `label`, `columns`) in its own bluebook; the new `RailsApp` bluebook (`lib/hecks/rails_app/bluebook/rails_app.bluebook`) names the fields a row may carry, and with no rows the pages are derived from the domain alone. The `:rails_app` projection now draws a root route to the home aggregate's list and writes a controller only for an aggregate that takes commands, so one that only holds rows has no page. On a development server the pages add an "Acting as" picker of the roles the commands name: it signs the session in as `dev-<role>`, tells Governance that actor holds the role, and answers 404 anywhere else (`Hecks::Rails.dev_actor = true` or `false` overrides the environment).
 - **`Dispatcher#state_admits?` answers whether a record's state lets a command run, before any argument is known.** `validate` stops at the arguments stage, so a command with an argument still missing never reached the lifecycle `from:` stage and a record that had moved past it still looked ready. `state_admits?` asks the two guards a dispatch runs, reads no argument, and is how `hecks-rails` offers a record's commands without naming the runtime's classes. It is Ruby-only on purpose; the ADR 0128 addendum says when it should get a Rust counterpart.
