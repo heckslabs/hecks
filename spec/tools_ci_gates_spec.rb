@@ -46,17 +46,22 @@ RSpec.describe Hecks::Tools::CiGates do
       end
     end
 
+    def action_steps(name) = YAML.load_file(File.join(root, ".github/actions", name, "action.yml")).dig("runs", "steps")
+
+    def cache_step = action_steps("hecks-boot-cache").find { |step| step["uses"].to_s.start_with?("actions/cache@") }
+
+    def cache_dirs = %w[hecks_syntax_boot_cache hecks_verdict_cache].map { |name| File.basename(Hecks::CacheDir.path(name)) }
+
     # The launcher names each cached file by a digest of `lib/`, so a stale restore is ignored; the
     # key decides only whether a run starts warm, and it holds the inputs that digest covers.
-    it "key the boot caches by lib/ and the lockfile, in the directory the launcher writes" do
-      action = YAML.load_file(File.join(root, ".github/actions/hecks-boot-cache/action.yml"))
-      cache = action.dig("runs", "steps").find { |step| step["uses"].to_s.start_with?("actions/cache@") }
+    it "key the boot caches by lib/ and the lockfile" do
+      expect(cache_step.dig("with", "key")).to include("hashFiles('lib/**', 'Gemfile.lock')")
+    end
 
-      expect(cache.dig("with", "key")).to include("hashFiles('lib/**', 'Gemfile.lock')")
-      expect(cache.dig("with", "path").lines.map(&:strip)).to contain_exactly(
-        "~/.cache/hecks/#{File.basename(Hecks::CacheDir.path("hecks_syntax_boot_cache"))}",
-        "~/.cache/hecks/#{File.basename(Hecks::CacheDir.path("hecks_verdict_cache"))}"
-      )
+    it "cache the directories the launcher writes its boot caches to" do
+      paths = cache_step.dig("with", "path").lines.map(&:strip)
+
+      expect(paths).to match_array(cache_dirs.map { |dir| "~/.cache/hecks/#{dir}" })
     end
 
     # Every job of the run waits on a detector, so a detector installs no Rust toolchain: it
@@ -69,9 +74,9 @@ RSpec.describe Hecks::Tools::CiGates do
       end
     end
 
-    it "keep the Rust toolchain in setup-ruby for every job that does not opt out" do
+    it "keep the Rust toolchain in setup-ruby for every job that does not opt out", :aggregate_failures do
       action = YAML.load_file(File.join(root, ".github/actions/setup-ruby/action.yml"))
-      toolchain = action.dig("runs", "steps").find { |step| step["uses"] == "./.github/actions/rust-toolchain" }
+      toolchain = action_steps("setup-ruby").find { |step| step["uses"] == "./.github/actions/rust-toolchain" }
 
       expect(action.dig("inputs", "rust-toolchain", "default")).to eq("true")
       expect(toolchain["if"]).to eq("inputs.rust-toolchain != 'false'")
