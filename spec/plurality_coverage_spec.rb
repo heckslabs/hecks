@@ -19,6 +19,12 @@ RSpec.describe "every list the language declares, filled more than once" do
   # Lists the corpus never fills twice. Each entry says why it is untested; delete one and the
   # spec tells you whether the corpus now covers it.
   ALLOWED_SINGLETON = {
+    # Filled with three in `PublishingRun` (lib/hecks/hecks/codebase.bluebook), which is not a
+    # golden IR fixture: `Hecks.json` holds the root bluebook only.
+    "acknowledgements" =>
+                          "PublishingRun acknowledges :key_by_value three times (version, " \
+                          "client_version, ir_version) — a Hecks-family member, so no golden " \
+                          "IR fixture reaches it.",
     # Filled with two in lib/hecks/language/bluebook/attaches/paging.bluebook, a grammar
     # bluebook with no golden IR fixture, so this walk cannot see it.
     "attaches_to"      =>
@@ -34,12 +40,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     # twice, so no bluebook can fill the list with more than one until a second fact exists.
     "needs"            =>
                           "The runtime supplies one fact, `now`, and a repeat is refused, so a command's " \
-                          "needs hold at most one row until a second fact is admitted.",
-    # Filled with three in lib/hecks/hecks/codebase.bluebook (`acknowledges :key_by_value` on one
-    # aggregate), a Hecks bluebook with no golden IR fixture.
-    "acknowledgements" =>
-                          "Codebase acknowledges :key_by_value three times on one aggregate (ADR 0150) — " \
-                          "a Hecks bluebook, so no golden IR fixture reaches it."
+                          "needs hold at most one row until a second fact is admitted."
   }.freeze
 
   UNMEASURED_WHY = <<~WHY.freeze
