@@ -16,7 +16,7 @@ use crate::dispatch::tests::{
 };
 use crate::dispatch::{self, Caller, Outcome};
 use crate::host::Host;
-use crate::journal::{self, LineageConfig};
+use crate::store::journal_sql::{self as journal, LineageConfig};
 use crate::store::{Accepted, MemoryFault, MemoryStore, Store};
 use serde_json::{json, Value};
 use std::time::Duration;

@@ -12,6 +12,8 @@
 //! Eras, lineage heads, minting and the member lookups over head views exist only on Postgres,
 //! so they are a capability ([`Store::lineage`]) a backend may lack, not a part of every store.
 
+pub mod journal_sql;
+pub mod mint;
 mod memory;
 mod postgres;
 
@@ -230,7 +232,7 @@ impl Store {
         match self {
             Self::Postgres(store) => {
                 let guard = store.lineage().lock().await;
-                crate::journal::load_steps(&*guard).await.unwrap()
+                journal_sql::load_steps(&*guard).await.unwrap()
             }
             Self::Memory(store) => store
                 .committed()

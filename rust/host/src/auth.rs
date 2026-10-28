@@ -5,8 +5,8 @@ use crate::b64;
 use crate::crypto::{constant_time_eq, hex_encode};
 use crate::dispatch;
 use crate::host::Host;
-use crate::journal;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql as journal;
+use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::needs::{Clock, ProcessClock};
 use crate::store::{Store, StoreError};
@@ -477,7 +477,7 @@ fn membership_names(aggregate: &str) -> (String, String) {
         .next()
         .unwrap_or(aggregate)
         .to_string();
-    let storage_name = crate::journal::snake(&bare);
+    let storage_name = crate::store::journal_sql::snake(&bare);
     (bare, storage_name)
 }
 

@@ -18,6 +18,10 @@ mod hecks_naming;
 #[path = "../journal.rs"]
 mod journal;
 
+#[allow(dead_code)]
+#[path = "../store/journal_sql.rs"]
+mod journal_sql;
+
 // journal.rs's Postgres tests connect through `crate::test_pg`, so the harness's own test build
 // carries the same connection-string helpers.
 #[cfg(test)]
@@ -60,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let config = journal::LineageConfig {
+    let config = journal_sql::LineageConfig {
         domain: domain.clone(),
         era: Some(era),
         mirrored: None,
@@ -80,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn run_one(
     client: &tokio_postgres::Client,
-    config: &journal::LineageConfig,
+    config: &journal_sql::LineageConfig,
     operation: &Value,
 ) -> Value {
     let op = operation.get("op").and_then(|v| v.as_str()).unwrap_or("");
@@ -104,11 +108,11 @@ async fn run_one(
 
 async fn read_all(
     client: &tokio_postgres::Client,
-    config: &journal::LineageConfig,
+    config: &journal_sql::LineageConfig,
     operation: &Value,
 ) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
-    let rows = journal::read_lineage_head_all(client, &config.domain, storage_name).await?;
+    let rows = journal_sql::read_lineage_head_all(client, &config.domain, storage_name).await?;
     Ok(
         json!({ "rows": rows.into_iter().map(|(id, state)| json!([id, state])).collect::<Vec<_>>() }),
     )
@@ -116,18 +120,18 @@ async fn read_all(
 
 async fn read_by_id(
     client: &tokio_postgres::Client,
-    config: &journal::LineageConfig,
+    config: &journal_sql::LineageConfig,
     operation: &Value,
 ) -> anyhow::Result<Value> {
     let storage_name = require_str(operation, "storage_name")?;
     let id = require_str(operation, "id")?;
-    let state = journal::read_lineage_head_by_id(client, &config.domain, storage_name, id).await?;
+    let state = journal_sql::read_lineage_head_by_id(client, &config.domain, storage_name, id).await?;
     Ok(json!({ "state": state }))
 }
 
 async fn write(
     client: &tokio_postgres::Client,
-    config: &journal::LineageConfig,
+    config: &journal_sql::LineageConfig,
     operation: &Value,
 ) -> anyhow::Result<Value> {
     let aggregate = require_str(operation, "aggregate")?;
@@ -136,10 +140,10 @@ async fn write(
         .get("state")
         .ok_or_else(|| anyhow::anyhow!("write operation missing \"state\": {operation}"))?;
 
-    journal::append_lineage_mutation(
+    journal_sql::append_lineage_mutation(
         client,
         config,
-        &journal::Mutation {
+        &journal_sql::Mutation {
             aggregate,
             id,
             operation: "save",

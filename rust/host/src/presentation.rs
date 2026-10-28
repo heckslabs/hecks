@@ -3,11 +3,10 @@
 
 use crate::dispatch;
 use crate::journal::{self, LineageConfig};
-use crate::store::Store;
+use crate::store::{LineageStore, Store};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::path::Path;
-use tokio_postgres::GenericClient;
 
 /// The bluebook the console's config lives in, matching
 /// `presentation_config.rb`'s own `registry.bluebook("ConsoleSettings")`.
@@ -36,11 +35,10 @@ pub async fn load(
 /// The Ruby-written relations, split out so the kernel path above reads
 /// as the one decision it is, and so tests can drive this half directly.
 async fn load_from_relations(store: &Store, config: &LineageConfig) -> anyhow::Result<Value> {
-    let guard = store.require_lineage()?.lock().await;
-    let states = read_head_states(&*guard, &config.domain, STATE_STYLE).await?;
-    let collections = read_head_states(&*guard, &config.domain, COLLECTION).await?;
-    let overview = read_head_states(&*guard, &config.domain, OVERVIEW).await?;
-    drop(guard);
+    let lineage = store.require_lineage()?;
+    let states = read_head_states(lineage, &config.domain, STATE_STYLE).await?;
+    let collections = read_head_states(lineage, &config.domain, COLLECTION).await?;
+    let overview = read_head_states(lineage, &config.domain, OVERVIEW).await?;
     Ok(reshape(&states, &collections, &overview))
 }
 
@@ -153,29 +151,16 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
 
 /// Every live `state` document for one ConsoleSettings aggregate.
 ///
-/// Tries several relation names in order — host-qualified, then
-/// chapter-qualified (ADR 0059), then the plain view or table — because
-/// different runtimes have written these rows under different names,
-/// all answering the same `id`/`state` columns. First one that exists
-/// wins; a relation that exists but fails to read still errors.
-async fn read_head_states<C: GenericClient>(
-    store: &C,
+/// Tries several relation names in order (see `head_view_candidates`) because different runtimes
+/// have written these rows under different names, all answering the same `id`/`state` columns.
+async fn read_head_states(
+    lineage: &LineageStore,
     host_domain: &str,
     storage_name: &str,
 ) -> anyhow::Result<Vec<Value>> {
-    for relation in head_view_candidates(host_domain, storage_name) {
-        if !relation_exists(store, &relation).await? {
-            continue;
-        }
-        let rows = store
-            .query(
-                &format!("SELECT state FROM {}", journal::quote_ident(&relation)),
-                &[],
-            )
-            .await?;
-        return Ok(rows.iter().map(|row| row.get(0)).collect());
-    }
-    Ok(Vec::new())
+    lineage
+        .first_existing_states(&head_view_candidates(host_domain, storage_name))
+        .await
 }
 
 /// Pure, and tested as such. Deduplicated, so a host domain that is
@@ -189,16 +174,6 @@ fn head_view_candidates(host_domain: &str, storage_name: &str) -> Vec<String> {
     ];
     candidates.dedup();
     candidates
-}
-
-/// `to_regclass` resolves through the connection's own `search_path`,
-/// same as the unqualified SELECT below — never a same-named relation
-/// in some other schema.
-async fn relation_exists<C: GenericClient>(store: &C, relation: &str) -> anyhow::Result<bool> {
-    let row = store
-        .query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation])
-        .await?;
-    Ok(row.get(0))
 }
 
 /// `PresentationConfig.unwrap` — every scalar here is a single-attribute

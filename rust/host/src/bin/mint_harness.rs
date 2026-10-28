@@ -12,11 +12,15 @@ mod hecks_naming;
 #[allow(dead_code)]
 #[path = "../journal.rs"]
 mod journal;
+
+#[allow(dead_code)]
+#[path = "../store/journal_sql.rs"]
+mod journal_sql;
 #[allow(dead_code)]
 #[path = "../log.rs"]
 mod log;
 #[allow(dead_code)]
-#[path = "../mint.rs"]
+#[path = "../store/mint.rs"]
 mod mint;
 #[allow(dead_code)]
 #[path = "../reference_transform.rs"]
@@ -69,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    journal::ensure_schema(&client).await?;
+    journal_sql::ensure_schema(&client).await?;
     mint::ensure_base(&client, domain).await?;
 
     let my_hash = storage_shape::mint_hash(&ir);
@@ -89,12 +93,12 @@ async fn main() -> anyhow::Result<()> {
                 .and_then(Value::as_str)
                 .unwrap_or("")
                 .to_string();
-            let storage_name = journal::snake(&name);
+            let storage_name = journal_sql::snake(&name);
             mint::Aggregate { name, storage_name }
         })
         .collect();
 
-    let held = journal::held_eras(&client, domain).await?;
+    let held = journal_sql::held_eras(&client, domain).await?;
 
     let era = match mint::decide_boot_action(&held, &my_label) {
         mint::BootDecision::UseExisting { ordinal } => ordinal,

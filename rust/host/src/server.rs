@@ -4,7 +4,7 @@
 use crate::arg_limits;
 use crate::dispatch;
 use crate::host::Host;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::log;
 use crate::rate_limit::{self, RateLimits, Verdict};
