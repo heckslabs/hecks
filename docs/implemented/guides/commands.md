@@ -184,7 +184,7 @@ a query", below), so it takes `over:` and no record.
 
 ```ruby
 Banking::Account.respond_to?(:open!)          # => true
-Banking::Account.method(:credit!).parameters  # => [[:keyreq, :over], [:key, :mode]]
+Banking::Account.method(:credit!).parameters  # => [[:key, :over]]
 ```
 
 ```ruby
