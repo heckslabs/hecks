@@ -49,9 +49,20 @@ Hecks.bluebook "Hecks" do
       returns Document
     end
 
+    # The identity one stored record answers to, as the store's `id` column holds it.
+    value_object "RecordId" do
+      attribute :value, String, matches: :present
+
+      invariant("a record is named by its id") { !value.to_s.empty? }
+    end
+
+    # `aggregate` is the storage name the full document keys by (`reflection`, not `Reflection`); with
+    # `record` as well it narrows to that one record, so one row can be read without dumping the rest.
     query "Stores" do
-      description "Every aggregate's current records: the head, not the journal."
-      attribute :domain, DomainPath
+      description "Every aggregate's current records, or one aggregate's, or one record: the head, not the journal."
+      attribute :domain,    DomainPath
+      attribute :aggregate, AggregateName, optional: true
+      attribute :record,    RecordId,      optional: true
       returns Document
     end
 

@@ -92,6 +92,22 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(JSON.parse(adapter.stores(domain: domain).fetch(:text))).to eq("book" => { "authoritative" => [] })
   end
 
+  it "answers one aggregate's records when it is named" do
+    answer = adapter.stores(domain: domain, aggregate: { value: "book" })
+
+    expect(JSON.parse(answer.fetch(:text))).to eq("book" => { "authoritative" => [] })
+  end
+
+  it "refuses an aggregate that is not stored, naming the ones that are" do
+    expect { adapter.stores(domain: domain, aggregate: { value: "bok" }) }
+      .to raise_error(Hecks::Runtime::NotFound, /stored: book/)
+  end
+
+  it "refuses a record that is not there" do
+    expect { adapter.stores(domain: domain, aggregate: { value: "book" }, record: { value: "dune" }) }
+      .to raise_error(Hecks::Runtime::NotFound, /no book record with id "dune"/)
+  end
+
   it "answers the journal, and none is there yet" do
     expect(JSON.parse(adapter.history(domain: domain).fetch(:text))).to eq("book" => [])
   end
