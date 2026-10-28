@@ -44,6 +44,24 @@ RSpec.describe Hecks::Tools::CiGates do
       end
     end
 
+    # Every job of the run waits on a detector, so a detector installs no Rust toolchain: it
+    # formats and builds nothing, and restoring the toolchains directory is seconds of the front.
+    it "set up Ruby in a detector job without the Rust toolchain" do
+      described_class.gates.each do |gate|
+        setup = workflow_steps(gate).find { |step| step["uses"] == "./.github/actions/setup-ruby" }
+
+        expect(setup.dig("with", "rust-toolchain")).to eq("false")
+      end
+    end
+
+    it "keep the Rust toolchain in setup-ruby for every job that does not opt out" do
+      action = YAML.load_file(File.join(root, ".github/actions/setup-ruby/action.yml"))
+      toolchain = action.dig("runs", "steps").find { |step| step["uses"] == "./.github/actions/rust-toolchain" }
+
+      expect(action.dig("inputs", "rust-toolchain", "default")).to eq("true")
+      expect(toolchain["if"]).to eq("inputs.rust-toolchain != 'false'")
+    end
+
     def workflow(name) = YAML.load_file(File.join(root, ".github/workflows", name))
 
     it "gate stress_concurrency on the runtime_changed detector", :aggregate_failures do

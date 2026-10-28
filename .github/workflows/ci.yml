@@ -76,6 +76,9 @@ jobs:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
       - uses: ./.github/actions/setup-ruby
+        with:
+          # The decision diffs files and calls an API; it formats and builds no Rust.
+          rust-toolchain: "false"
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'is this change only a release bump on a certified base?'
@@ -557,6 +560,9 @@ jobs:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
       - uses: ./.github/actions/setup-ruby
+        with:
+          # The decision diffs files and calls an API; it formats and builds no Rust.
+          rust-toolchain: "false"
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch lib/hecks/runtime/**?'
