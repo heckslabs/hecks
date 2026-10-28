@@ -40,7 +40,12 @@ pub async fn load(
 pub async fn load_from_relations(store: &Store, config: &LineageConfig) -> anyhow::Result<Value> {
     let states = read_head_states(store, &config.domain, STATE_STYLE).await?;
     let mut collections = Vec::new();
-    for storage_name in [COLLECTION, COLLECTION_IDENTITY, COLLECTION_LAYOUT, COLLECTION_RULES] {
+    for storage_name in [
+        COLLECTION,
+        COLLECTION_IDENTITY,
+        COLLECTION_LAYOUT,
+        COLLECTION_RULES,
+    ] {
         collections.extend(read_head_states(store, &config.domain, storage_name).await?);
     }
     let overview = read_head_states(store, &config.domain, OVERVIEW).await?;
@@ -262,7 +267,9 @@ pub fn reshape_states(rows: &[Value]) -> Value {
 pub fn reshape_collections(rows: &[Value]) -> Value {
     let mut merged: BTreeMap<String, Map<String, Value>> = BTreeMap::new();
     for row in rows {
-        let Some(fields) = row.as_object() else { continue };
+        let Some(fields) = row.as_object() else {
+            continue;
+        };
         let entry = merged.entry(unwrap_str(row.get("agg"))).or_default();
         entry.extend(fields.iter().map(|(k, v)| (k.clone(), v.clone())));
     }
