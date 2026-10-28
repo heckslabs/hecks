@@ -165,7 +165,7 @@ Hecks.bluebook "Hecks" do
     where do
       operation.value == "compact" || operation.value == "compact_heki"
     end
-    trigger Era::Ledger::Capture, with: { run: :run }
+    ask     :capture, with: { run: :run }
   end
 
   policy "RecordTheSeal" do
@@ -175,7 +175,7 @@ Hecks.bluebook "Hecks" do
 
   policy "CompactWhenSealed" do
     on      "Era.HeadCaptured"
-    trigger Era::JournalStore::Apply, with: { run: :run }
+    ask     :apply, with: { run: :run }
   end
 
   policy "AbandonWhenNotSealed" do
@@ -185,7 +185,7 @@ Hecks.bluebook "Hecks" do
 
   policy "WalkWhenVerificationRequested" do
     on      "Audit.VerificationRequested"
-    trigger Audit::Ledger::Walk, with: { run: :run }
+    ask     :walk, with: { run: :run }
   end
 
   policy "ConfirmWhenChainWalked" do

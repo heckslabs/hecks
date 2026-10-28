@@ -523,102 +523,102 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectModelRequested" do
     on      "LanguageRun.ProjectModelRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectVocabularyRequested" do
     on      "LanguageRun.ProjectVocabularyRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectRustVocabularyRequested" do
     on      "LanguageRun.ProjectRustVocabularyRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectRefusalWordingRequested" do
     on      "LanguageRun.ProjectRefusalWordingRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectReservedNamesRequested" do
     on      "LanguageRun.ProjectReservedNamesRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectParserTableRequested" do
     on      "LanguageRun.ProjectParserTableRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectPhraseTableRequested" do
     on      "LanguageRun.ProjectPhraseTableRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectBootstrapTableRequested" do
     on      "LanguageRun.ProjectBootstrapTableRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectFieldHintsRequested" do
     on      "LanguageRun.ProjectFieldHintsRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectExpressionTablesRequested" do
     on      "LanguageRun.ProjectExpressionTablesRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectReferenceRequested" do
     on      "LanguageRun.ProjectReferenceRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProposeRequested" do
     on      "LanguageRun.ProposeRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenAdmitRequested" do
     on      "LanguageRun.AdmitRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenDeprecateRequested" do
     on      "LanguageRun.DeprecateRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenRetireRequested" do
     on      "LanguageRun.RetireRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenRenameRequested" do
     on      "LanguageRun.RenameRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProposeArgumentRequested" do
     on      "LanguageRun.ProposeArgumentRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenAdmitArgumentRequested" do
     on      "LanguageRun.AdmitArgumentRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenDeprecateArgumentRequested" do
     on      "LanguageRun.DeprecateArgumentRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenRetireArgumentRequested" do
     on      "LanguageRun.RetireArgumentRequested"
-    trigger LanguageRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptLanguageWhenExamined" do
@@ -634,7 +634,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformLanguageWhenAccepted" do
     on      "LanguageRun.LanguageAccepted"
-    trigger LanguageRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordLanguageOutcome" do
@@ -768,12 +768,12 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectKernelCapabilitiesRequested" do
     on      "KernelRun.ProjectKernelCapabilitiesRequested"
-    trigger KernelRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenMeasureKernelCoverageRequested" do
     on      "KernelRun.MeasureKernelCoverageRequested"
-    trigger KernelRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptKernelWhenExamined" do
@@ -789,7 +789,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformKernelWhenAccepted" do
     on      "KernelRun.KernelAccepted"
-    trigger KernelRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordKernelOutcome" do
@@ -954,22 +954,22 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenCheckEngineAgreementRequested" do
     on      "ConformanceRun.CheckEngineAgreementRequested"
-    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenMeasureDocCoverageRequested" do
     on      "ConformanceRun.MeasureDocCoverageRequested"
-    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenCheckShapeLedgerRequested" do
     on      "ConformanceRun.CheckShapeLedgerRequested"
-    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenArgumentGateMatrixRequested" do
     on      "ConformanceRun.ArgumentGateMatrixRequested"
-    trigger ConformanceRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptConformanceWhenExamined" do
@@ -985,7 +985,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformConformanceWhenAccepted" do
     on      "ConformanceRun.ConformanceAccepted"
-    trigger ConformanceRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordConformanceOutcome" do
@@ -1216,12 +1216,12 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenRegenerateCorpusRequested" do
     on      "RegenerationRun.RegenerateCorpusRequested"
-    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectCiGatesRequested" do
     on      "RegenerationRun.ProjectCiGatesRequested"
-    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectCiPipelineRequested" do
@@ -1231,17 +1231,17 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectLanesRequested" do
     on      "RegenerationRun.ProjectLanesRequested"
-    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectToolsDocRequested" do
     on      "RegenerationRun.ProjectToolsDocRequested"
-    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenDecideCiGateRequested" do
     on      "RegenerationRun.DecideCiGateRequested"
-    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptRegenerationWhenExamined" do
@@ -1257,7 +1257,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformRegenerationWhenAccepted" do
     on      "RegenerationRun.RegenerationAccepted"
-    trigger RegenerationRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordRegenerationOutcome" do
@@ -1391,7 +1391,7 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenGateRequested" do
     on      "GateRun.GateRequested"
-    trigger GateRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptGateWhenExamined" do
@@ -1407,7 +1407,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformGateWhenAccepted" do
     on      "GateRun.GateAccepted"
-    trigger GateRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordGateOutcome" do
@@ -1688,37 +1688,37 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenCheckCommentsRequested" do
     on      "StyleRun.CheckCommentsRequested"
-    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenFixCommentsRequested" do
     on      "StyleRun.FixCommentsRequested"
-    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenWriteCommentBaselineRequested" do
     on      "StyleRun.WriteCommentBaselineRequested"
-    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenCheckCommentsUnchangedRequested" do
     on      "StyleRun.CheckCommentsUnchangedRequested"
-    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenCheckRustCommentsRequested" do
     on      "StyleRun.CheckRustCommentsRequested"
-    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenFixRustCommentsRequested" do
     on      "StyleRun.FixRustCommentsRequested"
-    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenCanonicaliseRequested" do
     on      "StyleRun.CanonicaliseRequested"
-    trigger StyleRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptStyleWhenExamined" do
@@ -1734,7 +1734,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformStyleWhenAccepted" do
     on      "StyleRun.StyleAccepted"
-    trigger StyleRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordStyleOutcome" do
@@ -1984,22 +1984,22 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenFlogRequested" do
     on      "InspectionRun.FlogRequested"
-    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenFlayRequested" do
     on      "InspectionRun.FlayRequested"
-    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenReekRequested" do
     on      "InspectionRun.ReekRequested"
-    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenRubycriticRequested" do
     on      "InspectionRun.RubycriticRequested"
-    trigger InspectionRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptInspectionWhenExamined" do
@@ -2015,7 +2015,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformInspectionWhenAccepted" do
     on      "InspectionRun.InspectionAccepted"
-    trigger InspectionRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordInspectionOutcome" do
@@ -2152,12 +2152,12 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenHoistLocalGivensRequested" do
     on      "CodemodRun.HoistLocalGivensRequested"
-    trigger CodemodRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenDropImplicitAppendFieldsRequested" do
     on      "CodemodRun.DropImplicitAppendFieldsRequested"
-    trigger CodemodRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptCodemodWhenExamined" do
@@ -2173,7 +2173,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformCodemodWhenAccepted" do
     on      "CodemodRun.CodemodAccepted"
-    trigger CodemodRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordCodemodOutcome" do
@@ -2531,42 +2531,42 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenRefreshRuntimeBaselineRequested" do
     on      "TestSuiteRun.RefreshRuntimeBaselineRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenRunSpecExampleRequested" do
     on      "TestSuiteRun.RunSpecExampleRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenStressConcurrencyRequested" do
     on      "TestSuiteRun.StressConcurrencyRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenRunCargoTestsRequested" do
     on      "TestSuiteRun.RunCargoTestsRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenClearCachesRequested" do
     on      "TestSuiteRun.ClearCachesRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenRegenerateLegacyFixturesRequested" do
     on      "TestSuiteRun.RegenerateLegacyFixturesRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenSeedSemanticsCorpusRequested" do
     on      "TestSuiteRun.SeedSemanticsCorpusRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenWriteIoParallelSpecListRequested" do
     on      "TestSuiteRun.WriteIoParallelSpecListRequested"
-    trigger TestSuiteRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptTestSuiteWhenExamined" do
@@ -2582,7 +2582,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformTestSuiteWhenAccepted" do
     on      "TestSuiteRun.TestSuiteAccepted"
-    trigger TestSuiteRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordTestSuiteOutcome" do
@@ -2848,22 +2848,22 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenServeQueryIrMcpRequested" do
     on      "CorpusRun.ServeQueryIrMcpRequested"
-    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenPresentRequested" do
     on      "CorpusRun.PresentRequested"
-    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenComposeRequested" do
     on      "CorpusRun.ComposeRequested"
-    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenPreviewRequested" do
     on      "CorpusRun.PreviewRequested"
-    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptCorpusWhenExamined" do
@@ -2879,7 +2879,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformCorpusWhenAccepted" do
     on      "CorpusRun.CorpusAccepted"
-    trigger CorpusRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordCorpusOutcome" do
@@ -3138,12 +3138,12 @@ Hecks.bluebook "Hecks" do
 
   policy "ExaminePublishingWhenPublishRequested" do
     on      "PublishingRun.PublishRequested"
-    trigger PublishingRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExaminePublishingWhenPublishGemRequested" do
     on      "PublishingRun.PublishGemRequested"
-    trigger PublishingRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "AcceptTheReleaseWhenExamined" do
@@ -3185,12 +3185,12 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformPublishingWhenAccepted" do
     on      "PublishingRun.PublishingAccepted"
-    trigger PublishingRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "PerformPublishingWhenGemAccepted" do
     on      "PublishingRun.GemAccepted"
-    trigger PublishingRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   # A real run advances the root Release: tagged when the tag was made, published when a registry
@@ -3460,12 +3460,12 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenPromoteRequested" do
     on      "PromotionRun.PromoteRequested"
-    trigger PromotionRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenWatchRequested" do
     on      "PromotionRun.WatchRequested"
-    trigger PromotionRun::SourceTree::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ObserveWhenWatchExamined" do
@@ -3509,7 +3509,7 @@ Hecks.bluebook "Hecks" do
 
   policy "PerformPromotionWhenAccepted" do
     on      "PromotionRun.PromotionAccepted"
-    trigger PromotionRun::SourceTree::Perform, with: { run: :run }
+    ask     :perform, with: { run: :run }
   end
 
   policy "RecordPromotionOutcome" do
