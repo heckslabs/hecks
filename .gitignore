@@ -60,3 +60,7 @@ packages/hecks-rails/Gemfile.lock
 # A copy's own overlay (Adapters::Folder::LOCAL_OVERLAY): its database and other settings for that copy only.
 **/environments/local.hecksagon
 **/environments/local.world
+
+# A chapter's own world (Adapters::Folder::LOCAL_WORLDS): where a copy or a working directory opts a chapter into persistence.
+**/*.local.world
+**/*.local.hecksagon

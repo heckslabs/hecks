@@ -45,7 +45,7 @@ module Hecks
 
       # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
       # `:rollback`: a raise inside `transaction` undoes every write the block made, joined ones
-      # included, which an all_or_nothing bulk run needs (ADR 0125).
+      # included, which a compiled bulk statement relies on (ADR 0129).
       #
       # `:dispatch_claims`: `dispatch_claim` joins the save's transaction, so a claim and the
       # write it guards commit or roll back together.

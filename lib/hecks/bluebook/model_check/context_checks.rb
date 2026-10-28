@@ -1,9 +1,13 @@
+require_relative "context_map_checks"
+
 module Hecks
   module Bluebook
     module ModelCheck
       # The checks over how contexts relate to each other: a `translates` has to listen to a context
       # this hecksagon acknowledges, and no two contexts may depend on each other in a cycle.
       module ContextChecks
+        include ContextMapChecks
+
         # The edge kinds that couple two contexts at run time. A shared kernel merges in-process, so
         # two contexts attaching each other is a different question and is left out.
         COUPLING_KINDS = %w[customer_supplier acl].freeze

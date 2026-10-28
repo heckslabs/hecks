@@ -23,12 +23,12 @@ RSpec.describe "a bulk run as one statement" do
     end
   end
 
-  def plan(command, mode: "best_effort", query: "Everything")
-    Hecks::Bulk::Plan.new(verb: "Lamps::Lamp.#{command}", over: "Lamps::Lamp.#{query}", arguments: {}, mode: mode)
+  def plan(command, query: "Everything")
+    Hecks::Bulk::Plan.new(verb: "Lamps::Lamp.#{command}", over: "Lamps::Lamp.#{query}", arguments: {})
   end
 
-  def sweep(command, mode: "best_effort", set_transform: true)
-    Hecks::Bulk::Sweep.new(@runtime.registry, plan(command, mode: mode), set_transform: set_transform).outcomes
+  def sweep(command, set_transform: true)
+    Hecks::Bulk::Sweep.new(@runtime.registry, plan(command), set_transform: set_transform).outcomes
   end
 
   def statement(command) = Hecks::Bulk::SetPlanner.new(@runtime.registry, plan(command), :lamp).statement
@@ -66,18 +66,6 @@ RSpec.describe "a bulk run as one statement" do
     sweep("Relabel")
     facts = @runtime.events.select { |event| event.name == "LampRelabelled" }.map { |event| [event.id, event.payload[:lamp]] }
     expect(facts).to eq([%w[a a], %w[b b], %w[c c]])
-  end
-
-  it "rolls every row back under all_or_nothing when the statement skipped one, as row by row does",
-     :aggregate_failures do
-    boot
-    expect(sweep("Dim", mode: "all_or_nothing")).to eq(row_by_row_all_or_nothing)
-    expect(brightness).to eq("a" => 5, "b" => 25, "c" => 45)
-  end
-
-  def row_by_row_all_or_nothing
-    stopped = "not sent: row a refused (Dim refused — the lamp is bright enough to dim)"
-    [dim_refusal, { row: "b", delivered: false, reason: stopped }, { row: "c", delivered: false, reason: stopped }]
   end
 
   it "runs row by row when the store refuses the statement" do

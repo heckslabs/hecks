@@ -58,6 +58,33 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
     File.write(File.join(@dir, "shelf/bluebook/shelf.hecksagon"),
                "Hecks.hecksagon \"Shelf\" do\n  persisted_by \"Memory\"\nend\n")
     File.write(File.join(@dir, "launch.rb"), LAUNCH_SCRIPT)
+    opt_in_to_postgres_era(@dir)
+  end
+
+  # What a client does to keep a journal: a `hecks.local.hecksagon` in the working directory whose
+  # root `persisted_by` the attached Governance chapter inherits, and a `hecks.local.world` with
+  # the database for both.
+  def opt_in_to_postgres_era(directory)
+    write_local_hecksagon(directory)
+    write_local_worlds(directory)
+  end
+
+  def write_local_hecksagon(directory)
+    File.write(File.join(directory, "hecks.local.hecksagon"), <<~HECKSAGON)
+      Hecks.hecksagon "Hecks" do
+        persisted_by "PostgresEra"
+      end
+    HECKSAGON
+  end
+
+  def write_local_worlds(directory)
+    %w[Hecks Governance].each do |chapter|
+      File.write(File.join(directory, "#{chapter.downcase}.local.world"), <<~WORLD)
+        Hecks.world "#{chapter}" do
+          default_database "#{FencedOwner.url(JOURNAL_DB)}"
+        end
+      WORLD
+    end
   end
 
   after(:all) do
@@ -67,12 +94,11 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
     admin.close
   end
 
-  # A child process with no environment selected, so the domain binds its real store, and the
-  # database named by `HECKS_DATABASE`.
+  # A child process with no environment selected, run from the directory that holds the local
+  # worlds, so the domain binds the real store they name.
   def child(*argv)
-    env = { "HECKS_DATABASE" => FencedOwner.url(JOURNAL_DB), "HECKS_ENVIRONMENT" => nil,
-            "HECKS_NO_3_0_NOTICE" => "1" }
-    Open3.capture3(env, RbConfig.ruby, "-I#{File.join(HECKS_ROOT, "lib")}", *argv, chdir: HECKS_ROOT)
+    env = { "HECKS_ENVIRONMENT" => nil, "HECKS_DATABASE" => nil, "HECKS_NO_3_0_NOTICE" => "1" }
+    Open3.capture3(env, RbConfig.ruby, "-I#{File.join(HECKS_ROOT, "lib")}", *argv, chdir: @dir)
   end
 
   # What the child printed; fails with everything it printed when it did not succeed.
