@@ -17,8 +17,14 @@ module Hecks
             *unknown_transition_commands(lifecycle, Array(declaring.commands).map(&:hecks_name), subject),
             *unreachable_state_findings(lifecycle, full_states(lifecycle), reached, subject),
             *dead_transition_findings(lifecycle, reached, subject),
-            *stuck_state_findings(lifecycle, reached, subject)
+            *end_state_findings(lifecycle, reached, subject)
           ]
+        end
+
+        # The findings about where the lifecycle ends: states nothing leaves, and `:terminal` marks
+        # a transition contradicts.
+        def end_state_findings(lifecycle, reached, subject)
+          [*stuck_state_findings(lifecycle, reached, subject), *terminal_exit_findings(lifecycle, subject)]
         end
 
         # @return [String] the aggregate's name, or `Aggregate::Entity` for one of its entities
@@ -50,17 +56,33 @@ module Hecks
         end
 
         # Finds every reached state with no transition ever leaving it, unless any
-        # transition in this lifecycle is unconstrained.
+        # transition in this lifecycle is unconstrained or the state is marked `:terminal`.
         def stuck_state_findings(lifecycle, reached, subject)
           any_unconstrained = lifecycle.transitions.any? { |_, t| !t.constrained? }
-          (reached - terminal_exempt(lifecycle)).filter_map do |state|
+          (reached - terminal_exempt(lifecycle) - terminal_states(lifecycle)).filter_map do |state|
             next if any_unconstrained
-            next if lifecycle.transitions.any? { |_, t| t.constrained? && Array(t.from).include?(state) }
+            next if leaves?(lifecycle, state)
 
             Finding.new(kind: :stuck_state, severity: :warning, subject: subject,
                         message: "#{state.inspect} is reached but no transition ever leaves it — " \
-                                 "fine if that is meant to be terminal")
+                                 "add a transition out, or `mark :terminal, #{state.inspect}` if it is meant to end")
           end
+        end
+
+        # Finds every state marked `:terminal` that a constrained transition still leaves.
+        def terminal_exit_findings(lifecycle, subject)
+          terminal_states(lifecycle).select { |state| leaves?(lifecycle, state) }.map do |state|
+            Finding.new(kind: :terminal_has_exit, severity: :error, subject: subject,
+                        message: "#{state.inspect} is marked :terminal but a transition leaves it")
+          end
+        end
+
+        # @return [Array<String>] the states the lifecycle marks `:terminal`
+        def terminal_states(lifecycle) = lifecycle.marked(:terminal) || []
+
+        # @return [Boolean] whether a constrained transition names `state` in its `from:`
+        def leaves?(lifecycle, state)
+          lifecycle.transitions.any? { |_, t| t.constrained? && Array(t.from).include?(state) }
         end
 
         # Finds every transition named after a command the construct doesn't declare.

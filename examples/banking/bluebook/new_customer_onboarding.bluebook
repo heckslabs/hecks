@@ -29,6 +29,7 @@ Hecks.bluebook "Banking" do
     lifecycle :status, default: "screening" do
       transition "Clear"   => "cleared",  from: "screening"
       transition "Decline" => "declined", from: "screening"
+      mark :terminal, "cleared", "declined"
     end
 
     command "Open" do

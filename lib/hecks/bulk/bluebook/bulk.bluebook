@@ -59,6 +59,7 @@ Hecks.bluebook "Bulk" do
       mark :failure, "declined"
       transition "Record"  => "swept",    from: "requested"
       transition "Decline" => "declined", from: "requested"
+      mark :terminal, "declined"
     end
 
     command "Request" do

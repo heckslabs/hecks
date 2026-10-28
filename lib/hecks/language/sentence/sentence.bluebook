@@ -30,6 +30,7 @@ Hecks.bluebook "Sentence" do
 
     lifecycle :status, default: "admitted" do
       transition "Retire" => "retired", from: "admitted"
+      mark :terminal, "retired"
     end
 
     command "Retire" do

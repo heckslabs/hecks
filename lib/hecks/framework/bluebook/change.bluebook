@@ -54,6 +54,7 @@ Hecks.bluebook "Change" do
       transition "Confirm"  => "confirmed", from: "planned"
       transition "Complete" => "applied",   from: "confirmed"
       transition "Fault"    => "faulted",   from: ["requested", "planned", "confirmed"]
+      mark :terminal, "faulted"
     end
 
     command "Request" do

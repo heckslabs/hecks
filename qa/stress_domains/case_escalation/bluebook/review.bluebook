@@ -26,6 +26,7 @@ Hecks.bluebook "VendorCompliance" do
 
     lifecycle :status, default: "open" do
       transition "Close" => "closed", from: "open"
+      mark :terminal, "closed"
     end
 
     # The policy has no with_spec, so the command must declare every key of the

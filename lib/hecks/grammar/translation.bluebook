@@ -16,6 +16,7 @@ Hecks.bluebook "Translation" do
     lifecycle :status, default: "proposed" do
       transition "Admit"  => "admitted", from: "proposed"
       transition "Retire" => "retired",  from: "admitted"
+      mark :terminal, "retired"
     end
 
     # The closed set of rule kinds, kept as data so a conformance spec can hold the
@@ -112,6 +113,7 @@ Hecks.bluebook "Translation" do
     lifecycle :status, default: "drafted" do
       transition "Seal"      => "sealed",     from: "drafted"
       transition "Supersede" => "superseded", from: "sealed"
+      mark :terminal, "superseded"
     end
 
     value_object "DomainName" do

@@ -74,6 +74,15 @@ RSpec.describe "the model checker" do
       expect(has?(findings, :stuck_state, "Gadget")).to be(false)
     end
 
+    it "does not warn on a state marked :terminal" do
+      expect(has?(findings, :stuck_state, "Shipment")).to be(false)
+    end
+
+    it "errors on a :terminal state a transition still leaves" do
+      finding = findings.find { |f| f.kind == :terminal_has_exit && f.subject == "Parcel" }
+      expect(finding.severity).to eq(:error)
+    end
+
     it "raises no finding kind outside the ones this fixture deliberately triggers" do
       # Not an exact count: "Vanish" cascades into a second unreachable_state and a stuck_state.
       # The fixture proves each kind fires at least once, not how many a hand-written FSM yields.

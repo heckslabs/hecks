@@ -64,6 +64,7 @@ Hecks.bluebook "Hecks" do
       transition "Decline" => "refused",  from: "requested"
       transition "Finish"  => "finished", from: "started"
       transition "Tidied"  => "tidied",   from: "finished"
+      mark :terminal, "tidied", "refused"
     end
 
     command "Dispatch" do
