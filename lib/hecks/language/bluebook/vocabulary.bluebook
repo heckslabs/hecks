@@ -853,36 +853,46 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks deploy makefile_check.lint --wait",
              script: "",
              blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen."
-      # The fuzz sweeps run as two shards each, one CI job leg apiece, so the corpus is swept in
-      # half the time. No unsharded row stays: no stage but `ci` ran the whole sweep, and a person
-      # who wants one run of it types `hecks fuzz_run.fuzz --wait`. A shard is `shard=I/N`, and the
-      # matrix legs of `checks_fuzz` and `checks_fuzz_sqlite` in ci-checks.yml number 1 to N, which
-      # spec/ci_fuzz_shards_spec.rb holds to the N written here.
-      member name: "fuzz_1_of_2", id: "fuzz_1_of_2",
-             title: "fuzz, shard 1 of 2 of the example domains on the Memory adapter",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=1/2 --wait",
+      # The fuzz sweeps run as three shards each, one CI job leg apiece, so the corpus is swept in
+      # a third of the time. No unsharded row stays: no stage but `ci` ran the whole sweep, and a
+      # person who wants one run of it types `hecks fuzz_run.fuzz --wait`. A shard is `shard=I/N`,
+      # and the matrix legs of `checks_fuzz` and `checks_fuzz_sqlite` in ci-checks.yml number 1 to
+      # N, which spec/ci_fuzz_shards_spec.rb holds to the N written here.
+      member name: "fuzz_1_of_3", id: "fuzz_1_of_3",
+             title: "fuzz, shard 1 of 3 of the example domains on the Memory adapter",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=1/3 --wait",
              script: "",
              blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
-      member name: "fuzz_2_of_2", id: "fuzz_2_of_2",
-             title: "fuzz, shard 2 of 2 of the example domains on the Memory adapter",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=2/2 --wait",
+      member name: "fuzz_2_of_3", id: "fuzz_2_of_3",
+             title: "fuzz, shard 2 of 3 of the example domains on the Memory adapter",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=2/3 --wait",
              script: "",
              blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
-      member name: "fuzz_sqlite_1_of_2", id: "fuzz_sqlite_1_of_2",
-             title: "fuzz, shard 1 of 2 on a real on-disk SQLite database",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/2 --wait",
+      member name: "fuzz_3_of_3", id: "fuzz_3_of_3",
+             title: "fuzz, shard 3 of 3 of the example domains on the Memory adapter",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=3/3 --wait",
+             script: "",
+             blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
+      member name: "fuzz_sqlite_1_of_3", id: "fuzz_sqlite_1_of_3",
+             title: "fuzz, shard 1 of 3 on a real on-disk SQLite database",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/3 --wait",
              script: "",
              blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
-      member name: "fuzz_sqlite_2_of_2", id: "fuzz_sqlite_2_of_2",
-             title: "fuzz, shard 2 of 2 on a real on-disk SQLite database",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/2 --wait",
+      member name: "fuzz_sqlite_2_of_3", id: "fuzz_sqlite_2_of_3",
+             title: "fuzz, shard 2 of 3 on a real on-disk SQLite database",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/3 --wait",
+             script: "",
+             blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
+      member name: "fuzz_sqlite_3_of_3", id: "fuzz_sqlite_3_of_3",
+             title: "fuzz, shard 3 of 3 on a real on-disk SQLite database",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=3/3 --wait",
              script: "",
              blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
       member name: "fuzz_shards", id: "fuzz_shards",
-             title: "fuzz shards, the two shards together hold every domain of the sweep once",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz list_shards=2 --wait",
+             title: "fuzz shards, the three shards together hold every domain of the sweep once",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait",
              script: "",
-             blocked: "the split of the fuzz sweep into two shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log."
+             blocked: "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log."
       member name: "fuzz_postgres", id: "fuzz_postgres",
              title: "fuzz on real Postgres, up to four workers (each in its own scratch schema)",
              argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 --wait",
@@ -955,7 +965,7 @@ Hecks.bluebook "Bluebook" do
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks"
       member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
-      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_2,fuzz_2_of_2,fuzz_sqlite_1_of_2,fuzz_sqlite_2_of_2,fuzz_postgres,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each

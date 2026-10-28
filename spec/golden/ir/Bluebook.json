@@ -33834,19 +33834,19 @@
             [
               [
                 "name",
-                "fuzz_1_of_2"
+                "fuzz_1_of_3"
               ],
               [
                 "id",
-                "fuzz_1_of_2"
+                "fuzz_1_of_3"
               ],
               [
                 "title",
-                "fuzz, shard 1 of 2 of the example domains on the Memory adapter"
+                "fuzz, shard 1 of 3 of the example domains on the Memory adapter"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=1/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz shard=1/3 --wait"
               ],
               [
                 "script",
@@ -33860,19 +33860,19 @@
             [
               [
                 "name",
-                "fuzz_2_of_2"
+                "fuzz_2_of_3"
               ],
               [
                 "id",
-                "fuzz_2_of_2"
+                "fuzz_2_of_3"
               ],
               [
                 "title",
-                "fuzz, shard 2 of 2 of the example domains on the Memory adapter"
+                "fuzz, shard 2 of 3 of the example domains on the Memory adapter"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=2/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz shard=2/3 --wait"
               ],
               [
                 "script",
@@ -33886,19 +33886,45 @@
             [
               [
                 "name",
-                "fuzz_sqlite_1_of_2"
+                "fuzz_3_of_3"
               ],
               [
                 "id",
-                "fuzz_sqlite_1_of_2"
+                "fuzz_3_of_3"
               ],
               [
                 "title",
-                "fuzz, shard 1 of 2 on a real on-disk SQLite database"
+                "fuzz, shard 3 of 3 of the example domains on the Memory adapter"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz shard=3/3 --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
+              ]
+            ],
+            [
+              [
+                "name",
+                "fuzz_sqlite_1_of_3"
+              ],
+              [
+                "id",
+                "fuzz_sqlite_1_of_3"
+              ],
+              [
+                "title",
+                "fuzz, shard 1 of 3 on a real on-disk SQLite database"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/3 --wait"
               ],
               [
                 "script",
@@ -33912,19 +33938,45 @@
             [
               [
                 "name",
-                "fuzz_sqlite_2_of_2"
+                "fuzz_sqlite_2_of_3"
               ],
               [
                 "id",
-                "fuzz_sqlite_2_of_2"
+                "fuzz_sqlite_2_of_3"
               ],
               [
                 "title",
-                "fuzz, shard 2 of 2 on a real on-disk SQLite database"
+                "fuzz, shard 2 of 3 on a real on-disk SQLite database"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/3 --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
+              ]
+            ],
+            [
+              [
+                "name",
+                "fuzz_sqlite_3_of_3"
+              ],
+              [
+                "id",
+                "fuzz_sqlite_3_of_3"
+              ],
+              [
+                "title",
+                "fuzz, shard 3 of 3 on a real on-disk SQLite database"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=3/3 --wait"
               ],
               [
                 "script",
@@ -33946,11 +33998,11 @@
               ],
               [
                 "title",
-                "fuzz shards, the two shards together hold every domain of the sweep once"
+                "fuzz shards, the three shards together hold every domain of the sweep once"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz list_shards=2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait"
               ],
               [
                 "script",
@@ -33958,7 +34010,7 @@
               ],
               [
                 "blocked",
-                "the split of the fuzz sweep into two shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log."
+                "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log."
               ]
             ],
             [
@@ -34303,7 +34355,7 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_2,fuzz_2_of_2,fuzz_sqlite_1_of_2,fuzz_sqlite_2_of_2,fuzz_postgres,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
               ]
             ]
           ],

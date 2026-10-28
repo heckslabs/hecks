@@ -47,9 +47,9 @@ jobs:
   # and determinism. hecks fuzz's own defaults (20 seeds, 30 steps) keep this
   # fast enough for every push while still exercising real depth.
   #
-  # Two legs, each sweeping its own half of the domains (`shard=I/N`, see
-  # lib/hecks/tools/fuzz_sweep/shards.rb), so the sweep takes about half the time. The leg
-  # number picks the gate check `fuzz_<leg>_of_2`; spec/ci_fuzz_shards_spec.rb holds the legs
+  # Three legs, each sweeping its own third of the domains (`shard=I/N`, see
+  # lib/hecks/tools/fuzz_sweep/shards.rb), so the sweep takes about a third of the time. The leg
+  # number picks the gate check `fuzz_<leg>_of_3`; spec/ci_fuzz_shards_spec.rb holds the legs
   # to 1..N for the N those checks name. The job reports one result for all its legs: any red
   # or cancelled leg makes it red, so `checks_fuzz` still means every domain was swept clean,
   # and the `checks` wrapper in ci.yml reads it through `checks_impl`. A leg takes no
@@ -65,7 +65,7 @@ jobs:
       # A red leg should not hide what the other found.
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
 
     steps:
       - uses: actions/checkout@v4
@@ -76,15 +76,15 @@ jobs:
 
       # No generated-rust step: the sweep reads bluebooks and never the generated Rust, so a cache
       # miss costs this job nothing.
-      - name: hecks fuzz (shard ${{ matrix.shard }} of 2)
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_${{ matrix.shard }}_of_2 --wait
+      - name: hecks fuzz (shard ${{ matrix.shard }} of 3)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_${{ matrix.shard }}_of_3 --wait
 
   # Runs the same corpus sweep through a real on-disk SQLite database instead
   # of the Memory adapter's hand-written Hash, so SqlQueryBuilder's
   # compilation and a real transaction are exercised too. Seeds are 1..N, so
   # the run is deterministic: a red here is a finding, not a flake.
   #
-  # Two legs, sharded and reported as `checks_fuzz` above is.
+  # Three legs, sharded and reported as `checks_fuzz` above is.
   checks_fuzz_sqlite:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -95,7 +95,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
 
     steps:
       - uses: actions/checkout@v4
@@ -105,8 +105,8 @@ jobs:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       # No generated-rust step, as in `checks_fuzz`.
-      - name: hecks fuzz adapter=sqlite (shard ${{ matrix.shard }} of 2)
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite_${{ matrix.shard }}_of_2 --wait
+      - name: hecks fuzz adapter=sqlite (shard ${{ matrix.shard }} of 3)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite_${{ matrix.shard }}_of_3 --wait
 
   # Runs the same sweep against real Postgres, reduced to 3 seeds of 20 steps
   # since every dispatch is a real round trip. Single worker only: every
