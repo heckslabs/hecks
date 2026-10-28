@@ -1,6 +1,6 @@
 # An aggregate is the transaction boundary, and model_check reports what crosses it
 
-**Status:** Partly built (item 5, the size warning). Date: 2026-10-27.
+**Status:** Partly built (items 3 and 5: the bulk mode removed, the size warning). Date: 2026-10-27.
 
 ## Context
 
@@ -9,18 +9,17 @@ writes its aggregate, its events and its outbox rows together, and the relay the
 each policy's reaction (ADR 0053). That is the shape of an aggregate as a consistency
 boundary: one instance changes atomically, and everything else is eventually consistent.
 
-Nothing in the tooling says so, and one construct breaks it. A bulk run in
-`all_or_nothing` mode (ADR 0125, 0129) sends one command to every row of a query inside
-one transaction of the target's store, so a single transaction spans many instances of an
-aggregate. The mode has no caller outside the repository's own specs and docs. ADR 0125
-gives it no use case beyond completeness, and its Context says "every change goes through
-a command, its givens and its events", while the mode makes a group of commands succeed
-or fail together, which no single command declares.
+Nothing in the tooling said so, and one construct broke it. A bulk run in
+`all_or_nothing` mode (ADR 0125, 0129) sent one command to every row of a query inside
+one transaction of the target's store, so a single transaction spanned many instances of
+an aggregate. The mode had no caller outside the repository's own specs and docs. ADR
+0125 gives it no use case beyond completeness, and its Context says "every change goes
+through a command, its givens and its events", while the mode made a group of commands
+succeed or fail together, which no single command declares. ADR 0138 removes it.
 
 A rule that needs several records to change together is a business invariant. ADR 0081
-already says such a rule gets an aggregate that owns it. `model_check` knows nothing of
-this, so a model can lean on a multi-record transaction without the tooling ever asking
-whether an aggregate is missing.
+already says such a rule gets an aggregate that owns it. A transaction across records
+hides the missing aggregate.
 
 An aggregate that keeps growing is the usual way the boundary fails the other direction:
 one aggregate collects the commands of several concerns and every change to any of them
@@ -39,25 +38,20 @@ contends for the same record. `model_check` reports no size at all.
    types, and a `:transaction_spans_aggregates` finding would have nothing to find. If a
    construct that can write two types in one transaction is ever added, it carries the
    check in the same change.
-3. **A bulk run in `all_or_nothing` mode is the one construct that spans many instances
-   of one aggregate in a transaction, and the advisory is raised where the mode is seen.**
-   The mode is an argument of the run's request, not part of the bluebook's IR, so
-   `model_check` has nothing to read. The run's record carries the advisory instead: "a
-   rule that needs all-or-nothing across records probably needs an owning aggregate". The
-   run still works. The mode stays, as an exception for operator sweeps and migrations,
-   and `best_effort` stays the default. Not built.
-4. **ADR 0125 item 4 is amended**, not reversed. The mode's reason is stated: it exists
-   so an operator can apply one command to a set of rows without partial results, not so
-   a domain rule can span records. ADR 0129 item 5 stands unchanged: the compiled path
-   keeps the mode atomic.
+3. **The bulk `all_or_nothing` mode is removed** (ADR 0138). It was the one construct that
+   spanned many instances of one aggregate in a transaction, and its mode was an argument of
+   the run's request rather than part of the bluebook's IR, so `model_check` had nothing to
+   read. A bulk run is now one transaction per row. Built.
+4. **A rule that needs records to change together is modelled** as an aggregate that owns
+   it (ADR 0081), not requested of a run.
 5. **`model_check` reports `:large_aggregate`** for an aggregate whose declared commands,
    entities and lifecycle states together pass a limit. The limit is a setting of the
    check, not a number in the documentation (no counts in docs). The finding is a warning
    and names the commands that set the fewest of the aggregate's own fields, since
    those are the likeliest to belong to another aggregate. Built in
    `ModelCheck::AggregateChecks`; no aggregate in the corpus passes the limit.
-6. **A finding can be acknowledged on the declaration.** An aggregate or bulk request that
-   means what it says carries a stated reason, and the finding is not reported. This
+6. **A finding can be acknowledged on the declaration.** An aggregate that means what it
+   says carries a stated reason, and the finding is not reported. Not built. This
    follows ADR 0121's rule that an allowance belongs on its own declaration and not in a
    list kept apart from it (`ALLOWED_FINDINGS` stays empty).
 7. **Specifications, services and factories stay unmapped as words.** The guides say what
@@ -68,10 +62,9 @@ contends for the same record. `model_check` reports no size at all.
 
 ## Alternatives considered
 
-- **Remove `all_or_nothing`.** It is the purest answer and the only one that makes the
-  boundary hold in code. It is a breaking change that touches the specs, ADR 0129 and
-  the Rust parity work, and nothing in the corpus calls it. Not done: the warning shows
-  whether anyone minds before the removal is paid for.
+- **Keep `all_or_nothing` and warn on it.** An earlier draft did, with an advisory on the
+  run's record. Rejected: nothing called the mode, so removing it cost less than keeping
+  it to discourage it (ADR 0138).
 - **Make the findings errors.** A model may mean a multi-record transaction, and the IR
   cannot tell an invariant from a convenience. The same reasoning kept ADR 0121's
   `:orphaned_reference` a warning.
@@ -84,14 +77,13 @@ contends for the same record. `model_check` reports no size at all.
 
 ## Consequences
 
-- Authors learn where their model leans on a transaction that spans records, and the
-  message points at the missing aggregate instead of the symptom.
-- `all_or_nothing` stays available and becomes visibly an exception.
+- No construct spans more than one aggregate instance in a transaction, so the boundary
+  holds in code and not only in the guides.
 - The size warning will report existing aggregates in the corpus. They are triaged
   when the check is built, and the limit is set against what the corpus actually does
   before it is documented.
 - The Rust kernel is unaffected: these are static checks over the IR, and no behaviour
   at run time changes.
 - Open: whether a process manager's compensations are enough to count a multi-aggregate
-  write as declared, and whether the acknowledgement belongs on the aggregate, the
-  command or the bulk request.
+  write as declared, and whether the acknowledgement belongs on the aggregate or on the
+  command.

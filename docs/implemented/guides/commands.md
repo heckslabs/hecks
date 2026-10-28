@@ -577,15 +577,10 @@ run.results.map { |row| row.to_h.slice(:row, :outcome) }  # => [{ row: "B-1", ou
 
 `OpenForCustomer` answered only `B-1`, since `B-2` was already frozen,
 so only `B-1` was sent. A row that refuses keeps its reason and the run
-goes on to the next (`mode: :best_effort`, the default).
-`mode: :all_or_nothing` checks every row first and sends none if one
-would refuse; when all would pass it sends them inside one transaction
-of the account's store. That needs a store that rolls back (Sqlite,
-Postgres), so on Memory the run is declined before any row is sent:
-
-```ruby
-Banking::Account.freeze_account!(over: Banking::Account.open, mode: :all_or_nothing)  # ~> WiringError: all_or_nothing needs a store that can roll back
-```
+goes on to the next. Each row is its own transaction, because the
+aggregate is the unit of consistency: a rule that needs several records
+to change together belongs to an aggregate that owns them, not to a run
+that spans them (ADR 0081, ADR 0138).
 
 On a store that provides `set_transform` (Sqlite, Postgres) a run can
 go as one `UPDATE` instead of one dispatch per row (ADR 0129). It does
@@ -598,5 +593,4 @@ have, and the fuzzer compares the two paths on both stores.
 
 The CLI and MCP request the same run through the chapter's own
 command: `banking bulk bulk_run.request! run.value=r1
-verb.value=Banking::Account.FreezeAccount over.value=Banking::Account.Open
-mode.value=best_effort`, then `banking bulk query outcome run.value=r1`.
+verb.value=Banking::Account.FreezeAccount over.value=Banking::Account.Open`, then `banking bulk query outcome run.value=r1`.
