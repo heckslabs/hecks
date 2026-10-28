@@ -358,7 +358,8 @@ Hecks.bluebook "Banking" do
     policy "ReviewOnFreeze" do
       # Bare event constant, matching FreezeAccount's `emits AccountFrozen`.
       on      Account::AccountFrozen
-      trigger AccountFreezeReview::Open
+      # Banking says what it froze and under which identity; Compliance names neither (ADR 0143).
+      trigger Review::Open, with: { subject_kind: "account_freeze", subject_key: :id }
       across  "Compliance"
     end
   end

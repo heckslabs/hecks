@@ -59,7 +59,7 @@ module Hecks
         script = plain(held[:script])
         argv += script ? [script] : [plain(held[:verb]), *words(held[:arguments])].compact
 
-        output(ConsoleCapture.answer { CLI::Run.call(argv, program: "hecks run") })
+        output(ConsoleCapture.answer_apart { CLI::Run.call(argv, program: "hecks run") })
       end
 
       # Forces every read-model projection the domain declares to catch up.

@@ -67,6 +67,32 @@ module Hecks
         e.status
       end
 
+      # Runs the block captured and answers what it printed to stdout alone. What it printed to
+      # stderr (a domain's boot notices) goes on to the real stderr instead of into the answer, and
+      # a run that ended otherwise refuses with both.
+      #
+      # @yield the entry point to run
+      # @return [String] stdout when the entry point ended with status 0
+      # @raise [Failure] when it ended otherwise; the message is what it printed
+      def answer_apart(&)
+        out, err, status = synchronize { apart(&) }
+        raise Failure, (out + err).strip unless status.zero?
+
+        $stderr.write(err)
+        out
+      end
+
+      # Runs the block with each stream pointed at a buffer of its own, putting them back afterwards.
+      def apart(&)
+        saved = [$stdout, $stderr]
+        out = $stdout = StringIO.new
+        err = $stderr = StringIO.new
+        status = exit_status(&)
+        [out.string, err.string, status]
+      ensure
+        $stdout, $stderr = saved
+      end
+
       # Runs the block captured and answers its text, or refuses with it.
       #
       # @yield the entry point to run

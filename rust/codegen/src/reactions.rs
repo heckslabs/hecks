@@ -132,11 +132,12 @@ fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String>
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::CrossDomainPolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_domain: {}, target_verb: {}, where_expr: {} }},",
+                "    crate::kernel::CrossDomainPolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_domain: {}, target_verb: {}, with_spec: {}, where_expr: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
                 naming::ruby_inspect_string(&target_domain),
                 naming::ruby_inspect_string(&target_verb),
+                with_spec_expr(policy),
                 where_expr(policy)
             ))
         })
@@ -157,7 +158,7 @@ pub fn emit_cross_domain_policy_table(
     exemplar.render(
         "cross_domain_policy_table",
         &[(
-            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", where_expr: None },",
+            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", with_spec: &[], where_expr: None },",
             rows.join("\n"),
         )],
     )
@@ -215,7 +216,7 @@ pub fn emit_merged_cross_domain_policy_table(
     exemplar.render(
         "cross_domain_policy_table",
         &[(
-            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", where_expr: None },",
+            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", with_spec: &[], where_expr: None },",
             rows.join("\n"),
         )],
     )

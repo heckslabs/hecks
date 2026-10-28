@@ -20,7 +20,7 @@ Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "exam
 
 Hecks.hecksagon("Banking") do
   attaches "Governance"
-  subscribe "Compliance.AccountFreezeReviewOpened"
+  subscribe "Compliance.ReviewOpened"
 
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
@@ -60,7 +60,7 @@ Names an event this hecksagon takes in from outside its own bluebook. It is decl
 Declared and readable back:
 
 ```ruby
-runtime.registry.hecksagon("Banking").subscriptions  # => ["Compliance.AccountFreezeReviewOpened"]
+runtime.registry.hecksagon("Banking").subscriptions  # => ["Compliance.ReviewOpened"]
 ```
 
 "Declarative only" is the part to take literally. Nothing routes it —
@@ -68,7 +68,7 @@ there is no handler to find, and asking the registry for one turns up
 nothing at all:
 
 ```ruby
-runtime.registry.bluebook("Banking").policies.map(&:event_name).include?("AccountFreezeReviewOpened")  # => false
+runtime.registry.bluebook("Banking").policies.map(&:event_name).include?("ReviewOpened")  # => false
 ```
 
 **Checked, not routed.** `subscribe` still dispatches nothing at
@@ -77,7 +77,7 @@ changed is that it is now checked at model-check time: a cross-domain
 `policy ... across: "X"` with nothing acknowledging `X` (neither
 `subscribe "X.*"` nor `attaches "X"`) is a real, static finding
 (`:unacknowledged_relationship`, `Hecks::Bluebook::ModelCheck`). Banking's
-own `subscribe "Compliance.AccountFreezeReviewOpened"` line, above, is
+own `subscribe "Compliance.ReviewOpened"` line, above, is
 exactly what makes its `across "Compliance"` policy clean:
 
 ```ruby
