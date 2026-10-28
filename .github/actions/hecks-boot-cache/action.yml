@@ -1,0 +1,29 @@
+name: Hecks boot cache
+description: >-
+  Restores the on-disk caches a `hecks` launch reads, the syntax-boot tables and the verdict
+  file, so a launch on code that has not changed since a run saved them starts in about a second
+  instead of judging every bluebook of the language again. Without it a CI runner starts cold
+  every time, and the CiGate detector jobs, which every other job waits on, spend most of their
+  time on that boot.
+
+  The entry is keyed by a hash of `lib/` and the lockfile, which covers everything the two caches'
+  own file names digest (all of `lib/`, the Hecks version, the Ruby series, the grammar files).
+  Each file is also named by its own digest, so an entry restored for code that differs from this
+  checkout's is ignored by the launcher and a fresh boot rewrites it: the key only decides whether
+  a run starts warm, never whether a verdict is right. A pull request's run reads the main
+  branch's entry and its own, and writes only its own, so no pull request can hand main a file.
+
+  Put it after the checkout and before the first `hecks` call. A job that misses saves what its
+  boot wrote when it ends. It sits in the detector jobs alone: those run `hecks` once and nothing
+  else, so the save costs them a second, where in a job with minutes of work it would delay the
+  job's own result.
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v4
+      with:
+        # `Hecks::CacheDir` under the runner's HOME, which sets no XDG_CACHE_HOME.
+        path: |
+          ~/.cache/hecks/hecks_syntax_boot_cache
+          ~/.cache/hecks/hecks_verdict_cache
+        key: hecks-boot-${{ runner.os }}-${{ hashFiles('lib/**', 'Gemfile.lock') }}

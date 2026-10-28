@@ -23,7 +23,8 @@ RSpec.describe Hecks::Tools::CiGates do
     end
 
     # CI does not circumvent the binary: the step that decides is a call to `hecks`, and the only
-    # local actions a detector job uses are the ones that set up Ruby and the journal.
+    # local actions a detector job uses are the ones that set up Ruby, restore the boot caches
+    # and choose the journal.
     def workflow_steps(gate)
       YAML.load_file(File.join(root, ".github/workflows", gate.fetch("workflow"))).dig("jobs", gate.fetch("name"), "steps")
     end
@@ -36,12 +37,26 @@ RSpec.describe Hecks::Tools::CiGates do
       end
     end
 
-    it "use no local action in a detector job but the ones that set up Ruby and the journal" do
+    it "use no local action in a detector job but the ones that set up Ruby, the boot caches and the journal" do
       described_class.gates.each do |gate|
         local = workflow_steps(gate).filter_map { |step| step["uses"] }.select { |uses| uses.start_with?("./") }
 
-        expect(local).to eq(%w[./.github/actions/setup-ruby ./.github/actions/hecks-environment])
+        expect(local).to eq(%w[./.github/actions/setup-ruby ./.github/actions/hecks-boot-cache
+                               ./.github/actions/hecks-environment])
       end
+    end
+
+    # The launcher names each cached file by a digest of `lib/`, so a stale restore is ignored; the
+    # key decides only whether a run starts warm, and it holds the inputs that digest covers.
+    it "key the boot caches by lib/ and the lockfile, in the directory the launcher writes" do
+      action = YAML.load_file(File.join(root, ".github/actions/hecks-boot-cache/action.yml"))
+      cache = action.dig("runs", "steps").find { |step| step["uses"].to_s.start_with?("actions/cache@") }
+
+      expect(cache.dig("with", "key")).to include("hashFiles('lib/**', 'Gemfile.lock')")
+      expect(cache.dig("with", "path").lines.map(&:strip)).to contain_exactly(
+        "~/.cache/hecks/#{File.basename(Hecks::CacheDir.path("hecks_syntax_boot_cache"))}",
+        "~/.cache/hecks/#{File.basename(Hecks::CacheDir.path("hecks_verdict_cache"))}"
+      )
     end
 
     # Every job of the run waits on a detector, so a detector installs no Rust toolchain: it
