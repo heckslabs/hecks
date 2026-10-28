@@ -33620,7 +33620,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
               ]
             ],
             [
@@ -33750,7 +33750,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
               ]
             ],
             [

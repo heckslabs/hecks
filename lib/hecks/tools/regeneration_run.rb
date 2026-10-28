@@ -10,7 +10,7 @@ require_relative "regeneration_run/pool"
 module Hecks
   module Tools
     # Regenerates every corpus domain's Rust output with `hecks project_rust`, or checks that the
-    # output on disk is what that would write. Only pizzas, `mod.rs` and `Cargo.toml` are committed.
+    # output on disk is what that would write. The whole tree and `Cargo.toml` are committed.
     #
     # The domain list comes from `Hecks::Corpus.rust_regen_order`, never a hand-kept list, and is
     # handed to every run as the declared domains: a domain's files, `generated/mod.rs` and
@@ -73,19 +73,23 @@ module Hecks
           # A check projects into a scratch copy of the crate; the forked children inherit the
           # workspace with the process.
           scratch = argv.include?("--check") && scratch_crate(root)
-          run_plan(domains, scratch, partial: !names.nil?, workers: workers)
+          run_plan(domains, scratch, names, workers, root)
         end
       end
 
-      # Regenerates the domains, then judges the scratch crate when there is one.
+      # Regenerates the domains, then judges the scratch crate when there is one. A check of some
+      # domains judges only the modules those domains own: the rest, shared chapters and the
+      # grammar, are what the corpus's last writer left, so they are put back as the tree has them.
       #
       # @param domains [Array<String>] the domains, in run order
       # @param scratch [String, false] the scratch crate of a check, removed here
-      # @param partial [Boolean] whether these are some of the corpus's domains, not all
+      # @param names [Array<String>, nil] the features of some of the corpus's domains, nil for all
       # @param workers [Integer] how many domains are generated at once
+      # @param root [String] the checkout
       # @return [Integer] 0, or 1 when a check finds a difference
-      def run_plan(domains, scratch, partial: false, workers: default_workers)
-        with_rust_dir(scratch) { regenerate(domains, partial: partial, workers: workers) }
+      def run_plan(domains, scratch, names, workers, root)
+        with_rust_dir(scratch) { regenerate(domains, partial: !names.nil?, workers: workers) }
+        restore_shared(scratch, root, names) if scratch && names
         scratch ? verdict(scratch) : 0
       ensure
         FileUtils.rm_rf(scratch) if scratch

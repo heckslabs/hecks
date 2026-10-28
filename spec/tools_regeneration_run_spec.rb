@@ -195,4 +195,44 @@ RSpec.describe Hecks::Tools::RegenerationRun do
 
     expect(Hecks::RustBuild.rust_dir).to eq(before)
   end
+
+  describe "a check of some domains" do
+    # A scratch crate where a run of `lease_clock` has rewritten its own module and the shared
+    # `governance` one, with the tree on disk holding the whole corpus's version of the shared one.
+    def scratch_after_partial_run
+      FileUtils.mkdir_p(File.join(root, "rust/src/generated/governance"))
+      File.write(File.join(root, "rust/src/generated/governance/mod.rs"), "whole corpus")
+      scratch = Dir.mktmpdir("regen_scratch")
+      FileUtils.mkdir_p(File.join(scratch, "src/generated/governance"))
+      File.write(File.join(scratch, "src/generated/governance/mod.rs"), "last writer of two")
+      scratch
+    end
+
+    it "puts back the modules the named domains do not own, as the tree has them" do
+      scratch = scratch_after_partial_run
+      described_class.restore_shared(scratch, root, %w[lease_clock])
+
+      expect(File.read(File.join(scratch, "src/generated/governance/mod.rs"))).to eq("whole corpus")
+    ensure
+      FileUtils.rm_rf(scratch)
+    end
+
+    # The same scratch crate, with the module the run owns written in it and present on disk.
+    def scratch_with_owned_module
+      scratch_after_partial_run.tap do |scratch|
+        FileUtils.mkdir_p(File.join(root, "rust/src/generated/lease_clock"))
+        FileUtils.mkdir_p(File.join(scratch, "src/generated/lease_clock"))
+        File.write(File.join(scratch, "src/generated/lease_clock/mod.rs"), "regenerated")
+      end
+    end
+
+    it "leaves the modules the named domains own as the run wrote them" do
+      scratch = scratch_with_owned_module
+      described_class.restore_shared(scratch, root, %w[lease_clock])
+
+      expect(File.read(File.join(scratch, "src/generated/lease_clock/mod.rs"))).to eq("regenerated")
+    ensure
+      FileUtils.rm_rf(scratch)
+    end
+  end
 end

@@ -13,8 +13,8 @@ module Hecks
       module Scratch
         # The refusal when a check finds nothing generated to compare.
         NOT_MATERIALIZED = "hecks regenerate_corpus --check: rust/src/generated has no generated output to " \
-                           "compare. Only pizzas, mod.rs and Cargo.toml are committed; run " \
-                           "`hecks regenerate_corpus --confirm` first, then the check."
+                           "compare. It is committed: restore it from git, or run " \
+                           "`hecks regenerate_corpus --confirm`, then the check."
 
         # A scratch crate: copies of the generated tree and Cargo.toml, all `hecks project_rust`
         # writes.
@@ -29,6 +29,24 @@ module Hecks
           FileUtils.cp_r(File.join(root, "rust/src/generated"), File.join(scratch, "src/generated"))
           FileUtils.cp(File.join(root, "rust/Cargo.toml"), scratch)
           scratch
+        end
+
+        # Puts back, in the scratch crate, every module the named domains do not own, as the tree
+        # has it: a run of some domains rewrites the shared chapters and the grammar as its own last
+        # writer would, which is not what the whole corpus's last writer left in the tree.
+        #
+        # @param scratch [String] the scratch crate
+        # @param root [String] the checkout
+        # @param owned [Array<String>] the features of the domains that ran
+        # @return [void]
+        def restore_shared(scratch, root, owned)
+          source = File.join(root, "rust/src/generated")
+          Dir.children(source).each do |entry|
+            next if owned.include?(entry) || !File.directory?(File.join(source, entry))
+
+            FileUtils.rm_rf(File.join(scratch, "src/generated", entry))
+            FileUtils.cp_r(File.join(source, entry), File.join(scratch, "src/generated"))
+          end
         end
 
         # The gate: the scratch projection must match the generated sources and Cargo.toml on disk.

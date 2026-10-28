@@ -810,7 +810,7 @@ Hecks.bluebook "Bluebook" do
              title: "codegen drift, rust/src/generated/ must match a fresh regeneration",
              argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait",
              script: "",
-             blocked: "regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed."
+             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
       member name: "comment_style", id: "comment_style",
              title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md",
              argv: "bundle exec exe/hecks style_run.check_comments paths=lib/hecks spec --wait",
@@ -835,7 +835,7 @@ Hecks.bluebook "Bluebook" do
              title: "codegen drift, the committed generated Rust must match the regeneration this job holds",
              argv: "git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml",
              script: "",
-             blocked: "regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed."
+             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
       # The rspec shards each hold only the domains they read, so the examples that read the whole
       # generated tree are tagged `generated_all` and left out of them. This job holds every domain.
       member name: "generated_tree", id: "generated_tree",
