@@ -439,6 +439,107 @@ impl MemoryUnit {
     }
 }
 
+#[async_trait::async_trait]
+impl super::Backend for MemoryStore {
+    async fn begin<'a>(
+        &'a self,
+        _domain: &str,
+    ) -> Result<Box<dyn super::UnitBackend + 'a>, StoreError> {
+        Ok(Box::new(MemoryStore::begin(self).await))
+    }
+
+    async fn read_state(&self) -> Result<State, StoreError> {
+        Ok(MemoryStore::read_state(self))
+    }
+
+    async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
+        MemoryStore::record_dead_letter(self, dead_letter);
+        Ok(())
+    }
+
+    async fn head_by_id(
+        &self,
+        domain: &str,
+        storage_name: &str,
+        id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        Ok(MemoryStore::head_by_id(self, domain, storage_name, id))
+    }
+
+    async fn head_all(
+        &self,
+        domain: &str,
+        storage_name: &str,
+    ) -> Result<Vec<(String, serde_json::Value)>, StoreError> {
+        Ok(MemoryStore::head_all(self, domain, storage_name))
+    }
+
+    async fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        Ok(MemoryStore::head_states(self, domains, storage_name))
+    }
+
+    async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        Ok(MemoryStore::head_find(self, domains, storage_name, matches))
+    }
+
+    async fn put_head(
+        &self,
+        config: &LineageConfig,
+        mutation: &Mutation<'_>,
+    ) -> Result<(), StoreError> {
+        self.put_heads(config, std::slice::from_ref(mutation))
+    }
+
+    async fn amend_head(
+        &self,
+        config: &LineageConfig,
+        _domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: &mut (dyn for<'r> FnMut(
+            &'r [(String, serde_json::Value)],
+        ) -> Option<(String, serde_json::Value)>
+                  + Send),
+    ) -> Result<(), StoreError> {
+        MemoryStore::amend_head(
+            self,
+            config,
+            aggregate,
+            storage_name,
+            |rows: &[(String, serde_json::Value)]| ((), decide(rows)),
+        )
+        .await
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+#[async_trait::async_trait]
+impl super::UnitBackend for MemoryUnit {
+    async fn load(&self) -> Result<State, StoreError> {
+        Ok(MemoryUnit::load(self))
+    }
+
+    async fn commit(self: Box<Self>, accepted: Accepted<'_>) -> Result<(), StoreError> {
+        (*self).commit(&accepted)
+    }
+
+    async fn rollback(self: Box<Self>) -> Result<(), StoreError> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -53,6 +53,14 @@ An outside review of the ports and adapters found the hexagon held in the Ruby r
   hold eras at all is open: it mints nothing today and `has_lineage` is false for it. If it should,
   eras move onto `Store` with a conformance case each; if not, `Store::lineage()` stays as the
   adapter's own handle and the port is complete.
+- **Done: `Store` is a handle over a `Backend` trait.** `Store` is a struct holding a
+  `Box<dyn Backend>`, and `Unit` holds a `Box<dyn UnitBackend>`; the Postgres and Memory backends
+  implement them, and no call site changed. `amend_head` crosses the trait as a `&mut dyn FnMut`
+  decision (a generic closure is not object-safe); `Store::amend_head<T>` keeps its typed
+  signature and carries the answer out. What still names a driver in `store.rs`: the
+  `Store::postgres` constructor, `lineage()` and the cfg(test) fixtures, which downcast to the
+  concrete backends, and `StoreError`'s conversion from `tokio_postgres::Error`. Those move to the
+  adapters crate in the next step.
 - **A core crate and an adapters crate.** `rust/host` becomes a core (dispatch, journal data,
   IR, expression and presentation code, the `Store` trait) that cannot name `axum`, `reqwest`,
   `tokio_postgres` or the AWS SDK, because they are not in its `Cargo.toml`. The compiler then
