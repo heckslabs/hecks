@@ -5,34 +5,34 @@ Hecks.behaviors "Composer" do
 
   test "Begin opens a chapter for editing" do
     tests "Begin", on: "Draft"
-    input slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    input slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     expect status:"drafting"
   end
 
   test "Revise replaces the text of a draft" do
     tests "Revise", on: "Draft"
-    setup  "Composer::Draft.Begin", slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    setup  "Composer::Draft.Begin", slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     input  slug: { value: "account" }, text: { value: "Hecks.bluebook \"Account\" do\nend" }
     expect emits: ["DraftRevised"]
   end
 
   test "Accept records a draft that passed its check" do
     tests "Accept", on: "Draft"
-    setup  "Composer::Draft.Begin", slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    setup  "Composer::Draft.Begin", slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     input  slug: { value: "account" }, note: { value: "ok" }
     expect status:"valid"
   end
 
   test "Reject records a draft that failed its check" do
     tests "Reject", on: "Draft"
-    setup  "Composer::Draft.Begin", slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    setup  "Composer::Draft.Begin", slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     input  slug: { value: "account" }, note: { value: "line 3: expected one of: attribute, command" }
     expect status:"invalid"
   end
 
   test "Revise returns a valid draft to drafting" do
     tests "Revise", on: "Draft"
-    setup  "Composer::Draft.Begin", slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    setup  "Composer::Draft.Begin", slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     setup  "Composer::Draft.Accept", slug: { value: "account" }, note: { value: "ok" }
     input  slug: { value: "account" }, text: { value: "Hecks.bluebook \"Account\" do\nend" }
     expect status:"drafting"
@@ -40,21 +40,21 @@ Hecks.behaviors "Composer" do
 
   test "Ask puts a request to the conversation" do
     tests "Ask", on: "Draft"
-    setup  "Composer::Draft.Begin", slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    setup  "Composer::Draft.Begin", slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     input  slug: { value: "account" }, sequence: { value: 1 }, said: { value: "add a Refund command" }
     expect emits: ["TurnAsked"]
   end
 
   test "Ask refuses a turn that says nothing" do
     tests "Ask", on: "Draft"
-    setup  "Composer::Draft.Begin", slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    setup  "Composer::Draft.Begin", slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     input  slug: { value: "account" }, sequence: { value: 1 }, said: { value: "" }
     expect refused: "says something"
   end
 
   test "Answer records the agent's reply after a request" do
     tests "Answer", on: "Draft"
-    setup  "Composer::Draft.Begin", slug: { value: "account" }, chapter_name: { value: "Account" }, text: { value: "" }
+    setup  "Composer::Draft.Begin", slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     setup  "Composer::Draft.Ask", slug: { value: "account" }, sequence: { value: 1 }, said: { value: "add a Refund command" }
     input  slug: { value: "account" }, sequence: { value: 2 }, said: { value: "Added Refund." }, text: { value: "Hecks.bluebook \"Account\" do\nend" }
     expect emits: ["TurnAnswered"]
