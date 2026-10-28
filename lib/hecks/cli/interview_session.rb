@@ -21,7 +21,7 @@ module Hecks
       include ManualFindings
       include AgentState
 
-      # @param runtime [Runtime] the booted SME chapter
+      # @param runtime [Runtime] the booted SME bluebook
       # @param agent [#question, #proposals, nil] the interviewer; nil runs the plain prompts
       # @param input [#gets] where the developer types
       # @param output [#puts, #print] where the session speaks

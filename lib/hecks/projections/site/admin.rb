@@ -9,7 +9,7 @@ module Hecks
       # the host that vouches for it, the roles that count as an admin, and the two routes the
       # sign-in is built from.
       #
-      # A project declares one `member` row of a `value_object "Admin"` in the chapter that holds
+      # A project declares one `member` row of a `value_object "Admin"` in the bluebook that holds
       # its route table. `docs/site-routes.md` lists the fields. A project that declares none has
       # no admin sign-in to project.
       class Admin
@@ -45,11 +45,11 @@ module Hecks
         # @return [Setting] the checked row, defaults filled
         attr_reader :setting
 
-        # Reads and checks the admin row a chapter declares.
+        # Reads and checks the admin row a bluebook declares.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
         # @param table [Table] the checked route table
-        # @return [Admin, nil] the checked setting, or nil when the chapter declares none
+        # @return [Admin, nil] the checked setting, or nil when the bluebook declares none
         # @raise [Table::Invalid] when the row is refused or contradicts the routes
         def self.read(chapter, table:)
           members = Table.rows_of(chapter, OBJECT)

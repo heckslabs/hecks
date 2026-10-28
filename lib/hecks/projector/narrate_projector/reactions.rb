@@ -1,11 +1,11 @@
 module Hecks
   module Projector
     module NarrateProjector
-      # The prose for what a chapter causes on its own: its policies and its sagas.
+      # The prose for what a bluebook causes on its own: its policies and its sagas.
       module Reactions
         module_function
 
-        # The "Reactions" section, or `nil` when the chapter has no policies or sagas.
+        # The "Reactions" section, or `nil` when the bluebook has no policies or sagas.
         def narrative(bluebook, depth)
           return nil if bluebook.policies.empty? && bluebook.process_managers.empty?
 

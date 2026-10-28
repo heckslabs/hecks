@@ -29,7 +29,7 @@ module Hecks
 
         # Renders `admin.ts` for a project that declares an admin row.
         #
-        # @param bluebook [Bluebook::Chapter] the chapter that declares the route table
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
         # @param options [Hash{Symbol => Object}] `:admin` (Admin) the checked admin row, or nil;
         #   `:extension` (String) the extension the routes module is written with, `ts` by default
         # @return [Hash{String => String}] `"admin.ts"` to its text; empty with no admin row

@@ -8,7 +8,7 @@ module Hecks
       module LauncherSource
         include Templates
 
-        # What a chapter name, a domain path and a launcher command may be made of.
+        # What a bluebook name, a domain path and a launcher command may be made of.
         NAME = /\A[A-Za-z][A-Za-z0-9_ ]*\z/
         PATH = %r{\A[\w./-]+\z}
         VERB = /\A[A-Za-z_][A-Za-z0-9_]*\z/
@@ -61,12 +61,12 @@ module Hecks
         # An `opted` one also sets UTF-8 and prints a failed `--wait` record on stdout. An
         # executable's program name is its file's basename, and its header names the generator.
         # @param path [String] the domain's directory under the root
-        # @param name [String] the chapter's name
+        # @param name [String] the bluebook's name
         # @param program [String] the generator's invocation, named in the header
         # @param executable [String, nil] the file's path under the root when not beside the domain
         # @param legacy [Array<String>, nil] commands an executable hands to `Hecks::CLI` first
         # @param memory_commands [Array<String>, nil] commands that default to Memory
-        # @param opted [Boolean] whether the chapter's world declares a `launcher` setting
+        # @param opted [Boolean] whether the bluebook's world declares a `launcher` setting
         # @return [String] the Ruby source
         # @raise [ArgumentError] if a name, path, executable or legacy command is not plain
         def launcher(path, name, program, executable: nil, legacy: nil, memory_commands: nil, opted: !executable.nil?) # rubocop:disable Metrics/ParameterLists -- the generator's documented signature
@@ -109,7 +109,7 @@ module Hecks
         end
 
         # @api private
-        # @return [Site] where a launcher sits beside its domain, named after its chapter
+        # @return [Site] where a launcher sits beside its domain, named after its bluebook
         def plain_site(path, name, program)
           where = "#{path}/#{Naming.snake(name)}"
           Site.new("../" * path.count("/").succ, "__dir__", program, where, where)

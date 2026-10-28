@@ -91,7 +91,7 @@ module Hecks
                 "#{attribute.target_name} identity, got nil"
         end
 
-        # Resolves the attribute's target through the chapter IR.
+        # Resolves the attribute's target through the bluebook IR.
         #
         # @raise [Bluebook::DSL::Malformed] if the reference does not know its declaring aggregate
         def referenced_aggregate(attribute) = attribute.target_aggregate

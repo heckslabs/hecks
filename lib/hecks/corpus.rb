@@ -20,7 +20,7 @@ module Hecks
       example:   "examples/*",
       stress:    "qa/stress_domains/*",
       semantics: "spec/corpus/semantics/domains/*",
-      # The Hecks domain (ADR 0080): its chapters share one namespace and one hecksagon, so
+      # The Hecks domain (ADR 0080): its bluebooks share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
       hecks:     "lib/hecks/hecks",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
@@ -28,7 +28,7 @@ module Hecks
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
     }.freeze
 
-    # **One chapter per file**. Stemmed by the path below the glob's fixed
+    # **One bluebook per file**. Stemmed by the path below the glob's fixed
     # prefix, so a nested fixture keeps its subdirectory (`eras/base`)
     # and never collides with a same-named file elsewhere in the kind.
     FILE_KINDS = {
@@ -126,7 +126,7 @@ module Hecks
       members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
     end
 
-    # **The ledger sweeps itself** — its own chapter is a domain like any
+    # **The ledger sweeps itself** — its own bluebook is a domain like any
     # other, and the one rotation member that is neither an example nor a
     # stress domain.
     ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
@@ -186,13 +186,13 @@ module Hecks
       owning_dir(dir)
     end
 
-    # The chapter a bluebook declares — `Hecks.bluebook "<Name>"`, or `Domain: <name>` for a file
+    # The bluebook a bluebook declares — `Hecks.bluebook "<Name>"`, or `Domain: <name>` for a file
     # written as sentences — read off the file rather than guessed from its name, since the two
     # can differ.
     #
     # @param bluebook_path [String, Array<String>] a `.bluebook` file path, or an
     #   array whose first element is used
-    # @return [String, nil] the declared chapter name, or nil when the file never
+    # @return [String, nil] the declared bluebook name, or nil when the file never
     #   declares one
     def chapter_name_of(bluebook_path)
       SentenceForm.chapter_name(Array(bluebook_path).first)

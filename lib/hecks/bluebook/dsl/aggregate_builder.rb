@@ -34,9 +34,9 @@ module Hecks
           start_declarations
           # Threaded in from `BluebookBuilder#aggregate`; shared chapter-wide across aggregates.
           @chapter_named_givens = chapter_named_givens
-          # Threaded chapter-wide; a chapter may span multiple files (see `#pending_chapter_given`)
+          # Threaded chapter-wide; a bluebook may span multiple files (see `#pending_chapter_given`)
           @chapter_pending_givens = chapter_pending_givens
-          # One level wider than `@chapter_named_givens`: the chapter's entity-scoped pool,
+          # One level wider than `@chapter_named_givens`: the bluebook's entity-scoped pool,
           # passed through unchanged to every entity this aggregate builds.
           @chapter_entity_named_givens   = chapter_entity_named_givens
           @chapter_entity_pending_givens = chapter_entity_pending_givens

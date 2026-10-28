@@ -29,7 +29,7 @@ module Hecks
         end
 
         # `root:` is the domain's own directory: a domain that declares `attaches ... from: :vendor`
-        # resolves its vendored chapters beneath it.
+        # resolves its vendored bluebooks beneath it.
         #
         # @return [DomainLoader] self, with the registry loaded
         def call
@@ -52,7 +52,7 @@ module Hecks
           FRAMEWORK_FILES.each { |file| Kernel.load(File.join(lib, file)) }
         end
 
-        # Translation edges, hecksagons (whose `attaches` loads a framework chapter into the
+        # Translation edges, hecksagons (whose `attaches` loads a framework bluebook into the
         # same registry) and worlds (whose `default_adapter` binds what a hecksagon leaves out), in
         # the order the language loads them.
         def load_siblings
@@ -63,7 +63,7 @@ module Hecks
 
         # The domain's own wasm plugins, so the IR carries them to the host: only an `.adapter`
         # that `runs` a module, since the build needs no Ruby adapter and its code may need gems
-        # the build does not have. A vendored package's plugins load with its chapter.
+        # the build does not have. A vendored package's plugins load with its bluebook.
         def load_plugins
           Dir.glob(File.join(@bluebook_dir, "{,adapters/}*.adapter")).each do |file|
             Kernel.load(file) if File.read(file).match?(RUNS_LINE)

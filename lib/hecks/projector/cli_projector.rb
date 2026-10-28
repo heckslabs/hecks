@@ -18,7 +18,7 @@ module Hecks
       module_function
 
       # Projects the command and question tables and the usage text. Commands and queries are
-      # separate namespaces (a chapter may declare both under one name); ask a query with `ask`.
+      # separate namespaces (a bluebook may declare both under one name); ask a query with `ask`.
       #
       # @param bluebook [Bluebook::Chapter] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage

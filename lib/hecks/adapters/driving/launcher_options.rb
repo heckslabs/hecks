@@ -10,7 +10,7 @@ module Hecks
     module Driving
       # What a domain's world file adds to its generated launcher, all of it opt-in.
       #
-      # A `.world` that declares a `launcher` setting switches these on for that chapter; a
+      # A `.world` that declares a `launcher` setting switches these on for that bluebook; a
       # domain without one keeps the launcher's plain forms exactly:
       #
       # - **run_keys** mints the `run` key of a creating command that was given none.
@@ -19,13 +19,13 @@ module Hecks
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
-      # - **maintainer**, **chapters**, **maintainer_chapters** shape the help for its audience.
+      # - **maintainer**, **bluebooks**, **maintainer_chapters** shape the help for its audience.
       module LauncherOptions
         SETTING = "launcher".freeze
         WAIT    = "--wait".freeze
         STREAM  = "--stream".freeze
         RUN_KEY = "run.value".freeze
-        # The dots and colons between a question's chapter, aggregate and own name.
+        # The dots and colons between a question's bluebook, aggregate and own name.
         NAME_SEPARATORS = /[.:]+/
         # A `GAP (n)` report heading whose count is above zero.
         NONZERO_GAP_HEADING = /^GAP \((?!0\))\d+\)/
@@ -40,11 +40,11 @@ module Hecks
 
         module_function
 
-        # Reads a chapter's `launcher` setting.
+        # Reads a bluebook's `launcher` setting.
         #
         # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
-        # @param chapter [String] the chapter the command line speaks to
-        # @return [Hash{Symbol => Object}, nil] the setting, or nil when the chapter did not opt in
+        # @param bluebook [String] the bluebook the command line speaks to
+        # @return [Hash{Symbol => Object}, nil] the setting, or nil when the bluebook did not opt in
         def settings(runtime, chapter)
           return unless runtime.respond_to?(:registry)
 
@@ -52,10 +52,10 @@ module Hecks
           found.nil? || found.empty? ? nil : found
         end
 
-        # The options the launcher's projection is asked for: the program's name, the chapter's
+        # The options the launcher's projection is asked for: the program's name, the bluebook's
         # launcher names, and whether run keys are minted (so help shows them optional).
         #
-        # @param settings [Hash, nil] the chapter's `launcher` setting
+        # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @param program [String] how the caller was invoked
         # @return [Hash{Symbol => Object}] the options `Projector::CliProjector` reads
         def projection(settings, program)
@@ -78,11 +78,11 @@ module Hecks
         end
 
         # The help options one audience gets: the aggregates left out of the lists (`maintainer`,
-        # shown only in a hecks checkout or to `--maintainer`) and the chapters pointed at
-        # (`chapters`, plus `maintainer_chapters` in a checkout). A chapter that did not opt in
+        # shown only in a hecks checkout or to `--maintainer`) and the bluebooks pointed at
+        # (`chapters`, plus `maintainer_chapters` in a checkout). A bluebook that did not opt in
         # gets neither.
         #
-        # @param settings [Hash, nil] the chapter's `launcher` setting
+        # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout
         # @return [Hash{Symbol => Object}] `:hide` and `:chapters`, to merge into the projection
         def audience(settings, maintainer)
@@ -94,7 +94,7 @@ module Hecks
 
         # Runs the block with standard error held back, so the wiring notes hecks prints about its
         # own
-        # chapters (a Memory journal loses sagas on restart) do not open a console session. They are
+        # bluebooks (a Memory journal loses sagas on restart) do not open a console session. They are
         # for an operator running a stored journal. A raised error still surfaces, unchanged.
         #
         # @param hold [Boolean] whether to hold standard error back; false runs the block as it is
@@ -147,7 +147,7 @@ module Hecks
 
         # Whether a command always waits for its reactions, as if `--wait` had been given.
         #
-        # @param launcher [Hash, nil] the chapter's `launcher` setting
+        # @param launcher [Hash, nil] the bluebook's `launcher` setting
         # @param spec [Hash] the command's projected spec
         # @return [Boolean] true for a command the setting lists under `settled`
         def settled?(launcher, spec)
@@ -159,7 +159,7 @@ module Hecks
         # Whether a question about one run refuses a run this process does not hold, instead of
         # answering an empty list.
         #
-        # @param launcher [Hash, nil] the chapter's `launcher` setting
+        # @param launcher [Hash, nil] the bluebook's `launcher` setting
         # @param spec [Hash] the question's projected spec
         # @return [Boolean] true for a question the setting lists under `unknown_runs`
         def unknown_run?(launcher, spec)
@@ -170,7 +170,7 @@ module Hecks
 
         # Whether a command prints the report it recorded instead of its whole record.
         #
-        # @param launcher [Hash, nil] the chapter's `launcher` setting
+        # @param launcher [Hash, nil] the bluebook's `launcher` setting
         # @param spec [Hash] the command's projected spec
         # @return [Boolean] true for a command the setting lists under `report`
         def report?(launcher, spec)
@@ -179,11 +179,11 @@ module Hecks
           Array(launcher[:report]).map(&:to_s).include?(spec[:short].to_s)
         end
 
-        # Whether a question may be tailed with `--stream`: the chapter's `launcher` setting lists
+        # Whether a question may be tailed with `--stream`: the bluebook's `launcher` setting lists
         # it
         # under `streams`, by the question's own name.
         #
-        # @param launcher [Hash, nil] the chapter's `launcher` setting
+        # @param launcher [Hash, nil] the bluebook's `launcher` setting
         # @param spec [Hash] the question's projected spec
         # @return [Boolean] true for a question the setting names
         def streams?(launcher, spec)
@@ -232,7 +232,7 @@ module Hecks
         # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
         # @param spec [Hash] the command's projected spec
         # @param args [Hash] the parsed arguments
-        # @param settings [Hash, nil] the chapter's `launcher` setting
+        # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @return [Array(Hash, String)] the arguments, and the key minted (nil when none was)
         # @raise [Runtime::NotFound] if a key is owed but no identity adapter is bound
         def run_key(runtime, spec, args, settings)
@@ -244,7 +244,7 @@ module Hecks
           raise Runtime::NotFound, "cannot mint a run key (#{Text.first_line(e.message)}); name one with run=<key>"
         end
 
-        # Whether the command is a creating one of an opted-in chapter, takes a run key and was
+        # Whether the command is a creating one of an opted-in bluebook, takes a run key and was
         # given none.
         # @api private
         def key_owed?(runtime, spec, args, settings)
@@ -258,7 +258,7 @@ module Hecks
         #
         # @param aggregate [Bluebook::Aggregate, nil] the record's aggregate
         # @param state [Hash, nil] the record's state
-        # @param settings [Hash, nil] the chapter's `launcher` setting
+        # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @return [Boolean] false when the aggregate has no lifecycle
         def failed?(aggregate, state, settings)
           field = aggregate&.lifecycle_field

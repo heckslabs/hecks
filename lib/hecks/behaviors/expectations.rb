@@ -86,7 +86,7 @@ module Hecks
       # @param test [Behaviors::TestCase] the test case to run
       # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the suite's
       #   booted runtime
-      # @param bluebooks [Array<Bluebook::Chapter>] every chapter the suite booted,
+      # @param bluebooks [Array<Bluebook::Chapter>] every bluebook the suite booted,
       #   searched to qualify a bare command/query name
       # @return [Result] the test's pass, fail, or error outcome
       def run_tested(test, runtime, bluebooks)

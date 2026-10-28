@@ -1,20 +1,20 @@
 module Hecks
   module Runtime
     class Registry
-      # Checks the chapters a boot loaded: no reserved name from outside the gem, and no two
+      # Checks the bluebooks a boot loaded: no reserved name from outside the gem, and no two
       # unrelated packages sharing a name. Mixed into {Verification}.
       module ChapterVerification
-        # The directory holding the gem's own Hecks chapter, the only place a chapter named
+        # The directory holding the gem's own Hecks bluebook, the only place a bluebook named
         # `Hecks` may be declared from.
         GEM_CHAPTER_DIR = File.expand_path("../../hecks", __dir__).freeze
 
-        # The chapter names only the gem itself may declare (ADR 0080, section 9).
+        # The bluebook names only the gem itself may declare (ADR 0080, section 9).
         RESERVED_CHAPTER_NAMES = %w[Hecks].freeze
 
         private
 
-        # Refuses a chapter whose name is reserved unless every file that declared it sits under
-        # the gem's own chapter directory. A rename is the only fix, so the message says so.
+        # Refuses a bluebook whose name is reserved unless every file that declared it sits under
+        # the gem's own bluebook directory. A rename is the only fix, so the message says so.
         #
         # @raise [WiringError] naming the reserved word and the offending file(s)
         def refuse_reserved_chapter_names!
@@ -37,14 +37,14 @@ module Hecks
             "`Hecks.bluebook #{reserved.inspect}` line and in its hecksagon."
         end
 
-        # Whether `path` is a file of the gem's own chapter directory.
+        # Whether `path` is a file of the gem's own bluebook directory.
         def gem_chapter_source?(path)
           File.expand_path(path.to_s).start_with?("#{GEM_CHAPTER_DIR}/")
         end
 
-        # Two packages can share a chapter name by coincidence (a stale vendored
+        # Two packages can share a bluebook name by coincidence (a stale vendored
         # fork of Governance/Identity/Deploy still on an app's load paths).
-        # Intentional accumulation (several files declaring the same chapter on
+        # Intentional accumulation (several files declaring the same bluebook on
         # purpose) is distinguished by package root, not file identity, and is left
         # untouched here — checked once, after every file has loaded.
         def refuse_cross_package_bluebook_merge!

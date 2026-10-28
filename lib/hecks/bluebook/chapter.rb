@@ -5,7 +5,7 @@ require_relative "../ir"
 
 module Hecks
   module Bluebook
-    # The chapter, distinct from the `Bluebook` namespace it lives in.
+    # The bluebook, distinct from the `Bluebook` namespace it lives in.
     class Chapter
       include Construct
       include Behaviour::Chapter
@@ -21,12 +21,12 @@ module Hecks
         version:           :version,
         vision:            :vision,
         classification:    :classification,
-        # Present (possibly nil) rather than silently absent, so two chapters
+        # Present (possibly nil) rather than silently absent, so two bluebooks
         # differing only by their old name can't hash identically at the
         # meta-validator's cache key (`SHA256(JSON(bluebook.to_h))`).
         formerly_known_as: :formerly_known_as,
-        # The Ruby module the chapter's constants install under, when it is not the chapter's
-        # own name (the Hecks domain nests under `Hecks::Domain`); nil for every other chapter.
+        # The Ruby module the bluebook's constants install under, when it is not the bluebook's
+        # own name (the Hecks domain nests under `Hecks::Domain`); nil for every other bluebook.
         namespace:         :namespace,
         aggregates:        many(:aggregates),
         read_models:       many(:read_models),
@@ -40,7 +40,7 @@ module Hecks
       )
 
       # One row of a declared capability — `verb` is chapter-local;
-      # `Behaviour::Chapter#provided_verb` qualifies it with the chapter's own name.
+      # `Behaviour::Chapter#provided_verb` qualifies it with the bluebook's own name.
       Provision = Struct.new(:capability, :key, :verb, keyword_init: true) do
         # Coerces one declared or reconstructed `provides` row into a `Provision`.
         #
@@ -67,8 +67,8 @@ module Hecks
       }.freeze
 
       # @param policies [Array<Bluebook::Policy>] every reaction declared across the
-      #   chapter's own aggregates, hoisted here
-      # @param classification [String, Symbol, nil] whether this chapter is central to
+      #   bluebook's own aggregates, hoisted here
+      # @param classification [String, Symbol, nil] whether this bluebook is central to
       #   its project's own domain model, or `nil` if undeclared
       def initialize(name:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))

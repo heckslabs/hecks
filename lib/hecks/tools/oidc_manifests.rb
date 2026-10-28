@@ -6,7 +6,7 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Projects each domain's OIDC client and scope manifest (`Hecks::Projections::OIDC`) into an
-    # `oidc.json` beside the domain, or into one `<chapter>.oidc.json` for each chapter of a
+    # `oidc.json` beside the domain, or into one `<chapter>.oidc.json` for each bluebook of a
     # directory that holds several.
     #
     # A domain that has no bluebook is skipped and one that cannot be projected is reported, so a
@@ -43,7 +43,7 @@ module Hecks
         relative.grep_v(NOT_DOMAINS).uniq.sort
       end
 
-      # Projects one manifest for each chapter the directory holds.
+      # Projects one manifest for each bluebook the directory holds.
       #
       # @param root [String] the checkout
       # @param path [String] a domain directory, relative to `root`
@@ -57,13 +57,13 @@ module Hecks
         warn "  #{path}: cannot project — #{Hecks::Text.first_line(e.message)}"
       end
 
-      # The chapters a directory declares: those with a `.bluebook` file under it. A chapter it
+      # The bluebooks a directory declares: those with a `.bluebook` file under it. A bluebook it
       # only attaches (Governance, for one) is loaded from elsewhere and has its own directory's
       # manifest.
       #
       # @param registry [Hecks::Runtime::Registry] the booted registry of the directory
       # @param directory [String] the directory that was booted
-      # @return [Array<String>] the chapter names, in load order; the first loaded when none has a
+      # @return [Array<String>] the bluebook names, in load order; the first loaded when none has a
       #   recorded source
       def chapters_of(registry, directory)
         under = "#{File.expand_path(directory)}/"
@@ -86,11 +86,11 @@ module Hecks
         end
       end
 
-      # A domain of one chapter keeps `oidc.json`; a directory of several chapters, such as the
+      # A domain of one bluebook keeps `oidc.json`; a directory of several bluebooks, such as the
       # framework members, gets one manifest each, so none of them stands for the others.
       #
-      # @param names [Array<String>] every chapter the directory holds
-      # @param name [String] the chapter the manifest is for
+      # @param names [Array<String>] every bluebook the directory holds
+      # @param name [String] the bluebook the manifest is for
       # @return [String] the manifest's file name: `oidc.json`, or `<chapter>.oidc.json`
       def file_for(names, name) = names.one? ? "oidc.json" : "#{Naming.snake(name)}.oidc.json"
 

@@ -29,7 +29,7 @@ module Hecks
       # The profiles `call` accepts; `nil` is the default, unprofiled run.
       PROFILES = %i[client].freeze
 
-      # What `call` takes from one corpus scan besides the chapter, and each key's default.
+      # What `call` takes from one corpus scan besides the bluebook, and each key's default.
       CONTEXT_DEFAULTS = {
         hecksagon: nil, known_domains: nil, global_emitted_events: nil, aggregate_owners: nil,
         rust_target: false, strict: false
@@ -49,7 +49,7 @@ module Hecks
 
       # Runs every static model check over `bluebook` and returns what it finds.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter to check
+      # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
       # @param profile [Symbol, nil] :client adds ClientProfile's error findings
       # @param context [Hash] the rest of what one corpus scan knows, each key optional:
       #   `hecksagon` (this bluebook's own sibling wiring file, if the caller loaded one),
@@ -111,7 +111,7 @@ module Hecks
       # Flags a query the hecksagon binds to a port's adapter. Only the Ruby runtime asks an
       # adapter for an answer; a Rust host would find nothing behind the query.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter, its hecksagon's ports attached
+      # @param bluebook [Bluebook::Chapter] the assembled bluebook, its hecksagon's ports attached
       # @param rust_target [Boolean] whether this domain has a real Rust target; a domain without
       #   one is not checked, since nothing but the Ruby runtime serves it
       # @return [Array<Finding>] one :external_query error per bound query, none off a Rust target

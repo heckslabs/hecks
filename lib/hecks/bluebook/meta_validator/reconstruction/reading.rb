@@ -55,7 +55,7 @@ module Hecks
           # and a join read out of order names a different record.
           def identity_paths(row) = Array(row[:identified_by]).map { |part| text(part[:value]).to_s }
 
-          # The contexts one chapter names itself onto, in the order they were
+          # The contexts one bluebook names itself onto, in the order they were
           # attached — same shape identity_paths reads back, one level up.
           def attached_contexts(row) = Array(row[:attaches_to]).map { |part| text(part[:value]).to_s }
 

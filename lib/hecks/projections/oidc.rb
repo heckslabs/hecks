@@ -23,7 +23,7 @@ module Hecks
       # Projects the manifest; `audience:` overrides the domain name (an IdP audience is
       # usually a URL).
       #
-      # @param bluebook [Bluebook::Chapter] the chapter being projected
+      # @param bluebook [Bluebook::Chapter] the bluebook being projected
       # @param options [Hash{Symbol => Object}] `:audience` (String, Symbol, nil)
       #   overrides the manifest's `"audience"` value
       # @return [Hash{String => Object}] `"audience"` (String), `"scopes"` (see
@@ -59,7 +59,7 @@ module Hecks
       # Every command's scope entry, entity commands included (they dispatch as `Entity.Command`).
       # Sorted by scope so two manifest versions diff cleanly.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter being projected
+      # @param bluebook [Bluebook::Chapter] the bluebook being projected
       # @return [Array<Hash{String => Object}>] every command's scope entry (see
       #   `command_scopes`), sorted by `"scope"`
       def scopes_for(bluebook)
@@ -69,7 +69,7 @@ module Hecks
 
       # Projects one aggregate's own commands and every entity nested inside it.
       #
-      # @param bluebook [Bluebook::Chapter] the aggregate's owning chapter, for the
+      # @param bluebook [Bluebook::Chapter] the aggregate's owning bluebook, for the
       #   verb and scope prefixes
       # @param aggregate [Bluebook::Aggregate] the aggregate being projected
       # @return [Array<Hash{String => Object}>] the aggregate's and its entities'

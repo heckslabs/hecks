@@ -16,7 +16,7 @@ module Hecks
 
           # @param edge [Edge] the edge being read, its rows set
           # @param rows [Array<Table::Row>] the route table's rows
-          # @param vocabulary [Hash{Symbol => Array<String>}] the Site chapter's closed sets
+          # @param vocabulary [Hash{Symbol => Array<String>}] the Site bluebook's closed sets
           # @param problems [Array<String>] collects each problem found, one line each
           def initialize(edge, rows, vocabulary, problems)
             @edge = edge

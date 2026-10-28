@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     # The expression language a bluebook's predicates are written in —
-    # canonicalised (canonical_form), resolved against a chapter's names
+    # canonicalised (canonical_form), resolved against a bluebook's names
     # (resolver), and evaluated (evaluator).
     module Expression
     end

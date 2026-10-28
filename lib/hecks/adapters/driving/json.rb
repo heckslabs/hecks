@@ -20,10 +20,10 @@ module Hecks
         # a stale same-named constant from an earlier boot is never returned.
         #
         # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the boot
-        # @param domain [String, Symbol] the chapter name, such as `"Banking"`
+        # @param domain [String, Symbol] the bluebook name, such as `"Banking"`
         # @param name [String, Symbol] the aggregate's declared name, such as `"Customer"`
         # @return [Module] the aggregate module installed at `domain::name`
-        # @raise [Runtime::NotFound] if the chapter or its aggregate is not declared
+        # @raise [Runtime::NotFound] if the bluebook or its aggregate is not declared
         # @raise [NameError] if the aggregate has no facade constant (`install_driving: false`)
         def aggregate(dispatcher, domain, name)
           Admission.admit!(dispatcher.registry, "Json")

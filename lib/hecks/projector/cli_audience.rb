@@ -1,7 +1,7 @@
 module Hecks
   module Projector
     # What a launcher's help leaves out and points at for whoever typed the line: the aggregates
-    # only a maintainer of a hecks checkout runs, and the attached chapters worth a line each.
+    # only a maintainer of a hecks checkout runs, and the attached bluebooks worth a line each.
     # `CliProjector` renders the help; the runner decides the audience
     # (`Adapters::Driving::LauncherOptions`).
     module CliAudience
@@ -36,9 +36,9 @@ module Hecks
         ["  #{program} --all                  also list every command (no bluebook is in this folder yet)"]
       end
 
-      # The attached chapters the help points at, one line each, under the call that opens them.
+      # The attached bluebooks the help points at, one line each, under the call that opens them.
       #
-      # @param chapters [Array<Array(String, String)>, nil] each chapter's word and its summary
+      # @param bluebooks [Array<Array(String, String)>, nil] each bluebook's word and its summary
       def chapter_lines(program, chapters)
         return [] if Array(chapters).empty?
 

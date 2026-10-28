@@ -9,25 +9,65 @@ module Hecks
       module BindingPolicy
         module_function
 
-        # Picks the one bind that names an aggregate's authoritative store. A world's
-        # `default_adapter` only fills a hecksagon's gap; an explicit bind always wins.
+        # Picks the one bind that names an aggregate's authoritative store: its own bind, its
+        # chapter's root default, an attaching domain's root default, a world's `default_adapter`,
+        # then Memory. A hecksagon that binds some aggregates and leaves this one out is refused
+        # as a forgotten decision; one that never mentions persistence has made none.
         #
         # @param registry [Runtime::Registry] the registry holding the domain's hecksagon
         # @param domain [String, Symbol] name of the domain the aggregate belongs to
         # @param aggregate [Bluebook::Aggregate] the aggregate whose binding is wanted
-        # @return [Bluebook::Bind] the authoritative `persisted_by` bind, or the default
-        #   `Memory` bind when the domain declares no hecksagon
-        # @raise [Runtime::WiringError] if the hecksagon has no `persisted_by` bind for the
-        #   aggregate, more or fewer than one bind without a role, or any bind with a role
+        # @return [Bluebook::Bind] the authoritative `persisted_by` bind
+        # @raise [Runtime::WiringError] if some aggregates are bound and this one is not, the roleless
+        #   binds are not exactly one, a bind has a role, or attaching domains disagree
         def resolve(registry, domain, aggregate)
           hecksagon = registry.hecksagon(domain)
           declared  = registry.default_adapter_for(domain)
           return default_binding(aggregate, declared || DEFAULT_ADAPTER) unless hecksagon
 
-          bindings = declared_bindings(hecksagon, aggregate, declared)
+          bindings = declared_bindings(registry, domain, hecksagon, aggregate, declared)
+          return default_binding(aggregate) if bindings.empty? && !wired?(hecksagon)
           raise missing_binding(domain, aggregate) if bindings.empty?
 
           authoritative_among(bindings, domain, aggregate)
+        end
+
+        # Whether a hecksagon has made a persistence decision: it binds some aggregate, or the
+        # domain, to an adapter other than the default. A bind to Memory decides nothing the
+        # default had not, so it does not count.
+        #
+        # @param hecksagon [Bluebook::Hexagon] the domain's hecksagon
+        # @return [Boolean]
+        def wired?(hecksagon)
+          hecksagon.binds.any? { |bind| bind.verb.to_s == VERB && bind.adapter.to_s != DEFAULT_ADAPTER }
+        end
+
+        # Whether a domain's hecksagon leaves persistence entirely unwired: no bind of its own, no
+        # default handed down by an attaching domain, and no world default.
+        #
+        # @param registry [Runtime::Registry] the registry holding the domain's hecksagon
+        # @param domain [String, Symbol] name of the domain
+        # @return [Boolean] false when the domain declares no hecksagon at all
+        def unwired?(registry, domain)
+          hecksagon = registry.hecksagon(domain)
+          return false unless hecksagon
+
+          !wired?(hecksagon) && registry.default_adapter_for(domain).nil? && inherited_adapter(registry, domain).nil?
+        end
+
+        # The adapter the root default of an attaching domain hands to a chapter it attaches, so one
+        # `persisted_by` at a domain's root reaches the chapters it brings in.
+        #
+        # @param registry [Runtime::Registry] the registry holding every hecksagon
+        # @param domain [String, Symbol] name of the attached chapter
+        # @return [String, nil] the adapter, nil when no attaching domain declares a default
+        # @raise [Runtime::WiringError] if two attaching domains declare different defaults
+        def inherited_adapter(registry, domain)
+          attachers = registry.hecksagons.values.select { |hecksagon| hecksagon.attaches?(domain) }
+          adapters  = attachers.flat_map { |hecksagon| hecksagon.default_binds(VERB) }.map(&:adapter).uniq
+          raise conflicting_defaults(domain, adapters) if adapters.size > 1
+
+          adapters.first
         end
 
         # Picks the single roleless bind, refusing any other count and any bind with a role.
@@ -47,16 +87,33 @@ module Hecks
           authoritative.first
         end
 
-        # Lists the hecksagon's `persisted_by` binds for an aggregate, or the world's default
-        # adapter bind when the hecksagon declares none.
+        # Lists the hecksagon's `persisted_by` binds for an aggregate, or else the bind an attaching
+        # domain's root default or the world's default adapter gives it.
         #
+        # @param registry [Runtime::Registry] the registry holding every hecksagon
+        # @param domain [String, Symbol] name of the aggregate's domain
         # @param hecksagon [Bluebook::Hexagon] the domain's hecksagon
         # @param aggregate [Bluebook::Aggregate] the aggregate whose binds are wanted
         # @param declared [String, nil] the world's default adapter, if any
         # @return [Array<Bluebook::Bind>] the binds; empty when none and no default exists
-        def declared_bindings(hecksagon, aggregate, declared)
+        def declared_bindings(registry, domain, hecksagon, aggregate, declared)
           bindings = hecksagon.binds_for(aggregate.hecks_name, VERB)
-          bindings.empty? && declared ? [default_binding(aggregate, declared)] : bindings
+          return bindings unless bindings.empty?
+
+          fallback = inherited_adapter(registry, domain) || declared
+          fallback ? [default_binding(aggregate, fallback)] : []
+        end
+
+        # Builds, without raising, the error for attaching domains that declare different defaults.
+        #
+        # @param domain [String, Symbol] name of the attached chapter
+        # @param adapters [Array<String>] the differing defaults
+        # @return [Runtime::WiringError] an error whose message names the adapters
+        def conflicting_defaults(domain, adapters)
+          Runtime::WiringError.new(
+            "#{domain} is attached by domains that bind #{VERB} by default to different adapters " \
+            "(#{adapters.join(", ")}). Bind #{domain} itself, or make the attaching domains agree."
+          )
         end
 
         # Builds the bind an aggregate gets when its domain declares no hecksagon.

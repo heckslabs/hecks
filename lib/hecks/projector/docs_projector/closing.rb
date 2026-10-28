@@ -1,19 +1,19 @@
 module Hecks
   module Projector
     module DocsProjector
-      # The sections that close a chapter's document: the reactions its policies cause and the
+      # The sections that close a bluebook's document: the reactions its policies cause and the
       # sagas it runs.
       module Closing
         module_function
 
-        # The closing sections, or `nil` when the chapter has neither policies nor sagas.
+        # The closing sections, or `nil` when the bluebook has neither policies nor sagas.
         def call(bluebook, depth)
           out = reaction_lines(bluebook, depth)
           bluebook.process_managers.each { |saga| out.concat(saga_lines(saga, depth)) }
           out.empty? ? nil : out.join("\n")
         end
 
-        # The table of policies, or no lines when the chapter has none.
+        # The table of policies, or no lines when the bluebook has none.
         def reaction_lines(bluebook, depth)
           return [] if bluebook.policies.empty?
 

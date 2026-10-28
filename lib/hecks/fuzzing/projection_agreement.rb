@@ -16,7 +16,7 @@ module Hecks
 
       module_function
 
-      # Boots a copy of the domain on Memory with every chapter `projected_by` the projection
+      # Boots a copy of the domain on Memory with every bluebook `projected_by` the projection
       # `projection` names, replays the steps, catches every projection up, and compares the
       # two answers to every rooted read model for every record its reference can name.
       #

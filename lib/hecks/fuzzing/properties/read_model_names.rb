@@ -9,7 +9,7 @@ module Hecks
         CAMEL_BOUNDARY = /([a-z\d])([A-Z])/
 
         # Every read model resolves from either spelling of its name, to itself, and no two read
-        # models of one chapter share a `query_name`.
+        # models of one bluebook share a `query_name`.
         #
         # @param history [Hash] a replayed history, as returned by `Fuzzing::Replay.call`
         # @return [true, String] true, or a message naming each read model that drifts

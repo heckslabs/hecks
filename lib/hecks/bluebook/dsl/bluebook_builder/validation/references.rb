@@ -3,12 +3,12 @@ module Hecks
     module DSL
       class BluebookBuilder
         module Validation
-          # Checks of how a chapter's aggregates point at each other: the chapter's own namespace,
+          # Checks of how a bluebook's aggregates point at each other: the bluebook's own namespace,
           # entity commands that root on themselves, and reference rings.
           module References
             private
 
-            # A chapter's constants install under its name, or its `namespace`; landing in the
+            # A bluebook's constants install under its name, or its `namespace`; landing in the
             # gem's own `Hecks` module would shadow the gem's modules (ADR 0080), so it refuses.
             def validate_not_the_gem_module!(bluebook)
               return unless (bluebook.namespace || bluebook.name) == "Hecks"
@@ -41,7 +41,7 @@ module Hecks
             end
 
             # A reference ring means no aggregate in it is a consistency boundary. Checked at
-            # chapter level because seeing a cycle needs every end declared (ADR 0025). Catches
+            # bluebook level because seeing a cycle needs every end declared (ADR 0025). Catches
             # any ring length; self-reference stays legal, and a cross-chapter target is a
             # dangling name, not an edge.
             def validate_no_bidirectional_references!(aggregates)
@@ -95,7 +95,7 @@ module Hecks
 
             def first_cycle_through(targets, edges, state, path)
               targets.each do |target|
-                # a name this chapter never declares is dangling, not an edge
+                # a name this bluebook never declares is dangling, not an edge
                 next unless edges.key?(target)
 
                 found = reference_cycle_from(target, edges, state, path)

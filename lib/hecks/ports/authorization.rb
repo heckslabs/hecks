@@ -19,7 +19,7 @@ module Hecks
       # @param scope [String, nil] only a grant made for this scope counts; nil counts any scope
       # @return [Boolean] true if at least one live grant of `role` to `actor_id` passes
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter,
-      #   or the governance-backed adapter finds no single chapter providing `"authorization"`
+      #   or the governance-backed adapter finds no single bluebook providing `"authorization"`
       def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
         adapter(registry).holds_role?(registry, actor_id: actor_id, role: role, as_of: as_of, scope: scope)
       end
@@ -33,7 +33,7 @@ module Hecks
       # @return [Boolean] true if a live (not ended) allowance lets `from_role` act as
       #   `to_role`
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter,
-      #   or the governance-backed adapter finds no single loaded chapter providing
+      #   or the governance-backed adapter finds no single loaded bluebook providing
       #   `"authorization"`
       def authorized_as?(registry, from_role:, to_role:)
         adapter(registry).authorized_as?(registry, from_role: from_role, to_role: to_role)
@@ -46,7 +46,7 @@ module Hecks
       # @return [String, nil] the role name of the actor's first live (not ended) grant, or
       #   nil if it has none; the caller supplies any fallback
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter,
-      #   or the governance-backed adapter finds no single loaded chapter providing
+      #   or the governance-backed adapter finds no single loaded bluebook providing
       #   `"authorization"`
       def live_role_for(registry, actor_id:)
         adapter(registry).live_role_for(registry, actor_id: actor_id)

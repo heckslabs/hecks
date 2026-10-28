@@ -9,7 +9,7 @@ module Hecks
     # The differential fuzzer drops a query or read-model verb only when a manifest says
     # `generated: false`; any other refusal stays in the comparison and fails it.
     #
-    # A binary's manifests are its own `src/generated/<feature>/` plus every shared chapter
+    # A binary's manifests are its own `src/generated/<feature>/` plus every shared bluebook
     # (a generated directory with no `merged.rs`). A missing manifest tolerates nothing.
     class RustGapManifest
       # Commands change state, so dropping their refusal would make the comparison dishonest.

@@ -76,10 +76,10 @@ module Hecks
       # a Dispatcher attaches the interpreters that let it deliver (see Runtime::Outbox).
       attr_reader :outbox
 
-      # Stays open for the life of the registry, keyed by chapter name, so a chapter split
+      # Stays open for the life of the registry, keyed by bluebook name, so a bluebook split
       # across several files (language/bluebook/*.bluebook) accumulates into one builder.
       #
-      # @param name [String, Symbol] the chapter name the builder accumulates
+      # @param name [String, Symbol] the bluebook name the builder accumulates
       #   declarations for
       # @yield the block that mints a fresh builder, called only the first time
       #   `name` is asked for
@@ -94,16 +94,16 @@ module Hecks
       # .bluebook/.hecksagon/.world file is being Kernel.loaded, strictly during Loader.boot,
       # before dispatcher_for hands this registry to a live, multi-threaded caller.
       # rubocop:disable Hecks/ThreadSharedIvarMutation
-      # Registers a loaded chapter, keyed by its own declared name.
+      # Registers a loaded bluebook, keyed by its own declared name.
       #
-      # @param item [Bluebook::Chapter] the loaded, judged chapter
+      # @param item [Bluebook::Chapter] the loaded, judged bluebook
       # @return [Bluebook::Chapter] `item`, unchanged
       def add_bluebook(item) = @declared.bluebooks[item.name] = item
 
-      # Drops a chapter and the open builder and source record that accumulated it, so the
-      # chapter can be loaded again from nothing.
+      # Drops a bluebook and the open builder and source record that accumulated it, so the
+      # bluebook can be loaded again from nothing.
       #
-      # @param name [String, Symbol] the chapter name to forget
+      # @param name [String, Symbol] the bluebook name to forget
       # @return [void]
       def forget_chapter(name)
         @declared.bluebooks.delete(name.to_s)
@@ -111,13 +111,13 @@ module Hecks
         @declared.bluebook_sources.delete(name.to_s)
       end
 
-      # Tracks which .bluebook file(s) contributed to a chapter name (a boot-time loading
+      # Tracks which .bluebook file(s) contributed to a bluebook name (a boot-time loading
       # fact, never Rust-mirrored) so refuse_cross_package_bluebook_merge! can catch two
       # unrelated packages accumulating into the same name by coincidence.
       #
-      # @param name [String, Symbol] the chapter name the file contributed to
+      # @param name [String, Symbol] the bluebook name the file contributed to
       # @param path [String] the `.bluebook` file that declared it
-      # @return [Array<String>] every path recorded for that chapter, `path` last
+      # @return [Array<String>] every path recorded for that bluebook, `path` last
       def record_bluebook_source(name, path)
         (@declared.bluebook_sources[name.to_s] ||= []) << path
       end
@@ -135,20 +135,20 @@ module Hecks
 
       # Marks `name` as a bounded context — called automatically by `attaches`, and by
       # `add_hecksagon` when the block itself declared `bounded`.
-      # A bounded chapter wraps in its own module (no Object shortcut)
+      # A bounded bluebook wraps in its own module (no Object shortcut)
       # and must have a `translates` ACL or boot refuses.
       #
-      # @param name [String, Symbol] the chapter name to mark bounded
+      # @param name [String, Symbol] the bluebook name to mark bounded
       # @return [void]
       def mark_bounded(name)
         @declared.bounded_chapters[name.to_s] = true
       end
 
       # Says whether `name` is a bounded context — attached via `attaches`, or a consumer
-      # chapter that declared `bounded` on its own hecksagon.
+      # bluebook that declared `bounded` on its own hecksagon.
       #
-      # @param name [String, Symbol] the chapter name to check
-      # @return [Boolean] whether that chapter is bounded
+      # @param name [String, Symbol] the bluebook name to check
+      # @return [Boolean] whether that bluebook is bounded
       def bounded?(name) = @declared.bounded_chapters[name.to_s] ? true : false
 
       # Registers a loaded port, keyed by its own declared name.
@@ -213,10 +213,10 @@ module Hecks
       # for an old checkout only. Stood up eagerly; plain readers, not memoizers.
       def_delegators :@declared, :resolved_eras, :superseded_eras
 
-      # Finds a loaded chapter by name.
+      # Finds a loaded bluebook by name.
       #
-      # @param name [String, Symbol] the chapter's declared name
-      # @return [Bluebook::Chapter, nil] the chapter, or nil if none is registered
+      # @param name [String, Symbol] the bluebook's declared name
+      # @return [Bluebook::Chapter, nil] the bluebook, or nil if none is registered
       #   under `name`
       def bluebook(name)  = @declared.bluebooks[name.to_s]
 
@@ -234,19 +234,19 @@ module Hecks
       #   registered under `name`
       def world(name)     = @declared.worlds[name.to_s]
 
-      # The first chapter loaded: a one-domain boot's own bluebook.
+      # The first bluebook loaded: a one-domain boot's own bluebook.
       #
-      # @return [Bluebook::Chapter, nil] the first loaded chapter, or nil when none loaded
+      # @return [Bluebook::Chapter, nil] the first loaded bluebook, or nil when none loaded
       def first_bluebook = @declared.bluebooks.values.first
 
-      # The name of the first chapter loaded: a one-domain boot's own domain.
+      # The name of the first bluebook loaded: a one-domain boot's own domain.
       #
       # @return [String, nil] the name, or nil when none loaded
       def first_domain_name = first_bluebook&.name
 
-      # Every verb every loaded chapter declares, sorted.
+      # Every verb every loaded bluebook declares, sorted.
       #
-      # @return [Array<String>] every declared verb, across every loaded chapter
+      # @return [Array<String>] every declared verb, across every loaded bluebook
       def verbs
         chapters = @declared.bluebooks.values
         chapters.flat_map(&:verbs).sort

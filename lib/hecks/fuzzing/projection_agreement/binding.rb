@@ -1,7 +1,7 @@
 module Hecks
   module Fuzzing
     module ProjectionAgreement
-      # Binds every chapter of a copied, Memory-bound domain `projected_by` one projection
+      # Binds every bluebook of a copied, Memory-bound domain `projected_by` one projection
       # adapter, by writing a hecksagon and a world beside each directory's own, which the
       # registry merges into them.
       module Binding

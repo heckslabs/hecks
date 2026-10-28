@@ -7,11 +7,11 @@ module Hecks
     module DeployRecipe
       # Finds and loads the `.world` file a domain deploys from, and the registry it boots into.
       module Worlds
-        # A hecksagon's `Chapters.load!("Name")`, capturing the chapter's name.
+        # A hecksagon's `Chapters.load!("Name")`, capturing the bluebook's name.
         CHAPTER_LOAD = /Chapters\.load!\(\s*"([^"]+)"\s*\)/
 
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
-        # `<domain>/bluebook/`; failing that, the one named after the chapter the domain's hecksagon
+        # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's hecksagon
         # attaches by name (`qa/` attaches QualityControl and also holds a Governance `.world`).
         # It picks by no other rule: guessing which is the domain is not this generator's call.
         #
@@ -29,7 +29,7 @@ module Hecks
           world_file
         end
 
-        # The snake-cased names of the chapters a domain's hecksagons attach by name
+        # The snake-cased names of the bluebooks a domain's hecksagons attach by name
         # (`Hecks::Chapters.load!("QualityControl")`), which its `.world` and `.hecksagon` files
         # are named after.
         #
@@ -72,8 +72,8 @@ module Hecks
         end
 
         # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
-        # cross-domain invoke grant can live in any attached chapter. A domain with no bluebook of
-        # its own (the QA ledger) gets its chapter from the hecksagon's `Chapters.load!`. `root:` is
+        # cross-domain invoke grant can live in any attached bluebook. A domain with no bluebook of
+        # its own (the QA ledger) gets its bluebook from the hecksagon's `Chapters.load!`. `root:` is
         # required or `attaches ... from: :vendor` refuses with "needs a registry with a root to
         # vendor from".
         #
@@ -88,7 +88,7 @@ module Hecks
 
         private
 
-        # The sole `*.world` file, or the sole one named after an attached chapter.
+        # The sole `*.world` file, or the sole one named after an attached bluebook.
         def sole_world_file(domain)
           candidates = Dir.glob(File.join(domain, "bluebook", "*.world"))
           named = candidates.select { |path| attached_stems(domain).include?(File.basename(path, ".world")) }

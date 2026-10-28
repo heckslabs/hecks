@@ -16,23 +16,23 @@ module Hecks
   module Projections
     module Site
       module CmsEditor
-        # What the editor reads of a domain chapter, as plain data: each aggregate with its
+        # What the editor reads of a domain bluebook, as plain data: each aggregate with its
         # identity, attributes, value objects, lifecycle, commands and queries. The editor's
         # `schema.ts` is this hash as a typed constant, and nothing else about the domain reaches
-        # the generated files, so the output is a pure function of the chapter.
+        # the generated files, so the output is a pure function of the bluebook.
         #
         # An aggregate that registers pictures (see `Media`) is also named under `media`, so the
-        # editor can offer an upload; a chapter with none has no such key.
+        # editor can offer an upload; a bluebook with none has no such key.
         #
         # A query that `returns` a value object is answered outside the domain and is left out: the
         # host refuses it, so a list cannot be built from it.
         class Schema
-          # @param chapters [Bluebook::Chapter, Array<Bluebook::Chapter>] the chapter, or the
-          #   chapters in the order the row names them; the first names the domain addressed
+          # @param bluebooks [Bluebook::Chapter, Array<Bluebook::Chapter>] the bluebook, or the
+          #   bluebooks in the order the row names them; the first names the domain addressed
           # @param skip [Array<String>] aggregates to leave out: `Name`, or `Chapter::Name`
-          # @param pictures [Bluebook::Chapter, nil] another chapter whose picture aggregate the
+          # @param pictures [Bluebook::Chapter, nil] another bluebook whose picture aggregate the
           #   editor's pictures use, in place of any in `chapters`
-          # @param roles [Hash{String => Array<String>}] the roles each chapter is limited to
+          # @param roles [Hash{String => Array<String>}] the roles each bluebook is limited to
           # @return [Hash{String => Object}] the domain's name and its aggregates; `chapters` too
           #   when there are several
           # @raise [ArgumentError] when no aggregate is left, or `pictures` has no picture aggregate
@@ -45,7 +45,7 @@ module Hecks
             assemble(list, Relations.apply(Pickers.apply(shaped, media), media), media)
           end
 
-          # @return [Hash{String => Object}] the schema: the domain, the chapters when several, the
+          # @return [Hash{String => Object}] the schema: the domain, the bluebooks when several, the
           #   aggregates, and the picture and scheduling aggregates when there are such
           def self.assemble(list, aggregates, media)
             chapters = list.size > 1 ? { "chapters" => list.map(&:name) } : {}
@@ -54,8 +54,8 @@ module Hecks
               **(scheduling ? { "scheduling" => scheduling } : {}) }
           end
 
-          # The picture aggregate among the editor's own, with the chapter that holds it when that
-          # is not the first, since the host is addressed by chapter.
+          # The picture aggregate among the editor's own, with the bluebook that holds it when that
+          # is not the first, since the host is addressed by bluebook.
           #
           # @return [Hash{String => Object}, nil] the picture aggregate, as `Media` describes it
           def self.within(shaped, first)
@@ -65,11 +65,11 @@ module Hecks
           end
 
           # The picture aggregate of another chapter: the same record as one in the editor's own
-          # chapter, with the chapter's name and the aggregate itself, since the editor's own
+          # bluebook, with the bluebook's name and the aggregate itself, since the editor's own
           # aggregates do not hold it.
           #
           # @return [Hash{String => Object}] the picture aggregate, as `Media` describes it
-          # @raise [ArgumentError] when the chapter has no aggregate that registers pictures
+          # @raise [ArgumentError] when the bluebook has no aggregate that registers pictures
           def self.elsewhere(chapter)
             shaped = chapter.aggregates.map { |agg| new(agg).to_h }
             found = Media.read(shaped)
@@ -78,7 +78,7 @@ module Hecks
             found.merge("domain" => chapter.name, "definition" => shaped.find { |agg| agg["name"] == found["aggregate"] })
           end
 
-          # @param aggregate [Bluebook::Aggregate] one aggregate of the chapter
+          # @param aggregate [Bluebook::Aggregate] one aggregate of the bluebook
           def initialize(aggregate)
             @agg = aggregate
             @attributes = Attributes.new(aggregate.value_objects)

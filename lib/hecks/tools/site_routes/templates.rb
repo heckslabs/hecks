@@ -12,7 +12,7 @@ module Hecks
         # @param root [String] the project directory
         # @param out [String, nil] the directory to write to, or nil to rewrite the template in
         #   place
-        # @param site [Site] the chapter that declares the route table, its checked table and
+        # @param site [Site] the bluebook that declares the route table, its checked table and
         #   registry
         # @param template [String, nil] a template named on the command line, rewritten in place
         # @return [Hash{String => String}] the template's path to its text; empty with no edge

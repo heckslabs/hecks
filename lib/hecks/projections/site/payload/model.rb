@@ -4,7 +4,7 @@ module Hecks
   module Projections
     module Site
       module Payload
-        # What the generators read from a domain chapter about one aggregate the content system
+        # What the generators read from a domain bluebook about one aggregate the content system
         # drives: its attributes with the shape each takes over the wire, the command that creates
         # it, the lifecycle edges, and the role its commands declare.
         #
@@ -24,7 +24,7 @@ module Hecks
           # each is.
           SINGLE = { "value" => :value, "url" => :url, "address" => :address }.freeze
 
-          # @param chapter [Bluebook::Chapter] the domain chapter
+          # @param bluebook [Bluebook::Chapter] the domain bluebook
           # @param skip [Array<String>] aggregates to leave out
           # @return [Array<Aggregate>] each aggregate with a lifecycle and a creating command
           # @raise [ArgumentError] when such an aggregate cannot be driven

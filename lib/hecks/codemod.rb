@@ -16,7 +16,7 @@ module Hecks
                       Dir.glob(File.join(ROOT, "lib/hecks/framework/bluebook/*.bluebook")) +
                       Dir.glob(File.join(ROOT, "lib/hecks/language/bluebook/**/*.bluebook"))).sort
 
-    # Boots the lightweight, in-memory path — a codemod only reads a chapter's
+    # Boots the lightweight, in-memory path — a codemod only reads a bluebook's
     # own declared IR, never a stored record, so it has no reason to need Postgres.
     PERSISTENCE_PORT = File.join(ROOT, "lib/hecks/ports/persistence.port")
     EXTRACTION_PORT  = File.join(ROOT, "lib/hecks/ports/extraction.port")

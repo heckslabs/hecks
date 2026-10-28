@@ -25,9 +25,9 @@ module Hecks
           @many = many
         end
 
-        # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
         # @return [Array<Hash{Symbol => Object}>] each checked row, defaults filled; empty when the
-        #   chapter declares none
+        #   bluebook declares none
         # @raise [Table::Invalid] when a row is refused
         def read(chapter)
           members = Table.rows_of(chapter, @object)

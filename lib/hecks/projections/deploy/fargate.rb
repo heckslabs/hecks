@@ -27,7 +27,7 @@ module Hecks
         # Generates `template.yaml`, `Makefile`, `Dockerfile`, and — unless
         # this domain borrows another domain's RDS instance — `bastion.yaml`.
         #
-        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted chapter
+        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted bluebook
         # @param options [Hash] generation options; same shape as `Lambda.call`'s
         # @return [Hash{String => String}] the generated file contents, keyed by filename
         # @raise [ArgumentError] if the domain's deploy settings conflict

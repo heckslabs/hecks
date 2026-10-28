@@ -14,10 +14,10 @@ require_relative "glossary/index"
 
 module Hecks
   module Projections
-    # A chapter projected as a plain-language glossary, grouped by aggregate,
+    # A bluebook projected as a plain-language glossary, grouped by aggregate,
     # as `glossary.md` plus an HTML page rendered from that same Markdown.
     #
-    #   Projector.call(:glossary, bluebook: chapter)
+    #   Projector.call(:glossary, bluebook: bluebook)
     #   # => { "glossary.md" => "...", "html/index.html" => "..." }
     module Glossary
       extend Projector::Target
@@ -35,7 +35,7 @@ module Hecks
 
       # Projects `bluebook`'s glossary as a Markdown document and the HTML page built from it.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to render
+      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook to render
       # @param options [Hash] the registry's call shape
       # @option options [Array<Hash{Symbol => String}>] :markings sensitive fields to tag
       #   with their category and list under their aggregate

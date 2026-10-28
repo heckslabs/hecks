@@ -2,7 +2,7 @@ module Hecks
   module Runtime
     class Registry
       # The checks a loaded hecksagon owes: roles need an authorization provider, attachments need
-      # their sibling hecksagon, a bounded chapter needs its ACL, and a chapter's declared
+      # their sibling hecksagon, a bounded bluebook needs its ACL, and a bluebook's declared
       # capabilities need what they name. Mixed into {Verification}.
       module HecksagonRules
         private
@@ -59,8 +59,8 @@ module Hecks
             "same-name blocks merge, order-independent."
         end
 
-        # An explicit `bounded` mark on a consumer chapter always needs an ACL. `attaches`
-        # marks the attached chapter bounded and requires the sibling
+        # An explicit `bounded` mark on a consumer bluebook always needs an ACL. `attaches`
+        # marks the attached bluebook bounded and requires the sibling
         # hecksagon above; they don't require a `translates` on it unless the consumer also
         # wrote `bounded`.
         # rust/host Google sign-in reads ir.json's membership/identity keys, never a deploy-time
@@ -77,7 +77,7 @@ module Hecks
                 "identity verbs are exported onto ir.json, not guessed at deploy."
         end
 
-        # A hecksagon attaches after its chapter builds, so this is the first point a
+        # A hecksagon attaches after its bluebook builds, so this is the first point a
         # `provides` key that names a port operation can be checked against it.
         def refuse_unresolved_port_operations!
           @declared.bluebooks.each_value do |chapter|

@@ -3,17 +3,17 @@ require_relative "parser_table"
 
 module Hecks
   module Projections
-    # The Rust parser's sentence table, projected from the Sentence chapter's `PhraseSeed` rows, so
+    # The Rust parser's sentence table, projected from the Sentence bluebook's `PhraseSeed` rows, so
     # what an author may write in plain sentences is a table rather than code typed a second time.
     module PhraseTable
       extend Projector::Target
 
       projects_as :phrase_table, declares: "Phrase"
 
-      # The chapter the rows are declared in, read from the language's own tree.
+      # The bluebook the rows are declared in, read from the language's own tree.
       SENTENCE_FILE = File.expand_path("../language/sentence/sentence.bluebook", __dir__)
 
-      # The ports and adapters a bare chapter needs loaded before its predicates can be recovered.
+      # The ports and adapters a bare bluebook needs loaded before its predicates can be recovered.
       SUPPORT_FILES = %w[ports/persistence.port ports/extraction.port
                          adapters/driven/memory.adapter adapters/driven/prism.adapter]
                       .map { |path| File.expand_path("../#{path}", __dir__) }.freeze
@@ -23,22 +23,22 @@ module Hecks
 
       module_function
 
-      # @param bluebook [Bluebook::Chapter] the Sentence chapter
+      # @param bluebook [Bluebook::Chapter] the Sentence bluebook
       # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
       #   `Projector::Target` calling convention
       # @return [String] the rendered Rust source
       def call(bluebook:, options: {}) = render(bluebook)
 
-      # Loads the Sentence chapter on its own, in a registry of its own.
+      # Loads the Sentence bluebook on its own, in a registry of its own.
       #
-      # @return [Bluebook::Chapter] the chapter declared by `SENTENCE_FILE`
+      # @return [Bluebook::Chapter] the bluebook declared by `SENTENCE_FILE`
       def chapter
         registry = Hecks::Runtime::Registry.new
         Hecks.with_registry(registry) { (SUPPORT_FILES + [SENTENCE_FILE]).each { |file| Kernel.load(file) } }
         registry.bluebook("Sentence")
       end
 
-      # @param bluebook [Bluebook::Chapter] the Sentence chapter
+      # @param bluebook [Bluebook::Chapter] the Sentence bluebook
       # @return [Array<Hash{Symbol => String}>] one row per declared phrase, every field a string
       #   and an omitted column read as its default
       def rows(bluebook)
@@ -60,7 +60,7 @@ module Hecks
         "    PhraseRow { #{fields.join(", ")} },"
       end
 
-      # @param bluebook [Bluebook::Chapter] the Sentence chapter
+      # @param bluebook [Bluebook::Chapter] the Sentence bluebook
       # @return [String] the whole `phrases.rs`
       def render(bluebook)
         <<~RUST

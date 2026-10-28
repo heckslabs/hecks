@@ -34,7 +34,7 @@ module Hecks
         module_function
 
         # Runs one command line against a booted domain and answers the text to print.
-        # The booted domain's own chapter is projected, or an attached one its first word names.
+        # The booted domain's own bluebook is projected, or an attached one its first word names.
         #
         # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
         # @param argv [Array<String>] an optional `query` (or `ask`), the command or query name,

@@ -128,7 +128,7 @@ module Hecks
         private
 
         # One hecksagon's checks: its roles, attachments and ACL, every bind, and the durability
-        # warnings for its chapter.
+        # warnings for its bluebook.
         def verify_hecksagon!(hecksagon)
           refuse_ungoverned_roles!(hecksagon)
           refuse_unknown_driving!(hecksagon)
@@ -137,6 +137,7 @@ module Hecks
           hecksagon.binds.each { |bind| verify_bind!(hecksagon, bind) }
           warn_undurable_sagas!(hecksagon)
           warn_undurable_outbox!(hecksagon)
+          warn_unwired_persistence!(hecksagon)
         end
 
         def verify_bind!(hecksagon, bind)

@@ -35,7 +35,7 @@ module Hecks
           pool[key] || questions[key]
         end
 
-        # The whole help: the two tables, the chapters, then the hints.
+        # The whole help: the two tables, the bluebooks, then the hints.
         def full_usage(bluebook, commands, questions, options, program)
           shown = [commands, questions].map { |specs| CliAudience.audience_specs(specs, options) }
           [usage_header(bluebook, program),
@@ -49,7 +49,7 @@ module Hecks
           commands.size + questions.size - shown.sum(&:size)
         end
 
-        # The chapter's vision and the two ways to call it.
+        # The bluebook's vision and the two ways to call it.
         def usage_header(bluebook, program)
           ["#{bluebook.name} — #{bluebook.vision}", "",
            "  #{program} <command>! [name=value …]       do something",

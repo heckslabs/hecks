@@ -41,7 +41,7 @@ module Hecks
         # `validate` stops at the arguments stage when an argument is missing, so a caller asking
         # what a record could do next, with no arguments yet, asks this as well.
         #
-        # @param domain [String] the chapter's name
+        # @param domain [String] the bluebook's name
         # @param aggregate [Bluebook::Aggregate] the aggregate the record belongs to
         # @param command [Bluebook::Command] the command asked about
         # @param id [String] the record's identity

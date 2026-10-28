@@ -1,12 +1,12 @@
 module Hecks
   module Projector
     module Exporter
-      # Which chapter of a registry answers each capability a domain attaches (authorization,
+      # Which bluebook of a registry answers each capability a domain attaches (authorization,
       # membership, identity, and every capability a package declares): a per-deployment binding
       # fact, not part of the declared IR. Each answers `{}` when nothing the domain attaches
       # provides it.
       module Bindings
-        # Which chapter this domain's role checks resolve against
+        # Which bluebook this domain's role checks resolve against
         # (`Registry#authorization_provider_for`); `{}` if none does.
         #
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
@@ -29,7 +29,7 @@ module Hecks
           }
         end
 
-        # Which chapter answers "who may sign in" (`Registry#membership_provider_for`),
+        # Which bluebook answers "who may sign in" (`Registry#membership_provider_for`),
         # with the membership aggregate named off `admit`; `{}` if none does.
         #
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
@@ -45,7 +45,7 @@ module Hecks
           { provider: provider.name, **verbs, aggregate: aggregate_of(verbs[:admit]) }
         end
 
-        # Which chapter answers "who is this authenticated pair"; `{}` if none does.
+        # Which bluebook answers "who is this authenticated pair"; `{}` if none does.
         # Breaking in 2.0: Link's reference field is `identity`, never `identity_id`.
         #
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
@@ -66,14 +66,14 @@ module Hecks
         end
 
         # Every capability a package declares (one the language defines no contract for), as the
-        # chapter that provides it for this domain resolves each key: the qualified verb of a
+        # bluebook that provides it for this domain resolves each key: the qualified verb of a
         # command, query or port operation, the states of a lifecycle mark, or an attribute's
         # `{ attribute:, default: }`. The reader of a capability checks the keys it needs.
         #
         # @param registry [Runtime::Registry] the booted registry `domain_name` is loaded in
         # @param domain_name [String] the domain to export the capabilities for
         # @return [Hash{String => Hash{Symbol => Object}}] each capability's name, mapped to
-        #   `:provider` (the chapter's name) and one resolved value per key; `{}` if nothing
+        #   `:provider` (the bluebook's name) and one resolved value per key; `{}` if nothing
         #   loaded declares one
         def provides(registry, domain_name)
           package_capabilities(registry).to_h do |capability|
@@ -92,12 +92,12 @@ module Hecks
           keys.to_h { |key| [key, provider.provided_verb(capability, key)] }
         end
 
-        # Every capability name a loaded chapter provides that the language defines no contract for.
+        # Every capability name a loaded bluebook provides that the language defines no contract for.
         def package_capabilities(registry)
           provided_capabilities(registry).reject { |capability| Bluebook::Capabilities.language_defined?(capability) }
         end
 
-        # Every capability name a loaded chapter provides, once each, sorted.
+        # Every capability name a loaded bluebook provides, once each, sorted.
         def provided_capabilities(registry)
           chapters = registry.bluebooks.values
           chapters.flat_map { |chapter| chapter.provides.map(&:capability) }.uniq.sort

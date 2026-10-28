@@ -8,7 +8,7 @@ module Hecks
     # `reference` is the local reference attribute to walk; `remote_field` the target's scalar.
     ProjectedField = Struct.new(:name, :reference, :remote_field, keyword_init: true)
 
-    # An aggregate: carries its own identity and sits in the owner chain below its chapter.
+    # An aggregate: carries its own identity and sits in the owner chain below its bluebook.
     # The holding half only; `Behaviour::Aggregate` carries what the declaration cannot derive.
     class Aggregate
       include Construct

@@ -45,9 +45,9 @@ module Hecks
           self
         end
 
-        # The history of everything played so far, with the booted chapter beside it so
+        # The history of everything played so far, with the booted bluebook beside it so
         # properties.rb's lifecycle/saga checks have the declared IR. `bluebook:` (singular) is
-        # the first-loaded chapter; `bluebooks:` (plural) is the full domain-name-keyed map, for
+        # the first-loaded bluebook; `bluebooks:` (plural) is the full domain-name-keyed map, for
         # a property that must resolve a verb back to its declaring bluebook.
         #
         # `runtime` is still live here, so SelfConsistency runs against the same registry a

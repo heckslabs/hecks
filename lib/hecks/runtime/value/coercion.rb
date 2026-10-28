@@ -55,7 +55,7 @@ module Hecks
         end
 
         # Resolves the value-object class `type` names: `aggregate`'s own
-        # declarations first, then its chapter's other aggregates if they agree.
+        # declarations first, then its bluebook's other aggregates if they agree.
         #
         # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] construct to search first
         # @param type [String, Symbol, #to_s] the declared type name to resolve
@@ -164,7 +164,7 @@ module Hecks
           coerced
         end
 
-        # The one value object every aggregate of the chapter that declares `type` agrees on.
+        # The one value object every aggregate of the bluebook that declares `type` agrees on.
         def agreed_value_object(chapter, type)
           matches = chapter.aggregates.filter_map { |candidate| candidate.value_object(type) }
           shapes = matches.group_by do |shape|

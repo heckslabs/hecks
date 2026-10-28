@@ -6,7 +6,7 @@ module Hecks
       class BluebookBuilder
         module Validation
           # Resolves and checks the `where` hops that `AggregateBuilder` could only recognise at
-          # seal time: a hop needs the other aggregates, which exist once the chapter is assembled.
+          # seal time: a hop needs the other aggregates, which exist once the bluebook is assembled.
           module QueryHops
             include HopTails
 

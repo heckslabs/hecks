@@ -53,7 +53,7 @@ module Hecks
       # The keywords `projection` takes, each nil until given.
       Settings = Struct.new(:out, :template, :extension, :cms, :root_dir, :editor, keyword_init: true)
 
-      # A project's route-table chapter with its checked table and the registry it booted into.
+      # A project's route-table bluebook with its checked table and the registry it booted into.
       Site = Struct.new(:chapter, :table, :registry)
 
       extend Cli
@@ -159,7 +159,7 @@ module Hecks
       # The admin sign-in module, when the project declares an `Admin` row.
       #
       # @param dir [String] the directory the route table module is written to
-      # @param chapter [Bluebook::Chapter] the chapter that declares the route table
+      # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
       # @param admin [Projections::Site::Admin, nil] the checked admin row
       # @param extension [String] the extension the modules are written with
       # @return [Hash{String => String}] the module's path to its text; empty with no admin row
@@ -168,8 +168,8 @@ module Hecks
         renamed(dir, files, extension)
       end
 
-      # Loads the project's chapters the way a deploy does: the bluebooks, then the hecksagons that
-      # attach the chapters they need.
+      # Loads the project's bluebooks the way a deploy does: the bluebooks, then the hecksagons that
+      # attach the bluebooks they need.
       #
       # @param root [String] the project directory
       # @return [Hecks::Runtime::Registry] the registry

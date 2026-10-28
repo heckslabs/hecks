@@ -2,18 +2,18 @@ module Hecks
   # A named registry of "canonical IR in, external artifact out" tools, each
   # taking one bluebook's IR and answering a derived artifact (`:ir`, `:docs`, ...).
   #
-  #   Projector.call(:ir, bluebook: chapter)
+  #   Projector.call(:ir, bluebook: bluebook)
   #
   # A target's category is derived from the flags it declares (`category`):
   #
-  # - `:projection` is inert and derived from any chapter's declaration.
-  # - `:meta` also needs a chapter declaring particular aggregates (`declares:`),
-  #   so it only fits hecks's own grammar chapters.
+  # - `:projection` is inert and derived from any bluebook's declaration.
+  # - `:meta` also needs a bluebook declaring particular aggregates (`declares:`),
+  #   so it only fits hecks's own grammar bluebooks.
   # - `:export` (CloudFormation, ...) also needs `.world` bindings and declares
   #   `needs_world: true`; that is adapter wiring, not a projection of the domain.
   module Projector
     class UnknownProjector < StandardError; end
-    # A chapter-scoped projector was handed something that is not a chapter.
+    # A chapter-scoped projector was handed something that is not a bluebook.
     class WrongConstruct < StandardError; end
 
     module_function

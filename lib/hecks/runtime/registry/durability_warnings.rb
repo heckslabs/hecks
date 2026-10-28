@@ -51,6 +51,21 @@ module Hecks
           names.compact.map(&:to_s)
         end
 
+        # A hecksagon that never mentions persistence wires none, so its aggregates are in Memory:
+        # the default, and nothing to say. The one case worth saying is a world that names a store
+        # (a database or persistence settings) that no bind uses, which is a forgotten decision.
+        def warn_unwired_persistence!(hecksagon)
+          domain = hecksagon.domain
+          return unless Ports::Persistence::BindingPolicy.unwired?(self, domain) && store_named?(domain)
+
+          warn "[hecks] #{domain} names a store but binds no persistence, so its aggregates are in Memory " \
+               "and keep nothing across a restart. Add `persisted_by \"<adapter>\"` to its hecksagon."
+        end
+
+        def store_named?(domain)
+          !default_database_for(domain).nil? || !world(domain)&.for_verb("persistence").to_h.empty?
+        end
+
         # A warning, not a refusal: running sagas on a store with no `save_saga` is
         # legitimate on purpose in a fast in-memory test/dev boot.
         def warn_undurable_sagas!(hecksagon)

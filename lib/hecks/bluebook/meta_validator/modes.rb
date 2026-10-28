@@ -14,16 +14,16 @@ module Hecks
         # @return [Boolean]
         def bootstrapping? = @bootstrapping
 
-        # Whether `call` is queuing chapters instead of judging them, while a
-        # chapter's own files are still being merged (see `defer`).
+        # Whether `call` is queuing bluebooks instead of judging them, while a
+        # bluebook's own files are still being merged (see `defer`).
         #
         # @return [Boolean]
         def deferring? = @deferring
 
-        # Queues every chapter `call` sees while the block runs, instead of
+        # Queues every bluebook `call` sees while the block runs, instead of
         # judging them immediately (see `deferred_chapters`).
         #
-        # @yield the caller's own load of every file in one chapter window
+        # @yield the caller's own load of every file in one bluebook window
         # @return [Object] the block's own return value
         def defer
           previous   = @deferring
@@ -33,20 +33,20 @@ module Hecks
           @deferring = previous
         end
 
-        # The chapters queued while `defer`'s block ran, awaiting
+        # The bluebooks queued while `defer`'s block ran, awaiting
         # `judge_deferred!`.
         #
-        # @return [Array<String>] each deferred chapter's own `hecks_name`,
+        # @return [Array<String>] each deferred bluebook's own `hecks_name`,
         #   queued during the current or most recent `defer` window
         def deferred_chapters = @deferred_chapters ||= []
 
-        # Judges every chapter queued by `defer`, once each, then clears the
+        # Judges every bluebook queued by `defer`, once each, then clears the
         # queue.
         #
         # @param registry [Runtime::Registry, nil] the registry to judge
         #   against; a no-op if `nil`
         # @return [void]
-        # @raise [DSL::Malformed] if a chapter's own whole-chapter battery
+        # @raise [DSL::Malformed] if a bluebook's own whole-chapter battery
         #   (`BluebookBuilder.validate_assembled!`) or the meta-domain itself
         #   (`call`) refuses it
         def judge_deferred!(registry)
@@ -57,10 +57,10 @@ module Hecks
           pending.each { |name| judge_chapter!(registry, name) }
         end
 
-        # Judges one deferred chapter once its own files are all merged.
+        # Judges one deferred bluebook once its own files are all merged.
         #
-        # @param registry [Runtime::Registry] the registry holding the chapter
-        # @param name [String] the chapter's `hecks_name`
+        # @param registry [Runtime::Registry] the registry holding the bluebook
+        # @param name [String] the bluebook's `hecks_name`
         # @return [void]
         def judge_chapter!(registry, name)
           chapter = registry.bluebook(name)
@@ -68,7 +68,7 @@ module Hecks
 
           # Bare chapter-level givens must resolve before anything below
           # reads a `Given`'s fields. The `raise` block never runs — this
-          # chapter's builder is always already open by the time `chapter` exists.
+          # bluebook's builder is always already open by the time `chapter` exists.
           builder = registry.bluebook_builder(name) { raise Error, "internal: no open builder for #{name}" }
           builder.resolve_pending_chapter_givens!
           # Same, one level down: entity-scoped pending givens.

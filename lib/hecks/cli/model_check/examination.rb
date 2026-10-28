@@ -4,7 +4,7 @@ module Hecks
   module CLI
     module ModelCheck
       # Examining booted domains: each one's findings against the allowlist, then the language's
-      # own chapters, printed as the check goes. `ModelCheck` extends it.
+      # own bluebooks, printed as the check goes. `ModelCheck` extends it.
       module Examination
         # @api private
         def examine_all(booted, options)

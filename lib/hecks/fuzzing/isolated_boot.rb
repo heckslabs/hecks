@@ -33,7 +33,7 @@ module Hecks
       #
       # The block runs with `OutsideWorld` standing in for every adapter a port or a port-answered
       # query reaches: a fuzz or replay checks the domain's own rules, and the adapters of the
-      # chapters that drive tools would run shells and write files from a generated sequence.
+      # bluebooks that drive tools would run shells and write files from a generated sequence.
       def call(domain_path, adapter: :memory, database: nil, schema: nil, scratch: {})
         Dir.mktmpdir("hecks-fuzz") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))

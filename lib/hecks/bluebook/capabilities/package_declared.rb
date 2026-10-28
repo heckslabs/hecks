@@ -2,7 +2,7 @@ module Hecks
   module Bluebook
     module Capabilities
       # A capability the language defines no contract for belongs to the package that provides it.
-      # Each of its `provides` keys names something the chapter declares, and the kind of that
+      # Each of its `provides` keys names something the bluebook declares, and the kind of that
       # target is read off what it names. Extended onto {Capabilities}, whose singleton methods
       # these become.
       module PackageDeclared
@@ -13,14 +13,14 @@ module Hecks
 
         # Every kind `verb` names in `chapter`; more than one means the target is ambiguous.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the aggregate
         # @param verb [String] the key's target, spelled as one of `KINDS`
         # @return [Array<Symbol>] the kinds it names, empty when it names nothing
         def kinds_of(chapter, verb)
           aggregate_name, member = verb.to_s.split(".", 2)
           aggregate = chapter.aggregate(aggregate_name)
           return [] unless aggregate && member
-          # The port is declared in the hecksagon, which attaches after the chapter is built, so
+          # The port is declared in the hecksagon, which attaches after the bluebook is built, so
           # only the spelling is checkable here; `Registry#verify!` checks the operation.
           return member.count(".") == 1 ? [:port_operation] : [] if member.include?(".")
 
@@ -30,7 +30,7 @@ module Hecks
         # The value a package-declared key exports: the qualified verb of a command, query or port
         # operation, the states of a lifecycle mark, or an attribute's name and `default:`.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the aggregate
         # @param verb [String] the key's target
         # @return [String, Array<String>, Hash{Symbol => Object}] what the reader is handed
         # @raise [ArgumentError] when `verb` names nothing, or more than one kind, in `chapter`

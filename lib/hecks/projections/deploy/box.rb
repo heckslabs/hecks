@@ -72,7 +72,7 @@ module Hecks
         # `fetch-secrets.sh`, `deploy-box.sh` and a `Makefile`, and for a world that declares a
         # `migration`, `restore-to-rds.sh`, `verify-copy.sh` and `MIGRATION.md`.
         #
-        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted chapter
+        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted bluebook
         # @param options [Hash] generation options; same shape as `Fargate.call`'s
         # @return [Hash{String => String}] the generated file contents, keyed by filename
         # @raise [ArgumentError] if the domain's deploy settings are invalid or conflict

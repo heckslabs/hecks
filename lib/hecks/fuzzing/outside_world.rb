@@ -6,7 +6,7 @@ module Hecks
   module Fuzzing
     # What a replay asks in place of a port's adapter: an object that refuses every question.
     #
-    # A domain's adapters reach outside the process, and the chapters of this repository that
+    # A domain's adapters reach outside the process, and the bluebooks of this repository that
     # drive tools (the shell, git, child processes, the file system) would run them for real from
     # a generated sequence. A replay checks the domain's own rules, so the adapter never runs:
     # the operation is refused, which a port operation records as its `refuses` event and a query
