@@ -22,7 +22,12 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   # A domain that still diverges, with the bug that owns it. It runs as `pending`, so the
   # example fails once the domain agrees and the entry must be deleted.
-  RUST_FUZZ_PENDING = {}.freeze
+  RUST_FUZZ_PENDING = {
+    "ledgerbook" => "the first fuzz of this domain found Ruby refusing Shelf.Stock with NotFound where the " \
+                    "Rust kernel stocks the shelf, taking an empty slot as part of a composite identity " \
+                    "(`juliet:`); the two runtimes disagree on which instances exist, so events, refusals " \
+                    "and reactions follow"
+  }.freeze
 
   # A total spread across `DOMAINS`, so a longer domain list adds no wall-clock.
   # `SEEDS=` sets a per-domain count instead; keep it modest, each seed spawns a subprocess.

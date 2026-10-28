@@ -33,6 +33,8 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
     end
   end
 
+  DEPLOY_HECKSAGON = File.join(InMemoryDomain::ROOT, "lib/hecks/deploy/bluebook/deploy.hecksagon").freeze
+
   def declare_console = Hecks.bluebook("Console", &CONSOLE_BLUEBOOK)
 
   def console_hexagon(name)
@@ -42,7 +44,10 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
     end
   end
 
+  # Deploy's policies ask ports only its own hecksagon declares, so its sibling is the one it ships.
   def sibling_hexagon(name)
+    return Hecks::Adapters::Folder.new.load_file(DEPLOY_HECKSAGON) if name == "Deploy"
+
     Hecks.hecksagon name do
       persisted_by "Memory"
     end

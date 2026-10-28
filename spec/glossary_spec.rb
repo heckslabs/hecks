@@ -11,13 +11,9 @@ RSpec.describe "the glossary a domain carries with it" do
   }.freeze
 
   def bluebook_of(domain, name)
-    registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) do
-      MemoryPorts.load!
-      # `qa` holds the ledger's wiring only; its bluebook is the one that wiring loads by name.
-      InMemoryDomain.load_bluebook_files(Hecks::Corpus.bluebook_files(File.join(InMemoryDomain::ROOT, domain, "bluebook")))
-    end
-    registry.bluebook(name)
+    # Booted as `hecks glossary` boots it: the boot verifies the wiring, which resolves each
+    # policy's ask to the port it names (`qa` holds the ledger's wiring, and loads its bluebook).
+    Hecks.boot(File.join(InMemoryDomain::ROOT, domain)).bluebook(name)
   end
 
   def committed_dir(domain) = File.join(InMemoryDomain::ROOT, domain, "glossary")
