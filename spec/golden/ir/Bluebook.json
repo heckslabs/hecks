@@ -673,7 +673,7 @@
             }
           ],
           "emits": [
-            "PieceHeld"
+            "PieceOptionDeclared"
           ],
           "ensures": [
 
@@ -4411,7 +4411,7 @@
           "optional": false,
           "pattern": null,
           "relationship": null,
-          "type": "ChapterNamespace"
+          "type": "BluebookNamespace"
         },
         {
           "admits": null,
@@ -4505,11 +4505,11 @@
               "optional": true,
               "pattern": null,
               "relationship": null,
-              "type": "ChapterNamespace"
+              "type": "BluebookNamespace"
             }
           ],
           "emits": [
-            "ChapterDeclared"
+            "BluebookDeclared"
           ],
           "ensures": [
 
@@ -4598,7 +4598,7 @@
             }
           ],
           "emits": [
-            "ChapterAttached"
+            "BluebookAttached"
           ],
           "ensures": [
             {
@@ -5047,7 +5047,7 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "a chapter is named"
+              "description": "a bluebook is named"
             }
           ],
           "members": [
@@ -5181,7 +5181,7 @@
                 }
               },
               "canonical": "value.to_s == \"core\" || value.to_s == \"supporting\" || value.to_s == \"generic\"",
-              "description": "a chapter is core, supporting, or generic"
+              "description": "a bluebook is core, supporting, or generic"
             }
           ],
           "members": [
@@ -5306,7 +5306,7 @@
           "members": [
 
           ],
-          "name": "ChapterNamespace"
+          "name": "BluebookNamespace"
         },
         {
           "attributes": [
@@ -11291,7 +11291,7 @@
             }
           ],
           "emits": [
-            "PieceHeld"
+            "PieceOptionDeclared"
           ],
           "ensures": [
 
@@ -17511,7 +17511,7 @@
             }
           ],
           "emits": [
-            "MedianFieldSet"
+            "MedianDeclared"
           ],
           "ensures": [
 
@@ -17574,7 +17574,7 @@
             }
           ],
           "emits": [
-            "SumFieldSet"
+            "SumDeclared"
           ],
           "ensures": [
 
@@ -17637,7 +17637,7 @@
             }
           ],
           "emits": [
-            "AvgFieldSet"
+            "AvgDeclared"
           ],
           "ensures": [
 
@@ -17700,7 +17700,7 @@
             }
           ],
           "emits": [
-            "MinFieldSet"
+            "MinDeclared"
           ],
           "ensures": [
 
@@ -17763,7 +17763,7 @@
             }
           ],
           "emits": [
-            "MaxFieldSet"
+            "MaxDeclared"
           ],
           "ensures": [
 
@@ -17836,7 +17836,7 @@
             }
           ],
           "emits": [
-            "PercentileFieldSet"
+            "PercentileDeclared"
           ],
           "ensures": [
 
@@ -17908,7 +17908,7 @@
             }
           ],
           "emits": [
-            "AnyFieldSet"
+            "AnyDeclared"
           ],
           "ensures": [
 
@@ -17971,7 +17971,7 @@
             }
           ],
           "emits": [
-            "AllFieldSet"
+            "AllDeclared"
           ],
           "ensures": [
 

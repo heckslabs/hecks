@@ -1468,11 +1468,11 @@
               "admits": null,
               "default": null,
               "list": false,
-              "name": "chapter",
+              "name": "bluebook",
               "optional": false,
               "pattern": null,
               "relationship": null,
-              "type": "ChapterName"
+              "type": "AttachedBluebookName"
             },
             {
               "admits": null,
@@ -1486,7 +1486,7 @@
             }
           ],
           "emits": [
-            "ChapterAttached"
+            "BluebookAttached"
           ],
           "ensures": [
 
@@ -1501,7 +1501,7 @@
             {
               "fields": {
                 "source": ":source",
-                "value": ":chapter"
+                "value": ":bluebook"
               },
               "op": "append",
               "sign": "",
@@ -1831,13 +1831,13 @@
                 "op": "not"
               },
               "canonical": "!value.to_s.empty?",
-              "description": "a chapter is named"
+              "description": "a bluebook is named"
             }
           ],
           "members": [
 
           ],
-          "name": "ChapterName"
+          "name": "AttachedBluebookName"
         },
         {
           "attributes": [

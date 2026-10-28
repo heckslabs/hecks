@@ -53,7 +53,7 @@ between the file and the whole.
      `ChapterDeclared` and `ChapterAttached`, and the attributes `chapter` and `chapter_name` in
      the language bluebooks. These are part of the IR, event history and refusal strings, so each
      needs a translation edge between eras (see the Translation chapter's era-to-era rows) rather
-     than an edit. This tier is **not decided here**; see Open questions.
+     than an edit. This tier is decided in ADR 0152: rename, with a declared edge where a ledgered shape moves.
 7. **File-as-unit shortcuts are replaced, not renamed.** Each shortcut that takes the first file's
    header or matches by stem is changed to resolve the bluebook by name across all its files, or
    is documented as a deliberate single-file assumption.
@@ -76,7 +76,7 @@ between the file and the whole.
 
 ## Open questions
 
-- **Tier 3.** Does the language rename its own names (`ChapterName` and the rest), or keep them
+- **Tier 3 (decided in ADR 0152, rename).** Does the language rename its own names (`ChapterName` and the rest), or keep them
   and let prose and identifiers differ? A rename needs translation edges for the language's own
   eras and a regeneration of the parser's tables and goldens. Keeping them is free but leaves the
   mismatch.

@@ -14,6 +14,25 @@ mod tests {
     // app's own database holds, not invented shapes.
 
     #[test]
+    fn a_collections_four_aggregates_read_back_as_one_entry_and_the_newer_rows_win() {
+        let rows = vec![
+            json!({"agg": {"value": "Invoice"}, "label": {"value": "Invoices"},
+                   "columns": [{"field": "stale"}]}),
+            json!({"agg": {"value": "Invoice"}, "identity_field": {"value": "number"},
+                   "identity_strategy": {"value": "sequence"}}),
+            json!({"agg": {"value": "Invoice"}, "columns": [{"field": "number"}]}),
+            json!({"agg": {"value": "Invoice"}, "preconditions": [], "field_formats": []}),
+        ];
+
+        let entry = &reshape_collections(&rows)["Invoice"];
+
+        assert_eq!(
+            (&entry["label"], &entry["columns"], &entry["identity"]["field"]),
+            (&json!("Invoices"), &json!([{"field": "number"}]), &json!("number"))
+        );
+    }
+
+    #[test]
     fn a_state_row_becomes_a_tone_an_attention_flag_and_its_extras() {
         let rows = vec![
             json!({"agg": {"value": "Invoice"}, "tone": {"value": "muted"}, "state": {"value": "void"},

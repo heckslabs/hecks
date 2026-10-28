@@ -54,7 +54,13 @@
       }
     },
     {
-      "verb": "ConsoleSettings::Collection.SetIdentity",
+      "verb": "ConsoleSettings::CollectionIdentity.Declare",
+      "args": {
+        "agg": { "value": "Client" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::CollectionIdentity.SetIdentity",
       "args": {
         "id": "Client",
         "identity_field": { "value": "reference" },
@@ -71,7 +77,13 @@
       }
     },
     {
-      "verb": "ConsoleSettings::Collection.ReplaceColumns",
+      "verb": "ConsoleSettings::CollectionLayout.Declare",
+      "args": {
+        "agg": { "value": "Client" }
+      }
+    },
+    {
+      "verb": "ConsoleSettings::CollectionLayout.ReplaceColumns",
       "args": {
         "id": "Client",
         "columns": [
@@ -96,6 +108,9 @@
       }
     },
     { "query": "ConsoleSettings.styles" },
-    { "query": "ConsoleSettings.curated" }
+    { "query": "ConsoleSettings.curated" },
+    { "query": "ConsoleSettings.curated_identities" },
+    { "query": "ConsoleSettings.curated_layouts" },
+    { "query": "ConsoleSettings.curated_rules" }
   ]
 }

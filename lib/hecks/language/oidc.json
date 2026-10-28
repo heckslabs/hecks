@@ -2,6 +2,11 @@
   "audience": "Bluebook",
   "scopes": [
     {
+      "scope": "bluebook:aggregate.acknowledges",
+      "verb": "Bluebook::Aggregate.Acknowledges",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:aggregate.attribute",
       "verb": "Bluebook::Aggregate.Attribute",
       "role": "Language"

@@ -218,7 +218,7 @@ Hecks.bluebook "Bluebook" do
 
       sets :attributes, append: { name: :name, type: :holds, list: :list, default: :default, optional: :optional, pattern: :pattern, admits: :admits, relationship: :relationship }
 
-      emits PieceHeld
+      emits PieceOptionDeclared
     end
 
     # The only rule that refuses an unnamed attribute. A `given` beside it could never fire:
