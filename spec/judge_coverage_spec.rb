@@ -126,6 +126,17 @@ RSpec.describe "the judge's coverage of the language" do
     end
   end
 
+  # `Aggregate.Acknowledges` (ADR 0150) is real DSL surface no corpus aggregate declares for
+  # `:large_aggregate`, so a small fixture does.
+  def acknowledges_chapter
+    @acknowledges_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("AcknowledgesCoverage") do
+      aggregate "Ledger" do
+        identified_by { attribute :number, String }
+        acknowledges :large_aggregate, "a fixture standing for an aggregate the size check would report"
+      end
+    end
+  end
+
   attr_reader :banking
   attr_reader :paging
   attr_reader :governance
@@ -154,7 +165,7 @@ RSpec.describe "the judge's coverage of the language" do
   # Banking carries every query and read_model option itself, so no union with
   # another bluebook is needed for `Query.Option` and `ReadModel.Option`.
   def offered_verbs
-    [banking, paging, grammar, relationships, governance, needs_chapter, marks_chapter]
+    [banking, paging, grammar, relationships, governance, needs_chapter, marks_chapter, acknowledges_chapter]
       .flat_map { |chapter| offered_in_order(chapter) }
   end
 
