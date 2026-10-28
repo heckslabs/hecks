@@ -1,6 +1,6 @@
 # An aggregate is the transaction boundary, and model_check reports what crosses it
 
-**Status:** Proposed. Not built. Date: 2026-10-27.
+**Status:** Partly built (item 5, the size warning). Date: 2026-10-27.
 
 ## Context
 
@@ -32,18 +32,20 @@ contends for the same record. `model_check` reports no size at all.
    changes one aggregate instance and the events it emits, and a reaction to those events
    runs after the commit. Another aggregate changes by a policy or a process manager, never
    inside the first command's transaction.
-2. **`model_check` reports `:transaction_spans_aggregates`** for a construct whose one
-   transaction writes more than one aggregate type, unless the writes are declared a
-   process manager or a saga (which carry their own compensations). The severity is a
-   warning, because a model may mean it, and the message names the owning aggregate the
-   rule probably needs (ADR 0081). The check reads the IR for the constructs that can do
-   it; whether any besides a bulk run can do it today is verified when the check is built,
-   and a check with nothing to find is reported as such rather than shipped silent.
-3. **`model_check` reports `:bulk_all_or_nothing`** for a bulk run, request or declared
-   use, that asks for `all_or_nothing`, as a warning with the message "a rule that needs
-   all-or-nothing across records probably needs an owning aggregate". The run still works.
-   The mode stays, as an exception for operator sweeps and migrations, and
-   `best_effort` stays the default.
+2. **No check reports a transaction across aggregate types, because the language cannot
+   write one.** A command's `sets` name its own aggregate's fields, and `delegates_to`
+   takes an `"Entity.Command"` target, which is a piece of the same aggregate. A policy
+   reaction runs after the commit. So the boundary holds by construction for aggregate
+   types, and a `:transaction_spans_aggregates` finding would have nothing to find. If a
+   construct that can write two types in one transaction is ever added, it carries the
+   check in the same change.
+3. **A bulk run in `all_or_nothing` mode is the one construct that spans many instances
+   of one aggregate in a transaction, and the advisory is raised where the mode is seen.**
+   The mode is an argument of the run's request, not part of the bluebook's IR, so
+   `model_check` has nothing to read. The run's record carries the advisory instead: "a
+   rule that needs all-or-nothing across records probably needs an owning aggregate". The
+   run still works. The mode stays, as an exception for operator sweeps and migrations,
+   and `best_effort` stays the default. Not built.
 4. **ADR 0125 item 4 is amended**, not reversed. The mode's reason is stated: it exists
    so an operator can apply one command to a set of rows without partial results, not so
    a domain rule can span records. ADR 0129 item 5 stands unchanged: the compiled path
@@ -51,8 +53,9 @@ contends for the same record. `model_check` reports no size at all.
 5. **`model_check` reports `:large_aggregate`** for an aggregate whose declared commands,
    entities and lifecycle states together pass a limit. The limit is a setting of the
    check, not a number in the documentation (no counts in docs). The finding is a warning
-   and names the commands that touch the fewest of the aggregate's attributes, since
-   those are the likeliest to belong to another aggregate.
+   and names the commands that set the fewest of the aggregate's own fields, since
+   those are the likeliest to belong to another aggregate. Built in
+   `ModelCheck::AggregateChecks`; no aggregate in the corpus passes the limit.
 6. **A finding can be acknowledged on the declaration.** An aggregate or bulk request that
    means what it says carries a stated reason, and the finding is not reported. This
    follows ADR 0121's rule that an allowance belongs on its own declaration and not in a
