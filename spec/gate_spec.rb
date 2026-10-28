@@ -1,11 +1,9 @@
 require "spec_helper"
-require "tmpdir"
-require "yaml"
 require "hecks/tools"
 
-# `hecks gate <stage>` runs the checks lib/hecks/gate/stages.yml holds for a stage. These specs
-# run the tool against a stages file of their own, whose checks are tiny shell programs, so no
-# real gate (the suite, rubocop) is started.
+# `hecks gate <stage>` runs the checks the gate rows of the Vocabulary bluebook hold for a stage.
+# These specs run the tool against stages of their own, whose checks are tiny shell programs, so
+# no real gate (the suite, rubocop) is started.
 RSpec.describe "hecks gate" do
   let(:gate) { Hecks::Tools.fetch("gate") }
   let(:stages) do
@@ -24,17 +22,6 @@ RSpec.describe "hecks gate" do
     }
   end
 
-  let(:stages_dir) { Dir.mktmpdir }
-
-  before do
-    path = File.join(stages_dir, "stages.yml")
-    File.write(path, YAML.dump(stages))
-    Hecks::Tools.fetch("gate")
-    stub_const("Hecks::Tools::Gate::STAGES_FILE", path)
-  end
-
-  after { FileUtils.rm_rf(stages_dir) }
-
   def run_gate(*argv)
     out = StringIO.new
     err = StringIO.new
@@ -46,6 +33,8 @@ RSpec.describe "hecks gate" do
     $stdout = STDOUT
     $stderr = STDERR
   end
+
+  before { allow(gate).to receive(:stages).and_return(stages) }
 
   it "answers 0 and names the checks when every one passes", :process do
     status, out, = run_gate("demo", "only=passes,reads_env")
@@ -81,8 +70,25 @@ RSpec.describe "hecks gate" do
     expect(run_gate("--list")).to eq([0, "demo: passes, fails, reads_env\n", ""])
   end
 
-  describe "the stages file the gem ships" do
-    let(:shipped) { YAML.load_file(File.expand_path("../lib/hecks/gate/stages.yml", __dir__), aliases: true) }
+  describe "the gate rows the gem ships" do
+    let(:shipped) { gate.stages }
+
+    before { allow(gate).to receive(:stages).and_call_original }
+
+    it "lists in every stage only checks the rows hold, each row used by some stage", :aggregate_failures do
+      names = Hecks::Vocabulary.rows("GateCheck").map { |row| row["name"] }
+      listed = Hecks::Vocabulary.rows("GateStage").flat_map { |row| row["checks"].split(",") }
+
+      expect(names).to eq(names.uniq)
+      expect(listed - names).to be_empty
+      expect(names - listed).to be_empty
+    end
+
+    it "gives every check a command or a script, never both", :aggregate_failures do
+      Hecks::Vocabulary.rows("GateCheck").each do |row|
+        expect(row.values_at("argv", "script").count(&:empty?)).to eq(1), "#{row["name"]} needs argv or script"
+      end
+    end
 
     it "gives every check an id, a title, a command and what a red one means", :aggregate_failures do
       checks = shipped.values.flat_map { |stage| stage.fetch("checks") }

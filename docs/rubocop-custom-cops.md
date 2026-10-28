@@ -41,7 +41,7 @@ that the sections below refer to:
 
 Every cop is wired into `.rubocop.yml`'s `require:` list with an `Enabled: true` stanza, so
 each runs as part of the one `bundle exec rubocop -c .rubocop.yml` invocation that the
-`rubocop` check of `lib/hecks/gate/stages.yml` runs. `.githooks/pre-push` runs that check
+`rubocop` check of the Vocabulary gate rows runs. `.githooks/pre-push` runs that check
 on every push and CI runs it as the `rubocop` gate (`.github/workflows/ci-checks.yml`), so
 it is not only opt-in per clone and bypassable with `--no-verify`. The scope of each cop
 (`Include`, `Exclude`) sits in its `.rubocop.yml` stanza beside the reason for it.

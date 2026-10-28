@@ -8,7 +8,7 @@
 #
 # ROOT comes from `git rev-parse --show-toplevel`, not `dirname "$0"`, since an absolute
 # core.hooksPath makes every worktree run this one file. The checks themselves, and why each
-# one blocks, are the `pre_push` stage in lib/hecks/gate/stages.yml; every check is reported
+# one blocks, are the `pre_push` stage in the Vocabulary gate rows; every check is reported
 # even if an earlier one failed. Among them, `codegen_drift` catches a Bluebook `given` changing
 # with nobody rerunning `hecks build.project_rust` (ADR 0057): CI's own `checks_codegen_drift` runs
 # on `pull_request` and on a push to main, after the push has landed, so this is the one local
@@ -78,7 +78,7 @@ if [ "$FULL_GATE" != "true" ]; then
   exit 0
 fi
 
-# The checks are data in lib/hecks/gate/stages.yml. `hecks gate_run.gate` runs a stage's checks together and
+# The checks are data in the Vocabulary gate rows. `hecks gate_run.gate` runs a stage's checks together and
 # prints every red one, so a failure does not hide the others. The tool is called directly, not
 # through the launcher, so a red check's output arrives as text and not inside a journal record
 # (`hecks gate_run.gate pre_push --wait` is the recorded form).

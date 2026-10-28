@@ -1228,7 +1228,7 @@ Hecks.bluebook "Hecks" do
   end
 
   # Gate: the checks a stage holds a change against before it is let through. The checks are data
-  # (lib/hecks/gate/stages.yml), run together, and a red one faults the run, so `--wait` fails the
+  # (the Vocabulary gate rows), run together, and a red one faults the run, so `--wait` fails the
   # push or the build that asked, and the journal keeps when the gate went red.
   aggregate "GateRun" do
     description "One run of a stage's checks: every check of the stage, or the ones named."

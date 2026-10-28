@@ -5,7 +5,7 @@ and `examples/`. `hecks style_run.check_comments` checks the parts of it a machi
 can check. The rest is a checklist for whoever reads the diff.
 
 CI runs this check as the `comment_style` and `comment_blocks` gates of
-`lib/hecks/gate/stages.yml` (`hecks gate_run.gate`), so a comment that breaks a
+the Vocabulary gate rows (`hecks gate_run.gate`), so a comment that breaks a
 rule the linter checks fails the build. The parts of this guide the linter cannot check are
 still the reviewer's.
 
