@@ -96,13 +96,31 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
       ).to be(true)
     end
 
-    it "fails closed for a starts_at that does not parse as a time, once as_of is given" do
-      assign(business, actor: "officer-2", role: "Compliance officer", starts_at: "not-a-real-date")
+    it "never meets a starts_at that is not a time, because the assignment refuses it" do
+      expect { assign(business, actor: "officer-2", role: "Compliance officer", starts_at: "not-a-real-date") }
+        .to raise_error(Hecks::Refused, /must match/)
+    end
+
+    it "takes a full UTC time as well as a date" do
+      assign(business, actor: "officer-2", role: "Compliance officer", starts_at: "2026-03-01T09:30:00Z")
 
       expect(
         described_class.holds_role?(business.registry, actor_id: "officer-2", role: "Compliance officer",
-                                     as_of: Time.parse("2026-06-01").to_i)
-      ).to be(false)
+                                     as_of: Time.parse("2026-03-01T09:30:00Z").to_i)
+      ).to be(true)
+    end
+  end
+
+  describe "a grant that ends" do
+    def revoke(created, ends_at)
+      business.dispatch_flat("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: ends_at })
+    end
+
+    it "ends no earlier than it starts", :aggregate_failures do
+      created = assign(business, actor: "officer-3", role: "Compliance officer", starts_at: "2026-03-01")
+
+      expect { revoke(created, "2026-02-01") }.to raise_error(Hecks::Refused, /ends no earlier than it starts/)
+      expect { revoke(created, "2026-03-01") }.not_to raise_error
     end
   end
 

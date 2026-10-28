@@ -43,8 +43,9 @@ module Hecks
         scope.nil? || row[:scope][:value] == scope.to_s
       end
 
-      # `starts_at` is free text, so it is parsed with `Time.parse` rather than compared
-      # lexically. Fails closed: an unparseable value counts as not yet started.
+      # `starts_at` is a UTC date or date-time (the aggregate refuses anything else), parsed with
+      # `Time.parse` to compare against `as_of`. Fails closed on a record that predates that
+      # rule: an unparseable value counts as not yet started.
       #
       # @param row [Hash{Symbol => Object}] one `RoleAssignment` row as
       #   `Runtime::Dispatcher#query` returns it; `:starts_at` holds a `{value: String}` Hash
