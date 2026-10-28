@@ -146,7 +146,7 @@ RSpec.describe "a policy projecting its emitter's identity" do
   end
 
   # A two-field identity whose event carries neither field by the name `id`: the policy can
-  # hand the whole of it to another aggregate only by reading `:id` (ADR 0149).
+  # hand the whole of it to another aggregate only by reading `:id` (ADR 0153).
   # rubocop:disable-next Metrics/AbcSize
   # rubocop:disable-next Metrics/MethodLength
   def boot_id_reader

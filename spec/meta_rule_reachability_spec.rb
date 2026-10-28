@@ -75,6 +75,9 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
      "no spec dispatches Aggregate.Projects naming a field that is not a declared reference"],
     [["given", "Aggregate.Projects", "a projected field names a remote field"],
      "no spec dispatches Aggregate.Projects with a blank remote field name"],
+    [["given", "Aggregate.Acknowledges", "an acknowledged finding is named"],
+     "spec/acknowledges_spec.rb proves the DSL refuses an unknown finding and holds a known one; no spec " \
+     "dispatches Aggregate.Acknowledges with a blank finding"],
     [["invariant", "Aggregate::AggregateName (declared)", "an aggregate is named"],
      "presence invariant on the aggregate's own name; every real bluebook and the golden IR fixture always supplies one, " \
      "so nothing ever dispatches Aggregate.Declare with name: \"\""],

@@ -1,7 +1,7 @@
 Hecks.bluebook "Ledgerbook" do
   # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md).
   # No example domain has a plain policy (not `across`) that reads the emitting record's whole
-  # identity as `:id` (ADR 0149). A shelf is identified by its row and its slot, so the identity
+  # identity as `:id` (ADR 0153). A shelf is identified by its row and its slot, so the identity
   # is composite and the policy hands the Register the two joined by a colon.
   vision "A shelf is stocked, and the register notes which shelf it was."
   core
