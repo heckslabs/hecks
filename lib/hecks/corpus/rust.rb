@@ -20,10 +20,7 @@ module Hecks
     # **Shrink-only**: a generated module `hecks rust_coverage` still flags.
     # `hecks corpus_rust_coverage --rust-coverage` requires each entry to still fail, so a
     # newly-passing module breaks the build until removed here.
-    RUST_COVERAGE_PENDING = {
-      "governance" => "the live-grant queries filter on an unset `ends_at`, and a query condition has no " \
-                      "null value to compile it to (ADR 0140); the host decides liveness itself until it has"
-    }.freeze
+    RUST_COVERAGE_PENDING = {}.freeze
 
     # The stamp hecks project_rust writes into metadata.rs, e.g.
     # `examples/pizzas` or `the self-hosted language (...)`, with any
