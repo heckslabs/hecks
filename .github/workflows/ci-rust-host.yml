@@ -208,12 +208,16 @@ jobs:
       - name: "Build the lineage and mint harnesses (rust/host)"
         run: |
           rustc -vV | head -3
-          ls rust/host/target/debug | head
+          ls -a rust/host/target rust/host/target/debug || true
+          du -sh rust/host/target/debug/deps rust/host/target/debug/.fingerprint rust/host/target/debug/incremental || true
+          ls rust/host/target/debug/.fingerprint | grep -c . || true
+          ls -ld --time-style=full-iso rust/host/target/debug/.fingerprint/proc-macro2-* ~/.cargo/registry/src/*/proc-macro2-1.0.107 | head -4 || true
           cd rust/host
           CARGO_LOG=cargo::core::compiler::fingerprint=debug cargo build --bin lineage_harness --bin mint_harness 2> "$RUNNER_TEMP/build.log"
           echo "crates compiled: $(grep -c Compiling "$RUNNER_TEMP/build.log")"
           grep Finished "$RUNNER_TEMP/build.log"
           grep -E "stale|dirty|mismatch|changed|not found|missing" "$RUNNER_TEMP/build.log" | cut -c1-300 | head -8 || true
+          grep -m6 "proc-macro2" "$RUNNER_TEMP/build.log" | cut -c1-400 || true
           wc -l "$RUNNER_TEMP/build.log"
 
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
