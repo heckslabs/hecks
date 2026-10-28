@@ -56,7 +56,7 @@ skip: String },
 
           chapter = options.fetch(:domain_chapter)
           aggregates = Payload::Model.read(chapter, skip: row[:skip].split(",").map(&:strip))
-          raise ArgumentError, "the #{chapter.name} chapter has no aggregate with a lifecycle to drive" if aggregates.empty?
+          raise ArgumentError, "the #{chapter.name} bluebook has no aggregate with a lifecycle to drive" if aggregates.empty?
 
           files(row, aggregates, FIELD.read(bluebook))
         end

@@ -21,7 +21,7 @@ fn checkout_domain() -> Option<String> {
 #[async_trait]
 impl HostExtension for Commerce {
     // Registration/checkout/newsletter routes are opt-in: they only exist when HECKS_CHECKOUT_DOMAIN
-    // names this domain, since Event/Registration and the Payments::Payment chapter are declared
+    // names this domain, since Event/Registration and the Payments::Payment bluebook are declared
     // against it specifically. The capability shapes are pinned by
     // spec/fixtures/rust_host/checkout_fixture, which this module's tests run against.
     async fn guest_route(&self, ctx: &Ctx<'_>) -> Option<Value> {

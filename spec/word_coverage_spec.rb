@@ -118,7 +118,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "file sits inside lib/hecks/language/bluebook, excluded from CORPUS_GLOBS " \
                                            "on purpose (the language describing itself is not what this corpus counts, the " \
                                            "same reason every core grammar word's own name is not scanned as a use of " \
-                                           "itself). A sub-language chapter is caught by the same exclusion its own words " \
+                                           "itself). A sub-language bluebook is caught by the same exclusion its own words " \
                                            "are, even though — unlike formerly_known_as below — it is not a synthetic gap; " \
                                            "it is a real declaration the scanner is not pointed at.",
     "formerly_known_as (Bluebook)"      =>
@@ -132,7 +132,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "bounded (Hecksagon)"               =>
                                            "a consumer-owned mark; framework and vendored packages get it automatically " \
                                            "from attaches and never write the word. No " \
-                                           "corpus member currently owns a chapter that is itself a BC with a translates " \
+                                           "corpus member currently owns a bluebook that is itself a BC with a translates " \
                                            "ACL — every real BC in this repo is a framework member (Governance, Identity). " \
                                            "The running example lives on docs/implemented/reference/hecksagon.md.",
     # has_many/has_one build for real and mint the same Reference-typed

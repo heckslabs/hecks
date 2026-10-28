@@ -85,9 +85,9 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
     [["ensures", "Bluebook.Attach", "the list grew by exactly one"],
      "postcondition on attaching a sub-chapter (Paging is the one real user); no spec creates the double-count/no-op " \
      "condition that would make this ensures fail"],
-    [["invariant", "Bluebook::BluebookName (declared)", "a chapter is named"],
+    [["invariant", "Bluebook::BluebookName (declared)", "a bluebook is named"],
      "presence invariant on a bluebook's own name; nothing dispatches Bluebook.Declare with name: \"\""],
-    [["invariant", "Bluebook::Classification (declared)", "a chapter is core, supporting, or generic"],
+    [["invariant", "Bluebook::Classification (declared)", "a bluebook is core, supporting, or generic"],
      "closed-set invariant; no spec dispatches a classification outside the three-member set"],
     [["invariant", "Bluebook::Version (declared)", "a version says something"],
      "presence invariant on a bluebook's version; no spec dispatches one blank"],

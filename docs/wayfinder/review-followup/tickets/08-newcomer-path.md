@@ -9,7 +9,7 @@ claimed_by:
 
 ## Question
 
-A newcomer meets bluebook, hecksagon, world, heki, era, PostgresEra, chapter, door, and corpus
+A newcomer meets bluebook, hecksagon, world, heki, era, PostgresEra, bluebook, door, and corpus
 within minutes, in a 37 KB README. The default `bin/console` domain needs Postgres. Decide the
 README's shape (pitch plus quickstart, glossary linked on first use), what the zero-setup path
 is and that it is the default, and what the first ten minutes run given the distribution shape.
@@ -28,7 +28,7 @@ shape*, so every option is conditional on it.
 - Jargon, by first use: bluebook (line 3, glossed), hecksagon (line 147, defined inline),
   world (148, defined inline), corpus (109, never defined), Heki (395, defined in
   parentheses), PostgresEra (393, defined), door (523, defined in the following lines),
-  chapter (424, never defined), storehouse (523, only implied), embryonaut bluebook (751,
+  bluebook (424, never defined), storehouse (523, only implied), embryonaut bluebook (751,
   never defined), and bare "era" (618, never defined). There is no glossary of hecks vocabulary
   in `docs/` or the README; the `glossary/` files under the examples are per-domain.
 - Zero-setup: `bin/console` boots `examples/pizzas` and requires the PostgresEra plugin
@@ -46,7 +46,7 @@ shape*, so every option is conditional on it.
 - Banking's `data/*.heki`, journals and `banking_projection.sqlite3` are git-tracked, so the
   Quickstart's dispatches dirty tracked files in a clone.
 - Doctest wiring a rewrite must respect: the README is one doctested guide sharing a namespace
-  with the others (the `Order` chapter name must stay unique); `spec/doc_skip_fence_caps_spec.rb`
+  with the others (the `Order` bluebook name must stay unique); `spec/doc_skip_fence_caps_spec.rb`
   pins exactly 5 `ruby skip` fences; `spec/readme_version_spec.rb` needs two "Current release"
   lines; `spec/readme_planned_adrs_spec.rb` needs the planned list; links and no-counts specs
   cover it. Prose outside fences is unguarded. Top-level `docs/*.md` is ungated by design, so

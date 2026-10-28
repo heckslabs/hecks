@@ -42,10 +42,10 @@ module Hecks
         def self.chapter(registry)
           chapters = registry.bluebooks.values
           holders = chapters.reject { |chapter| chapter.name == "Site" }.select { |chapter| rows_of(chapter).any? }
-          raise Invalid, "no chapter declares a value_object \"#{ROW_OBJECT}\" with member rows" if holders.empty?
+          raise Invalid, "no bluebook declares a value_object \"#{ROW_OBJECT}\" with member rows" if holders.empty?
           return holders.first if holders.one?
 
-          raise Invalid, "#{holders.size} chapters declare a value_object \"#{ROW_OBJECT}\": " \
+          raise Invalid, "#{holders.size} bluebooks declare a value_object \"#{ROW_OBJECT}\": " \
                          "#{holders.map(&:name).join(", ")}; a project has one route table"
         end
 
@@ -68,7 +68,7 @@ module Hecks
         # @raise [Invalid] when the registry does not hold the Site bluebook
         def self.vocabulary(registry)
           site = registry.bluebook("Site") or
-            raise Invalid, "the project does not attach the Site chapter (attaches \"Site\")"
+            raise Invalid, "the project does not attach the Site bluebook (attaches \"Site\")"
           route = site.aggregate("Route")
           members = lambda do |name|
             closed_set = route.value_objects.find { |object| object.hecks_name == name }

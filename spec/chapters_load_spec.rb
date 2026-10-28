@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/chapters"
 
-# `Chapters.load!` brings a gem chapter into the open registry whole or not at all.
+# `Chapters.load!` brings a gem bluebook into the open registry whole or not at all.
 RSpec.describe Hecks::Chapters, ".load!" do
   around do |example|
     Hecks.with_registry(Hecks::Runtime::Registry.new) do
@@ -13,7 +13,7 @@ RSpec.describe Hecks::Chapters, ".load!" do
   let(:registry) { Hecks.current_registry }
   let(:paths)    { described_class.index.fetch("Deploy") }
 
-  # Loads every file of the chapter, then raises after the last one.
+  # Loads every file of the bluebook, then raises after the last one.
   def fail_after_last_file
     allow(Kernel).to receive(:load).and_wrap_original do |original, path, *rest|
       original.call(path, *rest)
@@ -21,7 +21,7 @@ RSpec.describe Hecks::Chapters, ".load!" do
     end
   end
 
-  it "leaves no half-loaded chapter behind when a file raises", :aggregate_failures do
+  it "leaves no half-loaded bluebook behind when a file raises", :aggregate_failures do
     fail_after_last_file
 
     expect { described_class.load!("Deploy") }.to raise_error(/boom after/)
@@ -30,7 +30,7 @@ RSpec.describe Hecks::Chapters, ".load!" do
     expect(Hecks::Bluebook::MetaValidator.deferred_chapters).not_to include("Deploy")
   end
 
-  it "loads the chapter on a retry after a file raised", :aggregate_failures do
+  it "loads the bluebook on a retry after a file raised", :aggregate_failures do
     fail_after_last_file
     expect { described_class.load!("Deploy") }.to raise_error(/boom after/)
     RSpec::Mocks.space.proxy_for(Kernel).reset
@@ -39,7 +39,7 @@ RSpec.describe Hecks::Chapters, ".load!" do
     expect(registry.bluebook("Deploy")).not_to be_nil
   end
 
-  it "returns nil for a chapter it already loaded" do
+  it "returns nil for a bluebook it already loaded" do
     described_class.load!("Deploy")
 
     expect(described_class.load!("Deploy")).to be_nil
@@ -74,7 +74,7 @@ RSpec.describe Hecks::Chapters, ".load!" do
     end
   end
 
-  it "refuses a user chapter that shares the attachable chapter's name" do
+  it "refuses a user bluebook that shares the attachable chapter's name" do
     declare_user_deploy_chapter
 
     expect { described_class.load!("Deploy") }

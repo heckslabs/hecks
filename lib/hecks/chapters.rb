@@ -59,7 +59,7 @@ module Hecks
       return load!(key) if index.key?(key)
 
       raise Runtime::WiringError,
-            "attaches #{name.inspect}: the gem carries no chapter of that name — known: " \
+            "attaches #{name.inspect}: the gem carries no bluebook of that name — known: " \
             "#{table.keys.sort.join(", ")}. To attach a vendored package, write " \
             "`attaches #{name.to_s.inspect}, from: :vendor`"
     end
@@ -87,7 +87,7 @@ module Hecks
     def self.chapter_paths(name)
       index.fetch(name.to_s) do
         raise Runtime::WiringError,
-              "no attachable chapter named #{name.inspect} — known: #{index.keys.join(", ")}"
+              "no attachable bluebook named #{name.inspect} — known: #{index.keys.join(", ")}"
       end
     end
 
@@ -129,8 +129,8 @@ module Hecks
       return if foreign.empty?
 
       raise Runtime::WiringError,
-            "attaches #{name.inspect}, but a chapter named #{name.inspect} is already declared in " \
-            "#{foreign.join(", ")} — rename it, since the gem's own #{name} chapter cannot merge into it"
+            "attaches #{name.inspect}, but a bluebook named #{name.inspect} is already declared in " \
+            "#{foreign.join(", ")} — rename it, since the gem's own #{name} bluebook cannot merge into it"
     end
     private_class_method :refuse_own_chapter
 

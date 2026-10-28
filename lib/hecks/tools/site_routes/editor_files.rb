@@ -36,7 +36,7 @@ module Hecks
         def domain_chapter(project, setting, name = setting.chapter)
           domain_root = File.join(project, setting.domain)
           chapter = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == name }
-          abort "project_site: #{domain_root} declares no chapter #{name}" unless chapter
+          abort "project_site: #{domain_root} declares no bluebook #{name}" unless chapter
           chapter
         end
       end

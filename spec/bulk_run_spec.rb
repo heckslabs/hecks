@@ -3,7 +3,7 @@ require "tmpdir"
 require "hecks/fuzzing"
 
 # A bulk run (ADR 0125) sends one command to every row of one query and keeps each row's outcome
-# on a `Bulk::BulkRun`. Banking attaches the Bulk chapter; each example boots a fresh copy of it,
+# on a `Bulk::BulkRun`. Banking attaches the Bulk bluebook; each example boots a fresh copy of it,
 # bound to Memory or to SQLite, with the real adapters answering the ports.
 RSpec.describe "a bulk run" do
   around do |example|
@@ -118,7 +118,7 @@ RSpec.describe "a bulk run" do
   end
 
   describe "through the CLI" do
-    it "requests a run of the attached chapter by its word, as `banking bulk bulk_run.request!`" do
+    it "requests a run of the attached bluebook by its word, as `banking bulk bulk_run.request!`" do
       boot
       argv = %w[bulk bulk_run.request! run.value=c1 verb.value=Banking::Account.FreezeAccount
                 over.value=Banking::Account.Open mode.value=best_effort]
@@ -128,14 +128,14 @@ RSpec.describe "a bulk run" do
   end
 
   describe "through MCP" do
-    # The storehouse call MCP's `dispatch` tool makes, naming the attached chapter by its word.
+    # The storehouse call MCP's `dispatch` tool makes, naming the attached bluebook by its word.
     def mcp_request(run)
       args = { run: { value: run }, verb: { value: "Banking::Account.FreezeAccount" },
                over: { value: "Banking::Account.Open" }, mode: { value: "best_effort" } }
       Hecks::Storehouse.dispatch(runtime: @runtime, command: "bulk bulk_run.request", summary: "spec", args: args)
     end
 
-    it "requests a run of the attached chapter and answers it as every row left it", :aggregate_failures do
+    it "requests a run of the attached bluebook and answers it as every row left it", :aggregate_failures do
       boot
       answer = mcp_request("m1")
       expect(answer[:state][:status]).to eq("swept")

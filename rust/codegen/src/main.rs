@@ -99,7 +99,7 @@ fn run_prelude(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` — writes one chapter's
+/// `hecks-codegen domain <ir.json> <source_label> <mod_name> <out_dir>` — writes one bluebook's
 /// `<aggregate>.rs`, `registry.rs`, `mod.rs`, `manifest.json` and its `ir.json`/`metadata.rs`
 /// sidecars into `out_dir`.
 fn run_domain(args: &[String]) -> Result<(), String> {
@@ -116,7 +116,7 @@ fn run_domain(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// Reads one chapter's IR and prepares it for generation: marks the fields an `append` binds to an
+/// Reads one bluebook's IR and prepares it for generation: marks the fields an `append` binds to an
 /// optional argument. What it generates from and what it writes to `ir.json` are this same IR.
 fn read_ir(path: &str) -> Result<Json, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("reading {path}: {e}"))?;
@@ -125,8 +125,8 @@ fn read_ir(path: &str) -> Result<Json, String> {
     Ok(ir)
 }
 
-/// Writes one chapter's files into `out_dir` and returns the `GeneratedDomain`, so `run_full`
-/// can union the registry, query and read-model definitions across chapters.
+/// Writes one bluebook's files into `out_dir` and returns the `GeneratedDomain`, so `run_full`
+/// can union the registry, query and read-model definitions across bluebooks.
 fn write_domain(
     ex: &exemplar::Exemplar,
     ir: &Json,
@@ -183,8 +183,8 @@ fn write_domain(
 /// `hecks-codegen full <out_root> <target_mod_name> <target_source_label> <target_ir.json>
 /// [<chapter_mod_name> <chapter_source_label> <chapter_ir.json>]...`
 ///
-/// Writes the target chapter's directory, each attached chapter's own directory, and the
-/// target's `merged.rs`: one `Store`/`dispatch_by_name` table spanning every chapter given.
+/// Writes the target bluebook's directory, each attached bluebook's own directory, and the
+/// target's `merged.rs`: one `Store`/`dispatch_by_name` table spanning every bluebook given.
 fn run_full(args: &[String]) -> Result<(), String> {
     if args.len() < 4 || !(args.len() - 4).is_multiple_of(3) {
         return Err(
@@ -216,7 +216,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
         &target_out_dir,
     )?;
 
-    // Target first, then each attached chapter in command-line order.
+    // Target first, then each attached bluebook in command-line order.
     let mut reference_key_pairs: Vec<(String, Vec<String>)> = vec![(
         target_domain_name.clone(),
         target_gen
@@ -234,8 +234,8 @@ fn run_full(args: &[String]) -> Result<(), String> {
         .map_or_default(Json::each)
         .to_vec();
 
-    // Policies and process managers merge across chapters; `chapter_irs` keeps each parsed
-    // chapter alive so `policy_sources` can borrow from it.
+    // Policies and process managers merge across bluebooks; `chapter_irs` keeps each parsed
+    // bluebook alive so `policy_sources` can borrow from it.
     let mut chapter_irs: Vec<Json> = Vec::new();
     let mut chapter_domain_names: Vec<String> = Vec::new();
 
@@ -284,7 +284,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
         chapter_irs.push(chapter_ir);
     }
 
-    // One entry per chapter, so its policies qualify against its own domain and aggregates.
+    // One entry per bluebook, so its policies qualify against its own domain and aggregates.
     let policies: Vec<Json> = target_ir
         .get("policies")
         .map_or_default(Json::each)

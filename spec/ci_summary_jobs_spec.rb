@@ -167,7 +167,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
 
   # Promotion waits for each RequiredCheck by name; a name no job of ci.yml carries would report
   # nothing for ever, and `stable` would never move.
-  it "has a job for every RequiredCheck of the Vocabulary chapter" do
+  it "has a job for every RequiredCheck of the Vocabulary bluebook" do
     required = Hecks::Vocabulary.rows("RequiredCheck").map { |row| row["name"] }
 
     expect(required - YAML.load_file(CI_YML).fetch("jobs").keys).to be_empty

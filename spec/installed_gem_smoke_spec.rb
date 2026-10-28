@@ -9,7 +9,7 @@ require "fileutils"
 # examples/banking. Nothing here reads `lib/` from the working tree, so a file the gemspec
 # leaves out, or a `require` that reaches outside the gem, fails here and nowhere else.
 #
-# Tagged :io so the default run skips it: it builds a gem and boots the Hecks chapter once per
+# Tagged :io so the default run skips it: it builds a gem and boots the Hecks bluebook once per
 # command. Run it with `bundle exec ruby run_specs.rb spec/installed_gem_smoke_spec.rb`.
 RSpec.describe "the installed hecks gem", :io do
   before(:all) do

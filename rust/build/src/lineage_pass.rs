@@ -10,7 +10,7 @@ use crate::json::Json;
 /// matching `Exporter.lineage`'s own output shape.
 ///
 /// An aggregate with no `persisted_by` bind falls back to the world's `default_adapter` for the
-/// target chapter, then to `"Memory"`.
+/// target bluebook, then to `"Memory"`.
 pub fn run(
     ir: &mut Json,
     hecksagon_path: Option<&Path>,

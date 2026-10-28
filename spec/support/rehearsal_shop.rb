@@ -4,7 +4,7 @@ require "fileutils"
 # beside a JSON document that holds its previous era and the records stored under it.
 #
 # The edge that leads the previous shape to the current one is written here, not kept as a
-# `.bluebook` under spec/fixtures: every file there is a chapter the corpus parses, and an edge
+# `.bluebook` under spec/fixtures: every file there is a bluebook the corpus parses, and an edge
 # is not one.
 module RehearsalShop
   SOURCE = File.expand_path("../fixtures/rehearsal/shop", __dir__)

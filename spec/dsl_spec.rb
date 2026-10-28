@@ -71,7 +71,7 @@ RSpec.describe "the DSL surface" do
     in_registry { Hecks.world(name, &body) }.world(name)
   end
 
-  # A registry holding a chapter with one aggregate, "Thing", and the hecksagon `wiring`
+  # A registry holding a bluebook with one aggregate, "Thing", and the hecksagon `wiring`
   # (a block) declares over it.
   def thing_registry(name, &wiring)
     in_registry do
@@ -177,7 +177,7 @@ RSpec.describe "the DSL surface" do
       expect(registry.hecksagon("Hexed").member_chapters).to eq(["Governance"])
     end
 
-    it ".hecksagon's bounded marks this chapter as a bounded context" do
+    it ".hecksagon's bounded marks this bluebook as a bounded context" do
       hecksagon = hecksagon_of("Hexed") do
         bounded
         Hexed::Thing.posted_by("Carrier")
@@ -1183,14 +1183,14 @@ RSpec.describe "the DSL surface" do
     end
 
     # `formerly_known_as` drives a real Postgres schema rename at boot and
-    # is hashed into the meta-validator's cache key; a chapter reassembled
+    # is hashed into the meta-validator's cache key; a bluebook reassembled
     # from exported IR must not lose it silently.
     it "formerly_known_as survives onto the wire, not just the live object" do
       expect(build_bluebook("RenamedOnWire") { formerly_known_as "OldName" }.to_h[:formerly_known_as])
         .to eq("OldName")
     end
 
-    it "formerly_known_as is present (nil) on the wire even when a chapter declares none" do
+    it "formerly_known_as is present (nil) on the wire even when a bluebook declares none" do
       expect(build_bluebook("NeverRenamed") { nil }.to_h).to include(formerly_known_as: nil)
     end
 
@@ -1402,7 +1402,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    # Two separate `Hecks.bluebook` calls under one chapter name — the shape a chapter split
+    # Two separate `Hecks.bluebook` calls under one bluebook name — the shape a bluebook split
     # across real files takes. The reference is deferred, not refused, until
     # `MetaValidator.judge_deferred!` runs after both have loaded.
     def load_split_chapter(name, *chapters)
@@ -2585,7 +2585,7 @@ RSpec.describe "the DSL surface" do
         expect_hop_refusal(message) { query("BadOrder") { order_by :"client/status" } }
       end
 
-      it "refuses a hop into an aggregate this chapter never declares" do
+      it "refuses a hop into an aggregate this bluebook never declares" do
         message = %r{asks about client/status, which hops to Client, which this chapter never declares}
         bad_query = proc { query("Bad") { where("client/status": "active") } }
 
@@ -2611,7 +2611,7 @@ RSpec.describe "the DSL surface" do
       # The blanket refusal above already catches this unconditionally;
       # pinned separately so a future loosening of that refusal (e.g.
       # teaching entity queries to follow a hop) can't reopen this gap.
-      it "refuses a hop where-clause on an entity's own query through an aggregate the chapter never declares" do
+      it "refuses a hop where-clause on an entity's own query through an aggregate the bluebook never declares" do
         message = %r{Board::Card\.ForNonexistent asks about nonexistent/sku, which hops through Card's own reference}
 
         expect_refusal(:bluebook, "PieceHopUndeclared", message, &board_with(nonexistent_card_entity))
@@ -3288,7 +3288,7 @@ RSpec.describe "the DSL surface" do
       expect { build_domain_port { nil } }.to raise_error(Hecks::Bluebook::DSL::Malformed, /declares no verb and no operations/)
     end
 
-    it "a bare port at a hecksagon's root belongs to the chapter, not one aggregate" do
+    it "a bare port at a hecksagon's root belongs to the bluebook, not one aggregate" do
       registry = thing_registry("RootPort") { port("Clock") { operation("Tick") { emits "Ticked" } } }
       port = registry.bluebook("RootPort").port("Clock")
 
@@ -3367,7 +3367,7 @@ RSpec.describe "the DSL surface" do
       expect(world.to_h).to include(realm: "Acme", latest: "v2")
     end
 
-    it "declares the database and persistence adapter every chapter defaults to" do
+    it "declares the database and persistence adapter every bluebook defaults to" do
       world = world_of("Valued") do
         default_database "postgres://localhost/valued"
         default_adapter "PostgresEra"

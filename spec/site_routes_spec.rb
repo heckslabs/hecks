@@ -6,7 +6,7 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
-# The Site chapter's route table and the `routes.ts` projected from it.
+# The Site bluebook's route table and the `routes.ts` projected from it.
 # spec/fixtures/site/studio is a neutral sample project (a studio's website) whose bluebook
 # declares the rows; spec/fixtures/site/routes.ts is the file the projection must produce for it,
 # byte for byte. A change to the projection that is meant shows up as a change to that golden,
@@ -157,7 +157,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       e.message
     end
 
-    it "reads its closed sets from the Site chapter", :aggregate_failures do
+    it "reads its closed sets from the Site bluebook", :aggregate_failures do
       expect(@vocabulary.fetch(:cache)).to eq(%w[page home static media immutable no_store])
       expect(@vocabulary.fetch(:kind)).to eq(%w[page endpoint redirect rewrite proxy])
     end
@@ -245,7 +245,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
   end
 
   describe "a command or query source" do
-    # Yields a copy of the sample project whose route table cites a command no chapter declares.
+    # Yields a copy of the sample project whose route table cites a command no bluebook declares.
     def with_undeclared_command_source
       Dir.mktmpdir("site_project") do |dir|
         FileUtils.cp_r(File.join(project, "bluebook"), dir)
@@ -263,7 +263,7 @@ RSpec.describe Hecks::Tools::SiteRoutes do
       e.message
     end
 
-    it "is refused when no attached chapter declares it", :aggregate_failures do
+    it "is refused when no attached bluebook declares it", :aggregate_failures do
       with_undeclared_command_source do |dir|
         message = nil
         expect { message = exit_message_of(dir) }.to output(/Withdraw/).to_stderr

@@ -126,7 +126,7 @@ archive: do not boot a checkout against it.
   profile: a checkout that boots a newer shape against a records database mints an era the
   train's launcher then refuses, and the pushes stop. `exe/hecks config domain.value=<dir>`
   prints each setting, its value and which source supplied it.
-- A change to the shape of a persisted chapter needs a translation edge under that chapter's
+- A change to the shape of a persisted bluebook needs a translation edge under that bluebook's
   `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
   `exe/hecks conformance_run.check_shape_ledger --wait` (a gate check, no database) fails with the
   edge to commit; `--confirm --additive` writes that empty edge and moves the ledger for a change
@@ -167,7 +167,7 @@ passes the first time:
 
 ## Two lanes: `main` takes pushes, `stable` is promoted
 
-The branches are data: the `Lane` rows of the Vocabulary chapter
+The branches are data: the `Lane` rows of the Vocabulary bluebook
 (`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
 commit must pass as `RequiredCheck` rows beside them.
 

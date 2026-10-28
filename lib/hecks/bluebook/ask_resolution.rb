@@ -108,7 +108,7 @@ module Hecks
       def no_aggregate(policy)
         Outcome.new(problem: :no_aggregate,
                     detail:  "#{policy.name}'s ask #{policy.ask.to_sym.inspect} reacts to " \
-                             "#{policy.on_event.inspect}, whose aggregate this chapter does not declare")
+                             "#{policy.on_event.inspect}, whose aggregate this bluebook does not declare")
       end
 
       def unmatched(aggregate, policy)

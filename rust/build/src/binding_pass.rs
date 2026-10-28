@@ -113,7 +113,7 @@ fn persistence(
     )]))
 }
 
-// The bare `persisted_by "X"` line of the chapter's own `Hecks.hecksagon` block: every aggregate
+// The bare `persisted_by "X"` line of the bluebook's own `Hecks.hecksagon` block: every aggregate
 // without a bind of its own inherits it. The last one in the block wins.
 fn domain_default(text: &str, chapter: &str) -> Option<String> {
     let mut in_chapter = false;

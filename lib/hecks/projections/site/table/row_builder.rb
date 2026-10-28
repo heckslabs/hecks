@@ -142,7 +142,7 @@ module Hecks
             return unless match && @registry
             return if verb_exists?(*match.captures)
 
-            problem(label, "names #{source}, which no attached chapter declares")
+            problem(label, "names #{source}, which no attached bluebook declares")
           end
 
           def verb_exists?(word, chapter, aggregate, name)

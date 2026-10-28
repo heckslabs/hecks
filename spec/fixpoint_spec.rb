@@ -102,7 +102,7 @@ RSpec.describe "the language's own definition" do
     Array(rows).map { |row| row.map { |field, value| [field, value.to_s] } }
   end
 
-  it "lost nothing on the way through — assembled equals a fresh raw load, chapter for chapter" do
+  it "lost nothing on the way through — assembled equals a fresh raw load, bluebook for bluebook" do
     registry = Hecks::Bluebook::MetaValidator.grammar_registry
     raw = Hecks::Bluebook::MetaValidator.load_grammar_into(Hecks::Runtime::Registry.new)
 

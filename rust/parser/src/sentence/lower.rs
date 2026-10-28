@@ -79,7 +79,7 @@ pub(super) struct Cond {
 
 /// What a policy does when its event is announced.
 enum Reaction {
-    /// Runs a command of the chapter.
+    /// Runs a command of the bluebook.
     Run(String),
     /// Asks the outside for something, by the need's name in the domain's words.
     Ask(String),
@@ -87,14 +87,14 @@ enum Reaction {
     Tell(String),
 }
 
-/// A policy as written, before its event and command are looked up in the chapter.
+/// A policy as written, before its event and command are looked up in the bluebook.
 struct PolicySpec {
     name: String,
     line: usize,
     col: usize,
     /// The event announced, the aggregate it is said to come from, and where it was written.
     event: Option<(String, Option<String>, usize, usize)>,
-    /// The outside announces the event, so no aggregate of the chapter is its source.
+    /// The outside announces the event, so no aggregate of the bluebook is its source.
     outside: bool,
     /// `Aggregate.Query` when the policy runs once for each row a query answers.
     for_each: Option<String>,

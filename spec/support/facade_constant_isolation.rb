@@ -1,6 +1,6 @@
 # Gives every example group its own facade constants.
 #
-# A boot installs each chapter and aggregate as a top-level constant (`Widgets`, `Item`) through
+# A boot installs each bluebook and aggregate as a top-level constant (`Widgets`, `Item`) through
 # `Hecks::Namespace.install` and nothing removes them, so a group that boots a fixture domain
 # leaves its names visible to whichever group runs next. A later group then resolves `Widgets` to
 # the earlier group's module instead of failing or reaching its own, which makes the result depend

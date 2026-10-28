@@ -2,7 +2,7 @@
 //! it to the same IR the Ruby-shaped grammar produces.
 //!
 //! What an author may say is the phrase table (`phrases.rs`, generated from the Sentence
-//! chapter); this module holds only what each phrase means. A sentence that matches no phrase is
+//! bluebook); this module holds only what each phrase means. A sentence that matches no phrase is
 //! refused with the column it stopped fitting at and the nearest phrases, never skipped.
 
 mod changes;
@@ -11,7 +11,7 @@ pub mod complete;
 mod entity;
 /// An examples file compiled to the `.behaviors` text that runs it.
 pub mod examples;
-/// A parsed chapter written back out as canonical sentences.
+/// A parsed bluebook written back out as canonical sentences.
 pub mod format;
 mod lower;
 mod names;
@@ -38,7 +38,7 @@ pub fn is_sentence_form(source: &str) -> bool {
         .is_some_and(|line| line.starts_with("Domain:"))
 }
 
-/// Parses every sentence-form file of one chapter and merges their aggregates.
+/// Parses every sentence-form file of one bluebook and merges their aggregates.
 pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
     let grammar = Grammar::load()?;
     let mut merged: Option<ir::Bluebook> = None;

@@ -25,7 +25,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
     expect(Hecks::Projector.call(:docs, bluebook: registry.bluebook("Pizzas"))).to eq(pizzas)
   end
 
-  describe "the chapter" do
+  describe "the bluebook" do
     it "opens with the vision, verbatim" do
       expect(banking).to include(registry.bluebook("Banking").vision)
     end
@@ -151,7 +151,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   end
 
   describe "options" do
-    it "narrows to one aggregate, dropping the chapter frame", :aggregate_failures do
+    it "narrows to one aggregate, dropping the bluebook frame", :aggregate_failures do
       only = described_class.call(bluebook: registry.bluebook("Banking"), options: { aggregate: "Account" })
 
       expect(only).to start_with("# Account")
@@ -168,7 +168,7 @@ RSpec.describe Hecks::Projector::DocsProjector do
   end
 
   describe "as a method on a booted domain" do
-    it "answers on the chapter, beside vision and aggregates", :aggregate_failures do
+    it "answers on the bluebook, beside vision and aggregates", :aggregate_failures do
       boot_in_memory
 
       expect(Pizzas).to respond_to(:docs)

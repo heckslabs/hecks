@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # `default_database`/`default_adapter` — a world's project-wide fallback for
-# per-chapter binds; a chapter's own declaration still wins over the default.
+# per-chapter binds; a bluebook's own declaration still wins over the default.
 RSpec.describe "a world's project-wide defaults" do
   def url = "postgres://localhost/defaults_spec"
 
@@ -80,7 +80,7 @@ RSpec.describe "a world's project-wide defaults" do
     expect(resolved(defaulted)).to eq(resolved(expanded))
   end
 
-  it "reaches chapters that declare no world and no hecksagon at all" do
+  it "reaches bluebooks that declare no world and no hecksagon at all" do
     expect(resolved(defaulted).map { |row| row[3] }.uniq).to eq(["PostgresEra"])
   end
 
@@ -178,7 +178,7 @@ RSpec.describe "a world's project-wide defaults" do
   end
 
   describe "saga rehydration" do
-    it "walks a chapter the default adapter binds though it has no hecksagon" do
+    it "walks a bluebook the default adapter binds though it has no hecksagon" do
       expect(defaulted.saga_domains).to contain_exactly("Alpha", "Beta", "Gamma")
     end
 

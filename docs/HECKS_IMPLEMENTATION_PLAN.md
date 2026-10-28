@@ -636,7 +636,7 @@ end
 # 4. Identities Bluebook
 
 **Status:** Done (2026-08-07) — `lib/hecks/framework/bluebook/identity.bluebook`
-(+ `.hecksagon`, Memory-persisted; chapter renamed from `Identities` to
+(+ `.hecksagon`, Memory-persisted; bluebook renamed from `Identities` to
 `Identity` on 2026-08-08, matching Governance's own singular naming —
 the aggregate inside is ALSO named `Identity`, so its FQN is the
 slightly repetitive but unambiguous `Identity::Identity`). Attached to
@@ -2480,7 +2480,7 @@ Four language/runtime changes landed together, because each one is the other thr
 3. **Routing is not payload.** Receiver identity travels in `to:`; `with:` carries only new domain facts. `Runtime::Routing`, `Runtime::ReactionInvocation`, and `Facade::CommandRequest` are the new seams; policies, process managers, handles, CLI, Forms, and the JSON door all consume the same envelope, and `reference_to` inside a command/query/policy/port operation is now a hard `Malformed` refusal.
 4. **Persistence is a planned byproduct.** `Runtime::DependencyPlanning::Analyzer` derives a command's read set, write set, and completeness from its own semantics, and `CommandInterpreter#step_hydrate` picks an execution strategy from it (`ATOMIC_PUT` vs. load/apply/validate/store) instead of branching on `Command#creates?`. `Ports::Persistence::Execution`/`Outcome` are the adapter contract; Memory is the oracle, SQLite the pilot, D1/Postgres/PostgresEra implement it.
 
-Two structural reorganizations rode along and account for most of the file count: finished material moved from `docs/{decisions,guides,reference,resolution-rules}/` into `docs/implemented/…` (moves plus link fixes only — no decision text was rewritten), and the monolithic sources split into concept files — `examples/banking/bluebook/banking.bluebook` into eight business-concept bluebooks, `language/bluebook/{behavior,reaction}.bluebook` into `command`/`policy`/`process_manager`/`query`, and `syntax.bluebook`'s 1083 lines of central tables distributed into each aggregate's own file. `Runtime::EraCheck.source_text_for` was widened to digest a chapter spread across several files, which is what made that split safe.
+Two structural reorganizations rode along and account for most of the file count: finished material moved from `docs/{decisions,guides,reference,resolution-rules}/` into `docs/implemented/…` (moves plus link fixes only — no decision text was rewritten), and the monolithic sources split into concept files — `examples/banking/bluebook/banking.bluebook` into eight business-concept bluebooks, `language/bluebook/{behavior,reaction}.bluebook` into `command`/`policy`/`process_manager`/`query`, and `syntax.bluebook`'s 1083 lines of central tables distributed into each aggregate's own file. `Runtime::EraCheck.source_text_for` was widened to digest a bluebook spread across several files, which is what made that split safe.
 
 ## Where it actually got to
 

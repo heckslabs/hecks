@@ -100,7 +100,7 @@ pub fn apply(
         match super::next_line(file, lines, pos, "Hecksagon")? {
             None => return Ok(()),
             Some(gated) => match gated.row.word {
-                // A bare root port belongs to the chapter, not an aggregate; validated, then
+                // A bare root port belongs to the bluebook, not an aggregate; validated, then
                 // discarded (`IR::Bluebook#to_h` has no `ports:` key).
                 "port" => {
                     let name =
@@ -121,7 +121,7 @@ pub fn apply(
                     bluebook.policies.push(built);
                 }
                 "subscribe" => {}
-                // One word for a chapter the gem carries and for a vendored package; a binding
+                // One word for a bluebook the gem carries and for a vendored package; a binding
                 // fact collected for `resolve`, absent from `ir.json`. Only `from: :vendor`
                 // is admitted as a source, and anything else is refused.
                 "attaches" => {

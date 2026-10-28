@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # `--wait` exits 1 only for a state its lifecycle marks `:failure` (ADR 0097). The language cannot
-# tell a failure by its name, so this checks the chapters' marks against the states they declare:
+# tell a failure by its name, so this checks the bluebooks' marks against the states they declare:
 # a state named like a failure that is not marked would let a failed run exit 0.
 RSpec.describe "the lifecycle failure marks" do
   # Words that make a lifecycle state read as a failure.
@@ -25,7 +25,7 @@ RSpec.describe "the lifecycle failure marks" do
              .map { |state| "#{chapter}::#{aggregate} #{state}" }
   end
 
-  it "marks every lifecycle state named like a failure, in every chapter" do
+  it "marks every lifecycle state named like a failure, in every bluebook" do
     expect(declared.flat_map { |row| unmarked_failures(*row) }).to eq([])
   end
 

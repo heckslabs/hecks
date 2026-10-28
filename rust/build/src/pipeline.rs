@@ -66,7 +66,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     let target_chapter_name = resolve::header_chapter_name(first_bluebook)?;
     let mut target_files = Vec::new();
-    // Chapters declared beside the target but not attached to it: the registry still loads them, so
+    // Bluebooks declared beside the target but not attached to it: the registry still loads them, so
     // one may provide a capability (payments) the target uses.
     let mut sibling_files: Vec<(String, Vec<PathBuf>)> = Vec::new();
     for path in bluebook_paths {
@@ -82,7 +82,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     }
 
     // What the target attaches, read from every hecksagon beside its bluebooks, as the registry
-    // loads every one of them: a second file may attach a chapter (banking's `bulk.hecksagon`).
+    // loads every one of them: a second file may attach a bluebook (banking's `bulk.hecksagon`).
     let mut gem_chapter_names: Vec<String> = Vec::new();
     let mut vendored_package_names: Vec<String> = Vec::new();
     for path in resolve::hecksagon_files(&bluebook_directory)? {
@@ -98,7 +98,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         target_files.push(p.clone());
     }
     let target_ir_text = parse_chapter(&parser_bin, &target_chapter_name, &target_files)?;
-    // Only the target chapter gets a `lineage` key — a framework chapter or
+    // Only the target bluebook gets a `lineage` key — a framework bluebook or
     // `meta` never does, matching `derive_lineage` (Ruby) re-`JSON.parse`ing
     // rather than chaining a live object through both passes.
     let mut target_ir = Json::parse(&target_ir_text)
@@ -129,10 +129,10 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     )?;
     target_ir.set("world", world);
 
-    // Every other chapter the gem supplies by `attaches "Name"`, resolved through the
+    // Every other bluebook the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby
-    // pipeline itself calls. A gem chapter that is not a framework member (Bulk, Tenancy, Deploy)
-    // is found by its files' headers, and is a chapter of the build as the registry loads it.
+    // pipeline itself calls. A gem bluebook that is not a framework member (Bulk, Tenancy, Deploy)
+    // is found by its files' headers, and is a bluebook of the build as the registry loads it.
     let framework_members = resolve::framework_members(root)?;
     let other_gem_chapters = resolve::other_gem_chapter_names(root)?;
     let mut chapters: Vec<Chapter> = Vec::new();
@@ -179,7 +179,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     // Every vendored package's `attaches ... from: :vendor` names, resolved the
     // same way `EmbryonautBluebook.load!` (Ruby) resolves them — without this,
-    // a vendored chapter would silently drop from the output.
+    // a vendored bluebook would silently drop from the output.
     for pkg_name in &vendored_package_names {
         let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
         let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
@@ -199,7 +199,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
         let pkg_ir_text = parse_chapter(&parser_bin, &pkg_chapter_name, &pkg_bluebooks)?;
         chapters.push(Chapter {
-            // Derived from the declared chapter name (asserted equal to
+            // Derived from the declared bluebook name (asserted equal to
             // `expected_chapter_name` above), not the raw `pkg_name` — that
             // would diverge the moment a package name has an underscore.
             mod_name: expected_chapter_name.to_lowercase(),
@@ -208,7 +208,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         });
     }
 
-    // A chapter declared in the domain's own directory is a chapter of the build too, as every
+    // A bluebook declared in the domain's own directory is a bluebook of the build too, as every
     // bluebook the registry loads is; its ports come from its own block of the domain's hecksagon.
     // The registry loads the directory's bluebooks before it resolves what the hecksagon attaches,
     // so they come first.
@@ -226,7 +226,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     // Guards against a gem-chapter and a vendored-package
     // entry sharing a `mod_name`, which would silently overwrite one
-    // chapter's sidecars with another's.
+    // bluebook's sidecars with another's.
     {
         let mut seen: Vec<&str> = Vec::new();
         for c in &chapters {
@@ -241,8 +241,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         }
     }
 
-    // The capability seams read the attached chapters' own `provides`, so they are decided only
-    // once every chapter is loaded; `translations` and `source_text` close the binding facts.
+    // The capability seams read the attached bluebooks' own `provides`, so they are decided only
+    // once every bluebook is loaded; `translations` and `source_text` close the binding facts.
     let mut member_irs = Vec::new();
     for c in &chapters {
         member_irs.push(
@@ -255,7 +255,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let target_ir_text = crate::json::write(&target_ir);
 
     // The self-hosted language, compiled in too, under the same "Bluebook"
-    // chapter name.
+    // bluebook name.
     let grammar_files = resolve::grammar_files(root)?;
     let meta_ir_text = parse_chapter(&parser_bin, "Bluebook", &grammar_files)?;
 

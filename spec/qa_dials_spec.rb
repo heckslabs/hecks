@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/fuzzing"
 
 # The dials of the hecks_qa loop are declared once, as `QaDial` rows of the Vocabulary chapter:
-# the loader's type table and the QualityControl chapter's constants are read from them.
+# the loader's type table and the QualityControl bluebook's constants are read from them.
 RSpec.describe "the QaDial rows" do
   let(:rows)     { Hecks::Vocabulary.rows("QaDial") }
   let(:names)    { rows.map { |row| row.fetch("name") } }

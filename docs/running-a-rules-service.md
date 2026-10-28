@@ -280,7 +280,7 @@ refusal it can produce. `hecks run <domain> --help` lists the verbs.
 
 Status: all three files, the two boot errors and the `_` literal problem
 are verified here. `hecks docs` and `hecks run --help` were run against them.
-The refusal for a role with no governing chapter is quoted from the
+The refusal for a role with no governing bluebook is quoted from the
 comment in `lib/hecks/runtime/command_rules/authorization.rb` and was not
 triggered here.
 
@@ -613,7 +613,7 @@ service is mostly called through is the least protected by the host itself.
 | --- | --- | --- |
 | **Invoke** | `POST` a JSON body containing `verb` or `read` to any path except `/` | **No credential.** `role` is read from the body and compared as a string to the command's declared role. From 2.8.0 the host honors this shape only from a peer on the same host; a body from any other peer is an ordinary web request (7.1). |
 | **Session-cookie API** | `GET`/`POST` `/api/...` and `/<Domain>/<Aggregate>...` | A `session` cookie signed with `SESSION_SECRET`. |
-| **Account cookie** | `/accounts/me`, `/members`, `/auth/google...` | An account cookie (`hecks_session`) signed with `SESSION_SECRET`, and a membership chapter that this repository does not ship. |
+| **Account cookie** | `/accounts/me`, `/members`, `/auth/google...` | An account cookie (`hecks_session`) signed with `SESSION_SECRET`, and a membership bluebook that this repository does not ship. |
 
 ### 7.1 The invoke path takes its role from the request body
 
@@ -728,15 +728,15 @@ A tampered cookie answers `401`.
 The host has a Google sign-in flow (`/auth/google` and its callback). It is
 not usable from this repository alone, for three reasons.
 
-1. **It needs a membership chapter that is not shipped.** The flow resolves
-   who may sign in through a chapter that declares `provides "membership"`,
+1. **It needs a membership bluebook that is not shipped.** The flow resolves
+   who may sign in through a bluebook that declares `provides "membership"`,
    and one that declares `provides "identity"` (the shipped `Identity`
-   framework chapter fits) and `provides "authorization"` (Governance).
+   framework bluebook fits) and `provides "authorization"` (Governance).
    Nothing in this repository declares `provides "membership"`; the gem's
-   framework chapters are Compliance, ConsoleSettings, Governance, Identity
+   framework bluebooks are Compliance, ConsoleSettings, Governance, Identity
    and Privacy. Without one, `/accounts/me` and `/members` answer `500` with
-   `this domain attaches no chapter that provides "membership" -- cannot
-   resolve who may sign in`. You would have to write that chapter yourself.
+   `this domain attaches no bluebook that provides "membership" -- cannot
+   resolve who may sign in`. You would have to write that bluebook yourself.
 2. **It signs in to the wrong cookie for the JSON API.** A successful
    sign-in mints the account cookie (`hecks_session`) and redirects to
    `/admin.html`. The `/api/` routes read the `session` cookie, not that
@@ -745,17 +745,17 @@ not usable from this repository alone, for three reasons.
    `/members` and the grant routes require the caller to already be an
    active `Admin` or `Owner` in the membership records. The host does not
    write the first membership row. The Ruby runtime writes it, because it owns the era-managed head tables `auth.rs` reads,
-   by dispatching the membership chapter's `Admit` and `GrantAccess` against the
+   by dispatching the membership bluebook's `Admit` and `GrantAccess` against the
    same database. `hecks operation.bootstrap_admin <domain>
    email=<email> [name=<name>] [role=<role>]` does exactly that, once: it
-   reads the verbs from the chapter's `provides "membership"`, dispatches
+   reads the verbs from the bluebook's `provides "membership"`, dispatches
    them as a caller that names the role the grant is gated to and binds no
    `actor_id` (the unidentified bootstrap caller below), and is refused,
    with exit status 1 and the holder named, once anyone holds `Admin` or
    `Owner`. Run it with the database the service uses (`DATABASE_URL`).
 
-   It works only on a domain whose chapter declares which of its verbs answer
-   membership, as the chapter that keeps who may sign in does:
+   It works only on a domain whose bluebook declares which of its verbs answer
+   membership, as the bluebook that keeps who may sign in does:
 
    ```ruby
    provides "membership", admit: "Person.Admit", grant: "Person.GrantAccess", people: "Person.All"
@@ -812,7 +812,7 @@ Status: everything in 7.1 and 7.2 was verified here by running the host and
 `curl` (including the minted cookie, the tampered-cookie `401`, and the
 account-cookie `401` on `/api/me`). The Google flow itself (the redirect, the
 token exchange, the ID-token check) was **not** run: it needs a Google
-client and a membership chapter. Its behaviour is read from `auth.rs` and
+client and a membership bluebook. Its behaviour is read from `auth.rs` and
 `web.rs`. That the generated Lambda stack is IAM-only is read from the
 template's `AuthType: AWS_IAM`; the Fargate exposure is read from the
 template and from the local run of the same handler, and neither was tested
@@ -1030,7 +1030,7 @@ an outside team would meet it.
    host itself does not (step 5). If `mint-era` fails after the stack is
    created, the stack is already up; the step is a separate target
    (`make mint-era`).
-6. **No shipped way to sign in interactively** (7.3): no membership chapter
+6. **No shipped way to sign in interactively** (7.3): no membership bluebook
    is shipped (the first administrator is made with `hecks operation.bootstrap_admin`
    once you write one), and the account cookie does not open `/api/`.
 7. **Roles on the invoke path are self-asserted** (7.1), and so is
@@ -1066,7 +1066,7 @@ no `aws`, `sam` or `docker push` command was run.
 | 6. Local run | Yes | Every `curl` in step 6 |
 | 7.1 Roles on invoke | Yes | Right, wrong, absent role; `actor_id`; Governance grant |
 | 7.2 Session cookie | Yes | Minted with `openssl`; used against `/api/`; tampered cookie refused |
-| 7.3 Google flow, first admin | No | Read from code; no Google client, no membership chapter |
+| 7.3 Google flow, first admin | No | Read from code; no Google client, no membership bluebook |
 | 8. Invoke and `/api/` | Yes | `curl`; `?query=` and console routes not run |
 | 8. Lambda invoke from `curl` | No | Derived |
 | 9. All deploy commands | No | Derived from generated files |

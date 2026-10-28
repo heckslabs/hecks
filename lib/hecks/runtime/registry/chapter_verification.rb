@@ -31,9 +31,9 @@ module Hecks
 
         def reserved_chapter_message(reserved, foreign)
           where = foreign.empty? ? "" : " (declared in #{foreign.join(", ")})"
-          "a chapter named #{reserved.inspect} is refused: #{reserved.inspect} is a reserved " \
-            "word, the name of the gem's own chapter, and only the gem may declare it#{where}. " \
-            "Rename the chapter (for example to your app's name) in its " \
+          "a bluebook named #{reserved.inspect} is refused: #{reserved.inspect} is a reserved " \
+            "word, the name of the gem's own bluebook, and only the gem may declare it#{where}. " \
+            "Rename the bluebook (for example to your app's name) in its " \
             "`Hecks.bluebook #{reserved.inspect}` line and in its hecksagon."
         end
 
@@ -54,8 +54,8 @@ module Hecks
 
             raise WiringError,
                   "#{name.inspect} is declared by more than one package: #{roots.join(" and ")} — " \
-                  "these are two unrelated sources sharing a chapter name by coincidence, not one " \
-                  "domain split across files, and merging their declarations into one chapter is " \
+                  "these are two unrelated sources sharing a bluebook name by coincidence, not one " \
+                  "domain split across files, and merging their declarations into one bluebook is " \
                   "almost certainly a stale/vendored copy left on the load path (paths: " \
                   "#{paths.join(", ")})"
           end

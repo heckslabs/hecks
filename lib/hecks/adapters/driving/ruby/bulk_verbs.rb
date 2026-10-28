@@ -105,7 +105,7 @@ module Hecks
 
           def bulk_aggregate(registry, verb)
             registry.bluebook(CHAPTER)&.aggregate("BulkRun") or
-              raise Runtime::WiringError, "#{verb} over a query needs the Bulk chapter: " \
+              raise Runtime::WiringError, "#{verb} over a query needs the Bulk bluebook: " \
                                           "add `attaches \"Bulk\"` to the domain's hecksagon"
           end
 

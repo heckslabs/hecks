@@ -2,13 +2,13 @@ require "spec_helper"
 require "json"
 require_relative "support/editor_fixture_project"
 
-# What the editor derives, from the declarations of five separate chapters, for working on a post as
+# What the editor derives, from the declarations of five bluebooks, for working on a post as
 # one thing: the records keyed by it, the scheduled actions for it, its preview, and the draft its
 # text is written as. Each rule reads shape (a key's declared pattern, a closed set, a moment, a
 # lifecycle, `draft_` attributes), never a name, so the examples change the declarations and the
 # names and look at what is derived. The neutral project in spec/fixtures/site/editor_workflow holds
 # the files that depend on the project as goldens, rewritten with `GOLDEN=rewrite`.
-RSpec.describe "the editor's workflow, derived from the chapters" do
+RSpec.describe "the editor's workflow, derived from the bluebooks" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_workflow") }
 
   include_context "with an editor fixture project"
@@ -255,7 +255,7 @@ RSpec.describe "the editor's workflow, derived from the chapters" do
   end
 
   describe "the Editor row" do
-    it "refuses a chapter named for the screen of scheduled actions" do
+    it "refuses a bluebook named for the screen of scheduled actions" do
       changed("bluebook/newsroom_site.bluebook", "Documents, Pictures", "scheduled, Pictures") do |dir|
         expect { files_of(dir) }.to raise_error(SystemExit, /chapter "scheduled" is the first part of an address/)
       end

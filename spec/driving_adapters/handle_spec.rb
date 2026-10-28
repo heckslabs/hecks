@@ -6,8 +6,8 @@ RSpec.describe Hecks::Adapters::Driving::Handle do
   BANKING_BLUEBOOK = InMemoryDomain::BANKING_BLUEBOOK_DIR unless defined?(BANKING_BLUEBOOK)
 
   # A verb whose snake-cased name collides with an Object/Kernel method (`Freeze`,
-  # `Send`) must dispatch, not be swallowed by the Kernel method. No shipped chapter
-  # collides, so this chapter exists only to.
+  # `Send`) must dispatch, not be swallowed by the Kernel method. No shipped bluebook
+  # collides, so this bluebook exists only to.
   COLLIDER_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Collider" do
       aggregate "Vault" do

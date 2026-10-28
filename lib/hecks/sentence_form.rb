@@ -63,7 +63,7 @@ module Hecks
     # @raise [ParserMissing] if `hecks-parse` is not built
     # @raise [Refused] if the sentences are not ones the parser knows
     def ruby_text(path)
-      chapter = chapter_name(path) or raise Refused, "#{path}: no `Domain:` line to name the chapter"
+      chapter = chapter_name(path) or raise Refused, "#{path}: no `Domain:` line to name the bluebook"
       out, err, status = Open3.capture3(binary, "render", "--chapter", chapter, path)
       raise Refused, first_line(err) unless status.success?
 

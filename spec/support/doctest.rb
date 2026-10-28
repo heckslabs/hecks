@@ -109,7 +109,7 @@ module Doctest
   def parse(path) = GuideParser.new(path).call
 
   # Facade constants install onto Object and are never uninstalled, so two guides inventing the
-  # same chapter would rebind to whichever booted last. Only `Hecks.bluebook "Name"` counts;
+  # same bluebook would rebind to whichever booted last. Only `Hecks.bluebook "Name"` counts;
   # loading a shared corpus file declares nothing here.
   def declared_domains(guide)
     guide.blocks

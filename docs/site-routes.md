@@ -1,13 +1,13 @@
 # Site routes: one route table, one `routes.ts`
 
 A website decides which pages exist in many places: the middleware that hides a switched-off page, the
-navigation, the footer, the sitemap, the robots file, the CMS that previews a page. The Site chapter holds
+navigation, the footer, the sitemap, the robots file, the CMS that previews a page. The Site bluebook holds
 that decision once, as a table the project declares, and projects it into a single TypeScript module every
 one of those places imports.
 
 ## Declaring the table
 
-A project writes its routes as `member` rows of a `value_object "Route"` in one of its own chapters, and
+A project writes its routes as `member` rows of a `value_object "Route"` in one of its own bluebooks, and
 its hecksagon attaches the Site chapter:
 
 ```ruby
@@ -39,7 +39,7 @@ end
 
 The rows are plain data, not commands: a route table is not an event history, and a row that reads wrongly is
 fixed by editing the line. The fields a row may carry, and the closed sets their values come from, are the
-`Route` aggregate of the Site chapter (`lib/hecks/site/bluebook/site.bluebook`); the sets are in no other
+`Route` aggregate of the Site bluebook (`lib/hecks/site/bluebook/site.bluebook`); the sets are in no other
 place.
 
 | field | meaning |
@@ -69,7 +69,7 @@ A row sits in a menu with `nav_order` (desktop), `mobile_order`, `footer_column`
   already there. An entry of a page that is on carries neither key, so a table with no off page in a menu generates what it did before.
 - **A heading in the mobile menu** is `mobile_heading: "Experiences"` on the first row of a section; its entry in `NAV_MOBILE`
   carries `heading: "Experiences"` and the site draws the heading above it. The list stays flat, in `mobile_order`.
-- **A link to a fragment, or a second link to a page**, is a `member` row of a `value_object "NavLink"` of the same chapter. A route
+- **A link to a fragment, or a second link to a page**, is a `member` row of a `value_object "NavLink"` of the same bluebook. A route
   sits in each menu once, and one path is declared once, so a second link to `/about` is not a second route: it is a `NavLink` with
   the `path` of a route that answers GET, an optional `fragment` (an element id, without `#`), a `label`, and the same slot fields
   as a route (`nav_group`, `nav_order`, `mobile_order`, `mobile_heading`, `footer_column`, `footer_order`, `admin_key`,
@@ -110,7 +110,7 @@ by default. With the same edge verbs and cache class as the prefix the row rides
 
 ## Admin sign-in: `admin.ts`
 
-A project that serves admin pages from a domain host declares one `member` row of a `value_object "Admin"` in the chapter that
+A project that serves admin pages from a domain host declares one `member` row of a `value_object "Admin"` in the bluebook that
 holds its route table, and the tool writes `admin.ts` (or `admin.mts`, as `extension` says) beside `routes.ts`. A project with no
 `Admin` row gets no `admin.ts`, and the other output is unchanged.
 
@@ -176,8 +176,8 @@ required field is missing, or when an `Env` row is a secret and there is no `Sec
 
 ### Driving the domain from the content system
 
-The `Payload` row names a domain (a directory under `--root` holding `bluebook/`) and the chapter to read. Every aggregate of
-that chapter that has a lifecycle and a creating command is driven; `skip` lists any to leave out. Nothing is declared in
+The `Payload` row names a domain (a directory under `--root` holding `bluebook/`) and the bluebook to read. Every aggregate of
+that bluebook that has a lifecycle and a creating command is driven; `skip` lists any to leave out. Nothing is declared in
 the domain: the generator reads it, and the editor-facing detail sits in `PayloadField` rows beside the route table, so the
 domain never names the content system.
 
@@ -197,14 +197,14 @@ the editor's name differs, `label` (`Singular|Plural`) for a list, `description`
 ## The content editor: `editor=<dir>`
 
 A project that edits its own content, without a third-party CMS, declares one `member` row of a `value_object "Editor"` beside
-the route table and runs `--editor=<dir>` (`editor=<dir>` on the verb). The projection reads the row and the domain chapter it
+the route table and runs `--editor=<dir>` (`editor=<dir>` on the verb). The projection reads the row and the domain bluebook it
 names, and writes a small Node/TypeScript package under `<dir>`: a server (node's own `http`, no framework) whose pages and
 forms are generated from the domain, not written per aggregate.
 
 | field | what it is | default |
 |---|---|---|
 | `domain` | the domain's directory under the project, holding `bluebook/` | required |
-| `chapter` | the chapter whose aggregates the editor edits, or several, comma separated (`Press, Library`); with several, the navigation groups them, addresses carry the chapter (`<base_path>/<Chapter>/<Aggregate>`) and verbs are sent as `Chapter::Aggregate.Verb` | required |
+| `chapter` | the bluebook whose aggregates the editor edits, or several, comma separated (`Press, Library`); with several, the navigation groups them, addresses carry the bluebook (`<base_path>/<Chapter>/<Aggregate>`) and verbs are sent as `Chapter::Aggregate.Verb` | required |
 | `host_env` | the environment variable that holds the domain host's address | required |
 | `login` | the site's login page, a public route: where a visitor with no session is sent | required |
 | `base_path` | where the editor is served; it is the path the edge routes to the editor | `/editor` |
@@ -214,20 +214,20 @@ forms are generated from the domain, not written per aggregate.
 | `host_default` | the host's address when the variable is unset | `http://127.0.0.1:4322` |
 | `roles` | the roles that count as an editor, comma separated | `Admin,Owner` |
 | `title` | the editor's name in the browser tab (`<page> - <title>`) | `Editor` |
-| `brand` | the product name the header and the navigation show, one line of at most 60 characters | the chapter's domain name |
+| `brand` | the product name the header and the navigation show, one line of at most 60 characters | the bluebook's domain name |
 | `accent` | a six-digit hex colour (`#1f7a6d`) the theme is derived from; refused when it is anything else | a deep verdigris, `#1f7a6d` |
 | `logo` | a picture the header shows beside the brand: a relative path from the server's working directory to a `png`, `jpg`, `webp`, `gif`, `avif` or `svg` file, with no `..`, leading slash or hidden part; served to signed-in editors at `<base_path>/assets/logo` | none |
-| `skip` | aggregates to leave out, comma separated; `Name`, or `Chapter::Name` for one chapter's | none |
-| `chapter_roles` | roles a chapter is limited to, `Chapter=Role,Role;Chapter=Role`; its aggregates and its pictures are hidden from and refused to any other role (403) | none |
+| `skip` | aggregates to leave out, comma separated; `Name`, or `Chapter::Name` for one bluebook's | none |
+| `chapter_roles` | roles a bluebook is limited to, `Chapter=Role,Role;Chapter=Role`; its aggregates and its pictures are hidden from and refused to any other role (403) | none |
 | `page_size` | how many instances a list shows to a page (1 to 1000); a page, a search (`_q`) and a state (`_status`) are in the address | `25` |
 | `preview` | where a record is shown on the site, a URL template the editor frames in a side drawer: an `http(s)://` address or a path with one slash, with `{key}`, `{kind}`, `{slug}` and `{id}` filled from the record (a `<kind>:<slug>` identity is split; any other identity is the slug of `<snake-case aggregate>:<id>`). Refused when it is another scheme, names credentials, starts `//`, holds whitespace, an unknown placeholder or a placeholder in the scheme, host or port. Its origin (or `'self'` for a path) is the only `frame-src` the editor's content security policy gets | none |
-| `media` | another chapter of the domain whose picture aggregate the pictures use, when this chapter has none (a body here uses the pictures of that chapter) | none |
-| `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the chapter has a picture aggregate | `media` |
+| `media` | another bluebook of the domain whose picture aggregate the pictures use, when this bluebook has none (a body here uses the pictures of that bluebook) | none |
+| `media_dir` | the directory the local-disk adapter keeps uploaded pictures in, from the server's working directory; used only when the bluebook has a picture aggregate | `media` |
 | `media_max_bytes` | the largest picture an upload may be, in bytes (1 to 104857600) | `5242880` |
 
 | file | what it does |
 |---|---|
-| `src/schema.ts` | the chapter's aggregates, attributes (kind, optional, list), value objects, lifecycles, commands (role, creating or acting on an instance) and queries, as one typed constant |
+| `src/schema.ts` | the bluebook's aggregates, attributes (kind, optional, list), value objects, lifecycles, commands (role, creating or acting on an instance) and queries, as one typed constant |
 | `src/app.ts`, `src/server.ts` | the handler from a web `Request` to a `Response`, and the node server around it |
 | `src/auth/*.ts` | the sign-in: the hand-off token, the membership check, and the editor's own signed session cookie |
 | `src/ui/*.ts` | the server-rendered pages: the frame (header, navigation drawer, breadcrumbs), a list from a query, a detail page, a form per command, and the words and icons they share |
@@ -249,7 +249,7 @@ HTML is reduced to what the body can hold, with a note saying what was reduced. 
 
 The pages are server-rendered semantic HTML with Tailwind and daisyUI class names; `npm run build` (run by `npm start`) turns
 `src/browser/app.css` into `dist/editor.css` and bundles `src/browser/main.js` into `dist/editor.js`, with the writing surface in a
-chunk only a page with a body loads. The generated sources are a pure function of the chapter and the row, so `--check` covers
+chunk only a page with a body loads. The generated sources are a pure function of the bluebook and the row, so `--check` covers
 them; `dist/` and `node_modules/` are build output and are not committed. Before a build the pages are complete HTML with no
 stylesheet or script, and still work.
 
@@ -277,7 +277,7 @@ stylesheet or script, and still work.
 
 What the editor derives is read from the bluebook, never from a name list of aggregates, so it can be predicted:
 
-- **Chosen, not typed.** An attribute is offered as a choice of another aggregate's instances when: its `pattern` begins `^kind:` or `^(kind|kind):` (a `<kind>:<slug>` key: the kind is chosen, then the record of the aggregate whose snake-case name is that kind, if one is in the editor); or it is a `reference_to` attribute whose target is an editor aggregate; or it is a value object of one text part named `<Stem>Ref` where `<Stem>` is the type of an editor aggregate's identity attribute (`CategorySlugRef` and a `CategorySlug` identity) or an editor aggregate's name; or it is `ImageRef`, `PictureRef`, `PhotoRef` or `MediaRef` and the editor has a picture aggregate (suggestions only; any other text is accepted, since it may be an address). The target is the same chapter's aggregate if it has one, else the only one of that name; more than one gives no picker. What is on offer is the target's zero-argument query named `All`, `List`, `Listing` or `Active` (in that order), else every instance, labelled by its `title`, `name` or `label` attribute, else its identity, at most 500 of them. A strict key is checked against every instance the target holds before the command is sent; a key the form already names that is no longer on offer is kept.
+- **Chosen, not typed.** An attribute is offered as a choice of another aggregate's instances when: its `pattern` begins `^kind:` or `^(kind|kind):` (a `<kind>:<slug>` key: the kind is chosen, then the record of the aggregate whose snake-case name is that kind, if one is in the editor); or it is a `reference_to` attribute whose target is an editor aggregate; or it is a value object of one text part named `<Stem>Ref` where `<Stem>` is the type of an editor aggregate's identity attribute (`CategorySlugRef` and a `CategorySlug` identity) or an editor aggregate's name; or it is `ImageRef`, `PictureRef`, `PhotoRef` or `MediaRef` and the editor has a picture aggregate (suggestions only; any other text is accepted, since it may be an address). The target is the same bluebook's aggregate if it has one, else the only one of that name; more than one gives no picker. What is on offer is the target's zero-argument query named `All`, `List`, `Listing` or `Active` (in that order), else every instance, labelled by its `title`, `name` or `label` attribute, else its identity, at most 500 of them. A strict key is checked against every instance the target holds before the command is sent; a key the form already names that is no longer on offer is kept.
 - **Moments.** A single integer is a date when its attribute's, value object's or part's name ends in `_on` or `On`, and a date and time when it ends in `_at` or `At` or contains `epoch`. It is whole seconds since 1970 UTC; the form shows a native input in the person's time zone and says which, and a date is the start of that day. Read-only, the page writes the UTC time and the script restates it in the person's zone with how far away it is.
 - **Lists.** A list shows `page_size` rows, a search over the identity and the title attribute (`_q`, every word must match), and a state filter for an aggregate with a lifecycle (`_status`); each page is a link. Sorting a page's columns stays in the browser. The navigation's counts are the lengths of the one read of the host that the page itself is made from (the host has no count to ask for). The last search and state used on an aggregate are kept for the browser tab.
 
@@ -292,7 +292,7 @@ These are read from shape too, and each is absent when its shape is:
 - **Pages of a fixed structure.** A value object with a media key and an `alt` is a picture wherever it sits (the picker, the description required, `picture` in the schema). A text an invariant bounds (`summary.to_s.size <= 600`, `size` or `length`, optionally after `summary.unset? ||`) carries `maxLength`, and above 200 characters is a writing box. A list's `size >= n` and `size <= n` in the holder's invariants, or a command's `given`, are shown beside it and held by the add control. A list whose members hold a body or a picture at any depth is cards made from a template, a list in a member a group one level in; other lists stay rows. A refusal that names a value object marks the card and the field it is about, found by the value it echoes.
 - **A list of mixed blocks.** A `list_of` value object that has a discriminator, a part typed as a closed set (`one_of`) of one plain value or a text part that an invariant restricts to a literal list, is drawn as ordered cards: the kind, one line that says what the block holds, move up and down (announced in a polite live region), remove (after a question) and, when opened, the slots its kind uses. The kinds come from the closed set. Which slots each kind uses comes from a closed set of rows in the same aggregate with the parts `kind`, `requires` and `uses` (slot names, comma separated), one row per kind; a slot no row names belongs to every kind, and naming `media_ref` brings `alt`. With no such table every slot is shown and the invariants of the form `kind != "<k>" || ...` only mark which slots a kind's rules read. A limit comes from an invariant or a `given` written `<list>.size <= <n>`. A picture is a value object's `media_ref` with `alt` (and `caption`), drawn together with the picker. Repeated parts (buttons, entries) are groups of cards one level in; a body inside a card gets its writing surface when the card is first opened. The whole list is sent in the order shown, an empty row is dropped, and a refusal of an invariant is matched to the block whose value it echoes and marks that card and the slots it names. The declared table changes what an editor shows, never what the domain accepts.
 
-When the chapter has an aggregate that registers pictures, the editor also uploads and serves them. The aggregate is found by shape,
+When the bluebook has an aggregate that registers pictures, the editor also uploads and serves them. The aggregate is found by shape,
 not by name: a creating command whose attributes are the aggregate's identity (the key), an alt text (`alt` or `alt_text`) and a
 mime type (`mime_type`, `mime` or `content_type`), optionally `width` and `height`, with every other attribute optional; the
 aggregate's query with no arguments lists the pictures. The domain keeps the record, never the bytes. `src/media/` holds the upload
@@ -300,7 +300,7 @@ aggregate's query with no arguments lists the pictures. The domain keeps the rec
 storage port (`put`, `url`, `read`) and its local-disk adapter, which writes `<sha256>.<ext>` under `media_dir`. A project that
 keeps pictures in an object store implements the same interface and passes it as `createApp({ storage })`. Pictures are served to
 a signed-in editor only at `<base_path>/media/<key>`, for keys of the generated form, with `X-Content-Type-Options: nosniff`. The
-writing surface's image button opens a picker (`src/browser/media_picker.js`). A chapter with no such aggregate has none of this, and the image
+writing surface's image button opens a picker (`src/browser/media_picker.js`). A bluebook with no such aggregate has none of this, and the image
 button keeps its prompts.
 
 The server is a sidecar: it is the host's `/dispatch` caller, which the host honours only from the same machine, so it
@@ -328,7 +328,7 @@ It runs from a project, with the installed gem; it needs no hecks checkout. Thre
 
 | what | where | default |
 |---|---|---|
-| the chapters | `<project>/bluebook/`, and the `<project>/vendor/` they attach from | the project is the argument |
+| the bluebooks | `<project>/bluebook/`, and the `<project>/vendor/` they attach from | the project is the argument |
 | `routes.ts` | the directory `out` names, anywhere | `<project>/generated` |
 | the template | the file `template` names, anywhere; rewritten in place | the `Edge` row's `template:`, relative to the project |
 
@@ -350,14 +350,14 @@ name is what lets Node import it (`import * as site from "./routes.mts"`) from a
 
 A row whose source is `command:Studio.Inquiry.Submit` takes its path from the forms scheme, so the site and the
 `hecks corpus_run.present` forms agree on one URL for it: `/Studio/Inquiry/Submit`. The command or query must exist in a
-chapter the project attaches. The scheme covers a command or query of an aggregate; it does not name an entity's
+bluebook the project attaches. The scheme covers a command or query of an aggregate; it does not name an entity's
 command or a report, and a project lists the domain routes it exposes, since `Forms.configure` exposes a whole
-chapter rather than a command.
+bluebook rather than a command.
 
 ## The edge: CloudFront behaviours and listener rules
 
 The same table decides how the CDN and the load balancer treat each path, so a path is not named a second time
-in the infrastructure template. A project adds `member` rows of more value objects of its route chapter,
+in the infrastructure template. A project adds `member` rows of more value objects of its route bluebook,
 for the facts only its template knows, and marks two regions in the template it owns (a third when it uses an edge
 function, below).
 
@@ -465,7 +465,7 @@ that every route reaches an origin: a route on the cms or the domain needs an `E
 CDN fronts it, and its cache class needs an `EdgePolicy`. A project with a load balancer is unchanged.
 
 Each refusal names every problem at once, as the table's do: an origin that no `EdgeOrigin` maps or the Site
-chapter does not know, a cache class no `EdgePolicy` maps, a policy reference that is none of the three forms, a
+bluebook does not know, a cache class no `EdgePolicy` maps, a policy reference that is none of the three forms, a
 duplicate priority or rule name, a shadowed pattern.
 
 Regions rather than whole fragment files, because a CloudFormation template is one document: the behaviours are a
@@ -494,7 +494,7 @@ own wording stay in the project's smoke.
 ### Checking that a host enforces roles
 
 `hecks site site_projection.check_roles <project> url=<http://127.0.0.1:port>` takes the commands a project declares a
-`role` for (read from its bluebooks, vendored chapters included) and dispatches each to a running host's `/dispatch` with
+`role` for (read from its bluebooks, vendored bluebooks included) and dispatches each to a running host's `/dispatch` with
 no role and no actor. A host checks that arguments are present and well-typed before it asks who is calling, so each
 command is sent with arguments synthesized from its declaration. A host running with `HECKS_ROLE_ENFORCEMENT=enforce`
 refuses every one as `Unauthorized`; a command that is accepted, or refused for another reason, fails the check.

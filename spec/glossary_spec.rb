@@ -3,7 +3,7 @@ require "spec_helper"
 # Each committed `<domain>/glossary/` must match a fresh in-memory projection byte for byte,
 # with no orphan files, and the page must keep the Glossary promises: no identifiers or kinds.
 RSpec.describe "the glossary a domain carries with it" do
-  # Domain folder (relative to the repo root) => the chapter it declares.
+  # Domain folder (relative to the repo root) => the bluebook it declares.
   GLOSSARY_DOMAINS = {
     "examples/pizzas"  => "Pizzas",
     "examples/banking" => "Banking",
@@ -14,7 +14,7 @@ RSpec.describe "the glossary a domain carries with it" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      # `qa` holds the ledger's wiring only; its chapter is the one that wiring loads by name.
+      # `qa` holds the ledger's wiring only; its bluebook is the one that wiring loads by name.
       InMemoryDomain.load_bluebook_files(Hecks::Corpus.bluebook_files(File.join(InMemoryDomain::ROOT, domain, "bluebook")))
     end
     registry.bluebook(name)

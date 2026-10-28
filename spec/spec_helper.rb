@@ -55,11 +55,11 @@ module InMemoryDomain
   # same as any other consumer would.
   ERA_PLUGIN = "hecks/ports/persistence/plugins/era".freeze
 
-  # Loads one or more bluebook files as a single chapter, judging the
-  # completed chapter once rather than treating each file as a domain.
+  # Loads one or more bluebook files as a single bluebook, judging the
+  # completed bluebook once rather than treating each file as a domain.
   #
-  # @param path [String, Array<String>] a single file, or every file making up one chapter
-  # @return [Object] the judged chapter (when `path` is an Array), or the folder
+  # @param path [String, Array<String>] a single file, or every file making up one bluebook
+  # @return [Object] the judged bluebook (when `path` is an Array), or the folder
   #   adapter's own load result (single file or directory)
   def load_bluebook_files(path)
     if path.is_a?(Array)
@@ -114,7 +114,7 @@ module InMemoryDomain
   end
   module_function :sibling_governance!
 
-  # Boots a fresh, real registry with the Pizzas and Governance chapters wired
+  # Boots a fresh, real registry with the Pizzas and Governance bluebooks wired
   # to the Memory adapter — a minimal real domain, not a stub.
   #
   # @return [Hecks::Runtime::Registry] the booted, bound registry
@@ -131,7 +131,7 @@ module InMemoryDomain
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  # Wires Pizzas' only aggregate to the Memory adapter, attaching the Governance chapter.
+  # Wires Pizzas' only aggregate to the Memory adapter, attaching the Governance bluebook.
   #
   # `::` on purpose — a real .hecksagon file loads at top level, where an
   # unresolved constant reaches Object's const_missing. This block lives

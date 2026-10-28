@@ -549,7 +549,7 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       # Expression loads first, Translation second, Governance last —
       # both hecksagons call attaches "Governance" (role is only
       # real access control once Governance can check it) from inside
-      # their own blocks, so it attaches after either chapter.
+      # their own blocks, so it attaches after either bluebook.
       expect(bluebooks.keys).to eq(%w[Expression Translation Governance])
 
       history = refusal_history(bluebooks, "Translation::Map.Seal", "Seal refused — an empty edge explains nothing")

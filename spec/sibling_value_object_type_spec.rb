@@ -17,7 +17,7 @@ RSpec.describe "an attribute typed with a sibling aggregate's value object" do
     expect(attribute.reference?).to be(false)
   end
 
-  it "still resolves to the sibling's value object through the chapter" do
+  it "still resolves to the sibling's value object through the bluebook" do
     resolved = Hecks::Runtime::Value.value_object_for(booking, attribute.type)
 
     expect(resolved).to be(chapter.aggregate("ManagedSite").value_object("SiteReference"))

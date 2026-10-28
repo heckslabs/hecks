@@ -38,7 +38,7 @@ module Hecks
       def refuse_unresolvable_hop!(clause)
         raise WiringError,
               "#{clause.field} hops through a reference this domain cannot resolve " \
-              "right now — the chapter seal already checked this once; something " \
+              "right now — the bluebook seal already checked this once; something " \
               "changed between then and this dispatch"
       end
 

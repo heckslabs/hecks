@@ -110,7 +110,7 @@ module Hecks
         providers = registry.authorization_providers
         unless providers.size == 1
           raise Runtime::WiringError,
-                "#{providers.size} loaded chapters provide \"authorization\"" \
+                "#{providers.size} loaded bluebooks provide \"authorization\"" \
                 "#{" (#{providers.map(&:name).sort.join(", ")})" unless providers.empty?} — " \
                 "a role lookup needs exactly one (framework members declaring it: " \
                 "#{Framework.providers_of(Bluebook::Capabilities::AUTHORIZATION).join(", ")})"

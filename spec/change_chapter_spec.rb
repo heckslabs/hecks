@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # A change is planned, shown, confirmed against exactly that plan, and only then carried out. The
-# chapter holds how any change moves; the `Script` port's adapter holds what a script does.
+# bluebook holds how any change moves; the `Script` port's adapter holds what a script does.
 RSpec.describe "a change" do
   let(:runner) { Hecks::Adapters::ScriptRunner }
   let(:done) { [] }

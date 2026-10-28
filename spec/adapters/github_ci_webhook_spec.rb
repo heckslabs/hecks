@@ -72,7 +72,7 @@ RSpec.describe "GitHub CI webhook, end to end" do
     end
   end
 
-  # The chapter's own ports and the adapters behind its tool queries, so the IssueTracker, CI
+  # The bluebook's own ports and the adapters behind its tool queries, so the IssueTracker, CI
   # and tool-query bindings are the real ones.
   def load_quality_control_ports_and_tools
     Kernel.load(File.join(WEBHOOK_QC_ROOT, "quality_control.ports.hecksagon"))

@@ -4,12 +4,12 @@ module Hecks
   module Rails
     # What the generated pages show of the app as a whole: its title, its navigation and the
     # columns of each list. All of it comes from the booted domain, and the `App` and `Listing`
-    # rows of the RailsApp chapter change it. With no rows the pages still work.
+    # rows of the RailsApp bluebook change it. With no rows the pages still work.
     module App
       # One place in the navigation.
       Entry = Struct.new(:model, :label, :path, keyword_init: true)
 
-      # The rows a project may declare, checked against the RailsApp chapter's shapes.
+      # The rows a project may declare, checked against the RailsApp bluebook's shapes.
       APP_ROW = Hecks::Projections::Site::RootRows.new("App", fields: { title: String, home: String }, required: [:title])
       LISTING_ROWS = Hecks::Projections::Site::RootRows.new(
         "Listing", fields: { aggregate: String, label: String, columns: String }, required: [:aggregate], many: true

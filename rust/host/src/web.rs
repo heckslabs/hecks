@@ -1415,7 +1415,7 @@ fn humanize(path: &str) -> String {
 const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseClass"];
 
 // Dispatch order: list? -> reference? -> admits -> value object ->
-// primitive. `domain_ir` is the whole chapter, needed for cross-aggregate lookups.
+// primitive. `domain_ir` is the whole bluebook, needed for cross-aggregate lookups.
 fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: &str) -> Field {
     let is_list = attribute
         .get("list")

@@ -30,7 +30,7 @@ module Hecks
           # @return [Array<String>] the problems with an empty, repeated or reserved bluebook name
           def chapter_problems(chapters)
             found = []
-            found << "chapter names no chapter" if chapters.reject(&:empty?).empty?
+            found << "chapter names no bluebook" if chapters.reject(&:empty?).empty?
             repeated = chapters.find { |name| chapters.count(name) > 1 }
             found << "chapter names #{repeated.inspect} twice" if repeated
             [*found, *reserved_problems(chapters)]
@@ -53,7 +53,7 @@ module Hecks
               next ["chapter_roles #{entry.inspect} must read Chapter=Role,Role"] if roles.to_s.strip.empty?
               next [] if chapters.include?(name.strip)
 
-              ["chapter_roles names #{name.strip.inspect}, which is not a chapter of this editor"]
+              ["chapter_roles names #{name.strip.inspect}, which is not a bluebook of this editor"]
             end
           end
 

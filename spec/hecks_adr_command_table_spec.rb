@@ -1,17 +1,17 @@
 require "spec_helper"
 
 # ADR 0080, section 7: the whole command table, read from the RetiredScript rows of the Vocabulary
-# chapter, where it is declared once. Every script the retired `bin/` held is a row; each row names
+# bluebook, where it is declared once. Every script the retired `bin/` held is a row; each row names
 # the section, the aggregate and the command (or query) that replaces it, and the launcher verb that
-# answers it. A row passes when the command is declared in its chapter and `hecks <verb> --help`
+# answers it. A row passes when the command is declared in its bluebook and `hecks <verb> --help`
 # answers through the launcher. Nothing here replaces the per-section specs
 # (hecks_custodian_table_spec.rb, hecks_codebase_adr_rows_spec.rb, hecks_deploy_table_spec.rb),
 # which check their rows in more depth.
 RSpec.describe "the ADR 0080 command table, every row" do
-  # One command of the table, read from the RetiredScript rows of the Vocabulary chapter, where the
+  # One command of the table, read from the RetiredScript rows of the Vocabulary bluebook, where the
   # table is declared once. `verb` is the command's snake name; every command is called by its
-  # aggregate (`era.merge_tail`). Custodian and Codebase rows live in the Hecks chapter, the other
-  # sections in the chapter of their own name.
+  # aggregate (`era.merge_tail`). Custodian and Codebase rows live in the Hecks bluebook, the other
+  # sections in the bluebook of their own name.
   TableRow = Struct.new(:script, :section, :aggregate, :verb, keyword_init: true) do
     def chapter = %w[Custodian Codebase].include?(section) ? "Hecks" : section
     def name = verb.split("_").map(&:capitalize).join
@@ -27,7 +27,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
   # The table gives `console` and `mcp` as the launcher's names for OpenConsole and ServeMcp.
   LAUNCHER_HELP_NAME = { "open_console" => "console", "serve_mcp" => "mcp" }.freeze
 
-  # Commands whose verb the chapter does not answer on its own: `Race` runs only as a child
+  # Commands whose verb the bluebook does not answer on its own: `Race` runs only as a child
   # process the ProcessPool starts, so the table gives it no launcher form.
   NOT_USER_FACING = %w[race].freeze
 

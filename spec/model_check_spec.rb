@@ -156,7 +156,7 @@ RSpec.describe "the model checker" do
     end
 
     # A policy triggering an `asks`/`tells` port operation (three segments) is not an
-    # `unknown_trigger`; the QualityControl chapter's FileWhenSubmitted is the real case.
+    # `unknown_trigger`; the QualityControl bluebook's FileWhenSubmitted is the real case.
     it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
       quality_control = File.join(ROOT_DIR, "lib/hecks/quality_control/quality_control.bluebook")
       real_findings = call_model_check(boot(quality_control))
@@ -179,7 +179,7 @@ RSpec.describe "the model checker" do
       expect(finding.message).to include('across "Governance"').and include('attaches "Governance"')
     end
 
-    it "finds a chapter the gem carries, not only a framework member, attached and reached via across" do
+    it "finds a bluebook the gem carries, not only a framework member, attached and reached via across" do
       finding = findings.find { |f| f.kind == :contradictory_relationship && f.subject == "OnTenancy" }
       expect(finding.message).to include('across "Tenancy"').and include('attaches "Tenancy"')
     end
@@ -259,7 +259,7 @@ RSpec.describe "the model checker" do
     let(:findings) { findings_for("orphan_findings") }
     let(:orphans) { findings.select { |f| f.kind == :orphaned_reference } }
 
-    # A one-aggregate chapter whose only ending command emits nothing.
+    # A one-aggregate bluebook whose only ending command emits nothing.
     def silent_ending_chapter
       transition = Struct.new(:target, :from) { def constrained? = true }.new("gone", ["here"])
       lifecycle = Struct.new(:default, :transitions).new("here", [["Vanish", transition]])
@@ -473,7 +473,7 @@ RSpec.describe "the model checker" do
       end
     end
 
-    # The errors the model checker finds in the named chapter of the language itself.
+    # The errors the model checker finds in the named bluebook of the language itself.
     def language_errors(name)
       chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name)
       return [] unless chapter

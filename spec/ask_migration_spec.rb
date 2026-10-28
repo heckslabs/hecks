@@ -2,10 +2,10 @@ require "spec_helper"
 require "hecks/cli"
 require "hecks/cli/model_check"
 
-# ADR 0100's waves: a chapter file listed here has moved its port-naming triggers to `ask`, and
+# ADR 0100's waves: a bluebook file listed here has moved its port-naming triggers to `ask`, and
 # a new `trigger Aggregate::Port::Operation` in it is refused, so the leak cannot grow back.
 RSpec.describe "files migrated to ask" do
-  # Wave 1 is the Tooling chapter; each later wave adds its files here.
+  # Wave 1 is the Tooling bluebook; each later wave adds its files here.
   ASK_MIGRATED_FILES = %w[lib/hecks/hecks/tooling.bluebook].freeze
 
   def chapter_of(file)

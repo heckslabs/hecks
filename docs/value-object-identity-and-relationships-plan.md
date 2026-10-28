@@ -653,7 +653,7 @@ It requires no source or storage migration. Only one-symbol declarations migrate
 
 Migration order:
 
-1. Bluebook/World/Hecksagon/Translation language chapters.
+1. Bluebook/World/Hecksagon/Translation language bluebooks.
 2. Paging and other attached sub-languages.
 3. Small fixtures and parser parity corpus.
 4. Pizzas and other examples.

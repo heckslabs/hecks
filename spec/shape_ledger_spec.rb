@@ -2,7 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/shape_ledger"
 
-# The ledger holds each chapter's storage shape; a shape that moves needs a translation edge from
+# The ledger holds each bluebook's storage shape; a shape that moves needs a translation edge from
 # the
 # shape the ledger holds, and only then may the ledger move.
 RSpec.describe Hecks::ShapeLedger do
@@ -53,7 +53,7 @@ RSpec.describe Hecks::ShapeLedger do
     write_chapter
     described_class.check(directory, confirm: true)
 
-    expect(described_class.check(directory)).to eq("1 chapter shapes, each the one the ledger holds")
+    expect(described_class.check(directory)).to eq("1 bluebook shapes, each the one the ledger holds")
   end
 
   it "asks for a ledger when there is none" do
@@ -86,7 +86,7 @@ RSpec.describe Hecks::ShapeLedger do
     write_edge(described_class.label(ledgered), described_class.label(current))
 
     expect { described_class.check(directory) }.to raise_error(described_class::Failure, /an edge covers it/)
-    expect(described_class.check(directory, confirm: true)).to start_with("wrote 1 chapter shapes")
+    expect(described_class.check(directory, confirm: true)).to start_with("wrote 1 bluebook shapes")
   end
 
   it "settles a move that only adds in one step: writes the empty edge and moves the ledger", :aggregate_failures do
@@ -101,7 +101,7 @@ RSpec.describe Hecks::ShapeLedger do
     moved_without_an_edge
     described_class.check(directory, confirm: true, additive: true)
 
-    expect(described_class.check(directory)).to eq("1 chapter shapes, each the one the ledger holds")
+    expect(described_class.check(directory)).to eq("1 bluebook shapes, each the one the ledger holds")
   end
 
   it "follows a chain of edges across more than one move" do
@@ -109,6 +109,6 @@ RSpec.describe Hecks::ShapeLedger do
     write_edge(described_class.label(ledgered), "aaaaaa")
     write_edge("aaaaaa", described_class.label(current))
 
-    expect(described_class.check(directory, confirm: true)).to start_with("wrote 1 chapter shapes")
+    expect(described_class.check(directory, confirm: true)).to start_with("wrote 1 bluebook shapes")
   end
 end

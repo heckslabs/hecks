@@ -3,7 +3,7 @@ require "json"
 require "tmpdir"
 require "fileutils"
 
-# `hecks deploy data_copy.restore` and `data_copy.verify` end to end: the Deploy chapter's DataCopy
+# `hecks deploy data_copy.restore` and `data_copy.verify` end to end: the Deploy bluebook's DataCopy
 # and CopyVerification ask the DeployToolchain port, the Hecks domain binds its adapter, and the
 # generated `restore-to-rds.sh` and `verify-copy.sh` (the migration golden files) run against
 # stand-in `aws`, `psql`, `pg_dump` and `pg_restore` programs. Nothing reaches AWS or a database.
@@ -146,7 +146,7 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
 
   def refusal_of(json) = json.dig("state", "refusal")
 
-  it "declares both aggregates in the Deploy chapter, joined by policies", :aggregate_failures do
+  it "declares both aggregates in the Deploy bluebook, joined by policies", :aggregate_failures do
     chapter = @hecks.registry.bluebook("Deploy")
 
     expect(chapter.aggregate("DataCopy").commands.map(&:hecks_name))

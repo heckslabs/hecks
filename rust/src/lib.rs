@@ -2,7 +2,7 @@
 //! Std-only, zero Cargo dependencies (ADR 0012); wasm-bindgen lives in rust/web.
 
 // Generated code keeps one shape for every domain, so a domain with no arms still has its `match`,
-// a store still has its `new()`, a chapter may hold an aggregate named like itself
+// a store still has its `new()`, a bluebook may hold an aggregate named like itself
 // (identity::identity), and every command gets the same signature whether or not it uses all of
 // it. Clippy's complaints about that shape are not bugs to fix per file; the generators fix the
 // ones that are real (see the emitters in rust/codegen/src).

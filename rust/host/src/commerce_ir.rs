@@ -23,11 +23,11 @@ fn attribute_default<'a>(fact: &'a Value, key: &str) -> Option<&'a Value> {
     fact.get(key)?.get("default")
 }
 
-/// The chapter that answers the guest newsletter signup, read from
+/// The bluebook that answers the guest newsletter signup, read from
 /// `ir.json`'s `provides.newsletter` fact. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewsletterProvider {
-    /// Chapter name, e.g. `Newsletter`.
+    /// Bluebook name, e.g. `Newsletter`.
     pub provider: String,
     /// Qualified subscribe command, e.g. `Newsletter::Subscriber.Subscribe`.
     pub subscribe: String,
@@ -41,13 +41,13 @@ pub struct NewsletterProvider {
     pub aggregate: String,
     /// Subscriber states awaiting the emailed confirm link: the
     /// `awaiting_confirmation` list of the `newsletter` fact (the lifecycle's
-    /// mark), or [`LEGACY_AWAITING_CONFIRMATION`] when the chapter declares none.
+    /// mark), or [`LEGACY_AWAITING_CONFIRMATION`] when the bluebook declares none.
     pub awaiting_confirmation: Vec<String>,
     /// Subscriber states that receive each issue: the `receives_issues` list,
-    /// or [`LEGACY_RECEIVES_ISSUES`] when the chapter declares none.
+    /// or [`LEGACY_RECEIVES_ISSUES`] when the bluebook declares none.
     pub receives_issues: Vec<String>,
     /// Subscriber states of someone who has left: the `left` list, or
-    /// [`LEGACY_LEFT`] when the chapter declares none.
+    /// [`LEGACY_LEFT`] when the bluebook declares none.
     pub left: Vec<String>,
     /// Seconds the emailed confirm link stays valid: the `confirm_window` of
     /// the `newsletter` fact (ADR 0098), or [`LEGACY_CONFIRM_WINDOW_SECS`].
@@ -59,7 +59,7 @@ pub struct NewsletterProvider {
 
 /// LEGACY DEFAULT: how long the emailed confirm link lasts (14 days), used
 /// while the `newsletter` fact carries no `confirm_window`, because the
-/// Newsletter chapter predates ADR 0098 and does not declare
+/// Newsletter bluebook predates ADR 0098 and does not declare
 /// `provides "newsletter", ..., confirm_window: "Subscriber.confirm_window"`.
 /// Delete this (and the fallback in `newsletter_provider`) once every shipped
 /// Newsletter bluebook does.
@@ -95,7 +95,7 @@ fn seconds_or_legacy(
 }
 
 /// The checkout boundary's windows, read from `ir.json`'s `provides.checkout` fact
-/// (ADR 0098). Always present: a window the chapter does not declare takes its
+/// (ADR 0098). Always present: a window the bluebook does not declare takes its
 /// labelled legacy default.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CheckoutWindows {
@@ -150,7 +150,7 @@ pub fn newsletter_windows_binding() -> (u64, u64) {
 
 /// LEGACY DEFAULT: the states a new subscriber waits in, used while the
 /// `newsletter` fact carries no `awaiting_confirmation` list, because the
-/// Newsletter chapter predates the marks and does not declare
+/// Newsletter bluebook predates the marks and does not declare
 /// `provides "newsletter", ..., awaiting_confirmation: "Subscriber.awaiting_confirmation"`.
 /// Delete this (and the fallback in `newsletter_provider`) once every shipped
 /// Newsletter bluebook does.
@@ -290,7 +290,7 @@ pub fn newsletter_provider(domain_ir: &Value) -> Option<NewsletterProvider> {
     })
 }
 
-/// The chapter that declares `provides "newsletter_issues"`, read from
+/// The bluebook that declares `provides "newsletter_issues"`, read from
 /// `ir.json`'s `provides.newsletter_issues` fact. Omitted when nothing declares it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewsletterIssuesProvider {
@@ -322,11 +322,11 @@ pub fn newsletter_issues_provider(domain_ir: &Value) -> Option<NewsletterIssuesP
     })
 }
 
-/// The chapter that takes payments, read from `ir.json`'s `provides.payments`
+/// The bluebook that takes payments, read from `ir.json`'s `provides.payments`
 /// fact. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PaymentsProvider {
-    /// Chapter name, e.g. `Payments`.
+    /// Bluebook name, e.g. `Payments`.
     pub provider: String,
     /// Qualified initiate command, e.g. `Payments::Payment.Initiate`.
     pub initiate: String,
@@ -340,38 +340,38 @@ pub struct PaymentsProvider {
     pub aggregate: String,
     /// Payment states whose registration still holds a seat: the `holds_seat`
     /// list of the `payments` fact (the payment lifecycle's mark), or
-    /// [`LEGACY_HOLDS_SEAT`] when the chapter declares none.
+    /// [`LEGACY_HOLDS_SEAT`] when the bluebook declares none.
     pub holds_seat: Vec<String>,
     /// The failure reason a lapsed checkout hold records: the `lapse_reason` of
     /// the `payments` fact (ADR 0099), or [`LEGACY_LAPSE_REASON`] when the
-    /// chapter declares none.
+    /// bluebook declares none.
     pub lapse_reason: String,
 }
 
 /// LEGACY DEFAULT: the failure reason a lapsed hold records, used while the
 /// `payments` capability fact carries no `lapse_reason` because the Payments
-/// chapter predates `provides "payments", lapse_reason: "Payment.lapse_reason"`.
+/// bluebook predates `provides "payments", lapse_reason: "Payment.lapse_reason"`.
 /// Delete this (and the fallback in `payments_provider`) once every shipped
 /// Payments bluebook declares it.
 pub const LEGACY_LAPSE_REASON: &str = "checkout_expired";
 
 /// LEGACY DEFAULT: the registration attributes guessed to hold the timestamp, in
 /// order, used while the `registrations` fact carries no `registered_at` because
-/// the chapter predates `provides "registrations", registered_at: "Registration.requested_at"`.
+/// the bluebook predates `provides "registrations", registered_at: "Registration.requested_at"`.
 /// Delete this (and the fallback in `registrations_provider`) once every shipped
 /// bluebook declares it.
 pub const LEGACY_REGISTERED_AT: [&str; 4] =
     ["created_at", "registered_at", "requested_at", "occurred_at"];
 
 /// LEGACY DEFAULT: the seat-holding payment states used while the `payments`
-/// capability fact carries no `holds_seat` list, because the Payments chapter
+/// capability fact carries no `holds_seat` list, because the Payments bluebook
 /// predates `mark :holds_seat` and does not declare
 /// `provides "payments", holds_seat: "Payment.holds_seat"`. Delete this (and the
 /// fallback in `payments_provider`) once every shipped Payments bluebook does.
 pub const LEGACY_HOLDS_SEAT: [&str; 4] = ["pending", "succeeded", "refunding", "disputed"];
 
 /// LEGACY DEFAULT: the registration state that gives its seat back, used while the
-/// `registrations` capability fact carries no `frees_seat` list, because the chapter
+/// `registrations` capability fact carries no `frees_seat` list, because the bluebook
 /// predates `mark :frees_seat` and does not declare
 /// `provides "registrations", frees_seat: "Registration.frees_seat"`. Delete this (and the
 /// fallback in `registrations_provider`) once every shipped bluebook declares it.
@@ -436,11 +436,11 @@ pub fn payments_provider(domain_ir: &Value) -> Option<PaymentsProvider> {
     })
 }
 
-/// The chapter that answers scheduling sessions and taking registrations,
+/// The bluebook that answers scheduling sessions and taking registrations,
 /// read from `ir.json`'s `provides.registrations` fact. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RegistrationsProvider {
-    /// Chapter name, e.g. `Studio`.
+    /// Bluebook name, e.g. `Studio`.
     pub provider: String,
     /// Qualified schedule command, e.g. `Studio::Event.Schedule`.
     pub schedule: String,
@@ -452,11 +452,11 @@ pub struct RegistrationsProvider {
     pub registration_aggregate: String,
     /// The registration attributes that may hold when it was asked for, in the order
     /// to try them: the one `registered_at` of the `registrations` fact names
-    /// (ADR 0099), or [`LEGACY_REGISTERED_AT`] when the chapter declares none.
+    /// (ADR 0099), or [`LEGACY_REGISTERED_AT`] when the bluebook declares none.
     pub timestamp_keys: Vec<String>,
     /// Registration states that give their seat back: the `frees_seat` list of the
     /// `registrations` fact (the registration lifecycle's mark), or [`LEGACY_FREES_SEAT`]
-    /// when the chapter declares none.
+    /// when the bluebook declares none.
     pub frees_seat: Vec<String>,
 }
 
@@ -494,7 +494,7 @@ impl RegistrationsProvider {
     }
 
     /// The request command's own aggregate and command name without the
-    /// chapter qualifier, e.g. `("Registration", "Request")`, as `command_declares` expects.
+    /// bluebook qualifier, e.g. `("Registration", "Request")`, as `command_declares` expects.
     pub fn request_target(&self) -> Option<(&str, &str)> {
         self.request.rsplit("::").next()?.split_once('.')
     }
@@ -569,11 +569,11 @@ pub enum ConnectionVerb {
     Disable,
 }
 
-/// The chapter that owns the business's payment-processor connection, read
+/// The bluebook that owns the business's payment-processor connection, read
 /// from `ir.json`'s `provides.payment_connection` fact. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PaymentConnectionProvider {
-    /// Chapter name, e.g. `Studio`.
+    /// Bluebook name, e.g. `Studio`.
     pub provider: String,
     pub connect: String,
     pub reconnect: String,

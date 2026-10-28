@@ -28,8 +28,8 @@ RSpec.describe "the generated parser table" do
 
   # `declares: "Syntax"` is stated at registration, so the registry refuses before the
   # projection runs.
-  it "refuses a chapter with no Syntax aggregate" do
+  it "refuses a bluebook with no Syntax aggregate" do
     expect { Hecks::Projector.call(:parser_table, bluebook: boot_in_memory.registry.bluebook("Pizzas")) }
-      .to raise_error(Hecks::Projector::WrongConstruct, /needs a chapter declaring Syntax/)
+      .to raise_error(Hecks::Projector::WrongConstruct, /needs a bluebook declaring Syntax/)
   end
 end

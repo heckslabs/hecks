@@ -17,7 +17,7 @@ module Hecks
         # @raise [RuntimeError] if no domain has been booted
         def dispatcher = @dispatcher || raise("no Hecks domain booted; call Hecks::Rails::Booted.boot")
 
-        # @return [Array<Hecks::Bluebook::Chapter>] the booted chapters the app declared, without
+        # @return [Array<Hecks::Bluebook::Chapter>] the booted bluebooks the app declared, without
         #   the ones a hecksagon attached, such as Governance
         def app_chapters = registry.bluebooks.values.reject { |chapter| registry.bounded?(chapter.name) }
 
@@ -27,20 +27,20 @@ module Hecks
         # @return [Object] the booted registry
         def registry = dispatcher.registry
 
-        # Finds a booted chapter by name, ignoring case, so `hecks_routes "ledger"` finds Ledger.
+        # Finds a booted bluebook by name, ignoring case, so `hecks_routes "ledger"` finds Ledger.
         #
-        # @param name [String, Symbol] the chapter's name in any case
-        # @return [Hecks::Bluebook::Chapter] the chapter
-        # @raise [KeyError] if no booted chapter has that name
+        # @param name [String, Symbol] the bluebook's name in any case
+        # @return [Hecks::Bluebook::Chapter] the bluebook
+        # @raise [KeyError] if no booted bluebook has that name
         def chapter(name)
           registry.bluebooks.each { |chapter_name, chapter| return chapter if chapter_name.to_s.casecmp?(name.to_s) }
           raise KeyError, "no booted chapter named #{name}"
         end
 
-        # The aggregate's module in the booted domain. A chapter with a `namespace` keeps its
+        # The aggregate's module in the booted domain. A bluebook with a `namespace` keeps its
         # aggregates out of the top level, leaving a Rails model free to take their names.
         #
-        # @param chapter_name [String] a booted chapter's name
+        # @param chapter_name [String] a booted bluebook's name
         # @param aggregate_name [String] one of its aggregates
         # @return [Module] the module the Ruby driving adapter installed for the aggregate
         def door(chapter_name, aggregate_name)

@@ -76,7 +76,7 @@ fn run(args: &[String]) -> Result<(), RunError> {
     }
 }
 
-/// The chapter a `chapter` or `render` call names and the files it reads, as `(path, source)`.
+/// The bluebook a `chapter` or `render` call names and the files it reads, as `(path, source)`.
 fn read_chapter_args(
     subcommand: &str,
     args: &[String],
@@ -113,7 +113,7 @@ fn read_chapter_args(
     Ok((chapter_name, loaded))
 }
 
-/// `hecks-parse chapter --chapter <Name> <files...>`: emits the chapter's `ir.json` on stdout.
+/// `hecks-parse chapter --chapter <Name> <files...>`: emits the bluebook's `ir.json` on stdout.
 fn run_chapter(args: &[String]) -> Result<(), RunError> {
     let (chapter_name, loaded) = read_chapter_args("chapter", args)?;
     let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
@@ -121,8 +121,8 @@ fn run_chapter(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse render --chapter <Name> <files...>`: prints the chapter as the Ruby-shaped
-/// bluebook text that declares the same IR, so a chapter written as sentences can be loaded by
+/// `hecks-parse render --chapter <Name> <files...>`: prints the bluebook as the Ruby-shaped
+/// bluebook text that declares the same IR, so a bluebook written as sentences can be loaded by
 /// Ruby.
 fn run_render(args: &[String]) -> Result<(), RunError> {
     let (chapter_name, loaded) = read_chapter_args("render", args)?;
@@ -135,7 +135,7 @@ fn run_render(args: &[String]) -> Result<(), RunError> {
 }
 
 /// `hecks-parse examples --chapter <Name> --examples <file> [--also <file>] <chapter files...>`:
-/// prints the `.behaviors` text that runs the examples file against the chapter. Each `--also`
+/// prints the `.behaviors` text that runs the examples file against the bluebook. Each `--also`
 /// file is booted with it but not parsed, as a hecksagon is.
 fn run_examples(args: &[String]) -> Result<(), RunError> {
     let mut examples_path: Option<String> = None;
@@ -158,8 +158,8 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
     let source = fs::read_to_string(&examples_path)
         .map_err(|e| RunError::Usage(format!("could not read '{examples_path}': {e}")))?;
     let bluebook = parse::chapter::parse_chapter(&chapter_name, &loaded)?;
-    // The suite boots the chapter's files and then any `--also` files (the Memory-bound
-    // hecksagon that answers the chapter's asks), each by its absolute path.
+    // The suite boots the bluebook's files and then any `--also` files (the Memory-bound
+    // hecksagon that answers the bluebook's asks), each by its absolute path.
     let absolute: Vec<String> = loaded
         .iter()
         .map(|(path, _)| path)
@@ -174,7 +174,7 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse format --chapter <Name> <files...>`: prints the chapter, whichever form its files
+/// `hecks-parse format --chapter <Name> <files...>`: prints the bluebook, whichever form its files
 /// are written in, as canonical sentences.
 fn run_format(args: &[String]) -> Result<(), RunError> {
     let (chapter_name, loaded) = read_chapter_args("format", args)?;
@@ -236,8 +236,8 @@ fn run_complete(args: &[String]) -> Result<(), RunError> {
     Ok(())
 }
 
-/// `hecks-parse resolve --chapter <Name> <file.hecksagon>`: prints that chapter's
-/// `attaches` names as JSON, in file order: `gem_chapters` for a chapter the gem carries and
+/// `hecks-parse resolve --chapter <Name> <file.hecksagon>`: prints that bluebook's
+/// `attaches` names as JSON, in file order: `gem_chapters` for a bluebook the gem carries and
 /// `vendored_packages` for `from: :vendor`.
 ///
 /// `--chapter` is required because one file can hold several `Hecks.hecksagon` blocks.

@@ -5,7 +5,7 @@ require "fileutils"
 require "open3"
 require_relative "support/deploy_roll_context"
 
-# `hecks deploy service_roll.run` and `box_roll.run` end to end: the Deploy chapter's ServiceRoll
+# `hecks deploy service_roll.run` and `box_roll.run` end to end: the Deploy bluebook's ServiceRoll
 # and BoxRoll ask the DeployToolchain port, the Hecks domain binds its adapter, and the generated
 # `deploy-service.sh` and `deploy-box.sh` (the golden files) run against stand-in `aws`, `docker`
 # and `gh` programs. A successful roll's policy requests a SmokeRun. Nothing reaches AWS or GitHub.
@@ -13,7 +13,7 @@ require_relative "support/deploy_roll_context"
 RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
   include_context "with the deploy roll stand-ins"
 
-  it "declares both rolls in the Deploy chapter, with the DeployToolchain port they ask", :aggregate_failures do
+  it "declares both rolls in the Deploy bluebook, with the DeployToolchain port they ask", :aggregate_failures do
     chapter = @hecks.registry.bluebook("Deploy")
 
     expect(chapter.aggregate("ServiceRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag Verify FlagSmoke])

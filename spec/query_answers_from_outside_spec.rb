@@ -528,7 +528,7 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       Open3.capture3(PARSER_BINARY, "chapter", "--chapter", "Lookup", path)
     end
 
-    # The Lookup chapter as the Ruby exporter writes its IR.
+    # The Lookup bluebook as the Ruby exporter writes its IR.
     def ruby_export(path)
       registry = Hecks::Runtime::Registry.new(root: @dir)
       Hecks.with_registry(registry) do

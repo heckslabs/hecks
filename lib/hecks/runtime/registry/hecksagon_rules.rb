@@ -70,7 +70,7 @@ module Hecks
           return if @declared.bluebooks.values.any? { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
 
           raise WiringError,
-                "a chapter that provides \"membership\" is loaded, but none provides " \
+                "a bluebook that provides \"membership\" is loaded, but none provides " \
                 "\"identity\" — rust/host Google sign-in cannot register or link an " \
                 "identity from the hecksagon/world. Attach Identity (`attaches " \
                 "\"Identity\"` plus a sibling Hecks.hecksagon \"Identity\") so the " \
@@ -108,7 +108,7 @@ module Hecks
 
           raise WiringError,
                 "#{hecksagon.domain} is marked bounded but never declared a " \
-                "translates ACL — a bounded chapter wraps in its own module and " \
+                "translates ACL — a bounded bluebook wraps in its own module and " \
                 "cross-context field mapping lives on the hecksagon, not in " \
                 "rust/host and not as a field list on the bluebook. " \
                 "Add `translates \"Name\" do on Foreign::Event; trigger Local::Command, " \
@@ -119,7 +119,7 @@ module Hecks
         # "authorization"` — never a hardcoded name.
         def authorization_attachment_hint
           providers = Framework.providers_of(Bluebook::Capabilities::AUTHORIZATION)
-          return "attaches a chapter that provides \"authorization\" (no framework member declares one)" if providers.empty?
+          return "attaches a bluebook that provides \"authorization\" (no framework member declares one)" if providers.empty?
 
           providers.map { |name| "attaches #{name.inspect}" }.join(" or ")
         end
