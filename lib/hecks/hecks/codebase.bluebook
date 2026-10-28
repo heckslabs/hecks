@@ -2566,10 +2566,16 @@ Hecks.bluebook "Hecks" do
     attribute :field,     FieldName, optional: true
     attribute :port,      Port, optional: true
     attribute :agent,     AgentName, optional: true
+    attribute :directory, Directory, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
     attribute :refusal,   Report, optional: true
     identified_by :run
+
+    # One directory of files, named by a path.
+    value_object "Directory" do
+      attribute :value, String, matches: :present
+    end
 
     value_object "RunKey" do
       attribute :value, String, matches: :present
@@ -2671,6 +2677,22 @@ Hecks.bluebook "Hecks" do
       sets :operation, to: "compose"
 
       emits ComposeRequested
+    end
+
+    command "Preview" do
+      role "Maintainer"
+      goal "Serve one directory of static files, such as a website, on a local port until stopped"
+
+      attribute :directory, Directory
+      attribute :port,      Port, optional: true
+      attribute :run,       RunKey
+
+      sets :directory
+      sets :port
+      sets :run
+      sets :operation, to: "preview"
+
+      emits PreviewRequested
     end
 
     # What the tree reported about itself, held against every request: nothing here runs
@@ -2779,6 +2801,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenComposeRequested" do
     on      "CorpusRun.ComposeRequested"
+    trigger CorpusRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenPreviewRequested" do
+    on      "CorpusRun.PreviewRequested"
     trigger CorpusRun::SourceTree::Examine, with: { run: :run }
   end
 
