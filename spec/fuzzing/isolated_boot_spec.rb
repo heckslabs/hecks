@@ -189,7 +189,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
   # The Postgres-mode worlds declare a `default_adapter` that needs a `database`, so such a
   # bluebook gets a world of its own that falls back to Memory, as it did before those worlds
   # carried a `default_adapter`.
-  describe ".write_unbound_chapter_worlds!" do
+  describe ".write_unbound_bluebook_worlds!" do
     def unbound_worlds(copy, dir)
       text = File.read(File.join(copy, dir, "hecks_fuzz_unbound.world"))
       text.scan(/Hecks\.world "([^"]+)" do\n  default_adapter "Memory"/).flatten
@@ -200,7 +200,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
       write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
       write(copy, "bluebook/extra.bluebook", %(Hecks.bluebook "Extra" do\nend\n))
 
-      described_class.write_unbound_chapter_worlds!(copy)
+      described_class.write_unbound_bluebook_worlds!(copy)
 
       expect(unbound_worlds(copy, "bluebook")).to eq(["Extra"])
     end
@@ -209,7 +209,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
       write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
       write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
 
-      described_class.write_unbound_chapter_worlds!(copy)
+      described_class.write_unbound_bluebook_worlds!(copy)
 
       expect(Dir.glob(File.join(copy, "**", "*.world"))).to be_empty
     end
@@ -218,7 +218,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
       write(copy, "a/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
       write(copy, "b/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
 
-      described_class.write_unbound_chapter_worlds!(copy)
+      described_class.write_unbound_bluebook_worlds!(copy)
 
       expect(Dir.glob(File.join(copy, "**", "*.world")).size).to eq(1)
     end

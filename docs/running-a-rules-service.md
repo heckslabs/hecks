@@ -764,7 +764,7 @@ not usable from this repository alone, for three reasons.
    `admit` and `grant` name the commands that admit a person and give them a role (the
    grant command is `role`-gated, to `Admin` for instance), and `people` the query
    that lists everyone. Without that line the verb is refused with
-   `this domain attaches no chapter that provides "membership"` followed by the line to add.
+   `this domain attaches no bluebook that provides "membership"` followed by the line to add.
 
 Both routes carry the person's Governance identity id as `identity_id`, the
 value an `actor_id` binds when a caller dispatches on that person's behalf.

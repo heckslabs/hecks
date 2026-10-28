@@ -1,4 +1,4 @@
-# The Payments chapter checkout_fixture's routes dispatch into
+# The Payments bluebook checkout_fixture's routes dispatch into
 # (`Payments::Payment.Initiate`, `.PaymentGateway.Succeeded/Failed`) —
 # a trimmed copy of embryonaut_bluebooks' payments package, keeping only
 # the initiate/settle/decline path and the invariant/given wording
@@ -7,7 +7,7 @@ Hecks.bluebook "Payments" do
   vision "Collect a payment through a processor and record what the processor said happened."
   core
 
-  # What this chapter answers for every domain that attaches it: start a
+  # What this bluebook answers for every domain that attaches it: start a
   # payment, and hear the processor's verdict. The verdicts are the two
   # PaymentGateway port operations declared on the sibling hecksagon.
   # Declared in this file, beside Payment, because each `.bluebook` file is

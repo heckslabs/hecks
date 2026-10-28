@@ -1,4 +1,4 @@
-# The port Site declares, for every hecksagon that attaches the bluebook (`Chapters` loads this file
+# The port Site declares, for every hecksagon that attaches the bluebook (`Bluebooks` loads this file
 # with it). Each projection asks the SiteToolchain port, which the Hecks domain binds
 # (lib/hecks/hecks/adapters/site_toolchain.rb): the outside a projection reaches. The ask is
 # answered with the record's own arguments or refused with a reason. The port has to be declared

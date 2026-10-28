@@ -35,9 +35,9 @@ fn now_implemented_fixtures_parse_for_real() {
         ("entity.bluebook", "FixtureEntity"),
     ];
 
-    for (file, chapter) in cases {
+    for (file, declaration) in cases {
         let path = fixture(file);
-        let output = run(&["bluebook", "--bluebook", chapter, path.to_str().unwrap()]);
+        let output = run(&["bluebook", "--bluebook", declaration, path.to_str().unwrap()]);
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
@@ -50,8 +50,8 @@ fn now_implemented_fixtures_parse_for_real() {
             "{file}: expected real ir.json on stdout, got: {stdout}"
         );
         assert!(
-            stdout.contains(&format!("\"name\": \"{chapter}\"")),
-            "{file}: expected the chapter's own name in its ir.json, got: {stdout}"
+            stdout.contains(&format!("\"name\": \"{declaration}\"")),
+            "{file}: expected the bluebook's own name in its ir.json, got: {stdout}"
         );
     }
 }
@@ -230,7 +230,7 @@ fn query_arguments_are_inferred_from_local_and_resolved_hop_fields() {
     let deferred_hop = stdout.find("\"name\": \"ancestor_label\"").unwrap();
     assert!(
         local_label < local_value && local_value < deferred_hop,
-        "local inference must precede the chapter-deferred hop phase: {stdout}"
+        "local inference must precede the bluebook-deferred hop phase: {stdout}"
     );
 }
 
@@ -322,7 +322,7 @@ fn hecksagon_fixtures_resolve_for_real() {
     );
     assert!(
         stdout.contains("\"domain\": \"FixtureHecksagon\""),
-        "hecksagon.hecksagon: expected the chapter's own name, got: {stdout}"
+        "hecksagon.hecksagon: expected the bluebook's own name, got: {stdout}"
     );
     assert!(stdout.contains("\"Governance\""), "hecksagon.hecksagon: expected its own attaches \"Governance\" to be reported, got: {stdout}");
 
@@ -339,7 +339,7 @@ fn hecksagon_fixtures_resolve_for_real() {
     assert!(output.status.success(), "domain_port.hecksagon: expected a clean resolve now that resolve is built. stderr={stderr}");
     assert!(
         stdout.contains("\"domain\": \"FixtureDomainPort\""),
-        "domain_port.hecksagon: expected the chapter's own name, got: {stdout}"
+        "domain_port.hecksagon: expected the bluebook's own name, got: {stdout}"
     );
     assert!(
         !stdout.contains("Governance") && !stdout.contains("Identity"),
@@ -348,7 +348,7 @@ fn hecksagon_fixtures_resolve_for_real() {
 }
 
 #[test]
-fn resolve_without_chapter_is_a_usage_error_not_a_parse_error() {
+fn resolve_without_bluebook_is_a_usage_error_not_a_parse_error() {
     let path = fixture("hecksagon.hecksagon");
     let output = run(&["resolve", path.to_str().unwrap()]);
     let stderr = String::from_utf8_lossy(&output.stderr);

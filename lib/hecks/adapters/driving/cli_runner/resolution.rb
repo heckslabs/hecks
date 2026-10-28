@@ -16,7 +16,7 @@ module Hecks
             refused = Admission.refusal(runtime.registry, "Cli")
             return { answer: [refused, 1] } if refused
 
-            bluebook, argv, program = chapter_for(runtime, argv, program)
+            bluebook, argv, program = bluebook_for(runtime, argv, program)
             launcher = LauncherOptions.settings(runtime, bluebook.name)
             options  = LauncherOptions.projection(launcher, program)
             cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
@@ -82,19 +82,19 @@ module Hecks
           # each
           # with the first sentence of what it is for.
           #
-          # @return [Hash{Symbol => Object}] `:hide` and `:chapters` (pairs of word and summary)
+          # @return [Hash{Symbol => Object}] `:hide` and `:bluebooks` (pairs of word and summary)
           def audience(runtime, launcher, maintainer: LauncherOptions.maintainer?,
                        newcomer: !maintainer && Newcomer.applies?)
             shown = (newcomer && Newcomer.audience(launcher)) || LauncherOptions.audience(launcher, maintainer)
-            return shown unless shown[:chapters]
+            return shown unless shown[:declarations]
 
-            shown.merge(chapters: chapter_summaries(runtime, shown[:chapters]))
+            shown.merge(declarations: bluebook_summaries(runtime, shown[:declarations]))
           end
 
           # Each named bluebook the domain attaches, as its word and the first sentence of its
           # vision.
-          def chapter_summaries(runtime, names)
-            known = attached_chapters(runtime)
+          def bluebook_summaries(runtime, names)
+            known = attached_bluebooks(runtime)
             names.filter_map do |name|
               next unless known.include?(name)
 
@@ -139,18 +139,18 @@ module Hecks
           # The bluebook a command line speaks to: the booted domain's own, or, when the first word
           # names a bluebook its hecksagon attaches or uses as a framework member (`deploy`,
           # `governance`), that bluebook, with the word dropped and added to the program name.
-          def chapter_for(runtime, argv, program)
+          def bluebook_for(runtime, argv, program)
             own    = runtime.first_bluebook
-            target = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
+            target = attached_bluebooks(runtime).find { |name| Naming.snake(name) == argv.first }
             return [own, argv, program] unless target
 
             [runtime.bluebook(target), argv[1..], "#{program} #{argv.first}"]
           end
 
           # The bluebooks the booted domain's hecksagon attaches or uses as framework members.
-          def attached_chapters(runtime)
+          def attached_bluebooks(runtime)
             own = runtime.first_bluebook
-            Array(runtime.hecksagon(own.name)&.member_chapters)
+            Array(runtime.hecksagon(own.name)&.member_bluebooks)
           end
         end
       end

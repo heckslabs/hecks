@@ -185,7 +185,7 @@ unrelated, un-fixed-here divergences.
 ## Not done here, on purpose
 
 `model_check` (`bin/model_check qa/stress_domains/tenant_ledger`)
-reports clean — 2 chapters, no dead states, no unreachable protocol
+reports clean — 2 bluebooks, no dead states, no unreachable protocol
 steps — so no `ALLOWED_FINDINGS` entry was needed, matching `waybill`'s/
 `ledger_ordering`'s own precedent of leaving that allowlist untouched
 for a domain outside `MODEL_CHECK_CORPUS`. `spec/rust_conformance_fuzz_

@@ -26,7 +26,7 @@ module Hecks
     # @return [Array<String>] the names of every framework member that provides it,
     #   sorted
     def self.providers_of(capability)
-      members.keys.select { |name| chapter(name).provides?(capability) }.sort
+      members.keys.select { |name| declaration(name).provides?(capability) }.sort
     end
 
     # One member's bluebook, built in isolation.
@@ -34,7 +34,7 @@ module Hecks
     # @param name [String, Symbol] the member's name, such as `"Governance"`
     # @return [Bluebook::Declaration] the member's bluebook, loaded into a scratch registry
     # @raise [Runtime::WiringError] if no framework member has that name
-    def self.chapter(name)
+    def self.declaration(name)
       path = members.fetch(name.to_s) do
         raise Runtime::WiringError,
               "no framework member named #{name.inspect} — known: #{members.keys.sort.join(", ")}"

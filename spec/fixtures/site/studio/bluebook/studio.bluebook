@@ -1,4 +1,4 @@
-# A studio's one domain chapter: a visitor sends an inquiry. The route table in
+# A studio's one domain bluebook: a visitor sends an inquiry. The route table in
 # studio_site.bluebook reaches its command through the forms scheme.
 Hecks.bluebook "Studio" do
   vision "A studio takes inquiries from visitors."

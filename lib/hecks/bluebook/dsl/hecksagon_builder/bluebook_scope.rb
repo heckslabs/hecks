@@ -5,7 +5,7 @@ module Hecks
         # The per-thread state of the hecksagon build in progress, and the shadowing of `Hecks`'s
         # real modules that lets the Hecks bluebook spell its aggregates `Hecks::Operation`.
         # Extended onto `HecksagonBuilder`.
-        module ChapterScope
+        module BluebookScope
           # The bind collector of the build running on this thread; thread-local, so a build
           # on another thread never sees it.
           #
@@ -34,7 +34,7 @@ module Hecks
           end
 
           # Takes off `Hecks` each real module a bluebook aggregate shares its name with, so the
-          # name reaches `ChapterConstants#const_missing`. Only the bluebook named Hecks has this
+          # name reaches `BluebookConstants#const_missing`. Only the bluebook named Hecks has this
           # collision; a nested build of it leaves the outer build's shadows in place.
           #
           # @param domain [String, Symbol] the bluebook whose hecksagon is being built
@@ -43,7 +43,7 @@ module Hecks
           def shadowed(domain)
             return {} unless domain.to_s == "Hecks"
 
-            chapter_aggregate_names.select { |name| Hecks.const_defined?(name, false) }.to_h do |name|
+            bluebook_aggregate_names.select { |name| Hecks.const_defined?(name, false) }.to_h do |name|
               pending = Hecks.autoload?(name)
               held    = pending ? [:autoload, pending] : [:module, Hecks.const_get(name, false)]
               Hecks.send(:remove_const, name)
@@ -101,9 +101,9 @@ module Hecks
 
           private
 
-          def chapter_aggregate_names
-            chapter = Hecks.current_registry&.bluebook("Hecks")
-            chapter ? chapter.aggregates.map { |aggregate| aggregate.hecks_name.to_sym } : []
+          def bluebook_aggregate_names
+            declaration = Hecks.current_registry&.bluebook("Hecks")
+            declaration ? declaration.aggregates.map { |aggregate| aggregate.hecks_name.to_sym } : []
           end
 
           def reshadow(hidden, name)

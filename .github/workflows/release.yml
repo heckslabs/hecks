@@ -275,7 +275,7 @@ jobs:
 
       # Boots Hecks once into an empty cache and ships what it wrote (`prebuilt/`, which the
       # gemspec lists), so a first run after `gem install` reads the syntax-boot and verdict caches
-      # instead of judging every chapter. The caches are keyed by this very `lib/` and the Ruby
+      # instead of judging every bluebook. The caches are keyed by this very `lib/` and the Ruby
       # series, so a copy that does not match is ignored, never wrong. A failure here only costs
       # that first run its speed, so it never stops the release.
       - name: Build the caches the gem ships

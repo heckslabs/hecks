@@ -1,6 +1,6 @@
-# Fixture for chapter-wide, entity-scoped `given`: entities of two different aggregates
+# Fixture for bluebook-wide, entity-scoped `given`: entities of two different aggregates
 # share one predicate across the aggregate boundary via `declared_by:`.
-Hecks.bluebook "ChapterEntityGiven" do
+Hecks.bluebook "BluebookEntityGiven" do
   vision "Two aggregates' own nested entities sharing one precondition across the aggregate boundary."
   core
 

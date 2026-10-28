@@ -8,7 +8,7 @@ require "hecks/tools/site_routes"
 # table into the marked regions of a template the project owns. spec/fixtures/site/studio is the
 # neutral sample project; spec/fixtures/site/template.yaml is its template as the projection must
 # leave it, byte for byte (`GOLDEN=rewrite` regenerates it, to be read in the diff).
-RSpec.describe "the Site chapter's edge" do
+RSpec.describe "the Site bluebook's edge" do
   let(:tool)    { Hecks::Tools::SiteRoutes }
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio") }
   let(:golden)  { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/template.yaml") }

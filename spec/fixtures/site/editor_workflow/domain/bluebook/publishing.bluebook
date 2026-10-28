@@ -1,6 +1,6 @@
-# A small newsroom's posts and pages, as the first chapter of the editor-workflow fixture. A post has
+# A small newsroom's posts and pages, as the first bluebook of the editor-workflow fixture. A post has
 # a lifecycle; a page has none. Everything that goes with one (its text, its pictures, its search
-# wording, its scheduled actions) lives in other chapters and is named by the key `post:<slug>` or
+# wording, its scheduled actions) lives in other bluebooks and is named by the key `post:<slug>` or
 # `page:<slug>`.
 Hecks.bluebook "Publishing" do
   vision "The posts and pages a small newsroom keeps."

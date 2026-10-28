@@ -17,7 +17,7 @@ module Hecks
       #
       # @param key [String, Symbol] key to register `self` under
       # @param requires [Module, Array<Module>, nil] capability module(s) required;
-      #   nil/empty means `Bluebook::Behaviour::Chapter`
+      #   nil/empty means `Bluebook::Behaviour::Bluebook`
       # @param declares [String, Symbol, Array, nil] aggregate name(s) the bluebook must declare
       # @param emits [Symbol] :artifact (a Hash/String, the default) or :files (a path => tree)
       # @param needs_world [Boolean] true refuses a call made with no `world:` bindings
@@ -38,7 +38,7 @@ module Hecks
       def projection_key = @projection_key
 
       # Empty means "a bluebook" — resolved here rather than as a default
-      # argument, because Behaviour::Chapter is not loaded yet when this
+      # argument, because Behaviour::Bluebook is not loaded yet when this
       # file is.
       #
       # @return [Array<String, Symbol>] aggregate names the bluebook must declare; empty
@@ -70,12 +70,12 @@ module Hecks
       end
 
       # Names the capability module(s) a construct must satisfy, defaulting
-      # to plain chapter-hood when `projects_as` named none.
+      # to plain bluebook-hood when `projects_as` named none.
       #
       # @return [Array<Module>] required capability modules
       def projection_requires
         req = @projection_requires
-        req.nil? || req.empty? ? [Bluebook::Behaviour::Chapter] : req
+        req.nil? || req.empty? ? [Bluebook::Behaviour::Declaration] : req
       end
     end
   end

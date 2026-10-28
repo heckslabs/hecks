@@ -15,10 +15,10 @@ module Hecks
         #   directory
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @return [Hash{String => String}] each file's absolute path to its text; empty with no rows
-        def root_files(dir, chapter)
+        def root_files(dir, declaration)
           base = File.expand_path(dir)
-          files = Projector.call(:site_root, bluebook: chapter).merge(Projector.call(:site_host, bluebook: chapter))
-          files = files.merge(payload_files(base, chapter))
+          files = Projector.call(:site_root, bluebook: declaration).merge(Projector.call(:site_host, bluebook: declaration))
+          files = files.merge(payload_files(base, declaration))
           files.to_h { |name, text| [File.join(base, name), text] }
         end
 
@@ -29,14 +29,14 @@ module Hecks
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the
         #   rows
         # @return [Hash{String => String}] each file's path relative to `base` to its text
-        def payload_files(base, chapter)
-          row = Projections::Site::PayloadDriver::PAYLOAD.read(chapter).first
+        def payload_files(base, declaration)
+          row = Projections::Site::PayloadDriver::PAYLOAD.read(declaration).first
           return {} unless row
 
           domain_root = File.join(base, row[:domain])
           domain = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == row[:bluebook] }
           abort "project_site: #{domain_root} declares no bluebook #{row[:bluebook]}" unless domain
-          Projector.call(:payload_driver, bluebook: chapter, options: { domain_chapter: domain })
+          Projector.call(:payload_driver, bluebook: declaration, options: { domain_bluebook: domain })
         rescue ArgumentError => e
           abort "project_site: #{e.message}"
         end
@@ -48,10 +48,10 @@ module Hecks
         # @param admin [Projections::Site::Admin, nil] the checked admin row
         # @return [Hash{String => String}] each file's absolute path to its text
         # @raise [SystemExit] when `--cms` is named and the project declares no `Admin` row
-        def cms_files(cms, chapter, admin)
+        def cms_files(cms, declaration, admin)
           abort "project_site: --cms names #{cms}, but the project declares no Admin row" if admin.nil?
 
-          files = Projector.call(:site_admin_cms, bluebook: chapter, options: { admin: admin })
+          files = Projector.call(:site_admin_cms, bluebook: declaration, options: { admin: admin })
           files.to_h { |name, text| [File.join(File.expand_path(cms), name), text] }
         end
       end

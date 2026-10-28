@@ -12,10 +12,10 @@ module Hecks
 
           # `equal?`, not `==` — bluebook identity, not value equality, is the
           # fact this cache key tracks.
-          def same_chapters?(cached, current)
+          def same_bluebooks?(cached, current)
             cached.size == current.size &&
-              cached.zip(current).all? do |(cached_name, cached_chapter), (name, chapter)|
-                cached_name == name && cached_chapter.equal?(chapter)
+              cached.zip(current).all? do |(cached_name, cached_bluebook), (name, declaration)|
+                cached_name == name && cached_bluebook.equal?(declaration)
               end
           end
 
@@ -31,10 +31,10 @@ module Hecks
           # Fails toward a real boot, never toward a wrong table: a missing
           # file, a corrupt blob, or a permission error just misses the cache. A table
           # the user has not cached is looked for among the ones the gem ships.
-          def read_disk_cache(chapters)
+          def read_disk_cache(declarations)
             return nil unless disk_cache_enabled?
 
-            path = disk_cache_path(chapters)
+            path = disk_cache_path(declarations)
             return load_table(path, touch: true) if File.exist?(path)
 
             shipped = Hecks::CacheDir.prebuilt(File.basename(path))
@@ -55,10 +55,10 @@ module Hecks
           # Writes to a PID-suffixed temp file and renames it into place, so a
           # concurrent writer's rename can only overwrite with identical
           # content, never leave a torn file for a concurrent reader.
-          def write_disk_cache(chapters, result)
+          def write_disk_cache(declarations, result)
             return unless disk_cache_enabled?
 
-            path = disk_cache_path(chapters)
+            path = disk_cache_path(declarations)
             FileUtils.mkdir_p(cache_dir)
             tmp_path = "#{path}.#{Process.pid}.tmp"
             File.binwrite(tmp_path, Marshal.dump(result))
@@ -77,12 +77,12 @@ module Hecks
             end
           end
 
-          def disk_cache_path(chapters)
-            File.join(cache_dir, "#{disk_cache_key(chapters)}.marshal")
+          def disk_cache_path(declarations)
+            File.join(cache_dir, "#{disk_cache_key(declarations)}.marshal")
           end
 
-          def disk_cache_key(chapters)
-            names = chapters.map { |name, _chapter| name }
+          def disk_cache_key(declarations)
+            names = declarations.map { |name, _bluebook| name }
             Digest::SHA256.hexdigest("#{names.join(",")}:#{grammar_content_digest}:#{VerdictCache.code_digest}")
           end
 

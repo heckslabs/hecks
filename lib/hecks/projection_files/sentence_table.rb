@@ -9,7 +9,7 @@ module Hecks
       # @return [Result] `rust/parser/src/phrases.rs`, from the Sentence bluebook
       def phrase_table(root)
         require "hecks"
-        text = Projector.call(:phrase_table, bluebook: Projections::PhraseTable.chapter)
+        text = Projector.call(:phrase_table, bluebook: Projections::PhraseTable.declaration)
         Result.new({ File.join(root, "rust/parser/src/phrases.rs") => text }, [])
       end
     end

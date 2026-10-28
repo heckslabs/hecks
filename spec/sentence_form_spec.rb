@@ -19,20 +19,20 @@ RSpec.describe "a bluebook written as sentences", :io do
   after { FileUtils.remove_entry(scratch) }
 
   # The IR Ruby builds from `path`, as the parity spec prints it.
-  def ruby_ir(path, chapter)
+  def ruby_ir(path, declaration)
     registry = Hecks::Runtime::Registry.new(root: File.dirname(path, 2))
     Hecks.with_registry(registry) do
       MemoryPorts.load!
       InMemoryDomain.load_bluebook_files([path])
     end
-    "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch(chapter))}\n"
+    "#{JSON.pretty_generate(Hecks::Projector::Exporter.call(registry).fetch(declaration))}\n"
   end
 
   def parse(*args)
     Open3.capture3(Hecks::Composer::Parse.binary, *args)
   end
 
-  def chapter_of(path) = Hecks::Composer::Parse.chapter_name(path)
+  def bluebook_of(path) = Hecks::Composer::Parse.declaration_name(path)
 
   def twin_of(sentence_file) = File.join(File.dirname(sentence_file), "ruby_form.bluebook")
 
@@ -56,7 +56,7 @@ RSpec.describe "a bluebook written as sentences", :io do
 
   # The names of the aggregates the Ruby form of `sentence_file` declares.
   def twin_aggregates(sentence_file)
-    ir = JSON.parse(ruby_ir(twin_of(sentence_file), chapter_of(sentence_file)))
+    ir = JSON.parse(ruby_ir(twin_of(sentence_file), bluebook_of(sentence_file)))
     ir.fetch("aggregates").map { |aggregate| aggregate.fetch("name") }
   end
 
@@ -77,7 +77,7 @@ RSpec.describe "a bluebook written as sentences", :io do
     end
 
     it "names the bluebook after the Domain line" do
-      expect(Hecks::SentenceForm.chapter_name(sentence)).to eq("Orders")
+      expect(Hecks::SentenceForm.declaration_name(sentence)).to eq("Orders")
     end
   end
 
@@ -91,47 +91,47 @@ RSpec.describe "a bluebook written as sentences", :io do
   PAIRS.each do |sentence_file|
     describe File.basename(File.dirname(sentence_file)) do
       it "reads the bluebook name off its Domain line" do
-        expect(chapter_of(sentence_file)).to eq(chapter_of(twin_of(sentence_file)))
+        expect(bluebook_of(sentence_file)).to eq(bluebook_of(twin_of(sentence_file)))
       end
 
       it "lowers to the byte-identical ir.json Ruby builds from the Ruby form", :aggregate_failures do
-        out, err, status = parse("bluebook", "--bluebook", chapter_of(sentence_file), sentence_file)
+        out, err, status = parse("bluebook", "--bluebook", bluebook_of(sentence_file), sentence_file)
 
         expect(status).to be_success, err
-        expect(out).to eq(ruby_ir(twin_of(sentence_file), chapter_of(sentence_file)))
+        expect(out).to eq(ruby_ir(twin_of(sentence_file), bluebook_of(sentence_file)))
       end
 
       it "is exactly what the formatter writes for the Ruby form", :aggregate_failures do
-        out, err, status = parse("format", "--bluebook", chapter_of(twin_of(sentence_file)), twin_of(sentence_file))
+        out, err, status = parse("format", "--bluebook", bluebook_of(twin_of(sentence_file)), twin_of(sentence_file))
 
         expect(status).to be_success, err
         expect(out).to eq(File.read(sentence_file))
       end
 
       it "is read as the same bluebook by the corpus" do
-        expect(Hecks::Corpus.chapter_name_of(sentence_file)).to eq(chapter_of(twin_of(sentence_file)))
+        expect(Hecks::Corpus.bluebook_name_of(sentence_file)).to eq(bluebook_of(twin_of(sentence_file)))
       end
 
       it "loads through the Folder adapter like any bluebook, as the same aggregates" do
         copy = write_file("bluebook/page.bluebook", File.read(sentence_file))
         registry = registry_loading(File.dirname(copy))
 
-        expect(registry.bluebook(chapter_of(sentence_file)).aggregates.map(&:hecks_name)).to eq(twin_aggregates(sentence_file))
+        expect(registry.bluebook(bluebook_of(sentence_file)).aggregates.map(&:hecks_name)).to eq(twin_aggregates(sentence_file))
       end
 
-      it "records the file the author wrote as the chapter's source" do
+      it "records the file the author wrote as the bluebook's source" do
         copy = write_file("bluebook/page.bluebook", File.read(sentence_file))
         registry = registry_loading(File.dirname(copy))
 
-        expect(registry.bluebook_sources[chapter_of(sentence_file)]).to eq([copy])
+        expect(registry.bluebook_sources[bluebook_of(sentence_file)]).to eq([copy])
       end
 
       it "renders Ruby text that builds that same IR when Ruby loads it" do
-        text, err, status = parse("render", "--bluebook", chapter_of(sentence_file), sentence_file)
+        text, err, status = parse("render", "--bluebook", bluebook_of(sentence_file), sentence_file)
         raise err unless status.success?
 
         rendered = write_file("bluebook/rendered.bluebook", text)
-        expect(ruby_ir(rendered, chapter_of(sentence_file))).to eq(ruby_ir(twin_of(sentence_file), chapter_of(sentence_file)))
+        expect(ruby_ir(rendered, bluebook_of(sentence_file))).to eq(ruby_ir(twin_of(sentence_file), bluebook_of(sentence_file)))
       end
     end
   end

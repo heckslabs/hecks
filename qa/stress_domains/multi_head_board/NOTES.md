@@ -5,7 +5,7 @@ forms the golden corpus never pairs it with.
 
 ## Why it exists
 
-`FormCensus` gained two chapter-level forms: `cross_domain_policy` (an `across` policy,
+`FormCensus` gained two bluebook-level forms: `cross_domain_policy` (an `across` policy,
 attributed to the aggregate whose event it answers) and `multi_head_read_model` (a read model
 composing two or more aggregate heads, attributed to each head). The goldens already pair
 `cross_domain_policy` with every other form, but the only golden multi-head read model

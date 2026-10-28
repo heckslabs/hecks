@@ -10,19 +10,19 @@
 
 use crate::ir;
 
-/// The Ruby-form text of `chapter`, or the name of the construct it has no spelling for.
-pub fn ruby_form(chapter: &ir::Bluebook) -> Result<String, String> {
+/// The Ruby-form text of `bluebook`, or the name of the construct it has no spelling for.
+pub fn ruby_form(declaration: &ir::Bluebook) -> Result<String, String> {
     let mut out = String::new();
-    out.push_str(&format!("Hecks.bluebook {} do\n", string(&chapter.name)));
-    if let Some(vision) = &chapter.vision {
+    out.push_str(&format!("Hecks.bluebook {} do\n", string(&declaration.name)));
+    if let Some(vision) = &declaration.vision {
         out.push_str(&format!("  vision {}\n", string(vision)));
     }
-    refuse_unspelt(chapter)?;
-    for aggregate in &chapter.aggregates {
+    refuse_unspelt(declaration)?;
+    for aggregate in &declaration.aggregates {
         out.push('\n');
         aggregate_text(&mut out, aggregate)?;
     }
-    for policy in &chapter.policies {
+    for policy in &declaration.policies {
         policy_text(&mut out, policy)?;
     }
     out.push_str("end\n");
@@ -79,13 +79,13 @@ fn policy_text(out: &mut String, policy: &ir::Policy) -> Result<(), String> {
     Ok(())
 }
 
-fn refuse_unspelt(chapter: &ir::Bluebook) -> Result<(), String> {
+fn refuse_unspelt(declaration: &ir::Bluebook) -> Result<(), String> {
     let held = [
-        (!chapter.read_models.is_empty(), "read models"),
-        (!chapter.process_managers.is_empty(), "process managers"),
-        (!chapter.provides.is_empty(), "provided capabilities"),
-        (!chapter.attaches_to.is_empty(), "attaches"),
-        (chapter.version.is_some(), "a version"),
+        (!declaration.read_models.is_empty(), "read models"),
+        (!declaration.process_managers.is_empty(), "process managers"),
+        (!declaration.provides.is_empty(), "provided capabilities"),
+        (!declaration.attaches_to.is_empty(), "attaches"),
+        (declaration.version.is_some(), "a version"),
     ];
     match held.iter().find(|(present, _)| *present) {
         Some((_, what)) => Err(format!("the Ruby renderer has no spelling for {what}")),
@@ -345,11 +345,11 @@ mod tests {
 
     #[test]
     fn a_read_model_has_no_spelling_yet() {
-        let chapter = ir::Bluebook {
+        let declaration = ir::Bluebook {
             name: "X".to_string(),
             read_models: vec![ir::ReadModel::default()],
             ..Default::default()
         };
-        assert!(ruby_form(&chapter).is_err_and(|why| why.contains("read models")));
+        assert!(ruby_form(&declaration).is_err_and(|why| why.contains("read models")));
     }
 }

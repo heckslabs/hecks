@@ -62,7 +62,7 @@ module Hecks
 
       # The projector protocol; `options` is unused.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook declaring the
+      # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook declaring the
       #   Vocabulary aggregate to project
       # @param options [Hash] unused; accepted to satisfy the registry's call shape
       # @return [String] the rendered `lib/hecks/vocabulary.rb` source
@@ -73,7 +73,7 @@ module Hecks
       # Some sets carry more than a term (`Comparison`, `RefusalTemplate`); taking
       # the first field of those yields duplicated names.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook declaring the
+      # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook declaring the
       #   Vocabulary aggregate to read
       # @return [Hash{String => Array<Hash{String => String}>}] each closed set's name,
       #   mapped to its member rows with every field stringified
@@ -87,7 +87,7 @@ module Hecks
       # and `TERMS` constants and the `fetch`/`rows`/`symbols`/`names` reader
       # methods, built from `bluebook`'s declared closed sets.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook declaring the
+      # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook declaring the
       #   Vocabulary aggregate to render
       # @return [String] the generated Ruby source, ready to write to disk
       def render(bluebook)

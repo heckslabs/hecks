@@ -2,7 +2,7 @@
 # registrations_route, webhook_route), trimmed to exactly what those
 # routes dispatch. Built into checkout_fixture.wasm by hecks build_wasm.
 Hecks.bluebook "CheckoutFixture" do
-  vision "Scheduled sessions people register for, paid through a Payments chapter sharing one reference."
+  vision "Scheduled sessions people register for, paid through a Payments bluebook sharing one reference."
   core
 
   # What rust/host's registration and payments-connection routes read from

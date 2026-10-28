@@ -2,7 +2,7 @@ Hecks.bluebook "EmbryonautVendoringDemo" do
   vision "The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through `attaches ... from: :vendor`, exercising the same dispatch-table merge a gem `attaches` already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not."
   supporting
 
-  # No reference_to the vendored Widget: reference_to is same-chapter-scoped, even across
+  # No reference_to the vendored Widget: reference_to is same-bluebook-scoped, even across
   # a framework or vendored attachment. Gadget and Widget only share the merged dispatch table.
   aggregate "Gadget" do
     description "One gadget: registered idle, then activated once."

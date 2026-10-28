@@ -15,10 +15,10 @@ module Hecks
         # @raise [SystemExit] when `--editor` is named and the project declares no `Editor` row, or
         #   the row names a domain or bluebook that is not there
         def editor_files(editor, project, site)
-          setting = Projections::Site::CmsEditor::Setting.read(site.chapter, table: site.table)
+          setting = Projections::Site::CmsEditor::Setting.read(site.declaration, table: site.table)
           abort "project_site: --editor names #{editor}, but the project declares no Editor row" if setting.nil?
 
-          files = Projector.call(:site_cms_editor, bluebook: site.chapter, options: options(project, setting, site))
+          files = Projector.call(:site_cms_editor, bluebook: site.declaration, options: options(project, setting, site))
           files.to_h { |name, text| [File.join(File.expand_path(editor), name), text] }
         rescue ArgumentError, Projections::Site::Table::Invalid => e
           abort "project_site: #{e.message}"
@@ -26,19 +26,21 @@ module Hecks
 
         # @return [Hash{Symbol => Object}] the bluebooks the editor reads, and the route table
         def options(project, setting, site)
-          chosen = { domain_chapters: setting.bluebooks.map { |name| domain_chapter(project, setting, name) }, table: site.table }
-          chosen[:media_chapter] = domain_chapter(project, setting, setting.media_chapter) if setting.media_chapter
+          chosen = { domain_bluebooks: setting.bluebooks.map do |name|
+            domain_bluebook(project, setting, name)
+          end, table: site.table }
+          chosen[:media_bluebook] = domain_bluebook(project, setting, setting.media_bluebook) if setting.media_bluebook
           chosen
         end
 
-        # @param name [String] the bluebook to find; the row's first `chapter` unless given
+        # @param name [String] the bluebook to find; the row's first `bluebook` unless given
         # @return [Bluebook::Declaration] the bluebook the `Editor` row names, from its domain
         #   directory
-        def domain_chapter(project, setting, name = setting.bluebook)
+        def domain_bluebook(project, setting, name = setting.bluebook)
           domain_root = File.join(project, setting.domain)
-          chapter = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == name }
-          abort "project_site: #{domain_root} declares no bluebook #{name}" unless chapter
-          chapter
+          declaration = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == name }
+          abort "project_site: #{domain_root} declares no bluebook #{name}" unless declaration
+          declaration
         end
       end
     end

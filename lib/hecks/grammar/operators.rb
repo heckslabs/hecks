@@ -8,13 +8,13 @@ module Hecks
       # language unable to read its own rules, so callers refuse it by name.
       #
       # @return [Hash{String => Array<String>}] each self-bearing operator symbol
-      #   mapped to the `"Chapter Aggregate.command"`/`"Chapter Aggregate::ValueObject"`
+      #   mapped to the `"Bluebook Aggregate.command"`/`"Bluebook Aggregate::ValueObject"`
       #   sites that use it
       def self_bearing_operators
         sites = Hash.new { |h, k| h[k] = [] }
-        language_chapters.each do |chapter|
-          chapter.aggregates.each do |aggregate|
-            (command_sites(chapter, aggregate) + value_object_sites(chapter, aggregate)).each do |symbol, site|
+        language_bluebooks.each do |declaration|
+          declaration.aggregates.each do |aggregate|
+            (command_sites(declaration, aggregate) + value_object_sites(declaration, aggregate)).each do |symbol, site|
               sites[symbol] << site
             end
           end
@@ -23,26 +23,26 @@ module Hecks
       end
 
       # @return [Array<Class>] the Bluebook and World bluebooks plus every grammar bluebook
-      def language_chapters
-        chapters = Bluebook::MetaValidator.grammar_registry
-                                          .then { |reg| %w[Bluebook World].map { |name| reg.bluebook(name) } }
-        (chapters + grammar_chapters).compact
+      def language_bluebooks
+        declarations = Bluebook::MetaValidator.grammar_registry
+                                              .then { |reg| %w[Bluebook World].map { |name| reg.bluebook(name) } }
+        (declarations + grammar_bluebooks).compact
       end
 
       # @return [Array<Array(String, String)>] each operator a command's givens use, with the
       #   command it is used in
-      def command_sites(chapter, aggregate)
+      def command_sites(declaration, aggregate)
         aggregate.commands.flat_map do |command|
-          site = "#{chapter.name} #{aggregate.name}.#{command.hecks_name}"
+          site = "#{declaration.name} #{aggregate.name}.#{command.hecks_name}"
           command.givens.flat_map { |given| operators_in(given.canonical).map { |symbol| [symbol, site] } }
         end
       end
 
       # @return [Array<Array(String, String)>] each operator a value object's invariants use,
       #   with the value object it is used in
-      def value_object_sites(chapter, aggregate)
+      def value_object_sites(declaration, aggregate)
         aggregate.value_objects.flat_map do |value_object|
-          site = "#{chapter.name} #{aggregate.name}::#{value_object.hecks_name}"
+          site = "#{declaration.name} #{aggregate.name}::#{value_object.hecks_name}"
           value_object.invariants.flat_map { |invariant| operators_in(invariant.canonical).map { |symbol| [symbol, site] } }
         end
       end
@@ -51,10 +51,10 @@ module Hecks
       #
       # @return [Array<Class>] each grammar bluebook, booted alone in its own scratch
       #   registry
-      def grammar_chapters
-        Dir[File.join(Grammar::DIR, "*.bluebook")].map do |chapter|
+      def grammar_bluebooks
+        Dir[File.join(Grammar::DIR, "*.bluebook")].map do |declaration|
           registry = Runtime::Registry.new
-          load_chapter(registry, chapter)
+          load_bluebook(registry, declaration)
           registry.first_bluebook
         end
       end

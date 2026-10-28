@@ -8,7 +8,7 @@ module Hecks
       module Ruby
         # One bluebook's module: vision and aggregate list on the singleton, one
         # aggregate module per declared head, and a `const_missing` hook for undeclared names.
-        module Chapter
+        module Declaration
           # Builds the anonymous module that stands for one booted bluebook: `vision`,
           # `aggregates`, `docs`, `narrate` and `project` as singleton methods, plus one
           # nested constant per aggregate holding that aggregate module.
@@ -19,40 +19,40 @@ module Hecks
           # @return [Module] a fresh, unnamed module; `Ruby.install` gives it its
           #   top-level name
           # @raise [NameError] if an aggregate's name is not a valid constant name
-          def chapter_module(dispatcher, bluebook)
-            chapter = Module.new
-            define_readers(chapter, bluebook)
-            define_projections(chapter, bluebook)
+          def bluebook_module(dispatcher, bluebook)
+            declaration = Module.new
+            define_readers(declaration, bluebook)
+            define_projections(declaration, bluebook)
 
             bluebook.aggregates.each do |aggregate|
-              chapter.const_set(aggregate.hecks_name, aggregate_module(dispatcher, bluebook.name, aggregate))
+              declaration.const_set(aggregate.hecks_name, aggregate_module(dispatcher, bluebook.name, aggregate))
             end
 
-            define_const_missing(chapter, bluebook)
-            chapter
+            define_const_missing(declaration, bluebook)
+            declaration
           end
 
           private
 
           # The bluebook's vision and its aggregate names.
-          def define_readers(chapter, bluebook)
-            chapter.define_singleton_method(:vision)     { bluebook.vision }
-            chapter.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
+          def define_readers(declaration, bluebook)
+            declaration.define_singleton_method(:vision)     { bluebook.vision }
+            declaration.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
           end
 
           # The bluebook's documents and projections, each projected from its IR on every call so
           # none can go stale.
-          def define_projections(chapter, bluebook)
-            chapter.define_singleton_method(:docs) do |**options|
+          def define_projections(declaration, bluebook)
+            declaration.define_singleton_method(:docs) do |**options|
               Projector.call(:docs, bluebook: bluebook, options: options)
             end
 
             # The bluebook read back in english, via `Projector::NarrateProjector`.
-            chapter.define_singleton_method(:narrate) do |**options|
+            declaration.define_singleton_method(:narrate) do |**options|
               Projector.call(:narrate, bluebook: bluebook, options: options)
             end
 
-            define_project(chapter, bluebook)
+            define_project(declaration, bluebook)
           end
 
           # Projects the bluebook's IR through a target; `out:` writes the artifact and
@@ -60,8 +60,8 @@ module Hecks
           #
           #   Pizzas.project(Projections::OIDC)
           #   Pizzas.project(Projections::Shape, out: "shape.json")
-          def define_project(chapter, bluebook)
-            chapter.define_singleton_method(:project) do |target, out: nil, **options|
+          def define_project(declaration, bluebook)
+            declaration.define_singleton_method(:project) do |target, out: nil, **options|
               key      = Projector.key_for(target)
               artifact = Projector.call(key, bluebook: bluebook, options: options)
               return artifact unless out
@@ -73,8 +73,8 @@ module Hecks
           # Inside a hecksagon a name is a declaration: with a collector open it becomes
           # a `BindingProxy`. Otherwise a scoped reference from a bluebook mid-declaration
           # goes to the `ConstShim` resolver, so it resolves whether or not a facade exists.
-          def define_const_missing(chapter, bluebook)
-            chapter.define_singleton_method(:const_missing) do |name|
+          def define_const_missing(declaration, bluebook)
+            declaration.define_singleton_method(:const_missing) do |name|
               collector = Bluebook::DSL::HecksagonBuilder.collector
               return Bluebook::DSL::BindingProxy.new("#{bluebook.name}::#{name}", collector) if collector
 

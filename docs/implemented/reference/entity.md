@@ -51,7 +51,7 @@ Hecks.bluebook "EntityReference" do
 
       identified_by :slot
       attribute :handler, Handler
-      # THE WORD THIS CHAPTER EXISTS FOR — a crate inside one manifest,
+      # THE WORD THIS BLUEBOOK EXISTS FOR — a crate inside one manifest,
       # naming the depot that holds it, which is its own aggregate.
       reference_to Depot
 
@@ -226,12 +226,12 @@ carries the entity's declared predicate, not a copy:
 ledger_entry.commands.find { |c| c.hecks_name == "Reverse" }.givens.map(&:canonical)  # => ["parent.customer_status == \"active\"", "parent.status == \"open\"", "state == \"posted\""]
 ```
 
-`given` also SHARES CHAPTER-WIDE, ACROSS AGGREGATES — a bare
+`given` also SHARES BLUEBOOK-WIDE, ACROSS AGGREGATES — a bare
 `given(description)`, written directly inside a DIFFERENT aggregate's
 own entity, resolves against whichever piece anywhere in the same
 bluebook already declared that description, the identical move
 `aggregate.md`'s own "given" makes one level up
-(`docs/implemented/resolution-rules/chapter-entity-given.md`).
+(`docs/implemented/resolution-rules/bluebook-entity-given.md`).
 `SafeDepositBox::Visit` names `Account::LedgerEntry`'s own "customer is
 active" back rather than retyping `parent.customer_status == "active"`
 a second time — a genuinely different aggregate, the identical

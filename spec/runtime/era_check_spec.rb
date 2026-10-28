@@ -85,7 +85,7 @@ RSpec.describe "the era check at boot" do
   # Writes one bluebook across two files (b before a on disk) plus an unrelated bluebook's file.
   #
   # @return [Array<String>] the two texts of the bluebook, in the order they should be read
-  def write_chapter_files
+  def write_bluebook_files
     second = "Hecks.bluebook \"Shaped\" do\n  aggregate \"Second\" do\n  end\nend\n"
     first = "Hecks.bluebook \"Shaped\" do\n  vision \"first\"\nend\n"
     File.write(File.join(root, "b.bluebook"), second)
@@ -107,14 +107,14 @@ RSpec.describe "the era check at boot" do
   end
 
   it "snapshots every concept file for one bluebook, in deterministic order" do
-    first, second = write_chapter_files
+    first, second = write_bluebook_files
 
     expect(source_text_for("Shaped", root)).to eq("#{first}\n#{second}")
   end
 
   # A domain that attaches a bluebook the gem carries (the QA ledger, QualityControl) holds no
   # file for it: the era reads the bluebook's own files, wherever the gem keeps them.
-  it "reads an attached chapter's source from the files the gem carries it in" do
+  it "reads an attached bluebook's source from the files the gem carries it in" do
     File.write(File.join(root, "quality_control.hecksagon"), "# wiring only\n")
 
     expect(source_text_for("QualityControl", root)).to eq(quality_control_source)

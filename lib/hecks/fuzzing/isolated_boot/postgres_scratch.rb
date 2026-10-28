@@ -16,7 +16,7 @@ module Hecks
           # One `.world` per directory a `.hecksagon` lives in, not one at the copy's
           # root — `Folder#load_domain` globs `*.world` non-recursively.
           write_worlds!(copy, "hecks_fuzz_postgres.world") { |name| postgres_world(name, database, schema) }
-          write_unbound_chapter_worlds!(copy)
+          write_unbound_bluebook_worlds!(copy)
         end
 
         def postgres_world(name, database, schema)
@@ -61,7 +61,7 @@ module Hecks
           ensure_postgres_era_schema!(database: database, schema: schema)
 
           write_worlds!(copy, "hecks_fuzz_postgres_era.world") { |name| postgres_era_world(name, database, schema) }
-          write_unbound_chapter_worlds!(copy)
+          write_unbound_bluebook_worlds!(copy)
         end
 
         def require_owned_scratch!(database, schema)

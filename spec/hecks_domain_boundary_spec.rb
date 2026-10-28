@@ -36,7 +36,7 @@ RSpec.describe "the Hecks domain stays out of a client's runtime" do
       install_driving: false
     )
     Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ["create_pizza", "name=Margherita"], program: "pizzas")
-    puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{HECKS_DOMAIN_PATTERN}), chapters: runtime.registry.bluebooks.keys)
+    puts JSON.generate(loaded: $LOADED_FEATURES.grep(#{HECKS_DOMAIN_PATTERN}), bluebooks: runtime.registry.bluebooks.keys)
   RUBY
 
   it "is never loaded by `require \"hecks\"`", :process do
@@ -47,6 +47,6 @@ RSpec.describe "the Hecks domain stays out of a client's runtime" do
     result = probe(LAUNCHER_PROBE)
 
     expect(result["loaded"]).to be_empty
-    expect(result["chapters"]).not_to include("Hecks")
+    expect(result["bluebooks"]).not_to include("Hecks")
   end
 end

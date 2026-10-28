@@ -44,7 +44,7 @@ Fill`) ALSO has exactly one `::` left after the identical rewrite
 different reason: entity nesting, not a domain qualifier. `qualified`
 cannot tell the two apart from the string alone, and picks the
 cross-domain reading — so the runtime dispatch call gets
-`"Manifest::Slot.Fill"`, never prefixed with the chapter's own name at
+`"Manifest::Slot.Fill"`, never prefixed with the bluebook's own name at
 all, and `Naming.split_verb` then reads "Manifest" as the DOMAIN and
 "Slot" as the AGGREGATE — a domain that (almost always) does not exist.
 `ReactionInvocation.resolve_target` raises `UnknownVerb` ("reaction

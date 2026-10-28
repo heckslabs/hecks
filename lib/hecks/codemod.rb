@@ -135,8 +135,8 @@ module Hecks
 
     # Walks nested entities recursively too, not just each aggregate's own commands.
     def self.each_command(registry)
-      registry.bluebooks.each_value do |chapter|
-        chapter.aggregates.each do |aggregate|
+      registry.bluebooks.each_value do |declaration|
+        declaration.aggregates.each do |aggregate|
           walk = lambda do |construct|
             construct.commands.each { |command| yield construct, command }
             construct.entities.each(&walk) if construct.respond_to?(:entities)

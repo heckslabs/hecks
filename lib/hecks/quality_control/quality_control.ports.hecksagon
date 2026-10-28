@@ -1,4 +1,4 @@
-# The ports QualityControl declares, for every hecksagon that attaches the bluebook (`Chapters`
+# The ports QualityControl declares, for every hecksagon that attaches the bluebook (`Bluebooks`
 # loads this file with it). Persistence is the attaching hecksagon's: the Hecks bluebook binds
 # every aggregate through its world's `default_adapter`, and the QA ledger binds its own
 # (qa/bluebook/quality_control.hecksagon).

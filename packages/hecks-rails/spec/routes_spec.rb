@@ -1,7 +1,7 @@
 require "spec_helper"
 
 RSpec.describe Hecks::Rails::CommandRoutes do
-  let(:routes) { described_class.for_chapter(Hecks::Rails::Booted.chapter("ledger")) }
+  let(:routes) { described_class.for_bluebook(Hecks::Rails::Booted.declaration("ledger")) }
 
   def row(action) = routes.find { |route| route.action == action }
 

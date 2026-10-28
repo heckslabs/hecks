@@ -13,10 +13,10 @@ RSpec.describe "the ADR 0080 command table, every row" do
   # aggregate (`era.merge_tail`). Custodian and Codebase rows live in the Hecks bluebook, the other
   # sections in the bluebook of their own name.
   TableRow = Struct.new(:script, :section, :aggregate, :verb, keyword_init: true) do
-    def chapter = %w[Custodian Codebase].include?(section) ? "Hecks" : section
+    def declaration = %w[Custodian Codebase].include?(section) ? "Hecks" : section
     def name = verb.split("_").map(&:capitalize).join
     def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
-    def argv = [*(chapter == "Hecks" ? [] : [chapter.gsub(/([a-z])([A-Z])/, '\1_\2').downcase]), qualified]
+    def argv = [*(declaration == "Hecks" ? [] : [declaration.gsub(/([a-z])([A-Z])/, '\1_\2').downcase]), qualified]
     def help_name = "#{aggregate}.#{verb}"
   end
 
@@ -33,11 +33,11 @@ RSpec.describe "the ADR 0080 command table, every row" do
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
-    @bluebooks = Hash.new { |cache, chapter| cache[chapter] = @hecks.registry.bluebook(chapter) }
+    @bluebooks = Hash.new { |cache, declaration| cache[declaration] = @hecks.registry.bluebook(declaration) }
   end
 
   def declared?(row)
-    aggregate = @bluebooks[row.chapter == "Hecks" ? "Hecks" : row.chapter].aggregate(row.aggregate)
+    aggregate = @bluebooks[row.declaration == "Hecks" ? "Hecks" : row.declaration].aggregate(row.aggregate)
     return false unless aggregate
 
     aggregate.commands.map(&:hecks_name).include?(row.name) || !aggregate.query(row.name).nil?
@@ -46,7 +46,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
   # A QualityControl row's help says it is that row's own command or query, so a verb another
   # aggregate also answers to (`run`) cannot pass for it.
   def names_its_own_command?(row, out)
-    row.chapter != "QualityControl" || out.include?("QualityControl::#{row.aggregate}.#{row.name}")
+    row.declaration != "QualityControl" || out.include?("QualityControl::#{row.aggregate}.#{row.name}")
   end
 
   def answers_help?(row)
@@ -55,9 +55,9 @@ RSpec.describe "the ADR 0080 command table, every row" do
   end
 
   ALL_ROWS.each do |row|
-    it "answers #{row.script} as #{row.chapter}: #{row.aggregate}.#{row.name}, `hecks #{row.argv.join(" ")}`",
+    it "answers #{row.script} as #{row.declaration}: #{row.aggregate}.#{row.name}, `hecks #{row.argv.join(" ")}`",
        :aggregate_failures do
-      expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in #{row.chapter}"
+      expect(declared?(row)).to be(true), "#{row.aggregate}.#{row.name} is not declared in #{row.declaration}"
       next if NOT_USER_FACING.include?(row.verb)
 
       expect(answers_help?(row)).to be(true), "`hecks #{row.argv.join(" ")} --help` does not answer"
@@ -71,7 +71,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
   end
 
   it "lists each command once", :aggregate_failures do
-    keys = ALL_ROWS.map { |row| [row.chapter, row.aggregate, row.name, row.script] }
+    keys = ALL_ROWS.map { |row| [row.declaration, row.aggregate, row.name, row.script] }
 
     expect(keys.uniq.size).to eq(keys.size)
     expect(ALL_ROWS.map(&:argv).uniq.size).to eq(ALL_ROWS.size)

@@ -187,7 +187,7 @@ RSpec.describe Hecks::Storehouse do
   end
 
   describe ".describe" do
-    it "answers the whole chapter's usage document when aggregate is omitted", :aggregate_failures do
+    it "answers the whole bluebook's usage document when aggregate is omitted", :aggregate_failures do
       result = described_class.describe(runtime: runtime)
 
       expect(result[:ok]).to be true

@@ -34,8 +34,8 @@ RSpec.describe "the launcher's opt-in options" do
     end
   RUBY
 
-  CHAPTER_AGGREGATE = 'description "x"; attribute :tag, Tag; identified_by :tag; ' \
-                      'value_object("Tag") { attribute :value, String }; command("Go") { emits Went }'.freeze
+  BLUEBOOK_AGGREGATE = 'description "x"; attribute :tag, Tag; identified_by :tag; ' \
+                       'value_object("Tag") { attribute :value, String }; command("Go") { emits Went }'.freeze
 
   before(:all) do
     @dir = Dir.mktmpdir("launcher_options")
@@ -226,19 +226,19 @@ RSpec.describe "the launcher's opt-in options" do
     end
   end
 
-  describe "chapter constants" do
-    def declare_hecks_chapter(names)
-      aggregates = names.map { |name| "aggregate(\"#{name}\") { #{CHAPTER_AGGREGATE} }" }
+  describe "bluebook constants" do
+    def declare_hecks_bluebook(names)
+      aggregates = names.map { |name| "aggregate(\"#{name}\") { #{BLUEBOOK_AGGREGATE} }" }
       Hecks.bluebook("Hecks") do
         namespace "Hecks::Domain"
         instance_eval(aggregates.join("\n"))
       end
     end
 
-    def build_hecks_chapter(*names)
+    def build_hecks_bluebook(*names)
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
-        declare_hecks_chapter(names)
+        declare_hecks_bluebook(names)
         seen = {}
         Hecks::Bluebook::DSL::HecksagonBuilder.build("Hecks") do
           names.each { |name| seen[name] = Hecks.const_get(name) }
@@ -247,9 +247,9 @@ RSpec.describe "the launcher's opt-in options" do
       end
     end
 
-    it "resolves a colliding name to the chapter's aggregate, and restores the module", :aggregate_failures do
+    it "resolves a colliding name to the bluebook's aggregate, and restores the module", :aggregate_failures do
       modules = [Hecks::Release, Hecks::Fuzzing]
-      seen = build_hecks_chapter("Fuzzing", "Release")
+      seen = build_hecks_bluebook("Fuzzing", "Release")
 
       expect(seen.values).to all(be_a(Hecks::Bluebook::DSL::BindingProxy))
       expect([Hecks::Release, Hecks::Fuzzing]).to eq(modules)

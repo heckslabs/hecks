@@ -11,7 +11,7 @@ RSpec.describe Hecks::Projections::Site::Probe do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio") }
   let(:rows) do
     registry = Hecks::Tools::SiteRoutes.registry_for(project)
-    Hecks::Projections::Site::Table.read(Hecks::Projections::Site::Table.chapter(registry), registry: registry).rows
+    Hecks::Projections::Site::Table.read(Hecks::Projections::Site::Table.declaration(registry), registry: registry).rows
   end
   let(:probe) { described_class.new(rows, run: "r1") }
   let(:response) { described_class::Response }

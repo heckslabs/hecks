@@ -17,7 +17,7 @@ RSpec.describe "lifecycle marks" do
     end
   end
 
-  let(:fixture_chapter) do
+  let(:fixture_bluebook) do
     source = File.read(File.expand_path("fixtures/lifecycle_marks.bluebook", __dir__))
     Hecks.with_registry(Hecks::Runtime::Registry.new) { eval(source, TOPLEVEL_BINDING) }
   end
@@ -79,13 +79,13 @@ RSpec.describe "lifecycle marks" do
   end
 
   it "carries marks through a whole bluebook on an aggregate" do
-    paying = fixture_chapter.aggregates.find { |aggregate| aggregate.name == "Payment" }
+    paying = fixture_bluebook.aggregates.find { |aggregate| aggregate.name == "Payment" }
 
     expect(paying.lifecycle.marked(:holds_seat)).to eq(%w[pending succeeded disputed])
   end
 
   it "carries marks through a whole bluebook on a nested entity" do
-    order = fixture_chapter.aggregates.find { |aggregate| aggregate.name == "Order" }
+    order = fixture_bluebook.aggregates.find { |aggregate| aggregate.name == "Order" }
 
     expect(order.entities.first.lifecycle.marked(:settled)).to eq(%w[shipped delivered])
   end

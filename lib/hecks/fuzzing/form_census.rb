@@ -1,6 +1,6 @@
 require "json"
 require_relative "../corpus"
-require_relative "form_census/chapter_forms"
+require_relative "form_census/bluebook_forms"
 require_relative "form_census/reference_forms"
 
 module Hecks
@@ -37,7 +37,7 @@ module Hecks
         "two_hop_given"         => ->(a) { ReferenceForms.two_hop_given?(a) },
         "multi_hop_where"       => ->(a) { ReferenceForms.multi_hop_where?(a) },
         "revalued_reference"    => ->(a) { ReferenceForms.revalued_reference?(a) },
-        # Chapter-level constructs, attributed to the aggregate they name (see `ChapterForms`).
+        # Bluebook-level constructs, attributed to the aggregate they name (see `BluebookForms`).
         "cross_domain_policy"   => ->(a) { (a["across_policies"] || []).any? },
         "multi_head_read_model" => ->(a) { (a["multi_head_read_models"] || []).any? }
       }.freeze
@@ -83,9 +83,9 @@ module Hecks
 
       def present_forms(shows) = shows.select { |_, present| present }.keys
 
-      def aggregates_in(chapter_ir)
-        (chapter_ir["aggregates"] || []).map do |aggregate|
-          ["#{chapter_ir["name"]}::#{aggregate["name"]}", properties(ChapterForms.onto(aggregate, chapter_ir))]
+      def aggregates_in(bluebook_ir)
+        (bluebook_ir["aggregates"] || []).map do |aggregate|
+          ["#{bluebook_ir["name"]}::#{aggregate["name"]}", properties(BluebookForms.onto(aggregate, bluebook_ir))]
         end
       end
 
@@ -107,7 +107,7 @@ module Hecks
           files.each { |file| Kernel.load(file) }
         end
 
-        aggregates_in(exported_chapter(registry))
+        aggregates_in(exported_bluebook(registry))
       end
 
       def support_files
@@ -115,9 +115,9 @@ module Hecks
         CENSUS_SUPPORT.map { |relative| File.join(root, relative) }
       end
 
-      def exported_chapter(registry)
-        chapter_name = registry.bluebooks.keys.first
-        JSON.parse(JSON.generate(Hecks::Projector::Exporter.call(registry).fetch(chapter_name)))
+      def exported_bluebook(registry)
+        declaration_name = registry.bluebooks.keys.first
+        JSON.parse(JSON.generate(Hecks::Projector::Exporter.call(registry).fetch(declaration_name)))
       end
     end
   end

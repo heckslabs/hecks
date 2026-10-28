@@ -6,7 +6,7 @@ module Hecks
     # booted domain's own bluebook, or a bluebook its hecksagon attaches when the name starts with
     # that bluebook's word and a space (`bulk bulk_run.request` reaches the attached Bulk bluebook).
     # Extended onto `Storehouse`.
-    module ChapterWords
+    module BluebookWords
       # The bluebook `name` speaks to, and the name within that bluebook.
       #
       # @param runtime [Runtime::Dispatcher] the booted domain
@@ -15,9 +15,9 @@ module Hecks
       #   word
       #   dropped
       # @raise [Runtime::NotFound] if the boot loaded no bluebook
-      def chapter_and_name(runtime, name)
+      def bluebook_and_name(runtime, name)
         word, rest = name.to_s.split(" ", 2)
-        attached = rest && attached_chapter(runtime, word)
+        attached = rest && attached_bluebook(runtime, word)
         attached ? [runtime.bluebook(attached), rest] : [bluebook_for(runtime), name.to_s]
       end
 
@@ -26,9 +26,9 @@ module Hecks
       # @param runtime [Runtime::Dispatcher] the booted domain
       # @param word [String] a bluebook's snake-cased name, such as `"bulk"`
       # @return [String, nil] the attached bluebook's name
-      def attached_chapter(runtime, word)
+      def attached_bluebook(runtime, word)
         own = bluebook_for(runtime)
-        Array(runtime.hecksagon(own.name)&.member_chapters).find { |chapter| Naming.snake(chapter) == word }
+        Array(runtime.hecksagon(own.name)&.member_bluebooks).find { |declaration| Naming.snake(declaration) == word }
       end
     end
   end

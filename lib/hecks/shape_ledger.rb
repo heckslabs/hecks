@@ -120,7 +120,8 @@ module Hecks
 
     def edges_note(written) = written.empty? ? "" : " and #{written.size} empty edge(s): #{written.join(", ")}"
 
-    # @return [Array<Array(String, String, String)>] `[chapter, from, to]` for each shape that moved
+    # @return [Array<Array(String, String, String)>] `[bluebook, from, to]` for each shape that
+    #   moved
     #   with no chain of edges leading to it
     def uncovered_moves(ledger, shapes, edges)
       shapes.filter_map do |name, now|

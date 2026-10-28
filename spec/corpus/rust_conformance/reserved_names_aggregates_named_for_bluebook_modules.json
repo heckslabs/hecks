@@ -1,6 +1,6 @@
 {
   "domain": "spec/fixtures/rust_project/reserved_names_fixture",
-  "note": "Aggregates named Metadata, Registry and Merged each downcase to a module the generated chapter declares itself (the sidecar, the registry table and the merged router). The generator gives such an aggregate the module `<name>_aggregate`, so the chapter declares each module once and the host compiles and dispatches all three.",
+  "note": "Aggregates named Metadata, Registry and Merged each downcase to a module the generated bluebook declares itself (the sidecar, the registry table and the merged router). The generator gives such an aggregate the module `<name>_aggregate`, so the bluebook declares each module once and the host compiles and dispatches all three.",
   "steps": [
     {
       "verb": "ReservedNamesFixture::Metadata.Record",

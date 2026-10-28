@@ -1,7 +1,7 @@
 # PRD 06 — Adversarial fuzzing for the Rust parser
 
 **Status:** Shipped: `cargo-fuzz` targets live in `rust/parser/fuzz/fuzz_targets/`
-(`chapter.rs`, `resolve.rs`). The text below is the original proposal, including the
+(`bluebook.rs`, `resolve.rs`). The text below is the original proposal, including the
 starting-point survey that found no parser fuzzing.
 
 ## The problem

@@ -23,14 +23,14 @@ module Hecks
       # @return [Array<Entry>] a place for each aggregate that takes commands, in the order
       #   declared, the `App` row's home first
       def entries
-        found = Booted.app_chapters.flat_map(&:aggregates).select { |a| a.commands.any? }.filter_map { |a| entry(a) }
+        found = Booted.app_bluebooks.flat_map(&:aggregates).select { |a| a.commands.any? }.filter_map { |a| entry(a) }
         home, rest = found.partition { |entry| entry.model.name == app_row[:home] }
         home + rest
       end
 
       # @return [Array<String>] every role a command of the app's aggregates names, in order seen
       def roles
-        Booted.app_chapters.flat_map(&:aggregates).flat_map(&:commands).filter_map(&:role).map(&:to_s).uniq
+        Booted.app_bluebooks.flat_map(&:aggregates).flat_map(&:commands).filter_map(&:role).map(&:to_s).uniq
       end
 
       # @param model [Class] an aggregate's model
@@ -54,14 +54,14 @@ module Hecks
         Entry.new(model: model, label: listing(aggregate.hecks_name).fetch(:label) { Naming.words(plural) }, path: "/#{plural}")
       end
 
-      def app_row = chapters.flat_map { |chapter| APP_ROW.read(chapter) }.first || {}
+      def app_row = declarations.flat_map { |declaration| APP_ROW.read(declaration) }.first || {}
 
       def listing(aggregate_name)
-        rows = chapters.flat_map { |chapter| LISTING_ROWS.read(chapter) }
+        rows = declarations.flat_map { |declaration| LISTING_ROWS.read(declaration) }
         rows.find { |row| row[:aggregate] == aggregate_name } || {}
       end
 
-      def chapters = Booted.app_chapters
+      def declarations = Booted.app_bluebooks
 
       def known!(model, columns)
         known = [*model.door.ir.attributes.map(&:name), model.door.ir.lifecycle_field, :id].compact

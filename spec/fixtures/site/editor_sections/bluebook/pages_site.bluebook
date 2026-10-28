@@ -1,6 +1,6 @@
 # A small site whose editor works on the page as an ordered list of mixed panels: the neutral fixture
 # the editor generator reads for a block list, a list of one value object whose `kind` is a closed
-# set. Its `Editor` row names one chapter.
+# set. Its `Editor` row names one bluebook.
 Hecks.bluebook "PagesSite" do
   vision "The routes of a small site, with an editor for the panels of its pages."
 

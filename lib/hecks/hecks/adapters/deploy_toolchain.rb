@@ -75,7 +75,7 @@ module Hecks
       end
 
       # Projects each domain's OIDC client and scope manifest into its `oidc.json`, or into one
-      # `<chapter>.oidc.json` for each bluebook of a directory that holds several, through
+      # `<bluebook>.oidc.json` for each bluebook of a directory that holds several, through
       # `hecks deploy oidc_manifest.project_oidc`.
       #
       # @param held [Hash] the `OidcManifest` record: `domains` (comma separated directories; every

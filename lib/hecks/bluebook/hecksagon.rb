@@ -16,7 +16,7 @@ module Hecks
     # for.
     #
     # A plugin adapter instead `runs` a `.wasm` module beside its `.adapter` file (`source_dir`)
-    # and names the queries it `answers` (`"Chapter::Aggregate.Query"`); it needs no port, and the
+    # and names the queries it `answers` (`"Bluebook::Aggregate.Query"`); it needs no port, and the
     # runtime binds each query it answers without a hecksagon line.
     #
     # `provides` names what the adapter can do beyond its port's contract, such as
@@ -57,14 +57,14 @@ module Hecks
     # `source` is `:gem` for a bluebook the gem carries (a framework member such as Governance,
     # or a language bluebook such as Deploy) and `:vendor` for a package vendored into the
     # consuming project, whose `name` is the package's directory name (`"membership"`) and whose
-    # `chapter` is the name its bluebook declares, which the directory name need not spell.
-    Attachment = Struct.new(:name, :source, :chapter, keyword_init: true) do
+    # `bluebook` is the name its bluebook declares, which the directory name need not spell.
+    Attachment = Struct.new(:name, :source, :declaration, keyword_init: true) do
       # @return [Boolean] whether the bluebook is a vendored package
       def vendor? = source == :vendor
 
       # @return [String] the bluebook's name in the registry: a gem bluebook's own name, a
       #   vendored package's declared bluebook, else its directory name in Pascal case
-      def chapter_name = chapter || (vendor? ? Naming.pascal(name) : name)
+      def declaration_name = declaration || (vendor? ? Naming.pascal(name) : name)
 
       # @return [Hash{Symbol => String}] the attachment as plain data
       def to_h = { name: name.to_s, source: source.to_s }
@@ -123,13 +123,13 @@ module Hecks
       #
       # @return [Array<String>] the bluebooks' names as the registry holds them, in the order
       #   they were attached
-      def member_chapters = attachments.map(&:chapter_name)
+      def member_bluebooks = attachments.map(&:declaration_name)
 
       # Says whether this hecksagon attaches a bluebook, whatever its source.
       #
       # @param bluebook [String, Symbol] a bluebook's name as the registry holds it
       # @return [Boolean] whether that bluebook is attached here
-      def attaches?(chapter) = member_chapters.include?(chapter.to_s)
+      def attaches?(declaration) = member_bluebooks.include?(declaration.to_s)
 
       # Says whether a driving adapter may reach this hecksagon's domain: every adapter may when
       # none is declared, and only the declared ones may once any is.

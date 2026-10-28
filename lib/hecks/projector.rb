@@ -13,7 +13,7 @@ module Hecks
   #   `needs_world: true`; that is adapter wiring, not a projection of the domain.
   module Projector
     class UnknownProjector < StandardError; end
-    # A chapter-scoped projector was handed something that is not a bluebook.
+    # A bluebook-scoped projector was handed something that is not a bluebook.
     class WrongConstruct < StandardError; end
 
     module_function
@@ -32,7 +32,7 @@ module Hecks
     # after refusing a construct it does not admit.
     #
     # @param name [String, Symbol] the registered projector's key
-    # @param bluebook [Bluebook::Behaviour::Chapter, Hecks::IR] the construct to project
+    # @param bluebook [Bluebook::Behaviour::Bluebook, Hecks::IR] the construct to project
     # @param options [Hash] projector-specific options, passed through unchanged
     # @param world [Bluebook::World, nil] bindings an export needs (`needs_world: true`);
     #   merged into `options[:world]`
@@ -55,7 +55,7 @@ module Hecks
     # @param name [String, Symbol] the projector's registered key, used in the message
     # @param projector [Module, Class, #call] the target; consulted for `projection_requires`,
     #   `projection_declares` and `projection_needs_world?` when it answers them
-    # @param construct [Bluebook::Behaviour::Chapter, Hecks::IR] the construct offered
+    # @param construct [Bluebook::Behaviour::Bluebook, Hecks::IR] the construct offered
     # @param world [Bluebook::World, nil] the `world:` given to `Projector.call`
     # @return [void]
     # @raise [WrongConstruct] if a required capability or aggregate is missing, or the
@@ -92,7 +92,7 @@ module Hecks
 
     # Tells whether `construct` has the capability `admits!` requires of it.
     #
-    # @param construct [Bluebook::Behaviour::Chapter, Hecks::IR] the construct to check
+    # @param construct [Bluebook::Behaviour::Bluebook, Hecks::IR] the construct to check
     # @param capability [Module] the capability module to check for
     # @return [Boolean] true if `construct` is a `capability`
     def capable?(construct, capability) = construct.is_a?(capability)

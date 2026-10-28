@@ -197,7 +197,7 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
 
 /// True when `actor_id` holds `role` through a live assignment.
 ///
-/// Runs the chapter-declared `live_assignments` query through `named_query::run`, which is what
+/// Runs the bluebook-declared `live_assignments` query through `named_query::run`, which is what
 /// decides an assignment is live (Governance's `ends_at: nil`); `None`, or a verb missing from
 /// `queries`, holds no role. Ruby likewise ignores scope and `starts_at`.
 pub fn holds_role_via(
@@ -724,7 +724,7 @@ mod check_role_actor_id_tests {
 
     // The declared provider verb is honoured, not the Governance query name...
     #[test]
-    fn check_role_via_reads_whichever_assignments_query_the_chapter_declared() {
+    fn check_role_via_reads_whichever_assignments_query_the_bluebook_declared() {
         let declared = QueryDef {
             verb: "Access::Grant.HeldBy",
             ..assignments_for_actor_query()

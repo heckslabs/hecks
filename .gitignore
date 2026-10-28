@@ -61,6 +61,6 @@ packages/hecks-rails/Gemfile.lock
 **/environments/local.hecksagon
 **/environments/local.world
 
-# A chapter's own world (Adapters::Folder::LOCAL_WORLDS): where a copy or a working directory opts a chapter into persistence.
+# A bluebook's own world (Adapters::Folder::LOCAL_WORLDS): where a copy or a working directory opts a bluebook into persistence.
 **/*.local.world
 **/*.local.hecksagon

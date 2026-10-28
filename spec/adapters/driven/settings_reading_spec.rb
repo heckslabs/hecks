@@ -57,7 +57,7 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     end
   end
 
-  it "says a chapter's local world beside the domain supplied the database" do
+  it "says a bluebook's local world beside the domain supplied the database" do
     File.write(File.join(directory, "hecks.local.world"), "")
 
     expect(line(read, "database")).to end_with("(hecks.local.world)")

@@ -29,8 +29,8 @@ module Hecks
       # @param bluebook [Bluebook::Declaration] the bluebook the policy is declared in
       # @param policy [Bluebook::Policy] a policy that `asks?`
       # @return [Outcome] the verb, or the problem
-      def call(chapter, policy)
-        aggregate = event_aggregate(chapter, policy)
+      def call(declaration, policy)
+        aggregate = event_aggregate(declaration, policy)
         return no_aggregate(policy) unless aggregate
 
         found = picked(candidates(aggregate, policy.ask))
@@ -55,9 +55,9 @@ module Hecks
       #
       # @param bluebook [Bluebook::Declaration] the bluebook whose policies to resolve
       # @return [void]
-      def bind_resolved(chapter)
-        chapter.policies.select(&:asks?).each do |policy|
-          outcome = call(chapter, policy)
+      def bind_resolved(declaration)
+        declaration.policies.select(&:asks?).each do |policy|
+          outcome = call(declaration, policy)
           policy.resolve_ask!(outcome.verb) if outcome.resolved?
         end
       end
@@ -71,8 +71,8 @@ module Hecks
       # @param port [String, Symbol] the port whose ask is picked
       # @return [void]
       # @raise [Bluebook::DSL::Malformed] if no such ask is declared on that port yet
-      def pick!(chapter, aggregate_name, name, port)
-        held = chapter&.aggregate(aggregate_name)&.port(port)
+      def pick!(declaration, aggregate_name, name, port)
+        held = declaration&.aggregate(aggregate_name)&.port(port)
         operation = held&.operation(name)
         unless operation
           raise DSL::Malformed, "#{aggregate_name}.ask_via #{name.to_s.inspect}, port: #{port.to_s.inspect} " \
@@ -80,18 +80,18 @@ module Hecks
         end
 
         operation.choose!
-        bind_resolved(chapter)
+        bind_resolved(declaration)
       end
 
       # The aggregate whose event the policy reacts to: the one the event is qualified with, or
       # the one whose commands emit it when the event is written bare.
       #
       # @return [Bluebook::Aggregate, nil]
-      def event_aggregate(chapter, policy)
+      def event_aggregate(declaration, policy)
         qualifier = policy.event_qualifier
-        return chapter.aggregate(Naming.demodulise(qualifier)) if qualifier
+        return declaration.aggregate(Naming.demodulise(qualifier)) if qualifier
 
-        chapter.aggregates.find do |aggregate|
+        declaration.aggregates.find do |aggregate|
           aggregate.commands.any? { |command| Array(command.emits).include?(policy.event_name) }
         end
       end

@@ -9,9 +9,9 @@ require_relative "../support/fenced_owner"
 # `note` declaring `Notes`) had no source found for its era-1 mint, so the single-file fallback
 # stamped the host domain's own text under the bluebook's name and the next boot refused.
 RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike its package", :io do
-  CHAPTER_NAME_DB = "hecks_era_vendored_chapter_name_spec".freeze
+  BLUEBOOK_NAME_DB = "hecks_era_vendored_bluebook_name_spec".freeze
 
-  CHAPTER_NAME_TARGET = <<~BLUEBOOK.freeze
+  BLUEBOOK_NAME_TARGET = <<~BLUEBOOK.freeze
     Hecks.bluebook "Target" do
       vision "the domain that attaches a vendored bluebook named unlike its package"
       core
@@ -40,13 +40,13 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
     end
   BLUEBOOK
 
-  CHAPTER_NAME_NOTES = CHAPTER_NAME_TARGET
-                       .sub('"Target"', '"Notes"').sub("Widget", "Note").sub("widget", "note")
-                       .sub("WidgetMade", "NoteWritten").sub('"Make"', '"Write"')
-                       .sub("the domain that attaches a vendored bluebook named unlike its package",
-                            "a vendored bluebook whose name is not its package's Pascal-cased name")
+  BLUEBOOK_NAME_NOTES = BLUEBOOK_NAME_TARGET
+                        .sub('"Target"', '"Notes"').sub("Widget", "Note").sub("widget", "note")
+                        .sub("WidgetMade", "NoteWritten").sub('"Make"', '"Write"')
+                        .sub("the domain that attaches a vendored bluebook named unlike its package",
+                             "a vendored bluebook whose name is not its package's Pascal-cased name")
 
-  CHAPTER_NAME_HECKSAGON = <<~HECKSAGON.freeze
+  BLUEBOOK_NAME_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Target" do
       attaches "Governance"
       attaches "note", from: :vendor
@@ -69,11 +69,11 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
     end
   HECKSAGON
 
-  def owner_url = FencedOwner.url(CHAPTER_NAME_DB)
+  def owner_url = FencedOwner.url(BLUEBOOK_NAME_DB)
 
   def world_text
-    %w[Target Notes Governance].map do |chapter|
-      "Hecks.world \"#{chapter}\" do\n  persisted_by(\"PostgresEra\") do\n    database \"#{owner_url}\"\n  end\nend\n"
+    %w[Target Notes Governance].map do |declaration|
+      "Hecks.world \"#{declaration}\" do\n  persisted_by(\"PostgresEra\") do\n    database \"#{owner_url}\"\n  end\nend\n"
     end.join("\n")
   end
 
@@ -83,23 +83,23 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
   end
 
   def write_domain(dir)
-    write(File.join(dir, "bluebook", "target.bluebook"), CHAPTER_NAME_TARGET)
-    write(File.join(dir, "vendor", "embryonaut_bluebooks", "note", "bluebook", "note.bluebook"), CHAPTER_NAME_NOTES)
-    write(File.join(dir, "bluebook", "target.hecksagon"), CHAPTER_NAME_HECKSAGON)
+    write(File.join(dir, "bluebook", "target.bluebook"), BLUEBOOK_NAME_TARGET)
+    write(File.join(dir, "vendor", "embryonaut_bluebooks", "note", "bluebook", "note.bluebook"), BLUEBOOK_NAME_NOTES)
+    write(File.join(dir, "bluebook", "target.hecksagon"), BLUEBOOK_NAME_HECKSAGON)
     write(File.join(dir, "bluebook", "target.world"), world_text)
     File.join(dir, "bluebook")
   end
 
   def held_text_for(domain)
-    db = PG.connect(dbname: CHAPTER_NAME_DB)
+    db = PG.connect(dbname: BLUEBOOK_NAME_DB)
     db.exec_params("SELECT held_text FROM hecks_eras WHERE domain = $1 AND ordinal = 1", [domain]).first&.fetch("held_text")
   ensure
     db&.close
   end
 
-  scratch_postgres CHAPTER_NAME_DB, fenced: true
+  scratch_postgres BLUEBOOK_NAME_DB, fenced: true
 
-  it "holds the chapter's own source, not the domain's" do
+  it "holds the bluebook's own source, not the domain's" do
     Dir.mktmpdir do |dir|
       Hecks.boot(write_domain(dir), install_driving: false)
 

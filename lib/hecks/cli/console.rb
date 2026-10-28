@@ -50,12 +50,12 @@ module Hecks
       # @param runtime [Runtime] a booted domain
       # @return [String] each bluebook's vision, and its aggregates' descriptions and commands
       def overview(runtime)
-        chapters = runtime.bluebooks.each_value.map { |bluebook| chapter_overview(bluebook) }
-        chapters.join
+        declarations = runtime.bluebooks.each_value.map { |bluebook| bluebook_overview(bluebook) }
+        declarations.join
       end
 
       # @api private
-      def chapter_overview(bluebook)
+      def bluebook_overview(bluebook)
         aggregates = bluebook.aggregates.map { |aggregate| aggregate_overview(aggregate) }
 
         "\n    #{bluebook.name} — #{bluebook.vision}\n#{aggregates.join("\n")}\n"

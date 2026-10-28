@@ -13,32 +13,32 @@ module Hecks
 
       # @param dir [String] the workspace directory
       # @param buffers [Hash{String => String}] unsaved text by path relative to `dir`
-      # @param chapter_name [String, nil] the bluebook to draw; the first bluebook's when nil
+      # @param declaration_name [String, nil] the bluebook to draw; the first bluebook's when nil
       # @return [Hash] `diagnostic` (nil, or `{file:, line:, message:, expected:}` for the first
       #   refusal), `files` (the workspace's declaration files), `outline` (see {Outline}),
-      #   `chapter` (the name drawn), `diagrams` (Mermaid text by file name), `statements` (plain
+      #   `bluebook` (the name drawn), `diagrams` (Mermaid text by file name), `statements` (plain
       #   sentences), `findings` (`{kind:, severity:, subject:, message:}` per model-check
       #   finding), `wiring` (see {wiring}, nil until the workspace boots), `board` (the
       #   event-storming notes, see {Board}, nil until it boots) and `elapsed_ms`
-      def call(dir:, buffers: {}, chapter_name: nil)
+      def call(dir:, buffers: {}, declaration_name: nil)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        result = Workspace.stage(dir: dir, buffers: buffers) { |stage| judge(stage, chapter_name) }
+        result = Workspace.stage(dir: dir, buffers: buffers) { |stage| judge(stage, declaration_name) }
         result.merge(elapsed_ms: ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round)
       end
 
       # @api private
-      def judge(stage, chapter_name)
+      def judge(stage, declaration_name)
         files = Workspace.files(stage)
-        verdict(stage, empty(files, Outline.call(stage, files)), chapter_name)
+        verdict(stage, empty(files, Outline.call(stage, files)), declaration_name)
       end
 
       # What the parser and the boot say of the staged text, laid over `base`.
       # @api private
-      def verdict(stage, base, chapter_name)
+      def verdict(stage, base, declaration_name)
         refusal = Parse.call(stage)
         return base.merge(diagnostic: refusal) if refusal
 
-        project(stage, base, chapter_name || Parse.bluebooks(stage).keys.first)
+        project(stage, base, declaration_name || Parse.bluebooks(stage).keys.first)
       rescue Parse::ParserMissing
         raise
       rescue StandardError => e
@@ -48,17 +48,17 @@ module Hecks
       # @api private
       def project(stage, base, name)
         registry = Hecks.boot(stage, install_driving: false, environment: "memory").registry
-        chapter = registry.bluebook(name)
+        declaration = registry.bluebook(name)
         base.merge(bluebook: name, wiring: wiring(registry, name),
-                   board: Board.call(chapter, outline: base[:outline]), **read(chapter, registry.hecksagon(name)))
+                   board: Board.call(declaration, outline: base[:outline]), **read(declaration, registry.hecksagon(name)))
       end
 
       # The diagrams, statements and model-check findings of a booted bluebook.
       # @api private
-      def read(chapter, hecksagon)
-        { diagrams:   Projections::Diagrams.call(bluebook: chapter, options: { hecksagon: hecksagon }),
-          statements: Projections::Statements.call(bluebook: chapter),
-          findings:   Bluebook::ModelCheck.call(chapter, hecksagon: hecksagon).map(&:to_h) }
+      def read(declaration, hecksagon)
+        { diagrams:   Projections::Diagrams.call(bluebook: declaration, options: { hecksagon: hecksagon }),
+          statements: Projections::Statements.call(bluebook: declaration),
+          findings:   Bluebook::ModelCheck.call(declaration, hecksagon: hecksagon).map(&:to_h) }
       end
 
       # What the bluebook is wired to: the binds its hecksagon declares, the bluebooks it attaches,
@@ -72,7 +72,7 @@ module Hecks
         hecksagon = registry.hecksagon(name)
         {
           binds:           (hecksagon&.binds || []).map { |bind| bind.to_h.slice(:aggregate, :verb, :adapter, :role) },
-          attaches:        hecksagon&.member_chapters || [],
+          attaches:        hecksagon&.member_bluebooks || [],
           driving:         hecksagon&.driving || [],
           default_adapter: registry.world(name)&.default_adapter,
           ports:           Runtime::CapabilityGraph.new(registry).fulfillments

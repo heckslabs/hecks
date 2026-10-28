@@ -3,7 +3,7 @@ name: CI
 # Runs the pre-push checks (.githooks/pre-push) on every PR and every push to main, against
 # real Postgres and SQLite. `main` takes pushes with no gate, so this run is what reports where
 # each RequiredCheck stands against a commit; promote.yml moves `stable` onto a commit only
-# when every one of them passed (the Lane and RequiredCheck rows of the Vocabulary chapter).
+# when every one of them passed (the Lane and RequiredCheck rows of the Vocabulary bluebook).
 # cache-warm.yml warms the main-scope caches. spec/ci_summary_jobs_spec.rb pins the shape of the
 # required-check wrappers and that no job skips on a push.
 
@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Aggregator that keeps `rspec` a RequiredCheck name (Vocabulary chapter); the work is in
+  # Aggregator that keeps `rspec` a RequiredCheck name (Vocabulary bluebook); the work is in
   # ci-rspec.yml. `if: always()` is required, else a failed
   # `rspec_impl` would skip this job.
   rspec:

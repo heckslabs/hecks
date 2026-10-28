@@ -5,8 +5,8 @@ require_relative "support/sibling_value_object_domain"
 # The id read back must be told apart by shape (head id vs declaration id), or the value
 # object comes back as `Reference<Name>`.
 RSpec.describe "an attribute typed with a sibling aggregate's value object" do
-  let(:chapter) { SiblingValueObjectDomain.chapter }
-  let(:booking) { chapter.aggregate("Booking") }
+  let(:declaration) { SiblingValueObjectDomain.declaration }
+  let(:booking) { declaration.aggregate("Booking") }
   let(:attribute) { booking.attribute("site_reference") }
 
   it "assembles to the bare value object name" do
@@ -20,7 +20,7 @@ RSpec.describe "an attribute typed with a sibling aggregate's value object" do
   it "still resolves to the sibling's value object through the bluebook" do
     resolved = Hecks::Runtime::Value.value_object_for(booking, attribute.type)
 
-    expect(resolved).to be(chapter.aggregate("ManagedSite").value_object("SiteReference"))
+    expect(resolved).to be(declaration.aggregate("ManagedSite").value_object("SiteReference"))
   end
 
   it "keeps a real reference_to as a reference" do

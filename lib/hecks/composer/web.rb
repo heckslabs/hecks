@@ -138,7 +138,7 @@ module Hecks
       end
 
       def check(body)
-        json(200, Check.call(dir: workspace, buffers: buffers(body), chapter_name: body["bluebook_name"]))
+        json(200, Check.call(dir: workspace, buffers: buffers(body), declaration_name: body["bluebook_name"]))
       end
 
       def buffers(body) = body.fetch("buffers", {})

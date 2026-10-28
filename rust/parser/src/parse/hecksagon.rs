@@ -15,7 +15,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 /// Applies a `.hecksagon` body onto an already-built `ir::Bluebook`, attaching
 /// aggregate-scoped ports to the aggregates the sibling `.bluebook` registered.
 ///
-/// `gem_chapter_names` collects each `attaches "Name"` and
+/// `gem_bluebook_names` collects each `attaches "Name"` and
 /// `vendored_bluebook_names` each `attaches "name", from: :vendor`, in file order, for `hecks-parse resolve`; `ir.json` itself
 /// carries neither.
 ///
@@ -26,7 +26,7 @@ pub fn apply(
     lines: &[SourceLine],
     pos: &mut usize,
     bluebook: &mut ir::Bluebook,
-    gem_chapter_names: &mut Vec<String>,
+    gem_bluebook_names: &mut Vec<String>,
     vendored_bluebook_names: &mut Vec<String>,
     require_matching_aggregate: bool,
 ) -> ParseResult<()> {
@@ -133,7 +133,7 @@ pub fn apply(
                         1,
                     )?;
                     match super::named_symbol(&gated.args, "from").as_deref() {
-                        None => gem_chapter_names.push(name),
+                        None => gem_bluebook_names.push(name),
                         Some("vendor") => vendored_bluebook_names.push(name),
                         Some(other) => {
                             return Err(Diagnostic::new(

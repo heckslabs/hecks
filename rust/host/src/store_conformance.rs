@@ -696,7 +696,7 @@ mod cases {
         let backend = B::fresh(db).await;
         let store = backend.store();
         assert!(store
-            .head_states(&[DOMAIN, "Chapter"], "customer")
+            .head_states(&[DOMAIN, "Bluebook"], "customer")
             .await
             .unwrap()
             .is_empty());

@@ -13,10 +13,10 @@ module Hecks
       # @return [Hash] `aggregates` (each with `name`, `at` and its `commands`, each command with
       #   `name`, `role`, `goal`, `emits` and `at`) and `policies` (`name`, `on`, `trigger`, `at`),
       #   where `at` is `{file:, line:}` or nil, and `on` and `trigger` read `Aggregate.Name`
-      def call(chapter, outline:)
+      def call(declaration, outline:)
         places = Places.new(outline)
-        { aggregates: chapter.aggregates.map { |aggregate| aggregate_note(aggregate, places) },
-          policies:   chapter.policies.map { |policy| policy_note(policy, places) } }
+        { aggregates: declaration.aggregates.map { |aggregate| aggregate_note(aggregate, places) },
+          policies:   declaration.policies.map { |policy| policy_note(policy, places) } }
       end
 
       # @api private

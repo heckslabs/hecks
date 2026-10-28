@@ -5,7 +5,7 @@ module Hecks
     module Site
       module CmsEditor
         # What a holder's rules say about how much an attribute may hold: a list's least and most
-        # rows (`chapters.size >= 1`, `parts.size <= 12`) and a text's most characters
+        # rows (`bluebooks.size >= 1`, `parts.size <= 12`) and a text's most characters
         # (`summary.to_s.size <= 600`). The rules are the domain's own, so the editor shows the
         # limit it will be held to, and a text that may be long is entered in a writing box.
         #

@@ -1,6 +1,6 @@
-# A small publisher's pictures, as the second chapter of the multi-chapter editor fixture: a picture
-# aggregate (found by shape), a `Category` of pictures that shares its name with the first chapter's,
-# and a gallery keyed `<kind>:<slug>` by the first chapter's articles and notes, a convention its
+# A small publisher's pictures, as the second bluebook of the multi-bluebook editor fixture: a picture
+# aggregate (found by shape), a `Category` of pictures that shares its name with the first bluebook's,
+# and a gallery keyed `<kind>:<slug>` by the first bluebook's articles and notes, a convention its
 # key's pattern states.
 Hecks.bluebook "Library" do
   vision "The pictures a small publisher keeps."

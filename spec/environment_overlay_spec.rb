@@ -206,7 +206,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
 
       registry = Hecks.boot(File.join(dir, "bluebook"), install_driving: false).registry
 
-      expect(registry.hecksagon("Widgets").attachments.find(&:vendor?).chapter_name).to eq("Widgets")
+      expect(registry.hecksagon("Widgets").attachments.find(&:vendor?).declaration_name).to eq("Widgets")
       expect(registry.bounded?("Widgets")).to be true
     end
 

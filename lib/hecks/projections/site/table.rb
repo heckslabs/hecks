@@ -40,9 +40,10 @@ module Hecks
         # @return [Bluebook::Declaration] the bluebook holding the `Route` value object with member
         #   rows
         # @raise [Invalid] when no bluebook, or more than one, declares one
-        def self.chapter(registry)
-          chapters = registry.bluebooks.values
-          holders = chapters.reject { |chapter| chapter.name == "Site" }.select { |chapter| rows_of(chapter).any? }
+        def self.declaration(registry)
+          declarations = registry.bluebooks.values
+          holders = declarations.reject { |declaration| declaration.name == "Site" }
+          holders = holders.select { |declaration| rows_of(declaration).any? }
           raise Invalid, "no bluebook declares a value_object \"#{ROW_OBJECT}\" with member rows" if holders.empty?
           return holders.first if holders.one?
 
@@ -57,9 +58,9 @@ module Hecks
         #   Site bluebook and, for a `command:` or `query:` source, the command or query
         # @return [Table] the checked table
         # @raise [Invalid] when the Site bluebook is not attached or a row is refused
-        def self.read(chapter, registry:)
-          new(rows_of(chapter), vocabulary: vocabulary(registry), registry: registry,
-                                links: rows_of(chapter, LINK_OBJECT))
+        def self.read(declaration, registry:)
+          new(rows_of(declaration), vocabulary: vocabulary(registry), registry: registry,
+                                links: rows_of(declaration, LINK_OBJECT))
         end
 
         # @param registry [Runtime::Registry] a registry holding the Site bluebook
@@ -82,8 +83,8 @@ module Hecks
         # @param bluebook [Bluebook::Declaration] a bluebook to search
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
-        def self.rows_of(chapter, object = ROW_OBJECT)
-          objects = chapter.aggregates.flat_map(&:value_objects)
+        def self.rows_of(declaration, object = ROW_OBJECT)
+          objects = declaration.aggregates.flat_map(&:value_objects)
           objects.select { |candidate| candidate.hecks_name == object }.flat_map(&:members)
         end
 

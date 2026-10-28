@@ -11,14 +11,14 @@ module Hecks
         # or an attribute ("Aggregate.attribute").
         KINDS = %i[command query port_operation mark attribute].freeze
 
-        # Every kind `verb` names in `chapter`; more than one means the target is ambiguous.
+        # Every kind `verb` names in `bluebook`; more than one means the target is ambiguous.
         #
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the aggregate
         # @param verb [String] the key's target, spelled as one of `KINDS`
         # @return [Array<Symbol>] the kinds it names, empty when it names nothing
-        def kinds_of(chapter, verb)
+        def kinds_of(declaration, verb)
           aggregate_name, member = verb.to_s.split(".", 2)
-          aggregate = chapter.aggregate(aggregate_name)
+          aggregate = declaration.aggregate(aggregate_name)
           return [] unless aggregate && member
           # The port is declared in the hecksagon, which attaches after the bluebook is built, so
           # only the spelling is checkable here; `Registry#verify!` checks the operation.
@@ -33,16 +33,16 @@ module Hecks
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the aggregate
         # @param verb [String] the key's target
         # @return [String, Array<String>, Hash{Symbol => Object}] what the reader is handed
-        # @raise [ArgumentError] when `verb` names nothing, or more than one kind, in `chapter`
-        def resolved_value(chapter, verb)
-          kinds = kinds_of(chapter, verb)
-          raise ArgumentError, "#{chapter.name} declares no single target named #{verb.inspect}" unless kinds.one?
+        # @raise [ArgumentError] when `verb` names nothing, or more than one kind, in `bluebook`
+        def resolved_value(declaration, verb)
+          kinds = kinds_of(declaration, verb)
+          raise ArgumentError, "#{declaration.name} declares no single target named #{verb.inspect}" unless kinds.one?
 
           aggregate_name, member = verb.split(".", 2)
           case kinds.first
-          when :mark then chapter.aggregate(aggregate_name).lifecycle.marked(member)
-          when :attribute then { attribute: member, default: filled_value(attribute_default(chapter, verb)) }
-          else "#{chapter.name}::#{verb}"
+          when :mark then declaration.aggregate(aggregate_name).lifecycle.marked(member)
+          when :attribute then { attribute: member, default: filled_value(attribute_default(declaration, verb)) }
+          else "#{declaration.name}::#{verb}"
           end
         end
 

@@ -194,8 +194,8 @@ module Hecks
     #   array whose first element is used
     # @return [String, nil] the declared bluebook name, or nil when the file never
     #   declares one
-    def chapter_name_of(bluebook_path)
-      SentenceForm.chapter_name(Array(bluebook_path).first)
+    def bluebook_name_of(bluebook_path)
+      SentenceForm.declaration_name(Array(bluebook_path).first)
     end
   end
 end

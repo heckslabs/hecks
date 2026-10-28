@@ -33,7 +33,7 @@ RSpec.describe Hecks::Composer::Live do
   end
 
   it "names the bluebook and lists its aggregate commands by verb", :aggregate_failures do
-    expect(live.chapter_name).to eq("Ledger")
+    expect(live.declaration_name).to eq("Ledger")
     expect(live.commands.map { |command| command[:verb] }).to contain_exactly(
       "Ledger::Account.Open", "Ledger::Account.Credit", "Ledger::Account.FreezeAccount"
     )

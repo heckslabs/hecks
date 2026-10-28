@@ -10,14 +10,14 @@ require_relative "support/deploy_roll_context"
 # `deploy-service.sh` and `deploy-box.sh` (the golden files) run against stand-in `aws`, `docker`
 # and `gh` programs. A successful roll's policy requests a SmokeRun. Nothing reaches AWS or GitHub.
 # The log capture and the generated Makefile are in `hecks_deploy_roll_scripts_spec.rb`.
-RSpec.describe "the Deploy chapter's ServiceRoll and BoxRoll", :io do
+RSpec.describe "the Deploy bluebook's ServiceRoll and BoxRoll", :io do
   include_context "with the deploy roll stand-ins"
 
   it "declares both rolls in the Deploy bluebook, with the DeployToolchain port they ask", :aggregate_failures do
-    chapter = @hecks.registry.bluebook("Deploy")
+    declaration = @hecks.registry.bluebook("Deploy")
 
-    expect(chapter.aggregate("ServiceRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag Verify FlagSmoke])
-    expect(chapter.aggregate("BoxRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag Verify FlagSmoke])
+    expect(declaration.aggregate("ServiceRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag Verify FlagSmoke])
+    expect(declaration.aggregate("BoxRoll").commands.map(&:hecks_name)).to eq(%w[Run Complete Flag Verify FlagSmoke])
   end
 
   describe "service_roll.run" do

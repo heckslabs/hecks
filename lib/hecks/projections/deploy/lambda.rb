@@ -24,7 +24,7 @@ module Hecks
         # Renders `template.yaml`, `Makefile`, `samconfig.toml`, and (unless
         # this domain shares another domain's RDS instance) `bastion.yaml`.
         #
-        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's booted bluebook
+        # @param bluebook [Bluebook::Behaviour::Bluebook] the domain's booted bluebook
         # @param options [Hash] :world, :domain_dir, :root, :world_file, and
         #   :cross_domain_registry are required; :tenant is optional
         # @return [Hash{String => String}] generated file contents by filename

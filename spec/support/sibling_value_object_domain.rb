@@ -77,7 +77,7 @@ module SiblingValueObjectDomain
   BLUEBOOK
 
   # Loads the bluebook into a fresh registry, ports and Memory adapter included.
-  def self.chapter
+  def self.declaration
     registry = Hecks::Runtime::Registry.new
     Dir.mktmpdir("hecks-sibling-vo-") do |dir|
       path = File.join(dir, "sibling_value_object.bluebook")

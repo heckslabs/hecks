@@ -11,9 +11,9 @@ module Hecks
         # @return [Bluebook::Declaration, nil] the bluebook that answers `domain`'s role
         #   checks, or nil if none does
         def authorization_provider_for(domain)
-          names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
+          names = [domain.to_s, *Array(hecksagon(domain)&.member_bluebooks)]
           names.filter_map { |name| bluebook(name) }
-               .find { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
+               .find { |declaration| declaration.provides?(Bluebook::Capabilities::AUTHORIZATION) }
         end
 
         # Every loaded bluebook declaring `provides "authorization"`.
@@ -21,7 +21,7 @@ module Hecks
         # @return [Array<Bluebook::Declaration>] every loaded bluebook that provides
         #   authorization
         def authorization_providers
-          bluebooks.values.select { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
+          bluebooks.values.select { |declaration| declaration.provides?(Bluebook::Capabilities::AUTHORIZATION) }
         end
 
         # The bluebook that answers "who is this authenticated pair" for `domain`: the
@@ -32,15 +32,15 @@ module Hecks
         # @return [Bluebook::Declaration, nil] the bluebook that answers `domain`'s identity
         #   questions, or nil if none does
         def identity_provider_for(domain)
-          names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
+          names = [domain.to_s, *Array(hecksagon(domain)&.member_bluebooks)]
           attached = names.filter_map { |name| bluebook(name) }
-                          .find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
+                          .find { |declaration| declaration.provides?(Bluebook::Capabilities::IDENTITY) }
           return attached if attached
 
           # Falls back to any loaded bluebook: a consuming domain often wires Identity as
           # Hecks.hecksagon "Identity" rather than via `attaches`, so it's loaded but
           # not listed on the consumer's own hecksagon.
-          bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
+          bluebooks.values.find { |declaration| declaration.provides?(Bluebook::Capabilities::IDENTITY) }
         end
 
         # The bluebook that answers "who may sign in" for `domain`: the domain's own
@@ -61,7 +61,7 @@ module Hecks
         #
         # @param capability [String] a `Bluebook::Capabilities` name
         # @return [Bluebook::Declaration, nil] the providing bluebook, or nil if none loaded does
-        def provider_of(capability) = bluebooks.values.find { |chapter| chapter.provides?(capability) }
+        def provider_of(capability) = bluebooks.values.find { |declaration| declaration.provides?(capability) }
 
         # The bluebook that provides `capability` for `domain`: the domain's own bluebook,
         # a framework member its hecksagon attaches, or a vendored embryonaut bluebook
@@ -77,12 +77,12 @@ module Hecks
         # @return [Bluebook::Declaration, nil] the providing bluebook, or nil if none loaded does
         def vendored_provider_for(domain, capability)
           hecksagon = hecksagon(domain)
-          names = [domain.to_s, *Array(hecksagon&.member_chapters)]
+          names = [domain.to_s, *Array(hecksagon&.member_bluebooks)]
           attached = names.filter_map { |name| bluebook(name) }
-                          .find { |chapter| chapter.provides?(capability) }
+                          .find { |declaration| declaration.provides?(capability) }
           return attached if attached
 
-          bluebooks.values.find { |chapter| chapter.provides?(capability) }
+          bluebooks.values.find { |declaration| declaration.provides?(capability) }
         end
       end
     end

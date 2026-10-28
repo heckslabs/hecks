@@ -9,7 +9,7 @@ require_relative "support/editor_fixture_project"
 # repeated group. Each rule reads shape, never a name, so the examples change the declarations and
 # look at what is derived. The neutral project in spec/fixtures/site/editor_fixed_pages holds the
 # files that depend on the project as goldens, rewritten with `GOLDEN=rewrite`.
-RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
+RSpec.describe "the editor's fixed-structure pages, derived from a episode" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_fixed_pages") }
   let(:leaflets) { "domain/bluebook/leaflets.bluebook" }
 
@@ -29,7 +29,7 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
 
   describe "the working copy of a page" do
     it "finds a value object as the draft a command saves, publishes and discards" do
-      expect(aggregate("ChaptersPage")["drafts"]).to eq(
+      expect(aggregate("EpisodesPage")["drafts"]).to eq(
         "attribute" => "draft_content", "live" => "content", "save" => "SaveDraft",
         "publish" => "PublishDraft", "discard" => "DiscardDraft"
       )
@@ -44,7 +44,7 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
     end
 
     it "leaves the clearing argument of a value object out of the form and sends nothing for it" do
-      publish = aggregate("ChaptersPage")["commands"].find { |command| command["name"] == "PublishDraft" }
+      publish = aggregate("EpisodesPage")["commands"].find { |command| command["name"] == "PublishDraft" }
 
       expect(publish).to include("attributes" => []).and(satisfy { |command| !command.key?("empty") })
     end
@@ -60,11 +60,11 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
 
   describe "the limits a holder's rules give a repeated group" do
     it "reads the fewest and the most rows of a list from the value object's invariants" do
-      expect(part("ChaptersPage", "ChaptersContent", "chapters")).to include("min" => 1, "max" => 60)
+      expect(part("EpisodesPage", "EpisodesContent", "episodes")).to include("min" => 1, "max" => 60)
     end
 
     it "reads the limit of a group nested in a group" do
-      expect(part("ChaptersPage", "Chapter", "parts")).to include("max" => 12).and(satisfy { |one| !one.key?("min") })
+      expect(part("EpisodesPage", "Episode", "parts")).to include("max" => 12).and(satisfy { |one| !one.key?("min") })
     end
 
     it "reads a limit from a command's given when the list is the aggregate's own" do
@@ -74,16 +74,16 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
     end
 
     it "takes the tighter of two rules about one list" do
-      changed(leaflets, "invariant(\"a page has at most 60 chapters\") { chapters.size <= 60 }",
-              "invariant(\"a page has at most 60 chapters\") { chapters.size <= 60 }\n      " \
-              "invariant(\"a page has at most 20 chapters\") { chapters.size <= 20 }") do |dir|
-        expect(part("ChaptersPage", "ChaptersContent", "chapters", dir)).to include("max" => 20)
+      changed(leaflets, "invariant(\"a page has at most 60 episodes\") { episodes.size <= 60 }",
+              "invariant(\"a page has at most 60 episodes\") { episodes.size <= 60 }\n      " \
+              "invariant(\"a page has at most 20 episodes\") { episodes.size <= 20 }") do |dir|
+        expect(part("EpisodesPage", "EpisodesContent", "episodes", dir)).to include("max" => 20)
       end
     end
 
     it "gives no limit to a list no rule bounds" do
-      changed(leaflets, "invariant(\"a chapter has at most 12 parts\") { parts.size <= 12 }", "") do |dir|
-        expect(part("ChaptersPage", "Chapter", "parts", dir)).not_to have_key("max")
+      changed(leaflets, "invariant(\"a episode has at most 12 parts\") { parts.size <= 12 }", "") do |dir|
+        expect(part("EpisodesPage", "Episode", "parts", dir)).not_to have_key("max")
       end
     end
   end
@@ -129,15 +129,15 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
     def picture = { "key" => "media_ref", "alt" => "alt", "caption" => "caption" }
 
     it "is found in a value object, in a part of a group's member, and in a list of pictures", :aggregate_failures do
-      expect(part("ChaptersPage", "Hero", "picture")).to include("picture" => picture)
-      expect(part("ChaptersPage", "Chapter", "band")).to include("picture" => picture)
+      expect(part("EpisodesPage", "Hero", "picture")).to include("picture" => picture)
+      expect(part("EpisodesPage", "Episode", "band")).to include("picture" => picture)
       expect(part("GalleryPage", "GalleryContent", "photos")).to include("picture" => picture)
     end
 
     it "is found whatever the value object is called, from the parts it has" do
       changed(leaflets, "value_object \"Band\"", "value_object \"Strip\"", "attribute :band,    Band, optional: true",
               "attribute :band,    Strip, optional: true") do |dir|
-        expect(part("ChaptersPage", "Chapter", "band", dir)).to include("picture" => picture)
+        expect(part("EpisodesPage", "Episode", "band", dir)).to include("picture" => picture)
       end
     end
 
@@ -145,7 +145,7 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
       before = "      attribute :alt,       String\n      attribute :caption,   String, optional: true\n"
       after = "      attribute :caption,   String, optional: true\n"
       changed(leaflets, "#{before}      attribute :align,", "#{after}      attribute :align,") do |dir|
-        expect(part("ChaptersPage", "Chapter", "band", dir)).not_to have_key("picture")
+        expect(part("EpisodesPage", "Episode", "band", dir)).not_to have_key("picture")
       end
     end
 
