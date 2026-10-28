@@ -1,5 +1,6 @@
 require_relative "consumer_runner"
 require_relative "redrive"
+require_relative "runnable"
 
 module Hecks
   module Runtime
@@ -9,6 +10,7 @@ module Hecks
       class Relay
         include ConsumerRunner
         include Redrive
+        include Runnable
 
         attr_reader :registry, :log
 
