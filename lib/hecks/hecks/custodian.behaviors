@@ -112,6 +112,19 @@ Hecks.behaviors "Custodian" do
     expect count: 0
   end
 
+  test "Tidy refuses a run that never finished, so no session is removed" do
+    tests "Tidy", on: "AgentRun"
+    setup "Dispatch", run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }
+    input run: { value: "evening" }
+    expect refused: "ended done"
+  end
+
+  test "Tidyable lists nothing for a run that found no directory" do
+    tests "Tidyable", on: "AgentRun", kind: :query
+    setup  "Dispatch", run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }
+    expect count: 0
+  end
+
   test "Vendor keeps a source that is not there as a refused pinning" do
     tests "Vendor", on: "Package"
     input package: { value: "payments@1.2.0" }, from: { value: "/tmp/hecks-behaviors-absent/registry" }
