@@ -27,8 +27,16 @@ mod tests {
         let entry = &reshape_collections(&rows)["Invoice"];
 
         assert_eq!(
-            (&entry["label"], &entry["columns"], &entry["identity"]["field"]),
-            (&json!("Invoices"), &json!([{"field": "number"}]), &json!("number"))
+            (
+                &entry["label"],
+                &entry["columns"],
+                &entry["identity"]["field"]
+            ),
+            (
+                &json!("Invoices"),
+                &json!([{"field": "number"}]),
+                &json!("number")
+            )
         );
     }
 

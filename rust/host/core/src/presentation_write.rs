@@ -179,7 +179,7 @@ impl Writer<'_> {
                 )
                 .await?;
             }
-            self.declare_collection_parts(&agg, entry, existing).await?;
+            self.declare_collection_parts(agg, entry, existing).await?;
 
             for (field, command) in [
                 ("label", "SetLabel"),
