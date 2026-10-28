@@ -4,7 +4,7 @@
 use crate::auth::Session;
 use crate::dispatch;
 use crate::host::Host;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::presentation;
 use crate::presentation_write;
 use crate::store::Store;

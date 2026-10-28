@@ -7,7 +7,7 @@
 //! leaves the committed data as it was.
 
 use super::{Accepted, DeadLetter, State, StoreError};
-use crate::journal::{SagaRow, Snapshot};
+use crate::store::journal_sql::{SagaRow, Snapshot};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError, RwLock};
 use tokio::sync::{Mutex, OwnedMutexGuard};

@@ -22,7 +22,7 @@ use super::settings::SigninSettings;
 use super::verify::VerifiedClaims;
 use super::{cookie, pages};
 use crate::auth::{self, Session};
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 
 /// Where the account lands after a successful sign-in.

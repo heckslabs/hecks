@@ -4,7 +4,7 @@
 //! the SQL unchanged inside the open transaction.
 
 use super::{Accepted, DeadLetter, State, StoreError};
-use crate::journal;
+use crate::store::journal_sql as journal;
 use std::future::Future;
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
@@ -23,6 +23,30 @@ pub struct LineageStore {
 }
 
 impl LineageStore {
+    /// Every live `state` document of the first of `relations` that exists, empty when none does.
+    /// `to_regclass` resolves through the connection's own `search_path`, so a same-named relation in
+    /// another schema is never read; a relation that exists but fails to read still errors.
+    pub async fn first_existing_states(
+        &self,
+        relations: &[String],
+    ) -> anyhow::Result<Vec<serde_json::Value>> {
+        let client = self.lock().await;
+        for relation in relations {
+            let exists: bool = client
+                .query_one("SELECT to_regclass($1) IS NOT NULL", &[relation])
+                .await?
+                .get(0);
+            if !exists {
+                continue;
+            }
+            let rows = client
+                .query(&format!("SELECT state FROM {}", journal::quote_ident(relation)), &[])
+                .await?;
+            return Ok(rows.iter().map(|row| row.get(0)).collect());
+        }
+        Ok(Vec::new())
+    }
+
     /// The one connection, held for as long as the guard lives; its mutex serializes every use.
     pub async fn lock(&self) -> MutexGuard<'_, Client> {
         self.client.lock().await
