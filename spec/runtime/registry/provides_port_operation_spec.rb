@@ -70,7 +70,7 @@ RSpec.describe "a provides verb naming a port operation" do
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /Aggregate\.Port\.Operation/)
   end
 
-  it "refuses a verb whose aggregate the chapter does not declare" do
+  it "refuses a verb whose aggregate the bluebook does not declare" do
     expect { registry_providing("Nowhere.Gateway.Settled") }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /Nowhere\.Gateway\.Settled/)
   end

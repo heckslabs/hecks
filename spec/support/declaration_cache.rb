@@ -4,7 +4,7 @@ require "hecks"
 # Loads a domain directory's declarations once per process and hands every later boot of the same
 # unchanged directory its own copy, so the specs that boot per example don't re-evaluate every
 # bluebook each time. A boot still gets a fresh Registry, its own runtime state and its own
-# collections; only the loaded chapters, wiring and worlds are shared, and a changed file (path,
+# collections; only the loaded bluebooks, wiring and worlds are shared, and a changed file (path,
 # size or mtime) is a different key. `HECKS_NO_DECLARATION_CACHE=1` turns it off. Specs only:
 # production boot is untouched.
 module DeclarationCache

@@ -74,7 +74,7 @@ level behave *identically* at runtime. `IR::Policy#event_qualifier` comes from p
 the `on` string itself (`Naming.qualifier`) — `"Account.AccountFrozen"` matches only
 Account's own emission; a bare `"CustomerSuspended"` matches that event name from any
 aggregate. The `aggregate` field on `IR::Policy` — which head a policy happened to be
-*written* under — is hoisted to the chapter by the builder either way, excluded from
+*written* under — is hoisted to the bluebook by the builder either way, excluded from
 `to_h` (never crosses the wire, never read by the interpreter), and exists purely as a
 fact about the source for anyone reading the file. Writing a policy at the top level
 to signal "this belongs to no single aggregate" is a legitimate stylistic choice — it

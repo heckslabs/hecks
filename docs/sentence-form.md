@@ -72,7 +72,7 @@ Indent with spaces. A line that starts with `#` is a comment. The paragraph unde
 
 ## More to say about a thing
 
-Everything the Ruby form can say has a sentence, so a chapter written either way means the same
+Everything the Ruby form can say has a sentence, so a bluebook written either way means the same
 thing. This one uses most of them:
 
 ```
@@ -217,7 +217,7 @@ aggregate it belongs to (`announced by an order`). A command's own events need n
 
 ## Examples that run
 
-An examples file sits beside the chapter it is about and has the same name, with the extension
+An examples file sits beside the bluebook it is about and has the same name, with the extension
 `.examples` (`page.bluebook` and `page.examples`).
 
 ```
@@ -261,7 +261,7 @@ Example: Only an editor may take a page down
   have worked.
 - A domain that asks the outside needs a port to ask it through before it can run at all. Put a
   Memory-bound hecksagon beside the examples named `<name>_behaviors.hecksagon` (Pizzas keeps one,
-  `examples/pizzas/pizzas_behaviors.hecksagon`); it is booted with the chapter. Nothing answers
+  `examples/pizzas/pizzas_behaviors.hecksagon`); it is booted with the bluebook. Nothing answers
   the ask in an example, and the runtime refuses it, so an example of such a command is best
   about the order's state (`Then the order is submitted`) rather than the list of events.
 
@@ -273,10 +273,10 @@ and every `.behaviors` and `.examples` file under it runs.
 | | |
 |---|---|
 | `hecks-parse format --chapter Cms page.bluebook` | prints the file in the one canonical wording; works on a Ruby-form file too |
-| `hecks-parse render --chapter Cms page.bluebook` | prints the Ruby-form text for the same chapter |
+| `hecks-parse render --chapter Cms page.bluebook` | prints the Ruby-form text for the same bluebook |
 | `hecks-parse examples --chapter Cms --examples page.examples page.bluebook` | prints the `.behaviors` text the examples run as |
 | `hecks-lsp` | squiggles at the column a sentence went wrong, and offers the sentences legal at the cursor |
-| `hecks language_run.project_phrase_table --confirm` | regenerates the parser's table of sentences from the `Sentence` chapter |
+| `hecks language_run.project_phrase_table --confirm` | regenerates the parser's table of sentences from the `Sentence` bluebook |
 
 `hecks-parse` is built with `cargo build --release --manifest-path rust/parser/Cargo.toml`; a
 sentence file needs it to boot, found at `HECKS_PARSE_BIN`, in `rust/parser/target/`, or on the
@@ -284,9 +284,9 @@ sentence file needs it to boot, found at `HECKS_PARSE_BIN`, in `rust/parser/targ
 
 ## What it cannot say yet
 
-A `.hecksagon` beside a chapter written as sentences is refused by name. So are:
+A `.hecksagon` beside a bluebook written as sentences is refused by name. So are:
 
-- a policy that triggers a command no chapter in the file declares, and a lifecycle transition
+- a policy that triggers a command no bluebook in the file declares, and a lifecycle transition
   that names a command nobody declares, because a sentence file has to make sense on its own;
 - a report that pages each of several included aggregates separately (`on:` a head);
 - the facts a command or query asks the runtime to supply (`needs`), a query's `cursor`, a command
@@ -294,5 +294,5 @@ A `.hecksagon` beside a chapter written as sentences is refused by name. So are:
   value.
 
 Anything the formatter cannot write is refused with the name of what it could not say, never
-dropped, so a chapter that formats always reads back as the same thing. Comments are the one
+dropped, so a bluebook that formats always reads back as the same thing. Comments are the one
 exception: the IR holds none, so a format drops them.

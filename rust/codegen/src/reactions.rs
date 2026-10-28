@@ -163,7 +163,7 @@ pub fn emit_cross_domain_policy_table(
     )
 }
 
-/// One chapter's policies for a merged-table call. `aggregates` feeds the fan-out
+/// One bluebook's policies for a merged-table call. `aggregates` feeds the fan-out
 /// addressing key of local rows only; cross-domain rows ignore it.
 pub struct PolicySource<'a> {
     pub domain_name: &'a str,
@@ -171,10 +171,10 @@ pub struct PolicySource<'a> {
     pub aggregates: &'a [Json],
 }
 
-/// The policy table for `merged.rs`, spanning the target domain and every attached chapter.
+/// The policy table for `merged.rs`, spanning the target domain and every attached bluebook.
 ///
 /// Each source's `target_verb` is qualified against its own domain, never the target's;
-/// omitting a chapter's policies would leave them out of the table `kernel::orchestrate` reads.
+/// omitting a bluebook's policies would leave them out of the table `kernel::orchestrate` reads.
 pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
     let rows: Vec<String> = sources
         .iter()
@@ -198,7 +198,7 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
     }
 }
 
-/// The cross-domain policy table for `merged.rs`, folding in every attached chapter.
+/// The cross-domain policy table for `merged.rs`, folding in every attached bluebook.
 pub fn emit_merged_cross_domain_policy_table(
     exemplar: &Exemplar,
     sources: &[PolicySource],
@@ -675,7 +675,7 @@ mod tests {
 
         // The target domain's own policy, qualified against its own domain.
         assert!(table.contains("target_verb: \"Orders::Invoice.Open\""));
-        // A vendored chapter's same-domain policy, qualified against its own domain.
+        // A vendored bluebook's same-domain policy, qualified against its own domain.
         assert!(table.contains("policy_name: \"OnPaymentConfirmedByProcessor\""));
         assert!(table.contains("target_verb: \"Payments::Payment.Succeed\""));
         // Cross-domain policies belong to the cross-domain table.
@@ -714,7 +714,7 @@ mod tests {
 
         let table = emit_merged_cross_domain_policy_table(&Exemplar::load(), &sources);
 
-        // A vendored chapter's own cross-domain policy, qualified
+        // A vendored bluebook's own cross-domain policy, qualified
         // against its own trigger domain.
         assert!(table.contains("policy_name: \"OnPaymentFailed\""));
         assert!(table.contains("target_domain: \"Ledger\""));

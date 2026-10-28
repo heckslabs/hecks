@@ -9,7 +9,7 @@ require "hecks/ports/persistence/plugins/era"
 RSpec.describe "every domain projection, on every example domain", :aggregate_failures do
   def self.domains = Hecks::Corpus.members(:example).map(&:path).sort
 
-  # The `site_*` projections project a site project, one that attaches the Site chapter, not
+  # The `site_*` projections project a site project, one that attaches the Site bluebook, not
   # any domain; spec/site_*_spec.rb hold them against the site fixture.
   def self.site_kind?(kind) = kind.to_s.start_with?("site_")
 

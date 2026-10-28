@@ -3,7 +3,7 @@ require "spec_helper"
 # The corpus member list is derived, not listed, so a new member is covered without edits here.
 # Per-member loading is proven by spec/model_check_spec.rb's "the real corpus" walk.
 RSpec.describe "The corpus" do
-  # Example domains load by folder; grammar chapters and framework members are flat files.
+  # Example domains load by folder; grammar bluebooks and framework members are flat files.
   EXAMPLE_ROOTS = Hecks::Corpus.members(:example).map(&:path).freeze
   GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
   FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze

@@ -34,7 +34,7 @@ RSpec.describe "hecks console through the launcher, at a terminal" do
   def expect_quiet_prompt(reader)
     prompt = read_until(reader, PTY_PROMPT, seconds: 90)
     expect(prompt).to match(PTY_PROMPT), "no prompt appeared; the console printed:\n#{prompt}"
-    expect(prompt).not_to include("process_manager"), "wiring notes about hecks's own chapters opened the session"
+    expect(prompt).not_to include("process_manager"), "wiring notes about hecks's own bluebooks opened the session"
   end
 
   def expect_typed_input_evaluated(reader, writer)

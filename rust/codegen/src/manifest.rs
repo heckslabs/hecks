@@ -16,7 +16,7 @@ struct Entry {
     reason: Option<String>,
 }
 
-/// The ordered list of generate/skip decisions made for one chapter.
+/// The ordered list of generate/skip decisions made for one bluebook.
 #[derive(Default)]
 pub struct Manifest {
     entries: Vec<Entry>,

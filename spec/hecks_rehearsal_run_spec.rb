@@ -105,7 +105,7 @@ RSpec.describe "rehearsing a domain's next era" do
                "identified_by :slug\n    value_object(\"Slug\") { attribute :value, String }\n  end\nend\n")
     unchecked = rehearse["unchecked"].map { |limit| limit["what"] }
 
-    expect(unchecked).to include("the shape of the attached chapters (Vendored)")
+    expect(unchecked).to include("the shape of the attached bluebooks (Vendored)")
   end
 
   it "would mint nothing when the shape stands", :aggregate_failures, :process do

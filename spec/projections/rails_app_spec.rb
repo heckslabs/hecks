@@ -44,7 +44,7 @@ RSpec.describe Hecks::Projections::RailsApp do
       expect(root_for([{ home: "Basket" }])).to include("root to: \"baskets#index\"")
     end
 
-    it "falls back to the first aggregate when the App row names one the chapter lacks" do
+    it "falls back to the first aggregate when the App row names one the bluebook lacks" do
       expect(root_for([{ home: "Nowhere" }])).to include("root to: \"orders#index\"")
     end
   end

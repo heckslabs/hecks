@@ -80,7 +80,7 @@ and say why in the push (or the PR).
 
 `main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `quick` checks (shape ledger, rubocop, the
 comment-style checks; run them yourself with `hecks gate_run.gate stage=quick --wait`) and then `spec/fuzzing`; `hecks push_train.board! full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
-lanes are unguarded is the `Lane` rows of the Vocabulary chapter, not this file.
+lanes are unguarded is the `Lane` rows of the Vocabulary bluebook, not this file.
 
 ### Fast local iteration
 
@@ -158,8 +158,8 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   the domain's world).
 - **A copy that keeps records names its own database** in `environments/local.world`, which is
   never committed. Two people must not name the same database.
-- **A change to a persisted chapter's storage shape** needs a translation edge under that
-  chapter's `translations/` and a move of the committed ledger `lib/hecks/hecks/shapes.json`.
+- **A change to a persisted bluebook's storage shape** needs a translation edge under that
+  bluebook's `translations/` and a move of the committed ledger `lib/hecks/hecks/shapes.json`.
   `exe/hecks conformance_run.check_shape_ledger --wait` runs with no database, fails when a shape
   moved without an edge, and prints the edge to commit for a change that only adds.
   `--confirm --additive` writes that empty edge and moves the ledger in one step (the mint audits
@@ -175,7 +175,7 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   your `environments/local.world`, says whether a copy may; `exe/hecks config domain.value=<dir>`
   prints it. An unset world refuses, so a copy that should migrate a database says so; the
   refusal names the line to add.
-- **Two people changing the same chapter's shape** conflict in `shapes.json` and leave two edges
+- **Two people changing the same bluebook's shape** conflict in `shapes.json` and leave two edges
   from one source shape, which the mint and CI refuse. The second to merge rebases, regenerates
   their edge from the merged shape, and moves the ledger again.
 - **The push train is optional.** `~/.claude/hecks-train` in the maintainer's setup is a detached
@@ -204,8 +204,8 @@ bundle exec hecks run examples/banking spec/corpus/banking.json   # the refusals
 ```
 
 The `hecks` command is the one entry point for all of this. Its verbs are
-the commands of the `Hecks` chapter (`lib/hecks/hecks/`), and its
-attached chapters add theirs (`hecks deploy recipe.project`, `hecks quality_control
+the commands of the `Hecks` bluebook (`lib/hecks/hecks/`), and its
+attached bluebooks add theirs (`hecks deploy recipe.project`, `hecks quality_control
 …`); `hecks` lists them and `hecks <verb> --help` prints one's usage.
 `run`, `model_check`, `docs`, `narrate`, `ir`, `stores`, `smoke_test`,
 `project_diagrams`, `project_cli` and `mcp` ship in the installed gem; the
@@ -306,7 +306,7 @@ shows it now.
   `git log --format=%h`, then again with `--grep='Co-Authored-By:' -i`,
   and add `--since='30 days ago'` to either for the recent window.
 - **`main` takes pushes with no gate; `stable` is the guarded line.** The
-  branches are the `Lane` rows of the Vocabulary chapter, and the checks a
+  branches are the `Lane` rows of the Vocabulary bluebook, and the checks a
   commit must pass are its `RequiredCheck` rows. CI runs the full job set
   on every push to `main` (`.github/workflows/ci.yml`, header comment).
   `.github/workflows/promote.yml` then fast-forwards `stable` onto a commit

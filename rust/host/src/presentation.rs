@@ -9,11 +9,11 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use tokio_postgres::GenericClient;
 
-/// The chapter the console's config lives in, matching
+/// The bluebook the console's config lives in, matching
 /// `presentation_config.rb`'s own `registry.bluebook("ConsoleSettings")`.
 pub const CONFIG_DOMAIN: &str = "ConsoleSettings";
 
-/// `Naming.snake` of each of that chapter's three aggregates — the
+/// `Naming.snake` of each of that bluebook's three aggregates — the
 /// `storage_name` Ruby derives its relation names from.
 const STATE_STYLE: &str = "state_style";
 const COLLECTION: &str = "collection";
@@ -45,9 +45,9 @@ async fn load_from_relations(store: &Store, config: &LineageConfig) -> anyhow::R
 }
 
 /// The three aggregates' live records, straight off the kernel, or
-/// `None` when this kernel does not carry the chapter at all.
+/// `None` when this kernel does not carry the bluebook at all.
 ///
-/// An empty read is ambiguous — no chapter, or the chapter with nothing
+/// An empty read is ambiguous — no bluebook, or the bluebook with nothing
 /// saved yet — so only then does this probe `ConsoleSettings.Styles` as
 /// a query; a kernel that knows it answers, one that doesn't refuses.
 /// Keeping the plain read a single SELECT (via `dispatch::read`'s
@@ -127,7 +127,7 @@ pub(crate) struct KernelRows {
 
 impl KernelRows {
     /// No row of any of the three kinds — the one answer that cannot
-    /// tell a kernel without this chapter from one nobody has saved to.
+    /// tell a kernel without this bluebook from one nobody has saved to.
     const fn is_empty(&self) -> bool {
         self.states.is_empty() && self.collections.is_empty() && self.overview.is_empty()
     }

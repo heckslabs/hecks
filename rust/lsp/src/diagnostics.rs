@@ -18,7 +18,7 @@ pub struct FileDiagnostic {
 
 /// Runs `hecks-parse chapter` on the file at `path` and returns at most one diagnostic.
 ///
-/// `Ok(None)` means the parse succeeded or the buffer declares no chapter.
+/// `Ok(None)` means the parse succeeded or the buffer declares no bluebook.
 /// Runs the parser as a subprocess because `rust/parser` ships only a binary target.
 pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDiagnostic>, String> {
     let Some(name) = chapter_name(text) else {

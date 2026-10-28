@@ -2,13 +2,13 @@ require "spec_helper"
 require "json"
 require_relative "support/editor_fixture_project"
 
-# What the editor derives, from one chapter's declarations, for editing a page of a fixed structure:
+# What the editor derives from one bluebook's declarations for editing a page of fixed structure:
 # a working copy that is a value object (or a list) and not a body, a picture slot outside a block
 # list, a writing box for a text a rule lets run long, and the limits a holder's invariants give a
 # repeated group. Each rule reads shape, never a name, so the examples change the declarations and
 # look at what is derived. The neutral project in spec/fixtures/site/editor_fixed_pages holds the
 # files that depend on the project as goldens, rewritten with `GOLDEN=rewrite`.
-RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
+RSpec.describe "the editor's fixed-structure pages, derived from a bluebook" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_fixed_pages") }
   let(:leaflets) { "domain/bluebook/leaflets.bluebook" }
 
@@ -73,15 +73,15 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
     end
 
     it "takes the tighter of two rules about one list" do
-      changed(leaflets, "invariant(\"a page has at most 60 chapters\") { chapters.size <= 60 }",
-              "invariant(\"a page has at most 60 chapters\") { chapters.size <= 60 }\n      " \
-              "invariant(\"a page has at most 20 chapters\") { chapters.size <= 20 }") do |dir|
+      changed(leaflets, "invariant(\"a page has at most 60 chapters\") { bluebooks.size <= 60 }",
+              "invariant(\"a page has at most 60 chapters\") { bluebooks.size <= 60 }\n      " \
+              "invariant(\"a page has at most 20 chapters\") { bluebooks.size <= 20 }") do |dir|
         expect(part("ChaptersPage", "ChaptersContent", "chapters", dir)).to include("max" => 20)
       end
     end
 
     it "gives no limit to a list no rule bounds" do
-      changed(leaflets, "invariant(\"a chapter has at most 12 parts\") { parts.size <= 12 }", "") do |dir|
+      changed(leaflets, "invariant(\"a bluebook has at most 12 parts\") { parts.size <= 12 }", "") do |dir|
         expect(part("ChaptersPage", "Chapter", "parts", dir)).not_to have_key("max")
       end
     end

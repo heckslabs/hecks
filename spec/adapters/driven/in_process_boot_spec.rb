@@ -180,8 +180,8 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect { adapter.stores(domain: { value: absent_domain }) }.to raise_error(Hecks::Runtime::NotFound, /no such domain/)
   end
 
-  it "refuses a chapter that cannot be found" do
+  it "refuses a bluebook that cannot be found" do
     expect { adapter.statements(domain: domain, chapter: { value: "Nope" }) }
-      .to raise_error(Hecks::Runtime::NotFound, /no chapter named Nope/)
+      .to raise_error(Hecks::Runtime::NotFound, /no bluebook named Nope/)
   end
 end

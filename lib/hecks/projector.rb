@@ -86,7 +86,7 @@ module Hecks
       return if absent.empty?
 
       raise WrongConstruct,
-            "#{name.inspect} needs a chapter declaring #{absent.join(" and ")}; " \
+            "#{name.inspect} needs a bluebook declaring #{absent.join(" and ")}; " \
             "#{construct.name} declares no such aggregate."
     end
 

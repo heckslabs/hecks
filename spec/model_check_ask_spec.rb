@@ -17,7 +17,7 @@ RSpec.describe "model_check over ask" do
     registry.bluebook("Errand")
   end
 
-  # The Errand chapter with RunWhenRequested still naming its port, as a trigger.
+  # The Errand bluebook with RunWhenRequested still naming its port, as a trigger.
   def triggering_bluebook
     source = File.read(File.join(ERRAND_DIR, "errand.bluebook"))
     Tempfile.new(["errand_triggered", ".bluebook"]).tap do |file|

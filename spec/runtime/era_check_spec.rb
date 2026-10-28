@@ -82,9 +82,9 @@ RSpec.describe "the era check at boot" do
     Encoding.default_external = previous_external
   end
 
-  # Writes one chapter across two files (b before a on disk) plus an unrelated chapter's file.
+  # Writes one bluebook across two files (b before a on disk) plus an unrelated bluebook's file.
   #
-  # @return [Array<String>] the two texts of the chapter, in the order they should be read
+  # @return [Array<String>] the two texts of the bluebook, in the order they should be read
   def write_chapter_files
     second = "Hecks.bluebook \"Shaped\" do\n  aggregate \"Second\" do\n  end\nend\n"
     first = "Hecks.bluebook \"Shaped\" do\n  vision \"first\"\nend\n"
@@ -106,14 +106,14 @@ RSpec.describe "the era check at boot" do
     with_us_ascii_default_encoding { expect(source_text_for("Shaped", root)).to eq(source) }
   end
 
-  it "snapshots every concept file for one chapter, in deterministic order" do
+  it "snapshots every concept file for one bluebook, in deterministic order" do
     first, second = write_chapter_files
 
     expect(source_text_for("Shaped", root)).to eq("#{first}\n#{second}")
   end
 
-  # A domain that attaches a chapter the gem carries (the QA ledger, QualityControl) holds no
-  # file for it: the era reads the chapter's own files, wherever the gem keeps them.
+  # A domain that attaches a bluebook the gem carries (the QA ledger, QualityControl) holds no
+  # file for it: the era reads the bluebook's own files, wherever the gem keeps them.
   it "reads an attached chapter's source from the files the gem carries it in" do
     File.write(File.join(root, "quality_control.hecksagon"), "# wiring only\n")
 

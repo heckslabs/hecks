@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # The meta-domain holds a bluebook and reads it back through its own queries.
-# Covers the chapter and its aggregates, not yet equality with the builder's `to_h`.
+# Covers the bluebook and its aggregates, not yet equality with the builder's `to_h`.
 RSpec.describe "the language holds a bluebook, and gives it back" do
   # The keys one read of the whole bluebook answers, in order.
   WHOLE_BLUEBOOK_KEYS = %i[bluebook aggregates commands value_objects queries entities members

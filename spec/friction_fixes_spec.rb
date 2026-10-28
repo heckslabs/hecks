@@ -2,7 +2,7 @@ require "spec_helper"
 
 # Four edges a person wiring a domain meets first: a reaction that did not take is said aloud, a
 # bulk form called without a query says what it is, an adapter can be told its context, and a
-# sentence-form chapter loads through the same door as a Ruby one.
+# sentence-form bluebook loads through the same door as a Ruby one.
 RSpec.describe "friction at the edges" do
   describe "a reaction the domain refused" do
     let(:registry) { instance_double(Hecks::Runtime::Registry, reaction_event: nil) }
@@ -94,7 +94,7 @@ RSpec.describe "friction at the edges" do
     end
   end
 
-  describe "a sentence-form chapter" do
+  describe "a sentence-form bluebook" do
     # A bluebook file whose first line is `first_line`, loaded through the one door.
     def load_through_door(first_line)
       file = Tempfile.new(["chapter", ".bluebook"])

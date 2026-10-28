@@ -8,7 +8,7 @@ use crate::ui_schema;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 
-// Duplicates the chapter's own `one_of` so this refuses before any dispatch starts.
+// Duplicates the bluebook's own `one_of` so this refuses before any dispatch starts.
 const VALID_TONES: &[&str] = &["good", "warn", "danger", "muted", "accent"];
 const VALID_DISPLAYS: &[&str] = &["simple", "prose", "bullet", "mono", "rows"];
 const VALID_FORMATS: &[&str] = &["date", "percent"];
@@ -18,7 +18,7 @@ const VALID_SORTS: &[&str] = &["asc", "desc"];
 // What a save can answer with other than "saved". `api.rs` maps each variant to a status code,
 // so this module never mentions one.
 pub(crate) enum SaveRefusal {
-    // This host's kernel carries no ConsoleSettings chapter.
+    // This host's kernel carries no ConsoleSettings bluebook.
     NoKernel,
     // `PresentationConfig::Malformed` — `app.rb`'s own 422.
     Malformed(String),
@@ -33,7 +33,7 @@ pub(crate) async fn save(
     submitted: &Value,
     host: Host<'_>,
 ) -> Result<Value, SaveRefusal> {
-    // Asked before validated: a host with no such chapter cannot honour this request at all,
+    // Asked before validated: a host with no such bluebook cannot honour this request at all,
     // regardless of which rule the submitted config would otherwise break.
     let existing = match presentation::kernel_rows(host.store, host.wasm_path).await {
         Ok(Some(rows)) => rows,
@@ -82,7 +82,7 @@ fn list(value: Option<&Value>) -> &[Value] {
 
 // Every present field is re-dispatched on every save, even to an unchanged value, so the two
 // engines produce the same history for the same request. A field once set and later omitted is
-// never cleared: the chapter declares no `Clear*` command.
+// never cleared: the bluebook declares no `Clear*` command.
 struct Writer<'a> {
     host: Host<'a>,
 }

@@ -2,12 +2,12 @@ require "spec_helper"
 require "json"
 require_relative "support/editor_fixture_project"
 
-# One editor over several chapters, and what it derives from the bluebooks' own declarations: the
+# One editor over several bluebooks, and what it derives from the bluebooks' own declarations: the
 # relationship pickers, the moments, and the listing. The neutral project in
-# spec/fixtures/site/editor_chapters has two chapters (writing and pictures) that share an
+# spec/fixtures/site/editor_chapters has two bluebooks (writing and pictures) that share an
 # aggregate name; the files that differ from the single-chapter editor's are held as goldens,
 # rewritten with `GOLDEN=rewrite`.
-RSpec.describe "the editor over several chapters" do
+RSpec.describe "the editor over several bluebooks" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_chapters") }
 
   include_context "with an editor fixture project"
@@ -37,8 +37,8 @@ RSpec.describe "the editor over several chapters" do
     it_behaves_like "an editor projection with committed goldens"
   end
 
-  describe "the chapters" do
-    it "names each aggregate's chapter, in the order the row gives them", :aggregate_failures do
+  describe "the bluebooks" do
+    it "names each aggregate's bluebook, in the order the row gives them", :aggregate_failures do
       data = schema
 
       expect(data["chapters"]).to eq(%w[Press Library])
@@ -51,22 +51,22 @@ RSpec.describe "the editor over several chapters" do
       expect(aggregate("Category", "Library")["queries"].map { |query| query["name"] }).to eq(["All"])
     end
 
-    it "limits a chapter to the roles the row names, and leaves another open", :aggregate_failures do
+    it "limits a bluebook to the roles the row names, and leaves another open", :aggregate_failures do
       expect(aggregate("Gallery", "Library")["roles"]).to eq(["Admin"])
       expect(aggregate("Article", "Press")).not_to have_key("roles")
     end
 
-    it "finds the picture aggregate in the second chapter and says which chapter holds it" do
+    it "finds the picture aggregate in the second bluebook and says which bluebook holds it" do
       expect(schema["media"]).to include("aggregate" => "MediaItem", "domain" => "Library", "listing" => "Pictures")
     end
 
-    it "leaves out an aggregate named with its chapter, and only that chapter's" do
+    it "leaves out an aggregate named with its bluebook, and only that chapter's" do
       with_row('title: "Press editor"', 'title: "Press editor", skip: "Library::Category"') do |dir|
         expect(schema(dir)["aggregates"].map { |agg| "#{agg["chapter"]}.#{agg["name"]}" }).not_to include("Library.Category")
       end
     end
 
-    it "is the single-chapter editor's schema, unchanged, for an editor of one chapter", :aggregate_failures do
+    it "is the single-chapter editor's schema, unchanged, for an editor of one bluebook", :aggregate_failures do
       other = File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor")
       text = Hecks::Tools::SiteRoutes.projection(other, out: "/w", editor: "/w/e").fetch("/w/e/src/schema.ts")
       single = JSON.parse(text[/SCHEMA: Schema = (\{.*\});\n/m, 1])
@@ -145,15 +145,15 @@ RSpec.describe "the editor over several chapters" do
   end
 
   describe "the Editor row" do
-    it "is refused for a chapter named twice" do
+    it "is refused for a bluebook named twice" do
       with_row('chapter: "Press, Library"', 'chapter: "Press, Press"') do |dir|
         expect { files_of(dir) }.to raise_error(SystemExit, /chapter names "Press" twice/)
       end
     end
 
-    it "is refused when chapter_roles names a chapter the editor does not edit" do
+    it "is refused when chapter_roles names a bluebook the editor does not edit" do
       with_row('chapter_roles: "Library=Admin"', 'chapter_roles: "Nowhere=Admin"') do |dir|
-        expect { files_of(dir) }.to raise_error(SystemExit, /not a chapter of this editor/)
+        expect { files_of(dir) }.to raise_error(SystemExit, /not a bluebook of this editor/)
       end
     end
 
@@ -163,9 +163,9 @@ RSpec.describe "the editor over several chapters" do
       end
     end
 
-    it "is refused when media names one of the chapters it edits" do
+    it "is refused when media names one of the bluebooks it edits" do
       with_row('title: "Press editor"', 'title: "Press editor", media: "Library"') do |dir|
-        expect { files_of(dir) }.to raise_error(SystemExit, /is this editor's own chapter/)
+        expect { files_of(dir) }.to raise_error(SystemExit, /is this editor's own bluebook/)
       end
     end
   end

@@ -115,7 +115,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     sweep.conclude!(notes: { value: "found several surprising divergences in the freeze/unfreeze cycle" })
 
     sweep2 = QualityControl::Sweep.open!(target: t3.id, reference: { value: "SW-2" }, engineer: { value: "Claude QA 2" })
-    sweep2.waive!(reason:    { value: "the chapter would not boot; recording the pass so the rotation moves on" },
+    sweep2.waive!(reason:    { value: "the bluebook would not boot; recording the pass so the rotation moves on" },
                   waived_by: { value: "Claude QA 2" })
     sweep2.conclude!(notes: { value: "boot refused outright; nothing could be checked this pass" })
 

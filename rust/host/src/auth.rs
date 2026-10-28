@@ -355,7 +355,7 @@ fn identity_id_from_state(state: &Value) -> Option<String> {
 }
 
 /// Resolves an external identity the way the Google callback does: the PostgresEra head first,
-/// then the flat journal's `instances`. A domain whose Identity chapter keeps no head of its own
+/// then the flat journal's `instances`. A domain whose Identity bluebook keeps no head of its own
 /// (its heads cover its own aggregates and the membership aggregate) holds the link only there.
 ///
 /// # Errors
@@ -461,7 +461,7 @@ async fn member_rows(store: &Store, domain_ir: &Value) -> anyhow::Result<Vec<(St
 
 // The membership aggregate comes from `ir.json`'s declared `membership`
 // key, never an env var or a lookup against lineage_capable_aggregates —
-// the chapter declaration is the fact, same as Governance's authorization.
+// the bluebook declaration is the fact, same as Governance's authorization.
 fn membership_aggregate(domain_ir: &Value) -> anyhow::Result<(String, String)> {
     let provider = crate::ir::membership_provider(domain_ir).ok_or_else(|| {
         anyhow::anyhow!(
@@ -586,7 +586,7 @@ pub async fn provision(
     };
 
     // Uses this domain's declared identity provider (`ir::identity_provider`),
-    // never a hard-coded chapter. Link's reference field is `identity`, not
+    // never a hard-coded bluebook. Link's reference field is `identity`, not
     // `identity_id` -- changing this silently breaks linking.
     let Some(identity) = crate::ir::identity_provider(domain_ir) else {
         anyhow::bail!("this domain attaches no chapter that provides \"identity\" — cannot register or link an identity");
@@ -643,7 +643,7 @@ pub async fn provision(
     };
 
     // The grant verb this domain's declared authorization provider names
-    // (`ir::authorization_provider`), never a hard-coded chapter.
+    // (`ir::authorization_provider`), never a hard-coded bluebook.
     let Some(provider) = crate::ir::authorization_provider(domain_ir) else {
         anyhow::bail!(
             "this domain attaches no chapter that provides \"authorization\" — cannot grant a role"
@@ -1538,7 +1538,7 @@ mod tests {
     #[test]
     fn resolve_identity_finds_a_link_that_only_the_flat_journal_holds() {
         // The shape `ExternalIdentifier.Link` leaves in the flat snapshot of a domain whose Identity
-        // chapter has no head of its own; the key carries the issuer URL and the subject.
+        // bluebook has no head of its own; the key carries the issuer URL and the subject.
         let instances = json!({
             "Identity::ExternalIdentifier#https://accounts.google.com:111": {
                 "identity": "471ef402-8609-4fa4-9288-6372fc74650d",

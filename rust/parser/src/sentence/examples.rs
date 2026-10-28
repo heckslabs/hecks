@@ -2,7 +2,7 @@
 //! runs it against the domain it is about.
 //!
 //! An example says who does what and what follows, in the domain's own words. Every name in it is
-//! checked against the parsed chapter, so an example can only mean something the domain declares:
+//! checked against the parsed bluebook, so an example can only mean something the domain declares:
 //! a person's role, a command and the fields it takes, a lifecycle state, an event, a rule's own
 //! sentence. What does not resolve is refused with what would have.
 

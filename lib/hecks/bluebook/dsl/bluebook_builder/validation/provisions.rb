@@ -53,7 +53,7 @@ module Hecks
               return if aggregate && member && provided_member_names(aggregate, kind).include?(member)
 
               raise Malformed, "#{bluebook.name} provides #{capability.inspect} #{row.key}: #{row.verb.inspect}, " \
-                               "which names no #{kind} this chapter declares (spelled \"Aggregate.#{kind.capitalize}\")"
+                               "which names no #{kind} this bluebook declares (spelled \"Aggregate.#{kind.capitalize}\")"
             end
 
             # A package-declared key must name exactly one thing the bluebook declares; which kind it
@@ -69,7 +69,7 @@ module Hecks
             def package_provision_problem(kinds)
               return "names #{kinds.join(" and ")} at once; rename one" if kinds.any?
 
-              "names nothing this chapter declares (spelled \"Aggregate.Command\", \"Aggregate.Query\", " \
+              "names nothing this bluebook declares (spelled \"Aggregate.Command\", \"Aggregate.Query\", " \
                 "\"Aggregate.Port.Operation\", \"Aggregate.mark_name\" or \"Aggregate.attribute\")"
             end
 

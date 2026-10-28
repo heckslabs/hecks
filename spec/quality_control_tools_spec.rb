@@ -14,7 +14,7 @@ RSpec.describe "the QualityControl tool queries" do
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
-  # Every query the chapter answers by a port, with the port's name and the aggregate it belongs to.
+  # Every query the bluebook answers by a port, with the port's name and its aggregate.
   def tool_queries
     @chapter.aggregates.flat_map do |aggregate|
       aggregate.queries.filter_map do |query|

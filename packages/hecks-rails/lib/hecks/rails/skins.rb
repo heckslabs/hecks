@@ -6,7 +6,7 @@ module Hecks
     # Also defines `ApplicationRecord`, the base a hand-written model inherits, unless the app
     # has one.
     #
-    # A chapter a hecksagon attached (Governance and the like) gets none; the app's own chapters do.
+    # A bluebook a hecksagon attached (Governance and the like) gets none; the app's own bluebooks do.
     #
     # The Ruby driving adapter installs a top-level module per aggregate at boot, which would claim
     # the name a model wants. `discard_facades!` removes those right after boot, before Zeitwerk
@@ -35,7 +35,7 @@ module Hecks
           generated.keys
         end
 
-        # @return [Hash{String => String}] each generated skin's name, and the chapter it binds
+        # @return [Hash{String => String}] each generated skin's name, and the bluebook it binds
         def generated = @generated ||= {}
 
         private

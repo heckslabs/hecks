@@ -56,7 +56,7 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
       expect(value).to eq({ price_cents: { cents: 0 }, size: { value: "small" } })
     end
 
-    it "falls back to a marker string for a type name declared nowhere in the chapter" do
+    it "falls back to a marker string for a type name declared nowhere in the bluebook" do
       expect(described_class.value_for(chapter, order, "NoSuchType")).to eq("smoke-test")
     end
   end

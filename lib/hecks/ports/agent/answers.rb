@@ -110,7 +110,7 @@ module Hecks
           verb = row["verb"].to_s
           return verb if VERB_PATTERN.match?(verb)
 
-          raise ValidationError, "#{verb.inspect} is not a fully-qualified verb (Chapter::Aggregate.Command)"
+          raise ValidationError, "#{verb.inspect} is not a fully-qualified verb (Bluebook::Aggregate.Command)"
         end
 
         # Reads a finding row's kind, refusing one outside the closed critique vocabulary.

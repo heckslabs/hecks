@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/composer/toolbox"
 
 # The Toolbox runs Hecks's own commands and queries in-process for the Composer's palette. One
-# toolbox is shared by the group because booting the Hecks chapter takes about a second.
+# toolbox is shared by the group because booting the Hecks bluebook takes about a second.
 RSpec.describe Hecks::Composer::Toolbox do
   before(:all) { @toolbox = described_class.new }
 

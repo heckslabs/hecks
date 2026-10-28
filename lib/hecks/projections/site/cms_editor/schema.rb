@@ -39,7 +39,7 @@ module Hecks
           def self.read(chapters, skip: [], pictures: nil, roles: {})
             list = chapters.is_a?(Array) ? chapters : [chapters]
             shaped = Composition.aggregates(list, skip: skip, roles: roles) { |agg| new(agg).to_h }
-            raise ArgumentError, "the #{list.map(&:name).join(", ")} chapter has no aggregate to edit" if shaped.empty?
+            raise ArgumentError, "the #{list.map(&:name).join(", ")} bluebook has no aggregate to edit" if shaped.empty?
 
             media = pictures ? elsewhere(pictures) : within(shaped, list.first.name)
             assemble(list, Relations.apply(Pickers.apply(shaped, media), media), media)
@@ -73,7 +73,7 @@ module Hecks
           def self.elsewhere(chapter)
             shaped = chapter.aggregates.map { |agg| new(agg).to_h }
             found = Media.read(shaped)
-            raise ArgumentError, "the #{chapter.name} chapter has no aggregate that registers pictures" unless found
+            raise ArgumentError, "the #{chapter.name} bluebook has no aggregate that registers pictures" unless found
 
             found.merge("domain" => chapter.name, "definition" => shaped.find { |agg| agg["name"] == found["aggregate"] })
           end

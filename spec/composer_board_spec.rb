@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/composer"
 require "hecks/composer/board_edit"
 
-# The event-storming board is read off the booted chapter, and every action on it is one exact edit
+# The event-storming board is read off the booted bluebook, and every action on it is one exact edit
 # of the text. Each edit here is applied, then the patched workspace is booted and read back through
 # the board, so an edit that wrote bad text would not boot.
 RSpec.describe "the Composer's board" do

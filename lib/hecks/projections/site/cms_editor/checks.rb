@@ -58,7 +58,7 @@ module Hecks
             named = row[:media].strip
             return [] unless row[:chapter].split(",").map(&:strip).include?(named)
 
-            ["media #{named.inspect} is this editor's own chapter; name another chapter"]
+            ["media #{named.inspect} is this editor's own bluebook; name another bluebook"]
           end
 
           # The login page is a public row: a visitor with no session must reach it.

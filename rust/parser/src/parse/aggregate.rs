@@ -15,7 +15,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 
 /// Outcome of a bare chapter-wide `given(desc)` reference.
 ///
-/// A chapter may span files, so an undeclared target is `Pending`, settled by
+/// A bluebook may span files, so an undeclared target is `Pending`, settled by
 /// `parse::chapter::parse_chapter` once every file has loaded. Ambiguity is refused at once.
 pub enum ChapterGivenLookup {
     Resolved(ir::Given),
@@ -107,7 +107,7 @@ pub struct PendingChapterGiven {
     pub file: String,
     pub line: usize,
 }
-/// An aggregate with its policies and the givens left for the chapter to resolve.
+/// An aggregate with its policies and the givens left for the bluebook to resolve.
 pub type ParsedAggregate = (
     ir::Aggregate,
     Vec<ir::Policy>,
@@ -360,7 +360,7 @@ pub fn parse_body(
                 }
             }
             // `from:` is a dotted path split on the last `.`. Resolving the remote field needs the
-            // whole chapter, so it stays with the Ruby builder.
+            // whole bluebook, so it stays with the Ruby builder.
             "projects" => {
                 let field_name = super::positional_symbol(file, line, "projects", &gated.args, 1)?;
                 let from = super::named_symbol(&gated.args, "from")

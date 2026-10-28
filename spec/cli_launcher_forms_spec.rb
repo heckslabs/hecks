@@ -112,11 +112,11 @@ RSpec.describe "the legacy names under the launcher's words" do
     expect(out).not_to include("0 chapter")
   end
 
-  it "answers project_diagrams for an unknown chapter as the launcher does", :aggregate_failures, :io do
+  it "answers project_diagrams for an unknown bluebook as the launcher does", :aggregate_failures, :io do
     _, err, status = hecks("project_diagrams", "examples/banking", "Nope")
 
     expect(status.exitstatus).to eq(1)
-    expect(err).to include("no chapter named Nope")
+    expect(err).to include("no bluebook named Nope")
   end
 
   it "returns a subcommand's own Integer status from start" do

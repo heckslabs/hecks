@@ -68,10 +68,10 @@ file list to leave the tooling out no longer can.
 
 ## 8. Write `attaches` instead of `uses_framework` and `uses_embryonaut_bluebook`
 
-A hecksagon attaches a chapter with one word, `attaches`. `uses_framework "Governance"` is now
+A hecksagon attaches a bluebook with one word, `attaches`. `uses_framework "Governance"` is now
 `attaches "Governance"`, and `uses_embryonaut_bluebook "membership"` is now
-`attaches "membership", from: :vendor`. Without `from:` the name is found among the chapters the
-gem carries (a framework member or a chapter of the language, Tenancy, Deploy); `from: :vendor`
+`attaches "membership", from: :vendor`. Without `from:` the name is found among the bluebooks the
+gem carries (a framework member or a bluebook of the language, Tenancy, Deploy); `from: :vendor`
 loads the package vendored into the project, and is never a fallback for a misspelt gem name.
 
 The two old words worked in 3.0 to 3.3 with a one-line warning, and were removed in 3.4.0. A

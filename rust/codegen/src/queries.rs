@@ -874,7 +874,7 @@ pub struct QueryDef {
     /// `cursor` is declared: `limit` is the page size and `after` names the position.
     pub cursor: bool,
     pub authorization: Option<String>,
-    /// True when the chapter's `provides "authorization", assignments:` names this query.
+    /// True when the bluebook's `provides "authorization", assignments:` names this query.
     pub assignments: bool,
     /// `Some` for a declared entity query — emitted into `ENTITY_QUERIES`.
     pub entity: Option<EntityScope>,

@@ -76,7 +76,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
     tables = public_tables
 
-    # Domain-qualified (ADR 0059); defaults to the owning chapter, "Pizzas".
+    # Domain-qualified (ADR 0059); defaults to the owning bluebook, "Pizzas".
     expect(tables).to include("pizzas_order_head_snapshot_1")
     expect(tables).not_to include("pizzas_order_head_snapshot_0", "pizzas_order_head_snapshot_")
   end

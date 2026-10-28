@@ -1,4 +1,4 @@
-//! Writes each chapter's `ir.json` and `metadata.rs` sidecars, from the IR as generated (marked).
+//! Writes each bluebook's `ir.json` and `metadata.rs` sidecars, from the IR as generated (marked).
 
 use crate::json::{self, Json};
 use std::fmt::Write as _;

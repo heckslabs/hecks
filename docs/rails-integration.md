@@ -23,15 +23,15 @@ ordinary Rails files.
 | `available_commands(as:)` | the model | The domain's own validation, under the actor's Governance grants |
 | Reference lookups | `packages/hecks-rails` (`References`) | `transfer.source_account` for `reference_to Account, as: :source`, or `account_record` when the attribute is named for its target; the record loads only when the lookup is called |
 | Pages | `packages/hecks-rails` (`App`, `Pages`, `Rendering`, `app/views`) | An app has a working UI with no view file: a list per aggregate that takes commands (with a form for each creating command), a record page offering the commands the signed-in person may run now, and a refused command's form reopened with the domain's reason. An app's own view of the same name wins |
-| `RailsApp` chapter | `lib/hecks/rails_app/bluebook` | The shapes of the two rows a project may declare to change the pages: `App` (`title`, `home`) and `Listing` (`aggregate`, `label`, `columns`), as `member` rows in the project's own chapter. With no rows the pages are derived from the domain alone |
+| `RailsApp` bluebook | `lib/hecks/rails_app/bluebook` | The shapes of the two rows a project may declare to change the pages: `App` (`title`, `home`) and `Listing` (`aggregate`, `label`, `columns`), as `member` rows in the project's own bluebook. With no rows the pages are derived from the domain alone |
 | `:rails_app` projection | `lib/hecks/projections/rails_app.rb` | A controller per aggregate that takes commands and a routes file with a root and a `resources` line each; `hecks launch.project_rails! run=rails dir=<app>` writes them where the app has none, and writes no model, since models are generated at boot |
 | `be_refused_with` | `hecks/rails/rspec` | RSpec matcher for a refusal and its wording |
 | `Hecks/RailsModelRules` | `lib/rubocop/cop/hecks` | Refuses `validates`, callbacks and associations in a model |
 
-The routes are computed from the booted chapters' IR rather than read from Site `Route` rows, which
+The routes are computed from the booted bluebooks' IR rather than read from Site `Route` rows, which
 are a hand-declared website registry. The railtie removes the top-level modules the Ruby driving
 adapter installs for each aggregate, before Zeitwerk registers the app's own model files, so
-`Account` is the app's model and the aggregate stays reachable through its chapter.
+`Account` is the app's model and the aggregate stays reachable through its bluebook.
 
 ## The motivation, stated precisely
 

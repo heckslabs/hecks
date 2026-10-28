@@ -366,15 +366,15 @@ pub struct Bluebook {
     pub vision: Option<String>,
     pub classification: Option<String>,
     // `formerly_known_as "OldName"`: always `None` today because `parse/chapter.rs` refuses it,
-    // but the key is emitted on every chapter.
+    // but the key is emitted on every bluebook.
     pub formerly_known_as: Option<String>,
-    // `namespace "Hecks::Domain"`: the Ruby module the chapter installs under (ADR 0080).
+    // `namespace "Hecks::Domain"`: the Ruby module the bluebook installs under (ADR 0080).
     pub namespace: Option<String>,
     pub aggregates: Vec<Aggregate>,
     pub read_models: Vec<ReadModel>,
     pub policies: Vec<Policy>,
     pub process_managers: Vec<ProcessManager>,
-    // Core contexts this chapter attaches to (`attaches_to "Query", "ReadModel"`).
+    // Core contexts this bluebook attaches to (`attaches_to "Query", "ReadModel"`).
     pub attaches_to: Vec<String>,
     // `provides "authorization", grant: "..."`: one row per key, in source order.
     pub provides: Vec<Provision>,

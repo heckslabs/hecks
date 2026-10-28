@@ -55,7 +55,7 @@ RSpec.describe "QualityControl" do
      InMemoryDomain::PRISM_ADAPTER, File.join(QC_ROOT, "quality_control.bluebook")].each { |file| Kernel.load(file) }
     stub_qc_adapters(tracker, ci_adapter)
     persist_in_memory
-    # The chapter's own ports and the adapters behind its tool queries, so the IssueTracker, CI
+    # The bluebook's own ports and the adapters behind its tool queries, so the IssueTracker, CI
     # and tool-query bindings are the real ones.
     Kernel.load(File.join(QC_ROOT, "quality_control.ports.hecksagon"))
     Dir[File.join(QC_ROOT, "adapters/*_tools.adapter")].each { |file| Kernel.load(file) }
@@ -256,7 +256,7 @@ RSpec.describe "QualityControl" do
     end
 
     # The lifecycle is the lock: one transition wins, the other is refused.
-    it "gives a chapter to one agent and refuses the other", :aggregate_failures do
+    it "gives a bluebook to one agent and refuses the other", :aggregate_failures do
       target = claimed_target
 
       expect(target.held_by.to_h).to eq(value: "agent-one")
@@ -266,7 +266,7 @@ RSpec.describe "QualityControl" do
       end.to raise_error(Hecks::Runtime::GivenNotMet, /not taken from the agent holding it/)
     end
 
-    # An agent that dies must not hold the chapter forever, so a claim can go stale.
+    # An agent that dies must not hold the bluebook forever, so a claim can go stale.
     it "lets the next agent take a claim whose holder has gone quiet" do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
@@ -276,7 +276,7 @@ RSpec.describe "QualityControl" do
       expect(target.held_by.to_h).to eq(value: "agent-two")
     end
 
-    it "puts a released chapter back at the end of the rotation", :aggregate_failures do
+    it "puts a released bluebook back at the end of the rotation", :aggregate_failures do
       target = a_target
       target.claim!(held_by: { value: "agent-one" }, now: { value: 1_000 })
       target.release!(now: { value: 1_000 }, yield_score: { value: 0 }, next_streak: { value: 1 }, capabilities: { value: "" })
@@ -398,7 +398,7 @@ RSpec.describe "QualityControl" do
   end
 
   # Sweeping is not the only way to get work: an agent takes the next open bug off the queue,
-  # so a bug is claimed for the same reason a chapter is.
+  # so a bug is claimed for the same reason a bluebook is.
   describe "taking a bug off the queue" do
     it "offers open bugs nobody is holding, oldest first", :aggregate_failures do
       sweep = a_sweep
@@ -477,7 +477,7 @@ RSpec.describe "QualityControl" do
     end
 
     # `surprising` is not `failed`: it covers the crash and the quiet divergence without choosing.
-    it "separates what the chapter promised from what surprised", :aggregate_failures do
+    it "separates what the bluebook promised from what surprised", :aggregate_failures do
       sweep = sweep_with_one_surprise
 
       expect(rows("Sweep.Check.Surprising").length).to eq(1)
@@ -505,7 +505,7 @@ RSpec.describe "QualityControl" do
 
     def waived_sweep
       a_sweep.tap do |sweep|
-        sweep.waive!(reason:    { value: "the chapter would not boot; recording the pass so the rotation moves on" },
+        sweep.waive!(reason:    { value: "the bluebook would not boot; recording the pass so the rotation moves on" },
                      waived_by: { value: "a person" })
       end
     end
@@ -513,7 +513,7 @@ RSpec.describe "QualityControl" do
     it "lets you through with a reason, and counts it", :aggregate_failures do
       sweep = waived_sweep
 
-      expect { sweep.conclude!(notes: { value: "Could not boot the chapter at all — see the waiver." }) }
+      expect { sweep.conclude!(notes: { value: "Could not boot the bluebook at all — see the waiver." }) }
         .not_to raise_error
       expect(references("Sweep.Waived")).to eq([sweep.id])
     end
@@ -1187,7 +1187,7 @@ RSpec.describe "QualityControl" do
 
   # `SuspendOnSurprise` suspends a target from the `target` a surprising check restates; nothing
   # dispatches `Target.Suspend` by hand.
-  describe "a surprised chapter" do
+  describe "a surprised bluebook" do
     def held_target_with_open_sweep
       target = a_target
       target.claim!(held_by: { value: "qa_sweep" }, now: { value: 1_000 })
@@ -1221,14 +1221,14 @@ RSpec.describe "QualityControl" do
       expect(references("Target.Held")).to be_empty
     end
 
-    it "refuses a surprise that does not say which chapter it is about" do
+    it "refuses a surprise that does not say which bluebook it is about" do
       _target, sweep = held_target_with_open_sweep
 
       expect { check(sweep, "Surprised", sequence: { value: 1 }, observation: { value: "diverged" }) }
         .to raise_error(Hecks::Runtime::AbsentArgument, /target/)
     end
 
-    # No stale-claim arithmetic reaches a suspended chapter, unlike `held`.
+    # No stale-claim arithmetic reaches a suspended bluebook, unlike `held`.
     it "cannot be claimed, however old the suspension" do
       target = surprised_target
 
@@ -1245,7 +1245,7 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  describe "restoring a shelved chapter" do
+  describe "restoring a shelved bluebook" do
     def shelved_target = a_target.tap { |target| target.shelve!(reason: { value: "no Rust binary, and no time to project one" }) }
 
     it "refuses without a reason" do
@@ -1260,10 +1260,10 @@ RSpec.describe "QualityControl" do
     end
   end
 
-  # Not a lifecycle move, so it must reach a chapter whatever `hecks quality_control ask run`
+  # Not a lifecycle move, so it must reach a bluebook whatever `hecks quality_control ask run`
   # currently has it doing: a stale path is exactly as wrong while a claim or a suspension is
   # in progress.
-  describe "relocating a chapter" do
+  describe "relocating a bluebook" do
     it "refuses without a path" do
       target = a_target
 
@@ -1279,7 +1279,7 @@ RSpec.describe "QualityControl" do
       expect(relocated.status).to eq("waiting")
     end
 
-    it "reaches a chapter that is currently held, mid-sweep", :aggregate_failures do
+    it "reaches a bluebook that is currently held, mid-sweep", :aggregate_failures do
       target = claimed_target("qa_sweep")
 
       relocated = target.relocate!(path: { value: "examples/pizzas" })
@@ -1301,12 +1301,12 @@ RSpec.describe "QualityControl" do
       a_target("roster", "examples/roster")
     end
 
-    it "start empty — a chapter nobody has released is eligible for nothing yet", :aggregate_failures do
+    it "start empty — a bluebook nobody has released is eligible for nothing yet", :aggregate_failures do
       expect(a_target.capabilities.to_h).to eq(value: "")
       expect(rows("Target.EligibleFor", mode: { value: "rust" })).to be_empty
     end
 
-    it "are recorded at release and answer which waiting chapters a mode can reach", :aggregate_failures do
+    it "are recorded at release and answer which waiting bluebooks a mode can reach", :aggregate_failures do
       targets_released_for_modes
 
       expect(references("Target.EligibleFor", mode: { value: "postgres_era" })).to contain_exactly("directory", "pizzas")
@@ -1314,7 +1314,7 @@ RSpec.describe "QualityControl" do
       expect(references("Target.EligibleFor", mode: { value: "wasm" })).to be_empty
     end
 
-    it "only count a chapter that is actually waiting" do
+    it "only count a bluebook that is actually waiting" do
       target = released_with("pizzas", "examples/pizzas", "rust")
       target.claim!(held_by: { value: "qa_sweep" }, now: { value: 5_000 })
 
@@ -1331,7 +1331,7 @@ RSpec.describe "QualityControl" do
   end
 
   describe "a signed waiver" do
-    let(:reason) { { value: "the chapter would not boot; recording the pass so the rotation moves on" } }
+    let(:reason) { { value: "the bluebook would not boot; recording the pass so the rotation moves on" } }
 
     it "refuses the loop's own identity on a sweep" do
       expect { a_sweep.waive!(reason: reason, waived_by: { value: "qa_sweep" }) }

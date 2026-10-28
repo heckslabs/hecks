@@ -32,7 +32,7 @@ RSpec.describe "the IR the builder produces, frozen" do
     expect(JSON::VERSION).to eq(pin), pin_mismatch_message(pin)
   end
 
-  # Chapters that load from a file, name => path.
+  # Bluebooks that load from a file, name => path.
   LOADABLE = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
     # Composite identity, a command that announces twice, two entities on one head, a second
@@ -42,11 +42,11 @@ RSpec.describe "the IR the builder produces, frozen" do
     "TillRoom"   => "spec/fixtures/till.bluebook",
     "Wire"       => "spec/fixtures/settlement.bluebook",
     "Reflex"     => "spec/fixtures/reflex.bluebook",
-    # The first chapter to declare `namespace`, so the golden corpus carries that field set.
+    # The first bluebook to declare `namespace`, so the golden corpus carries that field set.
     "Hecks"      => "lib/hecks/hecks/hecks.bluebook"
   }.freeze
 
-  # Language chapters come from the bootstrap registry: judging one while loading it would recurse.
+  # Language bluebooks come from the bootstrap registry: judging one while loading it would recurse.
   LANGUAGES = %w[Bluebook World Hecksagon].freeze
 
   def load_chapter(file)

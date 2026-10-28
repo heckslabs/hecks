@@ -24,9 +24,9 @@ module Hecks
       LOCAL_PART = /\A[^@]+/
 
       # What the refusal says when no bluebook provides membership: the line to add to one.
-      NO_MEMBERSHIP = "this domain attaches no chapter that provides \"membership\". Add a line like " \
+      NO_MEMBERSHIP = "this domain attaches no bluebook that provides \"membership\". Add a line like " \
                       "`provides \"membership\", admit: \"Person.Admit\", grant: \"Person.GrantAccess\", " \
-                      "people: \"Person.All\"` to the chapter that keeps who may sign in: admit and grant " \
+                      "people: \"Person.All\"` to the bluebook that keeps who may sign in: admit and grant " \
                       "name its commands (the grant command is gated to the administrator role), people " \
                       "names the query that lists everyone (docs/running-a-rules-service.md)"
 

@@ -443,7 +443,7 @@ RSpec.describe "a read model's query options" do
   # count/median are group_by's other reductions. Success/empty-set cases
   # dispatch the real DisputedPaymentCount/DisputedPaymentMedian read
   # models; the two refusal cases reopen the same "Banking" bluebook
-  # chapter inline instead of adding fixture files, since a bluebook that
+  # bluebook inline instead of adding fixture files, since a bluebook that
   # fails to build isn't a real corpus member to freeze.
   context "with count and median" do
     BOTH_REDUCTIONS_DOMAIN = proc do

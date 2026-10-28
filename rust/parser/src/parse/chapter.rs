@@ -10,7 +10,7 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Bluebook.{word}"))
 }
 
-/// Parses one chapter across one or more `.bluebook` files plus any `.hecksagon` files.
+/// Parses one bluebook across one or more `.bluebook` files plus any `.hecksagon` files.
 /// Stops at the first diagnostic, whichever file it comes from.
 pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
     if files.is_empty() {
@@ -21,8 +21,8 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         ));
     }
 
-    // A chapter written as sentences is read by the sentence front end; the Ruby-shaped grammar
-    // below never sees it. The two forms do not mix inside one chapter.
+    // A bluebook written as sentences is read by the sentence front end; the Ruby-shaped grammar
+    // below never sees it. The two forms do not mix inside one bluebook.
     let sentence_files: Vec<&(String, String)> = files
         .iter()
         .filter(|(_, source)| crate::sentence::is_sentence_form(source))
@@ -330,7 +330,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     Ok(bluebook)
 }
 
-/// Lists the chapters `<Name>`'s block pulls in via `attaches` (or its deprecated spellings).
+/// Lists the bluebooks `<Name>`'s block pulls in via `attaches` (or its deprecated spellings).
 /// Every block is still gated; the IR accumulator is a throwaway.
 pub fn resolve_hecksagon_dependencies(
     chapter_name: &str,
@@ -412,7 +412,7 @@ fn parse_body_into(
     pending_chapter_entity_givens: &mut Vec<(usize, entity::PendingChapterEntityGiven)>,
     pending_entity_command_givens: &mut Vec<(usize, entity::PendingEntityCommandGiven)>,
 ) -> ParseResult<()> {
-    // The given pool spans the whole chapter, not one file: a later concept file may reference
+    // The given pool spans the whole bluebook, not one file: a later concept file may reference
     // a named given an earlier one declared. Entries are (owner aggregate name, `Given`).
     while let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? {
         let line = gated.line.number;

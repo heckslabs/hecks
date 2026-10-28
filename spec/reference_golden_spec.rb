@@ -2,7 +2,7 @@ require "spec_helper"
 require "hecks/doc/reference"
 
 # The reference pages must equal what the language declares: tables are projected from the
-# Syntax chapter, prose is hand-written between markers, and every live word needs prose.
+# Syntax bluebook, prose is hand-written between markers, and every live word needs prose.
 # Regenerate deliberately with `hecks language_run.project_reference` (or GOLDEN=rewrite).
 RSpec.describe "the DSL reference" do
   REFERENCE_DIR = File.join(InMemoryDomain::ROOT, "docs/implemented/reference").freeze

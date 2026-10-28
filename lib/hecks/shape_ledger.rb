@@ -78,7 +78,7 @@ module Hecks
       problems = problems(read(path), shapes, edges)
       raise Failure, problems.join("\n") unless problems.empty?
 
-      "#{shapes.size} chapter shapes, each the one the ledger holds"
+      "#{shapes.size} bluebook shapes, each the one the ledger holds"
     end
 
     # @return [Array<String>] one line per bluebook whose shape disagrees with the ledger
@@ -115,7 +115,7 @@ module Hecks
       raise Failure, uncovered.join("\n") unless uncovered.empty?
 
       File.write(path, "#{JSON.pretty_generate(shapes.sort.to_h)}\n")
-      "wrote #{shapes.size} chapter shapes to #{path}#{edges_note(written)}"
+      "wrote #{shapes.size} bluebook shapes to #{path}#{edges_note(written)}"
     end
 
     def edges_note(written) = written.empty? ? "" : " and #{written.size} empty edge(s): #{written.join(", ")}"

@@ -1,6 +1,6 @@
 require_relative "doctest"
 
-# Tracks which markdown doctest owns which chapter name: installed chapter
+# Tracks which markdown doctest owns which bluebook name: installed bluebook
 # names are never uninstalled, so collisions must be caught before boot.
 module DoctestNames
   ROOT = InMemoryDomain::ROOT
@@ -66,18 +66,18 @@ module DoctestNames
       UNGATED_STATUS_DOCS
   end
 
-  # Chapter names each document invents, keyed by path. A document that loads
+  # Bluebook names each document invents, keyed by path. A document that loads
   # a corpus file instead of declaring `Hecks.bluebook` itself claims nothing.
   #
   # @return [Hash{String => Array<String>}] each gated document's own path, mapped to the
-  #   chapter names it invents
+  #   bluebook names it invents
   def claims
     all.to_h { |path| [path, Doctest.declared_domains(Doctest.parse(path))] }
   end
 
-  # Finds every chapter name two documents both claim.
+  # Finds every bluebook name two documents both claim.
   #
-  # @return [Array<String>] one sentence per colliding chapter name, empty when none collide
+  # @return [Array<String>] one sentence per colliding bluebook name, empty when none collide
   def collisions
     owners = {}
     claims.flat_map do |path, domains|
@@ -87,7 +87,7 @@ module DoctestNames
         next unless owner
 
         "#{relative(path)} declares #{domain.inspect}, already declared by #{relative(owner)} " \
-          "— a chapter name is claimed once across the guides and the reference together"
+          "— a bluebook name is claimed once across the guides and the reference together"
       end
     end
   end

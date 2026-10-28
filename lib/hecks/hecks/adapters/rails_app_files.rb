@@ -24,7 +24,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the app has no `bluebook/` or it declares no bluebook
       def call
         files = projected_files
-        raise ConsoleCapture::Failure, "no chapter declared under #{bluebook_dir}" if files.empty?
+        raise ConsoleCapture::Failure, "no bluebook declared under #{bluebook_dir}" if files.empty?
 
         files.sort.map { |path, text| write(path, text) }.join("\n")
       end

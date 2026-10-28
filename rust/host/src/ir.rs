@@ -187,7 +187,7 @@ pub fn adapter_provides(domain_ir: &Value, aggregate: &str, capability: &str) ->
         .is_some_and(|names| names.iter().any(|name| name.as_str() == Some(capability)))
 }
 
-/// The chapter this domain's role checks resolve against, read from
+/// The bluebook this domain's role checks resolve against, read from
 /// `ir.json`'s own `authorization` key. `None` when nothing provides it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuthorizationProvider {
@@ -206,11 +206,11 @@ pub fn authorization_provider(domain_ir: &Value) -> Option<AuthorizationProvider
     })
 }
 
-/// The chapter that answers "who may sign in", read from `ir.json`'s own
+/// The bluebook that answers "who may sign in", read from `ir.json`'s own
 /// `membership` key. `None` when nothing provides `"membership"`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MembershipProvider {
-    /// Chapter name, e.g. `Membership`.
+    /// Bluebook name, e.g. `Membership`.
     pub provider: String,
     /// Qualified aggregate, e.g. `Membership::Person`.
     pub aggregate: String,
@@ -237,12 +237,12 @@ pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {
     })
 }
 
-/// The chapter that answers "who is this authenticated pair", read from
+/// The bluebook that answers "who is this authenticated pair", read from
 /// `ir.json`'s own `identity` key. `None` when nothing provides `"identity"`.
 /// Link's reference field must stay `identity` — never `identity_id`, never `to:`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityProvider {
-    /// Chapter name, e.g. `Identity`.
+    /// Bluebook name, e.g. `Identity`.
     pub provider: String,
     /// Qualified register command, e.g. `Identity::Identity.Register`.
     pub register: String,

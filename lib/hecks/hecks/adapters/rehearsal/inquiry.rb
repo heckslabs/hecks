@@ -121,7 +121,7 @@ module Hecks
           names = @subject.bluebook_names - [@subject.bluebook_name]
           return [] if names.empty?
 
-          [{ what: "the shape of the attached chapters (#{names.sort.join(", ")})",
+          [{ what: "the shape of the attached bluebooks (#{names.sort.join(", ")})",
              why:  "their aggregates have no era row of their own, so a change to them is not a mint" }]
         end
 

@@ -31,7 +31,7 @@ RSpec.describe Hecks::Adapters::Driving::Newcomer do
   end
 
   describe ".audience" do
-    it "lists only the newcomer commands, and points at no chapters" do
+    it "lists only the newcomer commands, and points at no bluebooks" do
       expect(described_class.audience(newcomer: %w[launch.init], chapters: %w[Deploy]))
         .to eq(only: %w[launch.init], chapters: [])
     end

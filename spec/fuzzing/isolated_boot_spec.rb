@@ -185,9 +185,9 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
     end
   end
 
-  # A chapter with a bluebook and no hecksagon block (the framework's Privacy) has no bind.
+  # A bluebook with a bluebook and no hecksagon block (the framework's Privacy) has no bind.
   # The Postgres-mode worlds declare a `default_adapter` that needs a `database`, so such a
-  # chapter gets a world of its own that falls back to Memory, as it did before those worlds
+  # bluebook gets a world of its own that falls back to Memory, as it did before those worlds
   # carried a `default_adapter`.
   describe ".write_unbound_chapter_worlds!" do
     def unbound_worlds(copy, dir)
@@ -195,7 +195,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
       text.scan(/Hecks\.world "([^"]+)" do\n  default_adapter "Memory"/).flatten
     end
 
-    it "gives a chapter no hecksagon names a Memory world" do
+    it "gives a bluebook no hecksagon names a Memory world" do
       write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
       write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
       write(copy, "bluebook/extra.bluebook", %(Hecks.bluebook "Extra" do\nend\n))
@@ -205,7 +205,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
       expect(unbound_worlds(copy, "bluebook")).to eq(["Extra"])
     end
 
-    it "writes nothing where every chapter is named by a hecksagon" do
+    it "writes nothing where every bluebook is named by a hecksagon" do
       write(copy, "bluebook/main.hecksagon", %(Hecks.hecksagon "Main" do\nend\n))
       write(copy, "bluebook/main.bluebook", %(Hecks.bluebook "Main" do\nend\n))
 
@@ -214,7 +214,7 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
       expect(Dir.glob(File.join(copy, "**", "*.world"))).to be_empty
     end
 
-    it "declares a chapter of the same name in two directories once" do
+    it "declares a bluebook of the same name in two directories once" do
       write(copy, "a/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
       write(copy, "b/lone.bluebook", %(Hecks.bluebook "Lone" do\nend\n))
 
@@ -274,10 +274,10 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
     end
   end
 
-  # The framework directory's Privacy chapter has no hecksagon block, so its aggregates
-  # bind through the world's `default_adapter`; the copy must give that chapter the same
+  # The framework directory's Privacy bluebook has no hecksagon block, so its aggregates
+  # bind through the world's `default_adapter`; the copy must give that bluebook the same
   # scratch database and schema as every hecksagon-bound one.
-  describe ".call with adapter: :postgres, for a chapter no hecksagon binds", :io do
+  describe ".call with adapter: :postgres, for a bluebook no hecksagon binds", :io do
     def open_privacy_repositories(copy)
       registry = Hecks.boot(copy, install_driving: false).registry
       registry.bluebook("Privacy").aggregates.each { |aggregate| registry.repository("Privacy", aggregate) }

@@ -3,7 +3,7 @@ require "json"
 require "tmpdir"
 require "fileutils"
 
-# `hecks deploy handover.clear` end to end: the Deploy chapter's Handover asks the DeployToolchain
+# `hecks deploy handover.clear` end to end: the Deploy bluebook's Handover asks the DeployToolchain
 # port, the Hecks domain binds its adapter, and a throwaway domain's `.world` files are emptied of
 # their `deployed_to` settings and still load.
 RSpec.describe "the Deploy chapter's Handover", :io do
@@ -46,7 +46,7 @@ RSpec.describe "the Deploy chapter's Handover", :io do
     [JSON.parse(out), status]
   end
 
-  it "declares the clearing and its recorders in the Deploy chapter" do
+  it "declares the clearing and its recorders in the Deploy bluebook" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("Handover").commands.map(&:hecks_name)
 
     expect(commands).to eq(%w[Clear Complete Fault])

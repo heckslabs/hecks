@@ -172,7 +172,7 @@ RSpec.describe "gem packaging" do
       expect(File.executable?(File.join(root, "exe/hecks"))).to be(true)
     end
 
-    it "ships qa/settings.yml, the dials the Hecks chapter reads when it boots", :process do
+    it "ships qa/settings.yml, the dials the Hecks bluebook reads when it boots", :process do
       expect(gemspec.files).to include("qa/settings.yml")
     end
 

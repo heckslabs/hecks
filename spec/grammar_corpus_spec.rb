@@ -156,7 +156,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
         File.write(bluebook_path, host_source(path, fixture))
 
         stdout, stderr, status = run_chapter(bluebook_path)
-        next [nil, "hecks-parse chapter failed:\n#{stderr}\n#{stdout}"] unless status.success?
+        next [nil, "hecks-parse bluebook failed:\n#{stderr}\n#{stdout}"] unless status.success?
 
         [JSON.parse(stdout).fetch("aggregates").first.fetch("commands").first.fetch("givens").first.fetch("ast"), nil]
       end

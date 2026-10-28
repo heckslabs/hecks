@@ -40,7 +40,7 @@ RSpec.describe "Hecks::Fuzzing::Properties read-model properties", :aggregate_fa
 
   def accounts_of(answer) = answer[:accounts]
 
-  # A bluebook stand-in resolving read models by either spelling, as the real chapter does.
+  # A bluebook stand-in resolving read models by either spelling, as the real bluebook does.
   def bluebook_of(*models)
     Struct.new(:name, :read_models) do
       def read_model(spelling) = read_models.find { |held| [held.name, held.query_name].include?(spelling) }

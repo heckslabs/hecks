@@ -1,6 +1,6 @@
-//! Renders a parsed chapter as the Ruby-shaped bluebook text that declares the same IR.
+//! Renders a parsed bluebook as the Ruby-shaped bluebook text that declares the same IR.
 //!
-//! A chapter written as sentences is run by Ruby through this text: `hecks-parse render` prints
+//! A bluebook written as sentences is run by Ruby through this text: `hecks-parse render` prints
 //! it and Ruby loads it like any other `.bluebook`. It spells only what the sentence form can
 //! say; anything else is refused by name rather than guessed at.
 

@@ -23,7 +23,7 @@ module Hecks
               "for, write the bluebook first, then any hecksagon wiring it needs. Reply with one line " \
               "saying what you changed.".freeze
 
-      WIRE = "Change how the chapter in %<dir>s is wired, as the request below says: edit only its " \
+      WIRE = "Change how the bluebook in %<dir>s is wired, as the request below says: edit only its " \
              ".hecksagon and .world files, and bind adapters that already exist. Reply with one line " \
              "saying what you changed.".freeze
 

@@ -236,7 +236,7 @@ fn query_arguments_are_inferred_from_local_and_resolved_hop_fields() {
 
 #[test]
 fn translates_builds_the_same_policy_ir_a_bluebook_policy_block_would() {
-    // `translates` builds the same `ir::Policy` a `policy` block would, attached to the chapter
+    // `translates` builds the same `ir::Policy` a `policy` block would, attached to the bluebook
     // named by `Hecks.hecksagon` rather than one declared in the sibling `.bluebook`.
     let bluebook = fixture("translates.bluebook");
     let hecksagon = fixture("translates.hecksagon");
@@ -536,7 +536,7 @@ fn usage_errors_exit_2() {
     assert_eq!(output.status.code(), Some(2));
 }
 
-/// Parses `body` (a Command's inner lines) as a one-command chapter; returns (exit code, stdout, stderr).
+/// Parses `body` (a Command's inner lines) as a one-command bluebook; returns (exit code, stdout, stderr).
 fn parse_command_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
     let dir = std::env::temp_dir().join(format!("hecks_parse_{tag}_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -632,7 +632,7 @@ fn needs_today_is_a_fact_the_runtime_supplies() {
     );
 }
 
-/// Parses `body` (a Query's inner lines) as a one-query chapter; returns (exit code, stdout, stderr).
+/// Parses `body` (a Query's inner lines) as a one-query bluebook; returns (exit code, stdout, stderr).
 fn parse_query_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
     let dir = std::env::temp_dir().join(format!("hecks_parse_{tag}_{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();

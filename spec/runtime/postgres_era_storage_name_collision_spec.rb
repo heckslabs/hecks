@@ -43,7 +43,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
 
   COLLISION_NOTES_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Notes" do
-      vision "a tiny vendored chapter whose own aggregate collides with Target's own storage_name"
+      vision "a tiny vendored bluebook whose own aggregate collides with Target's own storage_name"
       core
 
       aggregate "Note" do

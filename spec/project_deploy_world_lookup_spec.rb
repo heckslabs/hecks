@@ -3,7 +3,7 @@ require "fileutils"
 
 # Which `.world` file `hecks deploy project <dir>` reads when none is named after the directory:
 # the QA ledger (`qa/`) holds `quality_control.world` beside `governance.world`, attaches the
-# QualityControl chapter from the gem, and has no bluebook of its own.
+# QualityControl bluebook from the gem, and has no bluebook of its own.
 RSpec.describe "hecks deploy project world lookup", :io do
   let(:recipe) { Hecks::Tools.fetch("project_deploy") }
 
@@ -27,7 +27,7 @@ RSpec.describe "hecks deploy project world lookup", :io do
     Dir.mktmpdir { |dir| yield write_domain(dir, **options) }
   end
 
-  it "picks the world named after the chapter the hecksagon attaches among several" do
+  it "picks the world named after the bluebook the hecksagon attaches among several" do
     with_domain(worlds: %w[governance quality_control], hecksagon: %(Hecks::Chapters.load!("QualityControl")\n)) do |domain|
       expect(recipe.world_file_for(domain)).to eq(File.join(domain, "bluebook", "quality_control.world"))
     end

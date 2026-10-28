@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # S16, ADR 0026: the core language's own description must declare at least one instance of
-# each construct kind, or name the gap with a reason. Scoped to the core chapters
+# each construct kind, or name the gap with a reason. Scoped to the core bluebooks
 # (`LANGUAGE_CHAPTERS`), not every attached sub-language.
 #
 # Constants are prefixed `SELF_USE_`: a describe block does not open a lexical scope, so bare
@@ -82,7 +82,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
                          "the ADR's own \"Rejected alternatives\" names this exact risk " \
                          "(\"grouping words by context... is decoration... modelling to " \
                          "satisfy a tool\") for the read model this gate would have to " \
-                         "invent — WholeBluebook already gathers everything a chapter holds " \
+                         "invent — WholeBluebook already gathers everything a bluebook holds " \
                          "in one read, and no real question the language needs answered " \
                          "about itself is a REDUCTION over its own records rather than the " \
                          "records themselves.",
@@ -94,7 +94,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
     "generic"         =>
                          "generic marks a bluebook as NOT a real business domain, so that " \
                          "Expression/Translation/Paging can classify themselves that way — " \
-                         "the language's own chapter IS the canonical grammar, declared " \
+                         "the language's own bluebook IS the canonical grammar, declared " \
                          "`core`, and applying `generic` reflexively to the definition that " \
                          "does the classifying would be the sub-language demotion test " \
                          "turned on itself. ADR 0025 already names it as zero-corpus-use " \

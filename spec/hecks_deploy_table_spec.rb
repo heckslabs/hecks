@@ -5,9 +5,9 @@ require "hecks/tools"
 require "hecks/tools/tools_doc"
 require_relative "support/fake_codebase_shell"
 
-# ADR 0080, section 7: the Deploy rows of the command table. The Deploy chapter is attached to the
+# ADR 0080, section 7: the Deploy rows of the command table. The Deploy bluebook is attached to the
 # Hecks domain, so each row is `hecks deploy <verb>`. This spec lists every row and checks that the
-# command is declared in the Deploy chapter, that its verb answers `--help` through the launcher,
+# command is declared in the Deploy bluebook, that its verb answers `--help` through the launcher,
 # and that the launcher's form is the one the 2.10 notices promise. It then runs the commands whose
 # whole effect can be seen in a temporary directory: a comparison of two templates, and a tenant's
 # provisioning.
@@ -72,7 +72,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "answers #{row.script} as #{row.aggregate}.#{row.name}, `hecks deploy #{row.qualified}`", :aggregate_failures do
       aggregate = @bluebook.aggregate(row.aggregate)
 
-      expect(aggregate).not_to be_nil, "#{row.aggregate} is not declared in the Deploy chapter"
+      expect(aggregate).not_to be_nil, "#{row.aggregate} is not declared in the Deploy bluebook"
       expect(aggregate.commands.map(&:hecks_name)).to include(row.name)
     end
 

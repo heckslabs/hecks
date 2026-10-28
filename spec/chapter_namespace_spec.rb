@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# `namespace` names the module a chapter's constants install under (ADR 0080): the Hecks
+# `namespace` names the module a bluebook's constants install under (ADR 0080): the Hecks
 # domain nests under `Hecks::Domain`, since its aggregates share names with the gem's modules.
 RSpec.describe "a chapter's namespace" do
   def registry_with(&)
@@ -57,12 +57,12 @@ RSpec.describe "a chapter's namespace" do
   # RSpec restores the stubbed constant, and everything installed under it, after each example.
   before { stub_const("NsOuter", Module.new) }
 
-  it "is carried on the chapter and its IR, nil when undeclared", :aggregate_failures do
+  it "is carried on the bluebook and its IR, nil when undeclared", :aggregate_failures do
     expect(declare("NsPlain").bluebook("NsPlain").to_h[:namespace]).to be_nil
     expect(declare("NsNested", nest: "NsOuter::Inner").bluebook("NsNested").to_h[:namespace]).to eq("NsOuter::Inner")
   end
 
-  it "installs the chapter at its namespace, with its aggregates inside it and none at the top level", :aggregate_failures do
+  it "installs the bluebook at its namespace, with its aggregates inside it and none at the top level", :aggregate_failures do
     registry = declare("NsNested", nest: "NsOuter::Inner")
     Hecks::Adapters::Driving::Ruby.install(Hecks::Runtime::Dispatcher.new(registry))
 
@@ -71,11 +71,11 @@ RSpec.describe "a chapter's namespace" do
     expect(NsOuter::Inner.aggregates).to eq(["Widget"])
   end
 
-  it "refuses a chapter whose constants would land in the gem's own Hecks module" do
+  it "refuses a bluebook whose constants would land in the gem's own Hecks module" do
     expect { declare("Hecks") }.to raise_error(Hecks::Bluebook::DSL::Malformed, /gem's own Hecks module/)
   end
 
-  it "builds a chapter named Hecks that nests itself elsewhere" do
+  it "builds a bluebook named Hecks that nests itself elsewhere" do
     expect(declare("Hecks", nest: "Hecks::Domain").bluebook("Hecks").namespace).to eq("Hecks::Domain")
   end
 end

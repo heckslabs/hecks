@@ -42,12 +42,12 @@ RSpec.describe "membership requires identity" do
     registry
   end
 
-  it "refuses a membership chapter with no identity chapter" do
+  it "refuses a membership bluebook with no identity bluebook" do
     expect { registry_with_membership.verify! }
       .to raise_error(Hecks::Runtime::WiringError, /provides "identity"/)
   end
 
-  it "boots when both membership and identity chapters are loaded" do
+  it "boots when both membership and identity bluebooks are loaded" do
     expect { registry_with_membership(also_identity: true).verify! }.not_to raise_error
   end
 end

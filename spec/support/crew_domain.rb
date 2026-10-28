@@ -1,6 +1,6 @@
 require "fileutils"
 
-# A throwaway domain whose chapter provides "membership": a `Crew` of people who may sign in,
+# A throwaway domain whose bluebook provides "membership": a `Crew` of people who may sign in,
 # gated to the role "Admin", bound to Memory and attached to Governance and Identity.
 module CrewDomain
   BLUEBOOK = <<~RUBY.freeze

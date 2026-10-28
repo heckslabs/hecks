@@ -2,7 +2,7 @@ require "spec_helper"
 require_relative "../support/doors"
 
 # Every role-gated command of every example domain refuses a caller of another role, at every
-# door that takes a role: Ruby, and MCP for the chapter it serves. Its args are synthesized, so
+# door that takes a role: Ruby, and MCP for the bluebook it serves. Its args are synthesized, so
 # a command whose synthesized args are refused before the role gate proves nothing; those are
 # listed in `UNGATED_BY_SYNTHESIS`, and the list must stay exact.
 RSpec.describe "every role-gated command, at every door that takes a role", :aggregate_failures do

@@ -80,7 +80,7 @@ RSpec.describe "the generated diagrams" do
   let(:banking_chapter)  { banking_registry.bluebook("Banking") }
 
   # A separate real file boot, only for the hecksagon — `boot_banking` never loads
-  # `banking.hecksagon`, so bluebook-shaped assertions stay on the fast in-memory chapter.
+  # `banking.hecksagon`, so bluebook-shaped assertions stay on the fast in-memory bluebook.
   let(:banking_hecksagon) { Hecks.boot(File.expand_path("../examples/banking", __dir__)).registry.hecksagon("Banking") }
   let(:scratch_chapter) { boot_scratch_with_port_routing.bluebook("Scratch") }
 
@@ -119,7 +119,7 @@ RSpec.describe "the generated diagrams" do
     end
   end
 
-  # The hecksagon each chapter is drawn with, when it has one.
+  # The hecksagon each bluebook is drawn with, when it has one.
   def diagram_files(chapter_method)
     hecksagon = { pizzas_chapter: :pizzas_hecksagon, banking_chapter: :banking_hecksagon }[chapter_method]
     Hecks::Projector.call(:diagrams, bluebook: send(chapter_method), options: { hecksagon: hecksagon && send(hecksagon) })
@@ -377,7 +377,7 @@ RSpec.describe "the generated diagrams" do
 
   # Pizzas' own `Purchase` is not the example here — its `sets :status,
   # to: "sold"` went with C5.3 (a lifecycle field moves only by
-  # transition), so the scratch chapter's `Create` carries the literal instead.
+  # transition), so the scratch bluebook's `Create` carries the literal instead.
   it "states a literal source verbatim, quoted, distinct from an argument source" do
     diagram = Hecks::Projector.call(:diagrams, bluebook: scratch_chapter)["Payment_surface.mmd"]
     expect(diagram).to include("cmd_Payment_Create([\"Payment.Create\"]) -->|\"sets: 'online'\"| " \

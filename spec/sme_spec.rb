@@ -3,11 +3,11 @@ require "open3"
 require "rbconfig"
 require "json"
 
-# The SME chapter (ADR 0088): an interview is one sitting, answers are recorded only while it is
+# The SME bluebook (ADR 0088): an interview is one sitting, answers are recorded only while it is
 # underway, findings cite an exchange and are accepted or rejected by name, and an interview ends
-# only with a thing and an action accepted. The chapter ships in the gem and is not attached to the
+# only with a thing and an action accepted. The bluebook ships in the gem and is not attached to the
 # Hecks domain, so no `hecks` command boots it.
-RSpec.describe "the SME chapter" do
+RSpec.describe "the SME bluebook" do
   # Runs in a child process: the aggregate constants a boot installs would otherwise join this
   # process's namespace. Each step prints `label=outcome`, where a refusal reads `REFUSED:<class>`.
   INTERVIEW_SCRIPT = <<~RUBY.freeze

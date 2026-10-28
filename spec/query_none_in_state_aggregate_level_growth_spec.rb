@@ -8,7 +8,7 @@ require_relative "support/inline_bluebook_boot"
 RSpec.describe "none_in_state on an ordinary AGGREGATE-level query" do
   include InlineBluebookBoot
 
-  # `%<domain>s` is the chapter name, which differs per adapter so the two never share a constant.
+  # `%<domain>s` is the bluebook name, which differs per adapter so the two never share a constant.
   ANTI_JOIN_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "%<domain>s" do
       aggregate "Claim" do

@@ -12,9 +12,9 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Entity.{word}"))
 }
 
-/// Outcome of looking up a bare `given(desc)` among the chapter's entity-scoped givens.
+/// Outcome of looking up a bare `given(desc)` among the bluebook's entity-scoped givens.
 ///
-/// `Pending` defers to the final pass in `parse::chapter::parse_chapter`, since a chapter may be
+/// `Pending` defers to the final pass in `parse::chapter::parse_chapter`, since a bluebook may be
 /// split across files. `declared_by:` is plain text: a piece has no addressable constant.
 pub enum ChapterEntityGivenLookup {
     Resolved(ir::Given),

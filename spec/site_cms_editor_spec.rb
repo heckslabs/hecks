@@ -6,9 +6,9 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
-# The editor the Site chapter projects from a project's `Editor` row and its domain chapter.
+# The editor the Site bluebook projects from a project's `Editor` row and its domain bluebook.
 # spec/fixtures/site/editor is a neutral sample project (a small publisher): its bluebook declares
-# the row, its domain/ holds the chapter the editor edits, and expected/editor/ holds the files the
+# the row, its domain/ holds the bluebook the editor edits, and expected/editor/ holds the files the
 # projection must produce, byte for byte. Regenerate them with `GOLDEN=rewrite` and read the diff.
 #
 # The editor's behaviour is held by running the generated TypeScript under node against a fake
@@ -168,10 +168,10 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
       expect(text).to include("no field colour")
     end
 
-    it "is refused when the row names a chapter the domain does not declare" do
+    it "is refused when the row names a bluebook the domain does not declare" do
       text = refusal { |source| source.sub('chapter: "Press"', 'chapter: "Elsewhere"') }
 
-      expect(text).to include("declares no chapter Elsewhere")
+      expect(text).to include("declares no bluebook Elsewhere")
     end
   end
 end

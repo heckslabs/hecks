@@ -76,13 +76,13 @@ pub fn dispatch_fn_name(cmd: &str) -> String {
 /// `hecks project_reserved_names` — the same tables `naming.rb` reads.
 pub use crate::reserved_names::{CARGO_RESERVED_DOMAIN_NAMES, RUST_KEYWORDS};
 
-/// The modules every generated chapter declares itself, beside its aggregates' modules: the
+/// The modules every generated bluebook declares itself, beside its aggregates' modules: the
 /// sidecar `metadata`, the `registry` table, and the `merged` router. An aggregate whose
 /// downcased name is one of these would declare the module twice and overwrite the file.
 pub const CHAPTER_OWNED_MODULES: &[&str] = &["metadata", "registry", "merged"];
 
 /// The module (and file stem) one aggregate's generated Rust lives in: its downcased name, or
-/// `<name>_aggregate` when that name is one the chapter declares itself. A downcased name never
+/// `<name>_aggregate` when that name is one the bluebook declares itself. A downcased name never
 /// holds an underscore, so the suffixed form cannot meet another aggregate's module.
 pub fn aggregate_module(name: &str) -> String {
     let module = name.to_lowercase();

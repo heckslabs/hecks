@@ -79,12 +79,12 @@ extracted."
   that one piece's own commands. **Implemented** — moved to
   `docs/implemented/resolution-rules/`.
 - [Chapter-wide given sharing](../implemented/resolution-rules/chapter-given.md) — an aggregate's own
-  `given`, shared across any OTHER aggregate in the same chapter, when the
+  `given`, shared across any OTHER aggregate in the same bluebook, when the
   two verifiably resolve the identical predicate. **Implemented** — moved to
   `docs/implemented/resolution-rules/`.
 - [Chapter-wide entity-scoped given sharing](../implemented/resolution-rules/chapter-entity-given.md) — a
   piece's own `given`, shared across any OTHER piece anywhere in the same
-  chapter, even nested under a DIFFERENT aggregate — one level down from
+  bluebook, even nested under a DIFFERENT aggregate — one level down from
   chapter-wide given sharing, the same way cross-entity given sharing is one
   level down from an aggregate's own `given`. **Implemented** — moved to
   `docs/implemented/resolution-rules/` (#433; Rust mirror is built too,

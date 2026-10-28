@@ -1,6 +1,6 @@
 module Hecks
   module Rails
-    # The HTTP routes a chapter's aggregate commands imply, as data: a `show` for each aggregate
+    # The HTTP routes a bluebook's aggregate commands imply, as data: a `show` for each aggregate
     # and one POST per command.
     #
     # Nothing in the language maps to REST's generic update or destroy, because every command is a
@@ -15,7 +15,7 @@ module Hecks
 
       module_function
 
-      # @param chapter [Hecks::Bluebook::Chapter] a booted chapter
+      # @param bluebook [Hecks::Bluebook::Chapter] a booted bluebook
       # @return [Array<Route>] every route its aggregates imply, aggregate by aggregate
       def for_chapter(chapter) = chapter.aggregates.flat_map { |aggregate| for_aggregate(aggregate) }
 

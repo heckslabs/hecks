@@ -196,7 +196,7 @@ module Hecks
       end
 
       def chapter_in(runtime, name)
-        runtime.bluebook(name) or raise Runtime::NotFound, "no chapter named #{name}"
+        runtime.bluebook(name) or raise Runtime::NotFound, "no bluebook named #{name}"
       end
 
       # The domain's own bluebook, not a framework member it attached: insertion order.

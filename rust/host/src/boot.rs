@@ -392,7 +392,7 @@ async fn boot_postgres(
             mint::Aggregate { name, storage_name }
         })
         .collect();
-    // A chapter that `provides "membership"` names who may sign in; that
+    // A bluebook that `provides "membership"` names who may sign in; that
     // aggregate can be vendored, so it may be missing from this domain's
     // lineage-capable list. Mint its head anyway for Google-auth to read.
     if let Some(membership) = ir::membership_provider(ir) {

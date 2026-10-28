@@ -301,7 +301,7 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   console.log(JSON.stringify(out));
 JS
 
-# The same app for a chapter with no picture aggregate (the Editor row skips it): no upload.
+# The same app for a bluebook with no picture aggregate (the Editor row skips it): no upload.
 EDITOR_BARE_SCENARIO = <<~JS.freeze
   import { accountToken } from "@hecks/client";
   import { createApp } from "./editor/src/app.ts";
@@ -324,8 +324,8 @@ EDITOR_BARE_SCENARIO = <<~JS.freeze
   console.log(JSON.stringify(out));
 JS
 
-# The editor of one chapter whose pictures are kept in another (the row's `media`): the upload, the
-# listing and the picker's address all go to the picture chapter's own domain.
+# The editor of one bluebook whose pictures are kept in another (the row's `media`): the upload, the
+# listing and the picker's address all go to the picture bluebook's own domain.
 EDITOR_ELSEWHERE_SCENARIO = <<~JS.freeze
   import { accountToken } from "@hecks/client";
   import { mkdirSync } from "node:fs";
@@ -761,7 +761,7 @@ RSpec.describe "the generated editor, run by node" do
   end
 
   # Pictures: an upload, a listing and a stored file, run by node against a fake host and a temp
-  # directory, and the same editor for a chapter that has no picture aggregate.
+  # directory, and the same editor for a bluebook that has no picture aggregate.
   describe "pictures" do
     let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor") }
 
@@ -884,12 +884,12 @@ RSpec.describe "the generated editor, run by node" do
     end
 
     describe "the widget" do
-      it "is given the picker's address and script when the chapter registers pictures", :aggregate_failures, :process do
+      it "is given the picker's address and script when the bluebook registers pictures", :aggregate_failures, :process do
         expect(result("newFormMedia")).to be(true)
         expect(result("pickerLoaded")).to be(true)
       end
 
-      it "keeps the prompt, and offers no upload, when the chapter has no picture aggregate", :aggregate_failures, :process do
+      it "keeps the prompt, and offers no upload, when the bluebook has no picture aggregate", :aggregate_failures, :process do
         expect(bare("form")).to include("data-body-editor")
         expect(bare("form")).not_to include("data-media")
         expect(bare("mediaList")).to eq(404)
@@ -900,17 +900,17 @@ RSpec.describe "the generated editor, run by node" do
         expect(bare("noBuild")).to eq(404)
       end
 
-      it "generates none of the upload's files for such a chapter" do
+      it "generates none of the upload's files for such a bluebook" do
         expect(files(skipping: true).keys.grep(/media/)).to be_empty
       end
     end
   end
 
-  # Pictures kept in another chapter of the project's domain: the Editor row's `media` names it, so
+  # Pictures kept in another bluebook of the project's domain: the Editor row's `media` names it, so
   # a
-  # body in one chapter uses the pictures of the other (the chapter that holds bodies has no picture
-  # aggregate of its own, and the picture chapter has no bodies).
-  describe "with its pictures in another chapter" do
+  # body in one bluebook uses the pictures of the other (the bluebook holding bodies has no picture
+  # aggregate of its own, and the picture bluebook has no bodies).
+  describe "with its pictures in another bluebook" do
     def library = <<~RUBY
       Hecks.bluebook "Library" do
         vision "The pictures a small publisher keeps."
@@ -944,7 +944,7 @@ RSpec.describe "the generated editor, run by node" do
 
     let(:fixture) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor") }
 
-    # The fixture with its own picture aggregate skipped, and a second chapter that holds one.
+    # The fixture with its own picture aggregate skipped, and a second bluebook that holds one.
     def project_with(row_edit)
       Dir.mktmpdir("cms_editor_elsewhere") do |dir|
         FileUtils.cp_r(File.join(fixture, "."), dir)
@@ -967,7 +967,7 @@ RSpec.describe "the generated editor, run by node" do
       project_with('media: "Library"') { |dir| EditorNode.run(editor_files(dir), EDITOR_ELSEWHERE_SCENARIO) }
     end
 
-    it "gives the body's widget the picker, though the chapter has no picture aggregate of its own", :aggregate_failures,
+    it "gives the body's widget the picker, though the bluebook has no picture aggregate of its own", :aggregate_failures,
        :process do
       out = run
 
@@ -988,15 +988,15 @@ RSpec.describe "the generated editor, run by node" do
       expect(out["asked"]).to eq([{ "query" => "Library::MediaItem.Pictures", "args" => {} }])
     end
 
-    it "is refused when the row names this editor's own chapter" do
+    it "is refused when the row names this editor's own bluebook" do
       project_with('media: "Press"') do |dir|
-        expect { editor_files(dir) }.to raise_error(SystemExit, /is this editor's own chapter/)
+        expect { editor_files(dir) }.to raise_error(SystemExit, /is this editor's own bluebook/)
       end
     end
 
-    it "is refused when the row names a chapter the domain does not declare" do
+    it "is refused when the row names a bluebook the domain does not declare" do
       project_with('media: "Nowhere"') do |dir|
-        expect { editor_files(dir) }.to raise_error(SystemExit, /declares no chapter Nowhere/)
+        expect { editor_files(dir) }.to raise_error(SystemExit, /declares no bluebook Nowhere/)
       end
     end
   end

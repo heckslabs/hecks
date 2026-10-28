@@ -52,7 +52,7 @@ RSpec.describe "the language's own rules" do
     @runtime.dispatch("Bluebook::Aggregate.Identify", to: @aggregate_id, with: { path: v("name.value") })
   end
 
-  it "refuses a chapter whose vision says nothing" do
+  it "refuses a bluebook whose vision says nothing" do
     expect { @runtime.dispatch_flat("Bluebook::Bluebook.Declare", name: v("E"), vision: v(""), classification: v("core")) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /a vision says something/)
   end

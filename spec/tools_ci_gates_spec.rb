@@ -5,7 +5,7 @@ require "yaml"
 require "hecks/tools"
 require "hecks/tools/ci_gates"
 
-# The path gates are `CiGate` rows of the Vocabulary chapter.
+# The path gates are `CiGate` rows of the Vocabulary bluebook.
 # `hecks regeneration_run.project_ci_gates` writes each row into the marked region of its
 # workflow, and the job it writes runs `hecks regeneration_run.decide_ci_gate`, so CI asks the
 # binary rather than carrying shell of its own. This spec holds the committed workflows to the

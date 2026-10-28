@@ -77,7 +77,7 @@ module Hecks
 
         raise ArgumentError,
               "#{path} declares unknown key(s) #{extra.sort.join(", ")} — " \
-              "no QaDial row of the Vocabulary chapter declares them"
+              "no QaDial row of the Vocabulary bluebook declares them"
       end
 
       def check_type!(path, key, expected, value)

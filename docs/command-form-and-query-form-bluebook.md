@@ -12,7 +12,7 @@ different declarations with different shapes (a command is a POST and a
 form; a query is a GET and a view), and naming them separately —
 `command_form.bluebook` for the one, `query_form.bluebook` for the other —
 says that up front instead of hiding it behind one umbrella word. A third,
-`report_form.bluebook`, names where a chapter's cross-aggregate `report`
+`report_form.bluebook`, names where a bluebook's cross-aggregate `report`
 would eventually get the same treatment — see "Reports and read models are
 not wired" below; nothing renders one yet.
 
@@ -220,9 +220,9 @@ splitting it would mean two copies drifting, for no reader's benefit:
   real syntax — earning a place beside `bluebook`/`hecksagon`, as two (or
   three) separate words rather than one — is the natural next step once
   more than one domain has actually used the shape.
-- **`expose` grants a whole chapter, not a command or query individually.**
+- **`expose` grants a whole bluebook, not a command or query individually.**
   Today's `expose "Banking"` turns forms/views on for every command and
-  query in that chapter at once — there is no per-declaration override yet.
+  query in that bluebook at once — there is no per-declaration override yet.
   `command_form.bluebook`/`query_form.bluebook` are where that finer grain
   would live (a specific command's own label, a specific query's own
   default filter), once there's a real reason to build it.
@@ -243,7 +243,7 @@ splitting it would mean two copies drifting, for no reader's benefit:
   itself), scoped out here.
 - **Reports and read models are not wired — `report_form.bluebook` is
   named, not built.** Only aggregate-scoped `command` and `query` render. A
-  chapter's `report` (a cross-aggregate read model, dispatched through
+  bluebook's `report` (a cross-aggregate read model, dispatched through
   `Dispatcher#query` differently — see `dispatcher.rb`'s own
   `domain.include?("::")` branch) is a distinct shape this pass didn't
   reach; `report_form.bluebook` is the name reserved for it, matching the
@@ -288,7 +288,7 @@ Then, for example: `open http://localhost:4567/`,
 
 To point this at a different domain, write a
 `lib/hecks/forms/examples/banking_console.bluebook`-shaped file
-(anywhere but `examples/*` — see above) declaring which chapters to
+(anywhere but `examples/*` — see above) declaring which bluebooks to
 expose, and adapt `hecks present`'s own boot block (or, for a domain whose
 `.hecksagon` already binds a real adapter rather than needing the
 Memory rebind, just `Hecks.boot(path)` and skip the hand-rolled boot

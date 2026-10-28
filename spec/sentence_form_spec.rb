@@ -5,10 +5,10 @@ require "tmpdir"
 require "hecks/composer"
 require_relative "support/hecks_parse_binary"
 
-# A chapter written as plain sentences and the same chapter written in the Ruby form are one
+# A bluebook written as plain sentences and the same bluebook written in the Ruby form are one
 # chapter: `hecks-parse` reads the sentences into the IR Ruby builds from the Ruby form, and the
 # Ruby text it renders from them builds that IR again when Ruby loads it.
-RSpec.describe "a chapter written as sentences", :io do
+RSpec.describe "a bluebook written as sentences", :io do
   include_context "with the hecks-parse binary"
 
   PAIRS_ROOT = File.expand_path("fixtures/sentence", __dir__)
@@ -76,7 +76,7 @@ RSpec.describe "a chapter written as sentences", :io do
       expect(Hecks::SentenceForm.sentences?(ruby)).to be(false)
     end
 
-    it "names the chapter after the Domain line" do
+    it "names the bluebook after the Domain line" do
       expect(Hecks::SentenceForm.chapter_name(sentence)).to eq("Orders")
     end
   end
@@ -90,7 +90,7 @@ RSpec.describe "a chapter written as sentences", :io do
 
   PAIRS.each do |sentence_file|
     describe File.basename(File.dirname(sentence_file)) do
-      it "reads the chapter name off its Domain line" do
+      it "reads the bluebook name off its Domain line" do
         expect(chapter_of(sentence_file)).to eq(chapter_of(twin_of(sentence_file)))
       end
 
@@ -108,7 +108,7 @@ RSpec.describe "a chapter written as sentences", :io do
         expect(out).to eq(File.read(sentence_file))
       end
 
-      it "is read as the same chapter by the corpus" do
+      it "is read as the same bluebook by the corpus" do
         expect(Hecks::Corpus.chapter_name_of(sentence_file)).to eq(chapter_of(twin_of(sentence_file)))
       end
 

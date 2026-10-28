@@ -34,7 +34,7 @@ module Hecks
 
           domain_root = File.join(base, row[:domain])
           domain = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == row[:chapter] }
-          abort "project_site: #{domain_root} declares no chapter #{row[:chapter]}" unless domain
+          abort "project_site: #{domain_root} declares no bluebook #{row[:chapter]}" unless domain
           Projector.call(:payload_driver, bluebook: chapter, options: { domain_chapter: domain })
         rescue ArgumentError => e
           abort "project_site: #{e.message}"

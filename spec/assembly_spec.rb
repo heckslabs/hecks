@@ -3,7 +3,7 @@ require "spec_helper"
 # A graph assembled from declarations is the graph the builder makes.
 #
 # `Assembly` is the inverse of `to_h`: `Assembly.call(built.to_h).to_h == built.to_h`,
-# checked for every chapter in the corpus against the builder's hash.
+# checked for every bluebook in the corpus against the builder's hash.
 RSpec.describe "a graph assembled from declarations" do
   # A constant so it is reachable both when generating examples and inside them.
   ASSEMBLY_CORPUS = {

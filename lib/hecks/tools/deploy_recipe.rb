@@ -116,7 +116,7 @@ module Hecks
       # @raise [SystemExit] when the registry holds none
       def chapter_for(registry, world, world_file, bluebook_basename)
         registry.bluebook(world.domain) or
-          abort "#{world_file} declares no #{world.domain} chapter — #{bluebook_basename}.bluebook's own " \
+          abort "#{world_file} declares no #{world.domain} bluebook — #{bluebook_basename}.bluebook's own " \
                 "Hecks.bluebook name has to match world.domain."
       end
 

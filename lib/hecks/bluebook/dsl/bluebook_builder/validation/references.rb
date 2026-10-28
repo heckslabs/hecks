@@ -14,7 +14,7 @@ module Hecks
               return unless (bluebook.namespace || bluebook.name) == "Hecks"
 
               raise Malformed, "#{bluebook.name}'s constants would install in the gem's own Hecks module — " \
-                               "declare a namespace, such as namespace \"Hecks::Domain\", or rename the chapter"
+                               "declare a namespace, such as namespace \"Hecks::Domain\", or rename the bluebook"
             end
 
             # Refuses an entity command that names its own entity as its root.

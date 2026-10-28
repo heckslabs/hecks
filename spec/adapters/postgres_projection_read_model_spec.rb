@@ -136,7 +136,7 @@ RSpec.describe "Adapters::PostgresProjection#query_read_model", :io do
 
   let(:runtime) { boot }
 
-  # Booted before any example dispatches, so the chapter's constants are this runtime's.
+  # Booted before any example dispatches, so the bluebook's constants are this runtime's.
   before do
     skip "no reachable Postgres" unless PostgresProbe.available?
     runtime

@@ -1,6 +1,6 @@
 //! Rust port of `Exporter::Bindings` (`lib/hecks/projector/exporter/bindings.rb`) and the provider
-//! lookups of `Registry::Providers`: which attached chapter answers each capability the target
-//! domain uses, read from every chapter's own `provides` entries in its IR.
+//! lookups of `Registry::Providers`: which attached bluebook answers each capability the target
+//! domain uses, read from every bluebook's own `provides` entries in its IR.
 
 use crate::json::Json;
 
@@ -41,9 +41,9 @@ const LANGUAGE_DEFINED: &[&str] = &[
     "subject_keys",
 ];
 
-/// Sets each seam some chapter provides on `target`, leaving it out otherwise, as
+/// Sets each seam some bluebook provides on `target`, leaving it out otherwise, as
 /// `TargetIr#add_seams` does, then the `provides` map of every capability a package declares.
-/// `members` are the chapters the target attaches, in attach order; the target itself is searched
+/// `members` are the bluebooks the target attaches, in attach order; the target itself is searched
 /// first.
 pub fn run(target: &mut Json, members: &[Json]) -> Result<(), String> {
     let mut chapters: Vec<Json> = vec![target.clone()];
@@ -179,7 +179,7 @@ fn filled_default(default: Option<&Json>) -> Json {
     }
 }
 
-// `[(key, verb)]` this chapter provides under `capability`, or `None` when it provides none.
+// `[(key, verb)]` this bluebook provides under `capability`, or `None` when it provides none.
 fn provision(chapter: &Json, capability: &str) -> Option<Vec<(String, String)>> {
     let entries: Vec<(String, String)> = chapter
         .get("provides")

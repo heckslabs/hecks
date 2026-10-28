@@ -5,7 +5,7 @@ require "yaml"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
-# The edge function of the Site chapter (ADR 0115): a route's `edge:` names an `EdgeFunction` row,
+# The edge function of the Site bluebook (ADR 0115): a route's `edge:` names an `EdgeFunction` row,
 # the projection attaches the function to that route's behaviour and writes the function into the
 # template's `edge_functions` region. spec/fixtures/site/studio is the neutral sample project.
 RSpec.describe "the Site chapter's edge functions" do

@@ -135,7 +135,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
     end
   end
 
-  it "carries `ast` on every rule row of every corpus chapter, derived from that row's own canonical", :aggregate_failures do
+  it "carries `ast` on every rule row of every corpus bluebook, derived from that row's own canonical", :aggregate_failures do
     rows = irs.flat_map { |name, ir| rule_rows(ir).map { |path, row| [name, path, row] } }
     expect(rows.size).to be > 100
 

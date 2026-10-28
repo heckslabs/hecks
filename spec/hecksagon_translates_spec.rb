@@ -75,7 +75,7 @@ RSpec.describe "translates, a hecksagon-level cross-domain reaction" do
     [Hecks::Runtime::Dispatcher.new(registry), registry]
   end
 
-  it "builds a real Policy attached to the named chapter", :aggregate_failures do
+  it "builds a real Policy attached to the named bluebook", :aggregate_failures do
     _dispatcher, registry = boot
 
     policy = registry.bluebook("TranslatesLocal").policies.find { |p| p.name == "EchoOnThingFired" }

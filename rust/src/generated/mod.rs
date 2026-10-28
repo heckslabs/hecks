@@ -8,7 +8,7 @@
 // every OTHER domain's `pub mod` unconditionally, so one domain's own
 // non-compiling generated code (a `has_many` field, before this fix)
 // broke every feature's build, not just its own. A shared FRAMEWORK
-// chapter (governance/identity — no merged.rs of its own, so absent
+// bluebook (governance/identity — no merged.rs of its own, so absent
 // from `domains`) stays unconditional: it has no single feature of its
 // own to gate behind, and is compiled in by whichever domain(s) attach
 // it via `attaches`.

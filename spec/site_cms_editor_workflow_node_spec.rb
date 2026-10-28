@@ -12,7 +12,7 @@ require_relative "support/editor_fixture_project"
 # records that go with a record (a document, pictures, search wording), the actions scheduled for
 # it,
 # its preview, and the draft its body is written as. The stand-in host
-# (spec/support/editor_stand_in_host.mjs) keeps the instances of five chapters that refer to each
+# (spec/support/editor_stand_in_host.mjs) keeps the instances of five bluebooks that refer to each
 # other only by
 # `<kind>:<slug>` keys; each request the editor sends it is recorded in `sent`.
 EDITOR_WORKFLOW_SCENARIO = <<~JS.freeze

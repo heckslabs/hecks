@@ -20,7 +20,7 @@ RSpec.describe "every list the language declares, filled more than once" do
   # spec tells you whether the corpus now covers it.
   ALLOWED_SINGLETON = {
     # Filled with two in lib/hecks/language/bluebook/attaches/paging.bluebook, a grammar
-    # chapter with no golden IR fixture, so this walk cannot see it.
+    # bluebook with no golden IR fixture, so this walk cannot see it.
     "attaches_to" =>
                      "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
                      "no golden IR fixture reaches it because Paging is a grammar " \

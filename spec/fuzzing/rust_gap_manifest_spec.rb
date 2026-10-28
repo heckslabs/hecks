@@ -104,7 +104,7 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest, :aggregate_failures do
       expect(gaps.not_generated_verbs).to eq(Set["Shop.FlaggedOrderCount", "Shop.flagged_order_count"])
     end
 
-    it "includes shared framework chapters but not another domain's own module" do
+    it "includes shared framework bluebooks but not another domain's own module" do
       write_module(root, "shop", [])
       write_module(root, "governance", [gap("query", "Governance::Role.Hop")], merged: false)
       write_module(root, "other", [gap("query", "Other::Thing.Hop")])

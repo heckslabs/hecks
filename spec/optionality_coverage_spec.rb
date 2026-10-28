@@ -90,7 +90,7 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
   it "measures a field it knows is exercised both ways", :aggregate_failures do
     set, absent = wire_presence
 
-    expect(set["version"]).to be_positive, "no chapter declares a version any more"
-    expect(absent["version"]).to be_positive, "every chapter declares a version — the absent case is gone"
+    expect(set["version"]).to be_positive, "no bluebook declares a version any more"
+    expect(absent["version"]).to be_positive, "every bluebook declares a version — the absent case is gone"
   end
 end

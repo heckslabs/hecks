@@ -1,10 +1,10 @@
 require "spec_helper"
 require "open3"
 
-# Booting the Hecks chapter attaches gem chapters (Deploy, Tenancy, QualityControl, the language).
+# Booting the Hecks bluebook attaches gem bluebooks (Deploy, Tenancy, QualityControl, the language).
 # Their aggregates (`Query`, `Port`, `Policy`, `Target`...) must not become top-level constants,
-# or a domain booted later that declares such an aggregate meets the chapter's module instead.
-RSpec.describe "Facade install of attached chapters" do
+# or a domain booted later that declares such an aggregate meets the bluebook's module instead.
+RSpec.describe "Facade install of attached bluebooks" do
   # Run in a fresh process: constants installed by earlier examples would mask the delta.
   let(:script) do
     <<~RUBY
@@ -28,7 +28,7 @@ RSpec.describe "Facade install of attached chapters" do
        QualityControl Bluebook Hecksagon Expression]
   end
 
-  it "adds no attached chapter or chapter aggregate as a top-level constant", :aggregate_failures, :process do
+  it "adds no attached bluebook or bluebook aggregate as a top-level constant", :aggregate_failures, :process do
     added = booted.first.lines.map(&:strip).grep(/\A[A-Z]\w*\z/)
 
     expect(booted.last).to be_success

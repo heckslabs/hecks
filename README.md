@@ -29,20 +29,19 @@ doesn't yet.
 
 ## Concepts
 
-Six terms make up the model.
+These terms make up the model.
 
 - **Bluebook** is a language, not a file format: the language you declare a
   domain in, the way SQL is the language you declare queries in. A `.bluebook`
-  file is a program written in it. It never names a backend.
+  file is a program written in it. It never names a backend. A bluebook is all
+  of the files that declare one name (`Pizzas`), the unit a domain is built
+  from; a hecksagon attaches framework bluebooks such as `Governance` by name.
 - **Hecksagon** is the ports-and-adapters wiring for a domain: which adapter
-  persists each aggregate, which chapters it attaches, which driving adapters
+  persists each aggregate, which bluebooks it attaches, which driving adapters
   may reach it (`driven_by`), and its ports. It lives in a `.hecksagon` file.
 - **World** is the per-deployment values that neither of those names, such as a
   database URL. It lives in a `.world` file. Like an `.env` file it holds only
   values, but each one is checked against the adapter it answers.
-- **Chapter** is one named `Hecks.bluebook` declaration (`Pizzas`), the unit a
-  domain is built from. A hecksagon attaches framework chapters such as
-  `Governance` by name.
 - **Driving adapter** is a surface a booted domain is reached through: Ruby
   (`Order.create_pizza!`), the CLI, JSON, or MCP for an agent. Like a
   controller layer it is the way in, but boot installs it from the
@@ -93,7 +92,7 @@ with someone who knows the business), `run`, `docs`, `narrate`, `ir`, `stores`, 
 only). `hecks` lists them and `hecks <command> --help` prints one's
 usage. In a clone of this repository, the same launcher also answers the
 maintainer commands (`hecks publishing_run.publish`, `hecks regeneration_run.regenerate_corpus`,
-`hecks conformance_run.measure_doc_coverage`, and the rest of the Codebase chapter).
+`hecks conformance_run.measure_doc_coverage`, and the rest of the Codebase bluebook).
 
 The gem carries the pizzas example the quickstart uses, so once it is installed
 `hecks console` opens it. A clone adds the rest of the repository: the guides, the
@@ -621,13 +620,18 @@ The project's own words, in the order a newcomer usually meets them.
 The language a domain is declared in, the way SQL is the language queries
 are declared in. A `.bluebook` file is a program in it: one domain's
 aggregates, value objects, commands, rules, events, queries and policies
-(`Hecks.bluebook "Pizzas" do … end`). It never names a backend.
+(`Hecks.bluebook "Pizzas" do … end`). It never names a backend. A bluebook is
+all of the files that declare one name, and the module the Ruby driving adapter
+installs for it (`Pizzas`). The language's framework bluebooks (`Governance`,
+`Identity`, `Privacy` and others) live in `lib/hecks/framework/bluebook/` and
+its grammar bluebooks under `lib/hecks/language/` and `lib/hecks/grammar/`
+(`hecks` lists them); a hecksagon attaches a framework bluebook with `attaches`.
 
 ### Hecksagon
 
 A `.hecksagon` file: the wiring for a bluebook — which adapter persists
 each aggregate (`Pizzas::Order.persisted_by("Memory")`), which framework
-chapters it attaches (`attaches "Governance"`), and its ports. See
+bluebooks it attaches (`attaches "Governance"`), and its ports. See
 [Wiring](docs/implemented/guides/wiring.md).
 
 ### World
@@ -638,18 +642,9 @@ hecksagon names, such as a database URL (`examples/pizzas/bluebook/pizzas.world`
 ### Driving adapter
 
 An adapter that reaches in to a domain from outside. The Ruby one is the surface a boot installs: one top-level module per booted
-chapter and one per aggregate, so `Order.create_pizza!(…)` dispatches the
+bluebook and one per aggregate, so `Order.create_pizza!(…)` dispatches the
 `CreatePizza` command. Each boot re-installs it. The MCP server
 `hecks mcp` is a driving adapter of the same kind, for an agent over stdio. The CLI, JSON and webhook adapters are the others.
-
-### Chapter
-
-One named `Hecks.bluebook` declaration and the module the Ruby driving adapter installs
-for it (`Pizzas`). The language's framework chapters (`Governance`,
-`Identity`, `Privacy` and others) live in `lib/hecks/framework/bluebook/`
-and its grammar chapters under `lib/hecks/language/` and `lib/hecks/grammar/`
-(`hecks` lists the chapters); a hecksagon attaches a framework chapter
-with `attaches`.
 
 ### Heki
 
@@ -676,7 +671,7 @@ the next.
 ### Corpus
 
 Every real domain in this repository that the tooling walks: the example
-domains under `examples/`, the framework and grammar chapters, and the
+domains under `examples/`, the framework and grammar bluebooks, and the
 other domain directories `lib/hecks/corpus.rb` names. `spec/corpus/*.json`
 holds the scripted command and query sequences replayed against them.
 
@@ -693,7 +688,7 @@ development](docs/implemented/guides/ai-native-development.md).
 A bluebook package vendored into a consuming domain's own
 `vendor/embryonaut_bluebooks/<name>/` directory and attached from its
 hecksagon with `attaches "<name>", from: :vendor`, the same way
-`attaches` attaches a framework chapter.
+`attaches` attaches a framework bluebook.
 `examples/embryonaut_vendoring_demo` is the worked example.
 
 ## Contributing

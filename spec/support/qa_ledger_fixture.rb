@@ -8,7 +8,7 @@ require_relative "qa_ledger_role"
 # A disposable Postgres-backed `QualityControl` ledger for specs that run the `qa_*` commands
 # as subprocesses; one database per spec file so parallel_rspec workers do not scrub each other.
 module QaLedgerFixture
-  # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, chapter ports included.
+  # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, bluebook ports included.
   HECKSAGON = <<~RUBY.freeze
     Hecks::Chapters.load!("QualityControl")
 
@@ -46,7 +46,7 @@ module QaLedgerFixture
     File.write(File.join(dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
   end
 
-  # A real Postgres database plus a fixture domain directory that symlinks the real chapter.
+  # A real Postgres database plus a fixture domain directory that symlinks the real bluebook.
   class Ledger
     attr_reader :database, :dir
 

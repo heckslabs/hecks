@@ -2,7 +2,7 @@ require "spec_helper"
 require_relative "../support/memory_ports"
 
 # The runner behind a projected CLI: returns text plus a status, printing and exiting
-# nothing. Run against pizzas so nothing passes by knowing its own chapter.
+# nothing. Run against pizzas so nothing passes by knowing its own bluebook.
 RSpec.describe Hecks::Adapters::Driving::CliRunner do
   let(:runtime) { boot_in_memory }
 
@@ -73,15 +73,15 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   # Both spellings reach the same command.
-  describe "routing to another chapter" do
-    it "speaks to a chapter the domain attaches when the first word names it", :aggregate_failures do
+  describe "routing to another bluebook" do
+    it "speaks to a bluebook the domain attaches when the first word names it", :aggregate_failures do
       output, code = run("governance")
 
       expect(code).to eq(0)
       expect(output).to start_with("Governance").and include("hecks run governance <command>")
     end
 
-    it "keeps to the domain's own chapter otherwise" do
+    it "keeps to the domain's own bluebook otherwise" do
       output, = run
       expect(output).not_to start_with("Governance")
     end
@@ -253,7 +253,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     end
   end
 
-  # A refusal carries the chapter's own sentence and a status a script can branch on.
+  # A refusal carries the bluebook's own sentence and a status a script can branch on.
   describe "refusing" do
     it "hands back the domain's own wording, and a non-zero status", :aggregate_failures do
       a_pizza

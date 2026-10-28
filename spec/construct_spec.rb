@@ -96,7 +96,7 @@ RSpec.describe "a construct's identity" do
 
     # `resolve_references` skips a nil target (a cross-domain one may be unloaded), so a
     # `resolve` that answered nil for everything would leave the suite green.
-    it "resolves every reference in banking to a head in its own chapter", :aggregate_failures do
+    it "resolves every reference in banking to a head in its own bluebook", :aggregate_failures do
       found = references_in(banking, "Banking")
 
       # 22 compiled references; SafeDepositBox.Rent's `customer` counts only because
@@ -183,7 +183,7 @@ RSpec.describe "a construct's identity" do
     end
   end
 
-  describe "the chapter, and why one table survives" do
+  describe "the bluebook, and why one table survives" do
     it "is a root, so it is the one construct with no owner to name", :aggregate_failures do
       chapter = banking.registry.bluebook("Banking")
 
@@ -233,7 +233,7 @@ RSpec.describe "a construct's identity" do
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
     end
 
-    # The registry keeps a chapter table because the top-level entry point cannot install over names
+    # The registry keeps a bluebook table since the top-level entry point cannot install over names
     # Ruby already owns: `Namespace.install` warns and keeps the existing constant.
     it "cannot be indexed by Ruby's constants, because top-level names are not ours", :aggregate_failures do
       registry = Hecks::Runtime::Registry.new
@@ -264,7 +264,7 @@ RSpec.describe "a construct's identity" do
        "Banking.HoldsOnCards"]
     end
 
-    it "hangs a read model off the CHAPTER, since no one head declares it" do
+    it "hangs a read model off the Bluebook, since no one head declares it" do
       # A read model gathers heads from several aggregates. Hanging it off one of
       # them would name the wrong owner.
       expect(bank.read_models.map(&:hecks_fqn)).to eq(banking_read_models)
@@ -303,7 +303,7 @@ RSpec.describe "a construct's identity" do
     def ledger_entry = account.entities.first
 
     it "closes the owner chain, so a piece's verb can say what it is", :aggregate_failures do
-      # chapter -> aggregate -> entity -> command, which is the id the judge mints.
+      # bluebook -> aggregate -> entity -> command, which is the id the judge mints.
       expect(ledger_entry.hecks_fqn).to eq("Banking::Account.LedgerEntry")
       expect(ledger_entry.commands.map(&:hecks_fqn))
         .to eq(["Banking::Account.LedgerEntry.Amend", "Banking::Account.LedgerEntry.Reverse"])

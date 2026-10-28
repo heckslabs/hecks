@@ -3,9 +3,9 @@ require "json"
 require "tmpdir"
 require "hecks/tools"
 
-# ADR 0080, section 7: the Site row of the command table. The Site chapter is attached to the
+# ADR 0080, section 7: the Site row of the command table. The Site bluebook is attached to the
 # Hecks domain, so the row is `hecks site site_projection.project_site`. This spec checks that the
-# command is declared in the Site chapter, that its verb answers `--help` through the launcher,
+# command is declared in the Site bluebook, that its verb answers `--help` through the launcher,
 # and then runs it against the sample project in spec/fixtures/site/studio: a projection written
 # to a temporary directory, a `--check` that finds the file absent, then current, and a project
 # that declares no route table.
@@ -121,7 +121,7 @@ RSpec.describe "the Site row of the ADR command table" do
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("faulted")
-    expect(json.dig("state", "refusal")).to include("no chapter declares a value_object \"Route\"")
+    expect(json.dig("state", "refusal")).to include("no bluebook declares a value_object \"Route\"")
   end
 
   it "runs outside a hecks checkout, since the tool ships in the gem and reads only the project", :aggregate_failures do
@@ -310,7 +310,7 @@ RSpec.describe "the Site row of the ADR command table" do
       reason, status = launch(["site_projection.check_live", @dir, "live=#{@dir}/x.json"])
 
       expect(status).to eq(1)
-      expect(reason).to include("no chapter declares a value_object")
+      expect(reason).to include("no bluebook declares a value_object")
     end
   end
 end

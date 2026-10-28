@@ -103,8 +103,8 @@ module Hecks
             # is always there.
             def refuse_unresolvable_hop!(asks, plan)
               raise Malformed,
-                    "#{asks}, which hops to #{plan.hops.last.target_name}, which this chapter never " \
-                    "declares — a hop into an aggregate this chapter cannot see resolves to " \
+                    "#{asks}, which hops to #{plan.hops.last.target_name}, which this bluebook never " \
+                    "declares — a hop into an aggregate this bluebook cannot see resolves to " \
                     "nothing, and a where that resolves to nothing matches nothing and " \
                     "refuses nothing"
             end

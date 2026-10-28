@@ -203,7 +203,7 @@ RSpec.describe "the Site chapter's edge" do
       expect(message).to include("/cms/_static/* is shadowed by /cms/*", "declare /cms/_static/* before /cms/*")
     end
 
-    it "refuses an origin the Site chapter does not know" do
+    it "refuses an origin the Site bluebook does not know" do
       message = message_for do |text|
         text.sub('member rule: "ListenerRuleCms",        priority: 10, origin: "cms"',
                  'member rule: "ListenerRuleCms", priority: 10, origin: "lambda"')

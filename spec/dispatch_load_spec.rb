@@ -1,10 +1,10 @@
 require "spec_helper"
 
 # `BluebookBuilder#build` ends with `MetaValidator.call`, so the graph a registry holds is not the
-# builder's: it is what the meta-domain assembles after the chapter's own declarations are
+# builder's: it is what the meta-domain assembles after the bluebook's own declarations are
 # dispatched into it. These specs hold that product to the builder's IR, so loading by dispatch
 # loses nothing the DSL said.
-RSpec.describe "a chapter loaded by dispatching its own declarations" do
+RSpec.describe "a bluebook loaded by dispatching its own declarations" do
   DISPATCH_CORPUS = {
     "Pizzas"   => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"  => InMemoryDomain::BANKING_BLUEBOOK_DIR,

@@ -28,24 +28,24 @@ pub enum Plan {
 /// @param domain_ir the domain's IR, when this host has one (`HECKS_IR_PATH`)
 /// @param domain the domain's name, used to qualify a short question
 /// @param question `Aggregate.Query`, or `Chapter::Aggregate.Query` for this domain or one of its
-///   attached chapters
+///   attached bluebooks
 /// @return a kernel question for a declared derivable query, a refusal for an unknown query on a
 ///   known aggregate or for a query answered outside the domain
 pub fn plan(domain_ir: Option<&Value>, domain: &str, question: &str) -> Plan {
-    // A question that names its own chapter (`Chapter::Aggregate.Query`) is asked of that chapter:
-    // the kernel's query table is keyed by the chapter's own domain name, so re-qualifying it with
-    // this host's would send an attached chapter's query to a table that does not hold it.
+    // A question that names its own bluebook (`Chapter::Aggregate.Query`) is asked of that chapter:
+    // the kernel's query table is keyed by the bluebook's own domain name, so re-qualifying it with
+    // this host's would send an attached bluebook's query to a table that does not hold it.
     let (owner, short) = question.rsplit_once("::").unwrap_or((domain, question));
     let qualified = format!("{owner}::{short}");
-    // A plugin answers for any chapter, this domain's or an attached one's: the IR's `plugins`
-    // carries what the host needs to ask it, without that chapter's own IR.
+    // A plugin answers for any bluebook, this domain's or an attached one's: the IR's `plugins`
+    // carries what the host needs to ask it, without that bluebook's own IR.
     if let Some(plugin) = crate::plugins::answering(domain_ir, &qualified) {
         return Plan::Plugin(plugin);
     }
     let Some((aggregate_name, query_name)) = short.split_once('.') else {
         return Plan::Kernel(qualified);
     };
-    // This host's IR describes only its own domain's aggregates; another chapter's question is the
+    // This host's IR describes only its own domain's aggregates; another bluebook's question is the
     // kernel's to answer or refuse.
     if owner != domain {
         return Plan::Kernel(qualified);
@@ -218,7 +218,7 @@ mod tests {
             plan(Some(&ir), "Banking", "Media::MediaItem.Active"),
             Plan::Kernel("Media::MediaItem.Active".into())
         );
-        // The host's own aggregate of the same name is not mistaken for the chapter's.
+        // The host's own aggregate of the same name is not mistaken for the bluebook's.
         assert_eq!(
             plan(Some(&ir), "Banking", "Media::Ledger.Ir"),
             Plan::Kernel("Media::Ledger.Ir".into())

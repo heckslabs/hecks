@@ -3,7 +3,7 @@ require "json"
 require "tmpdir"
 require "fileutils"
 
-# `hecks deploy preview_run.<verb>` end to end: the Deploy chapter's PreviewRun asks the
+# `hecks deploy preview_run.<verb>` end to end: the Deploy bluebook's PreviewRun asks the
 # DeployToolchain port, the Hecks domain binds its adapter, and a stand-in `preview.sh` (a script
 # with the verbs and refusals a project's preview script has) runs against a stand-in `aws`. Nothing
 # reaches AWS, a registry or a database.
@@ -107,7 +107,7 @@ RSpec.describe "the Deploy chapter's PreviewRun", :io do
     ["refusing to #{verb} a preview", "widget-preview-<name derived from feature-a>", "us-east-1", "confirm=true", "dry_run=true"]
   end
 
-  it "declares the six verbs and their recorders in the Deploy chapter" do
+  it "declares the six verbs and their recorders in the Deploy bluebook" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("PreviewRun").commands.map(&:hecks_name)
 
     expect(commands).to eq(%w[Name Url List Deploy Destroy Login RecordName RecordUrl RecordList RecordDeploy

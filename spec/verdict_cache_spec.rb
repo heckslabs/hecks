@@ -2,7 +2,7 @@ require "spec_helper"
 require "open3"
 require "rbconfig"
 
-# The on-disk chapter-verdict cache lets a boot skip judging chapters an earlier process already
+# The on-disk chapter-verdict cache lets a boot skip judging bluebooks an earlier process already
 # judged. Every example that touches a file uses its own directory, never the user's cache.
 RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
   let(:cache) { described_class }
@@ -20,7 +20,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
     FileUtils.rm_rf(scratch)
   end
 
-  # The child process's program: it counts the chapters judged for real and digests every IR.
+  # The child process's program: it counts the bluebooks judged for real and digests every IR.
   VERDICT_CACHE_BOOT_SCRIPT = <<~RUBY.freeze
     require "hecks"; require "json"; require "digest"
     Hecks::Bluebook::MetaValidator.singleton_class.prepend(Module.new do
@@ -33,7 +33,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
   RUBY
 
   # Boots the grammar registry in a fresh Ruby process against `cache_root` and reports how many
-  # chapters it judged for real plus a digest of every judged chapter's IR.
+  # bluebooks it judged for real plus a digest of every judged bluebook's IR.
   def boot_child(cache_root, env = {})
     child_env = { "XDG_CACHE_HOME" => cache_root, "HECKS_ENVIRONMENT" => "memory" }.merge(env)
     argv = [RbConfig.ruby, "-I", File.join(gem_root, "lib"), "-e", VERDICT_CACHE_BOOT_SCRIPT]

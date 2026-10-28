@@ -1,6 +1,6 @@
 require "tmpdir"
 
-# A chapter whose Booking types an attribute with ManagedSite's `SiteReference` value object.
+# A bluebook whose Booking types an attribute with ManagedSite's `SiteReference` value object.
 # `Booking#site` is a real `reference_to`, kept so a spec can tell the two apart.
 module SiblingValueObjectDomain
   SOURCE = <<~BLUEBOOK.freeze
@@ -76,7 +76,7 @@ module SiblingValueObjectDomain
     end
   BLUEBOOK
 
-  # Loads the chapter into a fresh registry, ports and Memory adapter included.
+  # Loads the bluebook into a fresh registry, ports and Memory adapter included.
   def self.chapter
     registry = Hecks::Runtime::Registry.new
     Dir.mktmpdir("hecks-sibling-vo-") do |dir|

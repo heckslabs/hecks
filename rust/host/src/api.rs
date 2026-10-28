@@ -973,7 +973,7 @@ fn me(session: Option<&Session>) -> Value {
 /// `PUT /api/presentation` — the whole config replaced at once, validated
 /// against this domain's live shape, answered with the reloaded config.
 /// 200 on save; 400 `MalformedBody`; 422 `Malformed` or a domain refusal;
-/// 501 when this host's kernel carries no ConsoleSettings chapter.
+/// 501 when this host's kernel carries no ConsoleSettings bluebook.
 async fn presentation_save(domain_ir: &Value, raw_body: &str, host: Host<'_>) -> Value {
     let submitted = match parsed_body(raw_body) {
         Ok(submitted) => submitted,
@@ -994,7 +994,7 @@ async fn presentation_save(domain_ir: &Value, raw_body: &str, host: Host<'_>) ->
 }
 
 // Fires only for a domain whose kernel genuinely has no ConsoleSettings
-// chapter; names the decision outstanding rather than 404-ing as if the
+// bluebook; names the decision outstanding rather than 404-ing as if the
 // route never existed.
 const PRESENTATION_WRITE_REFUSAL: &str =
     "this host's kernel carries no ConsoleSettings chapter, so it has no StateStyle/Collection/Overview \
@@ -1743,7 +1743,7 @@ mod tests {
         .expect("valid IR")
     }
 
-    /// A fixture whose `.wasm` carries a ConsoleSettings chapter, the
+    /// A fixture whose `.wasm` carries a ConsoleSettings bluebook, the
     /// premise `PUT /api/presentation` needs.
     fn console_fixture() -> (std::path::PathBuf, Value) {
         let dist = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist");
@@ -1817,7 +1817,7 @@ mod tests {
         // app.rb returns `json(PresentationConfig.load)` after a save.
         assert_eq!(stored["states"]["Event"]["open"]["tone"], "good");
         assert_eq!(stored["states"]["Event"]["open"]["attention"], json!(true));
-        // A field this chapter does not model individually still
+        // A field this bluebook does not model individually still
         // round-trips, through `extra_json`.
         assert_eq!(
             stored["states"]["Event"]["open"]["label"],
@@ -1934,7 +1934,7 @@ mod tests {
         assert_eq!(body(&refused)["error"], "MalformedBody");
     }
 
-    /// Banking's kernel carries no ConsoleSettings chapter, and this
+    /// Banking's kernel carries no ConsoleSettings bluebook, and this
     /// asks the kernel rather than inferring it from anything else.
     #[tokio::test]
     async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {

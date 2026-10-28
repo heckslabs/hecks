@@ -42,7 +42,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
 
   VENDORED_NOTES_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Notes" do
-      vision "a tiny vendored chapter attached by attaches ... from: :vendor"
+      vision "a tiny vendored bluebook attached by attaches ... from: :vendor"
       core
 
       aggregate "Note" do
@@ -128,7 +128,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     db&.close
   end
 
-  # Boots the written domain and answers each chapter's era-1 held_text, keyed by chapter name.
+  # Boots the written domain and answers each bluebook's era-1 held_text, keyed by bluebook name.
   def held_text_after_boot
     Dir.mktmpdir do |dir|
       Hecks.boot(write_domain(dir), install_driving: false)
