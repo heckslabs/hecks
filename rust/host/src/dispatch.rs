@@ -1923,7 +1923,7 @@ pub(crate) mod tests {
             .find(|r| r["policy"] == "ReviewOnFreeze")
             .expect("ReviewOnFreeze should appear in \"reactions\" too");
         assert_eq!(merged["on"], "AccountFrozen");
-        assert_eq!(merged["trigger"], "Compliance::AccountFreezeReview.Open");
+        assert_eq!(merged["trigger"], "Compliance::Review.Open");
         assert_eq!(merged["delivered"], true);
 
         {
@@ -1934,9 +1934,10 @@ pub(crate) mod tests {
             let sent: serde_json::Value = serde_json::from_str(payload).unwrap();
             // Fully qualified, not the bare "Compliance.OpenReview":
             // generated match arms are always "Domain::Aggregate.Command",
-            // and Compliance's own aggregate is named `AccountFreezeReview`.
-            assert_eq!(sent["verb"], "Compliance::AccountFreezeReview.Open");
-            assert_eq!(sent["args"]["number"]["value"], "acct-freeze-me");
+            // and Compliance's own aggregate is named `Review`.
+            assert_eq!(sent["verb"], "Compliance::Review.Open");
+            assert_eq!(sent["args"]["subject_kind"], "account_freeze");
+            assert_eq!(sent["args"]["subject_key"], "acct-freeze-me");
         }
 
         // Never re-delivered on a later replay: `pending_cross_domain`
@@ -2578,7 +2579,7 @@ pub(crate) mod tests {
         let (policy, target_domain, target_verb, attempts) = dead_letters[0].clone();
         assert_eq!(policy, "ReviewOnFreeze");
         assert_eq!(target_domain, "Compliance");
-        assert_eq!(target_verb, "Compliance::AccountFreezeReview.Open");
+        assert_eq!(target_verb, "Compliance::Review.Open");
         assert_eq!(attempts, lambda_client::MAX_DELIVERY_ATTEMPTS as i32);
     }
 

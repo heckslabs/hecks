@@ -140,7 +140,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
                     .freeze
 
     def self.run_chapter(*paths)
-      Open3.capture3(GRAMMAR_BINARY, "chapter", "--chapter", "GrammarCorpusHost", *paths)
+      Open3.capture3(GRAMMAR_BINARY, "bluebook", "--bluebook", "GrammarCorpusHost", *paths)
     end
 
     # The host bluebook with the fixture's own name and canonical text filled in.

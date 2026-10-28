@@ -194,7 +194,8 @@ Hecks.bluebook "Banking" do
   # One policy per fact Surrender announces.
   policy "ReviewOnBoxSurrender" do
     on      SafeDepositBox::BoxSurrendered
-    trigger BoxSurrenderReview::Open
+    # The box's own identity, its branch and its number joined, is the subject (ADR 0143).
+    trigger Review::Open, with: { subject_kind: "box_surrender", subject_key: :id }
     across  "Compliance"
   end
 

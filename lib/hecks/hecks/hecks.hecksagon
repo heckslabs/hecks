@@ -116,6 +116,28 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unlanded"
   end
 
+  # The outside an agent run reaches: it finds the directory, starts the background session, and
+  # reports the state the session is in. The state is judged in the bluebook, not here.
+  Hecks::AgentRun.port "Agents" do
+    asks "Locate", to: AgentRun do
+      attribute :run, RunKey
+      answers "RepoLocated"
+      refuses "RepoMissing"
+    end
+
+    asks "Start", to: AgentRun do
+      attribute :run, RunKey
+      answers "AgentStarted"
+      refuses "StartRefused"
+    end
+
+    asks "Examine", to: AgentRun do
+      attribute :run, RunKey
+      answers "SessionChecked"
+      refuses "CheckRefused"
+    end
+  end
+
   Hecks::PushTrain.port "Launcher" do
     asks "Refresh", to: PushTrain do
       attribute :run, RunKey
@@ -395,6 +417,9 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Search"
+    answers_query "ReadSource"
+    answers_query "Outline"
+    answers_query "Declaration"
   end
 
   Hecks::CodemodRun.port "SourceTree" do

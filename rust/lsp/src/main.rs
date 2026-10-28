@@ -1,5 +1,5 @@
 //! `hecks-lsp`: a minimal stdio language server for `.bluebook`/`.hecksagon` files.
-//! Publishes diagnostics from `hecks-parse chapter` and serves document symbols and definitions.
+//! Publishes diagnostics from `hecks-parse bluebook` and serves document symbols and definitions.
 
 mod diagnostics;
 mod json;

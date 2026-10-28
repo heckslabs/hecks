@@ -272,9 +272,9 @@ and every `.behaviors` and `.examples` file under it runs.
 
 | | |
 |---|---|
-| `hecks-parse format --chapter Cms page.bluebook` | prints the file in the one canonical wording; works on a Ruby-form file too |
-| `hecks-parse render --chapter Cms page.bluebook` | prints the Ruby-form text for the same bluebook |
-| `hecks-parse examples --chapter Cms --examples page.examples page.bluebook` | prints the `.behaviors` text the examples run as |
+| `hecks-parse format --bluebook Cms page.bluebook` | prints the file in the one canonical wording; works on a Ruby-form file too |
+| `hecks-parse render --bluebook Cms page.bluebook` | prints the Ruby-form text for the same bluebook |
+| `hecks-parse examples --bluebook Cms --examples page.examples page.bluebook` | prints the `.behaviors` text the examples run as |
 | `hecks-lsp` | squiggles at the column a sentence went wrong, and offers the sentences legal at the cursor |
 | `hecks language_run.project_phrase_table --confirm` | regenerates the parser's table of sentences from the `Sentence` bluebook |
 

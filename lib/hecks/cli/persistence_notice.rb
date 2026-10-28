@@ -2,9 +2,10 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The notice `hecks stores` and `hecks history` print when nothing is persisted. Hecks is in Memory
-    # unless a local hecksagon opts it in (ADR 0136), so a fresh process holds no records and no journal,
-    # and the plain JSON they print would read as an empty store rather than as a store that was never kept.
+    # The notice `hecks stores` and `hecks history` print when nothing is persisted. Hecks is in
+    # Memory unless a local hecksagon opts it in (ADR 0136), so a fresh process holds no records and
+    # no journal, and the plain JSON they print would read as an empty store rather than as a store
+    # that was never kept.
     module PersistenceNotice
       module_function
 

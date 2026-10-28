@@ -347,7 +347,7 @@ fn push_new(into: &mut Vec<String>, names: Vec<String>) {
     }
 }
 
-// Parses via `hecks-parse chapter`. `hecks-codegen` marks the IR and writes its `ir.json` and
+// Parses via `hecks-parse bluebook`. `hecks-codegen` marks the IR and writes its `ir.json` and
 // `metadata.rs` itself, so the text goes through as `hecks-parse` printed it.
 fn parse_chapter(
     parser_bin: &Path,
@@ -356,8 +356,8 @@ fn parse_chapter(
 ) -> Result<String, String> {
     let parser_bin_str = parser_bin.to_string_lossy().to_string();
     let mut args: Vec<String> = vec![
-        "chapter".to_string(),
-        "--chapter".to_string(),
+        "bluebook".to_string(),
+        "--bluebook".to_string(),
         chapter_name.to_string(),
     ];
     args.extend(files.iter().map(|p| p.to_string_lossy().to_string()));

@@ -426,7 +426,7 @@ fn fuzz_inputs(label: &str, extension: &str, subcommand: &str, generate: bool) -
         };
         let input = mutate(&mut rng, &seed_bytes);
         let path = scratch.write(&format!("input.{extension}"), &input);
-        let args: Vec<&std::ffi::OsStr> = [subcommand, "--chapter", &chapter]
+        let args: Vec<&std::ffi::OsStr> = [subcommand, "--bluebook", &chapter]
             .iter()
             .map(|s| std::ffi::OsStr::new(*s))
             .chain(std::iter::once(path.as_os_str()))
@@ -469,7 +469,7 @@ fn fuzz_inputs(label: &str, extension: &str, subcommand: &str, generate: bool) -
 
 #[test]
 fn mutated_bluebooks_never_panic_or_hang() {
-    let (accepted, refused) = fuzz_inputs("bluebook", "bluebook", "chapter", true);
+    let (accepted, refused) = fuzz_inputs("bluebook", "bluebook", "bluebook", true);
     assert!(
         accepted > 0,
         "no mutated bluebook parsed, so the fuzzer never got past the header"
@@ -493,8 +493,8 @@ fn every_fixture_parses_the_same_twice() {
         let path = scratch.write(&name, &bytes);
         let chapter = header_name(&bytes);
         let args = [
-            std::ffi::OsStr::new("chapter"),
-            std::ffi::OsStr::new("--chapter"),
+            std::ffi::OsStr::new("bluebook"),
+            std::ffi::OsStr::new("--bluebook"),
             std::ffi::OsStr::new(&chapter),
             path.as_os_str(),
         ];
@@ -513,13 +513,13 @@ fn every_fixture_parses_the_same_twice() {
     }
 }
 
-/// Runs `hecks-parse chapter --chapter Fuzzed` on `source` and answers the outcome.
+/// Runs `hecks-parse bluebook --bluebook Fuzzed` on `source` and answers the outcome.
 fn parse_source(label: &str, source: &str) -> Outcome {
     let scratch = Scratch::new(label);
     let path = scratch.write("input.bluebook", source.as_bytes());
     run_parser(&[
-        std::ffi::OsStr::new("chapter"),
-        std::ffi::OsStr::new("--chapter"),
+        std::ffi::OsStr::new("bluebook"),
+        std::ffi::OsStr::new("--bluebook"),
         std::ffi::OsStr::new("Fuzzed"),
         path.as_os_str(),
     ])
@@ -551,8 +551,8 @@ fn unreadable_and_missing_inputs_are_usage_errors() {
     let scratch = Scratch::new("usage");
     let missing: &Path = &scratch.0.join("absent.bluebook");
     let outcome = run_parser(&[
-        std::ffi::OsStr::new("chapter"),
-        std::ffi::OsStr::new("--chapter"),
+        std::ffi::OsStr::new("bluebook"),
+        std::ffi::OsStr::new("--bluebook"),
         std::ffi::OsStr::new("X"),
         missing.as_os_str(),
     ])

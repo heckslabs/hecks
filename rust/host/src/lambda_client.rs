@@ -296,12 +296,9 @@ mod tests {
     async fn delivers_and_invokes_the_computed_function_name_with_the_verb_args_payload_shape() {
         let invoker = MockLambdaInvoker::answering(serde_json::json!({ "refusals": [] }), false);
 
-        let record = deliver(
-            &invoker,
-            &reaction("Compliance", "Compliance::AccountFreezeReview.Open"),
-        )
-        .await
-        .unwrap();
+        let record = deliver(&invoker, &reaction("Compliance", "Compliance::Review.Open"))
+            .await
+            .unwrap();
 
         assert!(record.delivered);
         assert_eq!(record.reason, None);
@@ -312,23 +309,20 @@ mod tests {
         let (function_name, payload) = &calls[0];
         assert_eq!(function_name, "hecks-compliance");
         let sent: Value = serde_json::from_str(payload).unwrap();
-        assert_eq!(sent["verb"], "Compliance::AccountFreezeReview.Open");
+        assert_eq!(sent["verb"], "Compliance::Review.Open");
         assert_eq!(sent["args"]["number"]["value"], "acct-1");
     }
 
     #[tokio::test]
     async fn a_target_side_refusal_is_recorded_non_fatally_not_raised() {
         let invoker = MockLambdaInvoker::answering(
-            serde_json::json!({ "refusals": [ { "verb": "Compliance::AccountFreezeReview.Open", "error": "already under review" } ] }),
+            serde_json::json!({ "refusals": [ { "verb": "Compliance::Review.Open", "error": "already under review" } ] }),
             false,
         );
 
-        let record = deliver(
-            &invoker,
-            &reaction("Compliance", "Compliance::AccountFreezeReview.Open"),
-        )
-        .await
-        .unwrap();
+        let record = deliver(&invoker, &reaction("Compliance", "Compliance::Review.Open"))
+            .await
+            .unwrap();
 
         assert!(!record.delivered);
         assert_eq!(record.reason.as_deref(), Some("already under review"));
@@ -343,12 +337,9 @@ mod tests {
             false,
         );
 
-        let record = deliver(
-            &invoker,
-            &reaction("Compliance", "Compliance::AccountFreezeReview.Open"),
-        )
-        .await
-        .unwrap();
+        let record = deliver(&invoker, &reaction("Compliance", "Compliance::Review.Open"))
+            .await
+            .unwrap();
 
         assert!(record.delivered);
     }
@@ -362,11 +353,7 @@ mod tests {
             true,
         );
 
-        let outcome = deliver(
-            &invoker,
-            &reaction("Compliance", "Compliance::AccountFreezeReview.Open"),
-        )
-        .await;
+        let outcome = deliver(&invoker, &reaction("Compliance", "Compliance::Review.Open")).await;
 
         assert!(
             outcome.is_err(),
@@ -426,12 +413,10 @@ mod tests {
     async fn deliver_with_retry_rides_out_a_transient_fault_that_clears_before_attempts_run_out() {
         let invoker = FlakyLambdaInvoker::failing_then_succeeding(MAX_DELIVERY_ATTEMPTS - 1);
 
-        let record = deliver_with_retry(
-            &invoker,
-            &reaction("Compliance", "Compliance::AccountFreezeReview.Open"),
-        )
-        .await
-        .expect("should succeed once the fault clears, within MAX_DELIVERY_ATTEMPTS");
+        let record =
+            deliver_with_retry(&invoker, &reaction("Compliance", "Compliance::Review.Open"))
+                .await
+                .expect("should succeed once the fault clears, within MAX_DELIVERY_ATTEMPTS");
 
         assert!(record.delivered);
         assert_eq!(
@@ -446,16 +431,14 @@ mod tests {
         // A clean refusal is `Ok(delivered: false)`, a business decision — retrying
         // it would not change what the target domain decided.
         let invoker = MockLambdaInvoker::answering(
-            serde_json::json!({ "refusals": [ { "verb": "Compliance::AccountFreezeReview.Open", "error": "already under review" } ] }),
+            serde_json::json!({ "refusals": [ { "verb": "Compliance::Review.Open", "error": "already under review" } ] }),
             false,
         );
 
-        let record = deliver_with_retry(
-            &invoker,
-            &reaction("Compliance", "Compliance::AccountFreezeReview.Open"),
-        )
-        .await
-        .expect("a domain-side refusal is Ok, not a DeliveryFailure");
+        let record =
+            deliver_with_retry(&invoker, &reaction("Compliance", "Compliance::Review.Open"))
+                .await
+                .expect("a domain-side refusal is Ok, not a DeliveryFailure");
 
         assert!(!record.delivered);
         assert_eq!(
