@@ -40,11 +40,11 @@ RSpec.describe "the Tickets bluebook" do
 
   # Reports a finding with no findings repository set, so GitHub cannot be driven; answers what the
   # launcher printed and the policies that reacted.
-  def report_without_a_repository
+  def report_without_a_repository(key = "f-1")
     allow(Open3).to receive(:capture3)
     stub_const("ENV", ENV.to_h.except("HECKS_FINDINGS_REPO"))
     before = @hecks.registry.reaction_log.size
-    argv = ["tickets", "finding.report", "finding.value=f-1", "title.value=A gap", "source.value=maintainer"]
+    argv = ["tickets", "finding.report", "finding.value=#{key}", "title.value=A gap", "source.value=maintainer"]
 
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
     [out, @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }]
@@ -56,6 +56,19 @@ RSpec.describe "the Tickets bluebook" do
     expect(JSON.parse(out).dig("state", "status")).to eq("reported")
     expect(reacted).to include("OpenIssueWhenReported", "RecordTheSyncFailure")
     expect(Open3).not_to have_received(:capture3)
+  end
+
+  def draft_adr(adr, settles)
+    @hecks.dispatch_flat("Tickets::Adr.Draft", adr: adr, title: "Settle it", settles: settles)
+  end
+
+  it "accepts an Adr that settles a finding which exists" do
+    report_without_a_repository("f-settled")
+    expect { draft_adr("0901", "f-settled") }.not_to raise_error
+  end
+
+  it "refuses an Adr that settles a finding no one reported" do
+    expect { draft_adr("0902", "f-never-reported") }.to raise_error(Hecks::Runtime::NotFound, /f-never-reported/)
   end
 
   it "lists a reported finding among the open ones" do

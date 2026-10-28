@@ -658,19 +658,26 @@ language never silently guesses which one a bare reference meant.
 ## acknowledges
 
 <!-- generated:begin word=acknowledges -->
-`acknowledges finding, reason` — fills `acknowledgements`
+`acknowledges finding, reason, of:` — fills `acknowledgements`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | finding |
 | positional 2 | text | true | reason |
+| `of:` | symbol | false | subject |
 <!-- generated:end -->
 
 `acknowledges :finding, "reason"` allows a finding `model_check` would report about this
 aggregate, and says why. The reason is required text, so an allowance cannot be written
 without one, and the finding is a kind the check really reports about an aggregate: any other
-kind is refused, so a stale acknowledgement cannot outlive the check it answers. Only
-`:large_aggregate` is one today.
+kind is refused, so a stale acknowledgement cannot outlive the check it answers. The kinds are
+`:large_aggregate`, `:key_by_value` and `:orphaned_reference`.
+
+`:key_by_value` and `:orphaned_reference` are reported once per attribute and once per
+referenced aggregate, so each takes `of:` naming which: `acknowledges :key_by_value, "why",
+of: :commit` excuses that attribute and no other, and `acknowledges :orphaned_reference, "why",
+of: :Sweep` excuses the holder's references to `Sweep` whichever ending the check names.
+`:large_aggregate` takes no `of:`, and the other two refuse to be written without one.
 
 ```ruby
 Hecks.bluebook("Bad") { aggregate("Widget") { identified_by :id; acknowledges :no_such_finding, "why" } }  # ~> Malformed: does not report here
