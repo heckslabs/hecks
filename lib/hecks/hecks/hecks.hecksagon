@@ -142,6 +142,19 @@ Hecks.hecksagon "Hecks" do
       answers "SessionChecked"
       refuses "CheckRefused"
     end
+
+    # Whether a person took the session over is a fact about its transcript; the bluebook judges it.
+    asks "Review", to: AgentRun do
+      attribute :run, RunKey
+      answers "SessionReviewed"
+      refuses "ReviewRefused"
+    end
+
+    asks "Remove", to: AgentRun do
+      attribute :run, RunKey
+      answers "SessionRemoved"
+      refuses "RemoveRefused"
+    end
   end
 
   Hecks::PushTrain.port "Launcher" do
