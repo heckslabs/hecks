@@ -1,0 +1,571 @@
+# CI speed: main CI is measured run by run against a wall-time budget. A change to the pipeline is
+# proposed for the slowest job, and kept only when a following run of the same cache state is
+# measurably faster. The loop stops once the latest warm run and the latest cache-miss run are both
+# under budget.
+#
+# Nothing here reads GitHub. Each run is observed after a push to main through the push train, and
+# an adapter answers the `Reading` query; the loop records what came back.
+
+Hecks.bluebook "CiSpeed" do
+  vision "A main CI run is measured as it finished, and a change to the pipeline is kept only when a run of the same cache state proves it faster."
+
+  supporting
+
+  # One observed CI run on main. `hit` is a warm run, a generated-rust cache hit; `miss` is a cold
+  # one that regenerates the corpus.
+  aggregate "Run" do
+    description "One observed CI run on main: its commit, wall time, cache state, conclusion, and each job's time."
+
+    identified_by :run_id
+
+    attribute :run_id,         RunId
+    attribute :commit,         CommitSha
+    attribute :wall_seconds,   WallSeconds
+    attribute :cache_state,    CacheState
+    attribute :conclusion,     Conclusion
+    # The target in force when this run was observed, read from the Budget by the caller.
+    attribute :budget_seconds, WallSeconds
+    attribute :longest_pole,   JobName
+    attribute :jobs,           list_of(JobTiming)
+
+    # Each analysis is its own command, one per cache state and verdict. A policy can only read an
+    # event's name, so the verdict has to be carried by the event's name.
+    lifecycle :status, default: "observed" do
+      transition "AnalyzeWarmUnderBudget" => "analyzed", from: "observed"
+      transition "AnalyzeWarmOverBudget"  => "analyzed", from: "observed"
+      transition "AnalyzeMissUnderBudget" => "analyzed", from: "observed"
+      transition "AnalyzeMissOverBudget"  => "analyzed", from: "observed"
+    end
+
+    value_object "RunId" do
+      # GitHub's numeric run id.
+      attribute :value, String, pattern: '^[0-9]+$'
+      invariant("a run is identified by its GitHub run id") { !value.to_s.empty? }
+    end
+
+    value_object "CommitSha" do
+      # A full or abbreviated git commit hash, lowercase hex.
+      attribute :value, String, pattern: '^[0-9a-f]{7,40}$'
+    end
+
+    value_object "WallSeconds" do
+      attribute :value, Integer
+      invariant("a run or job takes a positive number of seconds") { value.positive? }
+    end
+
+    # `hit` is a warm run: the generated-rust cache restored. `miss` regenerated the corpus.
+    value_object "CacheState" do
+      attribute :value, String, pattern: '^(hit|miss)$'
+    end
+
+    value_object "Conclusion" do
+      attribute :value, String, pattern: '^(success|failure|cancelled)$'
+    end
+
+    value_object "JobName" do
+      attribute :value, String, matches: :present
+      invariant("a job is named") { !value.to_s.empty? }
+    end
+
+    value_object "JobSequence" do
+      attribute :value, Integer
+      invariant("a job timing sequence is positive") { value.positive? }
+    end
+
+    value_object "Critical" do
+      # Whether the job sat on the critical path of the run.
+      attribute :value, String, pattern: '^(yes|no)$'
+    end
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # A job's wall time within one run. An entity: it has no meaning outside the run it timed.
+    entity "JobTiming" do
+      description "One job's wall time within a run, and whether it sat on the critical path."
+
+      identified_by :sequence
+
+      attribute :sequence, JobSequence
+      attribute :job,      JobName
+      attribute :seconds,  WallSeconds
+      attribute :critical, Critical
+    end
+
+    command "Observe" do
+      role "CI engineer"
+      goal "Write down one main CI run as it finished, before anything is said about it"
+
+      attribute :run_id,         RunId
+      attribute :commit,         CommitSha
+      attribute :wall_seconds,   WallSeconds
+      attribute :cache_state,    CacheState
+      attribute :conclusion,     Conclusion
+      attribute :budget_seconds, WallSeconds
+      attribute :longest_pole,   JobName
+
+      emits "RunObserved"
+    end
+
+    command "RecordJob" do
+      role "CI engineer"
+      goal "Add one job's wall time to a run, and say whether it sat on the critical path"
+
+      reference_to Run
+      attribute :job,      JobName
+      attribute :seconds,  WallSeconds
+      attribute :critical, Critical
+
+      given("a run's job times are written before it is analysed") { status == "observed" }
+
+      sets :jobs, append: { job: :job, seconds: :seconds, critical: :critical }
+
+      emits "JobRecorded"
+    end
+
+    # Under budget: `seconds` restates the run's own wall time so the event carries it to the
+    # Budget. The given keeps the restated value honest.
+    command "AnalyzeWarmUnderBudget" do
+      role "CI engineer"
+      goal "Judge a warm run, a cache hit, that finished within budget"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+
+      given("the seconds are the run's own wall time") { seconds.value == wall_seconds.value }
+      given("a warm run is a cache hit that finished within budget") do
+        cache_state.value == "hit" && wall_seconds.value <= budget_seconds.value
+      end
+
+      emits "WarmRunUnderBudget"
+    end
+
+    # Over budget: `pole` restates the longest pole, so the event can propose a lever for it.
+    command "AnalyzeWarmOverBudget" do
+      role "CI engineer"
+      goal "Judge a warm run, a cache hit, that finished over budget, and name its longest pole"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+      attribute :pole,    JobName
+
+      given("the seconds and pole are the run's own") do
+        seconds.value == wall_seconds.value && pole.value == longest_pole.value
+      end
+      given("a warm run is a cache hit that finished over budget") do
+        cache_state.value == "hit" && wall_seconds.value > budget_seconds.value
+      end
+
+      emits "WarmRunOverBudget"
+    end
+
+    command "AnalyzeMissUnderBudget" do
+      role "CI engineer"
+      goal "Judge a cache-miss run that finished within budget"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+
+      given("the seconds are the run's own wall time") { seconds.value == wall_seconds.value }
+      given("a cache-miss run finished within budget") do
+        cache_state.value == "miss" && wall_seconds.value <= budget_seconds.value
+      end
+
+      emits "MissRunUnderBudget"
+    end
+
+    command "AnalyzeMissOverBudget" do
+      role "CI engineer"
+      goal "Judge a cache-miss run that finished over budget, and name its longest pole"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+      attribute :pole,    JobName
+
+      given("the seconds and pole are the run's own") do
+        seconds.value == wall_seconds.value && pole.value == longest_pole.value
+      end
+      given("a cache-miss run finished over budget") do
+        cache_state.value == "miss" && wall_seconds.value > budget_seconds.value
+      end
+
+      emits "MissRunOverBudget"
+    end
+
+    # The adapter answers what GitHub reports for one run. This chapter only names the question.
+    query "Reading" do
+      description "One run's record as GitHub reports it: wall time, cache state, conclusion, and each job's time. An adapter answers it; this chapter never fetches."
+      attribute :run_id, RunId
+      returns Document
+    end
+
+    query "All" do
+      description "Every observed run, oldest first."
+      order_by :run_id
+    end
+  end
+
+  # The target and the latest warm and cache-miss times. The stop rule lives here.
+  aggregate "Budget" do
+    description "The wall-time target for main CI, and the latest warm and cache-miss runs measured against it."
+
+    identified_by :name
+
+    attribute :name,           BudgetName
+    attribute :target_seconds, TargetSeconds
+    attribute :warm_seconds,   LatestSeconds
+    attribute :miss_seconds,   LatestSeconds
+
+    lifecycle :status, default: "open" do
+      transition "Complete" => "complete", from: "open"
+    end
+
+    value_object "BudgetName" do
+      attribute :value, String, matches: :present
+      invariant("a budget is named") { !value.to_s.empty? }
+    end
+
+    value_object "TargetSeconds" do
+      attribute :value, Integer, default: 180
+      invariant("a target is positive") { value.positive? }
+    end
+
+    # Zero means no run of this cache state has been observed yet.
+    value_object "LatestSeconds" do
+      attribute :value, Integer, default: 0
+      invariant("a latest time is not negative") { !value.negative? }
+    end
+
+    command "Open" do
+      role "CI engineer"
+      goal "Set the wall-time target that main CI is measured against"
+
+      attribute :name,           BudgetName
+      attribute :target_seconds, TargetSeconds
+
+      emits "BudgetOpened"
+    end
+
+    # Recorded whatever the verdict: the latest run decides, not the best one. Allowed after the
+    # budget is complete, so a regression still shows.
+    command "WitnessWarm" do
+      role "CI engineer"
+      goal "Record the latest warm run's wall time against the target"
+
+      reference_to Budget
+      attribute :seconds, WallSeconds
+
+      sets :warm_seconds, to: :seconds
+
+      emits "WarmRunWitnessed"
+    end
+
+    command "WitnessMiss" do
+      role "CI engineer"
+      goal "Record the latest cache-miss run's wall time against the target"
+
+      reference_to Budget
+      attribute :seconds, WallSeconds
+
+      sets :miss_seconds, to: :seconds
+
+      emits "MissRunWitnessed"
+    end
+
+    # Refused while either latest run is missing or over target. A refusal here is the answer
+    # "not yet", and the loop keeps going.
+    command "Complete" do
+      role "CI engineer"
+      goal "Stop the effort, once the latest warm run and the latest cache-miss run are both under budget"
+
+      reference_to Budget
+
+      given("both cache states are under budget") do
+        warm_seconds.value > 0 && warm_seconds.value < target_seconds.value &&
+          miss_seconds.value > 0 && miss_seconds.value < target_seconds.value
+      end
+
+      emits "BudgetMet"
+    end
+
+    query "Open" do
+      description "The budget in force, and whether the effort has met it."
+      where(status: "open")
+      order_by :name
+    end
+  end
+
+  # One hypothesis for saving CI time. A lever is kept or reverted on a following run of the same
+  # cache state it was measured on, and never retried unless its inputs changed.
+  aggregate "Lever" do
+    description "A hypothesis for saving CI time: what it changes, what it should save, and what the runs after it measured."
+
+    identified_by :name
+
+    attribute :name,             LeverName
+    attribute :change,           LeverChange
+    attribute :pole,             JobName
+    attribute :affects,          Affects
+    attribute :expected_seconds, SecondsSaved
+    # A fingerprint of what the change depends on, such as a lockfile digest. Reconsidering a
+    # reverted lever needs it to differ.
+    attribute :inputs,           LeverInputs
+    attribute :evidence,         Evidence
+    attribute :baseline_run,     RunRef
+    attribute :baseline_seconds, MeasuredSeconds
+    attribute :baseline_cache,   CacheState
+    attribute :following_run,    RunRef
+    attribute :following_seconds, MeasuredSeconds
+    attribute :margin_seconds,   MarginSeconds
+
+    lifecycle :status, default: "proposed" do
+      transition "Attempt"     => "attempted", from: "proposed"
+      transition "Keep"        => "kept",      from: "attempted"
+      transition "Revert"      => "reverted",  from: "attempted"
+      transition "Recall"      => "kept",      from: "proposed"
+      transition "Reconsider"  => "proposed",  from: "reverted"
+    end
+
+    value_object "LeverName" do
+      # A lowercase slug, such as `postgres_io` or `fuzz_sqlite`.
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a lever is named") { !value.to_s.empty? }
+    end
+
+    value_object "LeverChange" do
+      attribute :value, String, matches: :present
+      invariant("a lever says what it changes") { !value.to_s.empty? }
+    end
+
+    value_object "JobName" do
+      attribute :value, String, matches: :present
+      invariant("a lever names the job it targets") { !value.to_s.empty? }
+    end
+
+    # The cache state the lever should move: `hit`, `miss`, or `both`.
+    value_object "Affects" do
+      attribute :value, String, pattern: '^(hit|miss|both)$'
+    end
+
+    value_object "SecondsSaved" do
+      attribute :value, Integer, default: 0
+      invariant("expected savings are not negative") { !value.negative? }
+    end
+
+    value_object "LeverInputs" do
+      attribute :value, String, default: ""
+    end
+
+    # The commit that proves a kept lever. Empty while nothing has proven it.
+    value_object "Evidence" do
+      attribute :value, String, pattern: '^([0-9a-f]{7,40})?$'
+    end
+
+    # A GitHub run id, or empty before a run has been measured.
+    value_object "RunRef" do
+      attribute :value, String, pattern: '^([0-9]+)?$'
+    end
+
+    value_object "MeasuredSeconds" do
+      attribute :value, Integer, default: 0
+      invariant("a measured time is not negative") { !value.negative? }
+    end
+
+    # How much faster a following run must be to keep a lever.
+    value_object "MarginSeconds" do
+      attribute :value, Integer, default: 10
+      invariant("a margin is not negative") { !value.negative? }
+    end
+
+    # A lever's name is its identity, so a second lever under the same name is refused as already on
+    # file. The policies below propose under the pole's name; any further lever is named by the
+    # caller.
+    command "Propose" do
+      role "CI engineer"
+      goal "Write down a lever for a slow job before anybody tries it"
+
+      attribute :name,             LeverName
+      attribute :change,           LeverChange
+      attribute :pole,             JobName
+      attribute :affects,          Affects
+      attribute :expected_seconds, SecondsSaved
+      attribute :inputs,           LeverInputs
+
+      emits "LeverProposed"
+    end
+
+    # Recorded with the run it was measured against. The given keeps it to the cache state the
+    # lever affects, since a lever that moves only warm runs says nothing about a cold one.
+    command "Attempt" do
+      role "CI engineer"
+      goal "Measure a proposed lever against the run it is meant to beat"
+
+      reference_to Lever
+      attribute :baseline_run,     RunRef
+      attribute :baseline_seconds, MeasuredSeconds
+      attribute :baseline_cache,   CacheState
+
+      given("a lever is measured on the cache state it affects") do
+        affects.value == "both" || affects.value == baseline_cache.value
+      end
+
+      sets :baseline_run
+      sets :baseline_seconds
+      sets :baseline_cache
+
+      emits "LeverAttempted"
+    end
+
+    command "Keep" do
+      role "CI engineer"
+      goal "Keep an attempted lever, because a following run of its cache state beat the baseline by the margin"
+
+      reference_to Lever
+      attribute :following_run,     RunRef
+      attribute :following_seconds, MeasuredSeconds
+      attribute :following_cache,   CacheState
+      attribute :evidence,          Evidence
+
+      given("a following run is of the cache state the lever was measured on") do
+        following_cache.value == baseline_cache.value
+      end
+      given("a kept lever is faster than its baseline by its margin") do
+        following_seconds.value + margin_seconds.value <= baseline_seconds.value
+      end
+      given("a kept lever names the commit that proves it") { evidence.value != "" }
+
+      sets :following_run
+      sets :following_seconds
+      sets :evidence
+
+      emits "LeverKept"
+    end
+
+    command "Revert" do
+      role "CI engineer"
+      goal "Revert an attempted lever, because the following run did not beat the baseline by the margin"
+
+      reference_to Lever
+      attribute :following_run,     RunRef
+      attribute :following_seconds, MeasuredSeconds
+      attribute :following_cache,   CacheState
+
+      given("a following run is of the cache state the lever was measured on") do
+        following_cache.value == baseline_cache.value
+      end
+      given("a reverted lever is no faster than its baseline by its margin") do
+        following_seconds.value + margin_seconds.value > baseline_seconds.value
+      end
+
+      sets :following_run
+      sets :following_seconds
+
+      emits "LeverReverted"
+    end
+
+    # A lever already learned from history, with the commit that shows it. It skips the attempt,
+    # because the runs that measured it are older than the chapter.
+    command "Recall" do
+      role "CI engineer"
+      goal "Record a lever that history already settled, with the commit that settled it"
+
+      reference_to Lever
+      attribute :evidence, Evidence
+
+      given("a learned lever names the commit it was learned from") { evidence.value != "" }
+
+      sets :evidence
+
+      emits "LeverLearned"
+    end
+
+    command "Reconsider" do
+      role "CI engineer"
+      goal "Put a reverted lever back to proposed, because the inputs it depends on have changed"
+
+      reference_to Lever
+      attribute :new_inputs, LeverInputs
+
+      given("a reverted lever is retried only when its inputs have changed") do
+        new_inputs.value != inputs.value
+      end
+
+      sets :inputs, to: :new_inputs
+
+      emits "LeverReconsidered"
+    end
+
+    query "Kept" do
+      description "Levers that a following run proved, or that history settled, each with its evidence."
+      where(status: "kept")
+      order_by :name
+    end
+
+    query "Reverted" do
+      description "Levers a following run did not beat by the margin. Not retried unless their inputs change."
+      where(status: "reverted")
+      order_by :name
+    end
+  end
+
+  # When a run's warm or miss verdict lands, the Budget records it. Over-budget runs are
+  # witnessed too: the latest run decides, not the best one.
+  policy "WitnessWarmUnderBudget" do
+    on      "Run.WarmRunUnderBudget"
+    trigger Budget::WitnessWarm, with: { budget: "main", seconds: :seconds }
+  end
+
+  policy "WitnessWarmOverBudget" do
+    on      "Run.WarmRunOverBudget"
+    trigger Budget::WitnessWarm, with: { budget: "main", seconds: :seconds }
+  end
+
+  policy "WitnessMissUnderBudget" do
+    on      "Run.MissRunUnderBudget"
+    trigger Budget::WitnessMiss, with: { budget: "main", seconds: :seconds }
+  end
+
+  policy "WitnessMissOverBudget" do
+    on      "Run.MissRunOverBudget"
+    trigger Budget::WitnessMiss, with: { budget: "main", seconds: :seconds }
+  end
+
+  # The longest pole of an over-budget run becomes a lever, named for the pole. A pole already on
+  # file is refused as already existing; see `Lever::Propose`.
+  policy "ProposeLeverForWarmPole" do
+    on      "Run.WarmRunOverBudget"
+    trigger Lever::Propose, with: {
+      name: :pole,
+      change: { value: "a change to the slowest job of a warm run" },
+      pole: :pole,
+      affects: { value: "both" },
+      expected_seconds: { value: 0 },
+      inputs: { value: "" }
+    }
+  end
+
+  policy "ProposeLeverForMissPole" do
+    on      "Run.MissRunOverBudget"
+    trigger Lever::Propose, with: {
+      name: :pole,
+      change: { value: "a change to the slowest job of a cache-miss run" },
+      pole: :pole,
+      affects: { value: "both" },
+      expected_seconds: { value: 0 },
+      inputs: { value: "" }
+    }
+  end
+
+  # The effort completes when a witness lands and both latest runs are under target. Until then
+  # the Complete given refuses, which is the "not yet" answer.
+  policy "CompleteOnWarmWitness" do
+    on      "Budget.WarmRunWitnessed"
+    trigger Budget::Complete, with: { budget: :name }
+  end
+
+  policy "CompleteOnMissWitness" do
+    on      "Budget.MissRunWitnessed"
+    trigger Budget::Complete, with: { budget: :name }
+  end
+end

@@ -1,0 +1,9 @@
+# The ports CiSpeed declares, for every hecksagon that attaches the chapter. The chapter names the
+# question it asks of GitHub and never says how the answer is fetched; an adapter binds it.
+Hecks.hecksagon "CiSpeed" do
+  # Answers with one run's record as GitHub reports it. The adapter runs the `gh` commands; the
+  # chapter takes back the document and records it through `Run::Observe`.
+  CiSpeed::Run.port "CiReader" do
+    answers_query "Reading"
+  end
+end

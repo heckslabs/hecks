@@ -1,0 +1,143 @@
+Hecks.behaviors "CiSpeed" do
+  vision "A run is written down as it finished, and a change is kept only when a following run of its cache state beat the baseline by the margin."
+
+  # `ci_speed.hecksagon` binds every aggregate to Memory and attaches Governance, so a boot of these
+  # files passes the memory-only guard and the role check.
+  loads "ci_speed.bluebook", "ci_speed.hecksagon", "ci_speed.ports.hecksagon"
+
+  test "Observe writes down a run as it finished" do
+    tests "Observe", on: "Run"
+    input run_id: { value: "1001" }, commit: { value: "93f8e68c6" }, wall_seconds: { value: 240 },
+          cache_state: { value: "miss" }, conclusion: { value: "success" }, budget_seconds: { value: 180 },
+          longest_pole: { value: "rspec" }
+    expect emits: ["RunObserved"]
+  end
+
+  test "RecordJob refuses a job time once the run is analysed" do
+    tests "RecordJob", on: "Run"
+    setup "CiSpeed::Run.Observe", run_id: { value: "1401" }, commit: { value: "93f8e68c6" },
+          wall_seconds: { value: 150 }, cache_state: { value: "hit" }, conclusion: { value: "success" },
+          budget_seconds: { value: 180 }, longest_pole: { value: "rspec" }
+    setup "CiSpeed::Run.AnalyzeWarmUnderBudget", run: "1401", seconds: { value: 150 }
+    input run: "1401", job: { value: "rspec" }, seconds: { value: 90 }, critical: { value: "yes" }
+    expect refused: "a run's job times are written before it is analysed"
+  end
+
+  test "AnalyzeWarmUnderBudget refuses a cache-miss run" do
+    tests "AnalyzeWarmUnderBudget", on: "Run"
+    setup "CiSpeed::Run.Observe", run_id: { value: "1301" }, commit: { value: "93f8e68c6" },
+          wall_seconds: { value: 150 }, cache_state: { value: "miss" }, conclusion: { value: "success" },
+          budget_seconds: { value: 180 }, longest_pole: { value: "rspec" }
+    input run: "1301", seconds: { value: 150 }
+    expect refused: "a warm run is a cache hit that finished within budget"
+  end
+
+  # A cache-miss run over budget proposes a lever for its longest pole, and its over-budget
+  # verdict is witnessed by the Budget.
+  test "A cache-miss run over budget proposes a lever for its longest pole" do
+    tests "AnalyzeMissOverBudget", on: "Run"
+    setup "CiSpeed::Budget.Open", name: { value: "main" }, target_seconds: { value: 180 }
+    setup "CiSpeed::Run.Observe", run_id: { value: "1002" }, commit: { value: "93f8e68c6" },
+          wall_seconds: { value: 240 }, cache_state: { value: "miss" }, conclusion: { value: "success" },
+          budget_seconds: { value: 180 }, longest_pole: { value: "rspec" }
+    setup "CiSpeed::Run.RecordJob", run: "1002", job: { value: "rspec" }, seconds: { value: 200 },
+          critical: { value: "yes" }
+    input run: "1002", seconds: { value: 240 }, pole: { value: "rspec" }
+    expect emits: %w[MissRunOverBudget MissRunWitnessed LeverProposed]
+  end
+
+  # A lever is kept when a following run of the same cache state beats its baseline by the margin.
+  test "Keep keeps an attempted lever that a same-cache run beat by the margin" do
+    tests "Keep", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "postgres_io" },
+          change: { value: "postgres io specs on fewer shards" }, pole: { value: "postgres_io" },
+          affects: { value: "miss" }, expected_seconds: { value: 30 }, inputs: { value: "" }
+    setup "CiSpeed::Lever.Attempt", lever: "postgres_io", baseline_run: { value: "1100" },
+          baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
+    input lever: "postgres_io", following_run: { value: "1101" }, following_seconds: { value: 250 },
+          following_cache: { value: "miss" }, evidence: { value: "1a2b3c4d" }
+    expect emits: ["LeverKept"]
+  end
+
+  # A following run that is not faster by the margin reverts the lever.
+  test "Revert reverts an attempted lever that the following run did not beat" do
+    tests "Revert", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "rspec_4_shards" },
+          change: { value: "rspec on fewer shards" }, pole: { value: "rspec" },
+          affects: { value: "miss" }, expected_seconds: { value: 30 }, inputs: { value: "" }
+    setup "CiSpeed::Lever.Attempt", lever: "rspec_4_shards", baseline_run: { value: "1200" },
+          baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
+    input lever: "rspec_4_shards", following_run: { value: "1201" }, following_seconds: { value: 295 },
+          following_cache: { value: "miss" }
+    expect emits: ["LeverReverted"]
+  end
+
+  test "Keep refuses a following run of a different cache state" do
+    tests "Keep", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "postgres_io" },
+          change: { value: "postgres io specs on fewer shards" }, pole: { value: "postgres_io" },
+          affects: { value: "both" }, expected_seconds: { value: 30 }, inputs: { value: "" }
+    setup "CiSpeed::Lever.Attempt", lever: "postgres_io", baseline_run: { value: "1100" },
+          baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
+    input lever: "postgres_io", following_run: { value: "1101" }, following_seconds: { value: 200 },
+          following_cache: { value: "hit" }, evidence: { value: "1a2b3c4d" }
+    expect refused: "a following run is of the cache state the lever was measured on"
+  end
+
+  test "Attempt refuses a lever measured on a cache state it does not affect" do
+    tests "Attempt", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "feature_binaries" },
+          change: { value: "feature binaries built in legs" }, pole: { value: "feature_binaries" },
+          affects: { value: "hit" }, expected_seconds: { value: 40 }, inputs: { value: "" }
+    input lever: "feature_binaries", baseline_run: { value: "1300" }, baseline_seconds: { value: 300 },
+          baseline_cache: { value: "miss" }
+    expect refused: "a lever is measured on the cache state it affects"
+  end
+
+  test "Reconsider refuses a reverted lever whose inputs have not changed" do
+    tests "Reconsider", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "rspec_4_shards" },
+          change: { value: "rspec on fewer shards" }, pole: { value: "rspec" },
+          affects: { value: "miss" }, expected_seconds: { value: 30 }, inputs: { value: "abc123" }
+    setup "CiSpeed::Lever.Attempt", lever: "rspec_4_shards", baseline_run: { value: "1200" },
+          baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
+    setup "CiSpeed::Lever.Revert", lever: "rspec_4_shards", following_run: { value: "1201" },
+          following_seconds: { value: 295 }, following_cache: { value: "miss" }
+    input lever: "rspec_4_shards", new_inputs: { value: "abc123" }
+    expect refused: "a reverted lever is retried only when its inputs have changed"
+  end
+
+  test "Recall keeps a lever that history settled, with the commit that settled it" do
+    tests "Recall", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "host_test_build" },
+          change: { value: "host test build warmed into its own cache" }, pole: { value: "host_test_build" },
+          affects: { value: "both" }, expected_seconds: { value: 0 }, inputs: { value: "" }
+    input lever: "host_test_build", evidence: { value: "504f0e0d8" }
+    expect emits: ["LeverLearned"]
+  end
+
+  test "Complete refuses while the latest cache-miss run is over budget" do
+    tests "Complete", on: "Budget"
+    setup "CiSpeed::Budget.Open", name: { value: "main" }, target_seconds: { value: 180 }
+    setup "CiSpeed::Budget.WitnessWarm", budget: "main", seconds: { value: 150 }
+    setup "CiSpeed::Budget.WitnessMiss", budget: "main", seconds: { value: 200 }
+    input budget: "main"
+    expect refused: "both cache states are under budget"
+  end
+
+  # The effort completes once the latest warm run and the latest cache-miss run are both under
+  # budget. The warm verdict is witnessed by its own policy in setup.
+  test "A cache-miss run under budget completes the effort when the warm run is under budget" do
+    tests "AnalyzeMissUnderBudget", on: "Run"
+    setup "CiSpeed::Budget.Open", name: { value: "main" }, target_seconds: { value: 180 }
+    setup "CiSpeed::Run.Observe", run_id: { value: "1201" }, commit: { value: "93f8e68c6" },
+          wall_seconds: { value: 150 }, cache_state: { value: "hit" }, conclusion: { value: "success" },
+          budget_seconds: { value: 180 }, longest_pole: { value: "rspec" }
+    setup "CiSpeed::Run.AnalyzeWarmUnderBudget", run: "1201", seconds: { value: 150 }
+    setup "CiSpeed::Run.Observe", run_id: { value: "1202" }, commit: { value: "93f8e68c6" },
+          wall_seconds: { value: 170 }, cache_state: { value: "miss" }, conclusion: { value: "success" },
+          budget_seconds: { value: 180 }, longest_pole: { value: "rspec" }
+    input run: "1202", seconds: { value: 170 }
+    expect emits: %w[MissRunUnderBudget MissRunWitnessed BudgetMet]
+  end
+end
