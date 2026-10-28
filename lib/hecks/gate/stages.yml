@@ -225,6 +225,10 @@ ci:
       title: ci gates, the CiGate rows must match the marked regions of the workflows
       run: [bundle, exec, exe/hecks, regeneration_run.project_ci_gates, --wait]
       blocked: a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`.
+    - id: ci_shards
+      title: ci shards, the CiShards rows must match the marked strategy blocks of the workflows
+      run: [bundle, exec, exe/hecks, regeneration_run.project_ci_shards, --wait]
+      blocked: a CiShards row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_shards --confirm`.
     - id: tools_doc
       title: tools doc, docs/tools.md must match the RetiredScript rows
       run: [bundle, exec, exe/hecks, regeneration_run.project_tools_doc, --wait]

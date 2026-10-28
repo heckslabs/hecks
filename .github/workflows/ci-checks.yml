@@ -350,6 +350,12 @@ jobs:
       - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_gates --wait
 
+      # The shard counts (the CiShards rows in vocabulary.bluebook) are written into marked
+      # strategy blocks of ci-rspec.yml and ci-postgres-io-parallel.yml, and the jobs read them
+      # back as `strategy.job-total`. Without --confirm the verb only compares.
+      - name: "ci shards: project the CiShards rows into the workflows, fail on drift"
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_shards --wait
+
       # The launcher forms of docs/tools.md are written from the RetiredScript rows in
       # vocabulary.bluebook and each command's own arguments. Without --confirm the verb only
       # compares, so a command whose arguments changed with no regenerated doc fails here.

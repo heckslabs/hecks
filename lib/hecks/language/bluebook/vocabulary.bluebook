@@ -728,6 +728,20 @@ Hecks.bluebook "Bluebook" do
              label: "does this change touch anything rspec_postgres_io_parallel covers?"
     end
 
+    # How many shards a sharded CI job splits its work into: one row per job. hecks project_ci_shards
+    # writes each row into the marked `strategy:` region of its `workflow`
+    # (.github/workflows/<workflow>) as the job's matrix, and the job's own steps read the count
+    # back as `strategy.job-total`, so no other place states it. `name` is the job id; `count` is
+    # held as text, like every row's value, and projected as the list 1..count.
+    value_object "CiShards" do
+      attribute :name,     String
+      attribute :workflow, String
+      attribute :count,    String
+
+      member name: "rspec_shard", workflow: "ci-rspec.yml", count: "4"
+      member name: "rspec_postgres_io_parallel_shard", workflow: "ci-postgres-io-parallel.yml", count: "16"
+    end
+
     # The files a release bump edits, and the lines of each it may change. A commit whose whole
     # diff against a certified base falls inside these rows inherits the base's certification
     # (`CiGate` `release_only`, ADR 0107): its checks report success without their jobs running,

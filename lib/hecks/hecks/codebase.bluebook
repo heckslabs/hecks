@@ -1074,6 +1074,22 @@ Hecks.bluebook "Hecks" do
       emits ProjectCiGatesRequested
     end
 
+    command "ProjectCiShards" do
+      role "Maintainer"
+      goal "Project the CiShards rows into the workflows' marked strategy blocks, or with check only compare them"
+
+      attribute :check,   Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_ci_shards"
+
+      emits ProjectCiShardsRequested
+    end
+
     command "ProjectLanes" do
       role "Maintainer"
       goal "Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets"
@@ -1183,6 +1199,11 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenProjectCiGatesRequested" do
     on      "RegenerationRun.ProjectCiGatesRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectCiShardsRequested" do
+    on      "RegenerationRun.ProjectCiShardsRequested"
     trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
   end
 

@@ -20,6 +20,7 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
   VOCABULARIES_ELSEWHERE = {
     "CargoReservedName"     => "names the Rust build refuses; spec/rust_vocabulary_spec.rb",
     "CiGate"                => "CI jobs, held by spec/tools_ci_gates_spec.rb",
+    "CiShards"              => "CI jobs, held by spec/tools_ci_shards_spec.rb",
     "Comparison"            => "expression operators, held by spec/operator_conformance_spec.rb",
     "DispatchStage"         => "the stages a refusal comes from, held by spec/runtime/refusal_classification_spec.rb",
     "FieldHint"             => "form field hints, held by spec/field_hint_conformance_spec.rb",
