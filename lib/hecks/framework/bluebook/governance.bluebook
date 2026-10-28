@@ -39,8 +39,10 @@ Hecks.bluebook "Governance" do
       invariant("a scope is named") { !value.to_s.empty? }
     end
 
+    # A UTC instant: a date, or a date and time ending in Z. Both read and sort the same way, so
+    # "has it started" and "does it end after it starts" are string comparisons the model can state.
     value_object "Timestamp" do
-      attribute :value, String
+      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$'
       invariant("a timestamp is present") { !value.to_s.empty? }
     end
 
@@ -62,6 +64,8 @@ Hecks.bluebook "Governance" do
 
       reference_to RoleAssignment
       attribute :ends_at, Timestamp
+
+      given("a grant ends no earlier than it starts") { ends_at.value >= starts_at.value }
 
       sets :ends_at
       emits RoleRevoked
@@ -94,7 +98,7 @@ Hecks.bluebook "Governance" do
     end
 
     value_object "Timestamp" do
-      attribute :value, String
+      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$'
       invariant("a timestamp is present") { !value.to_s.empty? }
     end
 
@@ -115,6 +119,8 @@ Hecks.bluebook "Governance" do
 
       reference_to RoleTransition
       attribute :ends_at, Timestamp
+
+      given("a grant ends no earlier than it starts") { ends_at.value >= starts_at.value }
 
       sets :ends_at
       emits RoleTransitionRevoked
