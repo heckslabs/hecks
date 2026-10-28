@@ -35,14 +35,18 @@ RSpec.describe "the rust_io gate stage" do
     expect(legs.map { |specs| script.index(specs) }).to eq(legs.map { |specs| script.index(specs) }.sort)
   end
 
-  it "has the regeneration leg skip every step that waits for or fetches feature binaries", :aggregate_failures do
-    steps = workflow.dig("jobs", "rspec_rust_io", "steps")
-    heavy = ["Remove pinned feature", "Restore the built feature", "Wait for the feature",
+  # The steps that build the main crate or restore, wait for and fetch the feature binaries.
+  def crate_steps
+    names = ["Remove pinned feature", "Restore the built feature", "Wait for the feature",
              "Fetch the feature", "Build the Rust conformance"]
-    feature_steps = steps.select { |step| heavy.any? { |start| step["name"].to_s.start_with?(start) } }
+    workflow.dig("jobs", "rspec_rust_io", "steps").select do |step|
+      names.any? { |start| step["name"].to_s.start_with?(start) }
+    end
+  end
 
-    expect(feature_steps).not_to be_empty
-    feature_steps.each { |step| expect(step["if"].to_s).to include("matrix.leg != 'c'"), step["name"] }
+  it "has the regeneration leg skip every step that waits for or fetches feature binaries", :aggregate_failures do
+    expect(crate_steps).not_to be_empty
+    crate_steps.each { |step| expect(step["if"].to_s).to include("matrix.leg != 'c'"), step["name"] }
   end
 
   it "names no spec file the workflow's matrix does not" do
