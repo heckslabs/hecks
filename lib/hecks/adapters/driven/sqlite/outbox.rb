@@ -64,7 +64,8 @@ module Hecks
         #   keys; `[]` when none match
         # @raise [SQLite3::Exception] if the statement fails
         def outbox_rows(status: nil)
-          sql   = "SELECT * FROM hecks_outbox WHERE aggregate = ?"
+          sql   = "SELECT *, CAST(strftime('%s', 'now') AS INTEGER) - CAST(strftime('%s', claimed_at) AS INTEGER) " \
+                  "AS claimed_for FROM hecks_outbox WHERE aggregate = ?"
           binds = [table]
           if status
             sql << " AND status = ?"
@@ -89,7 +90,7 @@ module Hecks
             id: row["id"], delivery_id: row["delivery_id"], event_uid: row["event_uid"], aggregate: row["aggregate"],
             domain: row["domain"], kind: row["kind"], consumer: row["consumer"],
             event: JSON.parse(row["event"], symbolize_names: true), status: row["status"],
-            attempts: row["attempts"].to_i, error: row["error"]
+            attempts: row["attempts"].to_i, error: row["error"], claimed_for: row["claimed_for"]&.to_f
           )
         end
       end

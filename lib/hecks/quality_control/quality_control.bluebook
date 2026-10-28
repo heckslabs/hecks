@@ -2177,7 +2177,7 @@ Hecks.bluebook "QualityControl" do
   # `Raise` and the call are split so a crash leaves a `Ticket.Raised` row rather than a lie.
   policy "FileWhenSubmitted" do
     on      "Ticket.TicketSubmitted"
-    trigger Ticket::IssueTracker::File
+    ask     :file
   end
 
   policy "RecordTheIssue" do
@@ -2198,7 +2198,7 @@ Hecks.bluebook "QualityControl" do
 
   policy "AskOnceMore" do
     on      "Ticket.TicketRetried"
-    trigger Ticket::IssueTracker::File
+    ask     :file
   end
 
   # Nothing reacts to `TicketRaised` on purpose: a ticket waits until somebody submits it.

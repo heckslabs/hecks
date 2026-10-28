@@ -89,6 +89,21 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
         expect { place(runtime, "o-1") }.to raise_error(Interrupt)
       end
 
+      # Moves every claim back in time, so a claim made a moment ago stands as old as `seconds`,
+      # as one left by a process that has long gone would.
+      def claimed_ago(seconds)
+        db = PG.connect(dbname: OUTBOX_SPEC_DB)
+        db.exec_params("UPDATE hecks_outbox SET claimed_at = now() - make_interval(secs => $1) " \
+                       "WHERE status = 'claimed'", [seconds])
+      ensure
+        db&.close
+      end
+
+      def crash_leaving_stalled_claim
+        crash_placing(runtime.instance_variable_get(:@policies), :react)
+        claimed_ago(Hecks::Runtime::Outbox::STALLED_AFTER + 60)
+      end
+
       it "delivers inline and records the row", :aggregate_failures do
         place(runtime, "o-1")
 
@@ -126,18 +141,25 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
       end
 
       it "surfaces a claimed row instead of redriving it", :aggregate_failures do
-        crash_placing(runtime.instance_variable_get(:@policies), :react)
+        crash_leaving_stalled_claim
 
         expect { expect(rebooted.outbox.redrive!).to be_empty }.to output(/claimed before the last crash/).to_stderr
         expect(ledger(rebooted, "o-1")).to be_nil
       end
 
       it "redrives a claimed row only on request", :aggregate_failures do
-        crash_placing(runtime.instance_variable_get(:@policies), :react)
+        crash_leaving_stalled_claim
 
         expect(rebooted.outbox.redrive!(claimed: true).size).to eq(1)
         expect(rebooted.outbox.rows.first).to have_attributes(status: "delivered", attempts: 2)
         expect(ledger(rebooted, "o-1")).not_to be_nil
+      end
+
+      it "leaves a row claimed a moment ago alone, as a reaction still running", :aggregate_failures do
+        crash_placing(runtime.instance_variable_get(:@policies), :react)
+
+        expect { expect(rebooted.outbox.redrive!(claimed: true)).to be_empty }.not_to output.to_stderr
+        expect(rebooted.outbox.rows.first).to have_attributes(status: "claimed", claimed_for: be < 60)
       end
     end
   end
