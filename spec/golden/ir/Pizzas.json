@@ -322,6 +322,11 @@
       "lifecycle": {
         "default": "available",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "sold"
+          ]
+        },
         "transitions": [
           {
             "command": "Purchase",
