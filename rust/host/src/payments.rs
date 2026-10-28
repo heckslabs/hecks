@@ -5,7 +5,7 @@ use crate::auth;
 use crate::checkout::STRIPE_API_VERSION;
 use crate::dispatch;
 use crate::host::Host;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::store::Store;
 use crate::web::{instances_for, json_error, last_refusal, respond, site_url};
 use serde_json::{json, Value};

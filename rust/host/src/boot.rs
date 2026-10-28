@@ -4,9 +4,9 @@
 use crate::host::Host;
 use crate::ir::Backend;
 use crate::{
-    auth, aws_lambda_invoker, dispatch, extension, ir, journal, ledger, log, mint, rate_limit,
+    auth, aws_lambda_invoker, dispatch, extension, ir, ledger, log, rate_limit,
     secrets, server, storage_shape,
-    store::{MemoryStore, Store},
+    store::{journal_sql as journal, mint, MemoryStore, Store},
 };
 
 use lambda_runtime::{service_fn, Error, LambdaEvent};

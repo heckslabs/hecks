@@ -1,7 +1,7 @@
 //! Mints Postgres eras, porting `lib/hecks/adapters/driven/postgres_era/
 //! lineage/*.rb`'s SQL verbatim; this crate has no bluebook parser (ADR 0012).
 
-use crate::journal::quote_ident;
+use super::journal_sql::quote_ident;
 use crate::reference_transform;
 use crate::reference_validate;
 use crate::storage_shape;
@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 use tokio_postgres::GenericClient;
 
 fn journal_table(domain: &str) -> String {
-    format!("hecks_journal_{}", crate::journal::snake(domain))
+    format!("hecks_journal_{}", super::journal_sql::snake(domain))
 }
 
 fn sequence(domain: &str) -> String {
@@ -25,15 +25,15 @@ fn partition(domain: &str, era: i32) -> String {
 // Domain-qualified: two domains whose aggregate names snake_case to the
 // same storage_name would otherwise collide on the same relations (docs/decisions/0059).
 fn head_snapshot(domain: &str, storage_name: &str, era: i32) -> String {
-    crate::journal::qualified_name(domain, &format!("{storage_name}_head_snapshot_{era}"))
+    super::journal_sql::qualified_name(domain, &format!("{storage_name}_head_snapshot_{era}"))
 }
 
 fn matview(domain: &str, storage_name: &str, era: i32, label: &str) -> String {
-    crate::journal::qualified_name(domain, &format!("{storage_name}_lineage_{era}_{label}"))
+    super::journal_sql::qualified_name(domain, &format!("{storage_name}_lineage_{era}_{label}"))
 }
 
 fn head_view(domain: &str, storage_name: &str) -> String {
-    crate::journal::qualified_name(domain, &format!("{storage_name}_head"))
+    super::journal_sql::qualified_name(domain, &format!("{storage_name}_head"))
 }
 
 fn text_literal(text: &str) -> String {
@@ -175,7 +175,7 @@ impl BootDecision {
 }
 
 /// `held` must already be in ordinal order (as `journal::held_eras` returns it).
-pub fn decide_boot_action(held: &[crate::journal::HeldEra], my_label: &str) -> BootDecision {
+pub fn decide_boot_action(held: &[super::journal_sql::HeldEra], my_label: &str) -> BootDecision {
     if let Some(matching) = held
         .iter()
         .find(|held_era| held_era.label.as_deref() == Some(my_label))
@@ -688,7 +688,7 @@ fn names_by_era(current_name: &str, edges: &[&Edge]) -> (Vec<String>, Vec<String
     }
     let storage = current
         .iter()
-        .map(|name| crate::journal::snake(name))
+        .map(|name| super::journal_sql::snake(name))
         .collect();
     (current, storage)
 }
@@ -1337,7 +1337,7 @@ async fn mint_era_body<C: GenericClient>(
         anyhow::bail!("era {ordinal} of {domain} is already minted — nothing to do");
     }
 
-    let watermark = crate::journal::last_ordinal(client, domain).await?;
+    let watermark = super::journal_sql::last_ordinal(client, domain).await?;
     let digest = format!("{:x}", Sha256::digest(held_text.as_bytes()));
     client
         .execute(
@@ -1351,7 +1351,7 @@ async fn mint_era_body<C: GenericClient>(
 
     // Every held era's watermark, for `ancestor_tail_sql`'s cut — includes
     // the row just inserted, which bounds era `ordinal - 1`'s tail read.
-    let held = crate::journal::held_eras(client, domain).await?;
+    let held = super::journal_sql::held_eras(client, domain).await?;
     let watermarks: std::collections::HashMap<i32, Option<i64>> = held
         .iter()
         .map(|era| (era.ordinal, era.watermark))
@@ -1618,8 +1618,8 @@ mod tests {
             "state is nullable, for a delete tombstone"
         );
     }
+    use super::super::journal_sql as journal;
     use super::*;
-    use crate::journal;
     use tokio_postgres::NoTls;
 
     fn rule(name: &str, was: Option<&str>, expression: &str) -> EdgeAggregate {
