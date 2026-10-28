@@ -28,7 +28,7 @@ RSpec.describe "regenerating the corpus in any order", :io do
     FileUtils.rm_rf([@banking_first, @compliance_first, @side_by_side, @skipped_meta].compact)
   end
 
-  # A workspace holding only banking, generated with `--skip-meta` the way a corpus run's children are.
+  # A workspace holding only banking, generated with `--skip-meta` as a corpus run's children are.
   def skipped_meta
     Dir.mktmpdir("regen-skip-meta").tap do |workspace|
       seed(workspace)
