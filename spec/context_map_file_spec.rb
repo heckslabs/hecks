@@ -7,6 +7,13 @@ require "hecks/cli/model_check"
 RSpec.describe "a .contextmap file" do
   def build(&) = Hecks::Bluebook::DSL::ContextMapBuilder.build("Shop", &)
 
+  def build_with_bare_relate
+    build do
+      context "A"
+      relate as: :conformist
+    end
+  end
+
   describe "the Hecks.context_map word" do
     let(:shop) do
       build do
@@ -35,7 +42,7 @@ RSpec.describe "a .contextmap file" do
     end
 
     it "refuses a relate that names no single pair" do
-      expect { build { context("A"); relate as: :conformist } }.to raise_error(ArgumentError, /one "Upstream"/)
+      expect { build_with_bare_relate }.to raise_error(ArgumentError, /one "Upstream"/)
     end
   end
 
