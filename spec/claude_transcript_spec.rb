@@ -2,6 +2,7 @@ require "spec_helper"
 require "fileutils"
 require "json"
 require "tmpdir"
+require_relative "../lib/hecks/hecks/adapters/claude_transcript"
 
 # The transcript heuristic behind `AgentRun.Tidy`: a person spoke when a user message follows the
 # brief that is not a tool result. Anything unreadable counts as spoken.
