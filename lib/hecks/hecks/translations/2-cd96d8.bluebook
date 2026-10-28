@@ -1,8 +1,10 @@
 # An Adr's `settles` was a one-field value object, {"value": "<finding>"}; it is now a reference to
 # the Finding, stored as the finding's bare key. `derive` reads the key out of the old object, and an
-# Adr that settles nothing keeps its null.
+# Adr that settles nothing keeps its null. The derive only writes the new `settles`; `drop` names the
+# old `settles.value` path as the source it replaces, which the era diff needs to see explained.
 Hecks.data_translation "Tickets", from: "556197", to: "cd96d8" do
   aggregate "Adr" do
     derive :settles, as: "settles.value"
+    drop "settles.value"
   end
 end
