@@ -357,47 +357,47 @@ Hecks.bluebook "Hecks" do
 
   policy "RunWhenRequested" do
     on      "Operation.RunRequested"
-    trigger Operation::DomainRuntime::Execute, with: { run: :run }
+    ask     :execute, with: { run: :run }
   end
 
   policy "RefreshWhenRequested" do
     on      "Operation.ProjectionsRefreshRequested"
-    trigger Operation::DomainRuntime::Refresh, with: { run: :run }
+    ask     :refresh, with: { run: :run }
   end
 
   policy "RedriveWhenRequested" do
     on      "Operation.OutboxRedriveRequested"
-    trigger Operation::DomainRuntime::Redrive, with: { run: :run }
+    ask     :redrive, with: { run: :run }
   end
 
   policy "AbandonWhenRequested" do
     on      "Operation.OutboxRowAbandonRequested"
-    trigger Operation::DomainRuntime::Abandon, with: { run: :run }
+    ask     :abandon, with: { run: :run }
   end
 
   policy "VerifyWhenRequested" do
     on      "Operation.BehaviorsRequested"
-    trigger Operation::DomainRuntime::Verify, with: { run: :run }
+    ask     :verify, with: { run: :run }
   end
 
   policy "SmokeWhenRequested" do
     on      "Operation.SmokeTestRequested"
-    trigger Operation::DomainRuntime::Smoke, with: { run: :run }
+    ask     :smoke, with: { run: :run }
   end
 
   policy "BootstrapWhenRequested" do
     on      "Operation.AdminBootstrapRequested"
-    trigger Operation::DomainRuntime::Bootstrap, with: { run: :run }
+    ask     :bootstrap, with: { run: :run }
   end
 
   policy "OpenWhenRequested" do
     on      "Operation.ConsoleRequested"
-    trigger Operation::Terminal::Open, with: { run: :run }
+    ask     :open, with: { run: :run }
   end
 
   policy "ProbeWhenRequested" do
     on      "Operation.SmokeHttpRequested"
-    trigger Operation::HostHttp::Probe, with: { run: :run }
+    ask     :probe, with: { run: :run }
   end
 
   policy "RecordTheOutput" do
@@ -556,12 +556,12 @@ end
 
   policy "FetchWhenChecked" do
     on      "Host.EraCheckRequested"
-    trigger Host::HostHttp::Fetch, with: { host: :host }
+    ask     :fetch, with: { host: :host }
   end
 
 policy "FetchWhenRechecked" do
   on      "Host.EraRecheckRequested"
-  trigger Host::HostHttp::Fetch, with: { host: :host }
+  ask     :fetch, with: { host: :host }
 end
 
 policy "RecordTheEra" do
@@ -733,7 +733,7 @@ policy "RecordTheEra" do
 
   policy "CarryWhenBoarded" do
     on      "PushTrain.BoardingRequested"
-    trigger PushTrain::Train::Carry, with: { run: :run }
+    ask     :carry, with: { run: :run }
   end
 
   policy "RecordThePush" do
@@ -755,7 +755,7 @@ policy "RecordTheEra" do
 
   policy "SurveyWhenAsked" do
     on      "PushTrain.SurveyRequested"
-    trigger PushTrain::Train::Tally, with: { run: :run }
+    ask     :tally, with: { run: :run }
   end
 
   policy "RecordTheSurvey" do
@@ -771,7 +771,7 @@ policy "RecordTheEra" do
   # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
   policy "AnnounceWhenPushed" do
     on      "PushTrain.BranchPushed"
-    trigger PushTrain::Alerts::Announce, with: { run: :run }
+    ask     :announce, with: { run: :run }
   end
 
   # A checkout's state, read and never written: nothing needs a raw `git status`, `git diff` or
@@ -971,7 +971,7 @@ policy "RecordTheEra" do
 
   policy "MergeWhenLanding" do
     on      "Landing.LandingRequested"
-    trigger Landing::Worktrees::Merge, with: { run: :run }
+    ask     :merge, with: { run: :run }
   end
 
   policy "RecordTheLanding" do
@@ -986,7 +986,7 @@ policy "RecordTheEra" do
 
   policy "RemoveWhenRetiring" do
     on      "Landing.RetirementRequested"
-    trigger Landing::Worktrees::Remove, with: { run: :run }
+    ask     :remove, with: { run: :run }
   end
 
   policy "RecordTheRetirement" do
@@ -1003,7 +1003,7 @@ policy "RecordTheEra" do
   # records it keeps run the code that landed, not the code that was there when it was set up.
   policy "KeepTheLauncherCurrent" do
     on      "PushTrain.BranchPushed"
-    trigger PushTrain::Launcher::Refresh, with: { run: :run }
+    ask     :refresh, with: { run: :run }
   end
 
   aggregate "Era" do
@@ -1331,32 +1331,32 @@ policy "RecordTheEra" do
 
   policy "ExamineWhenFirstEraRequested" do
     on      "Era.FirstEraRequested"
-    trigger Era::JournalStore::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenTailMergeRequested" do
     on      "Era.TailMergeRequested"
-    trigger Era::JournalStore::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenReattestRequested" do
     on      "Era.ReattestRequested"
-    trigger Era::JournalStore::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenBackfillRequested" do
     on      "Era.BackfillRequested"
-    trigger Era::JournalStore::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenCompactionRequested" do
     on      "Era.CompactionRequested"
-    trigger Era::JournalStore::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "ExamineWhenHekiCompactionRequested" do
     on      "Era.HekiCompactionRequested"
-    trigger Era::JournalStore::Examine, with: { run: :run }
+    ask     :examine, with: { run: :run }
   end
 
   policy "PermitWhenExamined" do
@@ -1390,7 +1390,7 @@ policy "RecordTheEra" do
     where do
       operation.value != "compact" && operation.value != "compact_heki"
     end
-    trigger Era::JournalStore::Apply, with: { run: :run }
+    ask     :apply, with: { run: :run }
   end
 
   policy "RecordTheChange" do
