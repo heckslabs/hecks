@@ -90,21 +90,10 @@ module Hecks
       # form's "no such script".
       def cli_form(domain, argv, program)
         runtime = Hecks.boot(domain, install_driving: false)
-        Assembly.bind_runtime(runtime) if ported?(runtime)
+        Assembly.bind_ported_runtime(runtime)
         text, status = Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv, program: program)
         status.zero? ? puts(text) : abort(text)
         exit 0
-      end
-
-      # An adapter behind a declared port reaches the domain through its Ruby constants
-      # (`Widget::Item.Add(...)`), which only the Ruby driving adapter installs. A verb run of a
-      # domain with ports installs it, so what the adapter asks of the model is not refused with
-      # `uninitialized constant`; a domain with none keeps the cheaper boot.
-      #
-      # @api private
-      def ported?(runtime)
-        registry = runtime.registry
-        registry.ports.any?
       end
 
       def script_shaped?(arg) = arg == "-" || arg.match?(INLINE_SCRIPT) || File.file?(arg)
