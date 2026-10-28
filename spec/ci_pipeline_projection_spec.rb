@@ -24,9 +24,9 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     @original ||= deliberately_changed(YAML.load_file(File.join(root, "spec/fixtures/ci_pipeline/ci-rspec.original.yml")))
   end
 
-  # How many shards the suite is split across: the hand-written workflow had four, and a fifth
-  # shortens the longest one.
-  def shard_total = 5
+  # How many shards the suite is split across: the hand-written workflow had four, and more
+  # shorten the longest one.
+  def shard_total = 6
 
   # The hand-written workflow with what was changed on purpose since: each shard names the domains
   # it reads, leaves out the specs tagged `generated_all`, which read the whole tree and run in
