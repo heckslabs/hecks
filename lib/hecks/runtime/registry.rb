@@ -183,6 +183,15 @@ module Hecks
         @declared.worlds[item.domain] = existing ? merge_worlds(existing, item) : item
       end
 
+      # Registers a declared context map under its system's name, a later one of the same name
+      # replacing the earlier (a map is one declaration, not a layered overlay).
+      #
+      # @param item [Bluebook::ContextMap] the declared map
+      # @return [Bluebook::ContextMap] the map
+      def add_context_map(item)
+        @declared.context_maps[item.name] = item
+      end
+
       # Registers a loaded translation.
       #
       # @param item [Bluebook::Translation] the loaded, judged translation
@@ -233,6 +242,15 @@ module Hecks
       # @return [Bluebook::World, nil] the domain's world, or nil if none is
       #   registered under `name`
       def world(name)     = @declared.worlds[name.to_s]
+
+      # Finds a system's declared context map by name.
+      #
+      # @param name [String, Symbol] the system the map covers
+      # @return [Bluebook::ContextMap, nil] the map, or nil if none is registered under `name`
+      def context_map(name) = @declared.context_maps[name.to_s]
+
+      # @return [Array<Bluebook::ContextMap>] every declared context map
+      def context_maps = @declared.context_maps.values
 
       # The first bluebook loaded: a one-domain boot's own bluebook.
       #

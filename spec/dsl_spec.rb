@@ -120,6 +120,11 @@ RSpec.describe "the DSL surface" do
       expect(registry.world("Worldly").for_verb("posted_by")).to eq(adapter: "Carrier", office: "EC1")
     end
 
+    it ".context_map registers a system's contexts and how they relate" do
+      registry = in_registry { Hecks.context_map("Mapped") { context("A"); context("B"); relate "A" => "B", as: :conformist } }
+      expect(registry.context_map("Mapped").relationships.map(&:upstream)).to eq(["A"])
+    end
+
     it ".hecksagon registers binds" do
       registry = in_registry { Hecks.hecksagon("Hexed") { Hexed::Thing.posted_by("Carrier") } }
       bind = registry.hecksagon("Hexed").binds.first

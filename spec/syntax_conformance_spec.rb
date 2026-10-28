@@ -67,7 +67,8 @@ RSpec.describe "the declared syntax" do
     "Port"                 => D::PortBuilder,
     "Adapter"              => D::AdapterBuilder,
     "Translation"          => D::TranslationBuilder,
-    "TranslationAggregate" => D::TranslationAggregateBuilder
+    "TranslationAggregate" => D::TranslationAggregateBuilder,
+    "ContextMap"           => D::ContextMapBuilder
   }.freeze
 
   # Public methods a bluebook word could never mean: builder bookkeeping, the
@@ -505,7 +506,7 @@ RSpec.describe "the declared syntax" do
     # `hecksagon`/`world`/`port` are File-context words too, filling fields
     # on their own bluebooks' aggregates, not Bluebook's — the same
     # "checked against more than one category" shape Lifecycle already has.
-    "File"                 => %w[Bluebook Hecksagon World Port Adapter Translation],
+    "File"                 => %w[Bluebook Hecksagon World Port Adapter Translation ContextMap],
     "Bluebook"             => %w[Bluebook],
     "Aggregate"            => %w[Aggregate],
     "Entity"               => %w[Entity],
@@ -513,6 +514,7 @@ RSpec.describe "the declared syntax" do
     "Query"                => %w[Query],
     "ValueObject"          => %w[ValueObject],
     "OneOf"                => %w[ValueObject],
+    "ContextMap"           => %w[ContextMap],
     "Lifecycle"            => %w[Aggregate Entity],
     "Policy"               => %w[Policy],
     "ProcessManager"       => %w[ProcessManager],
@@ -542,7 +544,7 @@ RSpec.describe "the declared syntax" do
 
   def self.all_meta_aggregates
     registry     = Hecks::Bluebook::MetaValidator.grammar_registry
-    aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation].flat_map do |chapter|
+    aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation ContextMap].flat_map do |chapter|
       registry.bluebook(chapter).aggregates
     end
     aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
