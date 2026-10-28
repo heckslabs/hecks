@@ -1,69 +1,71 @@
 # Compliance reviews a subject, and names no consumer
 
-**Status:** Proposed. Not built. Date: 2026-10-27.
+**Status:** Accepted. Built on this branch, not released. Date: 2026-10-27. Needs
+[0144](0144-a-policy-reads-the-emitting-records-identity-as-id.md).
 
 ## Context
 
-`Compliance` ships in the gem as a framework bluebook, yet its model is its customers' vocabulary:
+`Compliance` ships in the gem as a framework bluebook, yet its model was its customers'
+vocabulary:
 
-- `AccountFreezeReview` and `BoxSurrenderReview` are Banking's facts. Each `Open` command
-  "takes exactly the fields" of one Banking event (`AccountFrozen` carries `number`,
-  `BoxSurrendered` carries `branch_code` and `box_number`), and the file says so.
-- `PrivacyReview` takes `domain` and `attribute_path`, the identity of Privacy's `Marking`.
-- Each source costs Compliance a new aggregate, three commands, three events and three OIDC
-  scopes. A fourth source means editing the framework chapter.
+- `AccountFreezeReview` and `BoxSurrenderReview` were Banking's facts. Each `Open` command
+  took exactly the fields of one Banking event (`AccountFrozen` carries `number`,
+  `BoxSurrendered` carries `branch_code` and `box_number`), and the file said so.
+- `PrivacyReview` took `domain` and `attribute_path`, the identity of Privacy's `Marking`.
+- Each source cost Compliance a new aggregate, three commands, three events and three OIDC
+  scopes. A fourth source meant editing the framework chapter.
 
-The relationship is a customer/supplier one with the roles inverted. Compliance supplies
-a service, but the customer decides the supplier's language. In context-map terms Compliance
-conforms to Banking and Privacy instead of publishing a language of its own.
-
-Banking's side is visible in the wiring: two policies `across "Compliance"` whose targets are
-named `AccountFreezeReview.Open` and `BoxSurrenderReview.Open`, and a `subscribe` to
-`Compliance.AccountFreezeReviewOpened`. That relationship is now pinned by
-`spec/context_map_banking_spec.rb` as a declared customer/supplier edge, so the coupling is
-deliberate and checked. This ADR is about its shape.
+The relationship was a customer/supplier one with the roles inverted. Compliance supplies a
+service, but the customer decided the supplier's language. In context-map terms Compliance
+conformed to Banking and Privacy instead of publishing a language of its own. That relationship
+is pinned by `spec/context_map_banking_spec.rb` as a declared customer/supplier edge.
 
 ## Decision
 
-1. **One aggregate, `Review`, identified by what is reviewed.** Its identity is a subject
-   kind and a subject key, both text: `account_freeze` and `A-1`, `box_surrender` and
-   `BR1:42`, `privacy_marking` and `attendee.medications`. It keeps the lifecycle
+1. **One aggregate, `Review`, identified by what is reviewed.** Its identity is a subject kind
+   and a subject key, both text: `account_freeze` and `A-1`, `box_surrender` and `BR1:42`,
+   `privacy_marking` and `Studio::Registration:attendee.medications`. It keeps the lifecycle
    `open` to `cleared` or `escalated`, and the commands `Open` (role "System"), `Clear` and
-   `Escalate` (role "Compliance officer").
-2. **The consumer maps its fact to a subject.** Each consuming policy names the kind and the
-   key in its `with:`, which is where the translation belongs: in the context that knows its
-   own events. Compliance learns no consumer's field names.
+   `Escalate` (role "Compliance officer"). Its events are `ReviewOpened`, `ReviewCleared` and
+   `ReviewEscalated`.
+2. **The consumer maps its fact to a subject.** Each consuming policy names the kind as a
+   literal and reads the key from the event's record as `:id` (ADR 0144):
+   `trigger Review::Open, with: { subject_kind: "account_freeze", subject_key: :id }`. A
+   composite identity arrives joined by a colon. The translation sits in the context that
+   knows its own events, and Compliance learns no consumer's field names.
 3. **A new source adds a policy, not a chapter edit.** Banking, Privacy, or a client's own
    domain starts a review by naming a kind of its own choosing.
-4. **Events are `ReviewOpened`, `ReviewCleared` and `ReviewEscalated`,** each carrying the
-   subject, so a consumer subscribes to the one published language.
 
 ## Alternatives considered
 
-- **Keep one aggregate per source.** It is what ships, and it keeps each event's fields typed.
-  Rejected: the typing is Banking's, bought at the price of the supplier's generality.
-- **A shared kernel of the event shapes.** It would make the coupling explicit and shared.
-  Rejected: Compliance would still change whenever a customer's event does.
+- **Keep one aggregate per source.** It keeps each event's fields typed. Rejected: the typing
+  is Banking's, bought at the price of the supplier's generality.
+- **A kind, a key and a numbered part.** Tried first, with no language change. A box's
+  identity fits (a string and an integer), an account's does not need the part, and Privacy's
+  marking (two strings) does not fit at all. Rejected for the policy reading `:id` instead.
+- **A shared kernel of the event shapes.** Rejected: Compliance would still change whenever a
+  customer's event does.
 - **An anticorruption layer in Compliance that reads each source.** It would put the
-  translation in the supplier, so the supplier still names every customer.
+  translation in the supplier, so the supplier would still name every customer.
 
 ## Consequences
 
-- **A wide, breaking change, not built here.** It touches:
-  - the Compliance bluebook and the `examples/compliance` link, and its OIDC scopes;
-  - Banking's two policies and its `subscribe`, and the Privacy wiring that reaches
-    `PrivacyReview`;
-  - the Rust host's tests that name `Compliance::AccountFreezeReview.Open`, and the
-    conformance fixtures whose reaction logs contain it verbatim, which can only be
-    re-verified against a Rust build;
-  - `spec/corpus/compliance.json`, Banking's golden IR, the generated glossary and diagrams,
-    and the reference pages that quote the old names.
-- **A shape change.** The chapter loses three aggregates and gains one, so it needs a
-  translation edge and a rehearsed era. Whether any deployed store holds review rows was not
-  checked.
-- **A composite key needs a decision.** A box has two identity fields. The `with:` must join
-  them into one key, and the policy language may not be able to compute that without a new
-  word. Check this before building.
-- **Subject kinds become a convention.** Nothing declares the set of kinds; a typo opens a
+- **A breaking change to the chapter.** `AccountFreezeReview`, `BoxSurrenderReview` and
+  `PrivacyReview` are gone, and so are their events and OIDC scopes. Banking's two policies, the
+  `subscribe` line, the Rust host's tests, the recorded reaction logs in the corpus, Banking's
+  golden IR, the generated glossary and diagram, and the reference pages that quote the old
+  names are all updated here.
+- **A shape change.** The chapter loses three aggregates and gains one. Whether any deployed
+  store holds review rows was not checked, and a translation edge for one was not written.
+- **Subject kinds are a convention.** Nothing declares the set of kinds, so a typo opens a
   review nobody expects. A closed set per deployment, or a `published:` list in the context
-  map, are the two ways to check it.
+  map, would check it.
+- **Privacy is not wired.** The Privacy marking review had no consumer in this repository (its
+  comment described a `translates` in a hecksagon that attaches both), so there is nothing to
+  rewire; the corpus script now opens a `privacy_marking` review directly.
+- **Rust.** Building this showed the Rust host ignored `with:` on a cross-domain policy, which
+  would have sent Compliance the old arguments; ADR 0144 records the fix. The generated
+  Compliance and Banking code regenerates, the kernel tests pass, and the host's cross-domain
+  tests pass against a rebuilt `banking.wasm`, including the arguments it delivers. The
+  conformance fixtures that record the refused reaction were renamed by hand and Ruby answers
+  them as written; none were replayed against a Rust build of the generated host.
