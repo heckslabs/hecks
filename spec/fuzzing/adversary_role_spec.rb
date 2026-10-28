@@ -109,7 +109,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
     end
 
     it "produces every shape on banking, with the fingerprint in the step's own keys" do
-      pairs  = notes_over(ROLE_BANKING, seeds: 16, mutation: "caller_role", adversarial: 0.3, role_draw: 1.0)
+      pairs  = notes_over(ROLE_BANKING, seeds: 32, mutation: "caller_role", adversarial: 0.3, role_draw: 1.0)
       shapes = pairs.group_by { |_, note| note["shape"] }
 
       expect(shapes.keys).to match_array(described_class::CALLER_SHAPES)
