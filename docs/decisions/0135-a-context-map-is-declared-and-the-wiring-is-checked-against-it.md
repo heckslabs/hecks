@@ -86,6 +86,16 @@ Smaller gaps follow from the same cause:
 7. **The map is readable.** `hecks query context_map` renders the declared and derived
    edges together, one line per pair, marking which side each came from. The glossary
    generator groups each context's terms under its declared team.
+8. **The map is drawn.** The same query renders a Mermaid flowchart, the form the
+   generated glossaries already use for lifecycles. Each context is a node labelled with
+   its team, and each relationship is an edge from supplier to consumer, labelled with its
+   kind (`U` and `D` for upstream and downstream, `ACL` on the consuming end of an
+   anticorruption layer). A `shared_kernel` and a `partnership` are drawn as a double-headed
+   edge, and `separate_ways` is left as a gap with a dotted edge marked as declared absent.
+   An edge the wiring implements but the map does not declare is drawn dashed and red,
+   so a reviewer sees the undeclared coupling on the picture before the finding is read.
+   An edge the map declares and the wiring never uses is drawn grey. The diagram is
+   generated from the map and the derived edges, so it cannot drift from either.
 
 ## Alternatives considered
 
