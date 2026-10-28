@@ -10,6 +10,7 @@
 // nothing and `push_str(&format!(..))` reads as the line it writes.
 #![allow(clippy::format_push_string)]
 
+use super::command_step;
 use super::names::{camel, snake, spoken};
 use super::token::{tokenize, Kind};
 use super::{column, read_lines, Grammar, Matched, Parser, Scope, Step};
@@ -80,6 +81,16 @@ struct Dispatch<'c> {
     tries: bool,
     line: usize,
     col: usize,
+}
+
+/// What a step says about the command it names, ready to check against that command.
+#[derive(Clone, Copy)]
+struct StepForm<'a> {
+    who: &'a str,
+    aggregate: &'a ir::Aggregate,
+    command: &'a ir::Command,
+    object: Option<&'a command_step::Object>,
+    acts_on_it: bool,
 }
 
 /// A record created earlier in the example, and the fields that identify it.
@@ -402,51 +413,20 @@ impl Parser<'_> {
 
         let who = slot("who").value;
         let role = self.role_of(people, &who, raw.line, at("who"))?;
+        let verb = slot("verb").value;
+        let object = command_step::Object::of(&slot("noun").value);
         let (aggregate, command) =
-            self.find_command(declaration, &slot("verb").value, raw.line, at("verb"))?;
+            self.find_command(declaration, &verb, object.as_ref(), raw.line, at("verb"))?;
 
-        let acts_on_it = id.contains("acts");
-        if acts_on_it {
-            if command.references.is_none() {
-                return Err(self.error(
-                    raw.line,
-                    at("verb"),
-                    format!(
-                        "{} makes a {} rather than acting on one that exists; write `{} {}s a {} with …`",
-                        spoken(&command.name),
-                        spoken(&aggregate.name),
-                        who,
-                        slot("verb").value,
-                        spoken(&aggregate.name)
-                    ),
-                ));
-            }
-        } else {
-            if command.references.is_some() {
-                return Err(self.error(
-                    raw.line,
-                    at("verb"),
-                    format!(
-                        "{} acts on a {} that exists; write `{who} {} it`",
-                        spoken(&command.name),
-                        spoken(&aggregate.name),
-                        slot("verb").value
-                    ),
-                ));
-            }
-            let noun = slot("noun").value.to_lowercase();
-            if noun != spoken(&aggregate.name) {
-                return Err(self.error(
-                    raw.line,
-                    at("noun"),
-                    format!(
-                        "{} makes a {}, not a {noun}",
-                        spoken(&command.name),
-                        spoken(&aggregate.name)
-                    ),
-                ));
-            }
-        }
+        let acts_on_it = id.contains("acts") || object.as_ref().is_some_and(|o| o.to_it);
+        let form = StepForm {
+            who: &who,
+            aggregate,
+            command,
+            object: object.as_ref(),
+            acts_on_it,
+        };
+        self.check_form(&form, raw.line, at("verb"), at("noun"))?;
 
         let args = if id.ends_with("bare") {
             Vec::new()
@@ -526,59 +506,108 @@ impl Parser<'_> {
         ))
     }
 
-    /// The command a verb names, in the form a step uses it: `drafts` is `Draft`.
+    /// The command a verb and object name: `drafts a page` is `Draft`, `adds a topping to it` is
+    /// `AddTopping`.
     fn find_command<'c>(
         &self,
         declaration: &'c ir::Bluebook,
         verb: &str,
+        object: Option<&command_step::Object>,
         line: usize,
         col: usize,
-    ) -> ParseResult<(&'c ir::Aggregate, &'c ir::Command)> {
-        let lowered = verb.to_lowercase();
-        let mut forms = vec![lowered.clone()];
-        if let Some(stem) = lowered.strip_suffix("ies") {
-            forms.push(format!("{stem}y"));
-        }
-        if let Some(stem) = lowered.strip_suffix("es") {
-            forms.push(stem.to_string());
-        }
-        if let Some(stem) = lowered.strip_suffix('s') {
-            forms.push(stem.to_string());
-        }
-        let all: Vec<(&ir::Aggregate, &ir::Command)> = declaration
-            .aggregates
-            .iter()
-            .flat_map(|aggregate| {
-                aggregate
-                    .commands
-                    .iter()
-                    .map(move |command| (aggregate, command))
-            })
-            .collect();
-        let found: Vec<(&ir::Aggregate, &ir::Command)> = all
-            .iter()
-            .copied()
-            .filter(|(_, command)| forms.contains(&command.name.to_lowercase()))
-            .collect();
-        match found.as_slice() {
-            [one] => Ok(*one),
-            [] => Err(self.error(
-                line,
-                col,
-                format!(
-                    "'{verb}' is not a command here. The commands are: {}",
-                    all.iter()
-                        .map(|(_, c)| spoken(&c.name))
-                        .collect::<Vec<_>>()
-                        .join(", ")
+    ) -> ParseResult<command_step::Found<'c>> {
+        command_step::find(declaration, verb, object).map_err(|miss| {
+            let said = command_step::as_said(verb, object);
+            match miss {
+                command_step::Miss::Nothing(wordings) => self.error(
+                    line,
+                    col,
+                    format!(
+                        "'{said}' is not a command here. A step can say: {}",
+                        wordings.join(", ")
+                    ),
                 ),
-            )),
-            _ => Err(self.error(
-                line,
-                col,
-                format!("more than one aggregate has a command called '{verb}'"),
-            )),
+                command_step::Miss::Several(names) => self.error(
+                    line,
+                    col,
+                    format!(
+                        "more than one command reads as '{said}': {}. A step cannot say which \
+                         aggregate, so give them names whose words differ",
+                        names.join(", ")
+                    ),
+                ),
+            }
+        })
+    }
+
+    /// Checks a step's form against the command it names: a command that makes a record is not
+    /// written as acting on `it`, and one that acts on a record is.
+    fn check_form(
+        &self,
+        form: &StepForm<'_>,
+        line: usize,
+        verb_col: usize,
+        noun_col: usize,
+    ) -> ParseResult<()> {
+        let StepForm {
+            who,
+            aggregate,
+            command,
+            ..
+        } = *form;
+        let right = command_step::wording(aggregate, command);
+        let says_to_it = form.object.is_some_and(|o| o.to_it);
+        let makes = command.references.is_none();
+        let fault = if says_to_it && !command_step::is_multi_word(command) {
+            Some(format!(
+                "`to it` goes only with a command named by several words; write `{who} {right}`"
+            ))
+        } else if form.acts_on_it && makes {
+            Some(format!(
+                "{} makes {} rather than acting on one that exists; write `{who} {right} with …`",
+                spoken(&command.name),
+                command_step::with_article(&spoken(&aggregate.name))
+            ))
+        } else if !form.acts_on_it && !makes {
+            Some(format!(
+                "{} acts on {} that exists; write `{who} {right}`",
+                spoken(&command.name),
+                command_step::with_article(&spoken(&aggregate.name))
+            ))
+        } else {
+            None
+        };
+        if let Some(fault) = fault {
+            return Err(self.error(line, verb_col, fault));
         }
+        self.check_noun(form, noun_col, line)
+    }
+
+    /// A one-word command that makes a record is written with the record's own name.
+    fn check_noun(&self, form: &StepForm<'_>, col: usize, line: usize) -> ParseResult<()> {
+        let StepForm {
+            aggregate,
+            command,
+            object,
+            ..
+        } = *form;
+        let Some(object) = object else { return Ok(()) };
+        if form.acts_on_it
+            || command_step::is_multi_word(command)
+            || object.words == spoken(&aggregate.name)
+        {
+            return Ok(());
+        }
+        Err(self.error(
+            line,
+            col,
+            format!(
+                "{} makes {}, not {}",
+                spoken(&command.name),
+                command_step::with_article(&spoken(&aggregate.name)),
+                command_step::with_article(&object.words)
+            ),
+        ))
     }
 
     /// Reads `slug "about" and title "About us"` into the command's argument values.

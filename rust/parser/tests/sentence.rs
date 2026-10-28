@@ -350,7 +350,217 @@ fn an_example_naming_no_command_lists_the_commands() {
     let error = examples_refusal("verb", "When Dana publishes it", "When Dana renames it");
     assert!(error.contains("'renames' is not a command here"), "{error}");
     assert!(
-        error.contains("The commands are: draft, publish"),
+        error.contains("A step can say: drafts a page, publishes it"),
+        "{error}"
+    );
+}
+
+const SHOP: &str = "\
+Domain: Shop
+
+Aggregate: Order
+  An order is identified by its name.
+
+  It has:
+    a name: order name
+    a note: order note, optional
+
+  An order name has a value: text.
+
+  An order note has a value: text.
+
+  Lifecycle: status, starting as open
+    Close moves an order from open to closed
+
+  Command: Create Pizza
+    Who: Chef
+    When a name is given
+    Then the name is set
+    And PizzaCreated is announced
+
+  Command: Add Topping
+    Who: Chef
+    It acts on an existing order
+    It takes:
+      a note: order note
+    Then the note is set
+    And ToppingAdded is announced
+
+  Command: Close
+    Who: Chef
+    It acts on an existing order
+    Then OrderClosed is announced
+";
+
+/// A second aggregate whose command reads the same as Order's `Create Pizza`.
+const SHOP_CART: &str = "
+Aggregate: Cart
+  A cart is identified by its name.
+
+  It has:
+    a name: cart name
+
+  A cart name has a value: text.
+
+  Command: Create Pizza
+    Who: Chef
+    When a name is given
+    Then the name is set
+    And CartPizzaCreated is announced
+";
+
+const SHOP_EXAMPLES: &str = "\
+Examples for: Shop
+
+Background:
+  Remy is a Chef
+
+Example: A topping goes on a pizza before it is closed
+  Given Remy creates a pizza with name \"Margherita\"
+  And Remy adds a topping to it with note \"basil\"
+  When Remy closes it
+  Then the order is closed
+  And OrderClosed is announced
+";
+
+fn compile_shop(name: &str, bluebook: &str, examples: &str) -> Output {
+    let declaration = write(&format!("shop_{name}.bluebook"), bluebook);
+    let source = write(&format!("shop_{name}.examples"), examples);
+    Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
+        .args([
+            "examples",
+            "--bluebook",
+            "Shop",
+            "--examples",
+            source.to_str().unwrap(),
+            declaration.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run hecks-parse")
+}
+
+/// The refusal for `SHOP_EXAMPLES` with `from` replaced by `to`, against `bluebook`.
+fn shop_refusal(name: &str, bluebook: &str, from: &str, to: &str) -> String {
+    assert!(SHOP_EXAMPLES.contains(from), "no line `{from}` to replace");
+    let output = compile_shop(name, bluebook, &SHOP_EXAMPLES.replacen(from, to, 1));
+    assert!(
+        !output.status.success(),
+        "{name}: expected a refusal, got: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    String::from_utf8_lossy(&output.stderr).trim().to_string()
+}
+
+#[test]
+fn a_command_named_by_several_words_reads_as_a_verb_and_an_object() {
+    let output = compile_shop("good", SHOP, SHOP_EXAMPLES);
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        text.contains(
+            "setup \"Shop::Order.CreatePizza\", as: \"Chef\", name: { value: \"Margherita\" }"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains("setup \"Shop::Order.AddTopping\", as: \"Chef\""),
+        "{text}"
+    );
+    assert!(text.contains("tests \"Close\", on: \"Order\""), "{text}");
+}
+
+#[test]
+fn the_base_form_of_the_verb_reads_the_same_as_the_third_person() {
+    let base = SHOP_EXAMPLES
+        .replace("creates a pizza", "create a pizza")
+        .replace("adds a topping", "add a topping");
+    let said = compile_shop("base", SHOP, &base);
+    let plain = compile_shop("plain", SHOP, SHOP_EXAMPLES);
+    assert!(
+        said.status.success(),
+        "{}",
+        String::from_utf8_lossy(&said.stderr)
+    );
+    assert_eq!(setups(&said), setups(&plain));
+}
+
+/// The `setup`, `input` and `expect` lines of compiled behaviors, without the file paths.
+fn setups(output: &Output) -> Vec<String> {
+    let prefixes = ["setup ", "input ", "expect "];
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| prefixes.iter().any(|p| line.trim_start().starts_with(p)))
+        .map(str::to_string)
+        .collect()
+}
+
+#[test]
+fn a_command_that_acts_on_a_record_is_written_with_to_it() {
+    let error = shop_refusal(
+        "no_to_it",
+        SHOP,
+        "adds a topping to it with",
+        "adds a topping with",
+    );
+    assert!(error.contains("shop_no_to_it.examples:8:"), "{error}");
+    assert!(
+        error.contains("add topping acts on an order that exists"),
+        "{error}"
+    );
+    assert!(
+        error.contains("write `Remy adds a topping to it`"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_command_that_makes_a_record_is_not_written_with_to_it() {
+    let error = shop_refusal(
+        "made_to_it",
+        SHOP,
+        "creates a pizza with",
+        "creates a pizza to it with",
+    );
+    assert!(
+        error.contains("create pizza makes an order rather than acting on one"),
+        "{error}"
+    );
+    assert!(
+        error.contains("write `Remy creates a pizza with …`"),
+        "{error}"
+    );
+}
+
+#[test]
+fn an_object_no_command_reads_as_lists_the_wordings_that_do() {
+    let error = shop_refusal("object", SHOP, "creates a pizza", "creates a piza");
+    assert!(error.contains("shop_object.examples:7:"), "{error}");
+    assert!(
+        error.contains("'creates a piza' is not a command here"),
+        "{error}"
+    );
+    assert!(
+        error.contains("A step can say: creates a pizza, adds a topping to it, closes it"),
+        "{error}"
+    );
+}
+
+#[test]
+fn two_commands_that_read_alike_are_refused_with_how_to_tell_them_apart() {
+    let both = format!("{SHOP}{SHOP_CART}");
+    let error = shop_refusal("alike", &both, "creates a pizza", "creates a pizza");
+    assert!(
+        error.contains(
+            "more than one command reads as 'creates a pizza': Order.CreatePizza, Cart.CreatePizza"
+        ),
+        "{error}"
+    );
+    assert!(
+        error.contains("give them names whose words differ"),
         "{error}"
     );
 }

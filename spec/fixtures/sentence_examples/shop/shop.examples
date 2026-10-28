@@ -1,0 +1,33 @@
+Examples for: Shop
+
+Background:
+  Remy is a Chef
+  Sam is a Viewer
+
+Example: A topping goes on a pizza before the order is closed
+  Given Remy creates a pizza with name "Margherita"
+  And Remy adds a topping to it with note "basil"
+  When Remy closes it
+  Then the order is closed
+  And OrderClosed is announced
+
+Example: The base form of the verb reads the same
+  Given Remy create a pizza with name "Funghi"
+  And Remy add a topping to it with note "mushroom"
+  When Remy close it
+  Then the order is closed
+
+Example: A closed order cannot be closed again
+  Given Remy creates a pizza with name "Quattro"
+  And Remy closes it
+  When Remy tries to close it
+  Then it is refused because only an open order can be closed
+
+Example: Only a chef puts a topping on
+  Given Remy creates a pizza with name "Diavola"
+  When <person> tries to add a topping to it with note "chili"
+  Then it is refused because only a Chef may do it
+
+  Where:
+    | person |
+    | Sam    |
