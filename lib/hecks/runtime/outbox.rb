@@ -14,8 +14,9 @@ module Hecks
       STATUSES = %w[pending claimed delivered failed].freeze
 
       # How long a row stays claimed before it counts as stalled: a claim that old was left by a
-      # process that is gone, where a younger one is a reaction running in another process.
-      STALLED_AFTER = 1800
+      # process that is gone, where a younger one is a reaction running in another process. Ten
+      # minutes is the ceiling a reaction is expected to stay inside.
+      STALLED_AFTER = 600
 
       # `claimed_for` is the seconds since the row was claimed, read from the store's own clock; nil
       # when the store does not say.
