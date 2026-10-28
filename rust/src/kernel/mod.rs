@@ -1,11 +1,8 @@
 //! Hand-written, domain-agnostic floor that every generated per-command function calls into.
 
-pub mod attribute_shapes;
 pub mod cli;
 pub mod collecting;
 pub mod dispatch;
-pub mod expr;
-pub mod expression_operators;
 pub mod json;
 pub mod named_query;
 pub mod needs;
@@ -22,7 +19,6 @@ pub mod read_model;
 pub mod reference_lookup;
 pub mod repository;
 pub mod routing;
-pub mod ruby_float;
 
 pub use dispatch::{
     aggregate_step_site, apply_entity_command, decode_aggregate_arguments, decode_entity_arguments,
@@ -34,6 +30,9 @@ pub use expr::{
     StripSide, Value, WithParent,
 };
 pub use json::Json;
+// The expression evaluator, its operators and the refusal type are their own crate, shared with
+// the host; the kernel re-exports them so every `crate::kernel::expr::…` path keeps working.
+pub use hecks_expr::{attribute_shapes, expr, expression_operators, ruby_float, Refusal};
 pub use named_query::{QueryCondition, QueryConditionValue, QueryDef};
 pub use orchestrate::{
     orchestrate, CompletedCompensation, CrossDomainPolicyRule, DispatchSpec, Handler,
@@ -67,67 +66,6 @@ pub struct Event {
     /// Runtime-only saga bookkeeping, never serialized. Stamped by `orchestrate` when a saga leg
     /// causes the event, so an unrelated saga correlating on another field cannot claim it.
     pub correlation: Option<std::collections::HashMap<String, String>>,
-}
-
-/// Why a command dispatch was refused; each variant carries the refusal message.
-///
-/// Ruby's `UnknownVerb` has no variant: routing an unknown command name happens before dispatch.
-/// `AbsentArgument` and `UnknownArgument` are raised only at the JSON boundary (`from_json`),
-/// where the input has no static shape; typed args structs make them unconstructible afterwards.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Refusal {
-    GivenNotMet(String),
-    EnsuresNotMet(String),
-    InvariantViolation(String),
-    LifecycleRefused(String),
-    AlreadyExists(String),
-    NotFound(String),
-    TypeMismatch(String),
-    AbsentArgument(String),
-    UnknownArgument(String),
-    Unauthorized(String),
-    Fault(String),
-    /// `corrects` against a record that never emitted the corrected event.
-    NothingToCorrect(String),
-}
-
-impl Refusal {
-    /// The refusal class name, spelled as Ruby raises it; the semantics corpus compares it.
-    pub const fn kind(&self) -> &'static str {
-        match self {
-            Self::GivenNotMet(_) => "GivenNotMet",
-            Self::EnsuresNotMet(_) => "EnsuresNotMet",
-            Self::InvariantViolation(_) => "InvariantViolation",
-            Self::LifecycleRefused(_) => "LifecycleRefused",
-            Self::AlreadyExists(_) => "AlreadyExists",
-            Self::NotFound(_) => "NotFound",
-            Self::TypeMismatch(_) => "TypeMismatch",
-            Self::AbsentArgument(_) => "AbsentArgument",
-            Self::UnknownArgument(_) => "UnknownArgument",
-            Self::Unauthorized(_) => "Unauthorized",
-            Self::Fault(_) => "Fault",
-            Self::NothingToCorrect(_) => "NothingToCorrect",
-        }
-    }
-}
-
-impl std::fmt::Display for Refusal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::GivenNotMet(msg)
-            | Self::EnsuresNotMet(msg)
-            | Self::InvariantViolation(msg)
-            | Self::LifecycleRefused(msg)
-            | Self::AlreadyExists(msg)
-            | Self::NotFound(msg)
-            | Self::TypeMismatch(msg)
-            | Self::AbsentArgument(msg)
-            | Self::UnknownArgument(msg)
-            | Self::Unauthorized(msg)
-            | Self::Fault(msg)
-            | Self::NothingToCorrect(msg) => write!(f, "{msg}"),
-        }
-    }
 }
 
 /// The saved record plus the events it raised, or a refusal that leaves state untouched.

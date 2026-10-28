@@ -88,7 +88,7 @@ module Hecks
                   end
         FileUtils.rm_rf(scratch)
         FileUtils.mkdir_p(scratch)
-        %w[Cargo.toml Cargo.lock src].each { |entry| FileUtils.cp_r(File.join(rust_dir, entry), scratch) }
+        %w[Cargo.toml Cargo.lock src expr].each { |entry| FileUtils.cp_r(File.join(rust_dir, entry), scratch) }
         scratch
       end
 

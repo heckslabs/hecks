@@ -15,7 +15,7 @@ module Hecks
 
         /// One variant per real %<kind>s the Ruby
         /// grammar admits, in the order %<doc_line>s declares them. Every match
-        /// over this enum in the kernel (rust/src/kernel/expr.rs) is written
+        /// over this enum in the kernel (rust/expr/src/expr.rs) is written
         /// WITHOUT a wildcard `_ =>` arm — see expr.rs's own header for why:
         /// a wildcard here would let a newly-admitted capability compile
         /// silently into a router that never calls the new file this same
@@ -26,7 +26,7 @@ module Hecks
         }
 
         impl %<enum_name>s {
-            /// The `rust/src/kernel/%<directory>s/<name>.rs` file this
+            /// The `rust/expr/src/%<directory>s/<name>.rs` file this
             /// variant names — `hecks measure_kernel_coverage`'s own existence
             /// check reads this, so the file-name spelling here is the ONE
             /// place that ever needs to change if a name is renamed.

@@ -1,7 +1,7 @@
 //! Holds the kernel's dependency boundary: this crate ships as the WASM and native kernel, and
-//! depends on `regex` and nothing else (docs/implemented/decisions/0012-wasm-via-wasi-stdio.md,
-//! with `regex` the one exception its Cargo.toml names). Transport, storage and the AWS SDK
-//! belong to `rust/host`, never here.
+//! depends on the expression evaluator crate (`hecks_expr`) and nothing else, and that crate depends
+//! on `regex` alone (docs/implemented/decisions/0012-wasm-via-wasi-stdio.md, with `regex` the one
+//! exception). Transport, storage and the AWS SDK belong to `rust/host`, never here.
 
 /// The crate names under `[dependencies]` in `manifest`, read up to the next `[` section.
 fn dependency_names(manifest: &str) -> Vec<String> {
@@ -18,14 +18,25 @@ fn dependency_names(manifest: &str) -> Vec<String> {
 }
 
 #[test]
-fn the_kernel_depends_on_regex_alone() {
+fn the_kernel_depends_on_the_expression_crate_alone() {
     let names = dependency_names(include_str!("../Cargo.toml"));
     assert_eq!(
         names,
-        vec!["regex".to_string()],
-        "rust/Cargo.toml's [dependencies] must be exactly `regex` (ADR 0012, \
+        vec!["hecks_expr".to_string()],
+        "rust/Cargo.toml's [dependencies] must be exactly `hecks_expr` (ADR 0012, \
          docs/implemented/decisions/0012-wasm-via-wasi-stdio.md): the kernel ships as WASM and \
          stays free of transport and storage crates, which belong in rust/host"
+    );
+}
+
+#[test]
+fn the_expression_crate_depends_on_regex_alone() {
+    let names = dependency_names(include_str!("../expr/Cargo.toml"));
+    assert_eq!(
+        names,
+        vec!["regex".to_string()],
+        "rust/expr/Cargo.toml's [dependencies] must be exactly `regex`, the one exception to the \
+         no-dependency rule (ADR 0012): the evaluator ships inside the WASM kernel"
     );
 }
 

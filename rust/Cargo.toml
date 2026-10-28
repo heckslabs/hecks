@@ -49,14 +49,10 @@ name = "rust"
 version = "0.1.0"
 edition = "2021"
 
-# The one dependency exception to this crate's zero-Cargo-dependency
-# discipline (ADR 0012): `expression_operators/pattern_match.rs`'s `.match?`
-# needs a real, audited regex engine. `default-features = false` keeps out
-# the SIMD-driven `perf` feature; `std`/`unicode` alone cover the Ruby-
-# Regexp-style `\d`/`\w`/case-insensitive matching this grammar's own
-# predicates use.
+# The kernel's one dependency is the expression evaluator, a std-only crate of its own that the host
+# shares (ADR 0012's regex exception now lives there, for `.match?`).
 [dependencies]
-regex = { version = "1", default-features = false, features = ["std", "unicode"] }
+hecks_expr = { path = "expr" }
 
 [lib]
 name = "rust"
