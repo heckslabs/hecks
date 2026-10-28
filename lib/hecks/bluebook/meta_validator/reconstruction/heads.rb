@@ -81,8 +81,15 @@ module Hecks
               field:       field,
               default:     text(row[:state_start]),
               transitions: Array(row[:transitions]).map { |move| transition(move) },
-              marks:       Array(row[:marks]).map { |held| mark(held) }
+              marks:       marks_by_name(row[:marks])
             }
+          end
+
+          # The one-row-per-state marks as the IR spells them: `name => states`, in declared order.
+          def marks_by_name(rows)
+            Array(rows).map { |held| mark(held) }
+                       .group_by { |held| held[:name] }
+                       .transform_values { |held| held.map { |row| row[:state] } }
           end
         end
       end

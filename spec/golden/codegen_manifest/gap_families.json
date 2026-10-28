@@ -251,6 +251,18 @@
     "routed": true
   },
   {
+    "kind": "entity_command",
+    "id": "Banking::ATMCard.Withdrawal.Reimburse",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "Banking::ATMCard.Withdrawal.RejectDispute",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "command",
     "id": "Banking::ATMCard.Issue",
     "generated": true,
