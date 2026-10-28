@@ -51,12 +51,24 @@ Hecks.behaviors "CiSpeed" do
     tests "Keep", on: "Lever"
     setup "CiSpeed::Lever.Propose", name: { value: "postgres_io" },
           change: { value: "postgres io specs on fewer shards" }, pole: { value: "postgres_io" },
-          affects: { value: "miss" }, expected_seconds: { value: 30 }, inputs: { value: "" }
+          affects: { value: "miss" }, expected_seconds: { value: 30 }, basis: { value: "unestimated" }, inputs: { value: "" }
     setup "CiSpeed::Lever.Attempt", lever: "postgres_io", baseline_run: { value: "1100" },
           baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
     input lever: "postgres_io", following_run: { value: "1101" }, following_seconds: { value: 250 },
-          following_cache: { value: "miss" }, evidence: { value: "1a2b3c4d" }
+          following_cache: { value: "miss" }, evidence: { value: "1a2b3c4d" }, saved_seconds: { value: 50 }
     expect emits: ["LeverKept"]
+  end
+
+  test "Keep refuses a saving that is not the baseline less the following time" do
+    tests "Keep", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "postgres_io" },
+          change: { value: "postgres io specs on fewer shards" }, pole: { value: "postgres_io" },
+          affects: { value: "miss" }, expected_seconds: { value: 30 }, basis: { value: "unestimated" }, inputs: { value: "" }
+    setup "CiSpeed::Lever.Attempt", lever: "postgres_io", baseline_run: { value: "1100" },
+          baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
+    input lever: "postgres_io", following_run: { value: "1101" }, following_seconds: { value: 250 },
+          following_cache: { value: "miss" }, evidence: { value: "1a2b3c4d" }, saved_seconds: { value: 10 }
+    expect refused: "a kept lever says what it really saved"
   end
 
   # A following run that is not faster by the margin reverts the lever.
@@ -64,7 +76,7 @@ Hecks.behaviors "CiSpeed" do
     tests "Revert", on: "Lever"
     setup "CiSpeed::Lever.Propose", name: { value: "rspec_4_shards" },
           change: { value: "rspec on fewer shards" }, pole: { value: "rspec" },
-          affects: { value: "miss" }, expected_seconds: { value: 30 }, inputs: { value: "" }
+          affects: { value: "miss" }, expected_seconds: { value: 30 }, basis: { value: "unestimated" }, inputs: { value: "" }
     setup "CiSpeed::Lever.Attempt", lever: "rspec_4_shards", baseline_run: { value: "1200" },
           baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
     input lever: "rspec_4_shards", following_run: { value: "1201" }, following_seconds: { value: 295 },
@@ -76,11 +88,11 @@ Hecks.behaviors "CiSpeed" do
     tests "Keep", on: "Lever"
     setup "CiSpeed::Lever.Propose", name: { value: "postgres_io" },
           change: { value: "postgres io specs on fewer shards" }, pole: { value: "postgres_io" },
-          affects: { value: "both" }, expected_seconds: { value: 30 }, inputs: { value: "" }
+          affects: { value: "both" }, expected_seconds: { value: 30 }, basis: { value: "unestimated" }, inputs: { value: "" }
     setup "CiSpeed::Lever.Attempt", lever: "postgres_io", baseline_run: { value: "1100" },
           baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
     input lever: "postgres_io", following_run: { value: "1101" }, following_seconds: { value: 200 },
-          following_cache: { value: "hit" }, evidence: { value: "1a2b3c4d" }
+          following_cache: { value: "hit" }, evidence: { value: "1a2b3c4d" }, saved_seconds: { value: 100 }
     expect refused: "a following run is of the cache state the lever was measured on"
   end
 
@@ -88,7 +100,7 @@ Hecks.behaviors "CiSpeed" do
     tests "Attempt", on: "Lever"
     setup "CiSpeed::Lever.Propose", name: { value: "feature_binaries" },
           change: { value: "feature binaries built in legs" }, pole: { value: "feature_binaries" },
-          affects: { value: "hit" }, expected_seconds: { value: 40 }, inputs: { value: "" }
+          affects: { value: "hit" }, expected_seconds: { value: 40 }, basis: { value: "unestimated" }, inputs: { value: "" }
     input lever: "feature_binaries", baseline_run: { value: "1300" }, baseline_seconds: { value: 300 },
           baseline_cache: { value: "miss" }
     expect refused: "a lever is measured on the cache state it affects"
@@ -98,7 +110,7 @@ Hecks.behaviors "CiSpeed" do
     tests "Reconsider", on: "Lever"
     setup "CiSpeed::Lever.Propose", name: { value: "rspec_4_shards" },
           change: { value: "rspec on fewer shards" }, pole: { value: "rspec" },
-          affects: { value: "miss" }, expected_seconds: { value: 30 }, inputs: { value: "abc123" }
+          affects: { value: "miss" }, expected_seconds: { value: 30 }, basis: { value: "unestimated" }, inputs: { value: "abc123" }
     setup "CiSpeed::Lever.Attempt", lever: "rspec_4_shards", baseline_run: { value: "1200" },
           baseline_seconds: { value: 300 }, baseline_cache: { value: "miss" }
     setup "CiSpeed::Lever.Revert", lever: "rspec_4_shards", following_run: { value: "1201" },
@@ -111,7 +123,7 @@ Hecks.behaviors "CiSpeed" do
     tests "Recall", on: "Lever"
     setup "CiSpeed::Lever.Propose", name: { value: "host_test_build" },
           change: { value: "host test build warmed into its own cache" }, pole: { value: "host_test_build" },
-          affects: { value: "both" }, expected_seconds: { value: 0 }, inputs: { value: "" }
+          affects: { value: "both" }, expected_seconds: { value: 0 }, basis: { value: "unestimated" }, inputs: { value: "" }
     input lever: "host_test_build", evidence: { value: "504f0e0d8" }
     expect emits: ["LeverLearned"]
   end
@@ -139,5 +151,58 @@ Hecks.behaviors "CiSpeed" do
           budget_seconds: { value: 180 }, longest_pole: { value: "rspec" }
     input run: "1202", seconds: { value: 170 }
     expect emits: %w[MissRunUnderBudget MissRunWitnessed BudgetMet]
+  end
+
+  # The backlog is what drives the attempts: the biggest expected saving is tried first.
+  test "Next is the proposed lever with the biggest expected saving" do
+    tests "Next", on: "Lever", kind: :query
+    setup "CiSpeed::Lever.Propose", name: { value: "small_win" }, change: { value: "a small change" },
+          pole: { value: "rspec" }, affects: { value: "both" }, expected_seconds: { value: 20 },
+          basis: { value: "run 40438675259 job times" }, inputs: { value: "" }
+    setup "CiSpeed::Lever.Propose", name: { value: "big_win" }, change: { value: "a big change" },
+          pole: { value: "rspec" }, affects: { value: "both" }, expected_seconds: { value: 90 },
+          basis: { value: "run 40438675259 job times" }, inputs: { value: "" }
+    setup "CiSpeed::Lever.Propose", name: { value: "middling_win" }, change: { value: "a middling change" },
+          pole: { value: "rspec" }, affects: { value: "both" }, expected_seconds: { value: 50 },
+          basis: { value: "run 40438675259 job times" }, inputs: { value: "" }
+    expect count: 1, name: { value: "big_win" }
+  end
+
+  test "Reestimate revises the saving a proposed lever is expected to make" do
+    tests "Reestimate", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "fuzz_sqlite" }, change: { value: "split the fuzz sqlite job" },
+          pole: { value: "checks_fuzz_sqlite" }, affects: { value: "hit" }, expected_seconds: { value: 0 },
+          basis: { value: "unestimated" }, inputs: { value: "" }
+    input lever: "fuzz_sqlite", new_expected_seconds: { value: 60 },
+          new_basis: { value: "run 40438675259: the job ran 191s, the next slowest 183s" }
+    expect emits: ["LeverReestimated"]
+  end
+
+  test "Reestimate refuses an estimate that says nothing about what it rests on" do
+    tests "Reestimate", on: "Lever"
+    setup "CiSpeed::Lever.Propose", name: { value: "fuzz_sqlite" }, change: { value: "split the fuzz sqlite job" },
+          pole: { value: "checks_fuzz_sqlite" }, affects: { value: "hit" }, expected_seconds: { value: 0 },
+          basis: { value: "unestimated" }, inputs: { value: "" }
+    input lever: "fuzz_sqlite", new_expected_seconds: { value: 60 }, new_basis: { value: "unestimated" }
+    expect refused: "a revised estimate says what it rests on"
+  end
+
+  # Meeting 180 seconds is a milestone: the target drops and the backlog goes on.
+  test "Reopen sets a lower target once the last one is met" do
+    tests "Reopen", on: "Budget"
+    setup "CiSpeed::Budget.Open", name: { value: "main" }, target_seconds: { value: 180 }
+    setup "CiSpeed::Budget.WitnessWarm", budget: "main", seconds: { value: 150 }
+    setup "CiSpeed::Budget.WitnessMiss", budget: "main", seconds: { value: 170 }
+    input budget: "main", new_target_seconds: { value: 150 }
+    expect emits: ["BudgetReopened"]
+  end
+
+  test "Reopen refuses a target that is not lower than the one met" do
+    tests "Reopen", on: "Budget"
+    setup "CiSpeed::Budget.Open", name: { value: "main" }, target_seconds: { value: 180 }
+    setup "CiSpeed::Budget.WitnessWarm", budget: "main", seconds: { value: 150 }
+    setup "CiSpeed::Budget.WitnessMiss", budget: "main", seconds: { value: 170 }
+    input budget: "main", new_target_seconds: { value: 200 }
+    expect refused: "a new target is lower than the one met"
   end
 end

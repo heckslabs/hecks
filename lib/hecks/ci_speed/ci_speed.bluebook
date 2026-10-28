@@ -219,6 +219,7 @@ Hecks.bluebook "CiSpeed" do
 
     lifecycle :status, default: "open" do
       transition "Complete" => "complete", from: "open"
+      transition "Reopen"   => "open",     from: "complete"
     end
 
     value_object "BudgetName" do
@@ -277,7 +278,7 @@ Hecks.bluebook "CiSpeed" do
     # "not yet", and the loop keeps going.
     command "Complete" do
       role "CI engineer"
-      goal "Stop the effort, once the latest warm run and the latest cache-miss run are both under budget"
+      goal "Mark the target met, once the latest warm run and the latest cache-miss run are both under budget"
 
       reference_to Budget
 
@@ -287,6 +288,22 @@ Hecks.bluebook "CiSpeed" do
       end
 
       emits "BudgetMet"
+    end
+
+    # Meeting a target is a milestone, not the end: every minute off a cycle is saved on every push,
+    # so the next target is lower and the backlog keeps being worked.
+    command "Reopen" do
+      role "CI engineer"
+      goal "Set a lower target once the last one is met, so the effort goes on taking time out of the cycle"
+
+      reference_to Budget
+      attribute :new_target_seconds, TargetSeconds
+
+      given("a new target is lower than the one met") { new_target_seconds.value < target_seconds.value }
+
+      sets :target_seconds, to: :new_target_seconds
+
+      emits "BudgetReopened"
     end
 
     query "Open" do
@@ -308,6 +325,12 @@ Hecks.bluebook "CiSpeed" do
     attribute :pole,             JobName
     attribute :affects,          Affects
     attribute :expected_seconds, SecondsSaved
+    # What the estimate rests on, such as the job times of a named run. "unestimated" ranks last in
+    # the backlog until someone replaces it with a basis and a number.
+    attribute :basis,            EstimateBasis
+    # What a following run measured: the baseline less the following time. Set when a lever is
+    # kept, so the estimates can be compared with what the changes really saved.
+    attribute :saved_seconds,    SecondsSaved
     # A fingerprint of what the change depends on, such as a lockfile digest. Reconsidering a
     # reverted lever needs it to differ.
     attribute :inputs,           LeverInputs
@@ -325,6 +348,12 @@ Hecks.bluebook "CiSpeed" do
       transition "Revert"      => "reverted",  from: "attempted"
       transition "Recall"      => "kept",      from: "proposed"
       transition "Reconsider"  => "proposed",  from: "reverted"
+      transition "Reestimate"  => "proposed",  from: "proposed"
+    end
+
+    # Why an estimate stands where it does. A plain statement of the run or job times it came from.
+    value_object "EstimateBasis" do
+      attribute :value, String, default: "unestimated"
     end
 
     value_object "LeverName" do
@@ -390,9 +419,28 @@ Hecks.bluebook "CiSpeed" do
       attribute :pole,             JobName
       attribute :affects,          Affects
       attribute :expected_seconds, SecondsSaved
+      attribute :basis,            EstimateBasis
       attribute :inputs,           LeverInputs
 
       emits "LeverProposed"
+    end
+
+    # The backlog is ordered by this number, so attempts go to the biggest saving first. Revised
+    # whenever a run shows the job times have moved, or a kept lever shows what a change is worth.
+    command "Reestimate" do
+      role "CI engineer"
+      goal "Revise what a proposed lever is expected to save, and say what the new number rests on"
+
+      reference_to Lever
+      attribute :new_expected_seconds, SecondsSaved
+      attribute :new_basis,            EstimateBasis
+
+      given("a revised estimate says what it rests on") { new_basis.value != "unestimated" }
+
+      sets :expected_seconds, to: :new_expected_seconds
+      sets :basis,            to: :new_basis
+
+      emits "LeverReestimated"
     end
 
     # Recorded with the run it was measured against. The given keeps it to the cache state the
@@ -426,6 +474,7 @@ Hecks.bluebook "CiSpeed" do
       attribute :following_seconds, MeasuredSeconds
       attribute :following_cache,   CacheState
       attribute :evidence,          Evidence
+      attribute :saved_seconds,     SecondsSaved
 
       given("a following run is of the cache state the lever was measured on") do
         following_cache.value == baseline_cache.value
@@ -433,11 +482,15 @@ Hecks.bluebook "CiSpeed" do
       given("a kept lever is faster than its baseline by its margin") do
         following_seconds.value + margin_seconds.value <= baseline_seconds.value
       end
+      given("a kept lever says what it really saved") do
+        saved_seconds.value == baseline_seconds.value - following_seconds.value
+      end
       given("a kept lever names the commit that proves it") { evidence.value != "" }
 
       sets :following_run
       sets :following_seconds
       sets :evidence
+      sets :saved_seconds
 
       emits "LeverKept"
     end
@@ -502,6 +555,27 @@ Hecks.bluebook "CiSpeed" do
       order_by :name
     end
 
+    # What to try next: the proposed levers, the biggest expected saving first. This is the list
+    # that drives the attempts; `Next` is its head.
+    query "Backlog" do
+      description "Levers waiting to be tried, the biggest expected saving first."
+      where(status: "proposed")
+      order_by :expected_seconds, :desc
+    end
+
+    query "Next" do
+      description "The one lever to attempt now: the proposed lever with the biggest expected saving."
+      where(status: "proposed")
+      order_by :expected_seconds, :desc
+      limit 1
+    end
+
+    query "Saved" do
+      description "Kept levers, the biggest measured saving first, to set the estimates against."
+      where(status: "kept")
+      order_by :saved_seconds, :desc
+    end
+
     query "Reverted" do
       description "Levers a following run did not beat by the margin. Not retried unless their inputs change."
       where(status: "reverted")
@@ -541,6 +615,7 @@ Hecks.bluebook "CiSpeed" do
       pole: :pole,
       affects: { value: "both" },
       expected_seconds: { value: 0 },
+      basis: { value: "unestimated" },
       inputs: { value: "" }
     }
   end
@@ -553,6 +628,7 @@ Hecks.bluebook "CiSpeed" do
       pole: :pole,
       affects: { value: "both" },
       expected_seconds: { value: 0 },
+      basis: { value: "unestimated" },
       inputs: { value: "" }
     }
   end
