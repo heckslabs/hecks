@@ -728,7 +728,7 @@ about, and a much smaller boundary than "generate the whole dispatch
 function by hand" was.
 
 This is exactly the split `rust/` runs on, not a hypothetical: `Expr`
-and `interpret()` (`rust/src/kernel/expr.rs`) are the generic
+and `interpret()` (`rust/expr/src/expr.rs`) are the generic
 READING/behavior half, hand-written once; `dispatch()`
 (`rust/src/kernel/dispatch.rs`) is the generic per-command orchestration,
 also hand-written once; `hecks build.project_rust` (driving `rust/codegen`)

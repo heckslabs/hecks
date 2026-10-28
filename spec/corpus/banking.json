@@ -4140,7 +4140,7 @@
       },
       {
         "verb": "Banking::Hold.Lift",
-        "error": "Lift refused — status is \"lifted\", and Lift moves it only from \"placed\"",
+        "error": "Lift refused — status is \"lifted\", and Lift moves it only from \"placed\" or \"escalated\"",
         "kind": "LifecycleRefused"
       }
     ],

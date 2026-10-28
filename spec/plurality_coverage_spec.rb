@@ -21,20 +21,25 @@ RSpec.describe "every list the language declares, filled more than once" do
   ALLOWED_SINGLETON = {
     # Filled with two in lib/hecks/language/bluebook/attaches/paging.bluebook, a grammar
     # bluebook with no golden IR fixture, so this walk cannot see it.
-    "attaches_to" =>
-                     "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
-                     "no golden IR fixture reaches it because Paging is a grammar " \
-                     "bluebook, not a frozen corpus member.",
+    "attaches_to"      =>
+                          "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
+                          "no golden IR fixture reaches it because Paging is a grammar " \
+                          "bluebook, not a frozen corpus member.",
     # Filled with three in lib/hecks/framework/bluebook/governance.bluebook (`provides
     # "authorization"`), a framework member with no golden IR fixture.
-    "provides"    =>
-                     "Governance provides authorization with three rows (assignments, grant, " \
-                     "transitions) — a framework member, so no golden IR fixture reaches it.",
+    "provides"         =>
+                          "Governance provides authorization with three rows (assignments, grant, " \
+                          "transitions) — a framework member, so no golden IR fixture reaches it.",
     # `now` is the one fact a command can need (ADR 0081) and the builder refuses a fact declared
     # twice, so no bluebook can fill the list with more than one until a second fact exists.
-    "needs"       =>
-                     "The runtime supplies one fact, `now`, and a repeat is refused, so a command's " \
-                     "needs hold at most one row until a second fact is admitted."
+    "needs"            =>
+                          "The runtime supplies one fact, `now`, and a repeat is refused, so a command's " \
+                          "needs hold at most one row until a second fact is admitted.",
+    # Filled with three in lib/hecks/hecks/codebase.bluebook (`acknowledges :key_by_value` on one
+    # aggregate), a Hecks bluebook with no golden IR fixture.
+    "acknowledgements" =>
+                          "Codebase acknowledges :key_by_value three times on one aggregate (ADR 0150) — " \
+                          "a Hecks bluebook, so no golden IR fixture reaches it."
   }.freeze
 
   UNMEASURED_WHY = <<~WHY.freeze
