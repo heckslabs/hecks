@@ -1,6 +1,7 @@
 # A context map is declared, and the wiring is checked against it
 
-**Status:** Proposed. Not built. Date: 2026-10-27.
+**Status:** Partly built (the map as data, the comparison and the diagram; see Consequences).
+Date: 2026-10-27.
 
 ## Context
 
@@ -131,6 +132,18 @@ Smaller gaps follow from the same cause:
 - `.contextmap` is a new file kind, so ADR 0134's list of what a bluebook is made of
   gains it, and the sentence form (ADR 0131) needs a plain-sentence spelling before the
   map is offered to business readers.
+- **Built so far, over plain data:** `Bluebook::ContextMap` holds the contexts, their teams,
+  the relationships and the separate-ways pairs; `ModelCheck::ContextMapChecks` reports
+  `:undeclared_coupling`, `:unused_relationship`, `:relationship_kind_mismatch`,
+  `:unpublished_dependency`, `:separate_ways_violated` and `:conformist_translates` against
+  `ContextRelationships`' edges; `Projections::ContextMapDiagram` draws the Mermaid form.
+  `ContextRelationships` still labels an attach `shared_kernel`, and the checks accept that
+  edge as a `conformist`, a declared `shared_kernel` or an `open_host`.
+- **Not built:** the `.contextmap` file kind and its builder, loading a map beside a system's
+  bluebooks, the `hecks query context_map` verb, running the comparison from `model_check`,
+  the keyword rows for the kinds, and the Rust parser's side of the new file kind. A
+  `published:` check holds only for subscriptions, which name the event they depend on; a
+  policy edge names a policy, which has no event to hold to the list.
 - Open: whether a context's team belongs in the map or in each context's own
   declaration, and whether `partnership` needs a pair of `published:` lists.
 - Not decided here: a subdomain kind (core, supporting, generic) per context. No check
