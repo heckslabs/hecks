@@ -124,7 +124,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
     it "reads a policy as a sentence: what happens, and on what", :aggregate_failures do
       expect(banking).to include("## Reactions")
       expect(banking).to include("Whenever `Account.AccountFrozen` happens, " \
-                                 "`AccountFreezeReview.Open` fires on its own in Compliance")
+                                 "`Review.Open` fires on its own in Compliance")
     end
 
     it "describes a saga by where it starts, ends and correlates, in prose", :aggregate_failures do

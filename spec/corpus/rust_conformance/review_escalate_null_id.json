@@ -1,0 +1,72 @@
+{
+  "domain": "examples/compliance",
+  "note": "BUG#20 (qa/bluebook/quality_control.bluebook) — an ACTING (non-creating) command whose only argument is a null `id:` disagreed on refusal kind. Ruby's CommandInterpreter#hydrate_existing falls through `identity_of || identity_from(:id) || identity_from(reference_key) || raise(NotFound, acting_no_identity)`: a null `id:` makes `identity_from` return nil, and with no `subject_kind`/`subject_key` given either, every source comes back empty, so Ruby raises NotFound/acting_no_identity. The compiled Rust conformance binary's generated `extract_id` (registry.rs's own router, called BEFORE kernel::dispatch's already-correct Hydrate::Act NotFound-on-repo.find-miss check is ever reached) let its own `to_id_component` TypeMismatch on `Json::Null` propagate as its final `.ok_or_else` fallback, so Rust refused TypeMismatch where Ruby refused NotFound. Fixed by wrapping `extract_id(facts_json)` at its ONE acting-command call site with a `.map_err` into the exact `RefusalWording.render(\"NotFound\", \"acting_no_identity\", ...)` wording, computed at codegen time where the command's short name, aggregate name and declared identity reading are in scope. The fixture was written against Compliance's box-surrender review and carried to its generic `Review` (ADR 0143), which has the same shape: a composite identity of two value objects.",
+  "steps": [
+    {
+      "verb": "Compliance::Review.Open",
+      "role": "System",
+      "args": {
+        "subject_kind": {
+          "value": "box_surrender"
+        },
+        "subject_key": {
+          "value": "BR1:42"
+        }
+      }
+    },
+    {
+      "verb": "Compliance::Review.Escalate",
+      "role": "Compliance officer",
+      "args": {
+        "id": null
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Compliance::Review.Escalate",
+        "error": "Escalate acts on an existing Review — pass subject_kind.value, subject_key.value:",
+        "kind": "NotFound"
+      }
+    ],
+    "instances": {
+      "Compliance::Review#box_surrender:BR1:42": {
+        "subject_kind": {
+          "value": "box_surrender"
+        },
+        "subject_key": {
+          "value": "BR1:42"
+        },
+        "status": "open"
+      }
+    },
+    "events": [
+      {
+        "name": "ReviewOpened",
+        "aggregate": "Compliance::Review",
+        "id": "box_surrender:BR1:42",
+        "payload": {
+          "subject_kind": {
+            "value": "box_surrender"
+          },
+          "subject_key": {
+            "value": "BR1:42"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

@@ -14,7 +14,7 @@ RSpec.describe "Banking's context map" do
 
   let(:declared) do
     [
-      relationship("Compliance", "Banking", :customer_supplier, published: %w[AccountFreezeReviewOpened]),
+      relationship("Compliance", "Banking", :customer_supplier, published: %w[ReviewOpened]),
       relationship("Notifications", "Banking", :customer_supplier),
       relationship("Governance", "Banking", :conformist),
       relationship("Identity", "Banking", :conformist),

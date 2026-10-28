@@ -8,8 +8,7 @@ Hecks.hecksagon "Compliance" do
 
   # NO PER-AGGREGATE BINDS — compliance.world's own `default_adapter
   # "PostgresEra"` binds every aggregate this hecksagon leaves out, so
-  # AccountFreezeReview, BoxSurrenderReview and PrivacyReview all persist
-  # there without a line each.
+  # Review persists there without a line of its own.
 end
 
 # Governance binds Memory explicitly, which wins over compliance.world's
