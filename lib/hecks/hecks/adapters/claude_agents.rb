@@ -2,7 +2,9 @@
 
 require "json"
 require_relative "shell"
+require "time"
 require_relative "console_capture"
+require_relative "claude_transcript"
 
 module Hecks
   module Adapters
@@ -29,6 +31,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil)
         @command = settings[:command] || COMMAND
         @shell = Shell.new
+        @transcript = ClaudeTranscript.new(**settings.slice(:projects))
       end
 
       # Says the directory a session would work in is there.
@@ -66,17 +69,44 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed or this one is not among
       #   them
       def examine(**held)
+        { condition: listed(plain(held[:session]))["state"].to_s }
+      end
+
+      # Says whether a person replied in a session after its brief.
+      #
+      # @param held [Hash] the `AgentRun` record: `session`
+      # @return [Hash{Symbol => Object}] `taken_over:` true when a person replied or the transcript
+      #   cannot be read, and `note:` that fact in words
+      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed or this one is not among
+      #   them
+      def review(**held)
+        full = listed(plain(held[:session]))["sessionId"]
+        taken = @transcript.taken_over?(full)
+        { taken_over: taken, note: taken ? "a person replied, or the transcript cannot be read" : "nobody replied" }
+      end
+
+      # Removes a session with `claude rm`.
+      #
+      # @param held [Hash] the `AgentRun` record: `session`
+      # @return [Hash{Symbol => Object}] `removed_at:` when it was removed, as an ISO 8601 string
+      # @raise [ConsoleCapture::Failure] when the command refuses
+      def remove(**held)
         id = plain(held[:session])
+        result = @shell.capture(@command, "rm", id)
+        raise ConsoleCapture::Failure, "#{@command} rm #{id} refused: #{result.err.strip}" unless result.ok?
+
+        { removed_at: { value: Time.now.utc.iso8601 } }
+      end
+
+      private
+
+      def listed(id)
         listing = @shell.capture(@command, "agents", "--json", "--all")
         raise ConsoleCapture::Failure, "#{@command} could not list sessions: #{listing.err.strip}" unless listing.ok?
 
         found = JSON.parse(listing.out).find { |entry| [entry["id"], entry["sessionId"]].include?(id) }
-        raise ConsoleCapture::Failure, "no session #{id} is listed" unless found
-
-        { condition: found["state"].to_s }
+        found || raise(ConsoleCapture::Failure, "no session #{id} is listed")
       end
-
-      private
 
       def start_arguments(held)
         agent = plain(held[:agent])

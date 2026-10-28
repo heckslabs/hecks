@@ -18,6 +18,7 @@ Hecks.bluebook "Hecks" do
     attribute :session,   SessionId, optional: true
     attribute :condition, Condition, optional: true
     attribute :refusal,   Report,    optional: true
+    attribute :tidied_at, Moment,    optional: true
     identified_by :run
 
     value_object "RunKey" do
@@ -52,11 +53,17 @@ Hecks.bluebook "Hecks" do
       attribute :value, String
     end
 
+    # When the outside removed a session, as the port reports it.
+    value_object "Moment" do
+      attribute :value, String
+    end
+
     lifecycle :status, default: "requested" do
       mark :failure, "refused"
       transition "Begin"   => "started",  from: "requested"
       transition "Decline" => "refused",  from: "requested"
       transition "Finish"  => "finished", from: "started"
+      transition "Tidied"  => "tidied",   from: "finished"
     end
 
     command "Dispatch" do
@@ -123,6 +130,49 @@ Hecks.bluebook "Hecks" do
       emits AgentRunFinished
     end
 
+    # A finished run's session is removed only when it ended `done`; a session still `working`,
+    # `blocked` or `stopped` is kept, and so is one a person has taken over (the port says so).
+    command "Tidy", from: "finished" do
+      role "Operator"
+      goal "Remove the finished session of one run, unless it is unfinished or a person took it over"
+
+      reference_to AgentRun
+
+      given("the session ended done: a working, blocked or stopped session is kept") { condition.value == "done" }
+
+      emits TidyRequested
+    end
+
+    command "Tidied" do
+      role "System"
+      goal "Record that the session was removed, and when"
+
+      reference_to AgentRun
+      attribute :tidied_at, Moment
+
+      sets :tidied_at
+
+      emits AgentRunTidied
+    end
+
+    command "Retain" do
+      role "System"
+      goal "Record why a finished session was kept"
+
+      reference_to AgentRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits AgentRunRetained
+    end
+
+    query "Tidyable" do
+      description "Every finished run, oldest key first; `Tidy` keeps those that did not end done."
+      where(status: "finished")
+      order_by :run
+    end
+
     query "Running" do
       description "Every run whose session was started and is not known to have ended, oldest key first."
       where(status: "started")
@@ -165,6 +215,34 @@ Hecks.bluebook "Hecks" do
   policy "AskTheSession" do
     on      "AgentRun.AgentCheckRequested"
     trigger AgentRun::Agents::Examine, with: { run: :run }
+  end
+
+  # The session is looked at before it is removed; the port says whether a person took it over.
+  policy "ReviewBeforeTidy" do
+    on      "AgentRun.TidyRequested"
+    trigger AgentRun::Agents::Review, with: { run: :run }
+  end
+
+  policy "RemoveWhenNobodyTookOver" do
+    on      "AgentRun.SessionReviewed"
+    where   { taken_over == false }
+    trigger AgentRun::Agents::Remove, with: { run: :run }
+  end
+
+  policy "KeepWhenAPersonTookOver" do
+    on      "AgentRun.SessionReviewed"
+    where   { taken_over != false }
+    trigger AgentRun::Retain, with: { refusal: :note }
+  end
+
+  policy "RecordTheRemoval" do
+    on      "AgentRun.SessionRemoved"
+    trigger AgentRun::Tidied, with: { tidied_at: :removed_at }
+  end
+
+  policy "RecordTheKeptSession" do
+    on      "AgentRun.RemoveRefused"
+    trigger AgentRun::Retain, with: { refusal: :refusal }
   end
 
   # `done` and `stopped` are a session's two ways of ending; `busy` and `idle` are not.
