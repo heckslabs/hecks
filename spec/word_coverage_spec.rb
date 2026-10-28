@@ -89,6 +89,11 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
+    "runs (Adapter)"                    =>
+                                           "the one real adapter that declares it is a wasm plugin shipped by a package " \
+                                           "outside this corpus, and the word is exercised by its own spec " \
+                                           "(spec/wasm_plugin_spec.rb), against an adapter written for it. The scan once " \
+                                           "counted a `sets :runs` line that wrote a field spelled the same way.",
     "inspect_query (Query)"             =>
                                            "a real declaration would be vacuous: no adapter in this codebase implements the " \
                                            "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \

@@ -58,11 +58,10 @@ Hecks.bluebook "CaseEscalation" do
     command "RecordCharge" do
       goal "Record a charge against a vendor"
 
-      attribute :reference, InvoiceReference
+      attribute :reference, InvoiceReference, sets: true
       reference_to Vendor
       attribute :amount, Amount
 
-      sets :reference
       sets :vendor
       sets :amount
 

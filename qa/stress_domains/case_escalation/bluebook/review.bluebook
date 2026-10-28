@@ -34,11 +34,9 @@ Hecks.bluebook "VendorCompliance" do
     command "Open" do
       goal "Open a compliance review against a vendor"
 
-      attribute :vendor, Handle
-      attribute :invoice, InvoiceReference
+      attribute :vendor, Handle, sets: true
+      attribute :invoice, InvoiceReference, sets: true
 
-      sets :vendor
-      sets :invoice
 
       emits "ReviewOpened"
     end
@@ -79,11 +77,10 @@ Hecks.bluebook "VendorCompliance" do
     command "Attach" do
       goal "Attach a note to a review"
 
-      attribute :reference, NoteReference
+      attribute :reference, NoteReference, sets: true
       reference_to Review
       attribute :body, Body
 
-      sets :reference
       sets :review
       sets :body
 

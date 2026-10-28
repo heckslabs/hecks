@@ -48,16 +48,14 @@ Hecks.bluebook "CompositeLineLedger" do
 
       command "Label" do
         goal "Label it"
-        attribute :label, LineLabel
-        sets :label
+        attribute :label, LineLabel, sets: true
         emits "VenueLineLabeled"
       end
     end
 
     command "Open" do
       goal "Open it"
-      attribute :code, VenueCode
-      sets :code
+      attribute :code, VenueCode, sets: true
       emits "VenueOpened"
     end
 
@@ -102,8 +100,7 @@ Hecks.bluebook "CompositeLineLedger" do
 
     command "Open" do
       goal "Open it"
-      attribute :code, HangarCode
-      sets :code
+      attribute :code, HangarCode, sets: true
       emits "HangarOpened"
     end
 

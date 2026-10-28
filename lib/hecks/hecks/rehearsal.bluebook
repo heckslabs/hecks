@@ -224,13 +224,10 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome"
 
-      attribute :run,    RunKey
-      attribute :domain, DomainPath
-      attribute :pin,    Pin, optional: true
+      attribute :run,    RunKey, sets: true
+      attribute :domain, DomainPath, sets: true
+      attribute :pin,    Pin, optional: true, sets: true
 
-      sets :run
-      sets :domain
-      sets :pin
 
       emits RehearsalRequested
     end
@@ -241,43 +238,26 @@ Hecks.bluebook "Hecks" do
       goal "Record that the domain loaded, the shape it stands at and the era a mint would hold"
 
       reference_to RehearsalRun
-      attribute :booted,       Switch
-      attribute :host_version, HostVersion
-      attribute :store,        StoreKind
-      attribute :mode,         StoreMode
-      attribute :before,       ShapeLabel
-      attribute :after,        ShapeLabel
-      attribute :minting,      Minting
-      attribute :environment_loaded, EnvironmentLoaded
-      attribute :schema_used,  SchemaRead
-      attribute :eras_held,    Count
-      attribute :journal_entries, Count
-      attribute :head_rows,    Count
-      attribute :census,       list_of(HeldCount)
-      attribute :copy_empty,   Switch
-      attribute :copy_note,    Report
-      attribute :released,     Switch, optional: true
-      attribute :kept,         Report, optional: true
+      attribute :booted,       Switch, sets: true
+      attribute :host_version, HostVersion, sets: true
+      attribute :store,        StoreKind, sets: true
+      attribute :mode,         StoreMode, sets: true
+      attribute :before,       ShapeLabel, sets: true
+      attribute :after,        ShapeLabel, sets: true
+      attribute :minting,      Minting, sets: true
+      attribute :environment_loaded, EnvironmentLoaded, sets: true
+      attribute :schema_used,  SchemaRead, sets: true
+      attribute :eras_held,    Count, sets: true
+      attribute :journal_entries, Count, sets: true
+      attribute :head_rows,    Count, sets: true
+      attribute :census,       list_of(HeldCount), sets: true
+      attribute :copy_empty,   Switch, sets: true
+      attribute :copy_note,    Report, sets: true
+      attribute :released,     Switch, optional: true, sets: true
+      attribute :kept,         Report, optional: true, sets: true
 
       given("the domain loaded") { booted.value }
 
-      sets :booted
-      sets :host_version
-      sets :store
-      sets :mode
-      sets :before
-      sets :after
-      sets :minting
-      sets :environment_loaded
-      sets :schema_used
-      sets :eras_held
-      sets :journal_entries
-      sets :head_rows
-      sets :census
-      sets :copy_empty
-      sets :copy_note
-      sets :released
-      sets :kept
 
       emits RehearsalBooted
     end
@@ -288,33 +268,20 @@ Hecks.bluebook "Hecks" do
       goal "Record whether an edge leads to the shape, and every row the mint's audit would refuse"
 
       reference_to RehearsalRun
-      attribute :minting,       Minting
-      attribute :edge_present,  Switch
-      attribute :refused_rows,  list_of(RefusedRow), optional: true
-      attribute :refusal_total, Count
-      attribute :audited,       Switch
-      attribute :rows_examined, Count
-      attribute :rust_rows_examined, Count
-      attribute :aggregates_examined, Count
-      attribute :reason,        Report
-      attribute :parity,        Parity
-      attribute :unchecked,     list_of(Limit)
-      attribute :released,      Switch
-      attribute :kept,          Report, optional: true
+      attribute :minting,       Minting, sets: true
+      attribute :edge_present,  Switch, sets: true
+      attribute :refused_rows,  list_of(RefusedRow), optional: true, sets: true
+      attribute :refusal_total, Count, sets: true
+      attribute :audited,       Switch, sets: true
+      attribute :rows_examined, Count, sets: true
+      attribute :rust_rows_examined, Count, sets: true
+      attribute :aggregates_examined, Count, sets: true
+      attribute :reason,        Report, sets: true
+      attribute :parity,        Parity, sets: true
+      attribute :unchecked,     list_of(Limit), sets: true
+      attribute :released,      Switch, sets: true
+      attribute :kept,          Report, optional: true, sets: true
 
-      sets :minting
-      sets :edge_present
-      sets :refused_rows
-      sets :refusal_total
-      sets :audited
-      sets :rows_examined
-      sets :rust_rows_examined
-      sets :aggregates_examined
-      sets :reason
-      sets :parity
-      sets :unchecked
-      sets :released
-      sets :kept
 
       emits RehearsalAudited
     end
@@ -324,14 +291,13 @@ Hecks.bluebook "Hecks" do
       goal "Record that the mint would go through: the domain booted, an edge leads on where one is needed, and nothing is refused"
 
       reference_to RehearsalRun
-      attribute :verdict,       Verdict
+      attribute :verdict,       Verdict, sets: true
       attribute :refusal_total, Count
       attribute :edge_present,  Switch
 
       given("a rehearsal that finds a refused row would not mint") { refusal_total.value == 0 }
       given("a rehearsal judged to mint names that verdict") { verdict.value == "would_mint" }
 
-      sets :verdict
 
       emits RehearsalJudged
     end
@@ -341,13 +307,11 @@ Hecks.bluebook "Hecks" do
       goal "Record that the mint would not go through, which of the three ways, and what it would say"
 
       reference_to RehearsalRun
-      attribute :verdict, Verdict
-      attribute :refusal, Report
+      attribute :verdict, Verdict, sets: true
+      attribute :refusal, Report, sets: true
 
       given("a withheld rehearsal names how the mint would stop") { verdict.value != "would_mint" }
 
-      sets :verdict
-      sets :refusal
 
       emits RehearsalWithheld
     end
@@ -357,9 +321,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the rehearsal was not run: the subject, the pin or the store was not admitted, and why"
 
       reference_to RehearsalRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits RehearsalRefused
     end
@@ -369,9 +332,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the rehearsal broke after it began, and why"
 
       reference_to RehearsalRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits RehearsalFailed
     end

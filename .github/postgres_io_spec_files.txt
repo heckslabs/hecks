@@ -50,6 +50,7 @@ spec/hecks_deploy_roll_spec.rb
 spec/hecks_deploy_smoke_run_spec.rb
 spec/hecks_journal_survives_spec.rb
 spec/installed_gem_smoke_spec.rb
+spec/list_sum_parser_spec.rb
 spec/load_hygiene_lib_1_spec.rb
 spec/load_hygiene_lib_2_spec.rb
 spec/load_hygiene_lib_3_spec.rb
@@ -104,9 +105,15 @@ spec/runtime/postgres_era_shared_connection_spec.rb
 spec/runtime/postgres_era_storage_name_collision_spec.rb
 spec/runtime/postgres_shared_connection_spec.rb
 spec/runtime/saga_durability_postgres_spec.rb
+spec/rust_build_regeneration_order_spec.rb
+spec/rust_build_regeneration_subset_spec.rb
 spec/rust_conformance_dry_runs_spec.rb
 spec/rust_generated/has_many_spec.rb
 spec/self_consistency_rust_spec.rb
+spec/sentence_coverage_spec.rb
+spec/sentence_examples_spec.rb
+spec/sentence_form_spec.rb
+spec/sentence_guide_spec.rb
 spec/sentence_multi_word_examples_spec.rb
 spec/sentence_pizzas_examples_spec.rb
 spec/smoke_harness_node_spec.rb

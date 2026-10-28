@@ -197,15 +197,11 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Check domains for dead states and unreachable steps, and keep the verdict"
 
-      attribute :run,     RunKey
-      attribute :domains, DomainList,  optional: true
-      attribute :profile, ProfileName, optional: true
-      attribute :strict,  Switch,      optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :domains, DomainList,  optional: true, sets: true
+      attribute :profile, ProfileName, optional: true, sets: true
+      attribute :strict,  Switch,      optional: true, sets: true
 
-      sets :run
-      sets :domains
-      sets :profile
-      sets :strict
 
       emits ModelCheckRequested
     end
@@ -215,11 +211,9 @@ Hecks.bluebook "Hecks" do
       goal "Record that the analysis left no error"
 
       reference_to ModelCheckRun
-      attribute :report,  Report
-      attribute :checked, Checked
+      attribute :report,  Report, sets: true
+      attribute :checked, Checked, sets: true
 
-      sets :report
-      sets :checked
 
       emits ModelCheckPassed
     end
@@ -229,9 +223,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the analysis found something, or could not run, and what it said"
 
       reference_to ModelCheckRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits ModelCheckFlagged
     end
@@ -312,13 +305,10 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Pin a package of the bluebook registry into this project, at a release or a commit"
 
-      attribute :package, PackageRef
-      attribute :from,    Location, optional: true
-      attribute :root,    Location, optional: true
+      attribute :package, PackageRef, sets: true
+      attribute :from,    Location, optional: true, sets: true
+      attribute :root,    Location, optional: true, sets: true
 
-      sets :package
-      sets :from
-      sets :root
 
       emits VendorRequested
     end
@@ -328,11 +318,9 @@ Hecks.bluebook "Hecks" do
       goal "Pin a package that was vendored before again, for the newest release or the same one"
 
       reference_to Package
-      attribute :from, Location, optional: true
-      attribute :root, Location, optional: true
+      attribute :from, Location, optional: true, sets: true
+      attribute :root, Location, optional: true, sets: true
 
-      sets :from
-      sets :root
 
       emits RevendorRequested
     end
@@ -342,9 +330,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the package was pinned, and what changed"
 
       reference_to Package
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits PackageVendored
     end
@@ -354,9 +341,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the package could not be pinned, and why"
 
       reference_to Package
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits VendoringRefused
     end
@@ -451,13 +437,10 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Tag a package of this registry at the version its bluebook.yml carries"
 
-      attribute :run,     RegistryKey
-      attribute :package, PackageName
-      attribute :root,    Location, optional: true
+      attribute :run,     RegistryKey, sets: true
+      attribute :package, PackageName, sets: true
+      attribute :root,    Location, optional: true, sets: true
 
-      sets :run
-      sets :package
-      sets :root
 
       emits ReleaseRequested
     end
@@ -467,9 +450,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the release was tagged, and the command that publishes it"
 
       reference_to Registry
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits ReleaseRecorded
     end
@@ -479,9 +461,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the release was refused, and why"
 
       reference_to Registry
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits ReleaseAbandoned
     end
@@ -603,11 +584,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Write a command-line launcher beside each domain of this project"
 
-      attribute :run,     LaunchKey
-      attribute :domains, DomainList, optional: true
+      attribute :run,     LaunchKey, sets: true
+      attribute :domains, DomainList, optional: true, sets: true
 
-      sets :run
-      sets :domains
 
       emits LaunchersRequested
     end
@@ -618,15 +597,11 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Write the stub files of a new domain"
 
-      attribute :run,     LaunchKey
-      attribute :name,    DomainName
-      attribute :adapter, AdapterName, optional: true
-      attribute :dir,     TargetDir,   optional: true
+      attribute :run,     LaunchKey, sets: true
+      attribute :name,    DomainName, sets: true
+      attribute :adapter, AdapterName, optional: true, sets: true
+      attribute :dir,     TargetDir,   optional: true, sets: true
 
-      sets :run
-      sets :name
-      sets :adapter
-      sets :dir
 
       emits StubRequested
     end
@@ -639,11 +614,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Write the controllers and routes a Rails app drives its domain through"
 
-      attribute :run, LaunchKey
-      attribute :dir, TargetDir, optional: true
+      attribute :run, LaunchKey, sets: true
+      attribute :dir, TargetDir, optional: true, sets: true
 
-      sets :run
-      sets :dir
 
       emits RailsRequested
     end
@@ -655,19 +628,13 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Hold an interview with a subject matter expert and draft a first domain from it"
 
-      attribute :run,     LaunchKey
-      attribute :name,    DomainName
-      attribute :adapter, AdapterName, optional: true
-      attribute :dir,     TargetDir,   optional: true
-      attribute :expert,  ExpertName,  optional: true
-      attribute :no_ai,   Switch,      optional: true
+      attribute :run,     LaunchKey, sets: true
+      attribute :name,    DomainName, sets: true
+      attribute :adapter, AdapterName, optional: true, sets: true
+      attribute :dir,     TargetDir,   optional: true, sets: true
+      attribute :expert,  ExpertName,  optional: true, sets: true
+      attribute :no_ai,   Switch,      optional: true, sets: true
 
-      sets :run
-      sets :name
-      sets :adapter
-      sets :dir
-      sets :expert
-      sets :no_ai
 
       emits InterviewRequested
     end
@@ -681,11 +648,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Serve the storehouse bus to an MCP client over stdio until it closes"
 
-      attribute :run,   LaunchKey
-      attribute :stdio, Switch, optional: true
+      attribute :run,   LaunchKey, sets: true
+      attribute :stdio, Switch, optional: true, sets: true
 
-      sets :run
-      sets :stdio
 
       emits McpRequested
     end
@@ -695,9 +660,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the launch did its work, or was closed, and what it said"
 
       reference_to Launch
-      attribute :output, Note
+      attribute :output, Note, sets: true
 
-      sets :output
 
       emits LaunchFinished
     end
@@ -707,9 +671,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the launch could not be opened, and why"
 
       reference_to Launch
-      attribute :refusal, Note
+      attribute :refusal, Note, sets: true
 
-      sets :refusal
 
       emits LaunchStopped
     end
@@ -861,11 +824,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Generate a domain's Rust source for the Rust host"
 
-      attribute :domain, DomainPath
-      attribute :run,    BuildKey
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    BuildKey, sets: true
 
-      sets :domain
-      sets :run
 
       emits RustProjectionRequested
     end
@@ -874,13 +835,10 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Compile a domain to a WASI module a runtime such as wasmtime can run"
 
-      attribute :domain,  DomainPath
-      attribute :run,     BuildKey
-      attribute :profile, WasmProfile, default: "release"
+      attribute :domain,  DomainPath, sets: true
+      attribute :run,     BuildKey, sets: true
+      attribute :profile, WasmProfile, default: "release", sets: true
 
-      sets :domain
-      sets :run
-      sets :profile
 
       emits WasmBuildRequested
     end
@@ -892,17 +850,12 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Build the Rust host for a domain, with its wasm and IR, ready to copy into an image"
 
-      attribute :domain, DomainPath
-      attribute :run,    BuildKey
-      attribute :target, TargetTriple, optional: true
-      attribute :stage_dir, StagePath, optional: true
-      attribute :prebuilt, Switch, default: true
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    BuildKey, sets: true
+      attribute :target, TargetTriple, optional: true, sets: true
+      attribute :stage_dir, StagePath, optional: true, sets: true
+      attribute :prebuilt, Switch, default: true, sets: true
 
-      sets :domain
-      sets :run
-      sets :target
-      sets :stage_dir
-      sets :prebuilt
 
       emits HostBuildRequested
     end
@@ -911,11 +864,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Compile a domain to an ES module a browser can import"
 
-      attribute :domain, DomainPath
-      attribute :run,    BuildKey
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    BuildKey, sets: true
 
-      sets :domain
-      sets :run
 
       emits BrowserWasmBuildRequested
     end
@@ -926,15 +877,11 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Replay a script through Ruby and a Rust build of the domain and compare what each did"
 
-      attribute :domain,   DomainPath
-      attribute :script,   ScriptPath
-      attribute :run,      BuildKey
-      attribute :artifact, Artifact, optional: true
+      attribute :domain,   DomainPath, sets: true
+      attribute :script,   ScriptPath, sets: true
+      attribute :run,      BuildKey, sets: true
+      attribute :artifact, Artifact, optional: true, sets: true
 
-      sets :domain
-      sets :script
-      sets :run
-      sets :artifact
 
       emits ConformanceRequested
     end
@@ -943,17 +890,12 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Replay generated sequences through Ruby and a Rust build of the domain and compare them"
 
-      attribute :domain,   DomainPath
-      attribute :artifact, Artifact
-      attribute :run,      BuildKey
-      attribute :seeds,    Count, optional: true
-      attribute :steps,    Count, optional: true
+      attribute :domain,   DomainPath, sets: true
+      attribute :artifact, Artifact, sets: true
+      attribute :run,      BuildKey, sets: true
+      attribute :seeds,    Count, optional: true, sets: true
+      attribute :steps,    Count, optional: true, sets: true
 
-      sets :domain
-      sets :artifact
-      sets :run
-      sets :seeds
-      sets :steps
 
       emits ConformanceFuzzRequested
     end
@@ -962,9 +904,8 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Check that every rule excusing a Rust coverage gap still excuses a real one"
 
-      attribute :run, BuildKey
+      attribute :run, BuildKey, sets: true
 
-      sets :run
 
       emits CoverageAllowlistRequested
     end
@@ -974,9 +915,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the build or check ended well, and what it reported"
 
       reference_to Build
-      attribute :output, Report
+      attribute :output, Report, sets: true
 
-      sets :output
 
       emits BuildCompleted
     end
@@ -986,9 +926,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the build or check was refused or found a difference, and what it said"
 
       reference_to Build
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits BuildFaulted
     end
@@ -1174,25 +1113,16 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Fuzz a domain with generated sequences and keep whether anything broke a property"
 
-      attribute :domain,  DomainPath,  optional: true
-      attribute :run,     FuzzKey
-      attribute :seeds,   Count,       optional: true
-      attribute :steps,   Count,       optional: true
-      attribute :workers, Count,       optional: true
-      attribute :adapter, Persistence, optional: true
-      attribute :persist_regressions, RegressionSwitch, optional: true
-      attribute :shard,   ShardOf,     optional: true
-      attribute :list_shards, Count,   optional: true
+      attribute :domain,  DomainPath,  optional: true, sets: true
+      attribute :run,     FuzzKey, sets: true
+      attribute :seeds,   Count,       optional: true, sets: true
+      attribute :steps,   Count,       optional: true, sets: true
+      attribute :workers, Count,       optional: true, sets: true
+      attribute :adapter, Persistence, optional: true, sets: true
+      attribute :persist_regressions, RegressionSwitch, optional: true, sets: true
+      attribute :shard,   ShardOf,     optional: true, sets: true
+      attribute :list_shards, Count,   optional: true, sets: true
 
-      sets :domain
-      sets :run
-      sets :seeds
-      sets :steps
-      sets :workers
-      sets :adapter
-      sets :persist_regressions
-      sets :shard
-      sets :list_shards
 
       emits FuzzRequested
     end
@@ -1205,17 +1135,12 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Mutate a domain's rules and keep whether its checks noticed each change"
 
-      attribute :domain, DomainPath
-      attribute :run,    FuzzKey
-      attribute :seeds,  Count, optional: true
-      attribute :steps,  Count, optional: true
-      attribute :budget, Count, optional: true
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    FuzzKey, sets: true
+      attribute :seeds,  Count, optional: true, sets: true
+      attribute :steps,  Count, optional: true, sets: true
+      attribute :budget, Count, optional: true, sets: true
 
-      sets :domain
-      sets :run
-      sets :seeds
-      sets :steps
-      sets :budget
 
       emits MutateRequested
     end
@@ -1228,25 +1153,16 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Measure command throughput and latency for each target, and keep the report"
 
-      attribute :run,         FuzzKey
-      attribute :domains,     NameList,   optional: true
-      attribute :targets,     NameList,   optional: true
-      attribute :iterations,  Count,      optional: true
-      attribute :warmup,      Warmup,     optional: true
-      attribute :runs,        Count,      optional: true
-      attribute :rust_binary, BinaryPath, optional: true
-      attribute :format,      Format,     optional: true
-      attribute :output,      OutputPath, optional: true
+      attribute :run,         FuzzKey, sets: true
+      attribute :domains,     NameList,   optional: true, sets: true
+      attribute :targets,     NameList,   optional: true, sets: true
+      attribute :iterations,  Count,      optional: true, sets: true
+      attribute :warmup,      Warmup,     optional: true, sets: true
+      attribute :runs,        Count,      optional: true, sets: true
+      attribute :rust_binary, BinaryPath, optional: true, sets: true
+      attribute :format,      Format,     optional: true, sets: true
+      attribute :output,      OutputPath, optional: true, sets: true
 
-      sets :run
-      sets :domains
-      sets :targets
-      sets :iterations
-      sets :warmup
-      sets :runs
-      sets :rust_binary
-      sets :format
-      sets :output
 
       emits BenchRequested
     end
@@ -1256,9 +1172,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the sweep or benchmark ended well, and what it reported"
 
       reference_to FuzzRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits FuzzConcluded
     end
@@ -1268,9 +1183,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the sweep found something or the benchmark could not run, and what it said"
 
       reference_to FuzzRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits FuzzHalted
     end

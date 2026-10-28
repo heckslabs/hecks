@@ -45,9 +45,8 @@ Hecks.bluebook "MultiHeadBoard" do
       role "Clerk"
       goal "Open a board"
 
-      attribute :code, BoardCode
+      attribute :code, BoardCode, sets: true
 
-      sets :code
 
       emits "BoardOpened"
       emits "BoardAnnounced"
@@ -89,9 +88,8 @@ Hecks.bluebook "MultiHeadBoard" do
         role "Clerk"
         goal "Name a lane"
 
-        attribute :label, Label
+        attribute :label, Label, sets: true
 
-        sets :label
 
         emits "LaneNamed"
       end
@@ -109,9 +107,8 @@ Hecks.bluebook "MultiHeadBoard" do
         role "Clerk"
         goal "Title a card"
 
-        attribute :label, Label
+        attribute :label, Label, sets: true
 
-        sets :label
 
         emits "CardTitled"
       end
@@ -146,11 +143,10 @@ Hecks.bluebook "MultiHeadBoard" do
       role "Clerk"
       goal "Pin a note to a board"
 
-      attribute :reference, PinReference
+      attribute :reference, PinReference, sets: true
       reference_to Board
       attribute :note, PinNote
 
-      sets :reference
       sets :board
       sets :note
 
