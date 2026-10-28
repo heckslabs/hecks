@@ -76,17 +76,19 @@ module Hecks
           quiet = !Array(memory_commands).empty?
 
           render(LAUNCHER, name: name, program: site.program, where: site.where, up: site.up,
-                           encoding: opted ? ENCODING : "", handoff: handoff_for(executable, legacy, memory_commands),
+                           encoding: opted ? ENCODING : "",
+                           handoff: handoff_for(executable, legacy, memory_commands, site),
                            ending: ending_for(opted, executable && quiet),
                            entry: entry(name, site.boot, site.shown, opted, quiet: quiet))
         end
 
         # @api private
-        # @return [String] what an executable launcher does before it boots, or nothing
-        def handoff_for(executable, legacy, memory_commands)
+        # @return [String] what an executable launcher does before it boots, or nothing: it takes
+        #   the gems the checkout's Gemfile pins, hands legacy commands on, defaults Memory ones
+        def handoff_for(executable, legacy, memory_commands, site)
           return "" unless executable
 
-          legacy_handoff(Array(legacy)) + memory_default(Array(memory_commands))
+          render(PINNED_GEMS, up: site.up) + legacy_handoff(Array(legacy)) + memory_default(Array(memory_commands))
         end
 
         # @api private
