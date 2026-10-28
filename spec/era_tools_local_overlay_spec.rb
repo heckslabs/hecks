@@ -1,5 +1,6 @@
 require "spec_helper"
 require "tmpdir"
+require_relative "../lib/hecks/hecks/adapters/journal_store"
 require "hecks/tools/translation_scaffold"
 require "hecks/tools/era_reattest"
 require "hecks/tools/era_projection_backfill"
