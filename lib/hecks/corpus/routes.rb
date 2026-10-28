@@ -38,6 +38,14 @@ module Hecks
                 :each_file,
                 "a bluebook written as sentences, which only a built hecks-parse can read; the sweep boots its " \
                 "Ruby twin instead, and spec/sentence_form_spec.rb compares the pair byte for byte"),
+      Route.new(%r{\Aspec/fixtures/sentence/pizzas/}, :named_in, "spec/sentence_form_spec.rb", :each_file,
+                "Pizzas written as sentences beside its Ruby twin, whose payment policy reacts to an event " \
+                "the payment webhook emits outside this bluebook, so model_check finds it deaf; " \
+                "spec/sentence_form_spec.rb compares the pair byte for byte"),
+      Route.new(%r{\Aspec/fixtures/sentence_examples/shop/shop\.bluebook\z}, :named_in,
+                "spec/sentence_multi_word_examples_spec.rb", :each_file,
+                "a bluebook written as sentences, which only a built hecks-parse can read; the spec runs its " \
+                "examples against it, so the sweep has nothing to add"),
       Route.new(%r{\Aspec/fixtures/sentence/orders/}, :named_in, "spec/sentence_form_spec.rb", :each_file,
                 "a bluebook written as sentences beside its Ruby twin, whose policies ask the outside and " \
                 "wait for its answers; model_check wants the hecksagon that declares that port, which the " \

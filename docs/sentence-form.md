@@ -260,6 +260,18 @@ Example: Only an editor may take a page down
   third-person form (`creates`, `adds`). A command that makes a record is not written with `to it`,
   and one that acts on a record always is. A step that matches nothing is refused with the
   wordings that would have worked, and two commands that read alike are refused by name.
+- A step names each value it gives, and a value made of parts is named by its parts:
+  `creates a pizza with name "Margherita", price 1200 cents and size "large"`. The rules:
+  - A value object that wraps one field is transparent. `amount 1200 cents` gives the cents of an
+    amount, and the wrapped field's own name may follow the number as a unit or be left off.
+  - A value object that holds several fields is named by its parts. `price` and `size` are two
+    parts of a pizza, and the whole name works as well (`pizza price`, `pizza size`).
+  - A part's name drops a trailing word it shares with the field it wraps, so a price in cents,
+    written `price cents` in the bluebook, is `price` in a step.
+  - A name two parts share (`size`, when a plate and a glass both have one) is refused with the
+    whole names that tell them apart, never guessed. A name that starts several parts (`pizza`)
+    is refused with the parts to name instead. A name no part has lists the parts there are, and
+    a part left out says which.
 - `tries to` is how a step that should be refused reads, and the example then has to say why. The
   reason is the rule's own sentence, copied from the `Rule` or `Given`.
 - An example has one `When`. A `Where:` table runs it once per row.
@@ -298,10 +310,8 @@ A `.hecksagon` beside a bluebook written as sentences is refused by name. So are
 - the facts a command or query asks the runtime to supply (`needs`), a query's `cursor`, a command
   argument whose type or default differs from the field it names, and a quote inside a quoted
   value;
-- in an example step, a value for a value object that holds more than one field (a pizza with a
-  price and a size), or whose one field is not called `value` (a price in cents). Such a step is
-  refused with `holds more than one value; examples can only give a single value so far`, so a
-  command that needs one cannot be run by an example yet.
+- in an example, a step that calls a port operation (`PaymentGateway.Receive`) or reads a query,
+  because a step is a command run as a role.
 
 Anything the formatter cannot write is refused with the name of what it could not say, never
 dropped, so a bluebook that formats always reads back as the same thing. Comments are the one

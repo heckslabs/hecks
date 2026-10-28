@@ -27,6 +27,26 @@ RSpec.describe Hecks::RustBuild::ProjectRust::CodegenRun do
     end
   end
 
+  # The modules `hecks-codegen full` was asked for, with cargo and the binary stubbed.
+  def generated_modules(meta)
+    run = described_class.new(rust_dir: @dir, out_root: File.join(@dir, "out"), meta: meta, declarations: [],
+                              target: described_class::Declaration.new("chess", "examples/chess", {}))
+    commands = []
+    allow(run).to receive(:system) { |*command, **| commands << command }.and_return(true)
+    run.call
+    commands.reject { |command| command.first == "cargo" }.map { |command| command[3] }
+  end
+
+  describe "#call" do
+    it "generates the self-hosted language's own module beside the domain's" do
+      expect(generated_modules({})).to eq(%w[meta chess])
+    end
+
+    it "leaves the language's module as an earlier run wrote it when it is given none" do
+      expect(generated_modules(nil)).to eq(%w[chess])
+    end
+  end
+
   describe ".binary" do
     it "is in the crate's own target directory by default" do
       expect(described_class.binary(@dir, env: {})).to eq(File.join(checkout_crate, "target/debug/hecks-codegen"))
