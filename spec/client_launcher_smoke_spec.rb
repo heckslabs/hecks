@@ -25,7 +25,7 @@ RSpec.describe "client launcher smoke" do
     #
     # A launcher, not a CLI: the commands, their arguments and their refusals are
     # projected from the bluebook beside it every time this runs, so a change
-    # to the bluebook shows up here without re-minting anything.
+    # to the chapter shows up here without re-minting anything.
     #
     #   pizzas/pizzas                  every command, and every question
     #   pizzas/pizzas <command> --help    what it wants, and how it refuses
