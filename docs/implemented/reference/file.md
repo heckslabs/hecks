@@ -188,3 +188,21 @@ Read back the same way any other file's own declaration is:
 runtime.registry.translations.last.aggregates.map(&:name)  # => ["Dispatch"]
 ```
 
+## context_map
+
+<!-- generated:begin word=context_map -->
+`context_map system do ... end` — opens a `ContextMap` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | system |
+<!-- generated:end -->
+
+A `.contextmap` file opens with `context_map` and names the system it covers. It is a sibling
+of the bluebook, read at boot, and `model_check` holds the wiring to it. Like every
+declaration word it refuses outside a boot:
+
+```ruby
+Hecks.context_map("Shop") { context "Ordering" }  # ~> LoadOutsideBoot: use Hecks.boot
+```
+

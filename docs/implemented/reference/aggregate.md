@@ -655,6 +655,31 @@ Omitting `declared_by:` here would refuse — `CardPayment`'s own
 `ATMCard` each declare a different predicate under it), and the
 language never silently guesses which one a bare reference meant.
 
+## acknowledges
+
+<!-- generated:begin word=acknowledges -->
+`acknowledges finding, reason` — fills `acknowledgements`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | finding |
+| positional 2 | text | true | reason |
+<!-- generated:end -->
+
+`acknowledges :finding, "reason"` allows a finding `model_check` would report about this
+aggregate, and says why. The reason is required text, so an allowance cannot be written
+without one, and the finding is a kind the check really reports about an aggregate: any other
+kind is refused, so a stale acknowledgement cannot outlive the check it answers. Only
+`:large_aggregate` is one today.
+
+```ruby
+Hecks.bluebook("Bad") { aggregate("Widget") { identified_by :id; acknowledges :no_such_finding, "why" } }  # ~> Malformed: does not report here
+```
+
+The allowance sits on the aggregate it excuses, not in a list kept apart from it. A
+`.contextmap` relationship takes the same word as `acknowledges:` for the findings about the
+relationship itself.
+
 ## projects
 
 <!-- generated:begin word=projects -->

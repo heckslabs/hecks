@@ -1,4 +1,5 @@
 require_relative "../context_map"
+require_relative "../acknowledgements"
 
 module Hecks
   module Bluebook
@@ -30,16 +31,20 @@ module Hecks
         end
 
         # Declares that `upstream => downstream` relate as `kind`. `published:` lists the upstream
-        # events a downstream may depend on, `of:` the names a shared kernel holds in common.
+        # events a downstream may depend on, `of:` the names a shared kernel holds in common, and
+        # `acknowledges:` the findings about the relationship it allows, each with its reason.
         #
         # @raise [ArgumentError] unless exactly one `"Upstream" => "Downstream"` pair is given
-        def relate(as:, published: [], of: [], **pair)
+        # @raise [Bluebook::DSL::Malformed] if an acknowledgement names a kind the relationship
+        #   cannot carry, or gives no reason
+        def relate(as:, published: [], of: [], acknowledges: {}, **pair)
           raise ArgumentError, "relate takes one \"Upstream\" => \"Downstream\" pair" unless pair.size == 1
 
           upstream, downstream = pair.first
           @relationships << ContextMap::Relationship.new(
             upstream: upstream.to_s, downstream: downstream.to_s, kind: as,
-            published: Array(published).map(&:to_s), shared: Array(of).map(&:to_s)
+            published: Array(published).map(&:to_s), shared: Array(of).map(&:to_s),
+            acknowledged: acknowledged_by("#{upstream} => #{downstream}", acknowledges)
           )
         end
 
@@ -51,6 +56,16 @@ module Hecks
         def build
           ContextMap.new(name: @name, contexts: @contexts, relationships: @relationships,
                          separate_ways: @separate_ways)
+        end
+
+        private
+
+        # @return [Hash{Symbol=>String}] each acknowledged kind with its reason, once all pass
+        def acknowledged_by(owner, acknowledges)
+          acknowledges.to_h do |finding, reason|
+            kind = Acknowledgements.kind!(owner, finding, reason, among: Acknowledgements::RELATIONSHIP_KINDS)
+            [kind, reason]
+          end
         end
       end
     end

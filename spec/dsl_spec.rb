@@ -1884,6 +1884,18 @@ RSpec.describe "the DSL surface" do
       expect(field.remote_field).to eq(:status)
     end
 
+    it "acknowledges holds a finding kind with its reason", :aggregate_failures do
+      held = build_aggregate("Acknowledging") { acknowledges :large_aggregate, "one ledger, on purpose" }.acknowledgements.first
+
+      expect(held.finding).to eq(:large_aggregate)
+      expect(held.reason).to eq("one ledger, on purpose")
+    end
+
+    it "acknowledges refuses a finding the check does not report" do
+      expect { build_aggregate("Unreported") { acknowledges :no_such_finding, "why" } }
+        .to raise_error(Malformed, /does not report here/)
+    end
+
     it "projects refuses a from: that does not name reference.field" do
       expect do
         build_aggregate("MalformedProjection") do

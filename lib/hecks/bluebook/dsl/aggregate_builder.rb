@@ -142,6 +142,7 @@ module Hecks
           @invariants        = []
           @named_givens      = {}
           @projected_fields  = []
+          @acknowledgements  = []
           @identity_paths    = []
           @policies          = []
           @reference_targets = []
@@ -174,7 +175,8 @@ module Hecks
         def aggregate_shape
           { name: @name, description: @description, attributes: attributes,
             value_objects: @value_objects + closed_sets, identified_by: @identity_paths,
-            lifecycle: @lifecycle, entities: @entities, provenance: @provenance }
+            lifecycle: @lifecycle, entities: @entities, provenance: @provenance,
+            acknowledgements: @acknowledgements }
         end
 
         # What the aggregate does and the rules it keeps.
