@@ -350,6 +350,12 @@ jobs:
       - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_gates --wait
 
+      # The workflow files whose rows the CiWorkflows chapter declares (ci-rspec.yml so far) are
+      # written whole from those rows. Without --confirm the verb only compares, so a row edited
+      # with no matching projection, or a projected file edited by hand, fails here.
+      - name: "ci pipeline: project the workflow rows into their files, fail on drift"
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_pipeline --wait
+
       # The launcher forms of docs/tools.md are written from the RetiredScript rows in
       # vocabulary.bluebook and each command's own arguments. Without --confirm the verb only
       # compares, so a command whose arguments changed with no regenerated doc fails here.

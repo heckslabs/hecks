@@ -8,8 +8,15 @@
 # build, and the Cache port answers whether a corpus is held. Both are declared in
 # ci_pipeline.ports.hecksagon.
 #
-# A job's `needs:` is not an attribute. Each edge is a policy on the upstream job's Passed
-# or Skipped event, and the projector reads those policies to write `needs:`.
+# A client declares its workflows as `member` rows of value objects in its own chapter, as a
+# site declares its routes (the Site chapter): a `Workflow` row per file, then a `Trigger`, a
+# `Secret`, a `Job`, a `Need`, an `Output`, an `Env`, a `Step` and a `StepInput` row each, all
+# flat and joined by workflow and job name. The Workflow, JobSpec and Step aggregates below name
+# the fields those rows carry and the closed sets their values come from. `hecks
+# regeneration_run.project_ci_pipeline` reads the rows and writes the files.
+#
+# A job's `needs:` is a `Need` row. The policies at the end of this chapter are the same edges as
+# a build sees them, as events: they decide when a job in one build queues, and write nothing.
 #
 # CiSpeed's Run and JobTiming record what this chapter's Build and Job already know. When
 # CiSpeed reads them, the Runner port answers from these rows, not from a second record.
@@ -20,7 +27,10 @@ Hecks.bluebook "CiPipeline" do
   supporting
 
   # One workflow file under .github/workflows. The file name is its identity. `reusable` means the
-  # file is called by other workflows, so the projector writes `workflow_call`.
+  # file is called by other workflows, so the projector writes `workflow_call`; a Workflow row
+  # carries no such flag, because its `workflow_call` Trigger row says the same. A `Secret` row
+  # names one secret a called workflow takes and whether the caller must pass it. `note` is the
+  # comment the file opens with, one line per line of text.
   aggregate "Workflow" do
     description "One workflow file: its name, the events that start it, concurrency, whether other workflows call it, and the secrets it takes."
 
@@ -28,6 +38,7 @@ Hecks.bluebook "CiPipeline" do
 
     attribute :name,               WorkflowName
     attribute :display_name,       WorkflowText
+    attribute :note,               WorkflowText, optional: true
     attribute :concurrency_group,  WorkflowText, optional: true
     attribute :cancel_in_progress, Switch, optional: true
     attribute :reusable,           Switch
@@ -159,7 +170,12 @@ Hecks.bluebook "CiPipeline" do
 
   # One job as the workflow file declares it: the YAML facts the projector writes, its gate, its
   # steps, and its shard count. A job's run in one build is a Job below, which refers back here by
-  # name. Shards: `shard_total` is the one count; every shard leg checks its index against it.
+  # name. Shards: `shard_total` is the one count; every shard leg checks its index against it. A
+  # job whose total is above one gets a matrix named `shard_axis` with a leg for each number from
+  # one to the total, and its legs never cancel one another, so every leg reports its timing. A
+  # step's command may write `%{shard_total}` where the total belongs, so the count is stated once.
+  # `needs` names the jobs of the same workflow this one waits for, and `outputs` the values its
+  # steps hand to the jobs that need it. `note` is the comment above the job.
   aggregate "JobSpec" do
     description "One job as its workflow file declares it: runner, time limit, permissions, gate, condition, steps, and shard total."
 
@@ -169,13 +185,18 @@ Hecks.bluebook "CiPipeline" do
     reference_to Workflow
     attribute :runner,          RunnerLabel
     attribute :timeout_minutes, TimeoutMinutes
-    attribute :permissions,     Permissions
+    # Empty when the job takes the workflow's default permissions.
+    attribute :permissions,     Permissions, optional: true
     attribute :required,        Switch
     attribute :gate,            GateName
     # The job's `if:` as the projector writes it. Empty when the job always runs.
     attribute :condition,       Condition
     attribute :shard_total,     ShardTotal
+    attribute :shard_axis,      ShardAxis, optional: true
     attribute :shards,          list_of(ShardIndex)
+    attribute :note,            JobNote, optional: true
+    attribute :needs,           list_of(JobName)
+    attribute :outputs,         list_of(JobOutput)
     attribute :env,             list_of(EnvVar)
     attribute :steps,           list_of(Step)
     attribute :step_inputs,     list_of(StepInput)
@@ -199,7 +220,8 @@ Hecks.bluebook "CiPipeline" do
       invariant("a job has a positive time limit") { value.positive? }
     end
 
-    # The `permissions:` block as one line, such as `contents: read`.
+    # The `permissions:` block as one line, such as `contents: read`; several scopes are separated
+    # by a comma and a space, as in `contents: read, checks: read`.
     value_object "Permissions" do
       attribute :value, String, matches: :present
     end
@@ -224,23 +246,74 @@ Hecks.bluebook "CiPipeline" do
       invariant("a shard is numbered from one") { value.positive? }
     end
 
-    # One step of a job, in order. `uses` names a composite action in this repo or a pinned action
-    # from outside it; `run` is one shell command. Exactly one of the two is set.
+    # The matrix's name, as a step reads it: `${{ matrix.group }}` for the axis `group`.
+    value_object "ShardAxis" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # The comment written above a job, one line per line of text.
+    value_object "JobNote" do
+      attribute :value, String, default: ""
+    end
+
+    # One entry of a job's `outputs:`: the value a step hands to the jobs that need this one.
+    value_object "JobOutput" do
+      attribute :key,   OutputKey
+      attribute :value, OutputValue
+    end
+
+    value_object "OutputKey" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    value_object "OutputValue" do
+      attribute :value, String, matches: :present
+    end
+
+    # One step of a job, in order. `name` is the step's handle within its job, which a StepInput
+    # names; it is never written into the file. `title` is the `name:` the workflow shows, `id` the
+    # `id:` other steps read outputs by, and `note` the comment above the step. `uses` names a
+    # composite action in this repo or a pinned action from outside it; `run` is one shell command.
+    # Exactly one of the two is set.
     value_object "Step" do
       attribute :name,      StepName
+      attribute :title,     StepTitle, optional: true
+      attribute :id,        StepId, optional: true
       attribute :uses,      ActionRef
       attribute :run,       StepRun
       attribute :condition, Condition
+      attribute :note,      JobNote, optional: true
     end
 
     value_object "StepName" do
       attribute :value, String, matches: :present
     end
 
-    # The composite actions under .github/actions, and the pinned actions the workflows use. Empty
-    # when the step runs a command instead.
+    value_object "StepTitle" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "StepId" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_-]*$'
+    end
+
+    # The composite actions under .github/actions, and the pinned actions the workflows use. A
+    # step that runs a command names none, which is the empty member. An action is added here when a
+    # workflow first uses it.
     value_object "ActionRef" do
-      attribute :value, String, pattern: '^((\./\.github/actions/(cargo-cache|check-attestation|generated-rust|generated-rust-inputs|ghcr-binary-cache-restore|ghcr-binary-cache-save|hecks-environment|postgres|require-result|rust-toolchain|setup-ruby|wasm-toolchain|write-attestation))|(actions/[a-z-]+@v[0-9]+))?$'
+      attribute :value, String, one_of: [
+        "",
+        "./.github/actions/cargo-cache", "./.github/actions/check-attestation",
+        "./.github/actions/generated-rust", "./.github/actions/generated-rust-inputs",
+        "./.github/actions/ghcr-binary-cache-restore", "./.github/actions/ghcr-binary-cache-save",
+        "./.github/actions/hecks-environment", "./.github/actions/postgres",
+        "./.github/actions/require-result", "./.github/actions/rust-toolchain",
+        "./.github/actions/setup-ruby", "./.github/actions/wasm-toolchain",
+        "./.github/actions/write-attestation",
+        "actions/cache@v4", "actions/cache/restore@v4", "actions/cache/save@v4",
+        "actions/checkout@v4", "actions/download-artifact@v4", "actions/setup-node@v4",
+        "actions/upload-artifact@v4"
+      ]
     end
 
     value_object "StepRun" do

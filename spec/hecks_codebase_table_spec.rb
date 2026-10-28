@@ -60,6 +60,9 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
      { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
                 "verb only compares" }],
+    ["project_ci_pipeline", "RegenerationRun", "ProjectCiPipeline", "project_ci_pipeline",
+     { renamed: "no bin script: the workflow files were hand-written; without --confirm the verb only " \
+                "compares" }],
     ["project_lanes", "RegenerationRun", "ProjectLanes", "project_lanes",
      { renamed: "no bin script: the branch rulesets and the promotion workflow were hand-written; without " \
                 "--confirm the verb only compares, and only --live --confirm changes GitHub" }],

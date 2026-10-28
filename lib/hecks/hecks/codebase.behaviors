@@ -85,6 +85,12 @@ Hecks.behaviors "Codebase" do
     expect refused: "must match"
   end
 
+  test "ProjectCiPipeline refuses a run that is not named" do
+    tests "ProjectCiPipeline", on: "RegenerationRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
   test "ProjectToolsDoc refuses a run that is not named" do
     tests "ProjectToolsDoc", on: "RegenerationRun"
     input run: { value: "" }

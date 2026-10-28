@@ -6,8 +6,8 @@ require_relative "sentence_form"
 
 module Hecks
   # The bluebooks the gem carries that a hecksagon can attach by name (ADR 0080): the language
-  # declared in itself, Expression, Tenancy, Deploy, Site, Tickets, Composer, QualityControl and
-  # Bulk.
+  # declared in itself, Expression, Tenancy, Deploy, Site, Tickets, Composer, QualityControl,
+  # Bulk and CiPipeline.
   # Framework members stay in `Framework`; `table` and `attach!` find a name across both.
   #
   # A bluebook is named by the `Hecks.bluebook "Name"` header of its files, and may span several.
@@ -18,7 +18,8 @@ module Hecks
     # Where attachable bluebooks live, relative to `lib/hecks/`.
     GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook rails_app/bluebook/*.bluebook tickets/bluebook/*.bluebook
-               composer/bluebook/*.bluebook quality_control/*.bluebook bulk/bluebook/*.bluebook].freeze
+               composer/bluebook/*.bluebook quality_control/*.bluebook bulk/bluebook/*.bluebook
+               ci_pipeline/*.bluebook].freeze
 
     # A `Hecks.bluebook "Name"` header line, capturing the bluebook's name.
     BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
