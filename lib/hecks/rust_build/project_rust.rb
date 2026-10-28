@@ -22,18 +22,25 @@ module Hecks
     # The era plugin is required unconditionally so the generator works for any domain, lineage
     # capable or not; `pg` stays lazy inside it, so nothing here opens a database connection.
     class ProjectRust
-      # @param argv [Array<String>] the domain's directory
+      # The flag that leaves the self-hosted language's `meta/` module as it is: every domain
+      # writes the same one, so a run over many domains asks for it once.
+      SKIP_META = "--skip-meta"
+
+      # @param argv [Array<String>] the domain's directory, and `--skip-meta` to leave `meta/` alone
       # @return [Integer] the exit status
       # @raise [Failure] when the domain's name cannot be a Rust module and Cargo feature name
       def self.call(argv)
-        domain = argv.first or raise Failure, "usage: hecks project_rust <domain>"
-        new(domain).call
+        flags, paths = argv.partition { |arg| arg == SKIP_META }
+        domain = paths.first or raise Failure, "usage: hecks project_rust <domain> [#{SKIP_META}]"
+        new(domain, skip_meta: !flags.empty?).call
       end
 
       # @param domain [String] the domain's directory
-      def initialize(domain)
+      # @param skip_meta [Boolean] leave the `meta/` module as an earlier run wrote it
+      def initialize(domain, skip_meta: false)
         @domain = domain
         @mod_name = File.basename(domain)
+        @skip_meta = skip_meta
       end
 
       # @return [Integer] the exit status
@@ -79,11 +86,18 @@ module Hecks
       # `hecks-codegen` is the generator; this process only builds the IR it reads from the live
       # registry, so a domain's persistence, seams, translations and source text reach `ir.json`.
       def generate_with_codegen
-        meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
         CodegenRun.new(
-          rust_dir: @rust_dir, out_root: @out_root, meta: TargetIr.json_shaped(meta), declarations: declarations,
+          rust_dir: @rust_dir, out_root: @out_root, meta: meta_ir, declarations: declarations,
           target: CodegenRun::Declaration.new(@mod_name, @domain, @ir)
         ).call
+      end
+
+      # @return [Hash, nil] the self-hosted language's IR, or nil when `--skip-meta` leaves it be
+      def meta_ir
+        return nil if @skip_meta
+
+        meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
+        TargetIr.json_shaped(meta)
       end
 
       def declarations

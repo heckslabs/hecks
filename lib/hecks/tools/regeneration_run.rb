@@ -32,6 +32,9 @@ module Hecks
                          "Only pizzas, mod.rs and Cargo.toml are committed; run " \
                          "`hecks regenerate_corpus --confirm` first, then the check."
 
+      # The `hecks project_rust` flag that leaves the `meta/` module as an earlier domain wrote it.
+      SKIP_META = "--skip-meta"
+
       module_function
 
       # Regenerates the corpus, or checks it.
@@ -97,7 +100,8 @@ module Hecks
         require "hecks/bluebook/meta_validator"
         require "hecks/rust_build"
         Hecks::Bluebook::MetaValidator.grammar_registry
-        domains.each { |domain| project_rust_in_fork(domain) }
+        # Every domain writes the same `meta/` module, so the first one does and the rest skip it.
+        domains.each_with_index { |domain, index| project_rust_in_fork(domain, skip_meta: index.positive?) }
       end
 
       # Forks so the child inherits the memoized grammar registry instead of rebuilding it. The
@@ -105,12 +109,14 @@ module Hecks
       # process's stdout.
       #
       # @param domain [String] the domain, relative to the checkout
+      # @param skip_meta [Boolean] leave the `meta/` module as an earlier domain wrote it
       # @return [void]
       # @raise [SystemExit] when the child fails
-      def project_rust_in_fork(domain)
+      def project_rust_in_fork(domain, skip_meta: false)
         puts "== hecks project_rust #{domain} =="
         reader, writer = IO.pipe
-        pid = fork { run_child(reader, writer, domain) }
+        argv = skip_meta ? [domain, SKIP_META] : [domain]
+        pid = fork { run_child(reader, writer, argv) }
         writer.close
         $stdout.write(reader.read)
         reader.close
@@ -121,23 +127,23 @@ module Hecks
 
       # @param reader [IO] the parent's end of the pipe, closed here
       # @param writer [IO] the child's end, which becomes its stdout and stderr
-      # @param domain [String] the domain
+      # @param argv [Array<String>] the domain, and any flag for `hecks project_rust`
       # @return [void] never returns: the child leaves without the parent's exit handlers
-      def run_child(reader, writer, domain)
+      def run_child(reader, writer, argv)
         reader.close
         # The real descriptors, not the globals: a caller may have swapped those for a buffer.
         STDOUT.reopen(writer) # rubocop:disable Style/GlobalStdStream
         STDERR.reopen(writer) # rubocop:disable Style/GlobalStdStream
         $stdout = STDOUT
         $stderr = STDERR
-        status = child_status(domain)
+        status = child_status(argv)
         $stdout.flush
         exit!(status)
       end
 
       # @return [Integer] the exit status of `hecks project_rust` for the domain
-      def child_status(domain)
-        Hecks::RustBuild.run("project_rust", [domain], out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
+      def child_status(argv)
+        Hecks::RustBuild.run("project_rust", argv, out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
       rescue SystemExit => e
         e.status
       rescue StandardError => e
