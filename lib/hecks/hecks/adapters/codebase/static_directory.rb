@@ -1,5 +1,3 @@
-require "rack"
-
 module Hecks
   module Adapters
     module Codebase
@@ -9,7 +7,9 @@ module Hecks
       # order, the way a static host with clean URLs answers it; `/` is answered by `index.html`.
       class StaticDirectory
         # @param root [String] the directory to serve
+        # @raise [ConsoleCapture::Failure] when the `rack` gem is not installed
         def initialize(root)
+          self.class.load_rack
           @root = File.realpath(root)
           @files = Rack::Files.new(@root)
         end
@@ -23,6 +23,16 @@ module Hecks
           return not_found unless found
 
           @files.call(env.merge("PATH_INFO" => "/#{found}"))
+        end
+
+        # Loads Rack when a preview is asked for, so a checkout without the gem still boots.
+        #
+        # @return [void]
+        # @raise [ConsoleCapture::Failure] naming the gem and how to add it
+        def self.load_rack
+          require "rack"
+        rescue LoadError
+          raise ConsoleCapture::Failure, "preview needs the rack gem: add `gem \"rack\"` to the Gemfile and bundle"
         end
 
         private

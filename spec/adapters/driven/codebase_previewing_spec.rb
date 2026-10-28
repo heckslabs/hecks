@@ -53,4 +53,10 @@ RSpec.describe Hecks::Adapters::Codebase::Previewing do
     expect { preview(directory: File.join(site, "missing")) }
       .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /naming a directory/)
   end
+
+  it "names the rack gem when it is not installed" do
+    allow(Hecks::Adapters::Codebase::StaticDirectory).to receive(:require).with("rack").and_raise(LoadError)
+
+    expect { preview(directory: site) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /needs the rack gem/)
+  end
 end
