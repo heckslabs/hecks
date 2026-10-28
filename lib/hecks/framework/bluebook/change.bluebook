@@ -61,13 +61,10 @@ Hecks.bluebook "Change" do
       role "Maintainer"
       goal "Ask for a change by naming its script and giving the script's arguments"
 
-      attribute :run,       RunKey
-      attribute :script,    ScriptName
-      attribute :arguments, list_of(Argument), optional: true
+      attribute :run,       RunKey, sets: true
+      attribute :script,    ScriptName, sets: true
+      attribute :arguments, list_of(Argument), optional: true, sets: true
 
-      sets :run
-      sets :script
-      sets :arguments
 
       emits ChangeRequested
     end
@@ -77,10 +74,9 @@ Hecks.bluebook "Change" do
       goal "Record what the script would do, and the digest that stands for it"
 
       reference_to Change
-      attribute :plan,   Report
+      attribute :plan,   Report, sets: true
       attribute :digest, Digest
 
-      sets :plan
       sets :planned_digest, to: :digest
 
       emits ChangePlanned
@@ -103,9 +99,8 @@ Hecks.bluebook "Change" do
       goal "Record that the confirmed plan was carried out, and what the script reported"
 
       reference_to Change
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits ChangeApplied
     end
@@ -115,9 +110,8 @@ Hecks.bluebook "Change" do
       goal "Record that the change was refused or could not be carried out, and why"
 
       reference_to Change
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits ChangeFaulted
     end

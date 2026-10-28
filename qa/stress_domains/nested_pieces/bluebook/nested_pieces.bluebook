@@ -85,9 +85,8 @@ Hecks.bluebook "NestedPieces" do
         role "Owner"
         goal "Label the board"
 
-        attribute :label, BoardLabel
+        attribute :label, BoardLabel, sets: true
 
-        sets :label
 
         emits "BoardLabeled"
       end
@@ -98,9 +97,8 @@ Hecks.bluebook "NestedPieces" do
         role "Owner"
         goal "Label the board, or give it the placeholder label when none is named"
 
-        attribute :label, BoardLabel, default: { value: "untitled" }
+        attribute :label, BoardLabel, default: { value: "untitled" }, sets: true
 
-        sets :label
 
         emits "BoardRetitled"
       end
@@ -119,9 +117,8 @@ Hecks.bluebook "NestedPieces" do
           role "Owner"
           goal "Add a note to the card"
 
-          attribute :note, CardNote
+          attribute :note, CardNote, sets: true
 
-          sets :note
 
           emits "CardAnnotated"
         end
@@ -131,9 +128,8 @@ Hecks.bluebook "NestedPieces" do
           role "Owner"
           goal "Note the card, or leave it the plain note when none is named"
 
-          attribute :note, CardNote, default: { text: "none" }
+          attribute :note, CardNote, default: { text: "none" }, sets: true
 
-          sets :note
 
           emits "CardRemarked"
         end

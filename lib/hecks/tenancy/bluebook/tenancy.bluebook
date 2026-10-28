@@ -45,15 +45,11 @@ Hecks.bluebook "Tenancy" do
     command "Register" do
       goal "Record that a tenant now exists, after its shape has been validated and its schema provisioned"
 
-      attribute :slug,   Slug
-      attribute :domain, DomainName
-      attribute :realm,  Realm
-      attribute :schema, Schema
+      attribute :slug,   Slug, sets: true
+      attribute :domain, DomainName, sets: true
+      attribute :realm,  Realm, sets: true
+      attribute :schema, Schema, sets: true
 
-      sets :slug
-      sets :domain
-      sets :realm
-      sets :schema
 
       emits "TenantRegistered"
     end

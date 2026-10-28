@@ -37,8 +37,7 @@ Hecks.bluebook "GeneratedReactionWording" do
     command "Open" do
       goal "Open it"
       reference_to Parcel
-      attribute :code, DeskCode
-      sets :code
+      attribute :code, DeskCode, sets: true
       emits "DeskOpened"
     end
 
@@ -71,8 +70,7 @@ Hecks.bluebook "GeneratedReactionWording" do
 
     command "Open" do
       goal "Open it"
-      attribute :code, ParcelCode
-      sets :code
+      attribute :code, ParcelCode, sets: true
       emits "ParcelOpened"
     end
 

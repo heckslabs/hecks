@@ -29,8 +29,7 @@ Hecks.bluebook "GeneratedRevaluedShape" do
     command "Open" do
       goal "Open it"
       reference_to Venue
-      attribute :code, HangarCode
-      sets :code
+      attribute :code, HangarCode, sets: true
       sets :venue
       emits "HangarOpened"
     end
@@ -38,8 +37,7 @@ Hecks.bluebook "GeneratedRevaluedShape" do
     command "Repoint" do
       goal "Repoint it"
       reference_to Hangar
-      attribute :venue, VenueHandle
-      sets :venue
+      attribute :venue, VenueHandle, sets: true
       emits "HangarRepointed"
     end
 
@@ -75,8 +73,7 @@ Hecks.bluebook "GeneratedRevaluedShape" do
 
     command "Open" do
       goal "Open it"
-      attribute :code, VenueCode
-      sets :code
+      attribute :code, VenueCode, sets: true
       emits "VenueOpened"
     end
   end

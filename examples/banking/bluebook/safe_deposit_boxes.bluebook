@@ -78,11 +78,10 @@ Hecks.bluebook "Banking" do
         role "Vault officer"
         goal "Note something unusual about a visit after the fact"
 
-        attribute :note,     VisitNote
+        attribute :note,     VisitNote, sets: true
         given("customer is active")
         given("box is rented")
 
-        sets :note
 
         emits VisitAnnotated
       end

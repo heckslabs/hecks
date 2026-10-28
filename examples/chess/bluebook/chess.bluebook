@@ -142,9 +142,8 @@ Hecks.bluebook "Chess" do
     command "Start" do
       goal "Begin a new, empty game"
 
-      attribute :label, GameLabel
+      attribute :label, GameLabel, sets: true
 
-      sets :label
       sets :turn,       to: "white"
       sets :draw_offer, to: "none"
       sets :ply,        to: 0
@@ -204,10 +203,9 @@ Hecks.bluebook "Chess" do
       goal "Pass the move to the other color and clear any prior check, after a piece has moved"
 
       reference_to Game
-      attribute :turn, Color
+      attribute :turn, Color, sets: true
 
 
-      sets :turn
       sets :ply, increment: 1
 
       emits TurnAdvanced

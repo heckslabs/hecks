@@ -64,9 +64,8 @@ Hecks.bluebook "LedgerOrdering" do
         role "Clerk"
         goal "Change what a slip is worth"
 
-        attribute :amount, SlipAmount
+        attribute :amount, SlipAmount, sets: true
 
-        sets :amount
 
         emits "SlipAmended"
       end

@@ -91,10 +91,9 @@ Hecks.bluebook "Roster" do
     command "Open" do
       goal "Start an empty roster"
 
-      attribute :name, RosterName
+      attribute :name, RosterName, sets: true
 
       # :name is the aggregate's identity.
-      sets :name
       sets :motto,    to: "all hands"
       sets :mood,     to: "open"
       sets :standing, to: "none"

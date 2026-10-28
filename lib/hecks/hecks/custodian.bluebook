@@ -119,21 +119,16 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Dispatch a verb or a step list against a domain and keep what it reported"
 
-      attribute :run,     OperationKey
-      attribute :subject, Subject,       optional: true
-      attribute :script,  Script,        optional: true
-      attribute :verb,    Verb,          optional: true
-      attribute :arguments, list_of(Word), optional: true
+      attribute :run,     OperationKey, sets: true
+      attribute :subject, Subject,       optional: true, sets: true
+      attribute :script,  Script,        optional: true, sets: true
+      attribute :verb,    Verb,          optional: true, sets: true
+      attribute :arguments, list_of(Word), optional: true, sets: true
 
       given("exactly one of a script and a verb is named: pass script= or verb=, not both") do
         (script.set? && verb.unset?) || (script.unset? && verb.set?)
       end
 
-      sets :run
-      sets :subject
-      sets :script
-      sets :verb
-      sets :arguments
 
       emits RunRequested
     end
@@ -142,11 +137,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Bring every read-model projection of a domain up to date now"
 
-      attribute :run,     OperationKey
-      attribute :subject, Subject
+      attribute :run,     OperationKey, sets: true
+      attribute :subject, Subject, sets: true
 
-      sets :run
-      sets :subject
 
       emits ProjectionsRefreshRequested
     end
@@ -159,19 +152,15 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled"
 
-      attribute :run,     OperationKey
-      attribute :subject, Subject
-      attribute :claimed, Switch, optional: true
-      attribute :row,     RowId,  optional: true
+      attribute :run,     OperationKey, sets: true
+      attribute :subject, Subject, sets: true
+      attribute :claimed, Switch, optional: true, sets: true
+      attribute :row,     RowId,  optional: true, sets: true
 
       given("one claimed row is named, or all of them are: pass row= or claimed=, not both") do
         row.unset? || claimed.unset?
       end
 
-      sets :run
-      sets :subject
-      sets :claimed
-      sets :row
 
       emits OutboxRedriveRequested
     end
@@ -197,11 +186,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Run a domain's behavior tests and keep the verdict"
 
-      attribute :run,     OperationKey
-      attribute :subject, Subject
+      attribute :run,     OperationKey, sets: true
+      attribute :subject, Subject, sets: true
 
-      sets :run
-      sets :subject
 
       emits BehaviorsRequested
     end
@@ -210,11 +197,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Open an interactive console on a domain"
 
-      attribute :run,     OperationKey
-      attribute :subject, Subject, optional: true
+      attribute :run,     OperationKey, sets: true
+      attribute :subject, Subject, optional: true, sets: true
 
-      sets :run
-      sets :subject
 
       emits ConsoleRequested
     end
@@ -223,11 +208,9 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Dispatch one synthesized call per command and report of a wired domain"
 
-      attribute :run,     OperationKey
-      attribute :subject, Subject, optional: true
+      attribute :run,     OperationKey, sets: true
+      attribute :subject, Subject, optional: true, sets: true
 
-      sets :run
-      sets :subject
 
       emits SmokeTestRequested
     end
@@ -236,25 +219,16 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Check that a running service refuses bad signatures and accepts a good one"
 
-      attribute :run,          OperationKey
-      attribute :url,          Address,     optional: true
-      attribute :path,         RoutePath
-      attribute :header,       HeaderName,  optional: true
-      attribute :scheme,       Scheme,      optional: true
-      attribute :payload,      Payload,     optional: true
-      attribute :payload_file, PayloadFile, optional: true
-      attribute :health_path,  RoutePath,   optional: true
-      attribute :state_path,   RoutePath,   optional: true
+      attribute :run,          OperationKey, sets: true
+      attribute :url,          Address,     optional: true, sets: true
+      attribute :path,         RoutePath, sets: true
+      attribute :header,       HeaderName,  optional: true, sets: true
+      attribute :scheme,       Scheme,      optional: true, sets: true
+      attribute :payload,      Payload,     optional: true, sets: true
+      attribute :payload_file, PayloadFile, optional: true, sets: true
+      attribute :health_path,  RoutePath,   optional: true, sets: true
+      attribute :state_path,   RoutePath,   optional: true, sets: true
 
-      sets :run
-      sets :url
-      sets :path
-      sets :header
-      sets :scheme
-      sets :payload
-      sets :payload_file
-      sets :health_path
-      sets :state_path
 
       emits SmokeHttpRequested
     end
@@ -270,17 +244,12 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Admit the first administrator of a domain's membership bluebook and grant them access"
 
-      attribute :run,     OperationKey
-      attribute :subject, Subject
-      attribute :email,   Email
-      attribute :name,    PersonName, optional: true
-      attribute :role,    RoleName,   optional: true
+      attribute :run,     OperationKey, sets: true
+      attribute :subject, Subject, sets: true
+      attribute :email,   Email, sets: true
+      attribute :name,    PersonName, optional: true, sets: true
+      attribute :role,    RoleName,   optional: true, sets: true
 
-      sets :run
-      sets :subject
-      sets :email
-      sets :name
-      sets :role
 
       emits AdminBootstrapRequested
     end
@@ -290,9 +259,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the operation ended well, and what it reported"
 
       reference_to Operation
-      attribute :output, Output
+      attribute :output, Output, sets: true
 
-      sets :output
 
       emits OperationSucceeded
     end
@@ -302,9 +270,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the operation was refused or found a problem, and what it said"
 
       reference_to Operation
-      attribute :refusal, Output
+      attribute :refusal, Output, sets: true
 
-      sets :refusal
 
       emits OperationFailed
     end
@@ -469,11 +436,10 @@ command "CheckEra" do
       role "Operator"
       goal "Ask a running host which era it reports, and keep whether it is one that should be running"
 
-      attribute :host,     Address
+      attribute :host,     Address, sets: true
       attribute :expected, ExpectedFile
       attribute :timeout,  Seconds, default: 10
 
-      sets :host
       sets :expected
       sets :timeout
 
@@ -500,13 +466,10 @@ end
       goal "Record the version and era a running host reported"
 
       reference_to Host
-      attribute :era,     EraId
-      attribute :version, VersionText
-      attribute :report,  Report
+      attribute :era,     EraId, sets: true
+      attribute :version, VersionText, sets: true
+      attribute :report,  Report, sets: true
 
-      sets :era
-      sets :version
-      sets :report
 
       emits EraObserved
     end
@@ -517,13 +480,10 @@ end
       goal "Record that a running host reports an era that should not be running"
 
       reference_to Host
-      attribute :era,     EraId
-      attribute :version, VersionText
-      attribute :report,  Report
+      attribute :era,     EraId, sets: true
+      attribute :version, VersionText, sets: true
+      attribute :report,  Report, sets: true
 
-      sets :era
-      sets :version
-      sets :report
 
       emits EraDrifted
     end
@@ -533,9 +493,8 @@ end
       goal "Record that the host could not be reached, or answered no era, and what was said"
 
       reference_to Host
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits HostLost
     end
@@ -628,19 +587,14 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Push this checkout's branch once the push ahead of it lands, unless that push already carried it"
 
-      attribute :run,       RunKey
-      attribute :branch,    Word, default: "main"
-      attribute :remote,    Word, default: "origin"
-      attribute :checkout,  Word, optional: true
+      attribute :run,       RunKey, sets: true
+      attribute :branch,    Word, default: "main", sets: true
+      attribute :remote,    Word, default: "origin", sets: true
+      attribute :checkout,  Word, optional: true, sets: true
       # Run the whole `pre_push` stage, the suite included, which also writes the CI attestation
       # note; without it the push runs only the `unguarded_push` stage.
-      attribute :full_gate, Switch, optional: true
+      attribute :full_gate, Switch, optional: true, sets: true
 
-      sets :run
-      sets :branch
-      sets :remote
-      sets :checkout
-      sets :full_gate
 
       emits BoardingRequested
     end
@@ -651,13 +605,10 @@ policy "RecordTheEra" do
       role "Operator"
       goal "List every checkout under a directory whose branch has commits its remote does not"
 
-      attribute :run,      RunKey
-      attribute :remote,   Word, default: "origin"
-      attribute :checkout, Word, optional: true
+      attribute :run,      RunKey, sets: true
+      attribute :remote,   Word, default: "origin", sets: true
+      attribute :checkout, Word, optional: true, sets: true
 
-      sets :run
-      sets :remote
-      sets :checkout
 
       emits SurveyRequested
     end
@@ -667,9 +618,8 @@ policy "RecordTheEra" do
       goal "Record what a survey found waiting to push"
 
       reference_to PushTrain
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits CheckoutsSurveyed
     end
@@ -681,15 +631,11 @@ policy "RecordTheEra" do
       goal "Record the commit a boarding pushed"
 
       reference_to PushTrain
-      attribute :checkout, Word
-      attribute :boarded,  Word
-      attribute :pushed,   Word
-      attribute :report,   Report
+      attribute :checkout, Word, sets: true
+      attribute :boarded,  Word, sets: true
+      attribute :pushed,   Word, sets: true
+      attribute :report,   Report, sets: true
 
-      sets :checkout
-      sets :boarded
-      sets :pushed
-      sets :report
 
       emits BranchPushed
     end
@@ -700,13 +646,10 @@ policy "RecordTheEra" do
       goal "Record that an earlier push already carried the boarded commit"
 
       reference_to PushTrain
-      attribute :checkout, Word
-      attribute :boarded,  Word
-      attribute :report,   Report
+      attribute :checkout, Word, sets: true
+      attribute :boarded,  Word, sets: true
+      attribute :report,   Report, sets: true
 
-      sets :checkout
-      sets :boarded
-      sets :report
 
       emits CarriedByEarlierPush
     end
@@ -716,9 +659,8 @@ policy "RecordTheEra" do
       goal "Record why a boarding could not push"
 
       reference_to PushTrain
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits PushFaulted
     end
@@ -870,15 +812,11 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed"
 
-      attribute :run,      RunKey
-      attribute :checkout, Word, optional: true
-      attribute :branch,   Word, optional: true
-      attribute :onto,     Word, default: "main"
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
 
-      sets :run
-      sets :checkout
-      sets :branch
-      sets :onto
 
       emits LandingRequested
     end
@@ -888,13 +826,10 @@ policy "RecordTheEra" do
       goal "Record the commit main names once the branch is on it"
 
       reference_to Landing
-      attribute :branch, Word
-      attribute :landed, Word
-      attribute :report, Report
+      attribute :branch, Word, sets: true
+      attribute :landed, Word, sets: true
+      attribute :report, Report, sets: true
 
-      sets :branch
-      sets :landed
-      sets :report
 
       emits BranchLanded
     end
@@ -904,9 +839,8 @@ policy "RecordTheEra" do
       goal "Record why a branch could not be landed"
 
       reference_to Landing
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits LandingRefused
     end
@@ -915,15 +849,11 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks"
 
-      attribute :run,      RunKey
-      attribute :checkout, Word, optional: true
-      attribute :branch,   Word, optional: true
-      attribute :onto,     Word, default: "main"
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
 
-      sets :run
-      sets :checkout
-      sets :branch
-      sets :onto
 
       emits RetirementRequested
     end
@@ -933,11 +863,9 @@ policy "RecordTheEra" do
       goal "Record that the worktree and its branch are gone"
 
       reference_to Landing
-      attribute :branch, Word
-      attribute :report, Report
+      attribute :branch, Word, sets: true
+      attribute :report, Report, sets: true
 
-      sets :branch
-      sets :report
 
       emits WorktreeRetired
     end
@@ -947,9 +875,8 @@ policy "RecordTheEra" do
       goal "Record why a worktree was kept"
 
       reference_to Landing
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits RetirementDeclined
     end
@@ -1092,15 +1019,12 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Hold the first era of a domain that holds none, as its first boot would"
 
-      attribute :domain,  DomainPath
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :domain,  DomainPath, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
       given("holding the first era is confirmed") { confirm.value == true }
 
-      sets :domain
-      sets :run
-      sets :confirm
       sets :operation, to: "hold_first"
 
       emits FirstEraRequested
@@ -1110,17 +1034,13 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Interleave the old world's writes since the cut into the live head, by their ordinals"
 
-      attribute :domain,  DomainPath
-      attribute :run,     RunKey
-      attribute :winners, WinnerList, optional: true
-      attribute :confirm, Switch,     optional: true
+      attribute :domain,  DomainPath, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :winners, WinnerList, optional: true, sets: true
+      attribute :confirm, Switch,     optional: true, sets: true
 
       given("the merge is confirmed") { confirm.value == true }
 
-      sets :domain
-      sets :run
-      sets :winners
-      sets :confirm
       sets :operation, to: "merge_tail"
 
       emits TailMergeRequested
@@ -1130,17 +1050,13 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Freeze an era's held text as it now stands, after a person has read it"
 
-      attribute :domain,  DomainPath
-      attribute :era,     Ordinal
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :domain,  DomainPath, sets: true
+      attribute :era,     Ordinal, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
       given("the text is accepted as the era's own") { confirm.value == true }
 
-      sets :domain
-      sets :era
-      sets :run
-      sets :confirm
       sets :operation, to: "reattest"
 
       emits ReattestRequested
@@ -1150,11 +1066,9 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Store the shape every held era froze with, for the eras that predate it"
 
-      attribute :domain, DomainPath
-      attribute :run,    RunKey
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    RunKey, sets: true
 
-      sets :domain
-      sets :run
       sets :operation, to: "backfill_projections"
 
       emits BackfillRequested
@@ -1164,17 +1078,13 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Delete the journal entries a Postgres or Sqlite aggregate has already projected"
 
-      attribute :domain,     DomainPath
-      attribute :aggregates, AggregateList, optional: true
-      attribute :run,        RunKey
-      attribute :confirm,    Switch, optional: true
+      attribute :domain,     DomainPath, sets: true
+      attribute :aggregates, AggregateList, optional: true, sets: true
+      attribute :run,        RunKey, sets: true
+      attribute :confirm,    Switch, optional: true, sets: true
 
       given("the compaction is confirmed") { confirm.value == true }
 
-      sets :domain
-      sets :aggregates
-      sets :run
-      sets :confirm
       sets :operation, to: "compact"
 
       emits CompactionRequested
@@ -1184,17 +1094,13 @@ policy "RecordTheEra" do
       role "Operator"
       goal "Empty a Heki aggregate's journal, keeping the snapshot"
 
-      attribute :domain,     DomainPath
-      attribute :aggregates, AggregateList, optional: true
-      attribute :run,        RunKey
-      attribute :confirm,    Switch, optional: true
+      attribute :domain,     DomainPath, sets: true
+      attribute :aggregates, AggregateList, optional: true, sets: true
+      attribute :run,        RunKey, sets: true
+      attribute :confirm,    Switch, optional: true, sets: true
 
       given("the compaction is confirmed") { confirm.value == true }
 
-      sets :domain
-      sets :aggregates
-      sets :run
-      sets :confirm
       sets :operation, to: "compact_heki"
 
       emits HekiCompactionRequested
@@ -1206,16 +1112,16 @@ policy "RecordTheEra" do
       goal "Let a change through only when what was found in the journal allows it"
 
       reference_to Era
-      attribute :capable,            Switch
-      attribute :held,               Count
-      attribute :forks,              Count
-      attribute :contested,          Count
-      attribute :bound,              Count
-      attribute :candidates,         Count
-      attribute :drifted,            Switch
-      attribute :loadable,           Switch
-      attribute :shape_kept,         Switch
-      attribute :operation,          OperationName
+      attribute :capable,            Switch, sets: true
+      attribute :held,               Count, sets: true
+      attribute :forks,              Count, sets: true
+      attribute :contested,          Count, sets: true
+      attribute :bound,              Count, sets: true
+      attribute :candidates,         Count, sets: true
+      attribute :drifted,            Switch, sets: true
+      attribute :loadable,           Switch, sets: true
+      attribute :shape_kept,         Switch, sets: true
+      attribute :operation,          OperationName, sets: true
 
       given("the store keeps eras") do
         capable.value || operation.value == "compact" || operation.value == "compact_heki"
@@ -1244,16 +1150,6 @@ policy "RecordTheEra" do
         operation.value != "reattest" || shape_kept.value
       end
 
-      sets :capable
-      sets :held
-      sets :forks
-      sets :contested
-      sets :bound
-      sets :candidates
-      sets :drifted
-      sets :loadable
-      sets :shape_kept
-      sets :operation
 
       emits EraPermitted
     end
@@ -1263,9 +1159,8 @@ policy "RecordTheEra" do
       goal "Record that the admitted change was made, and what it did"
 
       reference_to Era
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits EraSettled
     end
@@ -1275,9 +1170,8 @@ policy "RecordTheEra" do
       goal "Record that the change was refused, or could not be made, and why"
 
       reference_to Era
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits EraAbandoned
     end

@@ -194,25 +194,16 @@ Hecks.bluebook "Site" do
     command "ProjectSite" do
       goal "Project a site's route table into routes.ts, or with check only compare it with the file on disk"
 
-      attribute :domain,    DomainPath
-      attribute :run,       RunKey
-      attribute :out,       Location,  optional: true
-      attribute :template,  Location,  optional: true
-      attribute :cms,       Location,  optional: true
-      attribute :root,      Location,  optional: true
-      attribute :editor,    Location,  optional: true
-      attribute :extension, Extension, optional: true
-      attribute :check,     Switch,    optional: true
+      attribute :domain,    DomainPath, sets: true
+      attribute :run,       RunKey, sets: true
+      attribute :out,       Location,  optional: true, sets: true
+      attribute :template,  Location,  optional: true, sets: true
+      attribute :cms,       Location,  optional: true, sets: true
+      attribute :root,      Location,  optional: true, sets: true
+      attribute :editor,    Location,  optional: true, sets: true
+      attribute :extension, Extension, optional: true, sets: true
+      attribute :check,     Switch,    optional: true, sets: true
 
-      sets :domain
-      sets :run
-      sets :out
-      sets :template
-      sets :cms
-      sets :root
-      sets :editor
-      sets :extension
-      sets :check
 
       emits "SiteProjectionRequested"
     end
@@ -227,25 +218,18 @@ Hecks.bluebook "Site" do
     command "CheckLive" do
       goal "Compare a project's generated CloudFront behaviours with a live distribution's"
 
-      attribute :domain,       DomainPath
-      attribute :run,          RunKey
-      attribute :template,     Location,       optional: true
-      attribute :live,         Location,       optional: true
-      attribute :distribution, DistributionId, optional: true
-      attribute :expect_new,   PathList,       optional: true
-      attribute :refs,         PolicyRefs,     optional: true
+      attribute :domain,       DomainPath, sets: true
+      attribute :run,          RunKey, sets: true
+      attribute :template,     Location,       optional: true, sets: true
+      attribute :live,         Location,       optional: true, sets: true
+      attribute :distribution, DistributionId, optional: true, sets: true
+      attribute :expect_new,   PathList,       optional: true, sets: true
+      attribute :refs,         PolicyRefs,     optional: true, sets: true
 
       given("exactly one of a saved configuration and a distribution is named: pass live= or distribution=, not both") do
         (live.set? && distribution.unset?) || (live.unset? && distribution.set?)
       end
 
-      sets :domain
-      sets :run
-      sets :template
-      sets :live
-      sets :distribution
-      sets :expect_new
-      sets :refs
 
       emits "LiveCheckRequested"
     end
@@ -259,13 +243,10 @@ Hecks.bluebook "Site" do
     command "CheckSite" do
       goal "Ask a running site what its route table says it must answer, and judge each answer"
 
-      attribute :domain, DomainPath
-      attribute :run,    RunKey
-      attribute :url,    SiteUrl
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    RunKey, sets: true
+      attribute :url,    SiteUrl, sets: true
 
-      sets :domain
-      sets :run
-      sets :url
 
       emits "SiteProbeRequested"
     end
@@ -278,13 +259,10 @@ Hecks.bluebook "Site" do
     command "CheckRoles" do
       goal "Check a host on this machine refuses every role-declaring command from a caller with no role"
 
-      attribute :domain, DomainPath
-      attribute :run,    RunKey
-      attribute :url,    SiteUrl
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    RunKey, sets: true
+      attribute :url,    SiteUrl, sets: true
 
-      sets :domain
-      sets :run
-      sets :url
 
       emits "RolesCheckRequested"
     end
@@ -293,9 +271,8 @@ Hecks.bluebook "Site" do
       goal "Record that routes.ts was written, or found current, or the live edge matched, and what it said"
 
       reference_to SiteProjection
-      attribute :output, Report
+      attribute :output, Report, sets: true
 
-      sets :output
 
       emits "SiteProjected"
     end
@@ -304,9 +281,8 @@ Hecks.bluebook "Site" do
       goal "Record that routes.ts could not be projected, or was out of date, and why"
 
       reference_to SiteProjection
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "SiteFaulted"
     end

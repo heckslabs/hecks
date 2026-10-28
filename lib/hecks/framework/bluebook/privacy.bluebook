@@ -127,11 +127,9 @@ Hecks.bluebook "Privacy" do
       role "System"
       goal "Ask for a fresh, dedicated key for a subject's data"
 
-      attribute :domain,     KeyDomain
-      attribute :subject_id, SubjectId
+      attribute :domain,     KeyDomain, sets: true
+      attribute :subject_id, SubjectId, sets: true
 
-      sets :domain
-      sets :subject_id
 
       emits SubjectKeyIssueRequested
     end
@@ -142,8 +140,7 @@ Hecks.bluebook "Privacy" do
       goal "Record the reference to the key the vault issued for this subject"
 
       reference_to SubjectKey
-      attribute :key_reference, KeyReference
-      sets :key_reference
+      attribute :key_reference, KeyReference, sets: true
 
       emits SubjectKeyRecorded
     end
@@ -153,8 +150,7 @@ Hecks.bluebook "Privacy" do
       goal "Record why the vault could not issue this subject's key, leaving the request to repeat"
 
       reference_to SubjectKey
-      attribute :refusal, Report
-      sets :refusal
+      attribute :refusal, Report, sets: true
 
       emits SubjectKeyIssueFailed
     end
@@ -195,8 +191,7 @@ Hecks.bluebook "Privacy" do
       goal "Record why the vault could not destroy this subject's key, leaving it live and the shred to retry"
 
       reference_to SubjectKey
-      attribute :refusal, Report
-      sets :refusal
+      attribute :refusal, Report, sets: true
 
       emits SubjectKeyShredFailed
     end

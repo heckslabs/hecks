@@ -66,11 +66,10 @@ Hecks.bluebook "Governance" do
       goal "Remove organizational authority"
 
       reference_to RoleAssignment
-      attribute :ends_at, Timestamp
+      attribute :ends_at, Timestamp, sets: true
 
       given("a grant ends no earlier than it starts") { ends_at.value >= starts_at.value }
 
-      sets :ends_at
       emits RoleRevoked
     end
 
@@ -129,11 +128,10 @@ Hecks.bluebook "Governance" do
       goal "Remove an authorized role transition"
 
       reference_to RoleTransition
-      attribute :ends_at, Timestamp
+      attribute :ends_at, Timestamp, sets: true
 
       given("a grant ends no earlier than it starts") { ends_at.value >= starts_at.value }
 
-      sets :ends_at
       emits RoleTransitionRevoked
     end
 

@@ -78,9 +78,8 @@ Hecks.bluebook "Bulk" do
       goal "Keep how every row of the run came out"
 
       reference_to BulkRun
-      attribute :results, list_of(RowResult)
+      attribute :results, list_of(RowResult), sets: true
 
-      sets :results
 
       emits BulkRunRecorded
     end
@@ -90,9 +89,8 @@ Hecks.bluebook "Bulk" do
       goal "Keep why the run could not start, before any row was sent"
 
       reference_to BulkRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits BulkRunDeclined
     end

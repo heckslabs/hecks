@@ -60,8 +60,7 @@ Hecks.bluebook "TenantLedger" do
         role "Auditor"
         goal "Note something about a posting after the fact"
 
-        attribute :note, EntryNote
-        sets :note
+        attribute :note, EntryNote, sets: true
 
         emits "EntryAnnotated"
       end
@@ -71,11 +70,9 @@ Hecks.bluebook "TenantLedger" do
       role "Clerk"
       goal "Start a ledger for one region"
 
-      attribute :code,   LedgerCode
-      attribute :region, LedgerRegion
+      attribute :code,   LedgerCode, sets: true
+      attribute :region, LedgerRegion, sets: true
 
-      sets :code
-      sets :region
 
       emits "LedgerOpened"
     end
@@ -137,9 +134,8 @@ Hecks.bluebook "TenantLedger" do
       role "Clerk"
       goal "Ask that funds move into a ledger, in a region the caller declares independently of which ledger they name"
 
-      attribute :reference, TransferReference
+      attribute :reference, TransferReference, sets: true
 
-      sets :reference
       sets :region
       sets :ledger
       sets :amount_cents
