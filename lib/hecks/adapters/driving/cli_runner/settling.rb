@@ -21,7 +21,7 @@ module Hecks
           #
           # @return [Array(String, Integer)] the JSON and the status, plus (Array(String, Integer,
           #   String)) why the run failed when it did
-          def settled(runtime, spec, handle, bluebook, launcher, extra) # rubocop:disable Metrics/ParameterLists -- pinned by the callers and specs
+          def settled(runtime, spec, handle, bluebook, launcher, extra, text: false) # rubocop:disable Metrics/ParameterLists -- pinned by the callers and specs
             why = reactions_failed(handle)
             return finish(stateless_json(handle, extra), why) if handle.state.nil?
 
@@ -29,7 +29,7 @@ module Hecks
             state     = reread(runtime, bluebook, aggregate, handle) || handle.state
             answer    = settled_answer(handle, state, settled_event_names(runtime, bluebook, aggregate, handle), extra)
             why      += failure_reasons(aggregate, state, launcher)
-            settled_result(answer, LauncherOptions.report?(launcher, spec), why)
+            settled_result(answer, text || LauncherOptions.report?(launcher, spec), why)
           end
 
           # The settled answer as the launcher's report when it prints one, else as JSON.
