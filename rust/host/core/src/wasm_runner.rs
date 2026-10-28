@@ -359,10 +359,8 @@ pub mod tests {
         let began = std::time::Instant::now();
         let err = run_within(SMALL, &path, "").unwrap_err().to_string();
         assert!(err.contains("200 ms deadline"), "got {err}");
-        // A spin the deadline did not stop would never return, so this bound only has to be
-        // loose enough for a CI runner whose cores the cold-compile tests beside this one hold.
         assert!(
-            began.elapsed() < Duration::from_secs(30),
+            began.elapsed() < Duration::from_secs(5),
             "took {:?}",
             began.elapsed()
         );
