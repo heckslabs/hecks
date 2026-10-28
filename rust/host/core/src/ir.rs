@@ -103,12 +103,6 @@ pub enum Backend {
 }
 
 impl Backend {
-    /// Whether this backend offers eras and head views, which lineage-capable aggregates and
-    /// member sign-in read.
-    pub const fn has_lineage(self) -> bool {
-        matches!(self, Self::TokioPostgres)
-    }
-
     /// The name used in refusals.
     pub const fn name(self) -> &'static str {
         match self {
@@ -401,15 +395,12 @@ pub fn refuse_unsupported_persistence_adapters(domain_ir: &Value) -> Result<(), 
 ///    [`refuse_unsupported_persistence_adapters`]).
 /// 2. All the domain's aggregates must resolve to the same backend: a domain keeps one journal.
 /// 3. The Memory backend needs `allow_memory`, because it is for local runs and tests.
-/// 4. A backend without lineage cannot serve a domain with lineage-capable aggregates (or
-///    Google sign-in, `google_auth`), which read eras and head views.
+///
+/// Both backends hold eras and head rows, so lineage-capable aggregates and Google sign-in boot on
+/// either.
 ///
 /// An IR with no persistence bindings (an older one) boots on Postgres, as it always did.
-pub fn select_backend(
-    domain_ir: &Value,
-    allow_memory: bool,
-    google_auth: bool,
-) -> Result<Backend, String> {
+pub fn select_backend(domain_ir: &Value, allow_memory: bool) -> Result<Backend, String> {
     refuse_unsupported_persistence_adapters(domain_ir)?;
     let backend = single_backend(domain_ir)?;
     if backend == Backend::Memory && !allow_memory {
@@ -419,7 +410,6 @@ pub fn select_backend(
              durable store"
         ));
     }
-    refuse_lineage_without_capability(domain_ir, backend, google_auth)?;
     Ok(backend)
 }
 
@@ -445,30 +435,6 @@ fn single_backend(domain_ir: &Value) -> Result<Backend, String> {
         .first()
         .and_then(|(_, adapter)| backend_for(adapter))
         .unwrap_or(Backend::TokioPostgres))
-}
-
-fn refuse_lineage_without_capability(
-    domain_ir: &Value,
-    backend: Backend,
-    google_auth: bool,
-) -> Result<(), String> {
-    if backend.has_lineage() {
-        return Ok(());
-    }
-    let mirrored: Vec<String> = mirrored_aggregates(domain_ir).into_iter().collect();
-    if mirrored.is_empty() && !google_auth {
-        return Ok(());
-    }
-    let needs = if mirrored.is_empty() {
-        "Google sign-in".to_string()
-    } else {
-        format!("lineage-capable aggregates {mirrored:?}")
-    };
-    Err(format!(
-        "this domain needs {needs}, which read eras and head views only the Postgres store \
-         has; the {} store cannot serve it",
-        backend.name()
-    ))
 }
 
 #[cfg(test)]
@@ -778,25 +744,18 @@ mod tests {
     #[test]
     fn a_domain_with_no_persistence_bindings_boots_on_postgres() {
         let ir = serde_json::json!({ "name": "Pizzas" });
-        assert_eq!(
-            select_backend(&ir, false, false),
-            Ok(Backend::TokioPostgres)
-        );
+        assert_eq!(select_backend(&ir, false), Ok(Backend::TokioPostgres));
     }
 
     #[test]
     fn postgres_and_postgres_era_are_one_backend() {
         let ir = bound(&[("A", "Postgres"), ("B", "PostgresEra")]);
-        assert_eq!(
-            select_backend(&ir, false, false),
-            Ok(Backend::TokioPostgres)
-        );
+        assert_eq!(select_backend(&ir, false), Ok(Backend::TokioPostgres));
     }
 
     #[test]
     fn a_domain_binding_different_stores_is_refused() {
-        let err =
-            select_backend(&bound(&[("A", "Postgres"), ("B", "Memory")]), true, false).unwrap_err();
+        let err = select_backend(&bound(&[("A", "Postgres"), ("B", "Memory")]), true).unwrap_err();
         assert!(err.contains("different stores"), "{err}");
         assert!(err.contains("A (persisted_by \"Postgres\")"), "{err}");
         assert!(err.contains("B (persisted_by \"Memory\")"), "{err}");
@@ -804,58 +763,46 @@ mod tests {
 
     #[test]
     fn memory_is_refused_unless_the_opt_in_is_set() {
-        let err = select_backend(&memory_domain(), false, false).unwrap_err();
+        let err = select_backend(&memory_domain(), false).unwrap_err();
         assert!(err.contains("local runs and tests only"), "{err}");
         assert!(err.contains(ALLOW_MEMORY_STORE), "{err}");
     }
 
     #[test]
     fn memory_boots_with_the_opt_in() {
-        assert_eq!(
-            select_backend(&memory_domain(), true, false),
-            Ok(Backend::Memory)
-        );
+        assert_eq!(select_backend(&memory_domain(), true), Ok(Backend::Memory));
     }
 
     #[test]
-    fn lineage_capable_aggregates_are_refused_on_memory() {
+    fn lineage_capable_aggregates_boot_on_memory() {
         let mut ir = memory_domain();
         ir["name"] = serde_json::json!("Shop");
         ir["lineage"] = serde_json::json!({
             "capable_aggregates": [{ "name": "Order", "storage_name": "order" }]
         });
-        let err = select_backend(&ir, true, false).unwrap_err();
-        assert!(err.contains("Shop::Order"), "{err}");
-        assert!(err.contains("only the Postgres store"), "{err}");
+        assert_eq!(select_backend(&ir, true), Ok(Backend::Memory));
     }
 
     #[test]
-    fn a_membership_aggregate_is_refused_on_memory() {
+    fn a_membership_aggregate_boots_on_memory() {
         let mut ir = memory_domain();
         ir["membership"] =
             serde_json::json!({ "provider": "Membership", "aggregate": "Membership::Person" });
-        let err = select_backend(&ir, true, false).unwrap_err();
-        assert!(err.contains("Membership::Person"), "{err}");
+        assert_eq!(select_backend(&ir, true), Ok(Backend::Memory));
     }
 
     #[test]
-    fn google_sign_in_is_refused_on_memory() {
-        let err = select_backend(&memory_domain(), true, true).unwrap_err();
-        assert!(err.contains("Google sign-in"), "{err}");
-    }
-
-    #[test]
-    fn lineage_on_postgres_is_not_refused() {
+    fn lineage_on_postgres_boots() {
         let mut ir = bound(&[("A", "PostgresEra")]);
         ir["lineage"] = serde_json::json!({
             "capable_aggregates": [{ "name": "A", "storage_name": "a" }]
         });
-        assert_eq!(select_backend(&ir, false, true), Ok(Backend::TokioPostgres));
+        assert_eq!(select_backend(&ir, false), Ok(Backend::TokioPostgres));
     }
 
     #[test]
     fn an_unsupported_adapter_is_still_refused_before_a_backend_is_chosen() {
-        let err = select_backend(&bound(&[("A", "Heki")]), true, false).unwrap_err();
+        let err = select_backend(&bound(&[("A", "Heki")]), true).unwrap_err();
         assert!(err.starts_with("rust/host only has a backend"), "{err}");
     }
 }

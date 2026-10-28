@@ -36,10 +36,8 @@ pub async fn run() -> Result<(), Error> {
         std::env::var("HECKS_ROLE_ENFORCEMENT").ok().as_deref(),
     ));
     let ir = ir::ir().ok_or("HECKS_IR_PATH is not set or unreadable — this binary needs its own domain's ir.json sidecar")?;
-    let google_auth =
-        secrets::var("GOOGLE_CLIENT_ID").is_ok() || std::env::var("GOOGLE_OAUTH_SECRET_ID").is_ok();
     let allow_memory = std::env::var(ir::ALLOW_MEMORY_STORE).as_deref() == Ok("1");
-    let backend = ir::select_backend(ir, allow_memory, google_auth)?;
+    let backend = ir::select_backend(ir, allow_memory)?;
     let my_hash = storage_shape::mint_hash(ir);
     let my_label = storage_shape::mint_label(ir);
 
@@ -257,8 +255,81 @@ async fn database_url(secret_fetcher: &secrets::AwsSecretFetcher) -> Result<Stri
     })
 }
 
+/// The aggregates the lineage subsystem keeps heads for: the declared lineage-capable ones, plus
+/// the membership aggregate when a bluebook `provides "membership"` (it can be vendored, so it
+/// may be missing from the capable list, and Google sign-in reads its head).
+fn lineage_aggregates(ir: &serde_json::Value) -> Vec<mint::Aggregate> {
+    let mut aggregates: Vec<mint::Aggregate> = ir::lineage_capable_aggregates(ir)
+        .into_iter()
+        .map(|(qualified, storage_name)| {
+            let name = qualified
+                .rsplit("::")
+                .next()
+                .unwrap_or(&qualified)
+                .to_string();
+            mint::Aggregate { name, storage_name }
+        })
+        .collect();
+    // A bluebook that `provides "membership"` names who may sign in; that
+    // aggregate can be vendored, so it may be missing from this domain's
+    // lineage-capable list. Mint its head anyway for Google-auth to read.
+    if let Some(membership) = ir::membership_provider(ir) {
+        let name = membership
+            .aggregate
+            .rsplit("::")
+            .next()
+            .unwrap_or(&membership.aggregate)
+            .to_string();
+        let storage_name = journal::snake(&name);
+        if !aggregates.iter().any(|a| a.storage_name == storage_name) {
+            aggregates.push(mint::Aggregate { name, storage_name });
+        }
+    }
+    aggregates
+}
+
+/// Whether the domain needs the era-partitioned lineage subsystem at all: a lineage-capable
+/// aggregate, or Google sign-in configured (ADR 0034 requires it for Member sessions either way).
+const fn needs_lineage(aggregates: &[mint::Aggregate], google_auth: bool) -> bool {
+    !aggregates.is_empty() || google_auth
+}
+
+/// Whether Google sign-in is configured for this process.
+fn google_auth_configured() -> bool {
+    secrets::var("GOOGLE_CLIENT_ID").is_ok()
+}
+
+/// Resolves the era a Memory store boots at, the way Postgres does: the held era naming this
+/// shape, or era 1 when none is held. A Memory store has no translation edges, so a process that
+/// boots a second shape against the same store is refused rather than guessed at.
+fn boot_memory_era(
+    memory: &MemoryStore,
+    domain: &str,
+    ir: &serde_json::Value,
+    my_label: &str,
+    google_auth: bool,
+) -> Result<Option<i32>, Error> {
+    if !needs_lineage(&lineage_aggregates(ir), google_auth) {
+        return Ok(None);
+    }
+    match mint::decide_boot_action(&memory.eras_of(domain), my_label) {
+        mint::BootDecision::UseExisting { ordinal } => Ok(Some(ordinal)),
+        mint::BootDecision::HoldFirst => Ok(Some(memory.hold_era(domain, my_label))),
+        mint::BootDecision::Mint { from_ordinal, .. } => Err(format!(
+            "cannot boot {domain}: the memory store holds era {from_ordinal} of a different shape \
+             and keeps no translation edges to walk from it -- start a fresh process, or boot \
+             against Postgres"
+        )
+        .into()),
+        mint::BootDecision::LatestUnnamed { ordinal } => Err(format!(
+            "cannot boot {domain}: the memory store's era {ordinal} has no name"
+        )
+        .into()),
+    }
+}
+
 /// Opens the store the selected backend names: Postgres when a connection URL was resolved,
-/// otherwise the in-memory store, which has no era and skips every Postgres step.
+/// otherwise the in-memory store, which holds its eras in process and skips every Postgres step.
 async fn open_store(
     database_url: Option<&str>,
     schema: Option<&str>,
@@ -266,10 +337,12 @@ async fn open_store(
     ir: &serde_json::Value,
     (my_hash, my_label): (&str, &str),
 ) -> Result<(Store, Option<i32>), Error> {
-    match database_url {
-        Some(url) => boot_postgres(url, schema, domain, ir, my_hash, my_label).await,
-        None => Ok((Store::memory(MemoryStore::open(domain, schema)), None)),
+    if let Some(url) = database_url {
+        return boot_postgres(url, schema, domain, ir, my_hash, my_label).await;
     }
+    let memory = MemoryStore::open(domain, schema);
+    let era = boot_memory_era(&memory, domain, ir, my_label, google_auth_configured())?;
+    Ok((Store::memory(memory), era))
 }
 
 /// Connects to Postgres as the host does in production: TLS against AWS's RDS certificate
@@ -381,37 +454,12 @@ async fn boot_postgres(
         .map_err(|e| format!("provisioning hecks_lambda_journal: {e:#}"))?;
     phase.end();
 
-    let mut aggregates: Vec<mint::Aggregate> = ir::lineage_capable_aggregates(ir)
-        .into_iter()
-        .map(|(qualified, storage_name)| {
-            let name = qualified
-                .rsplit("::")
-                .next()
-                .unwrap_or(&qualified)
-                .to_string();
-            mint::Aggregate { name, storage_name }
-        })
-        .collect();
-    // A bluebook that `provides "membership"` names who may sign in; that
-    // aggregate can be vendored, so it may be missing from this domain's
-    // lineage-capable list. Mint its head anyway for Google-auth to read.
-    if let Some(membership) = ir::membership_provider(ir) {
-        let name = membership
-            .aggregate
-            .rsplit("::")
-            .next()
-            .unwrap_or(&membership.aggregate)
-            .to_string();
-        let storage_name = journal::snake(&name);
-        if !aggregates.iter().any(|a| a.storage_name == storage_name) {
-            aggregates.push(mint::Aggregate { name, storage_name });
-        }
-    }
+    let aggregates = lineage_aggregates(ir);
 
     // The era-partitioned lineage subsystem is provisioned only when
     // something needs it: a lineage-capable aggregate, or Google auth
     // configured (ADR 0034 requires it for Member sessions either way).
-    let needs_lineage = !aggregates.is_empty() || secrets::var("GOOGLE_CLIENT_ID").is_ok();
+    let needs_lineage = needs_lineage(&aggregates, google_auth_configured());
 
     let era: Option<i32> = if needs_lineage {
         // Idempotent (gated by `provisioner?`); must run before the
@@ -568,11 +616,11 @@ mod tests {
     use crate::store::{StoreExt, StoreFixtures};
 
     // Distinct domain names per test: the memory store is shared process-wide by domain and schema.
-    async fn open_memory(domain: &str, schema: Option<&str>) -> (Store, Option<i32>) {
-        let ir = serde_json::json!({});
-        open_store(None, schema, domain, &ir, ("hash", "label"))
-            .await
-            .expect("memory opens")
+    fn open_memory(domain: &str, schema: Option<&str>) -> (Store, Option<i32>) {
+        let memory = MemoryStore::open(domain, schema);
+        let era = boot_memory_era(&memory, domain, &serde_json::json!({}), "label", false)
+            .expect("memory opens");
+        (Store::memory(memory), era)
     }
 
     async fn journal_one_step(store: &Store, domain: &str) {
@@ -596,27 +644,135 @@ mod tests {
 
     #[tokio::test]
     async fn without_a_database_url_the_store_is_memory_with_no_era_and_no_lineage() {
-        let (store, era) = open_memory("boot_memory_shape", None).await;
+        let (store, era) = open_memory("boot_memory_shape", None);
 
         assert!(era.is_none());
         assert!(store.lineage().is_none());
     }
 
+    fn lineage_ir() -> serde_json::Value {
+        serde_json::json!({
+            "lineage": { "capable_aggregates": [{ "name": "Order", "storage_name": "order" }] }
+        })
+    }
+
+    fn open_memory_with(
+        domain: &str,
+        ir: &serde_json::Value,
+        label: &str,
+    ) -> Result<(Store, Option<i32>), Error> {
+        let memory = MemoryStore::open(domain, None);
+        let era = boot_memory_era(&memory, domain, ir, label, false)?;
+        Ok((Store::memory(memory), era))
+    }
+
+    #[tokio::test]
+    async fn a_memory_store_with_lineage_holds_era_one_and_reboots_at_it() {
+        let ir = lineage_ir();
+        let (store, era) =
+            open_memory_with("boot_memory_era", &ir, "shape-a").expect("memory opens");
+        assert_eq!(era, Some(1));
+        assert_eq!(store.current_era("boot_memory_era").await.unwrap(), Some(1));
+
+        let (_, again) = open_memory_with("boot_memory_era", &ir, "shape-a")
+            .expect("the same shape boots again");
+        assert_eq!(
+            again,
+            Some(1),
+            "the held era names this shape: no second era"
+        );
+        let held = store.held_eras("boot_memory_era").await.unwrap();
+        assert_eq!(held.len(), 1);
+        assert_eq!(held[0].label.as_deref(), Some("shape-a"));
+    }
+
+    #[tokio::test]
+    async fn a_memory_store_refuses_a_second_shape_it_has_no_edge_to() {
+        let ir = lineage_ir();
+        open_memory_with("boot_memory_second_shape", &ir, "shape-a").expect("memory opens");
+
+        let err = open_memory_with("boot_memory_second_shape", &ir, "shape-b")
+            .map(|_| ())
+            .unwrap_err();
+        assert!(err.to_string().contains("translation edges"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_domain_without_lineage_holds_no_era_on_memory() {
+        let (store, era) = open_memory_with("boot_memory_no_lineage", &serde_json::json!({}), "x")
+            .expect("memory opens");
+        assert_eq!(era, None);
+        assert!(store
+            .held_eras("boot_memory_no_lineage")
+            .await
+            .unwrap()
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn google_sign_in_alone_gives_a_memory_store_an_era() {
+        let memory = MemoryStore::open("boot_memory_sign_in", None);
+
+        let era = boot_memory_era(
+            &memory,
+            "boot_memory_sign_in",
+            &serde_json::json!({}),
+            "shape-a",
+            true,
+        )
+        .expect("memory opens");
+
+        assert_eq!(era, Some(1));
+    }
+
+    #[tokio::test]
+    async fn a_memory_store_at_an_era_keeps_the_heads_a_step_mirrors() {
+        use crate::journal::{LineageConfig, Mutation};
+        let ir = lineage_ir();
+        let (store, era) =
+            open_memory_with("boot_memory_heads", &ir, "shape-a").expect("memory opens");
+        let config = LineageConfig {
+            domain: "boot_memory_heads".to_string(),
+            era,
+            mirrored: None,
+            seal_every: None,
+        };
+        let state = serde_json::json!({ "total": { "value": 3 } });
+        store
+            .put_head(
+                &config,
+                &Mutation {
+                    aggregate: "Order",
+                    id: "o-1",
+                    operation: "save",
+                    state: &state,
+                },
+            )
+            .await
+            .expect("an era is active, so the head is written");
+
+        let found = store
+            .head_by_id("boot_memory_heads", "order", "o-1")
+            .await
+            .unwrap();
+        assert_eq!(found, Some(state));
+    }
+
     #[tokio::test]
     async fn a_memory_store_reopens_with_what_the_domain_journaled() {
-        let (store, _) = open_memory("boot_memory_reopen", None).await;
+        let (store, _) = open_memory("boot_memory_reopen", None);
         journal_one_step(&store, "boot_memory_reopen").await;
-        let (again, _) = open_memory("boot_memory_reopen", None).await;
+        let (again, _) = open_memory("boot_memory_reopen", None);
 
         assert_eq!(again.journal_steps().await.len(), 1);
     }
 
     #[tokio::test]
     async fn memory_stores_of_other_domains_and_schemas_stay_apart() {
-        let (store, _) = open_memory("boot_memory_apart", Some("tenant_a")).await;
+        let (store, _) = open_memory("boot_memory_apart", Some("tenant_a"));
         journal_one_step(&store, "boot_memory_apart").await;
-        let (other_schema, _) = open_memory("boot_memory_apart", Some("tenant_b")).await;
-        let (other_domain, _) = open_memory("boot_memory_apart_two", Some("tenant_a")).await;
+        let (other_schema, _) = open_memory("boot_memory_apart", Some("tenant_b"));
+        let (other_domain, _) = open_memory("boot_memory_apart_two", Some("tenant_a"));
 
         assert_eq!(
             other_schema.journal_steps().await.len() + other_domain.journal_steps().await.len(),
