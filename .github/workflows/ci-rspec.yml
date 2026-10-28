@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4]
+        group: [1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -74,7 +74,7 @@ jobs:
       - name: Determine this shard's own file list
         run: |
           mkdir -p tmp
-          bundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=4 runtime_log=.github/rspec_runtime_baseline.log \
+          bundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=5 runtime_log=.github/rspec_runtime_baseline.log \
             > tmp/rspec_shard_files.txt
 
       # --group-by runtime: without it parallel_rspec splits by file size and one worker can

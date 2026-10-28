@@ -24,14 +24,22 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     @original ||= deliberately_changed(YAML.load_file(File.join(root, "spec/fixtures/ci_pipeline/ci-rspec.original.yml")))
   end
 
+  # How many shards the suite is split across: the hand-written workflow had four, and a fifth
+  # shortens the longest one.
+  def shard_total = 5
+
   # The hand-written workflow with what was changed on purpose since: each shard names the domains
-  # it reads, and leaves out the specs tagged `generated_all`, which read the whole tree and run in
-  # the drift job.
+  # it reads, leaves out the specs tagged `generated_all`, which read the whole tree and run in
+  # the drift job, and the suite is split across more shards.
   def deliberately_changed(document)
-    steps = document.dig("jobs", "rspec_shard", "steps")
+    job = document.dig("jobs", "rspec_shard")
+    steps = job.fetch("steps")
     steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }["with"] = { "domains" => shard_domains }
     parallel = steps.find { |step| step["name"].to_s.start_with?("rspec: parallel") }
     parallel["run"] = parallel["run"].sub("--tag ~fuzzing", "--tag ~fuzzing --tag ~generated_all")
+    job.dig("strategy", "matrix")["group"] = (1..shard_total).to_a
+    listing = steps.find { |step| step["name"].to_s.start_with?("Determine") }
+    listing["run"] = listing["run"].sub("groups=4", "groups=#{shard_total}")
     document
   end
 
@@ -65,7 +73,7 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     it "holds the same strategy and matrix, the legs following the shard total", :aggregate_failures do
       strategy = job(projected, "rspec_shard").fetch("strategy")
 
-      expect(strategy).to eq("fail-fast" => false, "matrix" => { "group" => [1, 2, 3, 4] })
+      expect(strategy).to eq("fail-fast" => false, "matrix" => { "group" => (1..shard_total).to_a })
       expect(strategy).to eq(job(original, "rspec_shard").fetch("strategy"))
     end
 
