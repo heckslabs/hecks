@@ -55,8 +55,7 @@ module Hecks
         named.empty? ? ["environment", "none", "default"] : ["environment", named, "variable HECKS_ENVIRONMENT"]
       end
 
-      # The world's `default_database`, and which of the variable, the copy's
-      # `environments/local.world` or the world itself supplied it.
+      # The world's `default_database`, and which of a local world or the world itself supplied it.
       def database(directory)
         value = declared_database(directory) || "none declared"
         ["database", hide_password(value), database_source(directory)]
@@ -64,11 +63,15 @@ module Hecks
         ["database", "could not be read", first_line(e.message)]
       end
 
-      def database_source(directory)
-        return "variable HECKS_DATABASE; a copy of the domain names its own in environments/local.world" if ENV["HECKS_DATABASE"]
+      def database_source(directory) = local_world(directory) || "world"
+
+      # The copy's own world that can supply the database: `environments/local.world`, else a
+      # `<chapter>.local.world` beside the domain or in the working directory.
+      def local_world(directory)
         return "environments/local.world" if File.exist?(File.join(directory, "environments", "local.world"))
 
-        "world"
+        found = [directory, Dir.pwd].uniq.flat_map { |where| Dir[File.join(where, "*.local.world")] }.first
+        found && File.basename(found)
       end
 
       def declared_database(directory)
