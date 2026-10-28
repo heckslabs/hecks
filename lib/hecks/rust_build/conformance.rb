@@ -108,7 +108,7 @@ module Hecks
       end
 
       def mismatches(ours, theirs)
-        found = %w[instances events refusals].filter_map do |key|
+        found = %w[instances events refusals cross_domain].filter_map do |key|
           next if ours[key] == theirs[key]
 
           "#{key}:\n  ruby:  #{ours[key].inspect}\n  other: #{theirs[key].inspect}"

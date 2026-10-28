@@ -98,9 +98,11 @@ Hecks.bluebook "Bluebook" do
       attribute :remote_field, String
     end
 
-    # `finding` names the kind of finding; `reason` is the text that says why it is allowed.
+    # `finding` names the kind of finding; `reason` is the text that says why it is allowed;
+    # `subject` names the attribute or referenced aggregate a finding reported once per subject is for.
     value_object "Acknowledgement" do
       attribute :finding, String
+      attribute :subject, String, optional: true
       attribute :reason,  String
     end
 
@@ -347,10 +349,11 @@ Hecks.bluebook "Bluebook" do
 
       attribute :finding, FieldName
       attribute :reason,  Description
+      attribute :subject, FieldName, optional: true
 
       given("an acknowledged finding is named") { !finding.value.to_s.empty? }
 
-      sets :acknowledgements, append: { finding: :finding, reason: :reason }
+      sets :acknowledgements, append: { finding: :finding, subject: :subject, reason: :reason }
 
       emits AcknowledgementAttached
     end
@@ -472,6 +475,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "given",           context: "Aggregate", at: "",  named: "declared_by", kind: "constant", required: "false", fills: "declared_by"
       member keyword: "acknowledges",    context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "finding"
       member keyword: "acknowledges",    context: "Aggregate", at: "2", named: "",         kind: "text",     required: "true",  fills: "reason", coerce: "false"
+      member keyword: "acknowledges",    context: "Aggregate", at: "",  named: "of",       kind: "symbol",   required: "false", fills: "subject"
       member keyword: "projects",        context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
       member keyword: "projects",        context: "Aggregate", at: "",  named: "from",     kind: "symbol",   required: "true",  fills: "from"
       member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"

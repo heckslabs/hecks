@@ -97,17 +97,28 @@ RSpec.describe "the semantics corpus" do
     Hecks::Fuzzing::Replay.call(File.join(InMemoryDomain::ROOT, fixture.fetch("domain")), fixture.fetch("steps"))
   end
 
+  # A fixture freezes `cross_domain` only when it pins what an `across` policy delivers.
+  def expect_cross_domain(delivered, fixture)
+    frozen = fixture.fetch("expect")["cross_domain"]
+    expect(delivered).to eq(frozen) if frozen
+  end
+
+  def replayed_fixture(path)
+    fixture = load_fixture(path)
+    [fixture, replay(fixture)]
+  end
+
   def refusal_kinds(result) = json_round_trip(result[:refusals]).each { |r| r["kind"] = r["kind"]&.split("::")&.last }
 
   describe "the Ruby runtime answers every fixture as written" do
     SEMANTICS_FIXTURES.each do |fixture_path|
       it File.basename(fixture_path), :aggregate_failures do
-        fixture = load_fixture(fixture_path)
-        result = replay(fixture)
+        fixture, result = replayed_fixture(fixture_path)
 
         expect(refusal_kinds(result)).to eq(fixture.fetch("expect").fetch("refusals"))
         expect(json_round_trip(result[:instances])).to eq(fixture.fetch("expect").fetch("instances"))
         expect(normalize_events(result[:events])).to eq(fixture.fetch("expect").fetch("events"))
+        expect_cross_domain(json_round_trip(result[:cross_domain]), fixture)
       end
     end
   end
@@ -142,7 +153,13 @@ RSpec.describe "the semantics corpus" do
 
         expect(failure).to be_nil, failure
         %w[refusals instances events].each { |key| expect(rust.fetch(key)).to eq(fixture.fetch("expect").fetch(key)) }
+        expect_cross_domain(rust_cross_domain(rust), fixture)
       end
+    end
+
+    # What each cross-domain policy would hand its target, flattened across steps.
+    def rust_cross_domain(rust)
+      rust.fetch("cross_domain_reactions").flatten.map { |reaction| reaction.slice("policy", "target_verb", "payload") }
     end
 
     # The Rust kernel's answer to a gating fixture; the example is skipped when its crate has no

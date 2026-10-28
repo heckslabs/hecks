@@ -26,12 +26,15 @@ module Hecks
         #
         # @param finding [Symbol, String] the kind of finding, such as `:large_aggregate`
         # @param reason [String] why the aggregate means what it says; required text
+        # @param of [Symbol, String, nil] the attribute (`:key_by_value`) or referenced aggregate
+        #   (`:orphaned_reference`) the acknowledgement is for; those kinds require it
         # @return [Array<Bluebook::Acknowledgement>] every acknowledgement so far, this one last
-        # @raise [Bluebook::DSL::Malformed] if the kind is not acknowledgeable or the reason is
-        #   blank
-        def acknowledges_impl(finding, reason)
+        # @raise [Bluebook::DSL::Malformed] if the kind is not acknowledgeable, the reason is
+        #   blank, or the subject does not suit the kind
+        def acknowledges_impl(finding, reason, of: nil)
           kind = Acknowledgements.kind!(@name.to_s, finding, reason)
-          @acknowledgements << Acknowledgement.new(finding: kind, reason: reason)
+          subject = Acknowledgements.subject!(@name.to_s, kind, of)
+          @acknowledgements << Acknowledgement.new(finding: kind, reason: reason, subject: subject)
         end
 
         # Declares that this aggregate holds its own kept-fresh copy of a field reached through

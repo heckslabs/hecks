@@ -1,0 +1,50 @@
+{
+  "domain": "spec/corpus/semantics/domains/outbound",
+  "spec": [
+    "C10.1"
+  ],
+  "note": "An across policy's with: hands the other domain its literals and :id, the emitting record's identity (ADR 0149); the payload's own fields are not sent.",
+  "steps": [
+    {
+      "verb": "Outbound::Parcel.Send",
+      "args": {
+        "tag": {
+          "value": "T1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Outbound::Parcel#T1": {
+        "tag": {
+          "value": "T1"
+        },
+        "note": null
+      }
+    },
+    "events": [
+      {
+        "name": "ParcelSent",
+        "aggregate": "Outbound::Parcel",
+        "id": "T1",
+        "payload": {
+          "tag": {
+            "value": "T1"
+          }
+        }
+      }
+    ],
+    "cross_domain": [
+      {
+        "policy": "FileOnSend",
+        "target_verb": "Registry::Filing.Open",
+        "payload": {
+          "subject_kind": "parcel",
+          "subject_key": "T1"
+        }
+      }
+    ]
+  }
+}
