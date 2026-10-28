@@ -290,42 +290,42 @@ Hecks.bluebook "Tickets" do
   # Each lifecycle event drives GitHub. A finding's own state never waits on the answer.
   policy "OpenIssueWhenReported" do
     on      "Finding.FindingReported"
-    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
+    ask     :open_issue, with: { finding: :finding }
   end
 
   policy "OpenIssueWhenRunReported" do
     on      "Finding.RunFindingReported"
-    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
+    ask     :open_issue, with: { finding: :finding }
   end
 
   policy "OpenIssueWhenLagReported" do
     on      "Finding.LagFindingReported"
-    trigger Finding::GitHubIssues::OpenIssue, with: { finding: :finding }
+    ask     :open_issue, with: { finding: :finding }
   end
 
   policy "LabelIssueWhenTriaged" do
     on      "Finding.FindingTriaged"
-    trigger Finding::GitHubIssues::LabelIssue, with: { finding: :finding }
+    ask     :label_issue, with: { finding: :finding }
   end
 
   policy "CommentWhenFixLinked" do
     on      "Finding.FixLinked"
-    trigger Finding::GitHubIssues::CommentOnIssue, with: { finding: :finding }
+    ask     :comment_on_issue, with: { finding: :finding }
   end
 
   policy "CloseIssueWhenResolved" do
     on      "Finding.FindingResolved"
-    trigger Finding::GitHubIssues::CloseIssue, with: { finding: :finding }
+    ask     :close_issue, with: { finding: :finding }
   end
 
   policy "CloseIssueWhenDismissed" do
     on      "Finding.FindingDismissed"
-    trigger Finding::GitHubIssues::CloseIssue, with: { finding: :finding }
+    ask     :close_issue, with: { finding: :finding }
   end
 
   policy "ReopenIssueWhenReopened" do
     on      "Finding.FindingReopened"
-    trigger Finding::GitHubIssues::ReopenIssue, with: { finding: :finding }
+    ask     :reopen_issue, with: { finding: :finding }
   end
 
   # A conformance or gate run that faults files its own finding.

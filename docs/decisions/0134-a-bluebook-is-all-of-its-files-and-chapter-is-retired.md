@@ -1,6 +1,8 @@
 # A bluebook is all of its files, and "chapter" is retired
 
-**Status:** Proposed. Nothing is renamed yet. Date: 2026-10-25 (drafted as 0132, renumbered 0134).
+**Status:** Accepted and done. Date: 2026-10-25 (drafted as 0132, renumbered 0134); finished 2026-10-28.
+See "Outcome" at the end: the tiers below were carried out in one pass and the aliases they promised
+were removed instead of kept for a release.
 
 ## Context
 
@@ -97,3 +99,22 @@ When tier 1 is done, a search for "chapter" in prose finds only the tier 2 and t
 the deprecation notes. For tier 2, each old name has a spec that calls it and expects the new
 name's behavior plus one deprecation line. For tier 3, if taken, the era-translation checks
 (`check_conformance` and the translation specs) pass for the language's own bluebooks.
+
+## Outcome
+
+All three tiers are done, and the aliases tier 2 promised are gone, at the owner's direction ("all chapter
+references gone"). A search for the word finds it only in the decisions, the changelog, the archive and
+the translation edges that name the old types on purpose.
+
+- **Names.** The class is `Hecks::Bluebook::Declaration` and the module that indexes the gem's own
+  bluebooks is `Hecks::FrameworkBluebooks`. A variable that holds a declaration is `declaration`;
+  every other use is `bluebook`.
+- **Interfaces.** `hecks-parse` takes `bluebook` and `--bluebook`; the launcher setting names
+  `bluebooks` and `maintainer_bluebooks`; the tooling queries and the Composer take `bluebook` and
+  `bluebook_name`; the `Editor` and `Payload` rows carry `bluebook` and `bluebook_roles`. None of
+  the old spellings answers, so a client moves to the new ones when it takes the release.
+- **Stored data.** The language's own type names moved under ADR 0152. The Composer draft field
+  `chapter_name` moved under `translations/2-ffdf12`, which keeps the old type names because an edge
+  describes data written before the rename.
+- **What this changed from the plan.** No alias period and no deprecation lines: the cost of a
+  warning for every old use outweighed one release of overlap for a gem whose clients move together.

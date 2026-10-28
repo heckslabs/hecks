@@ -96,6 +96,16 @@
       "role": "Customer"
     },
     {
+      "scope": "banking:atm_card.withdrawal.reimburse",
+      "verb": "Banking::ATMCard.Withdrawal.Reimburse",
+      "role": "Teller"
+    },
+    {
+      "scope": "banking:atm_card.withdrawal.reject_dispute",
+      "verb": "Banking::ATMCard.Withdrawal.RejectDispute",
+      "role": "Teller"
+    },
+    {
       "scope": "banking:card_payment.authorize",
       "verb": "Banking::CardPayment.Authorize",
       "role": null

@@ -5,7 +5,9 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased]
+## [Unreleased] - planned 7.0.0
+
+- **Breaking: "chapter" is gone; a bluebook is all of the files that declare one name (ADR 0134).** The class is `Hecks::Bluebook::Declaration` (was `Hecks::Bluebook::Chapter`) and the module that indexes the gem's own bluebooks is `Hecks::FrameworkBluebooks` (was `Hecks::Chapters`, so `Hecks::FrameworkBluebooks.load!("QualityControl")` in a hecksagon). `Registry#forget_chapter` is `forget_bluebook`; `hecks-parse chapter --chapter` is `hecks-parse bluebook --bluebook` and `resolve` answers `gem_bluebooks`; the launcher setting keys are `bluebooks` and `maintainer_bluebooks`; the tooling queries (`introspection.statements`, `project_diagrams`, `glossary`) take `bluebook=`; the Composer takes `bluebook_name`; the `Editor` and `Payload` rows of a site table carry `bluebook` and `bluebook_roles`, and the Site editor's generated schema says `bluebook` and `bluebooks`. No old name answers and none warns, so a client changes its hecksagons, world, site table and scripts when it takes the release. The Composer's `Draft.chapter_name` field moved under `translations/2-ffdf12`. Every comment, message, doc, file name and constant in the repository says bluebook; the decisions, this changelog and the archive keep the old word as history.
 
 ## [6.0.0] - 2026-10-28
 

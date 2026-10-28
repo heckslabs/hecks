@@ -166,6 +166,21 @@ RSpec.describe "the transactional outbox" do
       expect { place(runtime, "o-1") }.to raise_error(Interrupt)
     end
 
+    # Moves every claim in the store back in time, so a claim made a moment ago stands as old as
+    # `seconds`, as one left by a process that has long gone would.
+    def claimed_ago(seconds)
+      db = SQLite3::Database.new(File.join(dir, "shop.db"))
+      db.execute("UPDATE hecks_outbox SET claimed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?) " \
+                 "WHERE status = 'claimed'", ["-#{seconds} seconds"])
+    ensure
+      db&.close
+    end
+
+    def crash_leaving_stalled_claim
+      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      claimed_ago(Hecks::Runtime::Outbox::STALLED_AFTER + 60)
+    end
+
     it "commits the save, the event, and the outbox rows as one transaction", :aggregate_failures do
       repository = order_repository(runtime)
       allow(repository.adapter).to receive(:record_event).and_raise(RuntimeError, "disk full")
@@ -215,7 +230,7 @@ RSpec.describe "the transactional outbox" do
     end
 
     it "surfaces a claimed row instead of redriving it, until told the redrive is safe", :aggregate_failures do
-      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      crash_leaving_stalled_claim
 
       expect { expect(rebooted.outbox.redrive!).to be_empty }.to output(OUTBOX_STALLED_ROW_WARNING).to_stderr
       expect(rebooted.outbox.log.last).to include(stalled: true, consumer: "policy:Shop::RecordOrder")
@@ -223,7 +238,7 @@ RSpec.describe "the transactional outbox" do
     end
 
     it "redrives a claimed row once told the redrive is safe", :aggregate_failures do
-      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      crash_leaving_stalled_claim
 
       redriven = rebooted.outbox.redrive!(claimed: true)
 
@@ -233,7 +248,7 @@ RSpec.describe "the transactional outbox" do
     end
 
     it "redrives only the claimed row named by its delivery id", :aggregate_failures do
-      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      crash_leaving_stalled_claim
       delivery_id = rebooted.outbox.rows.first.delivery_id
 
       expect(rebooted.outbox.redrive_row!(delivery_id).size).to eq(1)
@@ -241,7 +256,7 @@ RSpec.describe "the transactional outbox" do
     end
 
     it "abandons a claimed row as failed without running its consumer", :aggregate_failures do
-      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      crash_leaving_stalled_claim
       delivery_id = rebooted.outbox.rows.first.delivery_id
 
       rebooted.outbox.abandon_row!(delivery_id)
@@ -251,24 +266,61 @@ RSpec.describe "the transactional outbox" do
     end
 
     it "stops naming an abandoned row as stalled" do
-      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      crash_leaving_stalled_claim
       rebooted.outbox.abandon_row!(rebooted.outbox.rows.first.delivery_id)
 
       expect { rebooted.outbox.redrive! }.not_to output.to_stderr
     end
 
     it "refuses to abandon a delivery id that no claimed row has" do
-      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      crash_leaving_stalled_claim
 
       expect { rebooted.outbox.abandon_row!("nope") }
         .to raise_error(Hecks::Runtime::NotFound, /no claimed outbox row "nope"/)
     end
 
     it "refuses a delivery id that no claimed row has" do
-      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      crash_leaving_stalled_claim
 
       expect { rebooted.outbox.redrive_row!("nope") }
         .to raise_error(Hecks::Runtime::NotFound, /no claimed outbox row "nope"/)
+    end
+
+    # A claim made a moment ago is a reaction running in another process, not one a crash left.
+    context "when the claim is recent" do
+      before { crash_placing(runtime.instance_variable_get(:@policies), :react) }
+
+      it "does not name a row claimed a moment ago as stalled" do
+        expect { rebooted.outbox.redrive!(claimed: true) }.not_to output.to_stderr
+      end
+
+      it "redrives nothing for a row claimed a moment ago" do
+        expect(rebooted.outbox.redrive!(claimed: true)).to be_empty
+      end
+
+      it "leaves a row claimed a moment ago claimed, and does not run it", :aggregate_failures do
+        rebooted.outbox.redrive!(claimed: true)
+
+        expect(rebooted.outbox.rows.first).to be_claimed
+        expect(ledger(rebooted, "o-1")).to be_nil
+      end
+
+      it "refuses to redrive it by name, saying it is in flight" do
+        expect { rebooted.outbox.redrive_row!(rebooted.outbox.rows.first.delivery_id) }
+          .to raise_error(Hecks::Runtime::NotFound, /is in flight, claimed \d+s ago/)
+      end
+
+      it "refuses to abandon it by name, saying it is in flight" do
+        expect { rebooted.outbox.abandon_row!(rebooted.outbox.rows.first.delivery_id) }
+          .to raise_error(Hecks::Runtime::NotFound, /is in flight/)
+      end
+
+      it "names it as stalled once it has stood claimed past the limit", :aggregate_failures do
+        claimed_ago(Hecks::Runtime::Outbox::STALLED_AFTER + 60)
+
+        expect { rebooted.outbox.redrive! }.to output(OUTBOX_STALLED_ROW_WARNING).to_stderr
+        expect(rebooted.outbox.rows.first).to be_stalled
+      end
     end
 
     it "redrives pending rows as part of Loader.boot, after the dispatcher exists", :aggregate_failures do

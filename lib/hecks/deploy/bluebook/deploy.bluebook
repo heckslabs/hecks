@@ -552,12 +552,12 @@ Hecks.bluebook "Deploy" do
   # attached, so a provisioned tenant becomes a fact there.
   policy "ProvisionWhenRequested" do
     on      "Tenant.TenantProvisionRequested"
-    trigger Tenant::TenantProvisioning::WriteOverlay, with: { database: :database, directory: :directory }
+    ask     :write_overlay, with: { database: :database, directory: :directory }
   end
 
   policy "ReprovisionWhenRequested" do
     on      "Tenant.TenantReprovisionRequested"
-    trigger Tenant::TenantProvisioning::WriteOverlay, with: { database: :database, directory: :directory }
+    ask     :write_overlay, with: { database: :database, directory: :directory }
   end
 
   policy "RecordTheTenant" do
@@ -687,7 +687,7 @@ Hecks.bluebook "Deploy" do
 
   policy "GenerateWhenRequested" do
     on      "Recipe.ProjectionRequested"
-    trigger Recipe::DeployToolchain::Generate, with: { run: :run }
+    ask     :generate, with: { run: :run }
   end
 
   policy "RecordTheRecipe" do
@@ -795,7 +795,7 @@ Hecks.bluebook "Deploy" do
 
   policy "ClearWhenRequested" do
     on      "Handover.ClearingRequested"
-    trigger Handover::DeployToolchain::ClearDeployment, with: { run: :run }
+    ask     :clear_deployment, with: { run: :run }
   end
 
   policy "RecordTheClearing" do
@@ -891,7 +891,7 @@ Hecks.bluebook "Deploy" do
 
   policy "LintWhenRequested" do
     on      "MakefileCheck.LintRequested"
-    trigger MakefileCheck::DeployToolchain::Scan, with: { run: :run }
+    ask     :scan, with: { run: :run }
   end
 
   policy "RecordTheCleanLint" do
@@ -998,7 +998,7 @@ Hecks.bluebook "Deploy" do
 
   policy "MeasureWhenChecked" do
     on      "CostCheck.CostCheckRequested"
-    trigger CostCheck::CostExplorer::Measure, with: { run: :run }
+    ask     :measure, with: { run: :run }
   end
 
   policy "RecordTheCostWithinBudget" do
@@ -1135,7 +1135,7 @@ Hecks.bluebook "Deploy" do
 
   policy "SmokeWhenRequested" do
     on      "SmokeRun.SmokeRequested"
-    trigger SmokeRun::DeployToolchain::Smoke, with: { run: :run, after: :after }
+    ask     :smoke, with: { run: :run, after: :after }
   end
 
   policy "RecordThePassedSmoke" do
@@ -1311,7 +1311,7 @@ Hecks.bluebook "Deploy" do
 
   policy "RollServiceWhenRequested" do
     on      "ServiceRoll.ServiceRollRequested"
-    trigger ServiceRoll::DeployToolchain::RollService, with: { run: :run }
+    ask     :roll_service, with: { run: :run }
   end
 
   policy "RecordTheRolledService" do
@@ -1493,7 +1493,7 @@ Hecks.bluebook "Deploy" do
 
   policy "RollBoxWhenRequested" do
     on      "BoxRoll.BoxRollRequested"
-    trigger BoxRoll::DeployToolchain::RollBox, with: { run: :run }
+    ask     :roll_box, with: { run: :run }
   end
 
   policy "RecordTheRolledBox" do
@@ -1765,7 +1765,7 @@ Hecks.bluebook "Deploy" do
 
   policy "CopyDataWhenRequested" do
     on      "DataCopy.DataCopyRequested"
-    trigger DataCopy::DeployToolchain::CopyData, with: { run: :run }
+    ask     :copy_data, with: { run: :run }
   end
 
   policy "RecordTheCopiedData" do
@@ -1963,7 +1963,7 @@ Hecks.bluebook "Deploy" do
 
   policy "CompareCopyWhenRequested" do
     on      "CopyVerification.CopyVerificationRequested"
-    trigger CopyVerification::DeployToolchain::CompareCopy, with: { run: :run }
+    ask     :compare_copy, with: { run: :run }
   end
 
   policy "RecordTheMatchingCopy" do
@@ -2106,7 +2106,7 @@ Hecks.bluebook "Deploy" do
 
   policy "DiffWhenRequested" do
     on      "BluebookDiff.BluebookDiffRequested"
-    trigger BluebookDiff::DeployToolchain::CompareBluebooks, with: { run: :run }
+    ask     :compare_bluebooks, with: { run: :run }
   end
 
   policy "RecordTheUnchangedBluebooks" do
@@ -2434,32 +2434,32 @@ Hecks.bluebook "Deploy" do
 
   policy "RunPreviewWhenNameRequested" do
     on      "PreviewRun.PreviewNameRequested"
-    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+    ask     :run_preview, with: { run: :run }
   end
 
   policy "RunPreviewWhenUrlRequested" do
     on      "PreviewRun.PreviewUrlRequested"
-    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+    ask     :run_preview, with: { run: :run }
   end
 
   policy "RunPreviewWhenListRequested" do
     on      "PreviewRun.PreviewListRequested"
-    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+    ask     :run_preview, with: { run: :run }
   end
 
   policy "RunPreviewWhenDeployRequested" do
     on      "PreviewRun.PreviewDeployRequested"
-    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+    ask     :run_preview, with: { run: :run }
   end
 
   policy "RunPreviewWhenDestroyRequested" do
     on      "PreviewRun.PreviewDestroyRequested"
-    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+    ask     :run_preview, with: { run: :run }
   end
 
   policy "RunPreviewWhenLoginRequested" do
     on      "PreviewRun.PreviewLoginRequested"
-    trigger PreviewRun::DeployToolchain::RunPreview, with: { run: :run }
+    ask     :run_preview, with: { run: :run }
   end
 
   policy "RecordThePreviewName" do
@@ -2638,7 +2638,7 @@ Hecks.bluebook "Deploy" do
 
   policy "RollCompanionWhenRequested" do
     on      "CompanionRoll.CompanionRollRequested"
-    trigger CompanionRoll::DeployToolchain::RollCompanion, with: { run: :run }
+    ask     :roll_companion, with: { run: :run }
   end
 
   policy "RecordTheRolledCompanion" do
@@ -2773,7 +2773,7 @@ Hecks.bluebook "Deploy" do
 
   policy "CompareWhenRequested" do
     on      "TemplateComparison.ComparisonRequested"
-    trigger TemplateComparison::DeployToolchain::Compare, with: { run: :run }
+    ask     :compare, with: { run: :run }
   end
 
   policy "RecordTheMatch" do
@@ -2872,7 +2872,7 @@ Hecks.bluebook "Deploy" do
 
   policy "ProjectWhenRequested" do
     on      "OidcManifest.OidcProjectionRequested"
-    trigger OidcManifest::DeployToolchain::Manifest, with: { run: :run }
+    ask     :manifest, with: { run: :run }
   end
 
   policy "RecordTheManifests" do

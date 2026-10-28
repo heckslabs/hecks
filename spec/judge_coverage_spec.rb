@@ -128,8 +128,8 @@ RSpec.describe "the judge's coverage of the language" do
 
   # `Aggregate.Acknowledges` (ADR 0150) is real DSL surface no corpus aggregate declares for
   # `:large_aggregate`, so a small fixture does.
-  def acknowledges_chapter
-    @acknowledges_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("AcknowledgesCoverage") do
+  def acknowledges_bluebook
+    @acknowledges_bluebook ||= Hecks::Bluebook::DSL::BluebookBuilder.build("AcknowledgesCoverage") do
       aggregate "Ledger" do
         identified_by { attribute :number, String }
         acknowledges :large_aggregate, "a fixture standing for an aggregate the size check would report"
