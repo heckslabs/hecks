@@ -178,7 +178,7 @@ commit must pass as `RequiredCheck` rows beside them.
   is not trivial: `hecks gate_run.gate stage=quick --wait` runs the seconds-long checks (shape
   ledger, rubocop, comment style) and is worth running before every commit. A push of `main` runs
   those first, then only the `unguarded_push` stage of
-  `lib/hecks/gate/stages.yml`, and `hecks push_train.board! full_gate.value=true` runs the
+  the Vocabulary gate rows, and `hecks push_train.board! full_gate.value=true` runs the
   whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push

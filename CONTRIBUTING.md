@@ -73,7 +73,7 @@ find out here instead of in CI. It is a local check, not a review; see
 git config core.hooksPath .githooks
 ```
 
-It runs the checks of the `pre_push` stage in `lib/hecks/gate/stages.yml`
+It runs the checks of the `pre_push` stage in the Vocabulary gate rows
 (the suite, `spec/fuzzing`, the agreement, model, doc-coverage, style and
 codegen-drift checks, and rustfmt), concurrently, and reports the results in a fixed order. Bypass with `git push --no-verify` only when you mean to,
 and say why in the push (or the PR).

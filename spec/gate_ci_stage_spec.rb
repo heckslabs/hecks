@@ -2,12 +2,12 @@ require "spec_helper"
 require "yaml"
 require "hecks/tools"
 
-# The `ci` stage of lib/hecks/gate/stages.yml is the one copy of what the CI workflow runs. These
+# The `ci` stage of the Vocabulary gate rows is the one copy of what the CI workflow runs. These
 # specs hold the workflow to the stage, so a command cannot be copied into it again, and a check
 # cannot be left unrun.
 RSpec.describe "the ci gate stage" do
   let(:root) { File.expand_path("..", __dir__) }
-  let(:stages) { YAML.load_file(File.join(root, "lib/hecks/gate/stages.yml"), aliases: true) }
+  let(:stages) { Hecks::Tools.fetch("gate").stages }
   let(:workflow) { YAML.load_file(File.join(root, ".github/workflows/ci-checks.yml")) }
   let(:ci_ids) { stages.dig("ci", "checks").map { |check| check["id"] } }
 
@@ -39,7 +39,7 @@ RSpec.describe "the ci gate stage" do
     end
 
     it "sets no env of its own, so a job's journal choice reaches its checks" do
-      expect(stages.fetch("ci")).not_to have_key("env")
+      expect(stages.dig("ci", "env")).to be_empty
     end
   end
 
