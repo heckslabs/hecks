@@ -33381,6 +33381,32 @@
             [
               [
                 "name",
+                "generated_tree"
+              ],
+              [
+                "id",
+                "generated_tree"
+              ],
+              [
+                "title",
+                "whole-tree specs, the examples tagged generated_all against every domain's generated Rust"
+              ],
+              [
+                "argv",
+                "bundle exec rspec --tag generated_all"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_clippy"
               ],
               [
@@ -33433,19 +33459,19 @@
             [
               [
                 "name",
-                "fuzz"
+                "fuzz_1_of_2"
               ],
               [
                 "id",
-                "fuzz"
+                "fuzz_1_of_2"
               ],
               [
                 "title",
-                "fuzz, every example domain on the Memory adapter"
+                "fuzz, shard 1 of 2 of the example domains on the Memory adapter"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz shard=1/2 --wait"
               ],
               [
                 "script",
@@ -33459,19 +33485,45 @@
             [
               [
                 "name",
-                "fuzz_sqlite"
+                "fuzz_2_of_2"
               ],
               [
                 "id",
-                "fuzz_sqlite"
+                "fuzz_2_of_2"
               ],
               [
                 "title",
-                "fuzz on a real on-disk SQLite database"
+                "fuzz, shard 2 of 2 of the example domains on the Memory adapter"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz shard=2/2 --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
+              ]
+            ],
+            [
+              [
+                "name",
+                "fuzz_sqlite_1_of_2"
+              ],
+              [
+                "id",
+                "fuzz_sqlite_1_of_2"
+              ],
+              [
+                "title",
+                "fuzz, shard 1 of 2 on a real on-disk SQLite database"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/2 --wait"
               ],
               [
                 "script",
@@ -33480,6 +33532,58 @@
               [
                 "blocked",
                 "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
+              ]
+            ],
+            [
+              [
+                "name",
+                "fuzz_sqlite_2_of_2"
+              ],
+              [
+                "id",
+                "fuzz_sqlite_2_of_2"
+              ],
+              [
+                "title",
+                "fuzz, shard 2 of 2 on a real on-disk SQLite database"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/2 --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
+              ]
+            ],
+            [
+              [
+                "name",
+                "fuzz_shards"
+              ],
+              [
+                "id",
+                "fuzz_shards"
+              ],
+              [
+                "title",
+                "fuzz shards, the two shards together hold every domain of the sweep once"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks fuzz_run.fuzz list_shards=2 --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "the split of the fuzz sweep into two shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log."
               ]
             ],
             [
@@ -33558,6 +33662,32 @@
               [
                 "blocked",
                 "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`."
+              ]
+            ],
+            [
+              [
+                "name",
+                "ci_pipeline"
+              ],
+              [
+                "id",
+                "ci_pipeline"
+              ],
+              [
+                "title",
+                "ci pipeline, the workflow rows must match the files they project"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks regeneration_run.project_ci_pipeline --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline --confirm`."
               ]
             ],
             [
@@ -33798,7 +33928,7 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz,fuzz_sqlite,fuzz_postgres,vocabulary_drift,ci_gates,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_2,fuzz_2_of_2,fuzz_sqlite_1_of_2,fuzz_sqlite_2_of_2,fuzz_postgres,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
               ]
             ]
           ],
