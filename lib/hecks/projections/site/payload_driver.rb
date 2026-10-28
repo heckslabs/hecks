@@ -31,7 +31,7 @@ module Hecks
 skip: String },
                                required: %i[domain bluebook],
                                defaults: { out: "cms/src/generated", hecks: "cms/src/driver/hecks",
-                                           helpers: "cms/src/collections/hooks/content", skip: "" }).renaming(chapter: :bluebook)
+                                           helpers: "cms/src/collections/hooks/content", skip: "" })
 
         # A `PayloadField` row: what the editor needs for one attribute (or `attribute.part` of a
         # composite).

@@ -33,7 +33,7 @@ module Hecks
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
                         bluebook_roles: "", page_size: "25", preview: "" }
-          ).renaming(chapter: :bluebook, chapter_roles: :bluebook_roles)
+          )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
           attr_reader :row

@@ -8,7 +8,7 @@ module Hecks
       # Finds and loads the `.world` file a domain deploys from, and the registry it boots into.
       module Worlds
         # A hecksagon's `FrameworkBluebooks.load!("Name")`, capturing the bluebook's name.
-        CHAPTER_LOAD = /(?:FrameworkBluebooks|Chapters)\.load!\(\s*"([^"]+)"\s*\)/
+        CHAPTER_LOAD = /FrameworkBluebooks\.load!\(\s*"([^"]+)"\s*\)/
 
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
         # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's

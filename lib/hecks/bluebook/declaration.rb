@@ -5,8 +5,7 @@ require_relative "../ir"
 
 module Hecks
   module Bluebook
-    # The bluebook, distinct from the `Bluebook` namespace it lives in. Hecks::Bluebook::Chapter was
-    # its name until ADR 0134 and still answers, saying so once per use.
+    # The bluebook, distinct from the `Bluebook` namespace it lives in.
     class Declaration
       include Construct
       include Behaviour::Chapter

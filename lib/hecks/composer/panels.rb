@@ -37,10 +37,9 @@ module Hecks
       end
 
       # @param body [Hash] `buffers`
-      # @return [Hash] `bluebook` and `commands` (see {Live#commands}), or `error`; the retired key
-      #   `chapter` answers the same name until the alias is removed (ADR 0134)
+      # @return [Hash] `bluebook` and `commands` (see {Live#commands}), or `error`
       def commands(body)
-        with_live(body) { |live| { bluebook: live.chapter_name, chapter: live.chapter_name, commands: live.commands } }
+        with_live(body) { |live| { bluebook: live.chapter_name, commands: live.commands } }
       end
 
       # @param body [Hash] `buffers`, `verb`, `to` and `with`

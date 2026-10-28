@@ -2,7 +2,7 @@ module Hecks
   module Corpus
     # How a domain's hecksagon names a bluebook the gem carries and loads by name, as the QA
     # ledger's does (`Hecks::FrameworkBluebooks.load!("QualityControl")`).
-    ATTACHED_CHAPTER = /(?:FrameworkBluebooks|Chapters)\.load!\(\s*"([^"]+)"\s*\)/
+    ATTACHED_CHAPTER = /FrameworkBluebooks\.load!\(\s*"([^"]+)"\s*\)/
 
     # Where a domain path keeps its bluebooks, and what a member boots. Extended onto `Corpus`.
     module Sources

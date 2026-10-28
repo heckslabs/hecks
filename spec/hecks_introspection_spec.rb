@@ -59,14 +59,6 @@ RSpec.describe "hecks introspection through the launcher" do
     expect(out).not_to start_with("[")
   end
 
-  it "still reads the retired chapter= argument as bluebook=, saying so", :aggregate_failures do
-    said = nil
-    expect { said = run_verb("introspection.statements", @dir, "chapter=Shelf") }
-      .to output(/argument chapter is deprecated, use bluebook/).to_stderr
-
-    expect(said).to eq([run_verb("introspection.statements", @dir, "bluebook=Shelf").first, 0])
-  end
-
   it "answers a JSON document as that JSON, byte for byte what the adapter returns", :aggregate_failures do
     out, status = run_verb("introspection.stores", @dir)
 

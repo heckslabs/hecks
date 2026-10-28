@@ -56,10 +56,6 @@ impl From<diag::Diagnostic> for RunError {
 fn run(args: &[String]) -> Result<(), RunError> {
     match args.first().map(String::as_str) {
         Some("bluebook") => run_bluebook(&args[1..]),
-        Some("chapter") => {
-            deprecated("the chapter subcommand", "bluebook");
-            run_bluebook(&args[1..])
-        }
         Some("render") => run_render(&args[1..]),
         Some("complete") => run_complete(&args[1..]),
         Some("format") => run_format(&args[1..]),
@@ -80,24 +76,6 @@ fn run(args: &[String]) -> Result<(), RunError> {
     }
 }
 
-/// Says on stderr that a spelling is retired, once per use, so a caller that still has it learns
-/// the new one before the alias is removed (ADR 0134).
-fn deprecated(old: &str, new: &str) {
-    eprintln!("hecks-parse: {old} is deprecated, use {new}");
-}
-
-/// Whether `arg` names the bluebook a call is about: `--bluebook`, or the retired `--chapter`.
-fn is_bluebook_flag(arg: &str) -> bool {
-    match arg {
-        "--bluebook" => true,
-        "--chapter" => {
-            deprecated("--chapter", "--bluebook");
-            true
-        }
-        _ => false,
-    }
-}
-
 /// The bluebook a `bluebook` or `render` call names and the files it reads, as `(path, source)`.
 fn read_chapter_args(
     subcommand: &str,
@@ -107,7 +85,7 @@ fn read_chapter_args(
     let mut files: Vec<String> = Vec::new();
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
-        if is_bluebook_flag(arg) {
+        if arg == "--bluebook" {
             chapter_name = iter.next().cloned();
         } else {
             files.push(arg.clone());
@@ -260,8 +238,7 @@ fn run_complete(args: &[String]) -> Result<(), RunError> {
 
 /// `hecks-parse resolve --bluebook <Name> <file.hecksagon>`: prints that bluebook's
 /// `attaches` names as JSON, in file order: `gem_bluebooks` for a bluebook the gem carries and
-/// `vendored_packages` for `from: :vendor`. The retired key `gem_chapters` carries the same list
-/// until the alias is removed (ADR 0134), so a build tool that still reads it keeps working.
+/// `vendored_packages` for `from: :vendor`.
 ///
 /// `--bluebook` is required because one file can hold several `Hecks.hecksagon` blocks.
 fn run_resolve(args: &[String]) -> Result<(), RunError> {
@@ -269,7 +246,7 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
     let mut path: Option<&String> = None;
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
-        if is_bluebook_flag(arg) {
+        if arg == "--bluebook" {
             chapter_name = iter.next().cloned();
         } else {
             path = Some(arg);
@@ -299,7 +276,6 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
     let value = emit::JsonValue::Object(vec![
         ("domain".to_string(), emit::JsonValue::String(chapter_name)),
         ("gem_bluebooks".to_string(), gem_bluebooks()),
-        ("gem_chapters".to_string(), gem_bluebooks()),
         (
             "vendored_packages".to_string(),
             emit::JsonValue::Array(

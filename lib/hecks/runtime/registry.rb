@@ -331,7 +331,3 @@ module Hecks
     end
   end
 end
-
-# Registry#forget_chapter was the name until ADR 0134 and still works, saying so once per use.
-require_relative "../retired_names"
-Hecks::RetiredNames.method_name(Hecks::Runtime::Registry, :forget_chapter, :forget_bluebook)

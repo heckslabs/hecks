@@ -3,7 +3,6 @@ require "stringio"
 require_relative "../../ports/identity_generation"
 require_relative "../../runtime/errors"
 require_relative "cli"
-require_relative "launcher_bluebook_keys"
 require_relative "../../text"
 
 module Hecks
@@ -81,8 +80,7 @@ module Hecks
         # The help options one audience gets: the aggregates left out of the lists (`maintainer`,
         # shown only in a hecks checkout or to `--maintainer`) and the bluebooks pointed at
         # (`bluebooks`, plus `maintainer_bluebooks` in a checkout). A bluebook that did not opt in
-        # gets neither. The retired keys `chapters` and `maintainer_chapters` are still read, each
-        # use saying on standard error that the new key replaces it (ADR 0134).
+        # gets neither.
         #
         # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout
@@ -90,9 +88,8 @@ module Hecks
         def audience(settings, maintainer)
           return {} unless settings
 
-          named = LauncherBluebookKeys.names(settings, :bluebooks, :chapters)
-          named += LauncherBluebookKeys.names(settings, :maintainer_bluebooks, :maintainer_chapters) if maintainer
-          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: named }
+          named = Array(settings[:bluebooks]) + (maintainer ? Array(settings[:maintainer_bluebooks]) : [])
+          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: named.map(&:to_s) }
         end
 
         # Runs the block with standard error held back, so the wiring notes hecks prints about its
