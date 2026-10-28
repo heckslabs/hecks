@@ -299,7 +299,7 @@ Hecks.bluebook "Expression" do
     lifecycle :status, default: "extracted" do
       transition "Admit"  => "admitted", from: "extracted"
       transition "Reject" => "rejected", from: "extracted"
-      mark :terminal, "rejected"
+      mark :terminal, "admitted", "rejected"
     end
 
     value_object "Description" do

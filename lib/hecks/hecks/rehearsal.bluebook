@@ -217,7 +217,7 @@ Hecks.bluebook "Hecks" do
       transition "Withhold" => "withheld", from: %w[requested booted audited]
       transition "Refuse"   => "refused",  from: "requested"
       transition "Fail"     => "failed",   from: %w[requested booted audited]
-      mark :terminal, "failed", "refused"
+      mark :terminal, "failed", "judged", "refused", "withheld"
     end
 
     command "Request" do

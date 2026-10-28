@@ -586,7 +586,7 @@ policy "RecordTheEra" do
       transition "Ride"  => "carried", from: "requested"
       transition "Fault" => "faulted", from: "requested"
       transition "Summarize" => "surveyed", from: "requested"
-      mark :terminal, "faulted", "pushed"
+      mark :terminal, "carried", "faulted", "pushed", "surveyed"
     end
 
     command "Board" do

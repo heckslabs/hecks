@@ -1298,7 +1298,7 @@ Hecks.bluebook "QualityControl" do
       transition "Investigate" => "investigating", from: "proposed"
       transition "Build"       => "built",         from: "investigating"
       transition "Discard"     => "discarded",     from: ["proposed", "investigating"]
-      mark :terminal, "discarded"
+      mark :terminal, "built", "discarded"
     end
 
     command "Propose" do
@@ -2019,6 +2019,7 @@ Hecks.bluebook "QualityControl" do
       mark :failure, "red"
       transition "Passed" => "green", from: "running"
       transition "Failed" => "red",   from: "running"
+      mark :terminal, "green", "red"
     end
 
     command "Start" do
