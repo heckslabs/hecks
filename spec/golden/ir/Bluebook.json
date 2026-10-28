@@ -24844,6 +24844,11 @@
           "lifecycle": {
             "default": "admitted",
             "field": "status",
+            "marks": {
+              "terminal": [
+                "retired"
+              ]
+            },
             "transitions": [
               {
                 "command": "Deprecate",
@@ -25102,6 +25107,11 @@
           "lifecycle": {
             "default": "admitted",
             "field": "status",
+            "marks": {
+              "terminal": [
+                "retired"
+              ]
+            },
             "transitions": [
               {
                 "command": "Deprecate",

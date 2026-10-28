@@ -254,6 +254,11 @@
       "lifecycle": {
         "default": "active",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "closed"
+          ]
+        },
         "transitions": [
           {
             "command": "Suspend",
@@ -1959,6 +1964,11 @@
           "lifecycle": {
             "default": "posted",
             "field": "state",
+            "marks": {
+              "terminal": [
+                "reversed"
+              ]
+            },
             "transitions": [
               {
                 "command": "Reverse",
@@ -2094,6 +2104,11 @@
       "lifecycle": {
         "default": "open",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "closed"
+          ]
+        },
         "transitions": [
           {
             "command": "FreezeAccount",
@@ -2915,7 +2930,10 @@
           "ensures": [
 
           ],
-          "from": "placed",
+          "from": [
+            "placed",
+            "escalated"
+          ],
           "givens": [
 
           ],
@@ -3044,10 +3062,20 @@
       "lifecycle": {
         "default": "placed",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "lifted"
+          ]
+        },
         "transitions": [
           {
             "command": "Lift",
             "from_state": "placed",
+            "to_state": "lifted"
+          },
+          {
+            "command": "Lift",
+            "from_state": "escalated",
             "to_state": "lifted"
           },
           {
@@ -3475,6 +3503,12 @@
       "lifecycle": {
         "default": "screening",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "cleared",
+            "declined"
+          ]
+        },
         "transitions": [
           {
             "command": "Clear",
@@ -4247,6 +4281,60 @@
               "provenance": null,
               "references": null,
               "role": "Customer"
+            },
+            {
+              "attributes": [
+
+              ],
+              "emits": [
+                "WithdrawalReimbursed"
+              ],
+              "ensures": [
+
+              ],
+              "from": "disputed",
+              "givens": [
+
+              ],
+              "goal": "Give the customer back a withdrawal the bank agrees was not theirs",
+              "idempotent": false,
+              "mutations": [
+
+              ],
+              "name": "Reimburse",
+              "needs": [
+
+              ],
+              "provenance": null,
+              "references": null,
+              "role": "Teller"
+            },
+            {
+              "attributes": [
+
+              ],
+              "emits": [
+                "WithdrawalDisputeRejected"
+              ],
+              "ensures": [
+
+              ],
+              "from": "disputed",
+              "givens": [
+
+              ],
+              "goal": "Turn down a dispute the bank finds was the customer's own withdrawal",
+              "idempotent": false,
+              "mutations": [
+
+              ],
+              "name": "RejectDispute",
+              "needs": [
+
+              ],
+              "provenance": null,
+              "references": null,
+              "role": "Teller"
             }
           ],
           "description": "One handful of cash, in the order it was taken.",
@@ -4262,11 +4350,26 @@
           "lifecycle": {
             "default": "taken",
             "field": "state",
+            "marks": {
+              "terminal": [
+                "reimbursed"
+              ]
+            },
             "transitions": [
               {
                 "command": "Dispute",
                 "from_state": "taken",
                 "to_state": "disputed"
+              },
+              {
+                "command": "Reimburse",
+                "from_state": "disputed",
+                "to_state": "reimbursed"
+              },
+              {
+                "command": "RejectDispute",
+                "from_state": "disputed",
+                "to_state": "taken"
               }
             ]
           },
@@ -4305,6 +4408,11 @@
       "lifecycle": {
         "default": "issued",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "retired"
+          ]
+        },
         "transitions": [
           {
             "command": "Activate",
@@ -5494,6 +5602,13 @@
       "lifecycle": {
         "default": "authorized",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "charged_back",
+            "reversed",
+            "voided"
+          ]
+        },
         "transitions": [
           {
             "command": "Capture",
@@ -6610,6 +6725,11 @@
           "lifecycle": {
             "default": "issued",
             "field": "status",
+            "marks": {
+              "terminal": [
+                "returned"
+              ]
+            },
             "transitions": [
               {
                 "command": "Return",
@@ -8083,6 +8203,13 @@
       "lifecycle": {
         "default": "requested",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "rejected",
+            "reversed",
+            "settled"
+          ]
+        },
         "transitions": [
           {
             "command": "Debited",
@@ -8862,6 +8989,12 @@
       "lifecycle": {
         "default": "requested",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "recalled",
+            "returned"
+          ]
+        },
         "transitions": [
           {
             "command": "SendTransfer",
@@ -9833,6 +9966,13 @@
       "lifecycle": {
         "default": "scheduled",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "abandoned",
+            "cancelled",
+            "executed"
+          ]
+        },
         "transitions": [
           {
             "command": "Execute",

@@ -2,5 +2,7 @@
 %% Re-run `hecks project_diagrams <domain-path> Banking` after any change.
 flowchart LR
     Withdrawal[(Withdrawal)] -->|does| cmd_Withdrawal_Dispute(["Withdrawal.Dispute"])
+    Withdrawal[(Withdrawal)] -->|does| cmd_Withdrawal_Reimburse(["Withdrawal.Reimburse"])
+    Withdrawal[(Withdrawal)] -->|does| cmd_Withdrawal_RejectDispute(["Withdrawal.RejectDispute"])
     cmd_Withdrawal_Dispute(["Withdrawal.Dispute"]) -->|"sets: narrative"| attr_Withdrawal_narrative[narrative]
     Withdrawal[(Withdrawal)] -.->|asks| qry_Withdrawal_Recent{"Withdrawal.Recent"}
