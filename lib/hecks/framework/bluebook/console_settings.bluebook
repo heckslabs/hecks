@@ -72,7 +72,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :tone, one_of("good", "warn", "danger", "muted", "accent")
 
       sets :tone
-      emits ToneSet
+      emits StateStyleToned
     end
 
     command "SetAttention" do
@@ -83,7 +83,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :attention, Flag
 
       sets :attention
-      emits AttentionSet
+      emits StateStyleFlagged
     end
 
     command "SetExtra" do
@@ -94,7 +94,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :extra_json, StateStyleExtra
 
       sets :extra_json
-      emits StateStyleExtraSet
+      emits StateStyleAnnotated
     end
   end
 
@@ -210,7 +210,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :label, SettingsText
 
       sets :label
-      emits LabelSet
+      emits CollectionLabeled
     end
 
     command "SetKey" do
@@ -221,7 +221,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :key, SettingsText
 
       sets :key
-      emits KeySet
+      emits CollectionKeyed
     end
 
     command "SetNavOrder" do
@@ -232,7 +232,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :nav_order, SettingsNumber
 
       sets :nav_order
-      emits NavOrderSet
+      emits CollectionPlaced
     end
 
     command "SetPrimaryField" do
@@ -243,7 +243,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :primary_field, SettingsText
 
       sets :primary_field
-      emits PrimaryFieldSet
+      emits PrimaryFieldChosen
     end
 
     command "SetListQuery" do
@@ -254,7 +254,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :list_query, SettingsText
 
       sets :list_query
-      emits ListQuerySet
+      emits ListQueryChosen
     end
 
     command "SetIdentity" do
@@ -270,7 +270,7 @@ Hecks.bluebook "ConsoleSettings" do
       sets :identity_source
       sets :identity_prefix
       sets :identity_extra_json
-      emits IdentitySet
+      emits CollectionIdentified
     end
 
     command "SetExtra" do
@@ -281,7 +281,7 @@ Hecks.bluebook "ConsoleSettings" do
       attribute :extra_json, CollectionExtra
 
       sets :extra_json
-      emits CollectionExtraSet
+      emits CollectionAnnotated
     end
 
     command "ReplaceColumns" do
@@ -291,7 +291,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
 
       sets :columns
-      emits ColumnsReplaced
+      emits ColumnsArranged
     end
 
     command "ReplaceDetailFields" do
@@ -301,7 +301,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
 
       sets :detail_fields
-      emits DetailFieldsReplaced
+      emits DetailFieldsArranged
     end
 
     command "ReplaceDetailFieldColumns" do
@@ -311,7 +311,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
 
       sets :detail_field_columns
-      emits DetailFieldColumnsReplaced
+      emits DetailFieldColumnsArranged
     end
 
     command "ReplacePreconditions" do
@@ -321,7 +321,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
 
       sets :preconditions
-      emits PreconditionsReplaced
+      emits PreconditionsRestated
     end
 
     command "ReplaceFieldFormats" do
@@ -331,7 +331,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Collection
 
       sets :field_formats
-      emits FieldFormatsReplaced
+      emits FieldFormatsChosen
     end
   end
 
@@ -381,7 +381,7 @@ Hecks.bluebook "ConsoleSettings" do
       reference_to Overview
 
       sets :stats
-      emits StatsReplaced
+      emits OverviewStatsArranged
     end
   end
 
