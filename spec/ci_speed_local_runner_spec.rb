@@ -6,14 +6,18 @@ require "hecks/ci_speed/adapters/local_runner"
 
 # The `LocalRunner` adapter of the CiSpeed chapter runs an experiment's steps in two temporary
 # checkouts of the refs it names. This spec gives it a tiny definition whose steps ask the launcher
-# for usage, so nothing is regenerated, and two real commits of this repository: its newest and the
-# one before. The repository the adapter asks is a shared clone made for the spec, so what the
-# adapter does to "the caller's checkout" can be read off exactly while other work goes on in the
-# working tree this spec runs from.
+# for usage, so nothing is regenerated, and two commits of this repository: its newest and one on
+# top of it with the same tree, made in the spec's own clone, because CI checks out one commit and
+# has no `HEAD~1` to name. The repository the adapter asks is a shared clone made for the spec, so
+# what the adapter does to "the caller's checkout" can be read off exactly while other work goes on
+# in the working tree this spec runs from.
 RSpec.describe Hecks::Adapters::LocalRunner do
   let(:catalog_class) { described_class::Catalog }
 
-  before { git(Dir.pwd, "clone", "--shared", "--no-checkout", "--quiet", Dir.pwd, caller_checkout) }
+  before do
+    git(Dir.pwd, "clone", "--shared", "--no-checkout", "--quiet", Dir.pwd, caller_checkout)
+    commit_the_same_tree_again(caller_checkout)
+  end
 
   after { FileUtils.remove_entry(scratch) }
 
@@ -26,6 +30,14 @@ RSpec.describe Hecks::Adapters::LocalRunner do
     raise "git #{words.join(" ")} failed: #{out}" unless status.success?
 
     out
+  end
+
+  # Moves `HEAD` to a new commit with its tree, so `HEAD~1` names a commit however deep the clone
+  # is. A commit made from the index would be empty: the clone is made without a checkout.
+  def commit_the_same_tree_again(directory)
+    author = ["-c", "user.name=ci speed spec", "-c", "user.email=ci-speed-spec@example.test"]
+    made = git(directory, *author, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "the same tree again").strip
+    git(directory, "update-ref", "HEAD", made)
   end
 
   def step(name, verb, needs: "none", arguments: "--help")
