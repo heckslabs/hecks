@@ -23,13 +23,8 @@ module Hecks
     RUST_COVERAGE_PENDING = {}.freeze
 
     # The stamp hecks project_rust writes into metadata.rs, e.g.
-    # `examples/pizzas` or `the self-hosted language (...)`, with any
-    # ` (attaches "X")`/` (attaches "x", from: :vendor)` suffix stripped.
-    SOURCE_STAMP = /
-      GENERATED\ by\ hecks\ project_rust\ —\ (.+?)
-      (?:\ \(attaches\ "\w+"(?:,\ from:\ :vendor)?\))?
-      's\ own\ canonical\ IR,
-    /x
+    # `examples/pizzas` or `the self-hosted language (...)`; a chapter's is its own name.
+    SOURCE_STAMP = /GENERATED\ by\ hecks\ project_rust\ —\ (.+?)'s\ own\ canonical\ IR,/
 
     # The Rust-facing lists: which domains and bluebooks `rust/` carries, read off Cargo's
     # `[features]` and the generated modules rather than typed out by hand. Extended onto
@@ -75,7 +70,7 @@ module Hecks
         cargo_features_table(root: root).scan(EMPTY_FEATURE).flatten
       end
 
-      # The feature `hecks project_rust` last wrote as Cargo's `default`.
+      # The feature Cargo's `default` names: the one a corpus run keeps it on.
       #
       # @param root [String] repository root to search under
       # @return [String, nil] the default feature's name, or nil when Cargo.toml
@@ -214,8 +209,8 @@ module Hecks
         members(*GEM_CHAPTER_KINDS, root: root).filter_map { |member| File.read(member.path)[BLUEBOOK_NAME, 1] }.uniq
       end
 
-      # The regeneration order the drift check runs, sorted by path — so which
-      # domain wins Cargo's `default` is derived, not hand-picked.
+      # The regeneration order the drift check runs, sorted by path, and the domains a corpus
+      # run declares to `hecks project_rust`.
       #
       # @param root [String] repository root to search under
       # @return [Array<RustDomain>] every Rust domain with a Cargo feature, in regeneration order:

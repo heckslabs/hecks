@@ -22,18 +22,24 @@ module Hecks
     # The era plugin is required unconditionally so the generator works for any domain, lineage
     # capable or not; `pg` stays lazy inside it, so nothing here opens a database connection.
     class ProjectRust
-      # @param argv [Array<String>] the domain's directory
+      # @param argv [Array<String>] the domain's directory, then optionally the corpus run's
+      #   `Declared` flags
       # @return [Integer] the exit status
       # @raise [Failure] when the domain's name cannot be a Rust module and Cargo feature name
       def self.call(argv)
-        domain = argv.first or raise Failure, "usage: hecks project_rust <domain>"
-        new(domain).call
+        declared, rest = Declared.split(argv)
+        domain = rest.first or raise Failure, "usage: hecks project_rust <domain>"
+        new(domain, declared: declared).call
       end
 
       # @param domain [String] the domain's directory
-      def initialize(domain)
+      # @param declared [Declared, nil] the corpus's declared domains; nil for a workspace of one's
+      #   own, where `mod.rs` and Cargo's features follow the domains on disk and `default` the
+      #   domain this run generated
+      def initialize(domain, declared: nil)
         @domain = domain
         @mod_name = File.basename(domain)
+        @declared = declared
       end
 
       # @return [Integer] the exit status
@@ -86,49 +92,62 @@ module Hecks
         ).call
       end
 
+      # A chapter is labelled by its own name: its files read the same whoever attached it, so
+      # regenerating one domain never changes what another domain's files contain.
       def chapters
-        vendored = @registry.hecksagons.values.flat_map(&:vendored_packages)
         (@registry.bluebooks.keys - [@domain_name]).map do |name|
           ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
-          label = "#{@domain} (#{attachment(name, vendored)})"
-          CodegenRun::Chapter.new(name.downcase, label, TargetIr.json_shaped(ir))
+          CodegenRun::Chapter.new(name.downcase, name, TargetIr.json_shaped(ir))
         end
       end
 
-      # How the target attached a bluebook, across every hecksagon the registry loaded: a bluebook a
-      # sibling hecksagon vendors in is labelled as vendored.
-      def attachment(chapter_name, vendored)
-        name = vendored.find { |candidate| Hecks::Naming.pascal(candidate.to_s) == chapter_name }
-        name ? "attaches #{name.inspect}, from: :vendor" : "attaches #{chapter_name.inspect}"
-      end
+      # The feature `default` points at, and the one `mod.rs` treats as the default: the corpus's
+      # fixed one, else the domain this run generated.
+      def default_feature = @declared ? @declared.default : @mod_name
 
-      # `src/generated/mod.rs`: every domain ever generated, scanned off disk. A directory is a
-      # selectable domain exactly when it carries its own `merged.rs`; a framework bluebook has
-      # none and is always compiled in.
+      # `src/generated/mod.rs`. A directory is a selectable domain exactly when it carries its own
+      # `merged.rs`; a framework bluebook has none and is always compiled in. The domains are
+      # scanned off disk, or, for the corpus, taken from its declared list.
       def write_root_mod
-        all_dirs = Dir.children(@out_root).select { |name| File.directory?(File.join(@out_root, name)) }.sort
-        @domains = all_dirs.select { |name| File.exist?(File.join(@out_root, name, "merged.rs")) }
+        all_dirs = generated_directories
+        @domains = domains_among(all_dirs)
         path = File.join(@out_root, "mod.rs")
         wrote = WriteIfChanged.block(path) do |file|
-          RootMod.new(file, all_dirs, @domains, @mod_name).write
+          RootMod.new(file, all_dirs, @domains, default_feature).write
         end
         puts(wrote ? "wrote #{path}" : "#{path} unchanged")
       end
 
-      # One Cargo feature per domain on disk (added when missing, never removed), with `default`
-      # set to this run's domain so a bare `cargo build` builds it. A feature is inserted right
-      # after `default = [...]`, not appended: past `[[bin]]` it would parse into that table.
+      # Every directory under `src/generated`. Under a declared list, its domains are named even
+      # when not generated here yet, and a leftover domain directory it does not declare is dropped.
+      def generated_directories
+        dirs = Dir.children(@out_root).select { |name| File.directory?(File.join(@out_root, name)) }
+        return dirs.sort unless @declared
+
+        chapters = dirs.reject { |name| File.exist?(File.join(@out_root, name, "merged.rs")) }
+        (chapters | @declared.domains).sort
+      end
+
+      def domains_among(directories)
+        return @declared.domains.sort if @declared
+
+        directories.select { |name| File.exist?(File.join(@out_root, name, "merged.rs")) }
+      end
+
+      # One Cargo feature per domain (added when missing, never removed), with `default` set to
+      # `default_feature` so a bare `cargo build` builds it. A feature is inserted right after
+      # `default = [...]`, not appended: past `[[bin]]` it would parse into that table.
       def sync_cargo_features
         path = File.join(@rust_dir, "Cargo.toml")
         manifest = File.read(path)
         manifest = "#{FEATURES_HEADER}#{manifest}" unless manifest.include?("[features]")
         @domains.each { |name| manifest = add_feature(manifest, name) }
-        manifest = manifest.sub(DEFAULT_FEATURE, "default = [#{@mod_name.inspect}]")
+        manifest = manifest.sub(DEFAULT_FEATURE, "default = [#{default_feature.inspect}]")
         # An unchanged manifest is not rewritten: a new mtime makes Cargo rebuild the whole crate.
         if WriteIfChanged.call(path, manifest)
-          puts "wrote #{path} (default feature: #{@mod_name})"
+          puts "wrote #{path} (default feature: #{default_feature})"
         else
-          puts "#{path} unchanged (default feature already #{@mod_name})"
+          puts "#{path} unchanged (default feature already #{default_feature})"
         end
       end
 
@@ -164,6 +183,7 @@ module Hecks
   end
 end
 
+require_relative "project_rust/declared"
 require_relative "project_rust/root_mod"
 require_relative "project_rust/codegen_run"
 require_relative "project_rust/domain_loader"

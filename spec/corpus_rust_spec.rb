@@ -47,11 +47,10 @@ RSpec.describe "Hecks::Corpus, Rust-facing" do
     expect(corpus.rust_regen_order).to eq(corpus.rust_domains)
   end
 
-  # hecks project_rust rewrites Cargo's `default` to whichever domain it ran
-  # last, so the drift check's last domain must already be the committed
-  # default — or every regen run would diff rust/Cargo.toml.
-  it "regenerates the committed Cargo default last" do
-    expect(corpus.rust_regen_order.last.feature).to eq(corpus.cargo_default)
+  # A corpus run keeps Cargo's `default` on the committed value whatever the order, so the value
+  # has to be a domain the corpus declares.
+  it "commits a Cargo default that names a declared domain" do
+    expect(features).to include(corpus.cargo_default)
   end
 
   it "attaches every framework chapter through some Rust domain's hecksagon" do

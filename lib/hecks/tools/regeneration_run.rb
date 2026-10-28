@@ -11,10 +11,10 @@ module Hecks
     # Regenerates every corpus domain's Rust output with `hecks project_rust`, or checks that the
     # output on disk is what that would write. Only pizzas, `mod.rs` and `Cargo.toml` are committed.
     #
-    # The domain list comes from `Hecks::Corpus.rust_regen_order`, never a hand-kept list. The
-    # order is fixed (sorted by relative path): domains that share governance/, identity/,
-    # Cargo.toml and generated/mod.rs stamp them with whichever ran last, so it must not flap.
-    # If the domain set or the sort rule changes, re-run and commit what changed.
+    # The domain list comes from `Hecks::Corpus.rust_regen_order`, never a hand-kept list, and is
+    # handed to every run as the declared domains: a domain's files, `generated/mod.rs` and
+    # Cargo's features come out the same in whatever order the domains run. The order is fixed
+    # anyway (sorted by relative path). If the domain set changes, re-run and commit what changed.
     #
     #   hecks regenerate_corpus         # discover, regenerate, print the plan
     #   hecks regenerate_corpus --check # regenerate into a scratch crate; fail on any difference
@@ -88,7 +88,8 @@ module Hecks
       end
 
       # Builds the memoized grammar registry once and forks for each domain, one at a time and in
-      # order, because the shared outputs depend on which domain ran last.
+      # order. Every run is told the declared domains, so `mod.rs` and Cargo's features come from
+      # that list and Cargo's `default` stays put: the order does not change what any run writes.
       #
       # @param domains [Array<String>] the domains, in run order
       # @return [void]
@@ -96,8 +97,22 @@ module Hecks
         require "hecks"
         require "hecks/bluebook/meta_validator"
         require "hecks/rust_build"
+        require "hecks/rust_build/project_rust"
         Hecks::Bluebook::MetaValidator.grammar_registry
-        domains.each { |domain| project_rust_in_fork(domain) }
+        flags = declared_flags
+        domains.each { |domain| project_rust_in_fork(domain, flags) }
+      end
+
+      # The corpus's declared domains as `hecks project_rust` flags: the domains of the regeneration
+      # order, and the features the corpus routes elsewhere (`meta`, which every run generates).
+      # Cargo's `default` stays on the feature the tracked `rust/Cargo.toml` names, or on the last
+      # declared domain when it names none.
+      #
+      # @return [Array<String>] the flags
+      def declared_flags
+        features = Hecks::Corpus.rust_regen_order.map(&:feature)
+        default = Hecks::Corpus.cargo_default || features.last
+        Hecks::RustBuild::ProjectRust::Declared.new(features + Hecks::Corpus::RUST_ELSEWHERE.keys, default).flags
       end
 
       # Forks so the child inherits the memoized grammar registry instead of rebuilding it. The
@@ -105,12 +120,13 @@ module Hecks
       # process's stdout.
       #
       # @param domain [String] the domain, relative to the checkout
+      # @param flags [Array<String>] the declared-domain flags
       # @return [void]
       # @raise [SystemExit] when the child fails
-      def project_rust_in_fork(domain)
+      def project_rust_in_fork(domain, flags)
         puts "== hecks project_rust #{domain} =="
         reader, writer = IO.pipe
-        pid = fork { run_child(reader, writer, domain) }
+        pid = fork { run_child(reader, writer, [domain, *flags]) }
         writer.close
         $stdout.write(reader.read)
         reader.close
@@ -121,23 +137,23 @@ module Hecks
 
       # @param reader [IO] the parent's end of the pipe, closed here
       # @param writer [IO] the child's end, which becomes its stdout and stderr
-      # @param domain [String] the domain
+      # @param argv [Array<String>] the arguments of `hecks project_rust`
       # @return [void] never returns: the child leaves without the parent's exit handlers
-      def run_child(reader, writer, domain)
+      def run_child(reader, writer, argv)
         reader.close
         # The real descriptors, not the globals: a caller may have swapped those for a buffer.
         STDOUT.reopen(writer) # rubocop:disable Style/GlobalStdStream
         STDERR.reopen(writer) # rubocop:disable Style/GlobalStdStream
         $stdout = STDOUT
         $stderr = STDERR
-        status = child_status(domain)
+        status = child_status(argv)
         $stdout.flush
         exit!(status)
       end
 
-      # @return [Integer] the exit status of `hecks project_rust` for the domain
-      def child_status(domain)
-        Hecks::RustBuild.run("project_rust", [domain], out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
+      # @return [Integer] the exit status of `hecks project_rust` with the arguments
+      def child_status(argv)
+        Hecks::RustBuild.run("project_rust", argv, out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
       rescue SystemExit => e
         e.status
       rescue StandardError => e

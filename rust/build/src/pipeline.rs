@@ -24,6 +24,8 @@ pub struct Options {
 
 struct Chapter {
     mod_name: String,
+    // The chapter's own name, as `hecks project_rust` labels it: whoever attached it, its files
+    // read the same.
     source_label: String,
     ir_text: String,
 }
@@ -143,7 +145,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             let files = resolve::other_gem_chapter_files(root, fw_name)?;
             chapters.push(Chapter {
                 mod_name: fw_name.to_lowercase(),
-                source_label: format!("{domain} (attaches {fw_name:?})"),
+                source_label: fw_name.clone(),
                 ir_text: parse_chapter(&parser_bin, fw_name, &files)?,
             });
             continue;
@@ -172,7 +174,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         )?;
         chapters.push(Chapter {
             mod_name: fw_name.to_lowercase(),
-            source_label: format!("{domain} (attaches {fw_name:?})"),
+            source_label: fw_name.clone(),
             ir_text: fw_ir_text,
         });
     }
@@ -203,7 +205,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             // `expected_chapter_name` above), not the raw `pkg_name` — that
             // would diverge the moment a package name has an underscore.
             mod_name: expected_chapter_name.to_lowercase(),
-            source_label: format!("{domain} (attaches {pkg_name:?}, from: :vendor)"),
+            source_label: pkg_chapter_name,
             ir_text: pkg_ir_text,
         });
     }
@@ -218,7 +220,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         sources.extend(hecksagon_path.iter().cloned());
         siblings.push(Chapter {
             mod_name: name.to_lowercase(),
-            source_label: format!("{domain} (attaches {name:?})"),
+            source_label: name.clone(),
             ir_text: parse_chapter(&parser_bin, name, &sources)?,
         });
     }
