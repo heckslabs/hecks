@@ -67,6 +67,7 @@ module Hecks
 
           target = (owners.fetch(attribute.type.to_s, []) - [aggregate.hecks_name]).first
           return unless target
+          return if Acknowledgements.held?(aggregate, :key_by_value, subject: attribute.name)
 
           Finding.new(kind: :key_by_value, severity: :warning,
                       subject: "#{aggregate.hecks_name}.#{attribute.name}",

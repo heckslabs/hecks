@@ -222,11 +222,8 @@ a colon, so a policy can hand another context "the thing that happened"
 without naming its fields. It sits below everything else: a payload field
 called `id` wins it, and so does a fan-out row's own `id`. `ReviewOnFreeze`
 uses it to name the account it froze, which is why Compliance's `Review`
-knows no Banking field:
-
-```ruby skip
-trigger Review::Open, with: { subject_kind: "account_freeze", subject_key: :id }
-```
+knows no Banking field: its trigger is `trigger Review::Open, with: { subject_kind:
+"account_freeze", subject_key: :id }`.
 
 Left off, the whole payload forwards — which is a real constraint on the
 target, not a detail. `FreezeAccountsOnSuspension`, in the same bluebook,

@@ -34,7 +34,8 @@ module Hecks
             {
               invariants:       rules_in(row, :invariants),
               preconditions:    rules_in(row, :preconditions),
-              projected_fields: Array(row[:projected_fields]).map { |held| projected_field(held) }
+              projected_fields: Array(row[:projected_fields]).map { |held| projected_field(held) },
+              acknowledgements: Array(row[:acknowledgements]).map { |held| acknowledgement(held) }
             }
           end
 

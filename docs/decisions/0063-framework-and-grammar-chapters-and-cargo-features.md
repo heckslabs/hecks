@@ -74,7 +74,7 @@ every generated file was reverted afterwards.
      absent optional fields is serialized by Rust with explicit `null` keys
      (`{"field": "reference", "sortable": null, "sort_default": null, "extra_json":
      null}`) where Ruby omits them (`{"field": "reference"}`). It shows up in
-     `instances` and in the `ColumnsReplaced` and `StatsReplaced` event payloads. This
+     `instances` and in the `ColumnsArranged` and `OverviewStatsArranged` event payloads. This
      is the same class as audit item R1 ("Rust emits `nil` for an omitted optional
      where Ruby omits the key"), reached through list elements rather than top-level
      arguments.

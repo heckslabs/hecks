@@ -99,8 +99,16 @@ module Hecks
         return depth_refusal(record) if @dispatcher.reaction_depth_reached?
 
         args = trigger_args(policy, event)
+        log_cross_domain(policy, target, args)
         @dispatcher.reenter(target, **reaction_invocation(target, args, policy, event))
         record.merge(delivered: true)
+      end
+
+      # What an `across` policy hands the other domain, noted before the delivery is attempted.
+      def log_cross_domain(policy, target, args)
+        return unless policy.target_domain
+
+        @registry.cross_domain_log << { policy: policy.name, target_verb: target, payload: args }
       end
 
       def depth_refusal(record)

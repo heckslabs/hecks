@@ -76,6 +76,12 @@ module Hecks
                              remote_field: row[:remote_field].to_sym)
         end
 
+        # One acknowledged finding: the kind comes back a Symbol, the reason stays text.
+        def acknowledgement(row)
+          subject = row[:subject].to_s
+          Acknowledgement.new(finding: row[:finding].to_sym, reason: row[:reason], subject: (subject unless subject.empty?))
+        end
+
         # `Mutation#to_h` branches on the operation, so this does too.
         # An append binds several fields, each an argument (a Symbol) or a literal.
         def mutation(change)

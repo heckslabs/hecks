@@ -60,12 +60,12 @@ function canonical(value: unknown): unknown {
 
 const sameState = (a: State | undefined, b: State | undefined): boolean => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 
-/** Whether the host's refusal names this aggregate's verb: by its chapter too when the editor spans several. */
+/** Whether the host's refusal names this aggregate's verb: by its bluebook too when the editor spans several. */
 function refusedLast(answer: Answer, agg: Aggregate, command: Command): boolean {
   const last = (answer.refusals ?? []).at(-1);
   if (last === undefined) return false;
   const verb = String(last.verb ?? "");
-  return verb.replace(/^.*::/, "") === `${agg.name}.${command.name}` && (!agg.chapter || !verb.includes("::") || verb.startsWith(`${agg.chapter}::`));
+  return verb.replace(/^.*::/, "") === `${agg.name}.${command.name}` && (!agg.bluebook || !verb.includes("::") || verb.startsWith(`${agg.bluebook}::`));
 }
 
 /** Whether `after` shows the command took effect, given the instance as it was `before`. */

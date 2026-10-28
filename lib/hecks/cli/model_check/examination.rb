@@ -31,19 +31,34 @@ module Hecks
           pairs.group_by(&:first).transform_values { |rows| rows.map(&:last).uniq }
         end
 
-        # The checks that need every context at once: cycles between contexts. Prints a section
-        # only when it finds something.
+        # The checks that need every context at once: cycles between contexts, and each declared
+        # context map held to the wiring of the system it covers. Prints a section only when it
+        # finds something.
         #
         # @api private
         def contexts_pass?(booted, owners)
           edges = booted.flat_map do |_, registry|
             Projections::ContextRelationships.call(registry: registry, owners: owners)
           end
-          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq)
+          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq) + context_map_findings(booted, owners)
           return true if findings.empty?
 
           puts "── contexts"
           passes?(findings, "")
+        end
+
+        # What each booted system's declared context maps say about that system's own wiring.
+        #
+        # @api private
+        # @return [Array<Bluebook::ModelCheck::Finding>] the findings of every map, none for a
+        #   system that declares no map
+        def context_map_findings(booted, owners)
+          booted.flat_map do |_, registry|
+            registry.context_maps.flat_map do |map|
+              edges = Projections::ContextRelationships.call(registry: registry, owners: owners)
+              Bluebook::ModelCheck.context_map_findings(map, edges)
+            end
+          end
         end
 
         # @api private

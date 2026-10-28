@@ -37,9 +37,9 @@ Hecks.bluebook "Hecksagon" do
     end
 
     # The name an attachment is asked for by, before its source is known.
-    value_object "ChapterName" do
+    value_object "AttachedBluebookName" do
       attribute :value, String
-      invariant("a chapter is named") { !value.to_s.empty? }
+      invariant("a bluebook is named") { !value.to_s.empty? }
     end
 
     command "Declare" do
@@ -68,12 +68,12 @@ Hecks.bluebook "Hecksagon" do
       role "Deployment"
       goal "Attach a bluebook to this hecksagon, from the gem or from vendor"
 
-      attribute :chapter, ChapterName
+      attribute :bluebook, AttachedBluebookName
       attribute :source,  String, default: "gem"
 
-      sets :attachments, append: { value: :chapter, source: :source }
+      sets :attachments, append: { value: :bluebook, source: :source }
 
-      emits "ChapterAttached"
+      emits "BluebookAttached"
     end
 
     command "DrivenBy" do

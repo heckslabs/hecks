@@ -29,7 +29,7 @@ Hecks.bluebook "Bluebook" do
                 one_of: ["File", "Bluebook", "Aggregate", "Entity", "Command", "Query", "ValueObject", "OneOf",
                          "Lifecycle", "Policy", "ProcessManager", "Handler", "Dispatch", "ReadModel", "Type",
                          "Hecksagon", "World", "DomainPort", "PortOperation", "Port", "Adapter", "Translation",
-                         "TranslationAggregate"]
+                         "TranslationAggregate", "ContextMap"]
     end
 
     # What a word's block is:

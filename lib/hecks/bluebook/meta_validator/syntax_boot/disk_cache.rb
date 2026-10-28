@@ -94,6 +94,7 @@ module Hecks
           # let a stale table survive a real grammar edit.
           def grammar_content_digest
             files = (MetaValidator::GRAMMAR_FILES + MetaValidator::WORLD_GRAMMAR + MetaValidator::HECKSAGON_GRAMMAR +
+                      MetaValidator::CONTEXT_MAP_GRAMMAR +
                       Dir.glob(File.join(MetaValidator::ATTACHED_GRAMMAR_DIR, "*.bluebook"))).sort
             Digest::SHA256.hexdigest(files.map { |file| File.read(file) }.join("\0"))
           end

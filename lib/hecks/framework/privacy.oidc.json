@@ -12,6 +12,11 @@
       "role": "Deployment"
     },
     {
+      "scope": "privacy:subject_key.fail_issue",
+      "verb": "Privacy::SubjectKey.FailIssue",
+      "role": "System"
+    },
+    {
       "scope": "privacy:subject_key.fail_shred",
       "verb": "Privacy::SubjectKey.FailShred",
       "role": "System"
@@ -24,6 +29,16 @@
     {
       "scope": "privacy:subject_key.mark_shredded",
       "verb": "Privacy::SubjectKey.MarkShredded",
+      "role": "System"
+    },
+    {
+      "scope": "privacy:subject_key.record_key",
+      "verb": "Privacy::SubjectKey.RecordKey",
+      "role": "System"
+    },
+    {
+      "scope": "privacy:subject_key.reissue",
+      "verb": "Privacy::SubjectKey.Reissue",
       "role": "System"
     },
     {

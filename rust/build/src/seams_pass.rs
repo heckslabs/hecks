@@ -16,7 +16,7 @@ struct Seam {
 const SEAMS: &[Seam] = &[
     Seam {
         capability: "authorization",
-        verbs: &["grant", "assignments"],
+        verbs: &["grant", "assignments", "live_assignments"],
         aggregates: &[("assignment_aggregate", "assignments")],
     },
     Seam {

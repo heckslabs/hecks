@@ -381,6 +381,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("namespace", "Bluebook"),
     ("description", "Aggregate"),
     ("provenance", "Aggregate"),
+    ("acknowledges", "Aggregate"),
     ("identified_by", "Aggregate"),
     ("attribute", "Aggregate"),
     ("value_object", "Aggregate"),

@@ -7,38 +7,8 @@
       "role": "Console"
     },
     {
-      "scope": "console_settings:collection.replace_columns",
-      "verb": "ConsoleSettings::Collection.ReplaceColumns",
-      "role": "Console"
-    },
-    {
-      "scope": "console_settings:collection.replace_detail_field_columns",
-      "verb": "ConsoleSettings::Collection.ReplaceDetailFieldColumns",
-      "role": "Console"
-    },
-    {
-      "scope": "console_settings:collection.replace_detail_fields",
-      "verb": "ConsoleSettings::Collection.ReplaceDetailFields",
-      "role": "Console"
-    },
-    {
-      "scope": "console_settings:collection.replace_field_formats",
-      "verb": "ConsoleSettings::Collection.ReplaceFieldFormats",
-      "role": "Console"
-    },
-    {
-      "scope": "console_settings:collection.replace_preconditions",
-      "verb": "ConsoleSettings::Collection.ReplacePreconditions",
-      "role": "Console"
-    },
-    {
       "scope": "console_settings:collection.set_extra",
       "verb": "ConsoleSettings::Collection.SetExtra",
-      "role": "Console"
-    },
-    {
-      "scope": "console_settings:collection.set_identity",
-      "verb": "ConsoleSettings::Collection.SetIdentity",
       "role": "Console"
     },
     {
@@ -64,6 +34,51 @@
     {
       "scope": "console_settings:collection.set_primary_field",
       "verb": "ConsoleSettings::Collection.SetPrimaryField",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_identity.declare",
+      "verb": "ConsoleSettings::CollectionIdentity.Declare",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_identity.set_identity",
+      "verb": "ConsoleSettings::CollectionIdentity.SetIdentity",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_layout.declare",
+      "verb": "ConsoleSettings::CollectionLayout.Declare",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_layout.replace_columns",
+      "verb": "ConsoleSettings::CollectionLayout.ReplaceColumns",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_layout.replace_detail_field_columns",
+      "verb": "ConsoleSettings::CollectionLayout.ReplaceDetailFieldColumns",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_layout.replace_detail_fields",
+      "verb": "ConsoleSettings::CollectionLayout.ReplaceDetailFields",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_rules.declare",
+      "verb": "ConsoleSettings::CollectionRules.Declare",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_rules.replace_field_formats",
+      "verb": "ConsoleSettings::CollectionRules.ReplaceFieldFormats",
+      "role": "Console"
+    },
+    {
+      "scope": "console_settings:collection_rules.replace_preconditions",
+      "verb": "ConsoleSettings::CollectionRules.ReplacePreconditions",
       "role": "Console"
     },
     {

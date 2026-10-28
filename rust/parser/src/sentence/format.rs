@@ -236,7 +236,10 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
 
 /// An aggregate, or an entity written as one, under the header `kind`.
 fn block_text(out: &mut String, aggregate: &ir::Aggregate, kind: &str) -> Result<(), String> {
-    let held = [(!aggregate.ports.is_empty(), "ports")];
+    let held = [
+        (!aggregate.ports.is_empty(), "ports"),
+        (!aggregate.acknowledgements.is_empty(), "acknowledgements"),
+    ];
     if let Some((_, what)) = held.iter().find(|(present, _)| *present) {
         return Err(format!("the sentence form has no phrase for {what}"));
     }

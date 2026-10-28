@@ -16,6 +16,9 @@ Hecks.bluebook "Hecks" do
   aggregate "RehearsalRun" do
     description "One rehearsal of a domain's next era against a copy of its data: what a mint would do, and what it would refuse."
 
+    acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                 of: :domain
+
     attribute :run,            RunKey
     attribute :domain,         DomainPath
     attribute :pin,            Pin,         optional: true
