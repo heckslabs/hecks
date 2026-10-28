@@ -29,7 +29,7 @@ answers, then a system-only `Record`.
    longer claims the key is gone.
 2. **A policy asks the vault.** `DestroyTheKeyWhenAsked` is `on SubjectKeyShredRequested` and
    `ask :destroy`. The `Keys` port, declared in `privacy.ports.hecksagon`, answers
-   `SubjectKeyDestroyed` or refuses `SubjectKeyDestructionRefused`, and `KeyDestroyer` binds it
+   `SubjectKeyDestroyed` or refuses `SubjectKeyDestructionRefused`, and `KeyKeeper` (ADR 0147) binds it
    to the `key_vault` port's `destroy`. The ask is handed the subject's held state, so it takes no
    argument.
 3. **System-only commands record the answer.** `MarkShredded` moves `shredding` to `shredded` and

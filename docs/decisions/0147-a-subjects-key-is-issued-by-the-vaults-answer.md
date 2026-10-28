@@ -37,10 +37,9 @@ key that existed nowhere.
   corpus script and `spec/privacy_shred_spec.rb`; the corpus now ends on six events. Dispatchers in
   other repositories were not searched.
 - The lifecycle gains `issuing` (now the default), `issue_failed` and the `Reissue` edge. Framework
-  members are not in the shape ledger, so no translation edge exists for the move. A store that
-  already holds `SubjectKey` rows keeps them as `active` or `shredded`, but a row written before
-  this change has `status` `active` by the old default and stays valid; no stored row is rewritten.
-  A deployed store was not checked.
+  members are not in the shape ledger, so no translation edge exists for the move. A stored
+  `SubjectKey` row keeps the status it was written with (`active`, `shredded`), and none is
+  rewritten. A deployed store was not checked.
 - `SubjectKeyIssued` now means the vault's answer, after the request and with the reference in its
   payload. A consumer that reacted to the old event sees it later.
 - The OIDC manifest for Privacy gains scopes for `RecordKey`, `FailIssue` and `Reissue`.
