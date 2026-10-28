@@ -26,10 +26,10 @@ impl Clock for SystemClock {
 }
 
 /// A clock that always answers one moment, for tests.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub struct FixedClock(pub i64);
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 impl Clock for FixedClock {
     fn now_secs(&self) -> i64 {
         self.0
@@ -386,7 +386,7 @@ pub fn fill_defaults(domain_ir: &Value, verb: &str, args: &mut Value) {
 mod tests {
     use super::*;
 
-    const LEASE_IR: &str = include_str!("../../src/generated/lease_clock/ir.json");
+    const LEASE_IR: &str = include_str!("../../../src/generated/lease_clock/ir.json");
 
     fn lease_ir() -> Value {
         serde_json::from_str(LEASE_IR).unwrap()

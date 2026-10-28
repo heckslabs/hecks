@@ -185,7 +185,7 @@ fn hex(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    const DOUBLER: &[u8] = include_bytes!("../../../spec/fixtures/wasm_plugin/doubler.wasm");
+    const DOUBLER: &[u8] = include_bytes!("../../../../spec/fixtures/wasm_plugin/doubler.wasm");
 
     fn ir() -> Value {
         json!({

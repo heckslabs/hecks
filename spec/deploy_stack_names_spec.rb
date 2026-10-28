@@ -5,7 +5,7 @@ require "hecks/projections/deploy/fargate/stack"
 
 # The `hecks-<domain, lowercased>` stack name is computed in four places that must agree: the
 # Lambda client, the Lambda and Fargate stack generators' shared-owner lookup, and
-# `function_name_for` in rust/host/src/lambda_client.rs. spec/fixtures/stack_name_vectors.json is
+# `function_name_for` in rust/host/core/src/lambda_client.rs. spec/fixtures/stack_name_vectors.json is
 # the one table all of them assert; nothing is centralised, the copies are only pinned together.
 RSpec.describe "the shared stack-name vectors" do
   STACK_NAME_VECTORS = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec", "fixtures", "stack_name_vectors.json")))

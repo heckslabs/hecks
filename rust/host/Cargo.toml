@@ -17,6 +17,8 @@ path = "src/main.rs"
 # No path dependency on `rust`: the compiled `.wasm` is loaded through wasmtime as an untrusted
 # module, so dispatch runs sandboxed with no access to this crate's Postgres connection.
 [dependencies]
+# The runtime, free of any driver: this crate (the adapters) implements its backends and transports.
+rust_host_core = { path = "core" }
 wasmtime = "49.0.4"
 wasmtime-wasi = "49.0.4"
 lambda_runtime = "0.13"
@@ -58,6 +60,9 @@ aws-sdk-lambda = { version = "1", default-features = false, features = ["rt-toki
 aws-sdk-secretsmanager = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest"] }
 aws-smithy-http-client = { version = "1", default-features = false, features = ["rustls-ring"] }
 async-trait = "0.1.92"
+
+[dev-dependencies]
+rust_host_core = { path = "core", features = ["test-support"] }
 
 # CI never attaches a debugger to dev binaries, so skip debuginfo to save build time.
 [profile.dev]

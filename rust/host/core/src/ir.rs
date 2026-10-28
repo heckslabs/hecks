@@ -851,7 +851,3 @@ mod tests {
         assert!(err.starts_with("rust/host only has a backend"), "{err}");
     }
 }
-
-#[cfg(test)]
-#[path = "boundary_fuzz/ir.rs"]
-mod boundary_fuzz;

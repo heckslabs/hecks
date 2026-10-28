@@ -1,7 +1,7 @@
 //! The wall clock, read once the same way everywhere.
 
 /// Whole seconds since the Unix epoch; 0 if the system clock reads before it.
-pub(crate) fn unix_now() -> i64 {
+pub fn unix_now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_secs() as i64)
@@ -9,12 +9,12 @@ pub(crate) fn unix_now() -> i64 {
 
 /// The current instant in ISO 8601 UTC, matching Ruby's `Time.now.utc.iso8601`: the rendering
 /// a journal step's `occurred_at` and a role assignment's `starts_at` both carry.
-pub(crate) fn iso8601_now() -> String {
+pub fn iso8601_now() -> String {
     iso_utc(unix_now().max(0) as u64)
 }
 
 /// Epoch seconds as an ISO 8601 UTC instant, `YYYY-MM-DDTHH:MM:SSZ`.
-pub(crate) fn iso_utc(secs: u64) -> String {
+pub fn iso_utc(secs: u64) -> String {
     let days = secs / 86_400;
     let rem = secs % 86_400;
     let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
@@ -24,7 +24,7 @@ pub(crate) fn iso_utc(secs: u64) -> String {
 
 /// Epoch seconds of an ISO 8601 UTC instant (`YYYY-MM-DDTHH:MM:SSZ`, optional fractional
 /// seconds, which are dropped); `None` for anything else, an offset other than `Z` included.
-pub(crate) fn parse_iso_utc(text: &str) -> Option<i64> {
+pub fn parse_iso_utc(text: &str) -> Option<i64> {
     let bytes = text.as_bytes();
     if bytes.len() < 20 || !text.is_ascii() || *bytes.last()? != b'Z' {
         return None;

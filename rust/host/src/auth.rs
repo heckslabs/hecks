@@ -699,7 +699,7 @@ pub async fn grant_access_until(
                     }
                 }
             }
-            if strands_open_admin(&rows, id, &new_state) {
+            if strands_open_admin(rows, id, &new_state) {
                 return (GrantOutcome::LastOpenAdmin, None);
             }
             (GrantOutcome::Done, Some((id.clone(), new_state)))
@@ -1026,7 +1026,7 @@ pub async fn set_person_disabled(
             if is_disabled(state) == disable {
                 return (DisableOutcome::Done, None);
             }
-            if disable && is_last_active_admin(&rows, state) {
+            if disable && is_last_active_admin(rows, state) {
                 return (DisableOutcome::LastAdmin, None);
             }
 
@@ -1036,7 +1036,7 @@ pub async fn set_person_disabled(
             } else if let Some(fields) = new_state.as_object_mut() {
                 fields.remove("disabled");
             }
-            if strands_open_admin(&rows, id, &new_state) {
+            if strands_open_admin(rows, id, &new_state) {
                 return (DisableOutcome::LastOpenAdmin, None);
             }
             (DisableOutcome::Done, Some((id.clone(), new_state)))
@@ -1142,13 +1142,13 @@ pub async fn set_person_role(
             if role_of(state) == Some(role) {
                 return (RoleOutcome::Done, None);
             }
-            if !is_admin_role(role) && is_last_active_admin(&rows, state) {
+            if !is_admin_role(role) && is_last_active_admin(rows, state) {
                 return (RoleOutcome::LastAdmin, None);
             }
 
             let mut new_state = state.clone();
             new_state["role"] = json!({"value": role});
-            if strands_open_admin(&rows, id, &new_state) {
+            if strands_open_admin(rows, id, &new_state) {
                 return (RoleOutcome::LastOpenAdmin, None);
             }
             (RoleOutcome::Done, Some((id.clone(), new_state)))
@@ -1231,6 +1231,8 @@ pub(crate) fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
 
     #[test]
     fn signed_token_verifies_with_the_right_secret_and_rejects_tampering() {
@@ -1658,7 +1660,7 @@ mod tests {
             )
             .await
             .unwrap();
-        Store::postgres(client)
+        crate::store::postgres_store(client)
     }
 
     // A minimal `ir.json`-shaped fixture: one lineage-capable aggregate

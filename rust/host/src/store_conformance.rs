@@ -11,13 +11,15 @@
 //! snapshot, injecting a failed write, holding the domain lock from a competing writer) is a
 //! harness method, so the cases never name a table.
 
-use crate::dispatch::tests::{
+use crate::dispatch::{self, Caller, Outcome};
+use crate::dispatch_tests::tests::{
     provision_lineage, register, scratch_db, test_config, wasm_path, RecordingInvoker,
 };
-use crate::dispatch::{self, Caller, Outcome};
 use crate::host::Host;
 use crate::store::journal_sql::{self as journal, LineageConfig};
 use crate::store::{Accepted, MemoryFault, MemoryStore, Store};
+#[allow(unused_imports)]
+use crate::store::{StoreExt, StoreFixtures};
 use serde_json::{json, Value};
 use std::time::Duration;
 use tokio_postgres::{Client, NoTls};
@@ -171,6 +173,8 @@ fn settlement(tag: &str, state: &str) -> SagaRow {
 #[cfg(test)]
 mod cases {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
 
     pub(super) async fn an_accepted_command_appends_one_journal_row<B: Backend>(db: &str) {
         let backend = B::fresh(db).await;
@@ -828,7 +832,7 @@ impl PostgresBackend {
     fn wrap(db: &str, client: Client) -> Self {
         Self {
             db: db.to_string(),
-            client: Store::postgres(client),
+            client: crate::store::postgres_store(client),
             invoker: RecordingInvoker::new(),
         }
     }
@@ -1014,6 +1018,8 @@ impl Backend for PostgresBackend {
 
 mod postgres {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
 
     conformance_suite!(PostgresBackend;
         sagas_load_in_key_order_however_they_were_written,
@@ -1164,6 +1170,8 @@ impl Backend for MemoryBackend {
 
 mod memory {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
 
     conformance_suite!(MemoryBackend;
         sagas_load_in_key_order_however_they_were_written,

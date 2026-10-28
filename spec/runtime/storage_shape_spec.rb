@@ -57,7 +57,7 @@ RSpec.describe "the storage-shape projection" do
     expect(Hecks::Runtime::StorageShape.mint_label(bluebook)).to eq(label)
   end
 
-  # spec/fixtures/storage_shape_vectors.json is the golden file rust/host/src/storage_shape.rs
+  # spec/fixtures/storage_shape_vectors.json is the golden file rust/host/core/src/storage_shape.rs
   # asserts too, so a drift in either implementation fails a test on its own side.
   describe "the shared golden vectors" do
     # Just the two readers StorageShape takes of a bluebook, over an IR Hash.

@@ -53,7 +53,7 @@ pub use crate::hecks_naming::snake;
 
 /// `aggregate.storage_name` ported from ir/aggregate.rb — demodulizes a
 /// qualified name like `"Banking::Customer"` to `"Customer"` before snaking it.
-pub(crate) fn storage_name(qualified_aggregate: &str) -> String {
+pub fn storage_name(qualified_aggregate: &str) -> String {
     let short = qualified_aggregate
         .rsplit("::")
         .next()
@@ -61,19 +61,19 @@ pub(crate) fn storage_name(qualified_aggregate: &str) -> String {
     snake(short)
 }
 
-pub(crate) fn journal_table(domain: &str) -> String {
+pub fn journal_table(domain: &str) -> String {
     format!("hecks_journal_{}", snake(domain))
 }
 
 /// Postgres's NAMEDATALEN-1 limit — an identifier over this length is
 /// silently truncated, never refused, so two overlong names sharing a
 /// prefix would otherwise collide.
-pub(crate) const POSTGRES_IDENTIFIER_LIMIT: usize = 63;
+pub const POSTGRES_IDENTIFIER_LIMIT: usize = 63;
 
 /// Same algorithm as `Lineage#qualified_name` (lineage.rb): 63-byte limit,
 /// SHA256 suffix over the full name, a cut that never splits a character, domain-qualified so
 /// two domains' storage names can't collide (ADR 0059).
-pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
+pub fn qualified_name(domain: &str, suffix: &str) -> String {
     let full = format!("{}_{}", snake(domain), suffix);
     if full.len() <= POSTGRES_IDENTIFIER_LIMIT {
         return full;
@@ -90,7 +90,7 @@ pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
 }
 
 /// The era-shaped snapshot table of one aggregate's head at `era`.
-pub(crate) fn head_snapshot_table(domain: &str, qualified_aggregate: &str, era: i32) -> String {
+pub fn head_snapshot_table(domain: &str, qualified_aggregate: &str, era: i32) -> String {
     qualified_name(
         domain,
         &format!(
@@ -113,7 +113,7 @@ pub struct Mutation<'a> {
 // Not wired into dispatch::handle's replay seed — overlaying translated
 // head state onto raw replayed steps would cause false "AlreadyExists" refusals.
 /// The head view of one aggregate, qualified by its domain (ADR 0059).
-pub(crate) fn head_view(domain: &str, storage_name: &str) -> String {
+pub fn head_view(domain: &str, storage_name: &str) -> String {
     qualified_name(domain, &format!("{storage_name}_head"))
 }
 

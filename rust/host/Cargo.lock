@@ -2447,6 +2447,7 @@ dependencies = [
  "lambda_runtime",
  "regex",
  "reqwest",
+ "rust_host_core",
  "rustls",
  "serde_json",
  "sha2 0.10.9",
@@ -2454,6 +2455,21 @@ dependencies = [
  "tokio-postgres",
  "tokio-postgres-rustls",
  "uuid",
+ "wasmtime",
+ "wasmtime-wasi",
+]
+
+[[package]]
+name = "rust_host_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64",
+ "regex",
+ "serde_json",
+ "sha2 0.10.9",
+ "tokio",
  "wasmtime",
  "wasmtime-wasi",
 ]
