@@ -36,9 +36,13 @@ pub struct CrossDomainPolicyRule {
     pub where_expr: Option<fn() -> Expr>,
     pub target_domain: &'static str,
     pub target_verb: &'static str,
+    /// `trigger ..., with:` as `(argument_name, binding)` pairs, read as a local policy's is;
+    /// empty forwards the payload unchanged.
+    pub with_spec: &'static [(&'static str, &'static str)],
 }
 
-/// A matched cross-domain reaction the host must deliver; the payload is forwarded unchanged.
+/// A matched cross-domain reaction the host must deliver. The payload is the event's payload
+/// unchanged, or the policy's `with:` projection of it.
 #[derive(Clone)]
 pub struct PendingCrossDomainReaction {
     pub policy_name: String,
@@ -443,6 +447,60 @@ fn offer_row_fields(source: &mut Vec<(String, Json)>, row_id: &str, record: &Jso
     }
 }
 
+// An explicit projection may read the emitting record's identity, offered under the aggregate's
+// identity head unless the payload already carries it.
+fn offer_emitter_head(source: &mut Vec<(String, Json)>, event: &Event, tables: &Tables) {
+    if let Some(head) = (tables.identity_head_fn)(&event.aggregate) {
+        if !event.id.is_empty() && !source.iter().any(|(name, _)| name == head) {
+            source.push((head.to_string(), Json::str(event.id.clone())));
+        }
+    }
+}
+
+// The emitting record's whole identity as `id`, unless the source already holds an `id`.
+fn offer_emitter_id(source: &mut Vec<(String, Json)>, event: &Event) {
+    if !event.id.is_empty() && !source.iter().any(|(name, _)| name == "id") {
+        source.push(("id".to_string(), Json::str(event.id.clone())));
+    }
+}
+
+// Reads a `with:` against a source: a binding starting with ":" names a source field (null when
+// absent), any other is a rendered literal.
+fn resolve_with_spec(with_spec: &[(&str, &str)], source: &[(String, Json)]) -> Vec<(String, Json)> {
+    with_spec
+        .iter()
+        .map(|(name, binding)| {
+            let value = binding.strip_prefix(':').map_or_else(
+                || read_literal_wire(binding),
+                |field| {
+                    source
+                        .iter()
+                        .find(|(held, _)| held == field)
+                        .map_or(Json::Null, |(_, held)| held.clone())
+                },
+            );
+            ((*name).to_string(), value)
+        })
+        .collect()
+}
+
+// What a cross-domain reaction is delivered with: the payload unchanged when the policy declares
+// no `with:`, otherwise the projection of it, read as a local trigger reads one. It is not sliced
+// to the target's attributes: the target's command lives in the other domain, whose tables this
+// one does not hold, and that domain refuses an argument its command does not take.
+fn cross_domain_payload(policy: &CrossDomainPolicyRule, event: &Event, tables: &Tables) -> Json {
+    if policy.with_spec.is_empty() {
+        return event.payload.clone();
+    }
+    let mut source: Vec<(String, Json)> = match &event.payload {
+        Json::Object(pairs) => pairs.clone(),
+        _ => Vec::new(),
+    };
+    offer_emitter_head(&mut source, event, tables);
+    offer_emitter_id(&mut source, event);
+    Json::Object(resolve_with_spec(policy.with_spec, &source))
+}
+
 fn where_holds(where_expr: Option<fn() -> Expr>, event: &Event) -> bool {
     let Some(build) = where_expr else { return true };
     let ctx = EvalContext {
@@ -525,34 +583,17 @@ fn trigger_args_with_row(
         return Json::Object(source);
     }
 
-    // An explicit projection may read the emitting record's identity, offered under the
-    // aggregate's identity head unless the payload already carries it.
-    if let Some(head) = (tables.identity_head_fn)(&event.aggregate) {
-        if !event.id.is_empty() && !source.iter().any(|(name, _)| name == head) {
-            source.push((head.to_string(), Json::str(event.id.clone())));
-        }
-    }
+    offer_emitter_head(&mut source, event, tables);
 
     if let Some((row_id, record)) = row {
         offer_row_fields(&mut source, row_id, record);
     }
 
-    let projected = policy
-        .with_spec
-        .iter()
-        .map(|(name, binding)| {
-            let value = binding.strip_prefix(':').map_or_else(
-                || read_literal_wire(binding),
-                |field| {
-                    source
-                        .iter()
-                        .find(|(held, _)| held == field)
-                        .map_or(Json::Null, |(_, held)| held.clone())
-                },
-            );
-            ((*name).to_string(), value)
-        })
-        .collect();
+    // Below a fan-out row's own `id` and a payload field of that name, as Ruby's `emitter_id`
+    // lends it.
+    offer_emitter_id(&mut source, event);
+
+    let projected = resolve_with_spec(policy.with_spec, &source);
     // Only an explicit `with:` is split; an undeclared projection forwards the payload unsplit.
     let routed = split_routed_args(Json::Object(projected), target_verb, tables);
     // Fallback when nothing named the target's identity: the source's own is the receiver for a
@@ -848,7 +889,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 event_name: event.name.clone(),
                 target_domain: policy.target_domain.to_string(),
                 target_verb: policy.target_verb.to_string(),
-                payload: event.payload.clone(),
+                payload: cross_domain_payload(policy, event, &tables),
             });
         }
     }
@@ -1892,6 +1933,153 @@ mod tests {
             ("to", Json::str(id)),
             ("with", Json::obj(vec![("role", Json::str("Admin"))])),
         ])
+    }
+
+    fn review_attributes(verb: &str) -> &'static [&'static str] {
+        if verb == "Other::Review.Open" {
+            &["subject_kind", "subject_key"]
+        } else {
+            &[]
+        }
+    }
+
+    fn id_fixture_tables() -> Tables<'static> {
+        Tables {
+            command_attributes_fn: review_attributes,
+            ..routed_fixture_tables()
+        }
+    }
+
+    fn id_policy() -> PolicyRule {
+        PolicyRule {
+            policy_name: "ReadsTheEmittersId",
+            event_name: "Surrendered",
+            event_qualifier: None,
+            target_verb: "Other::Review.Open",
+            where_expr: None,
+            for_each: None,
+            for_each_key: None,
+            with_spec: &[("subject_key", ":id"), ("subject_kind", "\"box\"")],
+        }
+    }
+
+    fn emitted(id: &str, payload: Json) -> Event {
+        Event {
+            name: "Surrendered".to_string(),
+            aggregate: "Widgets::Box".to_string(),
+            id: id.to_string(),
+            payload,
+            occurred_at: None,
+            correlation: None,
+        }
+    }
+
+    fn cross_policy(with_spec: &'static [(&'static str, &'static str)]) -> CrossDomainPolicyRule {
+        CrossDomainPolicyRule {
+            policy_name: "ReviewElsewhere",
+            event_name: "Surrendered",
+            event_qualifier: None,
+            where_expr: None,
+            target_domain: "Other",
+            target_verb: "Other::Review.Open",
+            with_spec,
+        }
+    }
+
+    #[test]
+    fn a_cross_domain_reaction_without_a_with_forwards_the_payload_unchanged() {
+        let payload = Json::obj(vec![("branch", Json::str("BR1"))]);
+        let event = emitted("BR1:42", payload.clone());
+
+        let sent = cross_domain_payload(&cross_policy(&[]), &event, &id_fixture_tables());
+
+        assert_eq!(sent, payload);
+    }
+
+    #[test]
+    fn a_cross_domain_reaction_delivers_its_with_projection_and_not_the_payload() {
+        let event = emitted("BR1:42", Json::obj(vec![("branch", Json::str("BR1"))]));
+        let with = &[
+            ("subject_kind", "\"box\""),
+            ("subject_key", ":id"),
+            ("branch", ":branch"),
+        ];
+
+        let sent = cross_domain_payload(&cross_policy(with), &event, &id_fixture_tables());
+
+        assert_eq!(
+            sent,
+            Json::obj(vec![
+                ("subject_kind", Json::str("box")),
+                ("subject_key", Json::str("BR1:42")),
+                ("branch", Json::str("BR1")),
+            ])
+        );
+    }
+
+    #[test]
+    fn a_projection_reads_the_emitting_records_whole_identity_as_id() {
+        let event = emitted("BR1:42", Json::obj(vec![("branch", Json::str("BR1"))]));
+
+        let args = trigger_args(
+            &id_policy(),
+            &event,
+            None,
+            "Other::Review.Open",
+            &id_fixture_tables(),
+        );
+
+        assert_eq!(
+            args,
+            Json::obj(vec![
+                ("subject_key", Json::str("BR1:42")),
+                ("subject_kind", Json::str("box"))
+            ])
+        );
+    }
+
+    #[test]
+    fn a_payload_field_named_id_wins_over_the_emitting_records_identity() {
+        let event = emitted("BR1:42", Json::obj(vec![("id", Json::str("from-payload"))]));
+
+        let args = trigger_args(
+            &id_policy(),
+            &event,
+            None,
+            "Other::Review.Open",
+            &id_fixture_tables(),
+        );
+
+        assert_eq!(
+            args,
+            Json::obj(vec![
+                ("subject_key", Json::str("from-payload")),
+                ("subject_kind", Json::str("box"))
+            ])
+        );
+    }
+
+    #[test]
+    fn a_fan_out_rows_own_id_wins_over_the_emitting_records_identity() {
+        let event = emitted("BR1:42", Json::obj(vec![]));
+        let record = Json::obj(vec![("status", Json::str("open"))]);
+
+        let args = trigger_args_with_row(
+            &id_policy(),
+            &event,
+            Some(("box", "row-7")),
+            Some(("row-7", &record)),
+            "Other::Review.Open",
+            &id_fixture_tables(),
+        );
+
+        assert_eq!(
+            args,
+            Json::obj(vec![
+                ("subject_key", Json::str("row-7")),
+                ("subject_kind", Json::str("box"))
+            ])
+        );
     }
 
     #[test]

@@ -8,7 +8,7 @@ Hecks.hecksagon "Banking" do
 
   # Declarative only: records that Compliance emits this across the Lambda boundary.
   # A policy below does the reacting (ADR 0025).
-  subscribe "Compliance.AccountFreezeReviewOpened"
+  subscribe "Compliance.ReviewOpened"
 end
 
 # Framework members bring their shape, not their persistence: a persistence bind must live
