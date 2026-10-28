@@ -2,6 +2,7 @@ require "spec_helper"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/hecks_parse_binary"
 
 # `attribute :x, T, sets: true` in a command says what `attribute :x, T` followed by `sets :x`
 # says: the argument, and the plain write of the owner's field of the same name.
@@ -72,7 +73,9 @@ RSpec.describe "attribute sets: true" do
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /sets: true or no sets:/)
   end
 
-  describe "read by hecks-parse" do
+  describe "read by hecks-parse", :io do
+    include_context "with the hecks-parse binary"
+
     let(:body) { "attribute :code, Code, sets: true\n      attribute :title, Title, sets: true" }
 
     it "lowers to the IR Ruby builds", :aggregate_failures do
