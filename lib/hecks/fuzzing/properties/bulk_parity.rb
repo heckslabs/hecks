@@ -90,9 +90,9 @@ module Hecks
           key if key && command.attributes.all? { |attribute| attribute.optional? || attribute.name == key }
         end
 
-        # The pair sent as a best_effort bulk run.
+        # The pair sent as a bulk run.
         def swept(runtime, pair)
-          plan = Bulk::Plan.new(verb: pair.verb, over: pair.over, arguments: {}, mode: "best_effort")
+          plan = Bulk::Plan.new(verb: pair.verb, over: pair.over, arguments: {})
           Bulk::Sweep.new(runtime.registry, plan).outcomes
         rescue StandardError => e
           [:crashed, e.class.name]

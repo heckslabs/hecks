@@ -4,15 +4,15 @@ require_relative "../naming"
 module Hecks
   module Bulk
     # What one bulk run asks for, read off its `BulkRun` record: the command, the query it runs
-    # over, the query's arguments and the mode (ADR 0125).
-    Plan = Struct.new(:verb, :over, :arguments, :mode, keyword_init: true) do
+    # over and the query's arguments (ADR 0125).
+    Plan = Struct.new(:verb, :over, :arguments, keyword_init: true) do
       # Reads a plan off a record's held state, as an ask hands it to an adapter.
       #
-      # @param held [Hash{Symbol => Object}] the record: `verb`, `over`, `arguments` and `mode`,
+      # @param held [Hash{Symbol => Object}] the record: `verb`, `over` and `arguments`,
       #   each a plain value or a `{ value: }` cell
       # @return [Bulk::Plan] the plan
       def self.from_record(held)
-        new(verb: plain(held[:verb]), over: plain(held[:over]), mode: plain(held[:mode]),
+        new(verb: plain(held[:verb]), over: plain(held[:over]),
             arguments: Array(held[:arguments]).to_h { |pair| [plain(pair[:key]).to_s, plain(pair[:value]).to_s] })
       end
 
@@ -35,9 +35,6 @@ module Hecks
 
       # @return [Array(String, String, String)] the query's domain, aggregate and name
       def query_route = Naming.split_verb(over)
-
-      # @return [Boolean] whether every row must be sent or none
-      def all_or_nothing? = mode.to_s == "all_or_nothing"
 
       # The query's arguments, each read as its declared type asks: text for a String
       # argument, JSON for anything else.
