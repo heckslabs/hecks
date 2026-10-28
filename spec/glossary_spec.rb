@@ -11,11 +11,12 @@ RSpec.describe "the glossary a domain carries with it" do
   }.freeze
 
   def bluebook_of(domain, name)
-    # Loaded as `hecks glossary` loads it, wiring included, but with no adapter bound: verifying
-    # the wiring resolves each policy's ask to the port it names, and `qa`'s ledger would
-    # otherwise need its database.
+    # Loaded as `hecks glossary` loads it, wiring included, but with no repository opened: the
+    # glossary needs each policy's ask resolved to the port it names, and the rest of
+    # `verify!` opens a repository per bind, so `qa`'s worlds (PostgresEra) would need their
+    # database.
     registry = Hecks.describe(File.join(InMemoryDomain::ROOT, domain), environment: nil).registry
-    registry.verify!
+    registry.send(:refuse_unresolved_ports!)
     registry.bluebook(name)
   end
 
