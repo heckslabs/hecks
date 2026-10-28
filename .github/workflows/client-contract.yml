@@ -91,8 +91,12 @@ jobs:
       - name: Build the checkout fixture wasm
         run: bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
 
+      # Built from rust/host, not with --manifest-path from the root: cargo reads .cargo/config.toml
+      # from its working directory, and rust/host's rustflags are part of every crate's hash. A build
+      # from the root writes other hashes into the cache this job shares with the lineage job, and
+      # whichever saves first leaves the other recompiling every crate.
       - name: Build the host
-        run: cargo build --manifest-path rust/host/Cargo.toml --bin bootstrap
+        run: cd rust/host && cargo build --bin bootstrap
 
       - name: Install the client
         run: npm ci
