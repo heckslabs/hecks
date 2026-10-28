@@ -84,7 +84,7 @@ module Hecks
             field:       declared[:field],
             default:     declared[:default],
             transitions: transitions(Array(declared[:transitions])),
-            marks:       marks(Array(declared[:marks]))
+            marks:       marks(declared[:marks])
           )
         end
 
@@ -98,9 +98,12 @@ module Hecks
               end
         end
 
-        # Regroups the one-row-per-state marks back into `name => states`, in declared order.
+        # Regroups the one-row-per-state marks back into `name => states`, in declared order. The
+        # IR's own `to_h` already carries them as `name => states`, which passes through.
         def marks(rows)
-          rows.group_by { |held| held[:name].to_s }.transform_values { |held| held.map { |row| row[:state].to_s } }
+          return rows.to_h { |name, states| [name.to_s, Array(states).map(&:to_s)] } if rows.is_a?(Hash)
+
+          Array(rows).group_by { |held| held[:name].to_s }.transform_values { |held| held.map { |row| row[:state].to_s } }
         end
 
         def from_of(froms)

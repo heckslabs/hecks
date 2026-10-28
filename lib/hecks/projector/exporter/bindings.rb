@@ -95,8 +95,8 @@ module Hecks
 
         # Every capability name a loaded bluebook provides, once each, sorted.
         def provided_capabilities(registry)
-          chapters = registry.bluebooks.values
-          chapters.flat_map { |chapter| chapter.provides.map(&:capability) }.uniq.sort
+          declarations = registry.bluebooks.values
+          declarations.flat_map { |declaration| declaration.provides.map(&:capability) }.uniq.sort
         end
 
         # The leading aggregate name of a qualified verb, or `nil` when there is no verb.

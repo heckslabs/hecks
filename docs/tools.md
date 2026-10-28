@@ -1,6 +1,6 @@
 # The commands
 
-Every job the `bin/` scripts did is a command of the `Hecks` chapter or of a chapter it attaches, and the
+Every job the `bin/` scripts did is a command of the `Hecks` bluebook or of a bluebook it attaches, and the
 `hecks` launcher answers it. This page covers only those retired scripts; commands that never had one
 (for example `site_projection.check_site`, `operation.bootstrap_admin`, `promotion_run.promote`) are not
 in its tables, and `hecks` (or `hecks --all`, with the internal ones) is the full list. `hecks` lists the verbs, `hecks <verb> --help` prints one's usage, and
@@ -8,7 +8,7 @@ in its tables, and `hecks` (or `hecks --all`, with the internal ones) is the ful
 until it is given `--confirm`. The Custodian verbs ship in the installed gem; the Codebase verbs need a
 checkout of this repository and refuse without one. The `bin/` script named in the last column is the
 script the command replaced: `bin/` was removed in 3.0.0. The QualityControl scripts (`bin/qa_*`) are commands
-of the attached QualityControl chapter, spelled `hecks quality_control <verb>`.
+of the attached QualityControl bluebook, spelled `hecks quality_control <verb>`.
 
 Each table below is written by `hecks regeneration_run.project_tools_doc` from the `RetiredScript` rows of
 `lib/hecks/language/bluebook/vocabulary.bluebook`, one row per command or query that answers a retired script. A form

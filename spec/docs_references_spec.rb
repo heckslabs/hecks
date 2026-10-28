@@ -44,7 +44,7 @@ module DocReferences
   UNQUALIFIED = (Hecks::CLI::COMMANDS.keys.map(&:to_s) + %w[console init interview version help]).freeze
 
   # Launchers that take a verb of their own after them: `hecks deploy recipe.project`.
-  CHAPTER_LAUNCHERS = %w[query ask deploy site quality_control].freeze
+  BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control].freeze
 
   PATH_ROOTS = %w[lib spec rust examples exe docs editors].freeze
   PATH = %r{\A(?:#{PATH_ROOTS.join("|")})/[\w./-]+\z}
@@ -90,15 +90,15 @@ module DocReferences
   def verb_argv(code)
     program, first, *rest = code.split(/\s+/).map { |word| word.delete_suffix("!") }
     return unless program == "hecks" && first.to_s.match?(WORD)
-    return [first] unless CHAPTER_LAUNCHERS.include?(first)
+    return [first] unless BLUEBOOK_LAUNCHERS.include?(first)
 
-    second = chapter_verb(first, rest)
+    second = bluebook_verb(first, rest)
     second.to_s.match?(WORD) ? [first, second] : [first]
   end
 
   # The verb after a launcher. A bluebook's own `query` or `ask` is passed over, as the bluebook's
   # launcher passes it: `hecks quality_control query sweep.create_ledger_role`.
-  def chapter_verb(launcher, rest)
+  def bluebook_verb(launcher, rest)
     asking = %w[query ask]
     asking.include?(rest.first) && !asking.include?(launcher) ? rest[1] : rest.first
   end
@@ -115,8 +115,8 @@ module DocReferences
   end
 
   def known_verbs
-    @known_verbs ||= { [] => listed + UNQUALIFIED + CHAPTER_LAUNCHERS }.merge(
-      %w[deploy site quality_control].to_h { |chapter| [[chapter], listed(chapter)] }
+    @known_verbs ||= { [] => listed + UNQUALIFIED + BLUEBOOK_LAUNCHERS }.merge(
+      %w[deploy site quality_control].to_h { |bluebook| [[bluebook], listed(bluebook)] }
     )
   end
 
@@ -124,12 +124,13 @@ module DocReferences
     launcher = argv.size == 2 && !%w[query ask].include?(argv.first) ? [argv.first] : []
     known_verbs.fetch(launcher, []).include?(argv.last) ||
       (argv.first == "query" && known_verbs[[]].include?(argv.last)) ||
-      chapter_query?(argv)
+      bluebook_query?(argv)
   end
 
-  # `hecks <chapter> query <name>` reads through a bluebook's own launcher, so a claim that stops at
+  # `hecks <bluebook> query <name>` reads through a bluebook's own launcher, so a claim that stops
+  # at
   # `query` resolves when the bluebook has one.
-  def chapter_query?(argv) = argv.size == 2 && argv.last == "query" && known_verbs.key?([argv.first])
+  def bluebook_query?(argv) = argv.size == 2 && argv.last == "query" && known_verbs.key?([argv.first])
 
   def unresolved_verbs
     by_verb = claims.each_with_object({}) do |(doc, code), found|

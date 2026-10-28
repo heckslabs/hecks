@@ -18,7 +18,7 @@ RSpec.describe "the judge's coverage of the language" do
     # `Bluebook::Bluebook.Attach` needs a second bluebook judged.
     @paging = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
     # Governance is the one real bluebook that declares `provides "authorization"`.
-    @governance = Hecks::Framework.chapter("Governance")
+    @governance = Hecks::Framework.declaration("Governance")
     # "Bluebook" (the meta-grammar) is the one real user of `Entity.Holds`; judged
     # here so that verb counts as offered.
     @grammar = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
@@ -106,14 +106,14 @@ RSpec.describe "the judge's coverage of the language" do
   # `Command.Need` and `Query.Need` are real DSL surface only a declaration that asks the runtime
   # for a fact reaches, and no corpus bluebook the judge walks declares one that way, so a small
   # fixture does (ADR 0081).
-  def needs_chapter
-    @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage", &clocked_aggregate)
+  def needs_bluebook
+    @needs_bluebook ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage", &clocked_aggregate)
   end
 
   # `Aggregate.Mark` and `Entity.Mark` (ADR 0097) are real DSL surface no corpus lifecycle
   # declares yet, so a small fixture does.
-  def marks_chapter
-    @marks_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("MarksCoverage") do
+  def marks_bluebook
+    @marks_bluebook ||= Hecks::Bluebook::DSL::BluebookBuilder.build("MarksCoverage") do
       aggregate "Payment" do
         identified_by { attribute :number, String }
         lifecycle(:status, default: "pending") { mark :holds_seat, "pending" }
@@ -122,6 +122,17 @@ RSpec.describe "the judge's coverage of the language" do
           identified_by { attribute :sequence, Integer }
           lifecycle(:stage, default: "open") { mark :settled, "open" }
         end
+      end
+    end
+  end
+
+  # `Aggregate.Acknowledges` (ADR 0150) is real DSL surface no corpus aggregate declares for
+  # `:large_aggregate`, so a small fixture does.
+  def acknowledges_chapter
+    @acknowledges_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("AcknowledgesCoverage") do
+      aggregate "Ledger" do
+        identified_by { attribute :number, String }
+        acknowledges :large_aggregate, "a fixture standing for an aggregate the size check would report"
       end
     end
   end
@@ -154,8 +165,8 @@ RSpec.describe "the judge's coverage of the language" do
   # Banking carries every query and read_model option itself, so no union with
   # another bluebook is needed for `Query.Option` and `ReadModel.Option`.
   def offered_verbs
-    [banking, paging, grammar, relationships, governance, needs_chapter, marks_chapter]
-      .flat_map { |chapter| offered_in_order(chapter) }
+    [banking, paging, grammar, relationships, governance, needs_bluebook, marks_bluebook, acknowledges_bluebook]
+      .flat_map { |declaration| offered_in_order(declaration) }
   end
 
   # Every command on every aggregate of the meta-domain, spelled as the judge would

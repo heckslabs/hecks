@@ -8,7 +8,7 @@ require "hecks/shape_ledger"
 RSpec.describe Hecks::ShapeLedger do
   let(:directory) { Dir.mktmpdir("shape-ledger") }
 
-  SHOP_CHAPTER = <<~RUBY.freeze
+  SHOP_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "Shop" do
       aggregate "Item" do
         identified_by :sku
@@ -27,8 +27,8 @@ RSpec.describe Hecks::ShapeLedger do
     end
   RUBY
 
-  def write_chapter(extra = "")
-    File.write(File.join(directory, "shop.bluebook"), format(SHOP_CHAPTER, extra: extra))
+  def write_bluebook(extra = "")
+    File.write(File.join(directory, "shop.bluebook"), format(SHOP_BLUEBOOK, extra: extra))
   end
 
   def ledgered = JSON.parse(File.read(File.join(directory, "shapes.json"))).fetch("Shop")
@@ -42,22 +42,22 @@ RSpec.describe Hecks::ShapeLedger do
   end
 
   def moved_without_an_edge
-    write_chapter
+    write_bluebook
     described_class.check(directory, confirm: true)
-    write_chapter("attribute :price, Price")
+    write_bluebook("attribute :price, Price")
   end
 
   after { FileUtils.remove_entry(directory) }
 
   it "has nothing to say about a ledger written from the shapes it describes" do
-    write_chapter
+    write_bluebook
     described_class.check(directory, confirm: true)
 
     expect(described_class.check(directory)).to eq("1 bluebook shapes, each the one the ledger holds")
   end
 
   it "asks for a ledger when there is none" do
-    write_chapter
+    write_bluebook
 
     expect { described_class.check(directory) }.to raise_error(described_class::Failure, /Shop: not in the ledger/)
   end

@@ -74,7 +74,7 @@ RSpec.describe "mutation op append, bare-symbol shorthand" do
     expect(tags_of(runtime, "w1")).to eq(["fragile"])
   end
 
-  HASH_APPEND_CHAPTER = proc do
+  HASH_APPEND_BLUEBOOK = proc do
     aggregate "Sprint" do
       identified_by :id
       value_object("SprintId") { attribute :value, String }
@@ -91,8 +91,8 @@ RSpec.describe "mutation op append, bare-symbol shorthand" do
   end
 
   it "an explicit Hash append: is untouched by the normalization" do
-    chapter = Hecks::Bluebook::DSL::BluebookBuilder.build("HashAppendUnaffected", &HASH_APPEND_CHAPTER)
-    mutation = chapter.aggregates.first.commands.first.mutations.first
+    declaration = Hecks::Bluebook::DSL::BluebookBuilder.build("HashAppendUnaffected", &HASH_APPEND_BLUEBOOK)
+    mutation = declaration.aggregates.first.commands.first.mutations.first
 
     expect(mutation.source).to eq(value: :dependency)
   end

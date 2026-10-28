@@ -21,7 +21,7 @@ pub struct FileDiagnostic {
 /// `Ok(None)` means the parse succeeded or the buffer declares no bluebook.
 /// Runs the parser as a subprocess because `rust/parser` ships only a binary target.
 pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDiagnostic>, String> {
-    let Some(name) = chapter_name(text) else {
+    let Some(name) = declaration_name(text) else {
         return Ok(None);
     };
 
@@ -51,7 +51,7 @@ pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDia
 /// Finds the name in the first `Hecks.bluebook "Name"` or `Hecks.hecksagon "Name"` line, or in
 /// the `Domain: name` line of a file written as sentences, whose words are capitalised and joined.
 /// Hand-scanned because this crate takes no dependencies.
-pub fn chapter_name(text: &str) -> Option<String> {
+pub fn declaration_name(text: &str) -> Option<String> {
     for line in text.lines() {
         if let Some(after) = line.trim_start().strip_prefix("Domain:") {
             let name: String = after
@@ -155,21 +155,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn finds_a_bluebook_chapter_name() {
+    fn finds_a_bluebook_bluebook_name() {
         let text = "Hecks.bluebook \"Pizzas\" do\nend\n";
-        assert_eq!(chapter_name(text), Some("Pizzas".to_string()));
+        assert_eq!(declaration_name(text), Some("Pizzas".to_string()));
     }
 
     #[test]
-    fn finds_a_hecksagon_chapter_name_when_indented() {
+    fn finds_a_hecksagon_bluebook_name_when_indented() {
         let text = "  Hecks.hecksagon \"Banking\" do\nend\n";
-        assert_eq!(chapter_name(text), Some("Banking".to_string()));
+        assert_eq!(declaration_name(text), Some("Banking".to_string()));
     }
 
     #[test]
-    fn finds_a_sentence_file_chapter_name_from_its_domain_line() {
+    fn finds_a_sentence_file_bluebook_name_from_its_domain_line() {
         assert_eq!(
-            chapter_name("Domain: customer orders\n"),
+            declaration_name("Domain: customer orders\n"),
             Some("CustomerOrders".to_string())
         );
     }
@@ -198,8 +198,8 @@ mod tests {
     }
 
     #[test]
-    fn no_chapter_name_is_not_an_error() {
-        assert_eq!(chapter_name("# just a comment\n"), None);
+    fn no_bluebook_name_is_not_an_error() {
+        assert_eq!(declaration_name("# just a comment\n"), None);
     }
 
     #[test]

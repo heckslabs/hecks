@@ -34,6 +34,7 @@ Hecks.bluebook "Waybill" do
     lifecycle :status, default: "requested" do
       transition "Ship"   => "shipped",   from: "requested"
       transition "Cancel" => "cancelled", from: "requested"
+      mark :terminal, "cancelled", "shipped"
     end
 
     command "Request" do

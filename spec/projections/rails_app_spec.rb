@@ -29,11 +29,11 @@ RSpec.describe Hecks::Projections::RailsApp do
   end
 
   describe "the root route" do
-    let(:chapter) { Struct.new(:aggregates).new([double_aggregate("Order"), double_aggregate("Basket")]) }
+    let(:declaration) { Struct.new(:aggregates).new([double_aggregate("Order"), double_aggregate("Basket")]) }
 
     def root_for(rows)
       allow(Hecks::Projections::Site::Table).to receive(:rows_of).and_return(rows)
-      described_class.routes([chapter])
+      described_class.routes([declaration])
     end
 
     it "opens the app on the first aggregate's list when no App row names one" do

@@ -25,19 +25,19 @@ module Hecks
       #
       # @param bluebook [Bluebook::Declaration] the bluebook the app drives
       # @param options [Hash] the registry's call shape
-      # @option options [Array<Bluebook::Declaration>] :route_chapters every bluebook the routes
+      # @option options [Array<Bluebook::Declaration>] :route_bluebooks every bluebook the routes
       #   file
       #   draws, when the app drives more than this one; this bluebook alone when absent
       # @return [Hash{String => String}] each file's path in the app to its text
       def call(bluebook:, options: {})
         controllers = driven(bluebook).to_h { |aggregate| controller(aggregate) }
-        controllers.merge("config/routes.rb" => routes(options[:route_chapters] || [bluebook]))
+        controllers.merge("config/routes.rb" => routes(options[:route_bluebooks] || [bluebook]))
       end
 
       # @param bluebook [Bluebook::Declaration] a bluebook
       # @return [Array<Bluebook::Aggregate>] its aggregates that take commands; one that only holds
       #   rows, such as an `App` row, has no page
-      def driven(chapter) = chapter.aggregates.select { |aggregate| aggregate.commands.any? }
+      def driven(declaration) = declaration.aggregates.select { |aggregate| aggregate.commands.any? }
 
       # @param aggregate [Bluebook::Aggregate] the aggregate
       # @return [Array(String, String)] the controller's path and text
@@ -50,25 +50,26 @@ module Hecks
 
       # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks to draw
       # @return [String] the routes file's text
-      def routes(chapters)
-        resources = resources_of(chapters)
-        drawn = ["  root to: \"#{home(chapters, resources)}#index\"", *resources.map { |_, name| "  resources :#{name}" }]
+      def routes(declarations)
+        resources = resources_of(declarations)
+        drawn = ["  root to: \"#{home(declarations, resources)}#index\"", *resources.map { |_, name| "  resources :#{name}" }]
         "# A list, a show and a POST per command, drawn from the domain by hecks-rails.\n" \
           "Rails.application.routes.draw do\n#{drawn.join("\n")}\nend\n"
       end
 
       # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks to draw
       # @return [Array<Array(String, String)>] each driven aggregate's name and resource name
-      def resources_of(chapters)
-        aggregates = chapters.flat_map { |chapter| driven(chapter) }
+      def resources_of(declarations)
+        aggregates = declarations.flat_map { |declaration| driven(declaration) }
         aggregates.map { |aggregate| [aggregate.hecks_name, Naming.plural(Naming.snake(aggregate.hecks_name))] }
       end
 
       # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks to draw
       # @param resources [Array<Array(String, String)>] each aggregate's name and resource name
       # @return [String] the resource the root path lists: the `App` row's home, else the first
-      def home(chapters, resources)
-        named = chapters.flat_map { |chapter| Site::Table.rows_of(chapter, "App") }.filter_map { |row| row[:home] }.first
+      def home(declarations, resources)
+        rows = declarations.flat_map { |declaration| Site::Table.rows_of(declaration, "App") }
+        named = rows.filter_map { |row| row[:home] }.first
         resources.find { |name, _| name == named }&.last || resources.first.last
       end
     end

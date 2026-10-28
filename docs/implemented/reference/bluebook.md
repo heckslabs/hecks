@@ -57,7 +57,7 @@ end
 ```ruby bluebook
 Hecks.bluebook "Ledgering" do
   vision "The same domain, under the name it answers to now."
-  # THE OLD NAME, KEPT — a chapter that is renamed still has to be
+  # THE OLD NAME, KEPT — a bluebook that is renamed still has to be
   # findable by whatever wrote records under the name it used to have.
   formerly_known_as "Bookkeeping"
 
@@ -90,7 +90,7 @@ Hecks.hecksagon("Ledgering") { Ledgering::Folio.persisted_by("Memory") }
 | positional 1 | text | true | vision |
 <!-- generated:end -->
 
-A one-line statement of what the domain is for. Optional, but not empty if given — the same value-object invariant fires here as on any string field, enforced by the meta-domain that judges the bluebook itself. Stored on the bluebook and readable back after boot as `Chapter.vision`.
+A one-line statement of what the domain is for. Optional, but not empty if given — the same value-object invariant fires here as on any string field, enforced by the meta-domain that judges the bluebook itself. Stored on the bluebook and readable back after boot as `Bluebook.vision`.
 
 ```ruby
 runtime.registry.bluebook("Pizzas").vision  # => "Put toppings on a pizza and sell it to a customer."
@@ -106,10 +106,10 @@ runtime.registry.bluebook("Pizzas").vision  # => "Put toppings on a pizza and se
 | positional 1 | text | true | formerly_known_as |
 <!-- generated:end -->
 
-A domain's own declared identity can change. Naming what it used to be lets the storage layer recognize its own history under the old name instead of minting a brand-new lineage from nothing — a rename, once applied, bridges the journal, the sequence, every era partition, and the domain-keyed rows in `hecks_eras`/`hecks_era_texts`/`hecks_approvals`/`hecks_attestations` onto the new name, in one transaction, the first time the domain boots under it. Optional, but not empty if given — the same value-object invariant fires here as on any string field. Stored on the bluebook and readable back after boot as `Chapter.formerly_known_as`; safe to leave declared permanently, since every later boot after the bridge falls through to the ordinary already-held path.
+A domain's own declared identity can change. Naming what it used to be lets the storage layer recognize its own history under the old name instead of minting a brand-new lineage from nothing — a rename, once applied, bridges the journal, the sequence, every era partition, and the domain-keyed rows in `hecks_eras`/`hecks_era_texts`/`hecks_approvals`/`hecks_attestations` onto the new name, in one transaction, the first time the domain boots under it. Optional, but not empty if given — the same value-object invariant fires here as on any string field. Stored on the bluebook and readable back after boot as `Bluebook.formerly_known_as`; safe to leave declared permanently, since every later boot after the bridge falls through to the ordinary already-held path.
 
 The bluebook answers to its current name and remembers the old one — the
-old name is a fact about this bluebook, not a second chapter:
+old name is a fact about this bluebook, not a second bluebook:
 
 ```ruby
 runtime.registry.bluebook("Ledgering").formerly_known_as  # => "Bookkeeping"
@@ -159,7 +159,7 @@ Hecks::Bluebook::Declaration.new(name: "Workbench", namespace: "Tools::Workbench
 | positional 1 | text | true | attaches_to |
 <!-- generated:end -->
 
-ADR 0026's own seam for a sub-language chapter: the core grammar does
+ADR 0026's own seam for a sub-language bluebook: the core grammar does
 not name its extension points, so a bluebook that extends one names
 ITSELF onto it instead. `attaches_to "Query", "ReadModel"` names the
 core contexts this bluebook's own `Syntax` aggregate contributes
@@ -169,7 +169,7 @@ every attached bluebook's rows into the same grammar table the core's
 own rows populate, tagged by nothing more than having been found.
 Variadic — accumulates across calls the same reason `identified_by`/
 `group_by` do. Stored on the bluebook and readable back after boot as
-`Chapter.attaches_to`. Most bluebooks attach to nothing, and ABSENT IS
+`Bluebook.attaches_to`. Most bluebooks attach to nothing, and ABSENT IS
 NOT EMPTY, the same reading `version`/`formerly_known_as` give.
 
 ```ruby
@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, mark_sensitive:, markings_for:, key_for:, shred:, key:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, mark_sensitive:, markings_for:, key_for:, shred:, key:, live_assignments:, live_transitions:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -207,6 +207,8 @@ merged table and cannot tell a core row from an attached one.
 | `key_for:` | text | false | provides |
 | `shred:` | text | false | provides |
 | `key:` | pairs | false | provides |
+| `live_assignments:` | text | false | provides |
+| `live_transitions:` | text | false | provides |
 <!-- generated:end -->
 
 Declares a capability this bluebook answers for every domain that attaches
@@ -319,7 +321,7 @@ runtime.registry.bluebook("BluebookReference").classification  # => "generic"
 Opens the thing with identity in this domain — `identified_by`, its `attribute`s, `command`s, and lifecycle. See the Aggregate reference page for the full vocabulary inside.
 
 Every aggregate a bluebook opens becomes an entry point of its own, named after
-the chapter:
+the bluebook:
 
 ```ruby
 runtime.registry.bluebook("Banking").aggregates.map(&:hecks_name).first(3)  # => ["Customer", "Account", "Hold"]
@@ -378,7 +380,7 @@ declared inside them; the rest are the bluebook's.
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Opens a stateful saga spanning several events and commands — `correlates_by`, `starts_on`/`ends_on`, its `handler`s. Chapter-level only, like `report` and top-level `policy`, since it belongs to no single aggregate. See the ProcessManager reference page.
+Opens a stateful saga spanning several events and commands — `correlates_by`, `starts_on`/`ends_on`, its `handler`s. Bluebook-level only, like `report` and top-level `policy`, since it belongs to no single aggregate. See the ProcessManager reference page.
 
 ```ruby
 runtime.registry.bluebook("Banking").process_managers.map(&:name)  # => ["Onboarding", "Settlement", "ExternalSettlement"]

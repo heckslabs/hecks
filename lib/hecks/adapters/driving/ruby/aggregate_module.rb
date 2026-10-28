@@ -52,7 +52,7 @@ module Hecks
             mod.define_singleton_method(:ir)         { aggregate }
 
             # Every construct emits its own IR, so an aggregate is a legitimate
-            # `project` target too. A chapter-scoped target refuses here via
+            # `project` target too. A bluebook-scoped target refuses here via
             # `Projector.admits!` rather than answering a confidently empty result.
             mod.define_singleton_method(:project) do |target, out: nil, **options|
               key      = Projector.key_for(target)
@@ -121,8 +121,8 @@ module Hecks
 
             # `BindingProxy#ask_via` for a repeat boot, when this module stands where the proxy is.
             mod.define_singleton_method(:ask_via) do |name, port:|
-              chapter = Hecks.current_registry&.bluebook(domain)
-              Bluebook::AskResolution.pick!(chapter, aggregate.hecks_name, name, port)
+              declaration = Hecks.current_registry&.bluebook(domain)
+              Bluebook::AskResolution.pick!(declaration, aggregate.hecks_name, name, port)
               self
             end
 

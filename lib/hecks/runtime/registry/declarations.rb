@@ -5,7 +5,7 @@ module Hecks
       # load: the bluebooks and their builders, the wiring, ports, adapters, worlds, translations,
       # context maps, the eras the boot gate resolved, and the privacy markings still to be
       # dispatched.
-      Declarations = Struct.new(:bluebooks, :bluebook_sources, :hecksagons, :bounded_chapters, :ports,
+      Declarations = Struct.new(:bluebooks, :bluebook_sources, :hecksagons, :bounded_bluebooks, :ports,
                                 :adapters, :worlds, :translations, :bluebook_builders,
                                 :pending_privacy_markings, :resolved_eras, :superseded_eras,
                                 :context_maps) do

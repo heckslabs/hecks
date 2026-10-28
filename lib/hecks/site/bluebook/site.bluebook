@@ -39,7 +39,7 @@ Hecks.bluebook "Site" do
 
     # `/blog/:slug.html` names a parameter; a trailing `/*` matches everything beneath a prefix. A
     # row with a `command:` or `query:` source may leave its path out, and the projection derives it
-    # from the forms scheme (`/Chapter/Aggregate/Verb`).
+    # from the forms scheme (`/Bluebook/Aggregate/Verb`).
     value_object "Path" do
       attribute :value, String, pattern: '\A(/[^ \t\n\r]*)?\z'
     end
@@ -100,7 +100,7 @@ Hecks.bluebook "Site" do
 
     # Where a page's content comes from, one of `none`, `global:<slug>` (a CMS global),
     # `collection:<name>` (a CMS collection, whose rows fill the path's parameter),
-    # `command:<Chapter>.<Aggregate>.<Command>` or `query:<Chapter>.<Aggregate>.<Query>`. The last
+    # `command:<Bluebook>.<Aggregate>.<Command>` or `query:<Bluebook>.<Aggregate>.<Query>`. The last
     # two are checked against the bluebooks the project attaches.
     value_object "Source" do
       attribute :value, String, pattern: '\A(none|(global|collection):[a-z0-9_-]+|(command|query):[A-Za-z0-9_]+\.[A-Za-z0-9_]+\.[A-Za-z0-9_]+)\z'
@@ -185,6 +185,7 @@ Hecks.bluebook "Site" do
       mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
+      mark :terminal, "faulted", "projected"
     end
 
     # `hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [cms=<dir>] [root=<dir>] [editor=<dir>] [extension=ts|mts] [--check]`.

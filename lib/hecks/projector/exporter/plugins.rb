@@ -34,19 +34,19 @@ module Hecks
         # One answered question and its reference arguments; a question no loaded bluebook declares
         # carries none, and the host refuses it the way the runtime would.
         def plugin_query(registry, question)
-          chapter_name, rest = question.split("::", 2)
+          declaration_name, rest = question.split("::", 2)
           aggregate_name, query_name = rest.split(".", 2)
-          aggregate = registry.bluebook(chapter_name)&.aggregate(aggregate_name)
+          aggregate = registry.bluebook(declaration_name)&.aggregate(aggregate_name)
           query = aggregate&.query(query_name)
-          { "question" => question, "references" => references(chapter_name, aggregate, query) }
+          { "question" => question, "references" => references(declaration_name, aggregate, query) }
         end
 
-        def references(chapter_name, aggregate, query)
+        def references(declaration_name, aggregate, query)
           return {} unless query
 
           query.attributes.select(&:reference?).to_h do |attribute|
             target = attribute.target_aggregate || aggregate
-            [attribute.name.to_s, "#{chapter_name}::#{target.hecks_name}"]
+            [attribute.name.to_s, "#{declaration_name}::#{target.hecks_name}"]
           end
         end
       end

@@ -3,12 +3,12 @@ require "spec_helper"
 # The postcondition, checked against the settled record after mutations and before persisting;
 # `old` is the state the givens saw.
 RSpec.describe "a command's ensures" do
-  def boot(chapter = "Vault", &domain)
+  def boot(declaration = "Vault", &domain)
     registry = Hecks::Runtime::Registry.new
 
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      Hecks.bluebook(chapter, &domain)
+      Hecks.bluebook(declaration, &domain)
     end
     Hecks::Runtime::Dispatcher.new(registry)
   end
@@ -85,8 +85,8 @@ RSpec.describe "a command's ensures" do
     runtime
   end
 
-  def stored_record(runtime, chapter, aggregate, id)
-    runtime.registry.repository(chapter, runtime.registry.bluebook(chapter).aggregate(aggregate)).find(id)
+  def stored_record(runtime, declaration, aggregate, id)
+    runtime.registry.repository(declaration, runtime.registry.bluebook(declaration).aggregate(aggregate)).find(id)
   end
 
   def stored_balance(runtime) = stored_record(runtime, "Vault", "Box", "b1")[:balance][:cents]

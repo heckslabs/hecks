@@ -33,6 +33,25 @@ RSpec.describe Hecks::Adapters::ClaudeTranscript do
     expect(reader.taken_over?("abc")).to be(true)
   end
 
+  def human(content) = user(content).merge(origin: { kind: "human" })
+
+  def origins = %w[task-notification peer auto-continuation].map { |k| user("x").merge(origin: { kind: k }) }
+  def tagged = %w[system-reminder command-name local-command-stdout].map { |t| user("<#{t}>x</#{t}>") }
+  def flagged = [{ isMeta: true }, { isSidechain: true }, { toolUseResult: {} }].map { |f| user("x").merge(f) }
+  def automatic_entries = origins + tagged + flagged
+
+  it "does not count automatic user entries as a person" do
+    write([human("brief"), *automatic_entries])
+
+    expect(reader.taken_over?("abc")).to be(false)
+  end
+
+  it "counts a reply with a human origin as a person" do
+    write([human("brief"), *automatic_entries, human("board")])
+
+    expect(reader.taken_over?("abc")).to be(true)
+  end
+
   it "is true when the transcript is missing" do
     expect(reader.taken_over?("absent")).to be(true)
   end

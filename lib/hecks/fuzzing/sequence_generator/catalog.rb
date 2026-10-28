@@ -65,10 +65,10 @@ module Hecks
         end
 
         def grant_verbs(registry)
-          registry.authorization_providers.filter_map { |chapter| grant_verb(chapter) }.sort
+          registry.authorization_providers.filter_map { |declaration| grant_verb(declaration) }.sort
         end
 
-        def grant_verb(chapter) = chapter.provided_verb(Bluebook::Capabilities::AUTHORIZATION, :grant)
+        def grant_verb(declaration) = declaration.provided_verb(Bluebook::Capabilities::AUTHORIZATION, :grant)
 
         # Indexes every entity at every depth; `chain:` is the whole hop list
         # (`[Board, Card]`) and `entity:` its last hop.

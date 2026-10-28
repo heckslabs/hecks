@@ -16,6 +16,7 @@ path = "src/lib.rs"
 test-support = []
 
 [dependencies]
+hecks_expr = { path = "../../expr" }
 wasmtime = "49.0.4"
 wasmtime-wasi = "49.0.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }

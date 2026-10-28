@@ -29,7 +29,7 @@ module Hecks
 
         module_function
 
-        # @param bluebook [Bluebook::Behaviour::Chapter] the domain's own booted bluebook
+        # @param bluebook [Bluebook::Behaviour::Bluebook] the domain's own booted bluebook
         # @param options [Hash] generation options; same shape as `Box.call`'s
         # @return [Hash{String => String}] the generated file contents, keyed by filename
         # @raise [ArgumentError] if the domain's deploy settings are invalid

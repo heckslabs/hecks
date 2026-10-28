@@ -108,7 +108,7 @@ when there's nothing to say:
 ```ruby
 account = ir.fetch(:aggregates).find { |a| a[:name] == "Account" }
 
-account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :invariants, :preconditions, :projected_fields, :lifecycle, :entities, :queries, :ports, :provenance]
+account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :invariants, :preconditions, :projected_fields, :lifecycle, :entities, :queries, :ports, :provenance, :acknowledgements]
 ```
 
 `invariants` and `preconditions` are the aggregate-level rules (S10,
@@ -146,7 +146,7 @@ balance_attr # => { name: :balance, type: "Money", list: false, default: nil, op
 
 An attribute's `name` is a `Symbol` (the DSL takes `attribute :balance,
 Money`); an aggregate's, a command's, and a value object's own `name`
-are all plain `String`s (the DSL takes those as quoted chapter/verb
+are all plain `String`s (the DSL takes those as quoted bluebook/verb
 names) — the export does not normalize the two onto one type, so match
 each key with the kind it actually is, not the kind that reads more
 consistently.

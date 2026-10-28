@@ -184,7 +184,7 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
 }
 
 /// Every live `state` document for one ConsoleSettings aggregate, from the host's own heads or
-/// else the chapter's (ADR 0059).
+/// else the bluebook's (ADR 0059).
 async fn read_head_states(
     store: &Store,
     host_domain: &str,

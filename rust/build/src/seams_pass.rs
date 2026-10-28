@@ -46,13 +46,13 @@ const LANGUAGE_DEFINED: &[&str] = &[
 /// `members` are the bluebooks the target attaches, in attach order; the target itself is searched
 /// first.
 pub fn run(target: &mut Json, members: &[Json]) -> Result<(), String> {
-    let mut chapters: Vec<Json> = vec![target.clone()];
-    chapters.extend(members.iter().cloned());
+    let mut declarations: Vec<Json> = vec![target.clone()];
+    declarations.extend(members.iter().cloned());
 
     let mut membership = false;
     let mut identity = false;
     for seam in SEAMS {
-        let Some(provider) = provider_of(&chapters, seam.capability) else {
+        let Some(provider) = provider_of(&declarations, seam.capability) else {
             continue;
         };
         membership |= seam.capability == "membership";
@@ -66,17 +66,17 @@ pub fn run(target: &mut Json, members: &[Json]) -> Result<(), String> {
             name_of(target)
         ));
     }
-    let provided = package_provides(&chapters);
+    let provided = package_provides(&declarations);
     if matches!(&provided, Json::Object(entries) if !entries.is_empty()) {
         target.set("provides", provided);
     }
     Ok(())
 }
 
-fn provider_of<'a>(chapters: &'a [Json], capability: &str) -> Option<&'a Json> {
-    chapters
+fn provider_of<'a>(declarations: &'a [Json], capability: &str) -> Option<&'a Json> {
+    declarations
         .iter()
-        .find(|chapter| provision(chapter, capability).is_some())
+        .find(|declaration| provision(declaration, capability).is_some())
 }
 
 fn export(seam: &Seam, provider: &Json) -> Json {
@@ -105,10 +105,15 @@ fn export(seam: &Seam, provider: &Json) -> Json {
 
 /// `Exporter.provides`: each package-declared capability, sorted by name, as its provider resolves
 /// every key (`Capabilities.resolved_value`).
-fn package_provides(chapters: &[Json]) -> Json {
-    let mut capabilities: Vec<String> = chapters
+fn package_provides(declarations: &[Json]) -> Json {
+    let mut capabilities: Vec<String> = declarations
         .iter()
-        .flat_map(|chapter| chapter.get("provides").map_or(&[][..], Json::each).iter())
+        .flat_map(|declaration| {
+            declaration
+                .get("provides")
+                .map_or(&[][..], Json::each)
+                .iter()
+        })
         .filter_map(|entry| entry.get("capability").and_then(Json::as_str))
         .filter(|capability| !LANGUAGE_DEFINED.contains(capability))
         .map(str::to_string)
@@ -119,7 +124,7 @@ fn package_provides(chapters: &[Json]) -> Json {
     let exported = capabilities
         .into_iter()
         .filter_map(|capability| {
-            let provider = provider_of(chapters, &capability)?;
+            let provider = provider_of(declarations, &capability)?;
             let name = name_of(provider);
             let mut out = vec![("provider".to_string(), Json::String(name.clone()))];
             for (key, verb) in provision(provider, &capability).unwrap_or_default() {
@@ -180,8 +185,8 @@ fn filled_default(default: Option<&Json>) -> Json {
 }
 
 // `[(key, verb)]` this bluebook provides under `capability`, or `None` when it provides none.
-fn provision(chapter: &Json, capability: &str) -> Option<Vec<(String, String)>> {
-    let entries: Vec<(String, String)> = chapter
+fn provision(declaration: &Json, capability: &str) -> Option<Vec<(String, String)>> {
+    let entries: Vec<(String, String)> = declaration
         .get("provides")
         .map_or(&[][..], Json::each)
         .iter()
@@ -196,8 +201,8 @@ fn provision(chapter: &Json, capability: &str) -> Option<Vec<(String, String)>> 
     (!entries.is_empty()).then_some(entries)
 }
 
-fn name_of(chapter: &Json) -> String {
-    chapter
+fn name_of(declaration: &Json) -> String {
+    declaration
         .get("name")
         .and_then(Json::as_str)
         .unwrap_or_default()

@@ -38,8 +38,8 @@ pub fn parse_from(
     }
 }
 
-/// Outcome of a bare `given(...)` lookup. `Pending` marks a chapter-wide placeholder (empty
-/// `canonical`) that `parse::chapter::parse_chapter` fills in once every file has loaded.
+/// Outcome of a bare `given(...)` lookup. `Pending` marks a bluebook-wide placeholder (empty
+/// `canonical`) that `parse::bluebook::parse_bluebook` fills in once every file has loaded.
 enum GivenLookup {
     Resolved(ir::Given),
     Pending { precondition_index: usize },
@@ -132,7 +132,7 @@ pub fn parse_body(
         from,
         ..Default::default()
     };
-    // Bare `given(...)` references left unresolved; `parse_chapter` fills them in.
+    // Bare `given(...)` references left unresolved; `parse_bluebook` fills them in.
     let mut pending: Vec<PendingCommandGiven> = Vec::new();
 
     loop {
@@ -143,7 +143,7 @@ pub fn parse_body(
                 GivenLookup::Resolved(given) => command.givens.push(given),
                 GivenLookup::Pending { precondition_index } => {
                     let given_index = command.givens.len();
-                    // Empty canonical is the pending sentinel; `parse_chapter` overwrites it.
+                    // Empty canonical is the pending sentinel; `parse_bluebook` overwrites it.
                     command.givens.push(ir::Given {
                         description: None,
                         canonical: String::new(),

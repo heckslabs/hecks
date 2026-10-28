@@ -168,24 +168,6 @@ RSpec.describe Hecks::Projections::Site::CmsEditor do
       expect(text).to include("no field colour")
     end
 
-    # The project's files with the row spelled the way it was before `chapter` became `bluebook`.
-    def projected_with_retired_field
-      Dir.mktmpdir("cms_editor_project") do |dir|
-        FileUtils.cp_r(File.join(project, "."), dir)
-        file = File.join(dir, "bluebook/press_site.bluebook")
-        text = File.read(file).sub("attribute :bluebook,       String", "attribute :chapter,        String")
-        File.write(file, text.sub('bluebook: "Press"', 'chapter: "Press"'))
-        return Hecks::Tools::SiteRoutes.projection(dir, out: "/work/out", editor: "/work/editor")
-      end
-    end
-
-    it "still reads the retired chapter field, projecting the same files and saying so", :aggregate_failures do
-      projected = nil
-
-      expect { projected = projected_with_retired_field }.to output(/Editor row field chapter is deprecated/).to_stderr
-      expect(projected).to eq(Hecks::Tools::SiteRoutes.projection(project, out: "/work/out", editor: "/work/editor"))
-    end
-
     it "is refused when the row names a bluebook the domain does not declare" do
       text = refusal { |source| source.sub('bluebook: "Press"', 'bluebook: "Elsewhere"') }
 

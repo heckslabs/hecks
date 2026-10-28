@@ -83,7 +83,7 @@ Hecks.bluebook "StudioSite" do
     end
 
     # The edge: what the template calls its policies, origins and listener rules. The cache classes
-    # come from the Site chapter; the policies they map to are the template's own.
+    # come from the Site bluebook; the policies they map to are the template's own.
     value_object "Edge" do
       attribute :template,      String
       attribute :listener,      String

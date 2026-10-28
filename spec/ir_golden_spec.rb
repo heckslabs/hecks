@@ -49,7 +49,7 @@ RSpec.describe "the IR the builder produces, frozen" do
   # Language bluebooks come from the bootstrap registry: judging one while loading it would recurse.
   LANGUAGES = %w[Bluebook World Hecksagon].freeze
 
-  def load_chapter(file)
+  def load_bluebook(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
@@ -89,7 +89,7 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   LOADABLE.each do |name, file|
     it "#{name} matches its frozen IR" do
-      expect_frozen_ir(name, load_chapter(file).bluebook(name))
+      expect_frozen_ir(name, load_bluebook(file).bluebook(name))
     end
   end
 

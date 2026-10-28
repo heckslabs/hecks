@@ -53,7 +53,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
                note: "no bin script: it runs cargo test for the host, the parser or the JSON fuzzer with the " \
                      "seed counts as arguments, which set the variables those fuzzers read"),
     AdrRow.new(script: "check_shape_ledger", verbs: %w[check_shape_ledger],
-               note: "no bin script: it holds each chapter's storage shape against the committed ledger and the " \
+               note: "no bin script: it holds each bluebook's storage shape against the committed ledger and the " \
                      "translation edges, with no database, and rewrites the ledger only when confirmed"),
     AdrRow.new(script: "clear_caches", verbs: %w[clear_caches],
                note: "no bin script: it deletes the syntax-boot and verdict caches, which turning them off " \
@@ -66,6 +66,8 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "generated_key", verbs: %w[generated_key],
                note: "no bin script: it prints the hash a job caches the generated Rust of some domains under, " \
                      "from the generator and those domains' own sources; regenerate_corpus takes the same names"),
+    AdrRow.new(script: "preview", verbs: %w[preview],
+               note: "no script preceded it: it serves one directory of static files on the loopback address"),
     AdrRow.new(script: "query_ir", verbs: %w[ir_constructs ir_duplicates ir_impact]),
     AdrRow.new(script: "hecks_query_ir_mcp", verbs: %w[serve_query_ir_mcp]),
     AdrRow.new(script: "present", verbs: %w[present]),

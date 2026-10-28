@@ -5,7 +5,7 @@
 # `across` dispatch is exercised under fuzzing instead of being refused as in examples/banking.
 # Only this file compiles to Rust (bin/project_rust); review.bluebook is Ruby-only.
 Hecks.bluebook "CaseEscalation" do
-  vision "An invoice's charge, amended after the fact by re-pointing it at a different vendor handle rather than a checked reference — corrects paired with a revalued reference for the first time — whose amendment fans out, in-process, into a second chapter's own compliance review and the multi-head read model built over it."
+  vision "An invoice's charge, amended after the fact by re-pointing it at a different vendor handle rather than a checked reference — corrects paired with a revalued reference for the first time — whose amendment fans out, in-process, into a second bluebook's own compliance review and the multi-head read model built over it."
 
   core
 

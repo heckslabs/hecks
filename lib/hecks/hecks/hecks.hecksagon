@@ -4,7 +4,7 @@ Hecks.hecksagon "Hecks" do
   # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring their own ports).
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl]
-    .each { |chapter| attaches chapter }
+    .each { |declaration| attaches declaration }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -32,6 +32,12 @@ Hecks.hecksagon "Hecks" do
     end
 
     asks "Redrive", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
+    asks "Abandon", to: Operation do
       attribute :run, OperationKey
       answers "OperationAnswered"
       refuses "OperationRefused"

@@ -58,8 +58,8 @@ module Hecks
                                     identity_name_prefix:            "#{Naming.demodulise(@name)}#{Naming.demodulise(name)}",
                                     identity_value_object_installer: ->(value_object) { @value_objects << value_object },
                                     aggregate_name:                  @name,
-                                    chapter_entity_named_givens:     @chapter_entity_named_givens,
-                                    chapter_entity_pending_givens:   @chapter_entity_pending_givens,
+                                    bluebook_entity_named_givens:    @bluebook_entity_named_givens,
+                                    bluebook_entity_pending_givens:  @bluebook_entity_pending_givens,
                               &block)
         end
 

@@ -98,8 +98,8 @@ against the bluebook you just booted:
 ```ruby
 require "hecks/bluebook/model_check"
 
-chapter  = runtime.registry.bluebooks.values.first
-findings = Hecks::Bluebook::ModelCheck.call(chapter)
+bluebook  = runtime.registry.bluebooks.values.first
+findings = Hecks::Bluebook::ModelCheck.call(bluebook)
 
 findings.map(&:kind).sort   # => [:dead_transition, :stuck_state, :unreachable_state, :unreachable_state]
 findings.count { |f| f.severity == :error }    # => 3
@@ -173,7 +173,7 @@ lifecycles, sagas, and policies:
 | `one_of_branch_unhandled` | error | a command `given`/`ensures` or a read model `where` on the owning aggregate compares a `reference_to one_of(...)` attribute's `type` with a name, and the branches leave a variant of the union unhandled, or name a type the union does not hold (ADR 0127) |
 
 The CLI walks every example, every grammar bluebook, and the language's
-own two meta-chapters the same way, in one pass:
+own two meta-bluebooks the same way, in one pass:
 
 ```sh
 hecks model_check                  # everything
@@ -222,7 +222,7 @@ From Ruby, pass `profile: :client` beside the bluebook's hecksagon:
 
 ```ruby
 registry = runtime.registry
-client = Hecks::Bluebook::ModelCheck.call(chapter, hecksagon: registry.hecksagon(chapter.name),
+client = Hecks::Bluebook::ModelCheck.call(bluebook, hecksagon: registry.hecksagon(bluebook.name),
                                                    profile: :client)
 
 client.map(&:kind).grep(/\Aclient_/)   # => []

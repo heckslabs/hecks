@@ -44,7 +44,7 @@ RSpec.describe "package-declared capability" do
     attribute :busy, Code, optional: true
   end
 
-  def workshop_chapter(capability, provides, body)
+  def workshop_bluebook(capability, provides, body)
     Hecks.bluebook "Workshop" do
       vision "probe"
       supporting
@@ -66,7 +66,7 @@ RSpec.describe "package-declared capability" do
     Hecks::Runtime::Registry.new.tap do |registry|
       Hecks.with_registry(registry) do
         MemoryPorts.load!
-        workshop_chapter(capability, provides, body)
+        workshop_bluebook(capability, provides, body)
         workshop_hecksagon(operations)
       end
     end

@@ -37,21 +37,21 @@ module Hecks
       COMMITTED_OUTPUT = %w[pizzas].freeze
 
       # Every bluebook, hecksagon, world and adapter file of the gem: what a domain that attaches a
-      # chapter this key cannot name exactly is hashed against.
-      ALL_CHAPTER_FILES = %w[lib/hecks/**/*.bluebook lib/hecks/**/*.hecksagon lib/hecks/**/*.world
-                             lib/hecks/**/adapters/*.adapter].freeze
+      # bluebook this key cannot name exactly is hashed against.
+      ALL_BLUEBOOK_FILES = %w[lib/hecks/**/*.bluebook lib/hecks/**/*.hecksagon lib/hecks/**/*.world
+                              lib/hecks/**/adapters/*.adapter].freeze
 
-      # The one way a hecksagon attaches a gem chapter or a vendored package, which this key can
+      # The one way a hecksagon attaches a gem bluebook or a vendored package, which this key can
       # follow exactly.
       ATTACHES_LINE = /\A\s*attaches\s+"(?<name>\w+)"(?<vendored>,\s*from:\s*:vendor)?\s*(?:#.*)?\z/
 
       # Any other line that names an attachment, which this key cannot follow: it hashes wide.
-      ATTACHMENT_WORD = /\battaches\b|Chapters\.|FrameworkBluebooks\.|\battach!|Framework\.load!/
+      ATTACHMENT_WORD = /\battaches\b|FrameworkBluebooks\.|\battach!|Framework\.load!/
 
       # The files a hecksagon's own text can name an attachment in.
       ATTACHING_FILES = /\.(hecksagon|world|adapter)\z/
 
-      # The directory of the gem's Ruby, which a chapter's absolute path is read relative to.
+      # The directory of the gem's Ruby, which a bluebook's absolute path is read relative to.
       GEM_LIB = File.expand_path("..", __dir__).freeze
 
       # Raised inside this module when an attachment cannot be followed to the files it reads.
@@ -111,7 +111,7 @@ module Hecks
         globs.flat_map { |glob| expand(glob, root) }
       end
 
-      # One domain's own directory and every chapter it attaches.
+      # One domain's own directory and every bluebook it attaches.
       #
       # @param domain [RustDomain] the domain
       # @param root [String] the checkout
@@ -121,21 +121,21 @@ module Hecks
         own + attached_files(own, root)
       end
 
-      # The files of every chapter the domain's own hecksagons attach, followed through the ports
-      # and adapters a chapter ships. A chapter this cannot follow exactly widens to all of them.
+      # The files of every bluebook the domain's own hecksagons attach, followed through the ports
+      # and adapters a bluebook ships. A bluebook this cannot follow exactly widens to all of them.
       #
       # @param own [Array<String>] the domain's own files, relative to the checkout
       # @param root [String] the checkout
-      # @return [Array<String>] the chapter files, relative to the checkout
+      # @return [Array<String>] the bluebook files, relative to the checkout
       def attached_files(own, root)
         follow(names_in(own, root).uniq, root)
       rescue Unresolved
-        ALL_CHAPTER_FILES.flat_map { |glob| expand(glob, root) }
+        ALL_BLUEBOOK_FILES.flat_map { |glob| expand(glob, root) }
       end
 
       # @param path [String] a hecksagon, world or adapter file, relative to the checkout
       # @param root [String] the checkout
-      # @return [Array<String>] the gem chapters it attaches, by name
+      # @return [Array<String>] the gem bluebooks it attaches, by name
       # @raise [Unresolved] when it names an attachment in a way this does not follow
       def attached_names(path, root)
         File.readlines(File.join(root, path), chomp: true, encoding: "UTF-8").filter_map do |line|
@@ -146,12 +146,12 @@ module Hecks
         end
       end
 
-      # Every file of the named chapters and of the chapters their own hecksagons attach.
+      # Every file of the named bluebooks and of the bluebooks their own hecksagons attach.
       #
-      # @param pending [Array<String>] chapter names still to read
+      # @param pending [Array<String>] bluebook names still to read
       # @param root [String] the checkout
       # @return [Array<String>] the files, relative to the checkout
-      # @raise [Unresolved] when a chapter is not one the gem carries
+      # @raise [Unresolved] when a bluebook is not one the gem carries
       def follow(pending, root)
         files = []
         seen = []
@@ -159,25 +159,25 @@ module Hecks
           next if seen.include?(name)
 
           seen << name
-          files.concat(chapter = chapter_paths(name, root))
-          pending.concat(names_in(chapter, root))
+          files.concat(bluebook = bluebook_paths(name, root))
+          pending.concat(names_in(bluebook, root))
         end
         files
       end
 
       # @param paths [Array<String>] files relative to the checkout
       # @param root [String] the checkout
-      # @return [Array<String>] the chapters the hecksagons, worlds and adapters among them attach
+      # @return [Array<String>] the bluebooks the hecksagons, worlds and adapters among them attach
       # @raise [Unresolved] when one names an attachment in a way this does not follow
       def names_in(paths, root)
         paths.grep(ATTACHING_FILES).flat_map { |path| attached_names(path, root) }
       end
 
-      # @param name [String] a chapter's name
+      # @param name [String] a bluebook's name
       # @param root [String] the checkout
       # @return [Array<String>] the files attaching it reads, relative to the checkout
-      # @raise [Unresolved] when the gem carries no chapter of that name
-      def chapter_paths(name, root)
+      # @raise [Unresolved] when the gem carries no bluebook of that name
+      def bluebook_paths(name, root)
         require_relative "../framework_bluebooks"
         FrameworkBluebooks.files_of(name).map do |path|
           raise Unresolved, "#{name}: #{path} is outside the gem" unless path.start_with?("#{GEM_LIB}/")

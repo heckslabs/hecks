@@ -74,15 +74,28 @@ module Hecks
 
       # Redelivers the reactions a domain's outbox left undelivered. A claimed row (one that
       # stalled across a crash, whose effect may or may not have run) is redelivered only when
-      # `claimed` says so.
+      # `claimed` says so for every claimed row, or `row` names that one row's delivery id.
       #
-      # @param held [Hash] the `Operation` record: `subject` (the domain) and `claimed` (a switch)
+      # @param held [Hash] the `Operation` record: `subject` (the domain), `claimed` (a switch)
+      #   and `row` (a delivery id)
       # @return [Hash{Symbol => Hash}] `output:` how many rows were redriven
-      # @raise [Runtime::NotFound] if the domain cannot be found
+      # @raise [Runtime::NotFound] if the domain cannot be found, or no claimed row has `row`
       def redrive(**held)
-        runtime = Assembly.bind_ported_runtime(boot(held[:subject]))
-        rows = runtime.outbox.redrive!(claimed: plain(held[:claimed]) == true)
+        outbox = Assembly.bind_ported_runtime(boot(held[:subject])).outbox
+        row = plain(held[:row])
+        rows = row ? outbox.redrive_row!(row) : outbox.redrive!(claimed: plain(held[:claimed]) == true)
         output("redrove #{rows.size} outbox row(s)")
+      end
+
+      # Settles one stalled claimed outbox row as failed, without running its consumer.
+      #
+      # @param held [Hash] the `Operation` record: `subject` (the domain) and `row` (a delivery id)
+      # @return [Hash{Symbol => Hash}] `output:` the row that was abandoned
+      # @raise [Runtime::NotFound] if the domain cannot be found, or no claimed row has `row`
+      def abandon(**held)
+        outbox = boot(held[:subject]).outbox
+        rows = outbox.abandon_row!(plain(held[:row]))
+        output("abandoned #{rows.size} outbox row(s): #{rows.map(&:delivery_id).join(", ")}")
       end
 
       # Runs a `.behaviors` file, or every one under a directory.

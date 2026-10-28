@@ -43,6 +43,13 @@ fn to_json(value: &Value) -> Json {
         Value::Bool(b) => json!(b),
         Value::Nil => Json::Null,
         Value::Array(items) => Json::Array(items.iter().map(to_json).collect()),
-        Value::Object(object) => object.clone(),
+        Value::Object(fields) => Json::Object(
+            fields
+                .iter()
+                .map(|(key, field)| (key.clone(), to_json(field)))
+                .collect(),
+        ),
+        // A kernel list field's length; an instance read as JSON never produces one.
+        Value::List(_) => Json::Array(Vec::new()),
     }
 }

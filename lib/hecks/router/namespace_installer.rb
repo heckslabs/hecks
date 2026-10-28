@@ -90,7 +90,7 @@ module Hecks
         # Bounded bluebooks wrap in their own module (`Domain::Aggregate`) so two
         # BCs can both declare `Person` without colliding on `Object::Person`.
         # Folder-spread files of the same bluebook aren't BCs, so they still get it.
-        return if bounded_chapter?(candidates)
+        return if bounded_bluebook?(candidates)
 
         installer = self
         shortcut_target(aggregate).define_singleton_method(verb) do |**args|
@@ -98,7 +98,7 @@ module Hecks
         end
       end
 
-      def bounded_chapter?(candidates)
+      def bounded_bluebook?(candidates)
         candidates.any? { |entry| entry.dispatcher.bounded?(domain_of(entry.fqn)) }
       end
 

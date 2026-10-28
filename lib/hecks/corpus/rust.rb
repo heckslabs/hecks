@@ -20,13 +20,10 @@ module Hecks
     # **Shrink-only**: a generated module `hecks rust_coverage` still flags.
     # `hecks corpus_rust_coverage --rust-coverage` requires each entry to still fail, so a
     # newly-passing module breaks the build until removed here.
-    RUST_COVERAGE_PENDING = {
-      "governance" => "the live-grant queries filter on an unset `ends_at`, and a query condition has no " \
-                      "null value to compile it to (ADR 0140); the host decides liveness itself until it has"
-    }.freeze
+    RUST_COVERAGE_PENDING = {}.freeze
 
     # The stamp hecks project_rust writes into metadata.rs, e.g.
-    # `examples/pizzas` or `the self-hosted language (...)`; a chapter's is its own name.
+    # `examples/pizzas` or `the self-hosted language (...)`; a bluebook's is its own name.
     SOURCE_STAMP = /GENERATED\ by\ hecks\ project_rust\ —\ (.+?)'s\ own\ canonical\ IR,/
 
     # Raised when a name is not a domain the corpus regenerates; the message lists the valid ones.
@@ -49,7 +46,7 @@ module Hecks
       BLUEBOOK_NAME = /^\s*Hecks\.bluebook\s+"([^"]+)"/
 
       # The corpus kinds holding bluebooks the gem carries and a hecksagon attaches by name.
-      GEM_CHAPTER_KINDS = %i[qa deploy site tickets composer tenancy sme bulk ci_pipeline].freeze
+      GEM_BLUEBOOK_KINDS = %i[qa deploy site tickets composer tenancy sme bulk ci_pipeline].freeze
 
       # Every place a Rust-facing domain's own `attaches` attachment could be declared.
       #
@@ -147,7 +144,7 @@ module Hecks
       # @param root [String] repository root to search under
       # @return [Array<String>] stems with a generated module but no merged.rs
       #   of their own
-      def rust_side_chapters(kind, root: ROOT)
+      def rust_side_bluebooks(kind, root: ROOT)
         modules = generated_modules(root: root)
         members(kind, root: root).map(&:stem)
                                  .select do |stem|
@@ -169,16 +166,16 @@ module Hecks
       #
       # @param root [String] repository root to search under
       # @return [Array<String>] generated module names for the `:framework` corpus members
-      def rust_framework_chapters(root: ROOT)
-        rust_side_chapters(:framework, root: root)
+      def rust_framework_bluebooks(root: ROOT)
+        rust_side_bluebooks(:framework, root: root)
       end
 
       # Names the vendored bluebooks Rust carries as modules, beside its domains' own bluebooks.
       #
       # @param root [String] repository root to search under
       # @return [Array<String>] generated module names for the `:vendored` corpus members
-      def rust_vendored_chapters(root: ROOT)
-        rust_side_chapters(:vendored, root: root)
+      def rust_vendored_bluebooks(root: ROOT)
+        rust_side_bluebooks(:vendored, root: root)
       end
 
       # Bluebooks an in-repo Rust domain carries beside its own bluebook,
@@ -186,7 +183,7 @@ module Hecks
       #
       # @param root [String] repository root to search under
       # @return [Array<String>] generated module names with no merged.rs of their own
-      def rust_sibling_chapters(root: ROOT)
+      def rust_sibling_bluebooks(root: ROOT)
         modules = generated_modules(root: root)
         names = rust_domains(root: root)
                 .flat_map { |domain| Dir.glob(File.join(domain.dir, "bluebook", "*.bluebook")) }
@@ -201,9 +198,9 @@ module Hecks
       #
       # @param root [String] repository root to search under
       # @return [Array<String>] generated module names for the attached gem bluebooks
-      def rust_attached_chapters(root: ROOT)
+      def rust_attached_bluebooks(root: ROOT)
         modules = generated_modules(root: root)
-        names = rust_attachment_hecksagon_text(root: root).scan(ATTACHED_BY_NAME).flatten & gem_chapter_names(root: root)
+        names = rust_attachment_hecksagon_text(root: root).scan(ATTACHED_BY_NAME).flatten & gem_bluebook_names(root: root)
         names.map { |name| Naming.pascal(name).downcase }.uniq
              .select { |name| modules.include?(name) && !generated?(name, root: root) }
       end
@@ -211,9 +208,9 @@ module Hecks
       # The names the gem's own attachable bluebooks declare in their `Hecks.bluebook` headers.
       #
       # @param root [String] repository root to search under
-      # @return [Array<String>] bluebook names, from the files `GEM_CHAPTER_KINDS` hold
-      def gem_chapter_names(root: ROOT)
-        members(*GEM_CHAPTER_KINDS, root: root).filter_map { |member| File.read(member.path)[BLUEBOOK_NAME, 1] }.uniq
+      # @return [Array<String>] bluebook names, from the files `GEM_BLUEBOOK_KINDS` hold
+      def gem_bluebook_names(root: ROOT)
+        members(*GEM_BLUEBOOK_KINDS, root: root).filter_map { |member| File.read(member.path)[BLUEBOOK_NAME, 1] }.uniq
       end
 
       # The regeneration order the drift check runs, sorted by path, and the domains a corpus

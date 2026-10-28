@@ -1,6 +1,6 @@
 {
   "name": "translation-rules",
-  "note": "The execution ledger: every translation rule kind, proposed by its own name, executed in each target that applies it (postgres and sqlite as SQL templates whose %{name} holes the compiler fills, in_process as the reference semantics Lineage's own rewrite holds to), then admitted. Translation::RuleCompiler reads its Postgres templates from this ledger replayed through the translation chapter, so a form changes here or nowhere.",
+  "note": "The execution ledger: every translation rule kind, proposed by its own name, executed in each target that applies it (postgres and sqlite as SQL templates whose %{name} holes the compiler fills, in_process as the reference semantics Lineage's own rewrite holds to), then admitted. Translation::RuleCompiler reads its Postgres templates from this ledger replayed through the translation bluebook, so a form changes here or nowhere.",
   "steps": [
     {
       "verb": "Translation::Rule.Propose",

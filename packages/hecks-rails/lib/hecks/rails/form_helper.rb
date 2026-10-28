@@ -74,8 +74,9 @@ module Hecks
       def schema_document(subject, verb)
         aggregate = command_model(subject).door.ir
         command = subject.public_send(verb)
-        chapter = Booted.chapter(command_model(subject).door.fqn.split("::").first)
-        Hecks::Projections::CommandSchema.document(chapter, aggregate, "#{aggregate.hecks_name}/#{command.hecks_name}", command)
+        declaration = Booted.declaration(command_model(subject).door.fqn.split("::").first)
+        Hecks::Projections::CommandSchema.document(declaration, aggregate, "#{aggregate.hecks_name}/#{command.hecks_name}",
+                                                   command)
       end
 
       def command_token(url)

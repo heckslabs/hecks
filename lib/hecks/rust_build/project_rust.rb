@@ -91,17 +91,17 @@ module Hecks
       # registry, so a domain's persistence, seams, translations and source text reach `ir.json`.
       def generate_with_codegen
         CodegenRun.new(
-          rust_dir: @rust_dir, out_root: @out_root, meta: (Meta.ir if @meta), chapters: chapters,
-          target: CodegenRun::Chapter.new(@mod_name, @domain, @ir)
+          rust_dir: @rust_dir, out_root: @out_root, meta: (Meta.ir if @meta), declarations: declarations,
+          target: CodegenRun::Declaration.new(@mod_name, @domain, @ir)
         ).call
       end
 
-      # A chapter is labelled by its own name: its files read the same whoever attached it, so
+      # A declaration is labelled by its own name: its files read the same whoever attached it, so
       # regenerating one domain never changes what another domain's files contain.
-      def chapters
+      def declarations
         (@registry.bluebooks.keys - [@domain_name]).map do |name|
           ir = Hecks::Projector::Exporter.call(@registry).fetch(name)
-          CodegenRun::Chapter.new(name.downcase, name, TargetIr.json_shaped(ir))
+          CodegenRun::Declaration.new(name.downcase, name, TargetIr.json_shaped(ir))
         end
       end
 

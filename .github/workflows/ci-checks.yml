@@ -170,7 +170,7 @@ jobs:
 
       # Static analysis over the IR: unreachable lifecycle states, dead
       # transitions, saga states no handler chain reaches. Boots every corpus
-      # member plus the language's own meta chapters.
+      # member plus the language's own meta bluebooks.
       #
       # `hecks model_check` sweeps the corpus from the checkout it runs in when it is given no
       # domain, and exits 1 on any finding, so `--wait` only says so.
@@ -187,8 +187,8 @@ jobs:
         if: steps.attest.outputs.attested != 'true'
         run: bundle exec exe/hecks gate_run.gate stage=ci only=engine_agreement --wait
 
-      # Compares each chapter's storage shape with the committed ledger, and a shape that moved
-      # with the translation edges that lead to it. Reads the loaded chapters, never a database,
+      # Compares each bluebook's storage shape with the committed ledger, and a shape that moved
+      # with the translation edges that lead to it. Reads the loaded bluebooks, never a database,
       # and no attestation names it, so it runs whether or not the push was attested.
       - name: shape ledger
         run: bundle exec exe/hecks gate_run.gate stage=ci only=shape_ledger --wait

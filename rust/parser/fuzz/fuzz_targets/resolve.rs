@@ -1,4 +1,4 @@
-//! Coverage-guided target for `parse::chapter::resolve_hecksagon_dependencies`.
+//! Coverage-guided target for `parse::bluebook::resolve_hecksagon_dependencies`.
 //!
 //! Run from `rust/parser` with a nightly toolchain: `cargo +nightly fuzz run resolve`.
 #![no_main]
@@ -31,5 +31,5 @@ fuzz_target!(|data: &[u8]| {
     let Ok(source) = std::str::from_utf8(data) else {
         return;
     };
-    let _ = parse::chapter::resolve_hecksagon_dependencies("Fuzzed", "fuzz.hecksagon", source);
+    let _ = parse::declaration::resolve_hecksagon_dependencies("Fuzzed", "fuzz.hecksagon", source);
 });

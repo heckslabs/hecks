@@ -18,7 +18,7 @@ module Hecks
           # @raise [Bluebook::DSL::Malformed] if the rule's source cannot be extracted, or a
           #   reference is ambiguous
           def given_impl(description, declared_by: nil, &predicate)
-            return reference_named_chapter_entity_given(description, declared_by: declared_by) unless predicate
+            return reference_named_bluebook_entity_given(description, declared_by: declared_by) unless predicate
 
             named = build_rule(Given, description, predicate, owner_name: @name, word: "given",
                                 extraction_failure: "its source could not be read, so no other runtime could ever evaluate it")
@@ -26,11 +26,11 @@ module Hecks
             # First-declared-wins (`||=`): a second piece under the same aggregate declaring
             # the exact same description independently stays local, never silently overwritten.
             @owner_named_givens[description] ||= named
-            # Chapter-wide analogue of the line above, keyed by "Aggregate.Entity" rather than
+            # Bluebook-wide analogue of the line above, keyed by "Aggregate.Entity" rather than
             # description alone, so two different pieces sharing a description stay distinct
             # candidates a later bare reference chooses between via `declared_by:`.
-            @chapter_entity_named_givens[description] ||= {}
-            @chapter_entity_named_givens[description]["#{@aggregate_name}.#{@name}"] ||= named
+            @bluebook_entity_named_givens[description] ||= {}
+            @bluebook_entity_named_givens[description]["#{@aggregate_name}.#{@name}"] ||= named
           end
 
           # Declares a rule every instance of this piece must satisfy — checked per instance,
@@ -48,12 +48,12 @@ module Hecks
 
           private
 
-          # Resolves a bare `given` reference against the chapter-wide, entity-scoped pool.
+          # Resolves a bare `given` reference against the bluebook-wide, entity-scoped pool.
           # Also writes through to `@owner_named_givens`, not just `@named_givens` — otherwise a
           # sibling piece's own same-aggregate bare reference would never see this resolution.
-          def reference_named_chapter_entity_given(description, declared_by:)
+          def reference_named_bluebook_entity_given(description, declared_by:)
             verify_resolves_via!("given", "Entity", "owner_keyed")
-            candidates = resolve_owner_keyed(@chapter_entity_named_givens, description)
+            candidates = resolve_owner_keyed(@bluebook_entity_named_givens, description)
 
             named = pick_entity_given(candidates, description, declared_by)
             @named_givens[description] = named
@@ -63,13 +63,13 @@ module Hecks
           def pick_entity_given(candidates, description, declared_by)
             return declared_entity_given(candidates, description, declared_by) if declared_by
             return candidates.values.first if candidates.size == 1
-            return pending_chapter_entity_given(description, declared_by: nil) if candidates.empty?
+            return pending_bluebook_entity_given(description, declared_by: nil) if candidates.empty?
 
             raise Malformed, ambiguous_entity_given_message(candidates, description)
           end
 
           def declared_entity_given(candidates, description, declared_by)
-            candidates[declared_by] || pending_chapter_entity_given(description, declared_by: declared_by)
+            candidates[declared_by] || pending_bluebook_entity_given(description, declared_by: declared_by)
           end
 
           def ambiguous_entity_given_message(candidates, description)
@@ -81,11 +81,11 @@ module Hecks
           end
 
           # A bluebook may be split across files, so an unresolved bare reference defers rather
-          # than raising immediately; `BluebookBuilder#resolve_pending_chapter_entity_givens!`
+          # than raising immediately; `BluebookBuilder#resolve_pending_bluebook_entity_givens!`
           # fills in the placeholder once every file in the bluebook has loaded.
-          def pending_chapter_entity_given(description, declared_by:)
+          def pending_bluebook_entity_given(description, declared_by:)
             placeholder = Given.new(description: description, canonical: nil, predicate: nil)
-            @chapter_entity_pending_givens << { entity: "#{@aggregate_name}.#{@name}", description: description,
+            @bluebook_entity_pending_givens << { entity: "#{@aggregate_name}.#{@name}", description: description,
                                                  declared_by: declared_by, placeholder: placeholder }
             placeholder
           end

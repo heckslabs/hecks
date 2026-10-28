@@ -33,4 +33,4 @@ Both stay hand-written Ruby, deliberately and permanently, not as a gap awaiting
 ## Rejected alternatives
 
 - **Self-hosting the interpreter.** Representing `given`/`ensures` bodies as fully self-hosted, evaluable expressions instead of canonical text plus a Ruby proc. Rejected as out of scope here — canonical text is sufficient for judging and documentation; unifying it with actual evaluation is a materially larger project than describing shape, and isn't something this decision needs to resolve.
-- **Folding IO into the Bluebook domain itself.** Already structurally rejected by the existing sibling-chapter design (`hecksagon.bluebook`, `adapter.bluebook`, `world.bluebook`, each with its own judge door) — kept separate so "what a domain says" stays cleanly apart from "how it talks to the outside world."
+- **Folding IO into the Bluebook domain itself.** Already structurally rejected by the existing sibling-bluebook design (`hecksagon.bluebook`, `adapter.bluebook`, `world.bluebook`, each with its own judge door) — kept separate so "what a domain says" stays cleanly apart from "how it talks to the outside world."

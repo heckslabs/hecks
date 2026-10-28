@@ -20,6 +20,7 @@ Hecks.bluebook "ReferralChain" do
 
     lifecycle :standing, default: "good" do
       transition "Suspend" => "suspended", from: "good"
+      mark :terminal, "suspended"
     end
 
     command "Enroll" do

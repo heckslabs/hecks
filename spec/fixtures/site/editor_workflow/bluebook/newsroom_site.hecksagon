@@ -2,8 +2,8 @@ Hecks.hecksagon "NewsroomSite" do
   attaches "Site"
 end
 
-# The sibling hecksagon of the attached chapter: it decides where Site's aggregates are kept, as a
-# project does for every chapter it attaches.
+# The sibling hecksagon of the attached bluebook: it decides where Site's aggregates are kept, as a
+# project does for every bluebook it attaches.
 Hecks.hecksagon "Site" do
   persisted_by "Memory"
 end

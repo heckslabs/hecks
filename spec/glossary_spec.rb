@@ -10,7 +10,7 @@ RSpec.describe "the glossary a domain carries with it" do
     "qa"               => "QualityControl"
   }.freeze
 
-  def chapter_of(domain, name)
+  def bluebook_of(domain, name)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
@@ -28,8 +28,8 @@ RSpec.describe "the glossary a domain carries with it" do
 
   GLOSSARY_DOMAINS.each do |domain, name|
     describe File.basename(domain) do
-      let(:chapter) { chapter_of(domain, name) }
-      let(:tree)    { Hecks::Projector.call(:glossary, bluebook: chapter) }
+      let(:declaration) { bluebook_of(domain, name) }
+      let(:tree)    { Hecks::Projector.call(:glossary, bluebook: declaration) }
       let(:html)    { File.read(File.join(committed_dir(domain), "html/index.html")) }
       let(:visible) { html.gsub(%r{<(script|style)[^>]*>.*?</\1>}m, "").gsub(/<[^>]+>/, " ") }
 
@@ -74,8 +74,8 @@ RSpec.describe "the glossary a domain carries with it" do
       end
 
       it "draws the map when there is more than one thing, each thing with neighbours, and each lifecycle" do
-        holders = chapter.aggregates
-        fitting = holders.count { |holder| Hecks::Projections::Glossary::Mermaid.neighbours?(holder, chapter) }
+        holders = declaration.aggregates
+        fitting = holders.count { |holder| Hecks::Projections::Glossary::Mermaid.neighbours?(holder, declaration) }
         expect(html.scan('class="mermaid"').size).to eq((holders.size > 1 ? 1 : 0) + fitting + holders.count(&:lifecycle))
       end
     end

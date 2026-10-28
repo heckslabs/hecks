@@ -91,7 +91,7 @@ fn line_of(source: &str, needle: &str) -> usize {
 }
 
 #[test]
-fn a_good_file_lowers_to_the_chapters_ir() {
+fn a_good_file_lowers_to_the_bluebooks_ir() {
     let output = parse("good.bluebook", GOOD);
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
@@ -221,9 +221,9 @@ fn a_tab_in_the_indent_is_refused() {
 }
 
 #[test]
-fn the_wrong_chapter_name_is_refused() {
+fn the_wrong_bluebook_name_is_refused() {
     let source = changed("Domain: Cms", "Domain: Blog");
-    let error = refusal("chapter.bluebook", &source);
+    let error = refusal("bluebook.bluebook", &source);
     assert!(
         error.contains("--bluebook Cms was requested, but this file declares 'Blog'"),
         "{error}"
@@ -231,7 +231,7 @@ fn the_wrong_chapter_name_is_refused() {
 }
 
 #[test]
-fn the_ruby_form_and_the_sentence_form_do_not_mix_in_one_chapter() {
+fn the_ruby_form_and_the_sentence_form_do_not_mix_in_one_bluebook() {
     let sentence = write("mixed_sentence.bluebook", GOOD);
     let ruby = write("mixed_ruby.bluebook", "Hecks.bluebook \"Cms\" do\nend\n");
     let output = Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
@@ -273,7 +273,7 @@ Example: Only an editor may publish
 ";
 
 fn compile_examples(name: &str, examples: &str) -> Output {
-    let chapter = write(&format!("examples_{name}.bluebook"), GOOD);
+    let declaration = write(&format!("examples_{name}.bluebook"), GOOD);
     let source = write(&format!("examples_{name}.examples"), examples);
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
         .args([
@@ -282,7 +282,7 @@ fn compile_examples(name: &str, examples: &str) -> Output {
             "Cms",
             "--examples",
             source.to_str().unwrap(),
-            chapter.to_str().unwrap(),
+            declaration.to_str().unwrap(),
         ])
         .output()
         .expect("failed to run hecks-parse")
@@ -815,9 +815,14 @@ fn a_description_that_opens_a_block_is_not_mistaken_for_prose() {
 
 const LIBRARY: &str = include_str!("fixtures/sentence_library.sentences");
 
-fn run_on_chapter(subcommand: &str, chapter: &str, path: &std::path::Path) -> Output {
+fn run_on_bluebook(subcommand: &str, declaration: &str, path: &std::path::Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
-        .args([subcommand, "--bluebook", chapter, path.to_str().unwrap()])
+        .args([
+            subcommand,
+            "--bluebook",
+            declaration,
+            path.to_str().unwrap(),
+        ])
         .output()
         .expect("failed to run hecks-parse")
 }
@@ -825,7 +830,7 @@ fn run_on_chapter(subcommand: &str, chapter: &str, path: &std::path::Path) -> Ou
 #[test]
 fn a_domain_using_most_constructs_formats_to_itself() {
     let path = write("library.bluebook", LIBRARY);
-    let output = run_on_chapter("format", "Library", &path);
+    let output = run_on_bluebook("format", "Library", &path);
     assert!(
         output.status.success(),
         "{}",
@@ -837,7 +842,7 @@ fn a_domain_using_most_constructs_formats_to_itself() {
 #[test]
 fn a_domain_using_most_constructs_lowers_what_each_sentence_means() {
     let path = write("library_ir.bluebook", LIBRARY);
-    let output = run_on_chapter("bluebook", "Library", &path);
+    let output = run_on_bluebook("bluebook", "Library", &path);
     assert!(
         output.status.success(),
         "{}",

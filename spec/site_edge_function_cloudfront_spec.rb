@@ -18,10 +18,10 @@ RSpec.describe "the generated redirect_host function, for CloudFront's runtime" 
   let(:rendered) { Hecks::Projections::Site::Edge::FunctionCode.code(fixture_function) }
   let(:fixture_function) do
     registry = Hecks::Tools::SiteRoutes.registry_for(File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio"))
-    chapter = Hecks::Projections::Site::Table.chapter(registry)
-    table = Hecks::Projections::Site::Table.read(chapter, registry: registry)
+    declaration = Hecks::Projections::Site::Table.declaration(registry)
+    table = Hecks::Projections::Site::Table.read(declaration, registry: registry)
     vocabulary = Hecks::Projections::Site::Table.vocabulary(registry)
-    Hecks::Projections::Site::Edge.read(chapter, table: table, vocabulary: vocabulary).function("HostRedirect")
+    Hecks::Projections::Site::Edge.read(declaration, table: table, vocabulary: vocabulary).function("HostRedirect")
   end
 
   PCRE_ERROR = "CloudFront's regex engine fails the whole function at compile time on a surrogate code point " \

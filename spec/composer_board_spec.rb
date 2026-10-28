@@ -26,8 +26,8 @@ RSpec.describe "the Composer's board" do
   def board
     composer::Workspace.stage(dir: dir, buffers: @buffers) do |stage|
       outline = composer::Outline.call(stage, composer::Workspace.files(stage))
-      chapter = Hecks.boot(stage, install_driving: false, environment: "memory").registry.bluebook("Ledger")
-      composer::Board.call(chapter, outline: outline)
+      declaration = Hecks.boot(stage, install_driving: false, environment: "memory").registry.bluebook("Ledger")
+      composer::Board.call(declaration, outline: outline)
     end
   end
 

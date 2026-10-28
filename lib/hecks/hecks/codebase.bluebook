@@ -102,6 +102,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "ProjectModel" do
@@ -682,6 +683,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "ProjectKernelCapabilities" do
@@ -838,6 +840,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "CheckEngineAgreement" do
@@ -1054,6 +1057,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "RegenerateCorpus" do
@@ -1314,6 +1318,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "Gate" do
@@ -1487,6 +1492,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "CheckComments" do
@@ -1791,6 +1797,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "Flog" do
@@ -2058,6 +2065,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "HoistLocalGivens" do
@@ -2288,6 +2296,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "RefreshRuntimeBaseline" do
@@ -2673,6 +2682,7 @@ Hecks.bluebook "Hecks" do
       transition "Accept"   => "accepted",  from: "requested"
       transition "Complete" => "completed", from: "accepted"
       transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "ServeQueryIrMcp" do
@@ -2962,6 +2972,7 @@ Hecks.bluebook "Hecks" do
       transition "AcceptGem"  => "accepted",  from: "requested"
       transition "Complete"   => "completed", from: "accepted"
       transition "Fault"      => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
     end
 
     command "Publish" do
@@ -3294,6 +3305,7 @@ Hecks.bluebook "Hecks" do
       transition "Complete" => "completed", from: %w[accepted observed]
       transition "Fault"    => "faulted",   from: %w[requested accepted]
       transition "Lag"      => "faulted",   from: "observed"
+      mark :terminal, "completed", "faulted"
     end
 
     # Looks at a lane and moves nothing: faults when it has stood behind the lane it follows for

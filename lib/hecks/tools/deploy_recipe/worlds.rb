@@ -8,7 +8,7 @@ module Hecks
       # Finds and loads the `.world` file a domain deploys from, and the registry it boots into.
       module Worlds
         # A hecksagon's `FrameworkBluebooks.load!("Name")`, capturing the bluebook's name.
-        CHAPTER_LOAD = /(?:FrameworkBluebooks|Chapters)\.load!\(\s*"([^"]+)"\s*\)/
+        BLUEBOOK_LOAD = /FrameworkBluebooks\.load!\(\s*"([^"]+)"\s*\)/
 
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
         # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's
@@ -39,7 +39,7 @@ module Hecks
         # @return [Array<String>] such as `["quality_control"]`
         def attached_stems(domain)
           hecksagons = Dir.glob(File.join(domain, "bluebook", "*.hecksagon"))
-          names = hecksagons.flat_map { |path| File.read(path).scan(CHAPTER_LOAD).flatten }
+          names = hecksagons.flat_map { |path| File.read(path).scan(BLUEBOOK_LOAD).flatten }
           names.map { |name| Hecks::Naming.snake(name) }.uniq
         end
 

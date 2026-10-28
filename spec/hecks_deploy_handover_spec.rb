@@ -6,7 +6,7 @@ require "fileutils"
 # `hecks deploy handover.clear` end to end: the Deploy bluebook's Handover asks the DeployToolchain
 # port, the Hecks domain binds its adapter, and a throwaway domain's `.world` files are emptied of
 # their `deployed_to` settings and still load.
-RSpec.describe "the Deploy chapter's Handover", :io do
+RSpec.describe "the Deploy bluebook's Handover", :io do
   WORLD_TO_CLEAR = <<~RUBY.freeze
     Hecks.world "Shop" do
       realm "Shop"

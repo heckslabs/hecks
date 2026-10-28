@@ -76,7 +76,7 @@ module Hecks
         #   Bluebook::Declaration, nil] the construct to start from; the bluebook answers itself
         # @return [Bluebook::Declaration, nil] the first construct on the way up that responds to
         #   `aggregate`; nil when the chain ends without one
-        def chapter_of(construct)
+        def bluebook_of(construct)
           node = construct
           node = node.hecks_owner while node && !node.respond_to?(:aggregate) && node.respond_to?(:hecks_owner)
           node.respond_to?(:aggregate) ? node : nil
@@ -115,8 +115,8 @@ module Hecks
         # it.
         def declared_set(owner, attribute)
           aggregate_name, set_name = attribute.admits.to_s.split("::", 2)
-          chapter = chapter_of(owner)
-          set_name && chapter&.aggregate(aggregate_name)&.value_object(set_name)
+          declaration = bluebook_of(owner)
+          set_name && declaration&.aggregate(aggregate_name)&.value_object(set_name)
         end
 
         # Applies `admits:` to value-object fields too, which never pass through `for_attribute`.

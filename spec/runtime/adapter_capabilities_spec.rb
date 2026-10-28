@@ -3,7 +3,7 @@ require "spec_helper"
 # `provides` on an adapter, asked through the aggregate it persists: the SQL persistence adapters
 # rewrite every row in one statement, and an adapter that never says so provides nothing.
 RSpec.describe "what the adapter an aggregate is bound to provides" do
-  def ledger_chapter
+  def ledger_bluebook
     Hecks.bluebook("Ledger") do
       supporting
       aggregate "Entry" do
@@ -19,7 +19,7 @@ RSpec.describe "what the adapter an aggregate is bound to provides" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Hecks::Adapters::Folder.new.load_library
-      ledger_chapter
+      ledger_bluebook
       Hecks.hecksagon("Ledger") { persisted_by adapter } if adapter
     end
     registry

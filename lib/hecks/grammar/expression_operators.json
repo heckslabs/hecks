@@ -1,6 +1,6 @@
 {
   "name": "expression-operators",
-  "note": "The admission ledger — every operator and normalisation rule the expression machinery runs, driven through the grammar chapter's own lifecycle. Propose, then a rendering per target, then Admit, so the 'reads in every target' guard gates each admission for real. spec/operator_conformance_spec.rb replays this and holds the evaluator's tables equal to what survives — an operator absent here is not a slow operator, it is not an operator.",
+  "note": "The admission ledger — every operator and normalisation rule the expression machinery runs, driven through the grammar bluebook's own lifecycle. Propose, then a rendering per target, then Admit, so the 'reads in every target' guard gates each admission for real. spec/operator_conformance_spec.rb replays this and holds the evaluator's tables equal to what survives — an operator absent here is not a slow operator, it is not an operator.",
   "steps": [
     {
       "verb": "Expression::Operator.Propose",

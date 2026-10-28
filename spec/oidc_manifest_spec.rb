@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require "hecks/tools/oidc_manifests"
 
 # Anti-drift gate: each checked-in manifest must equal a fresh projection of its bluebook. A domain
-# of one bluebook keeps `oidc.json`; a directory of several bluebooks holds `<chapter>.oidc.json`
+# of one bluebook keeps `oidc.json`; a directory of several bluebooks holds `<bluebook>.oidc.json`
 # for each, so no bluebook's manifest stands for another's. Directories are found by the same glob
 # `hecks deploy oidc_manifest.project_oidc` uses.
 RSpec.describe "committed OIDC manifests (hecks deploy oidc_manifest.project_oidc)" do
@@ -26,7 +26,7 @@ RSpec.describe "committed OIDC manifests (hecks deploy oidc_manifest.project_oid
   # `path`.
   def projection_for(path)
     registry = booted(File.dirname(path))
-    names = tool.chapters_of(registry, File.dirname(path))
+    names = tool.bluebooks_of(registry, File.dirname(path))
     name = names.find { |held| tool.file_for(names, held) == File.basename(path) }
     Hecks::Projections::OIDC.render(Hecks::Projector.call(:oidc, bluebook: registry.bluebook(name)))
   end
@@ -41,7 +41,7 @@ RSpec.describe "committed OIDC manifests (hecks deploy oidc_manifest.project_oid
                                   "been run, or every manifest was deleted without updating this spec's exclusion list"
   end
 
-  it "names a manifest oidc.json for a domain of one bluebook, and <chapter>.oidc.json otherwise" do
+  it "names a manifest oidc.json for a domain of one bluebook, and <bluebook>.oidc.json otherwise" do
     expect([tool.file_for(%w[Banking], "Banking"), tool.file_for(%w[Compliance ConsoleSettings], "ConsoleSettings")])
       .to eq(["oidc.json", "console_settings.oidc.json"])
   end
@@ -55,7 +55,7 @@ RSpec.describe "committed OIDC manifests (hecks deploy oidc_manifest.project_oid
 
   OIDC_DIRECTORIES.each do |directory|
     it "#{relative(directory)} holds one manifest for each bluebook it has, and no other", :io do
-      names = tool.chapters_of(booted(directory), directory)
+      names = tool.bluebooks_of(booted(directory), directory)
 
       expect(Dir.children(directory).grep(/oidc\.json\z/).sort).to eq(names.map { |name| tool.file_for(names, name) }.sort)
     end

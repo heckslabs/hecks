@@ -64,7 +64,7 @@ module Hecks
       # Resolves one declared attribute into the field a form renders for it.
       #
       # `aggregate` owns the attribute and is needed to resolve `reference_to`, `admits:`
-      # and same-chapter value objects; `path` is the dotted path reached so far.
+      # and same-bluebook value objects; `path` is the dotted path reached so far.
       #
       # @param attribute [Bluebook::Attribute]
       # @param aggregate [Bluebook::Aggregate]

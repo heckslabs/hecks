@@ -8,7 +8,7 @@ RSpec.describe Hecks::Bluebook::ModelCheck::AggregateChecks do
   let(:mutation)  { Struct.new(:op, :target) }
   let(:command)   { Struct.new(:hecks_name, :mutations) }
   let(:aggregate) { Struct.new(:hecks_name, :commands, :entities, :lifecycle, :acknowledgements) }
-  let(:chapter)   { Struct.new(:aggregates) }
+  let(:declaration)   { Struct.new(:aggregates) }
 
   def sets(*fields) = fields.map { |field| mutation.new(:set, field) }
 
@@ -18,7 +18,7 @@ RSpec.describe Hecks::Bluebook::ModelCheck::AggregateChecks do
   end
 
   def findings(count, limit, acknowledged = [])
-    Hecks::Bluebook::ModelCheck.large_aggregate_findings(chapter.new([sprawl(count, acknowledged)]), limit: limit)
+    Hecks::Bluebook::ModelCheck.large_aggregate_findings(declaration.new([sprawl(count, acknowledged)]), limit: limit)
   end
 
   def acknowledging(kind)

@@ -39,12 +39,12 @@ module Hecks
       # The attached bluebooks the help points at, one line each, under the call that opens them.
       #
       # @param bluebooks [Array<Array(String, String)>, nil] each bluebook's word and its summary
-      def chapter_lines(program, chapters)
-        return [] if Array(chapters).empty?
+      def bluebook_lines(program, declarations)
+        return [] if Array(declarations).empty?
 
-        width = chapters.map { |word, _| word.length }.max
+        width = declarations.map { |word, _| word.length }.max
         ["", "bluebooks (`#{program} <bluebook>` lists a bluebook's own commands and queries):",
-         *chapters.map { |word, summary| "  #{word.ljust(width)}  #{clipped(summary)}".rstrip }]
+         *declarations.map { |word, summary| "  #{word.ljust(width)}  #{clipped(summary)}".rstrip }]
       end
 
       # A summary cut to one terminal line, at a word, with an ellipsis where it was cut.

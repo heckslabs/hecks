@@ -35,7 +35,7 @@ module Hecks
 
       # Projects `bluebook`'s glossary as a Markdown document and the HTML page built from it.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook to render
+      # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook to render
       # @param options [Hash] the registry's call shape
       # @option options [Array<Hash{Symbol => String}>] :markings sensitive fields to tag
       #   with their category and list under their aggregate

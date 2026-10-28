@@ -11,7 +11,7 @@ module Hecks
       #
       # A run that regenerates only some of the declared domains says so with `--partial`. It writes
       # those domains and leaves `mod.rs` and Cargo's features to a run of the whole corpus: the
-      # chapters `mod.rs` lists are the ones on disk, so a few domains' run would drop the rest.
+      # bluebooks `mod.rs` lists are the ones on disk, so a few domains' run would drop the rest.
       #
       #   hecks project_rust examples/pizzas --declared=banking,pizzas --default=pizzas --partial
       class Declared

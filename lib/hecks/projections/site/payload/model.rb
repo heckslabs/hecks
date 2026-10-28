@@ -28,18 +28,18 @@ module Hecks
           # @param skip [Array<String>] aggregates to leave out
           # @return [Array<Aggregate>] each aggregate with a lifecycle and a creating command
           # @raise [ArgumentError] when such an aggregate cannot be driven
-          def self.read(chapter, skip: [])
-            chapter.aggregates.select { |agg| agg.lifecycle && !skip.include?(agg.hecks_name) }
-                   .map { |agg| new(chapter, agg).aggregate }
+          def self.read(declaration, skip: [])
+            declaration.aggregates.select { |agg| agg.lifecycle && !skip.include?(agg.hecks_name) }
+                       .map { |agg| new(declaration, agg).aggregate }
           end
 
           # @return [Aggregate] the aggregate's model
           attr_reader :aggregate
 
-          def initialize(chapter, agg)
-            @chapter = chapter
+          def initialize(declaration, agg)
+            @declaration = declaration
             @agg = agg
-            @aggregate = Aggregate.new(noun: agg.hecks_name, fqn: "#{chapter.name}::#{agg.hecks_name}", create: create,
+            @aggregate = Aggregate.new(noun: agg.hecks_name, fqn: "#{declaration.name}::#{agg.hecks_name}", create: create,
                                        edges: edges, attrs: attrs, identity: agg.identified_by.to_s, role: role)
           end
 

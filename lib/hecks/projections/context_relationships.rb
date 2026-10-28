@@ -47,9 +47,9 @@ module Hecks
       # @api private
       def attach_edges(hecksagon)
         hecksagon.attachments.filter_map do |attachment|
-          next if attachment.chapter_name.to_s == hecksagon.domain.to_s
+          next if attachment.declaration_name.to_s == hecksagon.domain.to_s
 
-          Edge.new(hecksagon.domain.to_s, attachment.chapter_name.to_s, :shared_kernel, nil)
+          Edge.new(hecksagon.domain.to_s, attachment.declaration_name.to_s, :shared_kernel, nil)
         end
       end
 

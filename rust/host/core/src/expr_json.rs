@@ -1,168 +1,56 @@
-//! Host-local JSON port of `rust::kernel::expr::Expr`: `parse` reads every node and `interpret`
-//! evaluates every one with the Ruby runtime's semantics (`Evaluator`/`Resolver`): the same
-//! answers, null handling and error wording, so a value object's invariants mint the same way.
+//! The host's JSON door to the expression evaluator it shares with the kernel (`hecks_expr`):
+//! `parse` reads an invariant's `ast` node into the shared `Expr`, and `interpret` evaluates it
+//! over an instance read as JSON, with the Ruby runtime's semantics (`Evaluator`/`Resolver`): the
+//! same answers, null handling and error wording, so a value object's invariants mint the same way.
+//!
+//! There is one evaluator. What is the host's own is the reading of data: the AST arrives as JSON
+//! with owned names, and the instance is a JSON object rather than a generated struct.
 
+use hecks_expr::expr::{
+    self as shared, BlockMode, Comparison, EvalContext, Field, Fielded, NoFields, StripSide,
+};
+pub use hecks_expr::expr::{Expr, Value};
 use serde_json::Value as Json;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::{Mutex, OnceLock, PoisonError};
 
-/// The `cmp` flags of a comparison node: `<`, `==`, and whether the result is negated.
-#[derive(Debug, Clone, Copy)]
-pub struct Comparison {
-    pub less_than: bool,
-    pub equal: bool,
-    pub negated: bool,
+/// The `'static` spelling of a name, shared by every parse of it. The shared `Expr` holds names as
+/// `&'static str` (generated code writes them as literals); an IR's names are a finite set, so each
+/// distinct one is leaked once and a repeated parse costs nothing more.
+fn intern(text: &str) -> &'static str {
+    static NAMES: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+    let mut names = NAMES
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    if let Some(known) = names.get(text) {
+        return known;
+    }
+    let leaked: &'static str = Box::leak(text.to_string().into_boxed_str());
+    names.insert(leaked);
+    leaked
 }
 
-/// Which ends of a string `Expr::Strip` trims.
-#[derive(Debug, Clone, Copy)]
-pub enum StripSide {
-    Both,
-    Left,
-    Right,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum BlockMode {
-    All,
-    Any,
-    None,
-}
-
-/// One JSON object per node, tagged by `"op"`; field names match the Hash keys
-/// `ast_json.rb` emits.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub enum Expr {
-    Or {
-        left: Box<Self>,
-        right: Box<Self>,
-    },
-    And {
-        left: Box<Self>,
-        right: Box<Self>,
-    },
-    Not {
-        expr: Box<Self>,
-    },
-    Compare {
-        cmp: Comparison,
-        left: Box<Self>,
-        right: Box<Self>,
-    },
-    Include {
-        haystack: Box<Self>,
-        needle: Box<Self>,
-    },
-    Int {
-        value: i64,
-    },
-    Float {
-        value: f64,
-    },
-    Str {
-        value: String,
-    },
-    Bool {
-        value: bool,
-    },
-    Nil,
-    Add {
-        left: Box<Self>,
-        right: Box<Self>,
-    },
-    Sub {
-        left: Box<Self>,
-        right: Box<Self>,
-    },
-    Mul {
-        left: Box<Self>,
-        right: Box<Self>,
-    },
-    Div {
-        left: Box<Self>,
-        right: Box<Self>,
-    },
-    SignTest {
-        cmp: Comparison,
-        receiver: Box<Self>,
-    },
-    Empty {
-        receiver: Box<Self>,
-    },
-    ToS {
-        receiver: Box<Self>,
-    },
-    Modulo {
-        receiver: Box<Self>,
-        divisor: Box<Self>,
-    },
-    Size {
-        receiver: Box<Self>,
-    },
-    Lookup {
-        path: Vec<String>,
-    },
-    BlockPredicate {
-        mode: BlockMode,
-        receiver: Box<Self>,
-        param: String,
-        predicate: Box<Self>,
-    },
-    Find {
-        receiver: Box<Self>,
-        param: String,
-        predicate: Box<Self>,
-        path: Vec<String>,
-    },
-    /// `receiver.sum { |param| expression }`: the number the block works out for each element,
-    /// added as `+` adds; 0 for an empty list.
-    Sum {
-        receiver: Box<Self>,
-        param: String,
-        predicate: Box<Self>,
-    },
-    Array {
-        elements: Vec<Self>,
-    },
-    MatchesRegex {
-        receiver: Box<Self>,
-        pattern: String,
-        flags: String,
-    },
-    Presence {
-        receiver: Box<Self>,
-        negated: bool,
-    },
-    Assignment {
-        receiver: Box<Self>,
-        negated: bool,
-    },
-    Split {
-        receiver: Box<Self>,
-        separator: String,
-    },
-    Strip {
-        receiver: Box<Self>,
-        side: StripSide,
-    },
-    StartsWith {
-        receiver: Box<Self>,
-        substring: String,
-    },
-    EndsWith {
-        receiver: Box<Self>,
-        substring: String,
-    },
-    First {
-        receiver: Box<Self>,
-    },
-    Last {
-        receiver: Box<Self>,
-    },
+/// The `'static` spelling of a path of segments, interned the same way.
+fn intern_path(segments: &[String]) -> &'static [&'static str] {
+    static PATHS: OnceLock<Mutex<HashMap<Vec<String>, &'static [&'static str]>>> = OnceLock::new();
+    let mut paths = PATHS
+        .get_or_init(Mutex::default)
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    if let Some(known) = paths.get(segments) {
+        return known;
+    }
+    let interned: Vec<&'static str> = segments.iter().map(|s| intern(s)).collect();
+    let leaked: &'static [&'static str] = Box::leak(interned.into_boxed_slice());
+    paths.insert(segments.to_vec(), leaked);
+    leaked
 }
 
 /// Parses an invariant's `ast` node into an `Expr`.
 ///
-/// An unrecognized `"op"`, or a malformed shape under a known one, is an `Err`.
+/// One JSON object per node, tagged by `"op"`; field names match the Hash keys `ast_json.rb`
+/// emits. An unrecognized `"op"`, or a malformed shape under a known one, is an `Err`.
 pub fn parse(json: &Json) -> Result<Expr, String> {
     let op = json
         .get("op")
@@ -174,11 +62,17 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
             .ok_or_else(|| format!("{op} node has no {name:?} field: {json}"))
     };
     let expr = |name: &str| parse(field(name)?);
+    let boxed = |name: &str| -> Result<Box<Expr>, String> { Ok(Box::new(expr(name)?)) };
     let str_field = |name: &str| -> Result<String, String> {
         field(name)?
             .as_str()
             .map(str::to_string)
             .ok_or_else(|| format!("{op}'s {name:?} isn't a string: {json}"))
+    };
+    let bool_field = |name: &str| -> Result<bool, String> {
+        field(name)?
+            .as_bool()
+            .ok_or_else(|| format!("{op}'s {name:?} isn't a boolean: {json}"))
     };
     // `lookup.path` and `find.path` are segment arrays, never dotted strings.
     let path_field = |name: &str| -> Result<Vec<String>, String> {
@@ -195,98 +89,60 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
     };
     let comparison = || -> Result<Comparison, String> {
         let cmp = field("cmp")?;
+        let flag = |name: &str| {
+            cmp.get(name)
+                .and_then(Json::as_bool)
+                .ok_or_else(|| format!("{op}'s cmp has no {name}: {json}"))
+        };
         Ok(Comparison {
-            less_than: cmp
-                .get("less_than")
-                .and_then(Json::as_bool)
-                .ok_or_else(|| format!("{op}'s cmp has no less_than: {json}"))?,
-            equal: cmp
-                .get("equal")
-                .and_then(Json::as_bool)
-                .ok_or_else(|| format!("{op}'s cmp has no equal: {json}"))?,
-            negated: cmp
-                .get("negated")
-                .and_then(Json::as_bool)
-                .ok_or_else(|| format!("{op}'s cmp has no negated: {json}"))?,
+            less_than: flag("less_than")?,
+            equal: flag("equal")?,
+            negated: flag("negated")?,
         })
     };
 
     Ok(match op {
-        "or" => Expr::Or {
-            left: Box::new(expr("left")?),
-            right: Box::new(expr("right")?),
-        },
-        "and" => Expr::And {
-            left: Box::new(expr("left")?),
-            right: Box::new(expr("right")?),
-        },
-        "not" => Expr::Not {
-            expr: Box::new(expr("expr")?),
-        },
+        "or" => Expr::Or(boxed("left")?, boxed("right")?),
+        "and" => Expr::And(boxed("left")?, boxed("right")?),
+        "not" => Expr::Not(boxed("expr")?),
         "compare" => Expr::Compare {
-            cmp: comparison()?,
-            left: Box::new(expr("left")?),
-            right: Box::new(expr("right")?),
+            op: comparison()?,
+            left: boxed("left")?,
+            right: boxed("right")?,
         },
         "include" => Expr::Include {
-            haystack: Box::new(expr("haystack")?),
-            needle: Box::new(expr("needle")?),
+            haystack: boxed("haystack")?,
+            needle: boxed("needle")?,
         },
-        "int" => Expr::Int {
-            value: field("value")?
+        "int" => Expr::Int(
+            field("value")?
                 .as_i64()
                 .ok_or_else(|| format!("int's value isn't an integer: {json}"))?,
-        },
-        "float" => Expr::Float {
-            value: field("value")?
+        ),
+        "float" => Expr::Float(
+            field("value")?
                 .as_f64()
                 .ok_or_else(|| format!("float's value isn't a number: {json}"))?,
-        },
-        "str" => Expr::Str {
-            value: str_field("value")?,
-        },
-        "bool" => Expr::Bool {
-            value: field("value")?
-                .as_bool()
-                .ok_or_else(|| format!("bool's value isn't a boolean: {json}"))?,
-        },
+        ),
+        "str" => Expr::Str(str_field("value")?),
+        "bool" => Expr::Bool(bool_field("value")?),
         "nil" => Expr::Nil,
-        "add" => Expr::Add {
-            left: Box::new(expr("left")?),
-            right: Box::new(expr("right")?),
-        },
-        "sub" => Expr::Sub {
-            left: Box::new(expr("left")?),
-            right: Box::new(expr("right")?),
-        },
-        "mul" => Expr::Mul {
-            left: Box::new(expr("left")?),
-            right: Box::new(expr("right")?),
-        },
-        "div" => Expr::Div {
-            left: Box::new(expr("left")?),
-            right: Box::new(expr("right")?),
-        },
+        "add" => Expr::Add(boxed("left")?, boxed("right")?),
+        "sub" => Expr::Sub(boxed("left")?, boxed("right")?),
+        "mul" => Expr::Mul(boxed("left")?, boxed("right")?),
+        "div" => Expr::Div(boxed("left")?, boxed("right")?),
         "sign_test" => Expr::SignTest {
-            cmp: comparison()?,
-            receiver: Box::new(expr("receiver")?),
+            op: comparison()?,
+            receiver: boxed("receiver")?,
         },
-        "empty" => Expr::Empty {
-            receiver: Box::new(expr("receiver")?),
-        },
-        "to_s" => Expr::ToS {
-            receiver: Box::new(expr("receiver")?),
-        },
+        "empty" => Expr::Empty(boxed("receiver")?),
+        "to_s" => Expr::ToS(boxed("receiver")?),
         "modulo" => Expr::Modulo {
-            receiver: Box::new(expr("receiver")?),
-            divisor: Box::new(expr("divisor")?),
+            receiver: boxed("receiver")?,
+            divisor: boxed("divisor")?,
         },
-        "size" => Expr::Size {
-            receiver: Box::new(expr("receiver")?),
-        },
-        "lookup" => Expr::Lookup {
-            path: path_field("path")?,
-        },
+        "size" => Expr::Size(boxed("receiver")?),
+        "lookup" => Expr::Lookup(intern(&path_field("path")?.join("."))),
         "block_predicate" => Expr::BlockPredicate {
             mode: match str_field("mode")?.as_str() {
                 "all" => BlockMode::All,
@@ -298,52 +154,48 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
                     ))
                 }
             },
-            receiver: Box::new(expr("receiver")?),
-            param: str_field("param")?,
-            predicate: Box::new(expr("predicate")?),
+            receiver: boxed("receiver")?,
+            param: intern(&str_field("param")?),
+            predicate: boxed("predicate")?,
         },
         "find" => Expr::Find {
-            receiver: Box::new(expr("receiver")?),
-            param: str_field("param")?,
-            predicate: Box::new(expr("predicate")?),
-            path: path_field("path")?,
+            receiver: boxed("receiver")?,
+            param: intern(&str_field("param")?),
+            predicate: boxed("predicate")?,
+            path: intern_path(&path_field("path")?),
         },
         "sum" => Expr::Sum {
-            receiver: Box::new(expr("receiver")?),
-            param: str_field("param")?,
-            predicate: Box::new(expr("predicate")?),
+            receiver: boxed("receiver")?,
+            param: intern(&str_field("param")?),
+            predicate: boxed("predicate")?,
         },
-        "array" => Expr::Array {
-            elements: field("elements")?
+        "array" => Expr::Array(
+            field("elements")?
                 .as_array()
                 .ok_or_else(|| format!("array's elements isn't an array: {json}"))?
                 .iter()
                 .map(parse)
                 .collect::<Result<Vec<_>, _>>()?,
-        },
+        ),
         "matches_regex" => Expr::MatchesRegex {
-            receiver: Box::new(expr("receiver")?),
+            receiver: boxed("receiver")?,
             pattern: str_field("pattern")?,
             flags: str_field("flags")?,
         },
         "presence" => Expr::Presence {
-            receiver: Box::new(expr("receiver")?),
-            negated: field("negated")?
-                .as_bool()
-                .ok_or_else(|| format!("presence's negated isn't a boolean: {json}"))?,
+            receiver: boxed("receiver")?,
+            negated: bool_field("negated")?,
         },
         "assignment" => Expr::Assignment {
-            receiver: Box::new(expr("receiver")?),
-            negated: field("negated")?
-                .as_bool()
-                .ok_or_else(|| format!("assignment's negated isn't a boolean: {json}"))?,
+            receiver: boxed("receiver")?,
+            negated: bool_field("negated")?,
         },
         "split" => Expr::Split {
-            receiver: Box::new(expr("receiver")?),
+            receiver: boxed("receiver")?,
             separator: str_field("separator")?,
         },
         "strip" => Expr::Strip {
-            receiver: Box::new(expr("receiver")?),
+            receiver: boxed("receiver")?,
             side: match str_field("side")?.as_str() {
                 "both" => StripSide::Both,
                 "left" => StripSide::Left,
@@ -356,827 +208,145 @@ pub fn parse(json: &Json) -> Result<Expr, String> {
             },
         },
         "starts_with" => Expr::StartsWith {
-            receiver: Box::new(expr("receiver")?),
+            receiver: boxed("receiver")?,
             substring: str_field("substring")?,
         },
         "ends_with" => Expr::EndsWith {
-            receiver: Box::new(expr("receiver")?),
+            receiver: boxed("receiver")?,
             substring: str_field("substring")?,
         },
-        "first" => Expr::First {
-            receiver: Box::new(expr("receiver")?),
-        },
-        "last" => Expr::Last {
-            receiver: Box::new(expr("receiver")?),
-        },
+        "first" => Expr::First(boxed("receiver")?),
+        "last" => Expr::Last(boxed("receiver")?),
         other => return Err(format!("unrecognized expression op {other:?}: {json}")),
     })
 }
 
-/// The runtime value an `Expr` evaluates to.
-///
-/// Lists are a single `Array` variant: every field here is already a materialised JSON value.
-/// An `Object` is a multi-field value object, kept as the JSON it arrived as; a one-field
-/// object never survives a lookup (see `unwrap_scalar`).
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Int(i64),
-    Float(f64),
-    Str(String),
-    Bool(bool),
-    Nil,
-    Array(Vec<Self>),
-    Object(Json),
+/// The value of a JSON scalar, array or object as the evaluator reads it.
+fn value_of(json: &Json) -> Result<Value, String> {
+    match json {
+        Json::Null => Ok(Value::Nil),
+        Json::Bool(b) => Ok(Value::Bool(*b)),
+        Json::Number(n) => n
+            .as_i64()
+            .map(Value::Int)
+            .or_else(|| n.as_f64().map(Value::Float))
+            .ok_or_else(|| format!("{n} is a number this interpreter cannot represent")),
+        Json::String(s) => Ok(Value::Str(s.clone())),
+        Json::Array(items) => Ok(Value::Array(
+            items.iter().map(value_of).collect::<Result<Vec<_>, _>>()?,
+        )),
+        Json::Object(fields) => Ok(Value::Object(
+            fields
+                .iter()
+                .map(|(key, field)| Ok((key.clone(), value_of(field)?)))
+                .collect::<Result<BTreeMap<_, _>, String>>()?,
+        )),
+    }
 }
 
-impl Value {
-    /// Ruby truthiness: everything but `Nil` and `false`.
-    ///
-    /// Invariant results are checked for truthiness, not `== true`, as `given`/`ensures` are.
-    pub const fn truthy(&self) -> bool {
-        !matches!(self, Self::Nil | Self::Bool(false))
-    }
+/// One field of an instance, read the way the evaluator walks it.
+enum Slot {
+    Scalar(Value),
+    Object(Node),
+    List(Vec<Self>),
+}
 
+impl Slot {
     fn from_json(json: &Json) -> Result<Self, String> {
         match json {
-            Json::Null => Ok(Self::Nil),
-            Json::Bool(b) => Ok(Self::Bool(*b)),
-            Json::Number(n) => n
-                .as_i64()
-                .map(Self::Int)
-                .or_else(|| n.as_f64().map(Self::Float))
-                .ok_or_else(|| format!("{n} is a number this interpreter cannot represent")),
-            Json::String(s) => Ok(Self::Str(s.clone())),
-            Json::Array(items) => Ok(Self::Array(
+            Json::Object(_) => Ok(Self::Object(Node::from_json(json, false)?)),
+            Json::Array(items) => Ok(Self::List(
                 items
                     .iter()
                     .map(Self::from_json)
                     .collect::<Result<Vec<_>, _>>()?,
             )),
-            Json::Object(_) => Ok(Self::Object(json.clone())),
+            scalar => Ok(Self::Scalar(value_of(scalar)?)),
+        }
+    }
+
+    /// This slot as a plain value, an object slot becoming a `Value::Object`.
+    fn value(&self) -> Value {
+        match self {
+            Self::Scalar(value) => value.clone(),
+            Self::Object(node) => node.object_value(),
+            Self::List(items) => Value::Array(items.iter().map(Self::value).collect()),
+        }
+    }
+
+    fn field(&self) -> Field<'_> {
+        match self {
+            Self::Object(node) => Field::Nested(node),
+            other => Field::Value(other.value()),
         }
     }
 }
 
-/// The value as an `f64` when it is an `Int` or `Float`.
-const fn numeric(v: &Value) -> Option<f64> {
-    match v {
-        Value::Int(i) => Some(*i as f64),
-        Value::Float(f) => Some(*f),
-        _ => None,
-    }
+/// An instance object as the evaluator's `Fielded`: the head of a lookup must exist, but a
+/// nested object answers nil for a field it lacks (Ruby's `Hash#[]`).
+struct Node {
+    fields: BTreeMap<String, Slot>,
+    root: bool,
 }
 
-/// An `Int` and a `Float` are equal only when the float is a whole number that is that integer.
-fn int_equals_float(i: i64, f: f64) -> bool {
-    f.is_finite()
-        && f.fract() == 0.0
-        && (-9.223_372_036_854_776e18..9.223_372_036_854_776e18).contains(&f)
-        && f as i64 == i
-}
+impl Node {
+    fn from_json(json: &Json, root: bool) -> Result<Self, String> {
+        let fields = match json {
+            Json::Object(fields) => fields
+                .iter()
+                .map(|(key, field)| Ok((key.clone(), Slot::from_json(field)?)))
+                .collect::<Result<BTreeMap<_, _>, String>>()?,
+            _ => BTreeMap::new(),
+        };
+        Ok(Self { fields, root })
+    }
 
-/// Ruby's `==` after `Evaluator.equal?`: numbers compare across kinds, and lists and objects
-/// compare element by element with the same rule, so `[1] == [1.0]`.
-#[allow(clippy::float_cmp)] // reason: Ruby's `Float#==` is exact, and this mirrors it
-fn values_equal(l: &Value, r: &Value) -> bool {
-    match (l, r) {
-        (Value::Int(a), Value::Int(b)) => a == b,
-        (Value::Int(i), Value::Float(f)) | (Value::Float(f), Value::Int(i)) => {
-            int_equals_float(*i, *f)
-        }
-        (Value::Float(a), Value::Float(b)) => a == b,
-        (Value::Array(a), Value::Array(b)) => {
-            a.len() == b.len() && a.iter().zip(b).all(|(x, y)| values_equal(x, y))
-        }
-        (Value::Object(Json::Object(a)), Value::Object(Json::Object(b))) => {
-            a.len() == b.len()
-                && a.iter()
-                    .all(|(key, x)| match (b.get(key), Value::from_json(x)) {
-                        (Some(y), Ok(x)) => Value::from_json(y).is_ok_and(|y| values_equal(&x, &y)),
-                        _ => false,
-                    })
-        }
-        _ => l == r,
-    }
-}
-
-/// Orders numbers, then strings; any other pairing is an error worded as Ruby's.
-fn less_than(l: &Value, r: &Value) -> Result<bool, String> {
-    match (l, r) {
-        (Value::Int(a), Value::Int(b)) => Ok(a < b),
-        _ => match (numeric(l), numeric(r)) {
-            (Some(a), Some(b)) => Ok(a < b),
-            _ => match (l, r) {
-                (Value::Str(a), Value::Str(b)) => Ok(a < b),
-                _ => Err(format!(
-                    "comparison of {} with {} failed",
-                    class_of(l),
-                    describe(r)
-                )),
-            },
-        },
-    }
-}
-
-/// ORs `<` and `==`, then negates if the operator says so; `SignTest` reuses it against 0.
-fn apply_comparison(op: Comparison, l: &Value, r: &Value) -> Result<bool, String> {
-    let lt = op.less_than && less_than(l, r)?;
-    let eq = op.equal && values_equal(l, r);
-    Ok(if op.negated { !(lt || eq) } else { lt || eq })
-}
-
-/// Stringifies a scalar as Ruby's `to_s` does (`Nil` becomes `""`); a list or object is an error.
-fn to_s(v: &Value) -> Result<String, String> {
-    match v {
-        Value::Str(s) => Ok(s.clone()),
-        Value::Int(i) => Ok(i.to_string()),
-        Value::Float(f) => Ok(ruby_float(*f)),
-        Value::Bool(b) => Ok(b.to_string()),
-        Value::Nil => Ok(String::new()),
-        Value::Array(_) | Value::Object(_) => {
-            Err(format!("to_s expects a scalar, got {}", describe(v)))
-        }
-    }
-}
-
-/// Ruby's `Float#to_s`: shortest round-trip digits, fixed notation for exponents -4 through 14,
-/// `d.ddde+XX` outside that.
-#[allow(clippy::expect_used)] // reason: Rust's exponent format always has `e` and an integer exponent
-fn ruby_float(f: f64) -> String {
-    if f.is_nan() {
-        return "NaN".to_string();
-    }
-    if f.is_infinite() {
-        return if f < 0.0 { "-Infinity" } else { "Infinity" }.to_string();
-    }
-    let sign = if f.is_sign_negative() { "-" } else { "" };
-    if f == 0.0 {
-        return format!("{sign}0.0");
-    }
-    let scientific = format!("{:e}", f.abs());
-    let (mantissa, exponent) = scientific
-        .split_once('e')
-        .expect("exponent form always has an exponent");
-    let exponent: i32 = exponent.parse().expect("exponent is an integer");
-    let digits: String = mantissa.chars().filter(|c| *c != '.').collect();
-    if (-4..15).contains(&exponent) {
-        if exponent >= 0 {
-            let whole = exponent as usize + 1;
-            let (int_part, frac_part) = if digits.len() > whole {
-                (digits[..whole].to_string(), digits[whole..].to_string())
-            } else {
-                (
-                    format!("{digits}{}", "0".repeat(whole - digits.len())),
-                    "0".to_string(),
-                )
-            };
-            format!("{sign}{int_part}.{frac_part}")
-        } else {
-            format!("{sign}0.{}{digits}", "0".repeat((-exponent - 1) as usize))
-        }
-    } else {
-        let frac = if digits.len() > 1 { &digits[1..] } else { "0" };
-        format!(
-            "{sign}{}.{frac}e{}{:02}",
-            &digits[..1],
-            if exponent < 0 { '-' } else { '+' },
-            exponent.abs()
+    fn object_value(&self) -> Value {
+        Value::Object(
+            self.fields
+                .iter()
+                .map(|(key, slot)| (key.clone(), slot.value()))
+                .collect(),
         )
     }
 }
 
-/// Ruby's `String#inspect` for a UTF-8 string.
-fn ruby_inspect(s: &str) -> String {
-    use std::fmt::Write;
-    let mut out = String::from("\"");
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\t' => out.push_str("\\t"),
-            '\r' => out.push_str("\\r"),
-            '\u{07}' => out.push_str("\\a"),
-            '\u{08}' => out.push_str("\\b"),
-            '\u{0b}' => out.push_str("\\v"),
-            '\u{0c}' => out.push_str("\\f"),
-            '\u{1b}' => out.push_str("\\e"),
-            '#' if matches!(chars.peek(), Some('{' | '$' | '@')) => out.push_str("\\#"),
-            c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                let _ = write!(out, "\\u{:04X}", c as u32); // writing to a String cannot fail
-            }
-            c => out.push(c),
+impl Fielded for Node {
+    fn field(&self, name: &str) -> Option<Field<'_>> {
+        match self.fields.get(name) {
+            Some(slot) => Some(slot.field()),
+            None if self.root => None,
+            None => Some(Field::Value(Value::Nil)),
         }
     }
-    out.push('"');
-    out
-}
 
-/// Ruby's `JSON.generate` for a value: what `Rendering.describe` prints for a list or hash.
-fn generate(v: &Value) -> String {
-    match v {
-        Value::Nil => "null".to_string(),
-        Value::Bool(b) => b.to_string(),
-        Value::Int(i) => i.to_string(),
-        Value::Float(f) => ruby_float(*f),
-        Value::Str(s) => Json::String(s.clone()).to_string(),
-        Value::Array(items) => format!(
-            "[{}]",
-            items.iter().map(generate).collect::<Vec<_>>().join(",")
-        ),
-        Value::Object(json) => json.to_string(),
-    }
-}
-
-/// Ruby's `Rendering.describe`: a value as an error message names it.
-fn describe(v: &Value) -> String {
-    match v {
-        Value::Nil => "nil".to_string(),
-        Value::Str(s) => ruby_inspect(s),
-        other => generate(other),
-    }
-}
-
-/// The Ruby class name an error message gives for a value; `nil` for nil, as `class_of` does.
-const fn class_of(v: &Value) -> &'static str {
-    match v {
-        Value::Nil => "nil",
-        Value::Int(_) => "Integer",
-        Value::Float(_) => "Float",
-        Value::Str(_) => "String",
-        Value::Bool(true) => "TrueClass",
-        Value::Bool(false) => "FalseClass",
-        Value::Array(_) => "Array",
-        // A value object's own class name is not in the JSON; Hash is the nearest honest answer.
-        Value::Object(_) => "Hash",
-    }
-}
-
-/// Requires an `Int` or `Float`, worded as `Resolver.require_number`.
-fn require_number(v: &Value, operation: &str) -> Result<Value, String> {
-    match v {
-        Value::Int(_) | Value::Float(_) => Ok(v.clone()),
-        other => Err(format!(
-            "{operation} expects a number, got {}",
-            describe(other)
-        )),
-    }
-}
-
-/// `Resolver.add`: 64-bit integer sums that overflow, and float sums that are not finite, fail.
-fn add(left: &Value, right: &Value) -> Result<Value, String> {
-    let lhs = require_number(left, "addition")?;
-    let rhs = require_number(right, "addition")?;
-    if let (Value::Int(a), Value::Int(b)) = (&lhs, &rhs) {
-        return a.checked_add(*b).map(Value::Int).ok_or_else(|| {
-            format!("addition overflowed: {a} + {b} does not fit in a 64-bit integer")
-        });
-    }
-    let sum = numeric(&lhs).unwrap_or_default() + numeric(&rhs).unwrap_or_default();
-    if sum.is_finite() {
-        Ok(Value::Float(sum))
-    } else {
-        Err(format!(
-            "addition overflowed: {} + {} is not a finite number",
-            to_s(&lhs)?,
-            to_s(&rhs)?
-        ))
-    }
-}
-
-/// `Resolver.checked_arithmetic`: the same 64-bit and finiteness limits `add` holds to, named for
-/// the operation that overflowed.
-fn arithmetic(
-    name: &str,
-    symbol: &str,
-    left: &Value,
-    right: &Value,
-    int_op: fn(i64, i64) -> Option<i64>,
-    float_op: fn(f64, f64) -> f64,
-) -> Result<Value, String> {
-    let lhs = require_number(left, name)?;
-    let rhs = require_number(right, name)?;
-    if let (Value::Int(a), Value::Int(b)) = (&lhs, &rhs) {
-        return int_op(*a, *b).map(Value::Int).ok_or_else(|| {
-            format!("{name} overflowed: {a} {symbol} {b} does not fit in a 64-bit integer")
-        });
-    }
-    let result = float_op(
-        numeric(&lhs).unwrap_or_default(),
-        numeric(&rhs).unwrap_or_default(),
-    );
-    if result.is_finite() {
-        Ok(Value::Float(result))
-    } else {
-        Err(format!(
-            "{name} overflowed: {} {symbol} {} is not a finite number",
-            to_s(&lhs)?,
-            to_s(&rhs)?
-        ))
-    }
-}
-
-/// `Resolver.divide`: a zero divisor faults first; integers floor toward negative infinity.
-fn divide(left: &Value, right: &Value) -> Result<Value, String> {
-    if numeric(&require_number(right, "division")?) == Some(0.0) {
-        return Err("divided by 0".to_string());
-    }
-    arithmetic("division", "/", left, right, floor_div, |a, b| a / b)
-}
-
-/// Floored integer division; `None` only for `i64::MIN / -1`, which does not fit in 64 bits.
-fn floor_div(a: i64, b: i64) -> Option<i64> {
-    let quotient = a.checked_div(b)?;
-    Some(if a % b != 0 && ((a < 0) != (b < 0)) {
-        quotient - 1
-    } else {
-        quotient
-    })
-}
-
-/// `Resolver.apply_modulo`: floored like Ruby's `%`, so the result takes the divisor's sign.
-fn modulo(receiver: &Value, divisor: &Value) -> Result<Value, String> {
-    let receiver = require_number(receiver, "modulo")?;
-    let divisor = require_number(divisor, "modulo")?;
-    if numeric(&divisor) == Some(0.0) {
-        return Err("divided by 0".to_string());
-    }
-    if let (Value::Int(r), Value::Int(d)) = (&receiver, &divisor) {
-        // `i64::MIN % -1` overflows in Rust; Ruby answers 0.
-        if *d == -1 {
-            return Ok(Value::Int(0));
-        }
-        let raw = r % d;
-        return Ok(Value::Int(if raw != 0 && (raw < 0) != (*d < 0) {
-            raw + d
-        } else {
-            raw
-        }));
-    }
-    let x = numeric(&receiver).unwrap_or_default();
-    let y = numeric(&divisor).unwrap_or_default();
-    let remainder = if y.is_infinite() && !x.is_infinite() {
-        x
-    } else {
-        x % y
-    };
-    Ok(Value::Float(if y * remainder < 0.0 {
-        remainder + y
-    } else {
-        remainder
-    }))
-}
-
-/// `Resolver.blank?`: nil, false, and an empty string, list or object.
-///
-/// Ruby's version judges a list by its own emptiness, so a non-empty list is present in both
-/// hosts, whether or not it is made of pairs.
-fn blank(v: &Value) -> bool {
-    match v {
-        Value::Nil | Value::Bool(false) => true,
-        Value::Str(s) => s.is_empty(),
-        Value::Array(items) => items.is_empty(),
-        Value::Object(json) => json.as_object().is_some_and(serde_json::Map::is_empty),
-        _ => false,
-    }
-}
-
-/// Ruby's `String#split` with a string separator: `" "` splits on runs of whitespace, `""` on
-/// characters, anything else on the literal text; trailing empty fields are dropped.
-fn split(text: &str, separator: &str) -> Vec<Value> {
-    let mut parts: Vec<String> = match separator {
-        " " => text
-            .split([' ', '\t', '\n', '\u{0b}', '\u{0c}', '\r'])
-            .filter(|p| !p.is_empty())
-            .map(str::to_string)
-            .collect(),
-        "" => text.chars().map(String::from).collect(),
-        sep => text.split(sep).map(str::to_string).collect(),
-    };
-    while parts.last().is_some_and(String::is_empty) {
-        parts.pop();
-    }
-    parts.into_iter().map(Value::Str).collect()
-}
-
-/// Ruby's `String#strip` family: trims null, tab, line feed, vertical tab, form feed, carriage
-/// return and space, never a Unicode space (Rust's own `trim` would drop U+00A0 too).
-fn strip(text: &str, side: StripSide) -> String {
-    let stripped = |c: char| matches!(c, '\0' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r' | ' ');
-    match side {
-        StripSide::Both => text.trim_matches(stripped),
-        StripSide::Left => text.trim_start_matches(stripped),
-        StripSide::Right => text.trim_end_matches(stripped),
-    }
-    .to_string()
-}
-
-/// Compiles a Ruby `Regexp` source for the `regex` crate.
-///
-/// Ruby's `\d \w \s \h` are ASCII and its `^ $` are always line anchors, where `regex` reads
-/// the classes as Unicode and the anchors as text anchors, so both are rewritten. `m` is
-/// Ruby's dot-matches-newline; `\Z` (end, or before a final newline) becomes `\n?\z`.
-fn ruby_regex(pattern: &str, flags: &str) -> Result<regex::Regex, String> {
-    use std::fmt::Write;
-    let mut source = String::new();
-    let mut in_class = false;
-    let mut class_start = 0;
-    let chars: Vec<char> = pattern.chars().collect();
-    let mut index = 0;
-    while index < chars.len() {
-        let c = chars[index];
-        if c == '\\' {
-            let Some(&next) = chars.get(index + 1) else {
-                source.push(c);
-                break;
-            };
-            index += 2;
-            let (positive, negative) = match next.to_ascii_lowercase() {
-                'd' => ("0-9", "[^0-9]"),
-                'w' => ("A-Za-z0-9_", "[^A-Za-z0-9_]"),
-                's' => ("\\x20\\t\\r\\n\\f\\x0B", "[^\\x20\\t\\r\\n\\f\\x0B]"),
-                'h' => ("0-9a-fA-F", "[^0-9a-fA-F]"),
-                _ => {
-                    match next {
-                        'Z' if !in_class => source.push_str("(?:\\n?\\z)"),
-                        _ => {
-                            source.push(c);
-                            source.push(next);
-                        }
-                    }
-                    continue;
-                }
-            };
-            match (next.is_ascii_uppercase(), in_class) {
-                (false, true) => source.push_str(positive),
-                (false, false) => {
-                    let _ = write!(source, "[{positive}]"); // writing to a String cannot fail
-                }
-                (true, _) => source.push_str(negative),
-            }
-            continue;
-        }
-        if in_class {
-            if c == ']' && index != class_start {
-                in_class = false;
-            }
-        } else if c == '[' {
-            in_class = true;
-            class_start = index + 1;
-            if chars.get(class_start) == Some(&'^') {
-                class_start += 1;
-            }
-        } else if c == '^' || c == '$' {
-            source.push_str(if c == '^' { "(?m:^)" } else { "(?m:$)" });
-            index += 1;
-            continue;
-        }
-        source.push(c);
-        index += 1;
+    /// `Resolver.unwrap_scalar`: a one-field value object reads as its one value.
+    fn as_scalar(&self) -> Option<Value> {
+        (self.fields.len() == 1)
+            .then(|| self.fields.values().next().map(Slot::value))
+            .flatten()
     }
 
-    regex::RegexBuilder::new(&source)
-        .case_insensitive(flags.contains('i'))
-        .dot_matches_new_line(flags.contains('m'))
-        .ignore_whitespace(flags.contains('x'))
-        .build()
-        .map_err(|e| {
-            format!(
-                "match? given an invalid pattern {} — {e}",
-                ruby_inspect(pattern)
-            )
-        })
-}
+    fn to_value(&self) -> Option<Value> {
+        Some(self.object_value())
+    }
 
-/// One block parameter bound to its element, innermost first; `attrs` in `Resolver#fetch`.
-struct Scope<'a> {
-    name: &'a str,
-    value: Value,
-    outer: Option<&'a Self>,
-}
-
-impl Scope<'_> {
-    fn get(&self, name: &str) -> Option<&Value> {
-        if self.name == name {
-            Some(&self.value)
-        } else {
-            self.outer.and_then(|outer| outer.get(name))
+    fn items(&self, name: &str) -> Option<Vec<Field<'_>>> {
+        match self.fields.get(name) {
+            Some(Slot::List(items)) => Some(items.iter().map(Slot::field).collect()),
+            _ => None,
         }
     }
 }
 
-/// Evaluates `expr` against a value object's JSON fields.
-///
-/// Every node the Ruby runtime (`Evaluator`/`Resolver`) has is interpreted, with its semantics,
-/// null handling and error wording. No command arguments are in scope, so `Lookup` reads
-/// `instance` alone, after any enclosing block parameters.
+/// Evaluates `expr` over `instance`, the JSON object a value object's fields arrived as.
 pub fn interpret(expr: &Expr, instance: &Json) -> Result<Value, String> {
-    eval(expr, instance, None)
-}
-
-fn eval(expr: &Expr, instance: &Json, scope: Option<&Scope>) -> Result<Value, String> {
-    let recur = |e: &Expr| eval(e, instance, scope);
-    match expr {
-        Expr::Int { value } => Ok(Value::Int(*value)),
-        Expr::Float { value } => Ok(Value::Float(*value)),
-        Expr::Str { value } => Ok(Value::Str(value.clone())),
-        Expr::Bool { value } => Ok(Value::Bool(*value)),
-        Expr::Nil => Ok(Value::Nil),
-        Expr::Array { elements } => Ok(Value::Array(
-            elements.iter().map(recur).collect::<Result<Vec<_>, _>>()?,
-        )),
-        Expr::Lookup { path } => lookup(path, instance, scope),
-        Expr::Or { left, right } => {
-            Ok(Value::Bool(recur(left)?.truthy() || recur(right)?.truthy()))
-        }
-        Expr::And { left, right } => {
-            Ok(Value::Bool(recur(left)?.truthy() && recur(right)?.truthy()))
-        }
-        Expr::Not { expr } => Ok(Value::Bool(!recur(expr)?.truthy())),
-        Expr::Compare { cmp, left, right } => Ok(Value::Bool(apply_comparison(
-            *cmp,
-            &recur(left)?,
-            &recur(right)?,
-        )?)),
-        // The needle resolves before the haystack, as `Evaluator.includes?` does.
-        Expr::Include { haystack, needle } => {
-            let wanted = recur(needle)?;
-            match recur(haystack)? {
-                Value::Array(items) => Ok(Value::Bool(
-                    items.iter().any(|item| values_equal(item, &wanted)),
-                )),
-                Value::Str(text) => match &wanted {
-                    Value::Str(part) => Ok(Value::Bool(text.contains(part.as_str()))),
-                    other => Err(format!(
-                        "no implicit conversion of {} into String",
-                        class_of(other)
-                    )),
-                },
-                _ => Ok(Value::Bool(false)),
-            }
-        }
-        Expr::Add { left, right } => add(&recur(left)?, &recur(right)?),
-        Expr::Sub { left, right } => arithmetic(
-            "subtraction",
-            "-",
-            &recur(left)?,
-            &recur(right)?,
-            i64::checked_sub,
-            |a, b| a - b,
-        ),
-        Expr::Mul { left, right } => arithmetic(
-            "multiplication",
-            "*",
-            &recur(left)?,
-            &recur(right)?,
-            i64::checked_mul,
-            |a, b| a * b,
-        ),
-        Expr::Div { left, right } => divide(&recur(left)?, &recur(right)?),
-        Expr::Modulo { receiver, divisor } => modulo(&recur(receiver)?, &recur(divisor)?),
-        Expr::SignTest { cmp, receiver } => {
-            let v = recur(receiver)?;
-            if numeric(&v).is_none() {
-                return Err(format!(
-                    "{} expects a number, got {}",
-                    sign_test_name(*cmp),
-                    describe(&v)
-                ));
-            }
-            Ok(Value::Bool(apply_comparison(*cmp, &v, &Value::Int(0))?))
-        }
-        Expr::Empty { receiver } => match recur(receiver)? {
-            Value::Str(s) => Ok(Value::Bool(s.is_empty())),
-            Value::Array(items) => Ok(Value::Bool(items.is_empty())),
-            other => Err(format!(
-                "empty? expects a list or string, got {}",
-                describe(&other)
-            )),
-        },
-        Expr::Size { receiver } => match recur(receiver)? {
-            Value::Str(s) => Ok(Value::Int(s.chars().count() as i64)),
-            Value::Array(items) => Ok(Value::Int(items.len() as i64)),
-            other => Err(format!(
-                "size expects a list or string, got {}",
-                describe(&other)
-            )),
-        },
-        Expr::ToS { receiver } => Ok(Value::Str(to_s(&recur(receiver)?)?)),
-        Expr::MatchesRegex {
-            receiver,
-            pattern,
-            flags,
-        } => {
-            let text = match recur(receiver)? {
-                Value::Str(s) => s,
-                v @ (Value::Int(_) | Value::Float(_)) => to_s(&v)?,
-                Value::Nil => String::new(),
-                other => return Err(format!("match? expects a scalar, got {}", class_of(&other))),
-            };
-            Ok(Value::Bool(ruby_regex(pattern, flags)?.is_match(&text)))
-        }
-        Expr::Presence { receiver, negated } => {
-            Ok(Value::Bool(blank(&recur(receiver)?) == *negated))
-        }
-        Expr::Assignment { receiver, negated } => {
-            Ok(Value::Bool((recur(receiver)? == Value::Nil) == *negated))
-        }
-        Expr::Split {
-            receiver,
-            separator,
-        } => match recur(receiver)? {
-            Value::Str(text) => Ok(Value::Array(split(&text, separator))),
-            other => Err(format!("split expects a string, got {}", describe(&other))),
-        },
-        Expr::First { receiver } => match recur(receiver)? {
-            Value::Array(items) => Ok(items.into_iter().next().unwrap_or(Value::Nil)),
-            other => Err(format!("first expects a list, got {}", describe(&other))),
-        },
-        Expr::Last { receiver } => match recur(receiver)? {
-            Value::Array(items) => Ok(items.into_iter().next_back().unwrap_or(Value::Nil)),
-            other => Err(format!("last expects a list, got {}", describe(&other))),
-        },
-        Expr::Strip { receiver, side } => match recur(receiver)? {
-            Value::Str(text) => Ok(Value::Str(strip(&text, *side))),
-            other => Err(format!("strip expects a string, got {}", describe(&other))),
-        },
-        Expr::StartsWith {
-            receiver,
-            substring,
-        } => match recur(receiver)? {
-            Value::Str(text) => Ok(Value::Bool(text.starts_with(substring.as_str()))),
-            other => Err(format!(
-                "start_with? expects a string, got {}",
-                describe(&other)
-            )),
-        },
-        Expr::EndsWith {
-            receiver,
-            substring,
-        } => match recur(receiver)? {
-            Value::Str(text) => Ok(Value::Bool(text.ends_with(substring.as_str()))),
-            other => Err(format!(
-                "end_with? expects a string, got {}",
-                describe(&other)
-            )),
-        },
-        // Every element is evaluated before aggregating, so an error on any element surfaces as
-        // it does in Ruby.
-        Expr::BlockPredicate {
-            mode,
-            receiver,
-            param,
-            predicate,
-        } => {
-            let mode_name = match mode {
-                BlockMode::All => "all",
-                BlockMode::Any => "any",
-                BlockMode::None => "none",
-            };
-            let items = match recur(receiver)? {
-                Value::Array(items) => items,
-                other => {
-                    return Err(format!(
-                        "{mode_name}? expects a list, got {}",
-                        describe(&other)
-                    ))
-                }
-            };
-            let mut outcomes = Vec::with_capacity(items.len());
-            for item in items {
-                outcomes.push(bound(param, item, instance, scope, predicate)?.truthy());
-            }
-            Ok(Value::Bool(match mode {
-                BlockMode::All => outcomes.iter().all(|o| *o),
-                BlockMode::Any => outcomes.iter().any(|o| *o),
-                BlockMode::None => !outcomes.iter().any(|o| *o),
-            }))
-        }
-        // Every term is worked out and added in order, so a term that is not a number refuses as
-        // the addition does.
-        Expr::Sum {
-            receiver,
-            param,
-            predicate,
-        } => {
-            let items = match recur(receiver)? {
-                Value::Array(items) => items,
-                other => return Err(format!("sum expects a list, got {}", describe(&other))),
-            };
-            let mut total = Value::Int(0);
-            for item in items {
-                let term = unwrap_scalar(bound(param, item, instance, scope, predicate)?);
-                total = add(&total, &term)?;
-            }
-            Ok(total)
-        }
-        // The first accepted element ends the scan; a miss is nil, not an error.
-        Expr::Find {
-            receiver,
-            param,
-            predicate,
-            path,
-        } => {
-            let items = match recur(receiver)? {
-                Value::Array(items) => items,
-                other => return Err(format!("find expects a list, got {}", describe(&other))),
-            };
-            for item in items {
-                if bound(param, item.clone(), instance, scope, predicate)?.truthy() {
-                    return if path.is_empty() {
-                        Ok(unwrap_scalar(item))
-                    } else {
-                        Ok(unwrap_scalar(walk_path(item, path)?))
-                    };
-                }
-            }
-            Ok(Value::Nil)
-        }
-    }
-}
-
-/// Evaluates a block's `predicate` with `param` bound to `item`, shadowing any same-named field.
-fn bound(
-    param: &str,
-    item: Value,
-    instance: &Json,
-    scope: Option<&Scope>,
-    predicate: &Expr,
-) -> Result<Value, String> {
-    let inner = Scope {
-        name: param,
-        value: item,
-        outer: scope,
+    let node = Node::from_json(instance, true)?;
+    let ctx = EvalContext {
+        args: &node,
+        instance: &NoFields,
     };
-    eval(predicate, instance, Some(&inner))
-}
-
-/// The `sign_test` a comparison's flags spell, for the error message: `positive?` is
-/// `!(< 0 || == 0)`, `negative?` is `< 0`, `zero?` is `== 0`.
-const fn sign_test_name(cmp: Comparison) -> &'static str {
-    match (cmp.less_than, cmp.equal) {
-        (true, true) => "positive?",
-        (true, false) => "negative?",
-        _ => "zero?",
-    }
-}
-
-/// `Resolver.unwrap_scalar`: a one-field value object reads as its one value.
-fn unwrap_scalar(v: Value) -> Value {
-    let sole = match &v {
-        Value::Object(Json::Object(fields)) if fields.len() == 1 => fields
-            .values()
-            .next()
-            .and_then(|only| Value::from_json(only).ok()),
-        _ => None,
-    };
-    sole.unwrap_or(v)
-}
-
-/// `Resolver.walk_path`: each segment indexes the current value. An object yields the field or
-/// nil; a string yields the segment when it is a substring (Ruby's `String#[]`), else nil; a
-/// list or integer cannot be indexed by name; nil, floats and booleans end the walk in nil.
-/// That last fallthrough is what makes `!flag.nil?` (`["flag", "nil?"]`) mean "does `flag` exist".
-fn walk_path(start: Value, segments: &[String]) -> Result<Value, String> {
-    let mut current = start;
-    for segment in segments {
-        current = match &current {
-            Value::Object(Json::Object(fields)) => match fields.get(segment) {
-                Some(next) => Value::from_json(next)?,
-                None => Value::Nil,
-            },
-            Value::Str(text) if text.contains(segment.as_str()) => Value::Str(segment.clone()),
-            Value::Str(_) => Value::Nil,
-            Value::Array(_) | Value::Int(_) => {
-                return Err(format!(
-                    "cannot read {} from {}",
-                    ruby_inspect(segment),
-                    describe(&current)
-                ))
-            }
-            _ => return Ok(Value::Nil),
-        };
-    }
-    Ok(current)
-}
-
-/// Resolves a path as `Resolver#lookup`: the head is a block parameter (innermost first) or a
-/// field of `instance`, and must exist; later segments go through `walk_path`.
-fn lookup(path: &[String], instance: &Json, scope: Option<&Scope>) -> Result<Value, String> {
-    let Some((head, rest)) = path.split_first() else {
-        return Err(format!("lookup given an empty path (path {path:?})"));
-    };
-    let start = match scope.and_then(|s| s.get(head)) {
-        Some(value) => value.clone(),
-        None => Value::from_json(instance.get(head).ok_or_else(|| {
-            format!(
-                "cannot resolve {} — no such attribute or argument",
-                ruby_inspect(head)
-            )
-        })?)?,
-    };
-    Ok(unwrap_scalar(walk_path(start, rest)?))
+    shared::interpret(expr, &ctx).map_err(|refusal| refusal.to_string())
 }
 
 #[cfg(test)]
@@ -1963,51 +1133,5 @@ mod tests {
             run(lookup_of("ghost"), json!({})),
             Err("cannot resolve \"ghost\" — no such attribute or argument".to_string())
         );
-    }
-
-    #[test]
-    fn floats_print_as_ruby_prints_them() {
-        for (f, text) in [
-            (3.0, "3.0"),
-            (0.5, "0.5"),
-            (-0.0, "-0.0"),
-            (100_000_000_000_000.0, "100000000000000.0"),
-            (999_999_999_999_999.9, "999999999999999.9"),
-            (1e15, "1.0e+15"),
-            (1.5e15, "1.5e+15"),
-            (1e20, "1.0e+20"),
-            (0.0001, "0.0001"),
-            (0.00001, "1.0e-05"),
-            (1.5e-7, "1.5e-07"),
-            (123_456_789.123_456_79, "123456789.12345679"),
-        ] {
-            assert_eq!(ruby_float(f), text);
-            assert_eq!(
-                run(call("to_s", lookup_of("x")), json!({"x": f})),
-                Ok(Value::Str(text.to_string()))
-            );
-        }
-    }
-
-    #[test]
-    fn strings_inspect_as_ruby_inspects_them() {
-        assert_eq!(
-            ruby_inspect("a\"b\\c\n\u{1}#{x}\u{7f}é"),
-            "\"a\\\"b\\\\c\\n\\u0001\\#{x}\\u007Fé\""
-        );
-    }
-
-    #[test]
-    fn equality_compares_nested_numbers_across_kinds_like_ruby() {
-        assert!(values_equal(
-            &Value::Array(vec![Value::Int(1)]),
-            &Value::Array(vec![Value::Float(1.0)])
-        ));
-        assert!(!values_equal(
-            &Value::Int(9_007_199_254_740_993),
-            &Value::Float(9_007_199_254_740_992.0)
-        ));
-        assert!(values_equal(&Value::Int(3), &Value::Float(3.0)));
-        assert!(!values_equal(&Value::Int(3), &Value::Float(3.5)));
     }
 }

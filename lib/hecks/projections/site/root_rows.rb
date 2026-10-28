@@ -23,25 +23,14 @@ module Hecks
           @required = required
           @defaults = defaults
           @many = many
-          @renamed = {}
-        end
-
-        # Reads a row that still spells a retired field name as the field that replaced it, saying
-        # so on standard error (ADR 0134).
-        #
-        # @param renamed [Hash{Symbol => Symbol}] a retired field name to the one that replaced it
-        # @return [RootRows] self
-        def renaming(renamed)
-          @renamed = renamed
-          self
         end
 
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @return [Array<Hash{Symbol => Object}>] each checked row, defaults filled; empty when the
         #   bluebook declares none
         # @raise [Table::Invalid] when a row is refused
-        def read(chapter)
-          members = members_of(chapter)
+        def read(declaration)
+          members = Table.rows_of(declaration, @object)
           problems = []
           problems << "a project declares one #{@object} row, not #{members.size}" if members.size > 1 && !@many
           rows = members.each_with_index.map { |member, index| check(member, index, problems) }
@@ -51,16 +40,6 @@ module Hecks
         end
 
         private
-
-        # The rows the bluebook declares in the value object, with retired field names respelled.
-        def members_of(chapter) = Table.rows_of(chapter, @object).map { |member| respell(member) }
-
-        # The row with each retired name respelled, unless it already carries the new one.
-        def respell(member)
-          retired = @renamed.select { |old, new| member.key?(old) && !member.key?(new) }
-          retired.each { |old, new| warn "hecks: the #{@object} row field #{old} is deprecated, use #{new}" }
-          member.transform_keys { |key| retired.fetch(key, key) }
-        end
 
         def check(member, index, problems)
           label = "#{@object} row #{index + 1}"

@@ -1580,7 +1580,7 @@ mod tests {
     }
 
     #[test]
-    fn a_state_the_chapter_does_not_declare_keeps_its_seat_even_when_it_is_archived() {
+    fn a_state_the_bluebook_does_not_declare_keeps_its_seat_even_when_it_is_archived() {
         let payments = crate::commerce_ir::fixture_payments();
         let mut read = read_with(3, &[("a", "yoga", "succeeded")]);
         set_registration_status(&mut read, "a", "archived");

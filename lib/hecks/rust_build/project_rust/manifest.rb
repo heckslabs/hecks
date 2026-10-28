@@ -57,8 +57,8 @@ module Hecks
           dirs = Dir.children(@out_root).select { |name| File.directory?(File.join(@out_root, name)) }
           return dirs.sort unless @declared
 
-          chapters = dirs.reject { |name| File.exist?(File.join(@out_root, name, "merged.rs")) }
-          (chapters | @declared.domains).sort
+          bluebooks = dirs.reject { |name| File.exist?(File.join(@out_root, name, "merged.rs")) }
+          (bluebooks | @declared.domains).sort
         end
 
         def domains_among(directories)

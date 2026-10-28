@@ -997,7 +997,7 @@ async fn presentation_save(domain_ir: &Value, raw_body: &str, host: Host<'_>) ->
 // bluebook; names the decision outstanding rather than 404-ing as if the
 // route never existed.
 const PRESENTATION_WRITE_REFUSAL: &str =
-    "this host's kernel carries no ConsoleSettings chapter, so it has no StateStyle/Collection/Overview \
+    "this host's kernel carries no ConsoleSettings bluebook, so it has no StateStyle/Collection/Overview \
      commands to dispatch, and writing the rows behind its back would skip the invariants those commands \
      enforce. Attach it with `attaches \"ConsoleSettings\"` in this domain's own .hecksagon and \
      rebuild the kernel, or save from the Ruby console engine instead.";
@@ -1939,7 +1939,7 @@ mod tests {
     /// Banking's kernel carries no ConsoleSettings bluebook, and this
     /// asks the kernel rather than inferring it from anything else.
     #[tokio::test]
-    async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {
+    async fn a_host_whose_kernel_has_no_console_settings_bluebook_still_refuses_501() {
         let client = crate::dispatch_tests::tests::memory_store();
         let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir = banking_ir();

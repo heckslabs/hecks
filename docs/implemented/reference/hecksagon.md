@@ -27,7 +27,7 @@ Hecks.hecksagon("Banking") do
 
   # A DRIVING PORT declared against one aggregate's own box — the
   # spelling `examples/pizzas` uses. See the note under `port` below on
-  # the bare, chapter-level form.
+  # the bare, bluebook-level form.
   Banking::Account.port "RiskFeed" do
     operation "Flag" do
       attribute :number, Hecks::Bluebook::Reference.new("Account")
@@ -119,7 +119,7 @@ why this needs no new keyword at all.
 
 Attaches a bluebook to this domain by name, from one of two places. It marks the bluebook a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that bluebook, and persistence is bound there as for any other bluebook. It records the name and its source on the hecksagon that asked for it. Persistence is never part of what it loads: a bluebook's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever attaches it, the same as any other binding decision.
 
-Without `from:`, the name is a bluebook the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a bluebook of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`, `Sentence`, `ContextMap`), `Expression`, `Tenancy`, `Deploy`, `Site`, `Tickets`, `Composer`, `QualityControl`, `CiPipeline` or `Bulk`. A gem bluebook loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A bluebook that ships `<chapter_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
+Without `from:`, the name is a bluebook the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a bluebook of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`, `Sentence`, `ContextMap`), `Expression`, `Tenancy`, `Deploy`, `Site`, `Tickets`, `Composer`, `QualityControl`, `CiPipeline` or `Bulk`. A gem bluebook loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A bluebook that ships `<declaration_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
 
 ```ruby
 Hecks::FrameworkBluebooks.table.keys.sort  # => ["Adapter", "Bluebook", "Bulk", "Change", "CiPipeline", "Compliance", "Composer", "ConsoleSettings", "ContextMap", "Deploy", "Expression", "Governance", "Hecksagon", "Identity", "Paging", "Port", "Privacy", "QualityControl", "RailsApp", "Sentence", "Site", "Tenancy", "Tickets", "Translation", "World"]

@@ -9,7 +9,7 @@ module Hecks
         # Why an empty result is a question about the census, not a verdict on the domain.
         READ_AS_QUESTION = "READ THAT AS A QUESTION ABOUT THE CENSUS, NOT A VERDICT ON THE DOMAIN. This gate " \
                            "measures ONE AGGREGATE's own declared forms, so a domain whose point is a " \
-                           "chapter-level construct — a policy, an `across` target, a process manager, a " \
+                           "bluebook-level construct — a policy, an `across` target, a process manager, a " \
                            "read model's own group_by/median, an outbox, a dry run — is invisible to it by " \
                            "construction, not by omission. `corrects` and `role_gated` were exactly that: " \
                            "declared all over the corpus, unnamed here, so this line told three stress " \

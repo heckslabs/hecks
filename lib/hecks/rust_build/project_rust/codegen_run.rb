@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "json"
+require "open3"
 require "tmpdir"
 require_relative "../write_if_changed"
 
@@ -15,7 +16,7 @@ module Hecks
         META_LABEL = "the self-hosted language (lib/hecks/language/bluebook)"
 
         # One bluebook's IR, generated into its own module.
-        Chapter = Struct.new(:mod_name, :label, :ir)
+        Declaration = Struct.new(:mod_name, :label, :ir)
 
         # The `hecks-codegen` crate: the workspace's own copy when it carries one (a packaged
         # workspace does), otherwise the checkout's, so a scratch crate holding only the generated
@@ -41,14 +42,14 @@ module Hecks
 
         # @param rust_dir [String] the workspace being generated into
         # @param out_root [String] the crate's `src/generated`
-        # @param target [Chapter, nil] the domain being projected; nil for a run of `meta` alone
-        # @param chapters [Array<Chapter>] every other bluebook the target attached
+        # @param target [Declaration, nil] the domain being projected; nil for a run of `meta` alone
+        # @param declarations [Array<Declaration>] every other bluebook the target attached
         # @param meta [Hash, nil] the self-hosted language's IR; nil leaves `meta` as it is on disk
-        def initialize(rust_dir:, out_root:, meta: nil, target: nil, chapters: [])
+        def initialize(rust_dir:, out_root:, meta: nil, target: nil, declarations: [])
           @rust_dir = rust_dir
           @out_root = out_root
           @target = target
-          @chapters = chapters
+          @declarations = declarations
           @meta = meta
         end
 
@@ -65,13 +66,44 @@ module Hecks
           end
         end
 
+        # Builds the binary once, then holds the build as done while the block runs. Each `cargo
+        # build` replaces the binary with a fresh link, so children forked to generate side by side
+        # would each leave a moment when a sibling finds no binary to start; the parent builds
+        # instead, before the fork, and the children skip it.
+        #
+        # @param rust_dir [String] the workspace being generated into
+        # @yield the work that forks the children
+        # @return [Object] the block's value
+        # @raise [Failure] when `hecks-codegen` cannot be built
+        def self.prebuilt(rust_dir)
+          dir = crate_dir(rust_dir)
+          build(dir)
+          @prebuilt = dir
+          yield
+        ensure
+          @prebuilt = nil
+        end
+
+        # @param dir [String] the `hecks-codegen` crate's directory
+        # @return [Boolean] whether a parent process built it for the children it forked
+        def self.prebuilt?(dir) = @prebuilt == dir
+
+        # @param dir [String] the `hecks-codegen` crate's directory
+        # @return [void]
+        # @raise [Failure] when Cargo cannot build it
+        def self.build(dir)
+          output, status = Open3.capture2e("cargo", "build", "--quiet", chdir: dir)
+          $stdout.write(output)
+          return if status.success?
+
+          raise Failure, "hecks project_rust: cargo build failed in #{dir} — run it there directly to see why"
+        end
+
         private
 
         def build_binary
           dir = self.class.crate_dir(@rust_dir)
-          return if system("cargo", "build", "--quiet", chdir: dir, out: $stdout, err: $stderr)
-
-          raise Failure, "hecks project_rust: cargo build failed in #{dir} — run it there directly to see why"
+          self.class.build(dir) unless self.class.prebuilt?(dir)
         end
 
         def generate_meta(stage, tmp)
@@ -81,8 +113,8 @@ module Hecks
 
         def generate_target(stage, tmp)
           args = [stage, @target.mod_name, @target.label, write_ir(tmp, @target.mod_name, @target.ir)]
-          @chapters.each do |chapter|
-            args.push(chapter.mod_name, chapter.label, write_ir(tmp, chapter.mod_name, chapter.ir))
+          @declarations.each do |declaration|
+            args.push(declaration.mod_name, declaration.label, write_ir(tmp, declaration.mod_name, declaration.ir))
           end
           run("full", *args)
         end

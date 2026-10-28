@@ -34,7 +34,6 @@ module Hecks
             services = plan.containers.to_h { |c| [c.name, service_entry(plan, c)] }
             document = { "services" => services, "origin" => origin_entry(plan) }
             document["task_definition"] = plan.task_definition if plan.task_definition
-            document["tunnel"] = tunnel_entry(plan.tunnel_service) if plan.tunnel_service
             # An empty object prints as `{}` or `{` newline `}`, depending on the json gem.
             "#{JSON.pretty_generate(document).gsub(EMPTY_OBJECT, "{}")}\n"
           end
@@ -51,12 +50,6 @@ module Hecks
 
             { "name" => container.name, "repository" => container.repository, "port" => container.port,
               "env" => container.env, "secrets" => container.secrets }
-          end
-
-          # @param tunnel [Settings::Tunnel] the declared tunnel service
-          # @return [Hash{String => Object}] its entry in `services.json`
-          def tunnel_entry(tunnel)
-            { "url" => "http://127.0.0.1:#{tunnel.port}", "token_secret" => tunnel.token_secret, "image" => tunnel.image }
           end
 
           private

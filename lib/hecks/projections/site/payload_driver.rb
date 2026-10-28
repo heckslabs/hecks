@@ -31,7 +31,7 @@ module Hecks
 skip: String },
                                required: %i[domain bluebook],
                                defaults: { out: "cms/src/generated", hecks: "cms/src/driver/hecks",
-                                           helpers: "cms/src/collections/hooks/content", skip: "" }).renaming(chapter: :bluebook)
+                                           helpers: "cms/src/collections/hooks/content", skip: "" })
 
         # A `PayloadField` row: what the editor needs for one attribute (or `attribute.part` of a
         # composite).
@@ -46,7 +46,7 @@ skip: String },
 
         # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the
         #   rows
-        # @param options [Hash{Symbol => Object}] `:domain_chapter` the domain's bluebook, or nil
+        # @param options [Hash{Symbol => Object}] `:domain_bluebook` the domain's bluebook, or nil
         # @return [Hash{String => String}] each file's path relative to the project root to its
         #   text; empty when the project declares no `Payload` row
         # @raise [Table::Invalid] when a row is refused
@@ -55,9 +55,9 @@ skip: String },
           row = PAYLOAD.read(bluebook).first
           return {} unless row
 
-          chapter = options.fetch(:domain_chapter)
-          aggregates = Payload::Model.read(chapter, skip: row[:skip].split(",").map(&:strip))
-          raise ArgumentError, "the #{chapter.name} bluebook has no aggregate with a lifecycle to drive" if aggregates.empty?
+          declaration = options.fetch(:domain_bluebook)
+          aggregates = Payload::Model.read(declaration, skip: row[:skip].split(",").map(&:strip))
+          raise ArgumentError, "the #{declaration.name} bluebook has no aggregate with a lifecycle to drive" if aggregates.empty?
 
           files(row, aggregates, FIELD.read(bluebook))
         end

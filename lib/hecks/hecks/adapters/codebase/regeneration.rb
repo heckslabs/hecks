@@ -11,7 +11,7 @@ module Hecks
       #
       # It runs `Hecks::Tools::RegenerationRun` in this process: the run forks once for each
       # domain, a few at a time (`workers`, one per core unless told), and prints their output in
-      # a fixed domain order. The domains share the chapters they attach, and each writes the same
+      # a fixed domain order. The domains share the bluebooks they attach, and each writes the same
       # bytes to them whichever runs first. With `check` it projects into a scratch copy of the
       # crate and compares, and never writes the tree. Without `confirm` the run is that same
       # check, so a regeneration that would rewrite tracked generated files reports drift and

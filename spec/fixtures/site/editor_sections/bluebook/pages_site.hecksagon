@@ -2,7 +2,7 @@ Hecks.hecksagon "PagesSite" do
   attaches "Site"
 end
 
-# The sibling hecksagon of the attached chapter: it decides where Site's aggregates are kept.
+# The sibling hecksagon of the attached bluebook: it decides where Site's aggregates are kept.
 Hecks.hecksagon "Site" do
   persisted_by "Memory"
 end

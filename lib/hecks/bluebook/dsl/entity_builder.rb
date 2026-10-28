@@ -132,11 +132,11 @@ module Hecks
           # Threaded unchanged through every nested piece so a sibling's bare given
           # reference can read the same aggregate-wide pool `given_impl` writes to.
           @owner_named_givens = scope.owner_named_givens
-          # One level wider than `@owner_named_givens`: the chapter-wide, entity-scoped
+          # One level wider than `@owner_named_givens`: the bluebook-wide, entity-scoped
           # pool, keyed "Aggregate.Entity" so `#given_impl` can resolve across aggregates.
           @aggregate_name = scope.aggregate_name || Naming.demodulise(name)
-          @chapter_entity_named_givens   = scope.chapter_entity_named_givens
-          @chapter_entity_pending_givens = scope.chapter_entity_pending_givens
+          @bluebook_entity_named_givens   = scope.bluebook_entity_named_givens
+          @bluebook_entity_pending_givens = scope.bluebook_entity_pending_givens
         end
 
         def entity_fields

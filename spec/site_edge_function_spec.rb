@@ -8,7 +8,7 @@ require "hecks/tools/site_routes"
 # The edge function of the Site bluebook (ADR 0115): a route's `edge:` names an `EdgeFunction` row,
 # the projection attaches the function to that route's behaviour and writes the function into the
 # template's `edge_functions` region. spec/fixtures/site/studio is the neutral sample project.
-RSpec.describe "the Site chapter's edge functions" do
+RSpec.describe "the Site bluebook's edge functions" do
   let(:tool)    { Hecks::Tools::SiteRoutes }
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio") }
   let(:work)    { Dir.mktmpdir("site_edge_function") }
@@ -50,9 +50,9 @@ RSpec.describe "the Site chapter's edge functions" do
 
   def edge_of(dir)
     registry = tool.registry_for(dir)
-    chapter = site::Table.chapter(registry)
-    table = site::Table.read(chapter, registry: registry)
-    [site::Edge.read(chapter, table: table, vocabulary: site::Table.vocabulary(registry)), table]
+    declaration = site::Table.declaration(registry)
+    table = site::Table.read(declaration, registry: registry)
+    [site::Edge.read(declaration, table: table, vocabulary: site::Table.vocabulary(registry)), table]
   end
 
   def function(**fields)
@@ -282,9 +282,9 @@ RSpec.describe "the Site chapter's edge functions" do
     let(:regions) { regions_of(project) }
 
     def regions_of(dir)
-      chapter = site::Table.chapter(tool.registry_for(dir))
+      declaration = site::Table.declaration(tool.registry_for(dir))
       edge, table = edge_of(dir)
-      Hecks::Projector.call(:site_cdn, bluebook: chapter, options: { table: table, edge: edge })
+      Hecks::Projector.call(:site_cdn, bluebook: declaration, options: { table: table, edge: edge })
     end
 
     it "is written once for each function row", :aggregate_failures do

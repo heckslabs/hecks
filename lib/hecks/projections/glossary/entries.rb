@@ -8,7 +8,7 @@ module Hecks
 
         # Entities carry their own commands and queries, so they are walked one level down.
         #
-        # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook
+        # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook
         # @return [Array] every aggregate and entity
         def holders(bluebook)
           bluebook.aggregates.flat_map { |aggregate| [aggregate, *aggregate.entities] }
@@ -35,7 +35,7 @@ module Hecks
 
         # Gathers every term the glossary carries, ungrouped and unordered.
         #
-        # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook
+        # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook
         # @param markings [Array<Hash{Symbol => String}>] sensitive fields to tag
         # @return [Array<Glossary::Entry>] every term
         def all(bluebook, markings = [])

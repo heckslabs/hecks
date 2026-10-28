@@ -92,24 +92,24 @@ module Hecks
           Violations::MISMATCHED_ROLE if [earlier, later].include?("refuse_role_mismatch")
         end
 
-        def candidates(runtime, chapter)
-          bluebook = runtime.bluebook(chapter)
+        def candidates(runtime, declaration)
+          bluebook = runtime.bluebook(declaration)
           random = SteadyRandom.new(20_260_918)
           bluebook.aggregates.flat_map do |aggregate|
-            aggregate_rows(aggregate, chapter, random) + entity_rows(aggregate, chapter, random)
+            aggregate_rows(aggregate, declaration, random) + entity_rows(aggregate, declaration, random)
           end
         end
 
-        def aggregate_rows(aggregate, chapter, random)
+        def aggregate_rows(aggregate, declaration, random)
           aggregate.commands.flat_map do |command|
-            rows_for(command, aggregate, "#{chapter}::#{aggregate.hecks_name}.#{command.hecks_name}", "aggregate", random)
+            rows_for(command, aggregate, "#{declaration}::#{aggregate.hecks_name}.#{command.hecks_name}", "aggregate", random)
           end
         end
 
-        def entity_rows(aggregate, chapter, random)
+        def entity_rows(aggregate, declaration, random)
           aggregate.entities.flat_map do |entity|
             entity.commands.flat_map do |command|
-              verb = "#{chapter}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}"
+              verb = "#{declaration}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}"
               rows = rows_for(command, aggregate, verb, "entity", random)
               rows.each { |row| row[:args] = identity_args(entity, aggregate, random).merge(row[:args]) }
             end

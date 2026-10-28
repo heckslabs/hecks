@@ -23,7 +23,7 @@ pub fn bluebook_files(directory: &Path) -> Result<Vec<PathBuf>, String> {
 }
 
 // Plain text scan of the `Hecks.bluebook "Name"` line; the file is never executed.
-pub fn header_chapter_name(path: &Path) -> Result<String, String> {
+pub fn header_bluebook_name(path: &Path) -> Result<String, String> {
     let text =
         std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
     for line in text.lines() {
@@ -78,31 +78,36 @@ pub fn grammar_files(root: &Path) -> Result<Vec<PathBuf>, String> {
 }
 
 // The names `attaches "Name"` gave, for a bluebook the gem carries.
-pub fn resolve_gem_chapters(
+pub fn resolve_gem_bluebooks(
     parser_bin: &Path,
-    chapter_name: &str,
+    declaration_name: &str,
     hecksagon_path: &Path,
 ) -> Result<Vec<String>, String> {
-    resolve_json(parser_bin, chapter_name, hecksagon_path, "gem_bluebooks")
+    resolve_json(
+        parser_bin,
+        declaration_name,
+        hecksagon_path,
+        "gem_bluebooks",
+    )
 }
 
 // The names `attaches "name", from: :vendor` gave, for a vendored package.
 pub fn resolve_vendored_packages(
     parser_bin: &Path,
-    chapter_name: &str,
+    declaration_name: &str,
     hecksagon_path: &Path,
 ) -> Result<Vec<String>, String> {
     resolve_json(
         parser_bin,
-        chapter_name,
+        declaration_name,
         hecksagon_path,
         "vendored_packages",
     )
 }
 
 // Where the gem keeps the bluebooks other than framework members, relative to `lib/hecks`; the
-// same places `Hecks::Chapters::GLOBS` lists.
-const OTHER_GEM_CHAPTER_DIRS: &[&str] = &[
+// same places `Hecks::Bluebooks::GLOBS` lists.
+const OTHER_GEM_BLUEBOOK_DIRS: &[&str] = &[
     "language",
     "grammar",
     "tenancy/bluebook",
@@ -116,7 +121,7 @@ const OTHER_GEM_CHAPTER_DIRS: &[&str] = &[
 ];
 
 // Every bluebook the gem carries beside the framework members, with the bluebook its header names.
-fn other_gem_chapter_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
+fn other_gem_bluebook_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
     fn walk(directory: &Path, entries: &mut Vec<(String, PathBuf)>) -> Result<(), String> {
         let Ok(listing) = std::fs::read_dir(directory) else {
             return Ok(());
@@ -128,7 +133,7 @@ fn other_gem_chapter_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, Stri
             if path.is_dir() {
                 walk(&path, entries)?;
             } else if path.extension().and_then(|e| e.to_str()) == Some("bluebook") {
-                if let Ok(name) = header_chapter_name(&path) {
+                if let Ok(name) = header_bluebook_name(&path) {
                     entries.push((name, path));
                 }
             }
@@ -136,7 +141,7 @@ fn other_gem_chapter_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, Stri
         Ok(())
     }
     let mut entries = Vec::new();
-    for directory in OTHER_GEM_CHAPTER_DIRS {
+    for directory in OTHER_GEM_BLUEBOOK_DIRS {
         walk(&root.join("lib/hecks").join(directory), &mut entries)?;
     }
     entries.sort();
@@ -145,8 +150,8 @@ fn other_gem_chapter_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, Stri
 
 // The names of the bluebooks the gem carries beside the framework members, found by reading each
 // file's header, so the build tells a real gem bluebook from a misspelt name.
-pub fn other_gem_chapter_names(root: &Path) -> Result<Vec<String>, String> {
-    let mut names: Vec<String> = other_gem_chapter_entries(root)?
+pub fn other_gem_bluebook_names(root: &Path) -> Result<Vec<String>, String> {
+    let mut names: Vec<String> = other_gem_bluebook_entries(root)?
         .into_iter()
         .map(|(name, _)| name)
         .collect();
@@ -154,12 +159,12 @@ pub fn other_gem_chapter_names(root: &Path) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-// The files that declare one of the gem's other bluebooks, sorted, as `Hecks::Chapters` loads them,
+// The files that declare one of the gem's other bluebooks, sorted, as `Hecks::Bluebooks` loads them,
 // then the `<snake_name>.ports.hecksagon` beside them that declares the bluebook's ports.
-pub fn other_gem_chapter_files(root: &Path, chapter: &str) -> Result<Vec<PathBuf>, String> {
-    let mut files: Vec<PathBuf> = other_gem_chapter_entries(root)?
+pub fn other_gem_bluebook_files(root: &Path, declaration: &str) -> Result<Vec<PathBuf>, String> {
+    let mut files: Vec<PathBuf> = other_gem_bluebook_entries(root)?
         .into_iter()
-        .filter(|(name, _)| name == chapter)
+        .filter(|(name, _)| name == declaration)
         .map(|(_, path)| path)
         .collect();
     let ports = files
@@ -168,7 +173,7 @@ pub fn other_gem_chapter_files(root: &Path, chapter: &str) -> Result<Vec<PathBuf
         .map(|directory| {
             directory.join(format!(
                 "{}.ports.hecksagon",
-                crate::hecks_naming::snake(chapter)
+                crate::hecks_naming::snake(declaration)
             ))
         });
     files.extend(ports.filter(|path| path.is_file()));
@@ -195,7 +200,7 @@ pub fn hecksagon_files(directory: &Path) -> Result<Vec<PathBuf>, String> {
 
 fn resolve_json(
     parser_bin: &Path,
-    chapter_name: &str,
+    declaration_name: &str,
     hecksagon_path: &Path,
     key: &str,
 ) -> Result<Vec<String>, String> {
@@ -203,7 +208,7 @@ fn resolve_json(
     let hecksagon_str = hecksagon_path.to_string_lossy().to_string();
     let out = subprocess::run_capture(
         &parser_bin_str,
-        &["resolve", "--bluebook", chapter_name, &hecksagon_str],
+        &["resolve", "--bluebook", declaration_name, &hecksagon_str],
     )?;
     let json = Json::parse(&out)
         .map_err(|e| format!("parsing 'hecks-parse resolve' output: {e}\n{out}"))?;
@@ -271,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn extracts_the_quoted_chapter_name() {
+    fn extracts_the_quoted_bluebook_name() {
         assert_eq!(extract_quoted(r#" "Pizzas""#), Some("Pizzas".to_string()));
         assert_eq!(
             extract_quoted(r#" "Console Settings" do"#),

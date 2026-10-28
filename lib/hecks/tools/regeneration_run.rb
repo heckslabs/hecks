@@ -157,8 +157,20 @@ module Hecks
         require "hecks/rust_build"
         require "hecks/rust_build/project_rust"
         Hecks::Bluebook::MetaValidator.grammar_registry
-        Pool.new([META_JOB, *domains], child_flags, workers, runner: CORPUS_JOB).call
+        run_pool(domains, workers)
         write_manifest unless partial
+      end
+
+      # Runs the pool with the generator already built, so no child runs Cargo (see
+      # `CodegenRun.prebuilt`).
+      #
+      # @param domains [Array<String>] the domains, in run order
+      # @param workers [Integer] how many domains are generated at once
+      # @return [void]
+      def run_pool(domains, workers)
+        Hecks::RustBuild::ProjectRust::CodegenRun.prebuilt(Hecks::RustBuild.rust_dir) do
+          Pool.new([META_JOB, *domains], child_flags, workers, runner: CORPUS_JOB).call
+        end
       end
 
       # @return [Array<String>] what every child is told: the declared domains, that it is partial,

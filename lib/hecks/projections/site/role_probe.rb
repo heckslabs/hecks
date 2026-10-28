@@ -17,7 +17,7 @@ module Hecks
         # One command that declares a role.
         #
         # @!attribute [r] verb
-        #   @return [String] the command as a host is asked to run it, `Chapter::Aggregate.Command`
+        #   @return [String] the command as a host is asked to run it, `Bluebook::Aggregate.Command`
         # @!attribute [r] role
         #   @return [String] the role the command declares
         # @!attribute [r] arguments
@@ -33,17 +33,17 @@ module Hecks
         # @param registry [Runtime::Registry] the registry a project booted into
         # @return [Array<Check>] every command that declares a role, in the order declared
         def self.checks(registry)
-          registry.bluebooks.values.flat_map do |chapter|
-            chapter.aggregates.flat_map do |aggregate|
-              aggregate.commands.select(&:role).map { |command| check_for(chapter, aggregate, command) }
+          registry.bluebooks.values.flat_map do |declaration|
+            declaration.aggregates.flat_map do |aggregate|
+              aggregate.commands.select(&:role).map { |command| check_for(declaration, aggregate, command) }
             end
           end
         end
 
         # @return [Check] the check for one command that declares a role
-        def self.check_for(chapter, aggregate, command)
-          Check.new(verb: "#{chapter.name}::#{aggregate.hecks_name}.#{command.hecks_name}", role: command.role,
-                    arguments: Bluebook::Synthesizer.args_for(chapter, aggregate, command))
+        def self.check_for(declaration, aggregate, command)
+          Check.new(verb: "#{declaration.name}::#{aggregate.hecks_name}.#{command.hecks_name}", role: command.role,
+                    arguments: Bluebook::Synthesizer.args_for(declaration, aggregate, command))
         end
 
         # Whether the host refused the synthesized arguments themselves, so the role gate was never

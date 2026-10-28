@@ -65,7 +65,7 @@ pub fn emit_present_router(aggregates: &[AggregateEntry]) -> String {
             format!(
                 "        {} => crate::generated::{}::{}::present(state),",
                 crate::naming::ruby_inspect_string(&format!("{}::{}", a.domain_name, a.name)),
-                a.chapter_mod,
+                a.bluebook_mod,
                 a.module_name
             )
         })
@@ -320,7 +320,7 @@ mod tests {
             entity_commands: vec![],
             nested_entity_commands: vec![],
             ports: vec![],
-            chapter_mod: "pizzas".to_string(),
+            bluebook_mod: "pizzas".to_string(),
             domain_name: "Pizzas".to_string(),
             reference_specs: vec![],
             identified_by: vec![],

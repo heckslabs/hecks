@@ -232,6 +232,45 @@ RSpec.describe "the transactional outbox" do
       expect(ledger(rebooted, "o-1")).not_to be_nil
     end
 
+    it "redrives only the claimed row named by its delivery id", :aggregate_failures do
+      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      delivery_id = rebooted.outbox.rows.first.delivery_id
+
+      expect(rebooted.outbox.redrive_row!(delivery_id).size).to eq(1)
+      expect(rebooted.outbox.rows.first).to be_delivered
+    end
+
+    it "abandons a claimed row as failed without running its consumer", :aggregate_failures do
+      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      delivery_id = rebooted.outbox.rows.first.delivery_id
+
+      rebooted.outbox.abandon_row!(delivery_id)
+
+      expect(rebooted.outbox.rows.first).to be_failed.and have_attributes(error: /abandoned by an operator/)
+      expect(ledger(rebooted, "o-1")).to be_nil
+    end
+
+    it "stops naming an abandoned row as stalled" do
+      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      rebooted.outbox.abandon_row!(rebooted.outbox.rows.first.delivery_id)
+
+      expect { rebooted.outbox.redrive! }.not_to output.to_stderr
+    end
+
+    it "refuses to abandon a delivery id that no claimed row has" do
+      crash_placing(runtime.instance_variable_get(:@policies), :react)
+
+      expect { rebooted.outbox.abandon_row!("nope") }
+        .to raise_error(Hecks::Runtime::NotFound, /no claimed outbox row "nope"/)
+    end
+
+    it "refuses a delivery id that no claimed row has" do
+      crash_placing(runtime.instance_variable_get(:@policies), :react)
+
+      expect { rebooted.outbox.redrive_row!("nope") }
+        .to raise_error(Hecks::Runtime::NotFound, /no claimed outbox row "nope"/)
+    end
+
     it "redrives pending rows as part of Loader.boot, after the dispatcher exists", :aggregate_failures do
       crash_placing(runtime.outbox, :deliver)
 

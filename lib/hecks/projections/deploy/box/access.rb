@@ -40,8 +40,7 @@ module Hecks
           # @param plan [Settings::Plan] the resolved settings
           # @return [String] YAML list items, one per prefix, ending in a newline
           def secret_resources(plan)
-            tunnel = plan.tunnel_service
-            named = [plan.origin_secret, tunnel&.token_secret].compact
+            named = [plan.origin_secret].compact
             arns = (plan.secret_prefixes + named).map { |name| name.end_with?("*") ? name : "#{name}-*" }
             secret_items(arns.uniq, 18).chomp
           end

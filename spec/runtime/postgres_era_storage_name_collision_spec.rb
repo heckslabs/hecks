@@ -140,9 +140,9 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     File.write(path, content)
   end
 
-  def world_for(chapter)
+  def world_for(declaration)
     <<~WORLD
-      Hecks.world "#{chapter}" do
+      Hecks.world "#{declaration}" do
         persisted_by("PostgresEra") do
           database "#{owner_url}"
           mint_eras true
@@ -151,7 +151,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     WORLD
   end
 
-  def world_text(chapters) = chapters.map { |chapter| world_for(chapter) }.join("\n")
+  def world_text(declarations) = declarations.map { |declaration| world_for(declaration) }.join("\n")
 
   # Writes Target (with the given source) and the vendored Notes bluebook beside it,
   # wired to PostgresEra.
@@ -183,7 +183,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
   scratch_postgres STORAGE_COLLISION_DB, fenced: true
 
   describe "attaches from: :vendor: two fresh domains, one storage_name" do
-    def note_values(dispatcher, chapter) = dispatcher.query("#{chapter}::Note.All").map { |r| r[:ref][:value] }
+    def note_values(dispatcher, declaration) = dispatcher.query("#{declaration}::Note.All").map { |r| r[:ref][:value] }
 
     def booted_with_one_note_each
       dispatcher = boot_dir(write_vendored_domain(COLLISION_TARGET_BLUEBOOK))
@@ -231,8 +231,8 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       File.join(dir, "bluebook")
     end
 
-    def role_assignment_repository(registry, chapter)
-      registry.repository(chapter, registry.bluebook(chapter).aggregate("RoleAssignment"))
+    def role_assignment_repository(registry, declaration)
+      registry.repository(declaration, registry.bluebook(declaration).aggregate("RoleAssignment"))
     end
 
     # Repository-level: building a repository never requires a role grant

@@ -36,17 +36,17 @@ RSpec.describe "the domain's own English statements" do
     registry
   end
 
-  let(:pizzas_chapter)     { boot_in_memory.registry.bluebook("Pizzas") }
-  let(:banking_chapter)    { boot_banking.bluebook("Banking") }
-  let(:banking_statements) { Hecks::Projector.call(:statements, bluebook: banking_chapter) }
+  let(:pizzas_bluebook)     { boot_in_memory.registry.bluebook("Pizzas") }
+  let(:banking_bluebook)    { boot_banking.bluebook("Banking") }
+  let(:banking_statements) { Hecks::Projector.call(:statements, bluebook: banking_bluebook) }
 
   it "states Pizzas' list, invariants, lifecycle and every command rule, rules verbatim" do
-    expect(Hecks::Projector.call(:statements, bluebook: pizzas_chapter)).to eq(PIZZAS_STATEMENTS)
+    expect(Hecks::Projector.call(:statements, bluebook: pizzas_bluebook)).to eq(PIZZAS_STATEMENTS)
   end
 
   it "is reachable the same way every projection already is, with no bespoke wiring" do
-    # `boot_in_memory` (via `pizzas_chapter`) installs the top-level Pizzas constant.
-    expected = Hecks::Projector.call(:statements, bluebook: pizzas_chapter)
+    # `boot_in_memory` (via `pizzas_bluebook`) installs the top-level Pizzas constant.
+    expected = Hecks::Projector.call(:statements, bluebook: pizzas_bluebook)
     expect(Pizzas.project(Hecks::Projections::Statements)).to eq(expected)
   end
 
@@ -59,8 +59,8 @@ RSpec.describe "the domain's own English statements" do
   # A tagged `one_of` reference (ADR 0127) is a relationship too.
   it "draws one relationship statement per reference and list attribute in banking" do
     related = ->(a) { a.reference? || a.list? || Hecks::Bluebook::OneOfUnion.union?(a) }
-    attributes = banking_chapter.aggregates.flat_map { |a| [a, *a.entities] }
-                                .flat_map { |h| h.attributes.select(&related) }
+    attributes = banking_bluebook.aggregates.flat_map { |a| [a, *a.entities] }
+                                 .flat_map { |h| h.attributes.select(&related) }
     expect(banking_statements.grep(/\AEach /).size).to eq(attributes.size)
   end
 
@@ -87,7 +87,7 @@ RSpec.describe "the domain's own English statements" do
   end
 
   it "states nothing for an attribute that is neither a list nor a relationship" do
-    order = pizzas_chapter.aggregates.find { |a| a.hecks_name == "Order" }
+    order = pizzas_bluebook.aggregates.find { |a| a.hecks_name == "Order" }
     scalar_attribute = order.attributes.find { |a| a.name == :name }
     expect(Hecks::Projections::Statements.attribute_statement(order, scalar_attribute)).to be_nil
   end

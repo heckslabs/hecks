@@ -22,12 +22,12 @@ module Hecks
       # @param command [Class] the `Bluebook::Command` subclass to synthesize arguments for
       # @param created [Hash{String => Object}] aggregate name mapped to an id minted earlier
       # @return [Hash{Symbol => Object}] one synthesized value per declared attribute
-      def args_for(chapter, aggregate, command, created = {})
+      def args_for(declaration, aggregate, command, created = {})
         command.attributes.to_h do |attribute|
           if attribute.reference?
             [attribute.name, created.fetch(attribute.target_name, "smoke-test-id")]
           else
-            [attribute.name, value_for(chapter, aggregate, attribute.type)]
+            [attribute.name, value_for(declaration, aggregate, attribute.type)]
           end
         end
       end
@@ -44,12 +44,12 @@ module Hecks
       #   no such value object is declared; otherwise a Hash of one value per
       #   field — the closed set's own first admitted member's fields, or one
       #   freshly synthesized scalar per declared field
-      def value_for(chapter, aggregate, type_name)
-        value_object = find_value_object(chapter, aggregate, type_name)
+      def value_for(declaration, aggregate, type_name)
+        value_object = find_value_object(declaration, aggregate, type_name)
         return "smoke-test" unless value_object
         return value_object.members.first.to_h if populated_closed_set?(value_object)
 
-        value_object.attributes.to_h { |field| [field.name, field_value(chapter, aggregate, field)] }
+        value_object.attributes.to_h { |field| [field.name, field_value(declaration, aggregate, field)] }
       end
 
       # A field's value, one that matches its pattern when a fixed candidate does.
@@ -57,8 +57,8 @@ module Hecks
       # @param field [Bluebook::Attribute] the declared field
       # @return [Object] `field_value_for`'s value, or the first of `PATTERN_CANDIDATES` the
       #   field's pattern admits, when that value is a String the pattern refuses
-      def field_value(chapter, aggregate, field)
-        within_pattern(field.pattern, field_value_for(chapter, aggregate, field.type))
+      def field_value(declaration, aggregate, field)
+        within_pattern(field.pattern, field_value_for(declaration, aggregate, field.type))
       end
 
       # @param pattern [String, nil] the field's regex source, if it declares one
@@ -84,9 +84,9 @@ module Hecks
       end
 
       # The value object `type_name` names, on `aggregate` first, then on any other aggregate.
-      def find_value_object(chapter, aggregate, type_name)
+      def find_value_object(declaration, aggregate, type_name)
         aggregate.value_object(type_name) ||
-          chapter.aggregates.filter_map { |a| a.value_object(type_name) }.first
+          declaration.aggregates.filter_map { |a| a.value_object(type_name) }.first
       end
 
       # Whether `value_object` is a closed set that admits at least one member.
@@ -102,8 +102,8 @@ module Hecks
       # @return [Integer, Float, true, false, String, Hash{Symbol => Object}] a
       #   bare scalar when `type_name` is a true primitive (see `scalar_for`),
       #   otherwise `value_for`'s own result for the nested value object it names
-      def field_value_for(chapter, aggregate, type_name)
-        PRIMITIVES.include?(type_name.to_s) ? scalar_for(type_name) : value_for(chapter, aggregate, type_name)
+      def field_value_for(declaration, aggregate, type_name)
+        PRIMITIVES.include?(type_name.to_s) ? scalar_for(type_name) : value_for(declaration, aggregate, type_name)
       end
 
       # A primitive's synthesized value; closed-set fields are handled by `value_for`.

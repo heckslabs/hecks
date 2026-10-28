@@ -115,7 +115,7 @@ related to (or exposed by) S1/S2 above.
 
 | ID | One-line | File |
 | --- | --- | --- |
-| M10 | `formerly_known_as` and chapter-level `@ports` are ivars absent from `to_h` — lost on IR round-trip | `bluebook/ir/bluebook.rb:69` |
+| M10 | `formerly_known_as` and bluebook-level `@ports` are ivars absent from `to_h` — lost on IR round-trip | `bluebook/ir/bluebook.rb:69` |
 | M11 | `correlates_by` maps `nil → ""` on the wire | `bluebook/ir/process_manager.rb:113` |
 
 **DSL sealing / assembly (medium):**

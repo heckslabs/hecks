@@ -62,7 +62,10 @@ Hecks.bluebook "Banking" do
       attribute :narrative, Narrative
 
       lifecycle :state, default: "taken" do
-        transition "Dispute" => "disputed", from: "taken"
+        transition "Dispute"       => "disputed",   from: "taken"
+        transition "Reimburse"     => "reimbursed", from: "disputed"
+        transition "RejectDispute" => "taken",      from: "disputed"
+        mark :terminal, "reimbursed"
       end
 
       command "Dispute", from: "taken" do
@@ -80,6 +83,20 @@ Hecks.bluebook "Banking" do
         emits WithdrawalDisputed
       end
 
+      command "Reimburse", from: "disputed" do
+        role "Teller"
+        goal "Give the customer back a withdrawal the bank agrees was not theirs"
+
+        emits WithdrawalReimbursed
+      end
+
+      command "RejectDispute", from: "disputed" do
+        role "Teller"
+        goal "Turn down a dispute the bank finds was the customer's own withdrawal"
+
+        emits WithdrawalDisputeRejected
+      end
+
       query "Recent" do
         description "The first two withdrawals still standing, whatever else was taken."
         where(state: "taken")
@@ -90,6 +107,7 @@ Hecks.bluebook "Banking" do
     lifecycle :status, default: "issued" do
       transition "Activate" => "active",  from: "issued"
       transition "Retire"   => "retired", from: ["issued", "active"]
+      mark :terminal, "retired"
     end
 
     command "Issue" do
@@ -234,6 +252,7 @@ Hecks.bluebook "Banking" do
       transition "Dispute" => "disputed", from: ["captured", "refunded"]
       transition "Chargeback" => "charged_back", from: "disputed"
       transition "RejectDispute" => "captured", from: "disputed"
+      mark :terminal, "charged_back", "reversed", "voided"
     end
 
     command "Authorize" do

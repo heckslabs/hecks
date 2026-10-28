@@ -109,7 +109,7 @@ RSpec.describe "the legacy names under the launcher's words" do
 
     expect(status.exitstatus).to eq(1)
     expect(out).to include("THE MODEL HAS FINDINGS")
-    expect(out).not_to include("0 chapter")
+    expect(out).not_to include("0 bluebook")
   end
 
   it "answers project_diagrams for an unknown bluebook as the launcher does", :aggregate_failures, :io do

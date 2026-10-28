@@ -522,7 +522,7 @@ doesn't match the real port DSL (`PortOperation` has no `returns` — it's
 query); `AssignmentsForActor` is an ordinary `query`, the construct that
 actually answers "who holds what" — no new DSL surface needed anywhere
 in this build. `spec/corpus_spec.rb`/`spec/model_check_spec.rb` extended
-with a `FRAMEWORK_MEMBERS` glob (mirrors `GRAMMAR_CHAPTERS`'s flat-file
+with a `FRAMEWORK_MEMBERS` glob (mirrors `GRAMMAR_BLUEBOOKS`'s flat-file
 pattern) so `lib/hecks/framework/bluebook/*.bluebook` gets the same
 must-load/must-have-a-corpus-script/no-unnamed-model-check-finding
 guarantees `examples/*` domains get. `spec/governance_spec.rb` (4

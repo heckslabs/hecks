@@ -83,7 +83,7 @@ module Hecks
         # @param registry [Hecks::Runtime::Registry] the registry holding the loaded bluebooks
         # @return [Array<String>] the target domain names, sorted and without repeats
         def cross_domain_targets(registry)
-          targets = registry.bluebooks.flat_map { |_name, chapter| chapter.policies.filter_map(&:target_domain) }
+          targets = registry.bluebooks.flat_map { |_name, declaration| declaration.policies.filter_map(&:target_domain) }
           targets.uniq.sort
         end
 

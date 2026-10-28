@@ -38,6 +38,7 @@ Hecks.bluebook "Banking" do
       transition "Suspend"   => "suspended", from: "active"
       transition "Reinstate" => "active",    from: "suspended"
       transition "Close"     => "closed",    from: ["active", "suspended"]
+      mark :terminal, "closed"
     end
 
     command "Register" do

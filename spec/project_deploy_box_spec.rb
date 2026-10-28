@@ -78,16 +78,6 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
         end
       end
     WORLD
-    "tunnel"           => <<~WORLD,
-      Hecks.world "Scratch" do
-        deployed_to("AwsBox") do
-          region "us-east-1"
-          containers [{ name: "web", port: 8080 }, { name: "stats", port: 3000 }]
-          default_container "web"
-          tunnel({ to: "stats", token_secret: "scratch/tunnel-token" })
-        end
-      end
-    WORLD
     "cdn"              => <<~WORLD,
       Hecks.world "Scratch" do
         deployed_to("AwsBox") do
@@ -189,7 +179,6 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
           origin_secret "acme/origin-secret"
           secret_prefixes ["acme/*"]
           writable_secrets ["acme/payments-account"]
-          tunnel true
           s3_access [{ bucket: "acme-media", write: true }, { bucket: "acme-assets" }]
         end
       end
@@ -324,10 +313,9 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(template_of(files["rds.yaml"])["Parameters"]).to include("BastionSecurityGroupId")
     end
 
-    it "has no origin guard and no tunnel egress", :aggregate_failures do
+    it "has no origin guard", :aggregate_failures do
       expect(files["Caddyfile"]).not_to include("@origin")
       expect(files["Caddyfile"]).to include("reverse_proxy 127.0.0.1:8080")
-      expect(files["box.yaml"]).not_to include("7844")
     end
 
     it "has one repository", :aggregate_failures do
@@ -362,10 +350,10 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
       expect(files["box.yaml"]).to include("secret:acme/payments-account-*")
     end
 
-    it "opens outbound 7844 for the tunnel and reads only the declared secrets", :aggregate_failures do
+    it "opens no tunnel port and reads only the declared secrets", :aggregate_failures do
       box = template_of(files["box.yaml"])
-      egress = box["Resources"]["BoxSecurityGroup"]["Properties"]["SecurityGroupEgress"]
-      expect(egress.map { |rule| rule["FromPort"] }).to include(5432, 443, 7844)
+      ports = box["Resources"]["BoxSecurityGroup"]["Properties"]["SecurityGroupEgress"].map { |rule| rule["FromPort"] }
+      expect(ports & [5432, 443, 7844]).to contain_exactly(5432, 443)
       statement = box["Resources"]["BoxRole"]["Properties"]["Policies"].first["PolicyDocument"]["Statement"].first
       expect(statement["Resource"].join).to include("secret:acme/*", "secret:acme/origin-secret-*")
     end
@@ -557,29 +545,6 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     it "grants no S3 access to a world that declares none" do
       policies = template_of(minimal["box.yaml"])["Resources"]["BoxRole"]["Properties"]["Policies"]
       expect(policies.map { |policy| policy["PolicyName"] }).to eq(%w[read-secrets write-logs])
-    end
-  end
-
-  describe "the tunnel world" do
-    let(:files) { cached("tunnel", BOX_WORLDS.fetch("tunnel")).first }
-
-    it "describes the tunnel in services.json, not as a container", :aggregate_failures do
-      services = JSON.parse(files["services.json"])
-      expect(services["tunnel"]).to eq("url" => "http://127.0.0.1:3000", "token_secret" => "scratch/tunnel-token",
-                                       "image" => Hecks::Projections::Deploy::Box::Settings::TUNNEL_IMAGE)
-      expect(services["services"].keys).to eq(%w[web stats])
-    end
-
-    it "opens the egress for the tunnel" do
-      rules = template_of(files["box.yaml"])["Resources"]["BoxSecurityGroup"]["Properties"]["SecurityGroupEgress"]
-      expect(rules.map { |rule| rule["FromPort"] }).to include(7844)
-    end
-
-    it "lets the role read the token and waits for a connection after the roll", :aggregate_failures do
-      statement = box_policies(files["box.yaml"]).first["PolicyDocument"]["Statement"].first
-
-      expect(statement["Resource"].join).to include("secret:scratch/tunnel-token-*")
-      expect(files["deploy-box.sh"]).to include("registered tunnel connection")
     end
   end
 

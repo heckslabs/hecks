@@ -7,25 +7,25 @@ module Hecks
       module Records
         private
 
-        def aggregate_route(request, chapter, aggregate_name, format)
-          aggregate = find_aggregate(chapter, aggregate_name)
+        def aggregate_route(request, declaration, aggregate_name, format)
+          aggregate = find_aggregate(declaration, aggregate_name)
           return respond(405, "text/plain", "GET only") unless request.get?
-          return aggregate_json(chapter, aggregate) unless format == "html"
+          return aggregate_json(declaration, aggregate) unless format == "html"
 
           html(Naming.plural(Humanize.phrase(aggregate.hecks_name)),
-               RecordRenderer.index(registry: @registry, domain: chapter.name, aggregate: aggregate),
-               breadcrumbs: [[chapter.name, "/"], [Humanize.phrase(aggregate.hecks_name), nil]])
+               RecordRenderer.index(registry: @registry, domain: declaration.name, aggregate: aggregate),
+               breadcrumbs: [[declaration.name, "/"], [Humanize.phrase(aggregate.hecks_name), nil]])
         end
 
-        def aggregate_json(chapter, aggregate)
-          instances = @registry.repository(chapter.name, aggregate).all
+        def aggregate_json(declaration, aggregate)
+          instances = @registry.repository(declaration.name, aggregate).all
           # `id:` is merged last so an attribute named `id` in the state cannot clobber it.
           json(200, instances.map { |i| i.state.merge(id: i.id) })
         end
 
-        def verb_or_record_route(request, chapter, aggregate_name, verb_or_id, format)
-          aggregate = find_aggregate(chapter, aggregate_name)
-          domain = chapter.name
+        def verb_or_record_route(request, declaration, aggregate_name, verb_or_id, format)
+          aggregate = find_aggregate(declaration, aggregate_name)
+          domain = declaration.name
 
           # A record id is free-form and can equal a verb name ("Close"), so a GET checks for
           # a record first. POST never views a record, so it matches the verb first.
@@ -70,8 +70,8 @@ module Hecks
           aggregate_crumbs(domain, aggregate) + [[Humanize.phrase(verb.hecks_name), nil]]
         end
 
-        def find_aggregate(chapter, name)
-          chapter.aggregate(name) || raise(RouteNotFound, "#{chapter.name} has no aggregate #{name.inspect}")
+        def find_aggregate(declaration, name)
+          declaration.aggregate(name) || raise(RouteNotFound, "#{declaration.name} has no aggregate #{name.inspect}")
         end
       end
     end

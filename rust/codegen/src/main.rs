@@ -181,14 +181,14 @@ fn write_domain(
 }
 
 /// `hecks-codegen full <out_root> <target_mod_name> <target_source_label> <target_ir.json>
-/// [<chapter_mod_name> <chapter_source_label> <chapter_ir.json>]...`
+/// [<bluebook_mod_name> <bluebook_source_label> <bluebook_ir.json>]...`
 ///
 /// Writes the target bluebook's directory, each attached bluebook's own directory, and the
 /// target's `merged.rs`: one `Store`/`dispatch_by_name` table spanning every bluebook given.
 fn run_full(args: &[String]) -> Result<(), String> {
     if args.len() < 4 || !(args.len() - 4).is_multiple_of(3) {
         return Err(
-            "usage: hecks-codegen full <out_root> <target_mod_name> <target_source_label> <target_ir.json> [<chapter_mod_name> <chapter_source_label> <chapter_ir.json>]..."
+            "usage: hecks-codegen full <out_root> <target_mod_name> <target_source_label> <target_ir.json> [<bluebook_mod_name> <bluebook_source_label> <bluebook_ir.json>]..."
                 .to_string(),
         );
     }
@@ -234,54 +234,54 @@ fn run_full(args: &[String]) -> Result<(), String> {
         .map_or_default(Json::each)
         .to_vec();
 
-    // Policies and process managers merge across bluebooks; `chapter_irs` keeps each parsed
+    // Policies and process managers merge across bluebooks; `bluebook_irs` keeps each parsed
     // bluebook alive so `policy_sources` can borrow from it.
-    let mut chapter_irs: Vec<Json> = Vec::new();
-    let mut chapter_domain_names: Vec<String> = Vec::new();
+    let mut bluebook_irs: Vec<Json> = Vec::new();
+    let mut bluebook_domain_names: Vec<String> = Vec::new();
 
     let mut i = 4;
     while i < args.len() {
-        let chapter_mod_name = &args[i];
-        let chapter_source_label = &args[i + 1];
-        let chapter_ir_path = &args[i + 2];
+        let bluebook_mod_name = &args[i];
+        let bluebook_source_label = &args[i + 1];
+        let bluebook_ir_path = &args[i + 2];
         i += 3;
 
-        let chapter_ir = read_ir(chapter_ir_path)?;
-        let chapter_domain_name = chapter_ir
+        let bluebook_ir = read_ir(bluebook_ir_path)?;
+        let bluebook_domain_name = bluebook_ir
             .get("name")
             .and_then(Json::as_str)
             .unwrap_or("")
             .to_string();
 
-        let chapter_out_dir = format!("{out_root}/{chapter_mod_name}");
-        let chapter_gen = write_domain(
+        let bluebook_out_dir = format!("{out_root}/{bluebook_mod_name}");
+        let bluebook_gen = write_domain(
             &ex,
-            &chapter_ir,
-            chapter_source_label,
-            chapter_mod_name,
-            &chapter_out_dir,
+            &bluebook_ir,
+            bluebook_source_label,
+            bluebook_mod_name,
+            &bluebook_out_dir,
         )?;
 
         reference_key_pairs.push((
-            chapter_domain_name.clone(),
-            chapter_gen
+            bluebook_domain_name.clone(),
+            bluebook_gen
                 .registry_aggregates
                 .iter()
                 .map(|a| a.name.clone())
                 .collect(),
         ));
-        merged_aggregates.extend(chapter_gen.registry_aggregates);
-        merged_queries.extend(chapter_gen.query_defs);
-        merged_read_models.extend(chapter_gen.read_model_defs);
+        merged_aggregates.extend(bluebook_gen.registry_aggregates);
+        merged_queries.extend(bluebook_gen.query_defs);
+        merged_read_models.extend(bluebook_gen.read_model_defs);
         merged_process_managers.extend(
-            chapter_ir
+            bluebook_ir
                 .get("process_managers")
                 .map_or_default(Json::each)
                 .to_vec(),
         );
 
-        chapter_domain_names.push(chapter_domain_name);
-        chapter_irs.push(chapter_ir);
+        bluebook_domain_names.push(bluebook_domain_name);
+        bluebook_irs.push(bluebook_ir);
     }
 
     // One entry per bluebook, so its policies qualify against its own domain and aggregates.
@@ -299,7 +299,7 @@ fn run_full(args: &[String]) -> Result<(), String> {
         policies: &policies,
         aggregates: &policy_aggregates,
     }];
-    for (name, ir) in chapter_domain_names.iter().zip(chapter_irs.iter()) {
+    for (name, ir) in bluebook_domain_names.iter().zip(bluebook_irs.iter()) {
         policy_sources.push(reactions::PolicySource {
             domain_name: name,
             policies: ir.get("policies").map_or_default(Json::each),
