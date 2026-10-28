@@ -1,0 +1,37 @@
+# The Hecks domain's context map (ADR 0135): the contexts the gem carries and how they relate, written
+# before the wiring and held against it by `model_check`. Each relationship runs from the upstream
+# context that supplies to the downstream one that consumes.
+Hecks.context_map "Hecks" do
+  context "Hecks"
+  context "Governance"
+  context "Bluebook"
+  context "Hecksagon"
+  context "World"
+  context "Adapter"
+  context "Port"
+  context "Translation"
+  context "Expression"
+  context "Tenancy"
+  context "Deploy"
+  context "Site"
+  context "Tickets"
+  context "Composer"
+  context "QualityControl"
+
+  # Hecks attaches each of these and takes its model as it is: the language is not Hecks' to change
+  # from here, and the contexts below are whole bluebooks it only runs.
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer
+     QualityControl Governance].each do |supplier|
+    relate supplier => "Hecks", as: :conformist
+  end
+
+  # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
+  # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
+  relate "Deploy" => "Tenancy", as: :anticorruption_layer
+
+  # Every attached bluebook attaches Governance and takes its model as it is.
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer
+     QualityControl].each do |consumer|
+    relate "Governance" => consumer, as: :conformist
+  end
+end
