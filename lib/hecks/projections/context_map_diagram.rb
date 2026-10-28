@@ -36,7 +36,8 @@ module Hecks
         lines.join("\n")
       end
 
-      # The diagram, followed by what holding the wiring to the map finds, one Mermaid comment a line.
+      # The diagram, followed by what holding the wiring to the map finds, one Mermaid comment a
+      # line.
       # A system with no declared map is drawn from its wiring alone and says so.
       #
       # @param map [Bluebook::ContextMap, nil] the declared map

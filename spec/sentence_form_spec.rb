@@ -6,7 +6,7 @@ require "hecks/composer"
 require_relative "support/hecks_parse_binary"
 
 # A bluebook written as plain sentences and the same bluebook written in the Ruby form are one
-# chapter: `hecks-parse` reads the sentences into the IR Ruby builds from the Ruby form, and the
+# bluebook: `hecks-parse` reads the sentences into the IR Ruby builds from the Ruby form, and the
 # Ruby text it renders from them builds that IR again when Ruby loads it.
 RSpec.describe "a bluebook written as sentences", :io do
   include_context "with the hecks-parse binary"

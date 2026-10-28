@@ -23,17 +23,17 @@ module Hecks
           # The `Editor` row: its fields, which are required and what the others default to.
           ROW = RootRows.new(
             "Editor",
-            fields:   { domain: String, chapter: String, base_path: String, sso_path: String, session_cookie: String,
+            fields:   { domain: String, bluebook: String, base_path: String, sso_path: String, session_cookie: String,
                         host_cookie: String, host_env: String, host_default: String, roles: String, login: String,
                         title: String, brand: String, accent: String, logo: String, skip: String, media: String,
-                        media_dir: String, media_max_bytes: String, chapter_roles: String, page_size: [String, Integer],
+                        media_dir: String, media_max_bytes: String, bluebook_roles: String, page_size: [String, Integer],
                         preview: String },
-            required: %i[domain chapter host_env login],
+            required: %i[domain bluebook host_env login],
             defaults: { base_path: "/editor", session_cookie: "hecks_editor", host_cookie: "hecks_session",
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
-                        chapter_roles: "", page_size: "25", preview: "" }
-          )
+                        bluebook_roles: "", page_size: "25", preview: "" }
+          ).renaming(chapter: :bluebook, chapter_roles: :bluebook_roles)
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
           attr_reader :row
@@ -64,17 +64,19 @@ module Hecks
           def domain = row.fetch(:domain)
 
           # @return [String] the first bluebook the editor edits, which names the generated package
-          def chapter = chapters.first.to_s
+          def bluebook = bluebooks.first.to_s
 
-          # @return [Array<String>] every bluebook the editor edits, in the order the row names them:
-          #   `chapter` is one name or several, comma separated
-          def chapters = Hecks::Text.comma_list(row.fetch(:chapter))
+          # @return [Array<String>] every bluebook the editor edits, in the order the row names
+          #   them:
+          #   `bluebook` is one name or several, comma separated
+          def bluebooks = Hecks::Text.comma_list(row.fetch(:bluebook))
 
-          # @return [Hash{String => Array<String>}] the roles a bluebook's aggregates are limited to,
+          # @return [Hash{String => Array<String>}] the roles a bluebook's aggregates are limited
+          #   to,
           #   from `Chapter=Role,Role;Chapter=Role`; a bluebook not named is open to every role the
           #   editor admits
-          def chapter_roles
-            entries = row.fetch(:chapter_roles).split(";")
+          def bluebook_roles
+            entries = row.fetch(:bluebook_roles).split(";")
             entries.map(&:strip).reject(&:empty?).to_h do |entry|
               name, roles = entry.split("=", 2)
               [name.to_s.strip, Hecks::Text.comma_list(roles)]
@@ -104,7 +106,7 @@ module Hecks
           def roles = Hecks::Text.comma_list(row.fetch(:roles))
 
           # @return [String] the generated package's name
-          def package = "#{chapter.gsub(WORD_BOUNDARY, '\1-\2').tr("_", "-").downcase}-editor"
+          def package = "#{bluebook.gsub(WORD_BOUNDARY, '\1-\2').tr("_", "-").downcase}-editor"
 
           # @return [Hash{String => String}] each placeholder to the text that replaces it
           def tokens

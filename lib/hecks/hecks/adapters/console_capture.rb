@@ -82,7 +82,8 @@ module Hecks
         out
       end
 
-      # Runs the block with each stream pointed at a buffer of its own, putting them back afterwards.
+      # Runs the block with each stream pointed at a buffer of its own, putting them back
+      # afterwards.
       def apart(&)
         saved = [$stdout, $stderr]
         out = $stdout = StringIO.new

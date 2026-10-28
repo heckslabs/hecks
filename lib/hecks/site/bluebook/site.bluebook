@@ -1,4 +1,4 @@
-# The Site chapter: the route table a client declares for its website, and the command that
+# The Site bluebook: the route table a client declares for its website, and the command that
 # projects it into the TypeScript the site reads.
 #
 # A client declares its routes as `member` rows of a `value_object "Route"` in its own bluebook (the

@@ -140,7 +140,8 @@ module Hecks
           end
 
           # One link of the chain: its edge's rules over the previous link. A link is `MATERIALIZED`
-          # because its `CASE` names `state` twice: left to Postgres to inline, each link doubles the
+          # because its `CASE` names `state` twice: left to Postgres to inline, each link doubles
+          # the
           # expression of the one before, and a chain of eighteen links overflows the 65,535
           # range-table entries one statement may hold.
           def edge_step_sql(edge, index, names)

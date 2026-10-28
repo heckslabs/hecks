@@ -11,7 +11,8 @@ module Hecks
       #
       # @param runtime [Runtime::Dispatcher] the booted domain
       # @param name [String, Symbol] a command or query name, optionally led by a bluebook word
-      # @return [Array(Bluebook::Declaration, String)] the bluebook, and the name with its bluebook word
+      # @return [Array(Bluebook::Declaration, String)] the bluebook, and the name with its bluebook
+      #   word
       #   dropped
       # @raise [Runtime::NotFound] if the boot loaded no bluebook
       def chapter_and_name(runtime, name)

@@ -220,6 +220,12 @@ Hecks.behaviors "Codebase" do
     expect refused: "a port is 1 to 65535"
   end
 
+  test "Preview refuses a port that is not one" do
+    tests "Preview", on: "CorpusRun"
+    input directory: { value: "site" }, port: { value: 70_000 }, run: { value: "preview" }
+    expect refused: "a port is 1 to 65535"
+  end
+
   test "ServeQueryIrMcp refuses a run that is not named" do
     tests "ServeQueryIrMcp", on: "CorpusRun"
     input run: { value: "" }

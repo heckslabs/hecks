@@ -18,7 +18,8 @@ module Hecks
           #
           # @param registry [Runtime::Registry] where translations may claim a held aggregate
           # @param bluebook [Bluebook::Declaration] the domain as currently declared
-          # @param held_bluebook [Bluebook::Declaration] the domain as the latest held era declares it
+          # @param held_bluebook [Bluebook::Declaration] the domain as the latest held era declares
+          #   it
           # @param edge [Bluebook::Translation] the one edge leaving the latest held era
           # @raise [Runtime::WiringError] on an unruled identity change or an uncovered path
           def check_coverage!(registry, bluebook, held_bluebook, edge)
@@ -32,7 +33,8 @@ module Hecks
           #
           # @param bluebook [Bluebook::Declaration] the domain as currently declared
           # @param aggregate [Bluebook::Aggregate] the aggregate as currently declared
-          # @param held_bluebook [Bluebook::Declaration] the domain as the latest held era declares it
+          # @param held_bluebook [Bluebook::Declaration] the domain as the latest held era declares
+          #   it
           # @param edge [Bluebook::Translation] the one edge leaving the latest held era
           # @raise [Runtime::WiringError] on an unruled identity change or an uncovered path
           def check_aggregate_coverage!(bluebook, aggregate, held_bluebook, edge)

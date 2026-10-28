@@ -2,7 +2,7 @@ module Hecks
   module Bluebook
     module MetaValidator
       class Reconstruction
-        # Rebuilds the heads of a chapter: an aggregate, its value objects and the entities
+        # Rebuilds the heads of a bluebook: an aggregate, its value objects and the entities
         # nested under it, each with its own commands and asks.
         module Heads
           private

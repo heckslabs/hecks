@@ -257,7 +257,7 @@ RSpec.describe "the editor's workflow, derived from the bluebooks" do
   describe "the Editor row" do
     it "refuses a bluebook named for the screen of scheduled actions" do
       changed("bluebook/newsroom_site.bluebook", "Documents, Pictures", "scheduled, Pictures") do |dir|
-        expect { files_of(dir) }.to raise_error(SystemExit, /chapter "scheduled" is the first part of an address/)
+        expect { files_of(dir) }.to raise_error(SystemExit, /bluebook "scheduled" is the first part of an address/)
       end
     end
   end

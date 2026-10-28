@@ -17,7 +17,7 @@ module Hecks
       #
       # The routes are the table's own `Route` rows. What a table cannot know, the names a template
       # gives its policies, origins, target groups and listener, a project declares as `member`
-      # rows of five more value objects of the same chapter: `Edge` (the template and listener),
+      # rows of five more value objects of the same bluebook: `Edge` (the template and listener),
       # `EdgePolicy`, `EdgeOrigin`, `EdgeRule` and `EdgeFunction` (a viewer-request function a route
       # names with `edge:`). `docs/site-routes.md` lists their fields. A project that declares none
       # of the five has no edge to project.

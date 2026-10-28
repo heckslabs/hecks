@@ -5,7 +5,7 @@ require_relative "qa_tool"
 module Hecks
   module Adapters
     # The `TargetTools` port's adapter: answers `Target`'s queries by running the QA commands that
-    # enrol, generate and judge chapters: the seed, the generated-domain check, the combination
+    # enrol, generate and judge bluebooks: the seed, the generated-domain check, the combination
     # miner, the mutation test, the novelty gate and the external-domain scan. A finding or a
     # judgment is an answer; anything else the command calls an error is refused with its report.
     class TargetTools < QaTool

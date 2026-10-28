@@ -4,7 +4,7 @@ require "fileutils"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
-# The edge of the Site chapter: CloudFront behaviours and listener rules projected from the route
+# The edge of the Site bluebook: CloudFront behaviours and listener rules projected from the route
 # table into the marked regions of a template the project owns. spec/fixtures/site/studio is the
 # neutral sample project; spec/fixtures/site/template.yaml is its template as the projection must
 # leave it, byte for byte (`GOLDEN=rewrite` regenerates it, to be read in the diff).

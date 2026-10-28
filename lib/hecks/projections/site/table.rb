@@ -37,7 +37,8 @@ module Hecks
         # Finds the one bluebook of a project that declares the route table.
         #
         # @param registry [Runtime::Registry] the registry the project booted into
-        # @return [Bluebook::Declaration] the bluebook holding the `Route` value object with member rows
+        # @return [Bluebook::Declaration] the bluebook holding the `Route` value object with member
+        #   rows
         # @raise [Invalid] when no bluebook, or more than one, declares one
         def self.chapter(registry)
           chapters = registry.bluebooks.values

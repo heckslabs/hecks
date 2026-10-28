@@ -18,7 +18,8 @@ module Hecks
     # The first line of a tool's output, without its newline.
     FIRST_LINE = /\A[^\n]*/
 
-    # A `Hecks.bluebook "Name"` header line, or a `Domain: name` line, capturing the bluebook's name.
+    # A `Hecks.bluebook "Name"` header line, or a `Domain: name` line, capturing the bluebook's
+    # name.
     CHAPTER_HEADER = /\A\s*(?:Hecks\.bluebook\s+"([^"]+)"|Domain:\s*(\S.*?)\s*\z)/
 
     # Raised when no `hecks-parse` binary can be found.

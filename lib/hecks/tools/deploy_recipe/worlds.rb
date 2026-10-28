@@ -11,7 +11,8 @@ module Hecks
         CHAPTER_LOAD = /(?:FrameworkBluebooks|Chapters)\.load!\(\s*"([^"]+)"\s*\)/
 
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
-        # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's hecksagon
+        # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's
+        # hecksagon
         # attaches by name (`qa/` attaches QualityControl and also holds a Governance `.world`).
         # It picks by no other rule: guessing which is the domain is not this generator's call.
         #
@@ -30,7 +31,8 @@ module Hecks
         end
 
         # The snake-cased names of the bluebooks a domain's hecksagons attach by name
-        # (`Hecks::FrameworkBluebooks.load!("QualityControl")`), which its `.world` and `.hecksagon` files
+        # (`Hecks::FrameworkBluebooks.load!("QualityControl")`), which its `.world` and `.hecksagon`
+        # files
         # are named after.
         #
         # @param domain [String] the domain directory
@@ -73,7 +75,8 @@ module Hecks
 
         # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
         # cross-domain invoke grant can live in any attached bluebook. A domain with no bluebook of
-        # its own (the QA ledger) gets its bluebook from the hecksagon's `FrameworkBluebooks.load!`. `root:` is
+        # its own (the QA ledger) gets its bluebook from the hecksagon's `FrameworkBluebooks.load!`.
+        # `root:` is
         # required or `attaches ... from: :vendor` refuses with "needs a registry with a root to
         # vendor from".
         #
