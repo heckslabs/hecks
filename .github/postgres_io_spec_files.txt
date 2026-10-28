@@ -7,6 +7,7 @@ spec/adapters/driven/journal_store_spec.rb
 spec/adapters/driven/postgres_atomic_put_spec.rb
 spec/adapters/driven/postgres_concurrent_dispatch_spec.rb
 spec/adapters/driven/postgres_dump_spec.rb
+spec/adapters/driven/postgres_era/chain_sql_limit_spec.rb
 spec/adapters/driven/postgres_era/derive_equivalence_spec.rb
 spec/adapters/driven/postgres_era/directory_rekey_spec.rb
 spec/adapters/driven/postgres_era/domain_rename_spec.rb
