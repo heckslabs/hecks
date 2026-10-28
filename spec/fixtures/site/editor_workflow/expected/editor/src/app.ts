@@ -100,7 +100,7 @@ function sameSite(request: Request): boolean {
 
 /** What a route needs to answer: show a page for this person, or send them on with a notice. */
 interface Scene {
-  /** The person's role, which decides the chapters they may edit. */
+  /** The person's role, which decides the bluebooks they may edit. */
   role: string | null;
   show(body: string, status?: number, notice?: Flash): Promise<Response>;
   sent(location: string, message: string): Response;
@@ -196,7 +196,7 @@ function route(client: HostClient, request: Request, url: URL, segments: string[
   if (segments[0] === "assets" && segments.length === 2 && request.method === "GET") return serveAsset(segments[1], request);
   if (segments[0] === "scheduled" && segments.length === 1 && request.method === "GET" && SCHEMA.scheduling) return scheduledView(client, scene);
   const { agg, rest: [verb, ...rest] } = locate(segments);
-  if (!agg) return scene.show(notFound(`No aggregate ${segments.slice(0, SCHEMA.chapters ? 2 : 1).join("/")}.`), 404);
+  if (!agg) return scene.show(notFound(`No aggregate ${segments.slice(0, SCHEMA.bluebooks ? 2 : 1).join("/")}.`), 404);
   if (!mayEdit(agg, scene.role)) return scene.show(notFound(`${plural(agg.name)} are not open to your role.`, "Not open to your role"), 403);
   if (verb === undefined) return list(client, agg, url, scene);
   if (verb === "id" && rest.length === 1 && request.method === "GET") return detail(client, agg, rest[0], null, scene);
@@ -324,7 +324,7 @@ async function unchecked(client: HostClient, agg: Aggregate, command: Command, a
 /** The scheduled-action record the editor makes itself: a creating command gets an identity nobody typed. */
 function withMadeIdentity(agg: Aggregate, command: Command, args: State): State {
   const spec = SCHEMA.scheduling;
-  if (!spec?.generated || !command.creates || command.name !== spec.schedule || agg.name !== spec.aggregate || agg.chapter !== spec.chapter) return args;
+  if (!spec?.generated || !command.creates || command.name !== spec.schedule || agg.name !== spec.aggregate || agg.bluebook !== spec.bluebook) return args;
   const identity = agg.attributes.find((attr) => attr.name === agg.identity);
   return identity ? { ...args, [identity.name]: plainValue(agg, identity, randomUUID()) } : args;
 }

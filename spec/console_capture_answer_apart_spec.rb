@@ -1,8 +1,8 @@
 require "spec_helper"
 require "hecks/hecks/adapters/console_capture"
 
-# A run answers what it printed to stdout; what it printed to stderr (a domain's boot notices) goes on
-# to the real stderr instead of into the answer.
+# A run answers what it printed to stdout; what it printed to stderr (a domain's boot notices)
+# goes on to the real stderr instead of into the answer.
 RSpec.describe Hecks::Adapters::ConsoleCapture, ".answer_apart" do
   def speak
     warn "notice"
