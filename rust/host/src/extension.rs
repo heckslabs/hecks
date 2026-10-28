@@ -4,9 +4,9 @@
 //! `bootstrap` binary installs when nothing else was.
 
 use crate::ir::ir;
-use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::secrets::AwsSecretFetcher;
+use crate::store::journal_sql::LineageConfig;
 use crate::store::Store;
 use async_trait::async_trait;
 use serde_json::Value;

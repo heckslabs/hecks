@@ -159,7 +159,8 @@ fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
     }
     let engine = engine().clone();
     let module = Module::from_file(&engine, wasm_path)?;
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(clippy::unwrap_used)]
     COMPILED_PATHS.lock().unwrap().push(wasm_path.to_path_buf());
     *compiled = Some((engine.clone(), module.clone()));
     Ok((engine, module))
@@ -167,12 +168,13 @@ fn engine_and_module(wasm_path: &Path) -> anyhow::Result<(Engine, Module)> {
 
 /// Every path `engine_and_module` has compiled, one entry per compile, so
 /// a test can tell one compile from a burst of them.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 static COMPILED_PATHS: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
 /// How many times `wasm_path` has been compiled in this process.
-#[cfg(test)]
-pub(crate) fn compile_count(wasm_path: &Path) -> usize {
+#[cfg(any(test, feature = "test-support"))]
+#[allow(clippy::unwrap_used)]
+pub fn compile_count(wasm_path: &Path) -> usize {
     COMPILED_PATHS
         .lock()
         .unwrap()
@@ -275,15 +277,22 @@ fn deadline_ticks(deadline: Duration) -> u64 {
     u64::try_from(ticks).unwrap_or(u64::MAX).max(1)
 }
 
-#[cfg(test)]
-pub(crate) mod tests {
+#[cfg(any(test, feature = "test-support"))]
+pub mod tests {
+    #![allow(
+        dead_code,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::wildcard_imports
+    )]
     use super::*;
 
     /// A copy of the checkout fixture wasm at a path no other test uses, so
     /// its first call is a real cold compile whatever order tests run in.
-    pub(crate) fn cold_copy_of_fixture(name: &str) -> PathBuf {
+    pub fn cold_copy_of_fixture(name: &str) -> PathBuf {
         let source =
-            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../dist/checkout_fixture.wasm");
         let dir =
             std::env::temp_dir().join(format!("hecks_wasm_runner_{}_{name}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();

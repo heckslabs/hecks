@@ -11,7 +11,8 @@
 use anyhow::Context;
 use rust_host::dispatch::{self, Caller};
 use rust_host::host::Host;
-use rust_host::journal::{self, LineageConfig};
+use rust_host::journal::LineageConfig;
+use rust_host::store::journal_sql;
 use rust_host::lambda_client::{InvokeOutcome, LambdaInvoker};
 use rust_host::store::{MemoryStore, Store};
 use serde_json::Value;
@@ -115,6 +116,7 @@ impl Hosted {
             domain: DOMAIN.to_string(),
             era: None,
             mirrored: None,
+            seal_every: None,
         };
         Self {
             store,
@@ -231,7 +233,7 @@ impl PostgresBackend {
         tokio::spawn(async move {
             let _ = connection.await;
         });
-        journal::ensure_schema(&client).await?;
+        journal_sql::ensure_schema(&client).await?;
         client.batch_execute("SET synchronous_commit = off").await?;
         for table in TABLES {
             client
@@ -239,7 +241,7 @@ impl PostgresBackend {
                 .await?;
         }
         Ok(Self {
-            hosted: Hosted::new(Store::postgres(client)),
+            hosted: Hosted::new(rust_host::store::postgres_store(client)),
             resetter: Self::open(conninfo).await?,
         })
     }

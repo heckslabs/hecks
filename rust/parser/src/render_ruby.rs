@@ -100,6 +100,7 @@ fn aggregate_text(out: &mut String, aggregate: &ir::Aggregate) -> Result<(), Str
         (!aggregate.invariants.is_empty(), "aggregate invariants"),
         (!aggregate.preconditions.is_empty(), "preconditions"),
         (!aggregate.projected_fields.is_empty(), "projected fields"),
+        (!aggregate.acknowledgements.is_empty(), "acknowledgements"),
     ];
     if let Some((_, what)) = held.iter().find(|(present, _)| *present) {
         return Err(format!("the Ruby renderer has no spelling for {what}"));

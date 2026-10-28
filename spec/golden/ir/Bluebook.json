@@ -1,6 +1,9 @@
 {
   "aggregates": [
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -141,6 +144,16 @@
           "pattern": null,
           "relationship": null,
           "type": "ProjectedField"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "acknowledgements",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Acknowledgement"
         },
         {
           "admits": null,
@@ -1155,6 +1168,79 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "finding",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "FieldName"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Description"
+            }
+          ],
+          "emits": [
+            "AcknowledgementAttached"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "finding",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!finding.value.to_s.empty?",
+              "description": "an acknowledged finding is named"
+            }
+          ],
+          "goal": "Allow a finding on the aggregate that means what it says",
+          "idempotent": false,
+          "mutations": [
+            {
+              "fields": {
+                "finding": ":finding",
+                "reason": ":reason"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "acknowledgements"
+            }
+          ],
+          "name": "Acknowledges",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "name",
               "optional": false,
               "pattern": null,
@@ -1713,6 +1799,38 @@
 
           ],
           "name": "ProjectedField"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "finding",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Acknowledgement"
         },
         {
           "attributes": [
@@ -2550,6 +2668,36 @@
               [
                 "calls",
                 "given_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "acknowledgements"
+              ],
+              [
+                "calls",
+                "acknowledges_impl"
               ]
             ],
             [
@@ -3908,6 +4056,70 @@
             [
               [
                 "keyword",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "finding"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "acknowledges"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "2"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "reason"
+              ],
+              [
+                "coerce",
+                "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "projects"
               ],
               [
@@ -4137,6 +4349,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -6494,6 +6709,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -10389,6 +10607,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -13514,6 +13735,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -14851,6 +15075,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -16735,6 +16962,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -19671,6 +19901,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -21890,6 +22123,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -23842,6 +24078,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -24996,6 +25235,12 @@
                 "name",
                 "TranslationAggregate"
               ]
+            ],
+            [
+              [
+                "name",
+                "ContextMap"
+              ]
             ]
           ],
           "name": "Context"
@@ -25361,6 +25606,9 @@
       ]
     },
     {
+      "acknowledgements": [
+
+      ],
       "attributes": [
         {
           "admits": null,
@@ -26360,6 +26608,12 @@
               [
                 "glob",
                 "*.world"
+              ]
+            ],
+            [
+              [
+                "glob",
+                "*.contextmap"
               ]
             ]
           ],

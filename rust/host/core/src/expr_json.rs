@@ -393,7 +393,7 @@ impl Value {
     /// Ruby truthiness: everything but `Nil` and `false`.
     ///
     /// Invariant results are checked for truthiness, not `== true`, as `given`/`ensures` are.
-    pub(crate) const fn truthy(&self) -> bool {
+    pub const fn truthy(&self) -> bool {
         !matches!(self, Self::Nil | Self::Bool(false))
     }
 

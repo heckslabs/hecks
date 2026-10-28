@@ -2,7 +2,7 @@ module Hecks
   module Forms
     # Shared value-object shape classification, so callers such as
     # field_shape.rb and sql_query_builder.rb agree on it. There is no Ruby ui_schema; the Rust
-    # host builds the UI schema (rust/host/src/ui_schema.rs) from the same field-shape rules.
+    # host builds the UI schema (rust/host/core/src/ui_schema.rs) from the same field-shape rules.
     module ValueObjectShape
       module_function
 

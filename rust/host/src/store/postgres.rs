@@ -98,7 +98,7 @@ impl LineageStore {
             match client.query_opt(&sql, &values).await {
                 Ok(row) => return Ok(row.map(|row| row.get(0))),
                 Err(e) => {
-                    let e = StoreError::from(e);
+                    let e = pg(e);
                     if !e.is_not_provisioned() {
                         return Err(e);
                     }
@@ -169,6 +169,7 @@ impl PostgresStore {
     /// A store over `client`, which every use of this store shares.
     #[must_use]
     pub fn new(client: Client) -> Self {
+        StoreError::teach_not_provisioned(is_missing_relation);
         Self {
             lineage: LineageStore {
                 client: Arc::new(Mutex::new(client)),
@@ -190,14 +191,15 @@ impl PostgresStore {
     pub(super) async fn begin(&self, domain: &str) -> Result<PostgresUnit<'_>, StoreError> {
         let guard = self.lineage.client.lock().await;
         let mut unit = PostgresUnit { guard, open: false };
-        unit.guard.batch_execute("BEGIN").await?;
+        unit.guard.batch_execute("BEGIN").await.map_err(pg)?;
         unit.open = true;
         unit.guard
             .execute(
                 "SELECT pg_advisory_xact_lock(hashtext('hecks_lambda_journal.' || $1::text))",
                 &[&domain],
             )
-            .await?;
+            .await
+            .map_err(pg)?;
         Ok(unit)
     }
 
@@ -292,14 +294,14 @@ impl PostgresUnit<'_> {
                 crate::ledger::seal_due(client, &lineage.config.domain, every).await?;
             }
         }
-        client.batch_execute("COMMIT").await?;
+        client.batch_execute("COMMIT").await.map_err(pg)?;
         self.open = false;
         Ok(())
     }
 
     /// Rolls the transaction back and waits for the server to confirm.
     pub(super) async fn rollback(mut self) -> Result<(), StoreError> {
-        self.guard.batch_execute("ROLLBACK").await?;
+        self.guard.batch_execute("ROLLBACK").await.map_err(pg)?;
         self.open = false;
         Ok(())
     }
@@ -317,6 +319,19 @@ impl Drop for PostgresUnit<'_> {
                 .poll(&mut Context::from_waker(Waker::noop()));
         }
     }
+}
+
+/// Whether a failure is Postgres reporting that a table or view does not exist.
+fn is_missing_relation(error: &anyhow::Error) -> bool {
+    error
+        .chain()
+        .filter_map(|cause| cause.downcast_ref::<tokio_postgres::Error>())
+        .any(|db| db.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE))
+}
+
+/// Wraps a driver error as a store failure, keeping the not-provisioned test working.
+fn pg(error: tokio_postgres::Error) -> StoreError {
+    anyhow::Error::from(error).into()
 }
 
 /// The relations a head may live in, in the order they are tried: each domain's head view, the
@@ -339,15 +354,15 @@ impl super::Backend for PostgresStore {
         &'a self,
         domain: &str,
     ) -> Result<Box<dyn super::UnitBackend + 'a>, StoreError> {
-        Ok(Box::new(PostgresStore::begin(self, domain).await?))
+        Ok(Box::new(Self::begin(self, domain).await?))
     }
 
     async fn read_state(&self) -> Result<State, StoreError> {
-        PostgresStore::read_state(self).await
+        Self::read_state(self).await
     }
 
     async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
-        PostgresStore::record_dead_letter(self, dead_letter).await
+        Self::record_dead_letter(self, dead_letter).await
     }
 
     async fn head_by_id(
@@ -425,7 +440,7 @@ impl super::Backend for PostgresStore {
 #[async_trait::async_trait]
 impl super::UnitBackend for PostgresUnit<'_> {
     async fn load(&self) -> Result<State, StoreError> {
-        PostgresUnit::load(self).await
+        Self::load(self).await
     }
 
     async fn commit(self: Box<Self>, accepted: Accepted<'_>) -> Result<(), StoreError> {

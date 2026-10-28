@@ -89,6 +89,12 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
+    "acknowledges (Aggregate)"          =>
+                                           "a real declaration would be a claim that a real aggregate is too large on " \
+                                           "purpose, and no aggregate in the corpus passes the limit " \
+                                           "(`ModelCheck::AggregateChecks::LARGE_AGGREGATE_LIMIT`). Inventing one would " \
+                                           "excuse a finding nothing reports. The word is exercised by " \
+                                           "spec/acknowledges_spec.rb and spec/model_check_aggregate_spec.rb.",
     "inspect_query (Query)"             =>
                                            "a real declaration would be vacuous: no adapter in this codebase implements the " \
                                            "inspect_query hook (Ports::Query.validate!'s own only-a-capability-gate " \
