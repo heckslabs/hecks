@@ -1888,6 +1888,52 @@ Hecks.bluebook "Hecks" do
       attribute :top, Top, optional: true
       returns Document
     end
+
+    # A file of the checkout, named from its root.
+    value_object "SourcePath" do
+      attribute :value, String, matches: :present
+    end
+
+    # A line of a file, counted from 1.
+    value_object "LineNumber" do
+      attribute :value, Integer
+
+      invariant("a line is counted from 1") { value > 0 }
+    end
+
+    # The name a construct is declared under, as it stands between the quotes.
+    value_object "DeclaredName" do
+      attribute :value, String, matches: :present
+    end
+
+    # What a declaration is: aggregate, command, query, policy and the rest.
+    value_object "DeclaredKind" do
+      attribute :value, String, pattern: '^[a-z_]+$'
+    end
+
+    query "ReadSource" do
+      description "The numbered lines of one file of the checkout, whole or from one line to another."
+      attribute :path, SourcePath
+      attribute :from, LineNumber, optional: true
+      attribute :to,   LineNumber, optional: true
+      attribute :top,  Top, optional: true
+      returns Document
+    end
+
+    query "Outline" do
+      description "What a file declares, by line: each construct of a bluebook, each definition of Ruby."
+      attribute :path, SourcePath
+      returns Document
+    end
+
+    query "Declaration" do
+      description "Where a named construct is declared across the corpus, as path:from-to, with its text on request."
+      attribute :name,  DeclaredName
+      attribute :kind,  DeclaredKind, optional: true
+      attribute :paths, PathList, optional: true
+      attribute :show,  Switch, optional: true
+      returns Document
+    end
   end
 
   policy "ExamineWhenFlogRequested" do
