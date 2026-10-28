@@ -41,10 +41,10 @@ module Hecks
 
         # @param rust_dir [String] the workspace being generated into
         # @param out_root [String] the crate's `src/generated`
-        # @param target [Bluebook] the domain being projected
-        # @param bluebooks [Array<Bluebook>] every other bluebook the target attached
-        # @param meta [Hash] the self-hosted language's IR
-        def initialize(rust_dir:, out_root:, target:, chapters:, meta:)
+        # @param target [Chapter, nil] the domain being projected; nil for a run of `meta` alone
+        # @param chapters [Array<Chapter>] every other bluebook the target attached
+        # @param meta [Hash, nil] the self-hosted language's IR; nil leaves `meta` as it is on disk
+        def initialize(rust_dir:, out_root:, meta: nil, target: nil, chapters: [])
           @rust_dir = rust_dir
           @out_root = out_root
           @target = target
@@ -59,8 +59,8 @@ module Hecks
           Dir.mktmpdir("hecks-codegen-full") do |tmp|
             stage = File.join(tmp, "generated")
             FileUtils.mkdir_p(stage)
-            generate_meta(stage, tmp)
-            generate_target(stage, tmp)
+            generate_meta(stage, tmp) if @meta
+            generate_target(stage, tmp) if @target
             sync(stage)
           end
         end

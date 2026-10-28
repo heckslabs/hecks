@@ -19,12 +19,21 @@ RSpec.describe "regenerating the corpus in any order", :io do
     @declared = Hecks::Tools::RegenerationRun.declared_flags
     @governance_by_banking = run_in_order(@banking_first, "examples/banking", "examples/compliance")
     @governance_by_compliance = run_in_order(@compliance_first, "examples/compliance", "examples/banking")
+    @skipped_meta = skipped_meta
     @side_by_side = Dir.mktmpdir("regen-order-side-by-side")
     run_side_by_side(@side_by_side, %w[banking compliance].map { |name| File.join(Hecks::RustBuild::ROOT, "examples", name) })
   end
 
   after(:context) do
-    FileUtils.rm_rf([@banking_first, @compliance_first, @side_by_side])
+    FileUtils.rm_rf([@banking_first, @compliance_first, @side_by_side, @skipped_meta].compact)
+  end
+
+  # A workspace holding only banking, generated with `--skip-meta` the way a corpus run's children are.
+  def skipped_meta
+    Dir.mktmpdir("regen-skip-meta").tap do |workspace|
+      seed(workspace)
+      regenerate(workspace, "examples/banking", Hecks::RustBuild::ProjectRust::Meta::SKIP_FLAG)
+    end
   end
 
   # Generates the domains in one workspace the way a corpus run does: both at once, each told to
@@ -46,9 +55,9 @@ RSpec.describe "regenerating the corpus in any order", :io do
     FileUtils.cp(File.join(Hecks::RustBuild::ROOT, "rust/Cargo.toml"), workspace)
   end
 
-  def regenerate(workspace, domain)
+  def regenerate(workspace, domain, *extra)
     result = Hecks::RustBuild.in_workspace(workspace) do
-      Hecks::RustBuild.capture("project_rust", [File.join(Hecks::RustBuild::ROOT, domain), *@declared])
+      Hecks::RustBuild.capture("project_rust", [File.join(Hecks::RustBuild::ROOT, domain), *@declared, *extra])
     end
     raise "hecks project_rust #{domain} failed:\n#{result.err}\n#{result.out}" unless result.ok?
   end
@@ -87,6 +96,20 @@ RSpec.describe "regenerating the corpus in any order", :io do
 
   it "writes the same Cargo.toml when the domains are generated side by side" do
     expect(cargo(@side_by_side)).to eq(cargo(@banking_first))
+  end
+
+  it "writes meta in a run of one domain, and once for a corpus run, with the same bytes", :aggregate_failures do
+    expect(generated(@banking_first).keys).to include("meta/merged.rs", "meta/ir.json")
+    expect(generated(@side_by_side).select { |path, _| path.start_with?("meta/") })
+      .to eq(generated(@banking_first).select { |path, _| path.start_with?("meta/") })
+  end
+
+  it "leaves meta out of a domain told to skip it" do
+    expect(generated(@skipped_meta).keys.grep(%r{\Ameta/})).to be_empty
+  end
+
+  it "still writes the domain that was told to skip meta" do
+    expect(generated(@skipped_meta).keys).to include("banking/merged.rs")
   end
 
   it "leaves no temp file where it wrote side by side" do

@@ -2,6 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "fileutils"
 require "hecks/tools"
+require "hecks/rust_build/project_rust"
 require "hecks/tools/regeneration_run"
 
 # `regen_codegen_domains --check` projects into a scratch crate and always removes it.
@@ -129,12 +130,41 @@ RSpec.describe Hecks::Tools::RegenerationRun do
       end
     end
 
+    def corpus_job = Hecks::Tools::RegenerationRun::CORPUS_JOB
+    def skip_meta = Hecks::RustBuild::ProjectRust::Meta::SKIP_FLAG
+    def project_rust = Hecks::Tools::RegenerationRun::Pool::PROJECT_RUST
+
     it "gives every child the declared domains and tells it to leave mod.rs and Cargo.toml alone", :aggregate_failures do
       described_class.regenerate(%w[examples/pizzas], workers: 2)
 
-      expect(Hecks::Tools::RegenerationRun::Pool)
-        .to have_received(:new).with(%w[examples/pizzas], described_class.declared_flags(partial: true), 2)
+      expect(Hecks::Tools::RegenerationRun::Pool).to have_received(:new)
+        .with(["meta", "examples/pizzas"], [*described_class.declared_flags(partial: true), skip_meta], 2, runner: corpus_job)
       expect(described_class.declared_flags(partial: true)).to end_with("--partial")
+    end
+
+    it "generates meta once, as the first job of the run, and tells every domain to skip it", :aggregate_failures do
+      described_class.regenerate(%w[examples/pizzas examples/banking], partial: true, workers: 2)
+
+      expect(Hecks::Tools::RegenerationRun::Pool).to have_received(:new).once
+      expect(Hecks::Tools::RegenerationRun::Pool)
+        .to have_received(:new).with(["meta", "examples/pizzas", "examples/banking"], include(skip_meta), 2, runner: corpus_job)
+    end
+
+    it "runs the meta job through Meta.generate, once, and not through hecks project_rust", :aggregate_failures do
+      allow(Hecks::RustBuild::ProjectRust::Meta).to receive(:generate)
+      allow(project_rust).to receive(:call)
+
+      expect(corpus_job.call(["meta", "--partial"])).to eq(0)
+      expect(Hecks::RustBuild::ProjectRust::Meta).to have_received(:generate).once
+      expect(project_rust).not_to have_received(:call)
+    end
+
+    it "runs any other job through hecks project_rust, leaving meta alone", :aggregate_failures do
+      allow(Hecks::RustBuild::ProjectRust::Meta).to receive(:generate)
+      allow(project_rust).to receive(:call).and_return(0)
+
+      expect(corpus_job.call(["examples/pizzas", skip_meta])).to eq(0)
+      expect(Hecks::RustBuild::ProjectRust::Meta).not_to have_received(:generate)
     end
 
     it "writes mod.rs and Cargo.toml once, after the domains, when it ran them all" do

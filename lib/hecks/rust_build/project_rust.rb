@@ -27,19 +27,23 @@ module Hecks
       # @return [Integer] the exit status
       # @raise [Failure] when the domain's name cannot be a Rust module and Cargo feature name
       def self.call(argv)
+        skip_meta, argv = argv.partition { |arg| arg == Meta::SKIP_FLAG }
         declared, rest = Declared.split(argv)
         domain = rest.first or raise Failure, "usage: hecks project_rust <domain>"
-        new(domain, declared: declared).call
+        new(domain, declared: declared, meta: skip_meta.empty?).call
       end
 
       # @param domain [String] the domain's directory
       # @param declared [Declared, nil] the corpus's declared domains; nil for a workspace of one's
       #   own, where `mod.rs` and Cargo's features follow the domains on disk and `default` the
       #   domain this run generated
-      def initialize(domain, declared: nil)
+      # @param meta [Boolean] whether this run generates `meta`; a corpus run that has done so once
+      #   says `Meta::SKIP_FLAG` to each domain
+      def initialize(domain, declared: nil, meta: true)
         @domain = domain
         @mod_name = File.basename(domain)
         @declared = declared
+        @meta = meta
       end
 
       # @return [Integer] the exit status
@@ -86,9 +90,8 @@ module Hecks
       # `hecks-codegen` is the generator; this process only builds the IR it reads from the live
       # registry, so a domain's persistence, seams, translations and source text reach `ir.json`.
       def generate_with_codegen
-        meta = Hecks::Projector::Exporter.call(Hecks::Bluebook::MetaValidator.grammar_registry).fetch("Bluebook")
         CodegenRun.new(
-          rust_dir: @rust_dir, out_root: @out_root, meta: TargetIr.json_shaped(meta), chapters: chapters,
+          rust_dir: @rust_dir, out_root: @out_root, meta: (Meta.ir if @meta), chapters: chapters,
           target: CodegenRun::Chapter.new(@mod_name, @domain, @ir)
         ).call
       end
@@ -113,6 +116,7 @@ require_relative "project_rust/declared"
 require_relative "project_rust/features_header"
 require_relative "project_rust/root_mod"
 require_relative "project_rust/codegen_run"
+require_relative "project_rust/meta"
 require_relative "project_rust/domain_loader"
 require_relative "project_rust/target_ir"
 require_relative "project_rust/manifest"
