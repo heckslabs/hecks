@@ -468,7 +468,7 @@ board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 ## attribute
 
 <!-- generated:begin word=attribute -->
-`attribute name, type, default:, optional:, pattern:, matches:, admits:, one_of:` — fills `attributes`
+`attribute name, type, default:, optional:, pattern:, matches:, admits:, one_of:, sets:` — fills `attributes`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -480,6 +480,7 @@ board[:pieces].first[:square].to_h  # => {:file=>2, :rank=>2}
 | `matches:` | symbol | false | matches |
 | `admits:` | text | false | admits |
 | `one_of:` | list | false | one_of |
+| `sets:` | flag | false | sets |
 <!-- generated:end -->
 
 Declares an argument this command needs, scalar or value object — same word, same modifiers, as an aggregate's own `attribute`. See the Type and ValueObject context pages for what each type position and modifier does.
@@ -493,6 +494,15 @@ CommandReference::Meter.install!(serial: 9).serial.value  # => 9
 ```
 
 An explicit local `attribute :field` is never clobbered by this — it is checked first, so a command narrowing or retyping its own argument still wins.
+
+`sets: true` says both in one line: the argument, and the plain write of the owner's field of the same name. `attribute :serial, Serial, sets: true` builds exactly what `attribute :serial, Serial` followed by `sets :serial` builds, in the same order, so a command that also writes with `to:`, `append:` or another op keeps those lines as they are. It is refused when the owner declares no field of that name, and it takes `true` or nothing.
+
+```ruby
+command "Install" do
+  attribute :serial, Serial, sets: true
+  emits "MeterInstalled"
+end
+```
 
 A command takes the arguments it declares — all of them, and no others.
 Missing one refuses:
