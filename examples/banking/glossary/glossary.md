@@ -489,6 +489,26 @@ Sets the account, the serial, and the daily fee.
 
 Records [ATM card issued](#atm-card-issued).
 
+#### Reimburse
+
+Give the customer back a withdrawal the bank agrees was not theirs. Done by the teller.
+
+Allowed only when: the withdrawal is disputed.
+
+Moves the withdrawal from disputed to reimbursed.
+
+Records [Withdrawal reimbursed](#withdrawal-reimbursed).
+
+#### Reject dispute
+
+Turn down a dispute the bank finds was the customer's own withdrawal. Done by the teller.
+
+Allowed only when: the withdrawal is disputed.
+
+Moves the withdrawal from disputed to taken.
+
+Records [Withdrawal dispute rejected](#withdrawal-dispute-rejected).
+
 #### Rename
 
 Name a card so it is recognisable. Done by the customer.
@@ -545,9 +565,17 @@ Recorded after [Retire](#retire).
 
 Recorded after [Withdraw](#withdraw).
 
+#### Withdrawal dispute rejected
+
+Recorded after [Reject dispute](#reject-dispute).
+
 #### Withdrawal disputed
 
 Recorded after [Dispute](#dispute).
+
+#### Withdrawal reimbursed
+
+Recorded after [Reimburse](#reimburse).
 
 ### Lists
 
@@ -607,7 +635,7 @@ Always true: a withdrawal explains itself.
 
 One handful of cash, in the order it was taken.
 
-Starts out taken. Can be taken or disputed.
+Starts out taken. Can be taken, disputed, or reimbursed.
 
 #### Withdrawal amount
 
@@ -774,7 +802,7 @@ Recorded after [Chargeback](#chargeback).
 
 #### Card dispute rejected
 
-Recorded after [Reject dispute](#reject-dispute).
+Recorded after [Reject dispute](#reject-dispute-1).
 
 #### Card disputed
 
@@ -1140,11 +1168,12 @@ Starts out placed. Can be placed, lifted, or escalated.
 stateDiagram-v2
     [*] --> placed
     placed --> lifted: Lift
+    escalated --> lifted: Lift
     placed --> escalated: Escalate account hold
     placed --> escalated: Escalate card hold
 ```
 
-- Lifting a hold moves it from placed to lifted.
+- Lifting a hold moves it from placed or escalated to lifted.
 - Escalating an account hold moves it from placed to escalated.
 - Escalating a card hold moves it from placed to escalated.
 
@@ -1180,9 +1209,9 @@ Records [Card hold escalated](#card-hold-escalated).
 
 Take a hold off once the matter is settled. Done by the teller.
 
-Allowed only when: the hold is placed.
+Allowed only when: the hold is placed or escalated.
 
-Moves the hold from placed to lifted.
+Moves the hold from placed or escalated to lifted.
 
 Records [Hold lifted](#hold-lifted).
 
@@ -1994,7 +2023,7 @@ Responsible for [Register](#register), [Close](#close), [Open (account)](#open),
 
 #### Compliance officer
 
-Responsible for [Suspend](#suspend), [Reinstate](#reinstate), [Freeze account](#freeze-account), [Unfreeze](#unfreeze), [Clear](#clear), [Decline](#decline), [Chargeback](#chargeback), and [Reject dispute](#reject-dispute).
+Responsible for [Suspend](#suspend), [Reinstate](#reinstate), [Freeze account](#freeze-account), [Unfreeze](#unfreeze), [Clear](#clear), [Decline](#decline), [Chargeback](#chargeback), and [Reject dispute](#reject-dispute-1).
 
 #### Customer
 
@@ -2006,7 +2035,7 @@ Responsible for [Apply fee](#apply-fee), [Accrue interest](#accrue-interest), [E
 
 #### Teller
 
-Responsible for [Credit](#credit), [Debit](#debit), [Place](#place), and [Lift](#lift).
+Responsible for [Credit](#credit), [Debit](#debit), [Place](#place), [Lift](#lift), [Reimburse](#reimburse), and [Reject dispute](#reject-dispute).
 
 #### Vault officer
 
