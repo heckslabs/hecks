@@ -1,0 +1,7 @@
+# Binds the `LocalRunner` port to `LocalRunner`, which times an experiment's steps in two temporary checkouts of the refs it names.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/ci_speed/adapters/local_runner"
+
+Hecks.adapter "LocalRunner" do
+  port "LocalRunner"
+end

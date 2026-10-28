@@ -3,7 +3,7 @@ Hecks.behaviors "CiSpeed" do
 
   # `ci_speed.hecksagon` binds every aggregate to Memory and attaches Governance, so a boot of these
   # files passes the memory-only guard and the role check.
-  loads "ci_speed.bluebook", "ci_speed.hecksagon", "ci_speed.ports.hecksagon"
+  loads "../../../spec/fixtures/ci_speed/ci_speed.hecksagon", "ci_speed.bluebook", "ci_speed.ports.hecksagon"
 
   test "Observe writes down a run as it finished" do
     tests "Observe", on: "Run"
@@ -204,5 +204,122 @@ Hecks.behaviors "CiSpeed" do
     setup "CiSpeed::Budget.WitnessMiss", budget: "main", seconds: { value: 170 }
     input budget: "main", new_target_seconds: { value: 200 }
     expect refused: "a new target is lower than the one met"
+  end
+
+  # The experiments below are answered by `spec/fixtures/ci_speed/replayed_runner.adapter`, which
+  # replays recorded samples under the experiment's name (`wide_win`, `within_noise`, `wide_loss`)
+  # and refuses any other name. The real `LocalRunner` makes two checkouts and times real work, so
+  # `spec/ci_speed_local_runner_spec.rb` holds it instead.
+  test "Request refuses a candidate that is the same ref as its base" do
+    tests "Request", on: "Experiment"
+    input name: { value: "same_ref" }, lever: { value: "" }, measures: { value: "regenerate_corpus_cold" },
+          cache_state: { value: "miss" }, base_ref: { value: "HEAD" }, candidate_ref: { value: "HEAD" },
+          repeats: { value: 3 }
+    expect refused: "a candidate is a different ref from its base"
+  end
+
+  test "Request refuses a single sample, which has no spread to judge it by" do
+    tests "Request", on: "Experiment"
+    input name: { value: "one_sample" }, lever: { value: "" }, measures: { value: "regenerate_corpus_cold" },
+          cache_state: { value: "miss" }, base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" },
+          repeats: { value: 1 }
+    expect refused: "an experiment is repeated at least twice"
+  end
+
+  test "A measured faster result completes" do
+    tests "Request", on: "Experiment"
+    input name: { value: "wide_win" }, lever: { value: "" }, measures: { value: "regenerate_corpus_cold" },
+          cache_state: { value: "miss" }, base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" },
+          repeats: { value: 3 }
+    expect emits: %w[ExperimentRequested ExperimentAnswered ExperimentMeasured]
+  end
+
+  test "A result inside the spread is inconclusive and re-estimates nothing" do
+    tests "Request", on: "Experiment"
+    setup "CiSpeed::Lever.Propose", name: { value: "parallel_rustfmt" },
+          change: { value: "rustfmt on one thread per core" }, pole: { value: "generated_rust" },
+          affects: { value: "miss" }, expected_seconds: { value: 0 }, basis: { value: "unestimated" }, inputs: { value: "" }
+    input name: { value: "within_noise" }, lever: { value: "parallel_rustfmt" },
+          measures: { value: "regenerate_corpus_cold" }, cache_state: { value: "miss" },
+          base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" }, repeats: { value: 3 }
+    expect emits: %w[ExperimentRequested ExperimentAnswered ExperimentMeasured]
+  end
+
+  test "A faster conclusive result re-estimates the lever it names" do
+    tests "Request", on: "Experiment"
+    setup "CiSpeed::Lever.Propose", name: { value: "parallel_rustfmt" },
+          change: { value: "rustfmt on one thread per core" }, pole: { value: "generated_rust" },
+          affects: { value: "miss" }, expected_seconds: { value: 0 }, basis: { value: "unestimated" }, inputs: { value: "" }
+    input name: { value: "wide_win" }, lever: { value: "parallel_rustfmt" },
+          measures: { value: "regenerate_corpus_cold" }, cache_state: { value: "miss" },
+          base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" }, repeats: { value: 3 }
+    expect emits: %w[ExperimentRequested ExperimentAnswered ExperimentMeasured LeverReestimated]
+  end
+
+  test "The lever carries what the experiment measured, as its estimate" do
+    tests "Next", on: "Lever", kind: :query
+    setup "CiSpeed::Lever.Propose", name: { value: "parallel_rustfmt" },
+          change: { value: "rustfmt on one thread per core" }, pole: { value: "generated_rust" },
+          affects: { value: "miss" }, expected_seconds: { value: 0 }, basis: { value: "unestimated" }, inputs: { value: "" }
+    setup "CiSpeed::Experiment.Request", name: { value: "wide_win" }, lever: { value: "parallel_rustfmt" },
+          measures: { value: "regenerate_corpus_cold" }, cache_state: { value: "miss" },
+          base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" }, repeats: { value: 3 }
+    expect count: 1, name: { value: "parallel_rustfmt" }, expected_seconds: { value: 31 }
+  end
+
+  test "A slower result says nothing to the backlog" do
+    tests "Request", on: "Experiment"
+    setup "CiSpeed::Lever.Propose", name: { value: "parallel_rustfmt" },
+          change: { value: "rustfmt on one thread per core" }, pole: { value: "generated_rust" },
+          affects: { value: "miss" }, expected_seconds: { value: 0 }, basis: { value: "unestimated" }, inputs: { value: "" }
+    input name: { value: "wide_loss" }, lever: { value: "parallel_rustfmt" },
+          measures: { value: "regenerate_corpus_cold" }, cache_state: { value: "miss" },
+          base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" }, repeats: { value: 3 }
+    expect emits: %w[ExperimentRequested ExperimentAnswered ExperimentMeasured]
+  end
+
+  test "Request is faulted when the runner refuses it" do
+    tests "Request", on: "Experiment"
+    input name: { value: "unrecorded" }, lever: { value: "" }, measures: { value: "regenerate_corpus_cold" },
+          cache_state: { value: "miss" }, base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" },
+          repeats: { value: 3 }
+    expect emits: %w[ExperimentRequested ExperimentRefused ExperimentFaulted]
+  end
+
+  test "A fault records why" do
+    tests "Outcome", on: "Experiment", kind: :query
+    setup "CiSpeed::Experiment.Request", name: { value: "unrecorded" }, lever: { value: "" },
+          measures: { value: "regenerate_corpus_cold" }, cache_state: { value: "miss" },
+          base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" }, repeats: { value: 3 }
+    input name: { value: "unrecorded" }
+    expect count: 1, status: "faulted",
+           refusal: { value: "Hecks::Adapters::LocalRunner::Refused: no samples are recorded for unrecorded; " \
+                             "recorded: wide_win, within_noise, wide_loss" }
+  end
+
+  # A verdict has to say what the numbers say. The record here is faulted, not requested, because
+  # the givens are checked before the lifecycle, and they are what is held to account.
+  test "Complete refuses a faster verdict whose saving is not larger than the spread" do
+    tests "Complete", on: "Experiment"
+    setup "CiSpeed::Experiment.Request", name: { value: "unrecorded" }, lever: { value: "" },
+          measures: { value: "regenerate_corpus_cold" }, cache_state: { value: "miss" },
+          base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" }, repeats: { value: 3 }
+    input experiment: "unrecorded", base_seconds: { value: 120.0 }, candidate_seconds: { value: 118.0 },
+          spread_seconds: { value: 6.0 }, saved_seconds: { value: 2.0 }, load: { value: 2.5 },
+          unmeasured: { value: "" }, verdict: { value: "faster" }, basis: { value: "a guess" },
+          reestimates: { value: "" }, expected_seconds: { value: 2 }
+    expect refused: "a faster verdict needs a saving larger than the spread"
+  end
+
+  test "Complete refuses an estimate on a result that is not faster" do
+    tests "Complete", on: "Experiment"
+    setup "CiSpeed::Experiment.Request", name: { value: "unrecorded" }, lever: { value: "" },
+          measures: { value: "regenerate_corpus_cold" }, cache_state: { value: "miss" },
+          base_ref: { value: "HEAD~1" }, candidate_ref: { value: "HEAD" }, repeats: { value: 3 }
+    input experiment: "unrecorded", base_seconds: { value: 120.0 }, candidate_seconds: { value: 118.0 },
+          spread_seconds: { value: 6.0 }, saved_seconds: { value: 2.0 }, load: { value: 2.5 },
+          unmeasured: { value: "" }, verdict: { value: "inconclusive" }, basis: { value: "a guess" },
+          reestimates: { value: "" }, expected_seconds: { value: 2 }
+    expect refused: "only a faster verdict carries an estimate"
   end
 end

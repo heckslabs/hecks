@@ -1,0 +1,7 @@
+# Binds the `LocalRunner` port to `ReplayedRunner`, for `ci_speed.behaviors`, which must not make
+# checkouts or time real work.
+require File.expand_path("../replayed_runner", __dir__)
+
+Hecks.adapter "ReplayedRunner" do
+  port "LocalRunner"
+end
