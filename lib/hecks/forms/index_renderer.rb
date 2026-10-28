@@ -28,7 +28,7 @@ module Hecks
       def self.bluebook_section(name, declaration)
         items = declaration.aggregates.map { |aggregate| aggregate_item(name, aggregate) }
         <<~HTML
-          <h2>#{Escape.html(name)}#{%( <span class="badge">#{Escape.html(bluebook.vision)}</span>) if bluebook.vision}</h2>
+          <h2>#{Escape.html(name)}#{%( <span class="badge">#{Escape.html(declaration.vision)}</span>) if declaration.vision}</h2>
           <ul class="verb-list">#{items.join}</ul>
         HTML
       end

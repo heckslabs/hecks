@@ -817,7 +817,12 @@ const LIBRARY: &str = include_str!("fixtures/sentence_library.sentences");
 
 fn run_on_bluebook(subcommand: &str, declaration: &str, path: &std::path::Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
-        .args([subcommand, "--bluebook", declaration, path.to_str().unwrap()])
+        .args([
+            subcommand,
+            "--bluebook",
+            declaration,
+            path.to_str().unwrap(),
+        ])
         .output()
         .expect("failed to run hecks-parse")
 }

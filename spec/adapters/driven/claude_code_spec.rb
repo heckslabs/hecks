@@ -76,7 +76,7 @@ RSpec.describe Hecks::Adapters::ClaudeCode do
     it "ask" do
       calls = stub_capture({ "questions" => [] })
 
-      described_class.ask(state: { declaration: "Loyalty" }, asked: ["x?"])
+      described_class.ask(state: { bluebook: "Loyalty" }, asked: ["x?"])
 
       expect(JSON.parse(calls.first[:stdin])).to eq({ "state" => { "bluebook" => "Loyalty" }, "already_asked" => ["x?"] })
     end

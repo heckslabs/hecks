@@ -373,7 +373,10 @@ pub fn emit_process_manager_table(exemplar: &Exemplar, process_managers: &[Json]
     )
 }
 
-pub fn emit_reference_key_table(exemplar: &Exemplar, declarations: &[(String, Vec<String>)]) -> String {
+pub fn emit_reference_key_table(
+    exemplar: &Exemplar,
+    declarations: &[(String, Vec<String>)],
+) -> String {
     let arms: Vec<String> = declarations
         .iter()
         .flat_map(|(domain_name, aggregate_names)| {
@@ -684,7 +687,8 @@ mod tests {
     }
 
     #[test]
-    fn merged_cross_domain_policy_table_carries_only_a_vendored_bluebooks_own_cross_domain_policy() {
+    fn merged_cross_domain_policy_table_carries_only_a_vendored_bluebooks_own_cross_domain_policy()
+    {
         let orders_policies = vec![policy("OnOrderPlaced", "OrderPlaced", "Invoice.Open", None)];
         let payments_policies = vec![
             policy(

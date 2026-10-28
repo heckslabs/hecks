@@ -37,7 +37,12 @@ fn now_implemented_fixtures_parse_for_real() {
 
     for (file, declaration) in cases {
         let path = fixture(file);
-        let output = run(&["bluebook", "--bluebook", declaration, path.to_str().unwrap()]);
+        let output = run(&[
+            "bluebook",
+            "--bluebook",
+            declaration,
+            path.to_str().unwrap(),
+        ]);
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 

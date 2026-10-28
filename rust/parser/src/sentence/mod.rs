@@ -39,7 +39,10 @@ pub fn is_sentence_form(source: &str) -> bool {
 }
 
 /// Parses every sentence-form file of one bluebook and merges their aggregates.
-pub fn parse_bluebook(declaration_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
+pub fn parse_bluebook(
+    declaration_name: &str,
+    files: &[(String, String)],
+) -> ParseResult<ir::Bluebook> {
     let grammar = Grammar::load()?;
     let mut merged: Option<ir::Bluebook> = None;
     for (path, source) in files {
