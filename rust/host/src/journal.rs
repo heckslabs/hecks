@@ -3,8 +3,8 @@
 
 use sha2::{Digest, Sha256};
 
-/// The kernel's cached "instances" output as of `ordinal`, used to skip a
-/// full replay from empty state.
+/// The kernel's cached "instances" output as of `ordinal`, which lets a replay skip the steps
+/// before it.
 #[derive(Clone)]
 pub struct Snapshot {
     pub ordinal: i64,
@@ -71,8 +71,8 @@ pub(crate) fn journal_table(domain: &str) -> String {
 pub(crate) const POSTGRES_IDENTIFIER_LIMIT: usize = 63;
 
 /// Same algorithm as `Lineage#qualified_name` (lineage.rb): 63-byte limit,
-/// SHA256 suffix over the full name, a cut that never splits a character, domain-qualified so two domains' storage names can't
-/// collide (ADR 0059).
+/// SHA256 suffix over the full name, a cut that never splits a character, domain-qualified so
+/// two domains' storage names can't collide (ADR 0059).
 pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
     let full = format!("{}_{}", snake(domain), suffix);
     if full.len() <= POSTGRES_IDENTIFIER_LIMIT {
@@ -89,6 +89,7 @@ pub(crate) fn qualified_name(domain: &str, suffix: &str) -> String {
     format!("{}_{}", &full[0..keep], digest)
 }
 
+/// The era-shaped snapshot table of one aggregate's head at `era`.
 pub(crate) fn head_snapshot_table(domain: &str, qualified_aggregate: &str, era: i32) -> String {
     qualified_name(
         domain,
@@ -111,6 +112,7 @@ pub struct Mutation<'a> {
 
 // Not wired into dispatch::handle's replay seed — overlaying translated
 // head state onto raw replayed steps would cause false "AlreadyExists" refusals.
+/// The head view of one aggregate, qualified by its domain (ADR 0059).
 pub(crate) fn head_view(domain: &str, storage_name: &str) -> String {
     qualified_name(domain, &format!("{storage_name}_head"))
 }
