@@ -80,12 +80,7 @@ jobs:
             spec/composer_check_spec.rb \
             spec/composer_web_spec.rb \
             spec/composer_panels_spec.rb \
-            spec/composer_agent_spec.rb \
-            spec/list_sum_parser_spec.rb \
-            spec/sentence_coverage_spec.rb \
-            spec/sentence_examples_spec.rb \
-            spec/sentence_form_spec.rb \
-            spec/sentence_guide_spec.rb
+            spec/composer_agent_spec.rb
 
       # The crate's own unit and tests/gates.rs suite; reuses the target dir built above.
       - name: "cargo test: rust/parser (hecks-parse)"

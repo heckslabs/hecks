@@ -74,9 +74,8 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
-
+      # No generated-rust step: the sweep reads bluebooks and never the generated Rust, so a cache
+      # miss costs this job nothing.
       - name: hecks fuzz (shard ${{ matrix.shard }} of 2)
         run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_${{ matrix.shard }}_of_2 --wait
 
@@ -105,9 +104,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
-
+      # No generated-rust step, as in `checks_fuzz`.
       - name: hecks fuzz adapter=sqlite (shard ${{ matrix.shard }} of 2)
         run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite_${{ matrix.shard }}_of_2 --wait
 
@@ -135,8 +132,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step, as in `checks_fuzz`.
       - uses: ./.github/actions/postgres
 
       - name: hecks fuzz adapter=postgres
