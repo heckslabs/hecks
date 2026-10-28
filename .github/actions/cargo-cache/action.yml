@@ -77,10 +77,18 @@ inputs:
       the shared registry either).
     required: false
     default: "true"
+  save:
+    description: >-
+      Save the target dir at the end of the job. `false` only restores. The main crate's key
+      hashes its generated sources, so each distinct set of domains a job regenerates is a key of
+      its own and would save its own copy of a cache that is about two gigabytes. Only a job that
+      regenerates every domain saves it; the others restore the nearest entry by key prefix.
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
-    - if: inputs.include-registry == 'true'
+    - if: inputs.include-registry == 'true' && inputs.save != 'false'
       uses: actions/cache@v4
       with:
         path: |
@@ -91,8 +99,27 @@ runs:
         restore-keys: |
           ${{ runner.os }}-cargo-${{ inputs.name }}-
 
-    - if: inputs.include-registry != 'true'
+    - if: inputs.include-registry != 'true' && inputs.save != 'false'
       uses: actions/cache@v4
+      with:
+        path: ${{ inputs.crate-root }}/${{ inputs.target-dir }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ inputs.name }}-
+
+    - if: inputs.include-registry == 'true' && inputs.save == 'false'
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ${{ inputs.crate-root }}/${{ inputs.target-dir }}
+        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ inputs.name }}-
+
+    - if: inputs.include-registry != 'true' && inputs.save == 'false'
+      uses: actions/cache/restore@v4
       with:
         path: ${{ inputs.crate-root }}/${{ inputs.target-dir }}
         key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/src/**', inputs.crate-root)) }}

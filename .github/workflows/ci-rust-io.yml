@@ -117,10 +117,13 @@ jobs:
       - name: Regenerate the Rust crate
         run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
 
+      # Restore only: each leg's tree holds its own features' domains, so each would save its own
+      # copy of this cache. The all-domain warm job and leg a of rspec_rust_io save it.
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
           crate-root: rust
+          save: "false"
 
       # Every fourth feature of the list, from this leg's place in it. The cargo cache restore
       # above brings back every feature's binary from an earlier run, built from older sources.
@@ -221,6 +224,7 @@ jobs:
         with:
           name: main
           crate-root: rust
+          save: ${{ matrix.leg == 'a' }}
 
       # The specs below build the parser and codegen crates; sharing
       # the keys of rspec_rust_parser/rspec_rust_codegen reuses their cached builds

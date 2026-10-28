@@ -346,10 +346,12 @@ jobs:
       # the checkout, and puts rust/src/generated back as it found it; rust/build's own tests read
       # no generated module.
 
+      # Restore only: this job's tree holds no generated domain, which is a key of its own.
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
           crate-root: rust
+          save: "false"
 
       # rust/build (hecks-build) is a separate crate; only this spec builds it.
       - uses: ./.github/actions/cargo-cache
@@ -382,10 +384,12 @@ jobs:
       # No generated-rust step: `hecks build_wasm` regenerates the domain it builds in a scratch copy
       # of rust/, so the spec reads nothing the checkout holds beyond the committed mod.rs and pizzas.
 
+      # Restore only, as in rspec_rust_io_build.
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
           crate-root: rust
+          save: "false"
 
       - uses: ./.github/actions/wasm-toolchain
 
