@@ -114,6 +114,7 @@ Hecks.bluebook "Bluebook" do
         # "admitted" to match every existing row.
         transition "Deprecate" => "deprecated", from: "admitted"
         transition "Retire"    => "retired",    from: ["admitted", "deprecated"]
+        mark :terminal, "retired"
       end
 
       command "Deprecate" do
@@ -166,6 +167,7 @@ Hecks.bluebook "Bluebook" do
       lifecycle :status, default: "admitted" do
         transition "Deprecate" => "deprecated", from: "admitted"
         transition "Retire"    => "retired",    from: ["admitted", "deprecated"]
+        mark :terminal, "retired"
       end
 
       command "Deprecate" do

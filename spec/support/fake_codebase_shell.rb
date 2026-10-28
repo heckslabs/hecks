@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "hecks/hecks/adapters/shell"
+
 # A stand-in for `Hecks::Adapters::Shell` that starts nothing: it answers the outputs and statuses
 # it was given, in order (the last one repeats), and remembers each command it was asked to run.
 # Codebase adapter specs hand it to a task so no script, gate or network call happens.

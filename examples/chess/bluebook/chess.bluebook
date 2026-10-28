@@ -78,6 +78,7 @@ Hecks.bluebook "Chess" do
 
       lifecycle :status, default: "on_board" do
         transition "Capture" => "captured", from: "on_board"
+        mark :terminal, "captured"
       end
 
       command "Move", from: "on_board" do
@@ -135,6 +136,7 @@ Hecks.bluebook "Chess" do
       transition "DeclareStalemate" => "stalemate",   from: "in_progress"
       transition "Resign"           => "resigned",    from: ["in_progress", "check"]
       transition "AcceptDraw"       => "draw",        from: ["in_progress", "check"]
+      mark :terminal, "checkmate", "draw", "resigned", "stalemate"
     end
 
     command "Start" do

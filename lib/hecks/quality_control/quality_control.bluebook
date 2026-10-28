@@ -541,6 +541,7 @@ Hecks.bluebook "QualityControl" do
       transition "Waive"    => "sweeping",  from: "sweeping"
       transition "Conclude" => "concluded", from: "sweeping"
       transition "Abandon"  => "abandoned", from: "sweeping"
+      mark :terminal, "abandoned", "concluded"
     end
 
     command "Open" do
@@ -921,6 +922,7 @@ Hecks.bluebook "QualityControl" do
       transition "Withdraw"    => "withdrawn",     from: ["logged", "investigating", "paused"]
       transition "Regress"     => "investigating", from: ["fixed", "verified"]
       transition "Revisit"     => "investigating", from: "paused"
+      mark :terminal, "withdrawn"
     end
 
     command "Log" do
@@ -1296,6 +1298,7 @@ Hecks.bluebook "QualityControl" do
       transition "Investigate" => "investigating", from: "proposed"
       transition "Build"       => "built",         from: "investigating"
       transition "Discard"     => "discarded",     from: ["proposed", "investigating"]
+      mark :terminal, "built", "discarded"
     end
 
     command "Propose" do
@@ -1478,6 +1481,7 @@ Hecks.bluebook "QualityControl" do
       transition "Retry"   => "submitting", from: "refused"
       transition "Abandon" => "abandoned",  from: ["raised", "submitting", "refused"]
       transition "Close"   => "closed",     from: "filed"
+      mark :terminal, "abandoned", "closed"
     end
 
     # The port is declared in `quality_control.ports.hecksagon`, where wiring lives.
@@ -1694,6 +1698,7 @@ Hecks.bluebook "QualityControl" do
     lifecycle :status, default: "opened" do
       transition "Merge" => "merged", from: "opened"
       transition "Close" => "closed", from: "opened"
+      mark :terminal, "closed", "merged"
     end
 
     # Dispatched only by `hecks quality_control patch.open --bug`, which reads the facts back from `gh pr view`, so
@@ -1897,6 +1902,7 @@ Hecks.bluebook "QualityControl" do
       transition "Regress" => "needs_fix", from: "landed"
       transition "Merge"   => "merged",   from: ["opened", "landed", "needs_fix"]
       transition "Close"   => "closed",   from: ["opened", "landed", "needs_fix"]
+      mark :terminal, "closed", "merged"
     end
 
     # Dispatched by `hecks quality_control patch.open --improvement`, which then dispatches `Land` in the same run so
@@ -2013,6 +2019,7 @@ Hecks.bluebook "QualityControl" do
       mark :failure, "red"
       transition "Passed" => "green", from: "running"
       transition "Failed" => "red",   from: "running"
+      mark :terminal, "green", "red"
     end
 
     command "Start" do

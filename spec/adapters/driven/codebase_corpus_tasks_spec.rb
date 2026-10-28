@@ -5,6 +5,10 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
 
+  # The runner is asked about every module of the tree, so the modules the corpus names as
+  # pending (which need generated Rust this tree may not hold) stay out of these questions.
+  before { stub_const("Hecks::Corpus::RUST_COVERAGE_PENDING", {}) }
+
   after do
     described_class.mcp_server = nil
     described_class.web_server = nil

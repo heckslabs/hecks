@@ -190,6 +190,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "flagged"
       transition "Pass" => "clean",   from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "clean", "flagged"
     end
 
     command "ModelCheck" do
@@ -440,6 +441,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "refused"
       transition "Complete" => "tagged",  from: "requested"
       transition "Abandon"  => "refused", from: "requested"
+      mark :terminal, "refused", "tagged"
     end
 
     # `hecks package.release <package> [root=path]`. Tags the package's current version as
@@ -592,6 +594,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "stopped"
       transition "Finish" => "finished", from: "requested"
       transition "Stop"   => "stopped",  from: "requested"
+      mark :terminal, "finished", "stopped"
     end
 
     # Writes a launcher beside each domain. It replaces the generated launcher already there and
@@ -848,6 +851,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "faulted"
       transition "Complete" => "completed", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
+      mark :terminal, "completed", "faulted"
     end
 
     # Writes the domain's Rust source and a Cargo feature for it into the build workspace: the
@@ -1148,6 +1152,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "halted"
       transition "Conclude" => "concluded", from: "requested"
       transition "Halt"     => "halted",    from: "requested"
+      mark :terminal, "concluded", "halted"
     end
 
     # A sweep replays generated command and query sequences and checks properties over each.

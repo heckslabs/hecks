@@ -104,6 +104,7 @@ Hecks.bluebook "Banking" do
 
       lifecycle :status, default: "issued" do
         transition "Return" => "returned", from: "issued"
+        mark :terminal, "returned"
       end
 
       command "Return" do

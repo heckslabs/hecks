@@ -31,6 +31,7 @@ Hecks.bluebook "GeneratedReactionWording" do
 
     lifecycle :status, default: "open" do
       transition "Close" => "closed", from: "open"
+      mark :terminal, "closed"
     end
 
     command "Open" do

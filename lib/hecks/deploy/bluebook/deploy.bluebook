@@ -623,6 +623,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
+      mark :terminal, "faulted", "projected"
     end
 
     # `hecks deploy recipe.project <domain> [tenant=] [schema=] [out=] [environment=]`. A schema override
@@ -736,6 +737,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "faulted"
       transition "Complete" => "cleared", from: "requested"
       transition "Fault"    => "faulted", from: "requested"
+      mark :terminal, "cleared", "faulted"
     end
 
     # `hecks deploy handover.clear <domain> [out=]`. The rest of the file is left as it was, a world
@@ -834,6 +836,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "flagged"
       transition "Pass" => "clean",   from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "clean", "flagged"
     end
 
     # A pattern match over Make and shell text, not a static analyzer: the findings are the
@@ -938,6 +941,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "flagged"
       transition "Pass" => "within_budget", from: "requested"
       transition "Flag" => "flagged",       from: "requested"
+      mark :terminal, "flagged", "within_budget"
     end
 
     # The reading is the billed daily total from the first complete day since `since` up to
@@ -1056,6 +1060,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "flagged"
       transition "Pass" => "passed", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "flagged", "passed"
     end
 
     # `hecks deploy smoke_run.run <project> [script=<path>] [taskdef=<family[:rev]>] [skip=true]
@@ -1207,6 +1212,7 @@ Hecks.bluebook "Deploy" do
       transition "Flag" => "flagged", from: "requested"
       transition "Verify" => "verified", from: "rolled"
       transition "FlagSmoke" => "flagged", from: "rolled"
+      mark :terminal, "flagged", "verified"
     end
 
     # `hecks deploy service_roll.run <project> service=<name> [existing_tag=<tag>] [local_image=<ref>]
@@ -1390,6 +1396,7 @@ Hecks.bluebook "Deploy" do
       transition "Flag" => "flagged", from: "requested"
       transition "Verify" => "verified", from: "rolled"
       transition "FlagSmoke" => "flagged", from: "rolled"
+      mark :terminal, "flagged", "verified"
     end
 
     # `hecks deploy box_roll.run <project> [taskdef=<family[:rev]> | tags="name=tag ..."]
@@ -1587,6 +1594,7 @@ Hecks.bluebook "Deploy" do
       transition "Confirm" => "verified", from: ["requested", "restored"]
       transition "Drift" => "drifted", from: ["requested", "restored"]
       transition "FlagVerification" => "flagged", from: ["requested", "restored"]
+      mark :terminal, "drifted", "flagged", "planned", "verified"
     end
 
     # `hecks deploy data_copy.restore <project> bastion=<i-...> source=<host> source_secret=<id>
@@ -1866,6 +1874,7 @@ Hecks.bluebook "Deploy" do
       transition "Match" => "verified", from: "requested"
       transition "Differ" => "drifted", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "drifted", "flagged", "verified"
     end
 
     # Runs the project's generated `verify-copy.sh`: structure and exact row counts of every table,
@@ -2010,6 +2019,7 @@ Hecks.bluebook "Deploy" do
       transition "Differ" => "changed", from: "requested"
       transition "Withhold" => "unavailable", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "changed", "flagged", "unavailable", "unchanged"
     end
 
     # `hecks deploy bluebook_diff.run <project> [old=<json> new=<json>] [script=<path>]`. With
@@ -2178,6 +2188,7 @@ Hecks.bluebook "Deploy" do
       transition "RecordLogin" => "signed_in", from: "requested"
       transition "Plan" => "planned", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "deployed", "destroyed", "flagged", "listed", "located", "named", "planned", "signed_in"
     end
 
     # `hecks deploy preview_run.<name|url|list|deploy|destroy|login> <project> [branch=<name>]
@@ -2547,6 +2558,7 @@ Hecks.bluebook "Deploy" do
       transition "Complete" => "rolled", from: "requested"
       transition "Plan" => "planned", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "flagged", "planned", "rolled"
     end
 
     # `hecks deploy companion_roll.run <project> taskdef=<family:rev> [companion=umami] [confirm=true]
@@ -2683,6 +2695,7 @@ Hecks.bluebook "Deploy" do
       transition "Match"  => "matching", from: "requested"
       transition "Drift"  => "drifted",  from: "requested"
       transition "Refuse" => "refused",  from: "requested"
+      mark :terminal, "drifted", "matching", "refused"
     end
 
     # `hecks deploy template_comparison.diff <before> after=<template> [--json] [--strict]`. `--strict` also counts
@@ -2806,6 +2819,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
+      mark :terminal, "faulted", "projected"
     end
 
     command "ProjectOidc" do
