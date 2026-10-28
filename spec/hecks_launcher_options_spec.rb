@@ -202,6 +202,15 @@ RSpec.describe "the launcher's opt-in options" do
     end
   end
 
+  describe "--text" do
+    it "waits and prints the recorded output alone, not the record", :aggregate_failures do
+      out, status = run_verb("model_check_run.model_check", "run=text-1", "domains=#{File.join(@dir, "clean")}", "--text")
+
+      expect(status).to eq(0)
+      expect { JSON.parse(out) }.to raise_error(JSON::ParserError)
+    end
+  end
+
   describe "a run this process does not hold" do
     let(:options) { Hecks::Adapters::Driving::LauncherOptions }
 
