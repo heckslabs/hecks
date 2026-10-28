@@ -82,6 +82,13 @@ RSpec.describe Hecks::Projections::ContextRelationships do
     expect(edges).to include(from: "RelLocal", to: "Governance", kind: "shared_kernel", via: nil)
   end
 
+  it "reads an attaches of the context's own vendored package as no relationship" do
+    attachments = %w[RelLocal Governance].map { |name| Struct.new(:chapter_name).new(name) }
+    wired = Struct.new(:domain, :attachments).new("RelLocal", attachments)
+
+    expect(described_class.attach_edges(wired).map(&:to)).to eq(["Governance"])
+  end
+
   it "reads a hecksagon translates as an anti-corruption layer onto the context that owns the event" do
     expect(edges).to include(from: "RelLocal", to: "RelUpstream", kind: "acl", via: "EchoOnThingFired")
   end
