@@ -143,14 +143,15 @@ jobs:
     timeout-minutes: 20
 
     # Two legs, each on its own checkout: the specs mutate rust/ and so cannot share a process or a
-    # tree. The exclusivity spec runs real cargo builds for about 40s; the other five files take
-    # about 20s together, so it gets a leg to itself.
+    # tree. The exclusivity spec runs real cargo builds for about 40s; the other files take about
+    # a minute together, so it gets a leg to itself. The two regeneration specs run `hecks-codegen`
+    # in scratch workspaces, so they need this job's codegen cache and leave rust/ alone.
     strategy:
       fail-fast: false
       matrix:
         include:
           - leg: a
-            specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
+            specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb
           - leg: b
             specs: spec/rust_generated/domain_feature_exclusivity_spec.rb
 
