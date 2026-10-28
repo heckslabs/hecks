@@ -12,7 +12,7 @@ cargo +nightly fuzz run resolve -- -max_total_time=60   # hecksagon `attaches` r
 ```
 
 Seed a run from the fixtures: `cargo +nightly fuzz run chapter ../tests/fixtures`. A crash lands
-in `fuzz/artifacts/`; copy it to a `.bluebook` and run `hecks-parse chapter --chapter Fuzzed
+in `fuzz/artifacts/`; copy it to a `.bluebook` and run `hecks-parse bluebook --bluebook Fuzzed
 <file>` to reproduce it.
 
 The seeded harness in `tests/fuzz.rs` is what CI runs; this directory is for longer

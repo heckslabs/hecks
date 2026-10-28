@@ -62,10 +62,10 @@ flowchart LR
     cmd_ScheduledPayment_Fail(["ScheduledPayment.Fail"]) -->|emits| evt_ScheduledPaymentFailed{{"ScheduledPaymentFailed"}}
     cmd_ScheduledPayment_Retry(["ScheduledPayment.Retry"]) -->|emits| evt_ScheduledPaymentFailed{{"ScheduledPaymentFailed"}}
     cmd_ScheduledPayment_Abandon(["ScheduledPayment.Abandon"]) -->|emits| evt_ScheduledPaymentAbandoned{{"ScheduledPaymentAbandoned"}}
-    evt_AccountFrozen{{"AccountFrozen"}} -->|triggers in Compliance| cmd_AccountFreezeReview_Open(["AccountFreezeReview.Open"])
+    evt_AccountFrozen{{"AccountFrozen"}} -->|triggers in Compliance| cmd_Review_Open(["Review.Open"])
     evt_ScheduledPaymentFailed{{"ScheduledPaymentFailed"}} -->|triggers| cmd_ScheduledPayment_Retry(["ScheduledPayment.Retry"])
     evt_AccountClosed{{"AccountClosed"}} -->|triggers| cmd_ATMCard_Retire(["ATMCard.Retire"])
     evt_CustomerSuspended{{"CustomerSuspended"}} -->|triggers| cmd_Account_FreezeAccount(["Account.FreezeAccount"])
     evt_AccountClosed{{"AccountClosed"}} -->|triggers in Notifications| cmd_Notifications_Send(["Notifications.Send"])
-    evt_BoxSurrendered{{"BoxSurrendered"}} -->|triggers in Compliance| cmd_BoxSurrenderReview_Open(["BoxSurrenderReview.Open"])
+    evt_BoxSurrendered{{"BoxSurrendered"}} -->|triggers in Compliance| cmd_Review_Open(["Review.Open"])
     evt_KeyReturnDue{{"KeyReturnDue"}} -->|triggers in Notifications| cmd_Notifications_Send(["Notifications.Send"])

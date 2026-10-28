@@ -1,4 +1,4 @@
-//! The `Bluebook` construct and the driver for `hecks-parse chapter`.
+//! The `Bluebook` construct and the driver for `hecks-parse bluebook`.
 //! Parses each `.bluebook` file into one `ir::Bluebook`, then applies `.hecksagon` files onto it.
 
 use super::{aggregate, command, entity, policy, process_manager, read_model};
@@ -17,7 +17,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         return Err(Diagnostic::new(
             "<none>",
             0,
-            "hecks-parse chapter requires at least one file",
+            "hecks-parse bluebook requires at least one file",
         ));
     }
 
@@ -78,7 +78,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                 return Err(Diagnostic::new(
                     path,
                     header_line,
-                    format!("--chapter {chapter_name} was requested, but this file declares '{declared_name}'"),
+                    format!("--bluebook {chapter_name} was requested, but this file declares '{declared_name}'"),
                 ));
             }
         }
@@ -125,7 +125,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                 return Err(Diagnostic::new(
                     path,
                     header_line,
-                    format!("hecks-parse chapter reads .bluebook/.hecksagon files ('bluebook'/'hecksagon'); got '{}' (inner context '{other}')", call.word),
+                    format!("hecks-parse bluebook reads .bluebook/.hecksagon files ('bluebook'/'hecksagon'); got '{}' (inner context '{other}')", call.word),
                 ));
             }
         }

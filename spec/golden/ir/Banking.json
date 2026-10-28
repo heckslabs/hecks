@@ -10234,11 +10234,18 @@
       "name": "ReviewOnFreeze",
       "on_event": "Account.AccountFrozen",
       "target_domain": "Compliance",
-      "trigger_command": "AccountFreezeReview.Open",
+      "trigger_command": "Review.Open",
       "where": null,
       "where_ast": null,
       "with_spec": [
-
+        [
+          "subject_kind",
+          "\"account_freeze\""
+        ],
+        [
+          "subject_key",
+          ":id"
+        ]
       ]
     },
     {
@@ -10305,11 +10312,18 @@
       "name": "ReviewOnBoxSurrender",
       "on_event": "SafeDepositBox.BoxSurrendered",
       "target_domain": "Compliance",
-      "trigger_command": "BoxSurrenderReview.Open",
+      "trigger_command": "Review.Open",
       "where": null,
       "where_ast": null,
       "with_spec": [
-
+        [
+          "subject_kind",
+          "\"box_surrender\""
+        ],
+        [
+          "subject_key",
+          ":id"
+        ]
       ]
     },
     {

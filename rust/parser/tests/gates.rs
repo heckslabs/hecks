@@ -37,7 +37,7 @@ fn now_implemented_fixtures_parse_for_real() {
 
     for (file, chapter) in cases {
         let path = fixture(file);
-        let output = run(&["chapter", "--chapter", chapter, path.to_str().unwrap()]);
+        let output = run(&["bluebook", "--bluebook", chapter, path.to_str().unwrap()]);
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
 
@@ -62,8 +62,8 @@ fn one_of_values_keep_a_quoted_value_a_string() {
     // quoted "true"/"false"/"0" exports as a JSON string, not a boolean or an integer.
     let path = fixture("one_of_quoted_values.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureOneOfQuotedValues",
         path.to_str().unwrap(),
     ]);
@@ -102,8 +102,8 @@ fn one_of_values_keep_a_quoted_value_a_string() {
 fn a_one_of_in_type_position_inside_a_value_object_installs_its_closed_set_after_it() {
     let path = fixture("value_object_inline_closed_set.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureValueObjectInlineClosedSet",
         path.to_str().unwrap(),
     ]);
@@ -136,8 +136,8 @@ fn a_one_of_in_type_position_inside_a_value_object_installs_its_closed_set_after
 fn identity_and_relationship_exemplar_preserves_ruby_ir_shape() {
     let path = fixture("identity_relationship.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "IdentityRelationshipFixture",
         path.to_str().unwrap(),
     ]);
@@ -194,8 +194,8 @@ fn identity_and_relationship_exemplar_preserves_ruby_ir_shape() {
 fn query_arguments_are_inferred_from_local_and_resolved_hop_fields() {
     let path = fixture("query_inference.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "QueryInferenceFixture",
         path.to_str().unwrap(),
     ]);
@@ -241,8 +241,8 @@ fn translates_builds_the_same_policy_ir_a_bluebook_policy_block_would() {
     let bluebook = fixture("translates.bluebook");
     let hecksagon = fixture("translates.hecksagon");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureTranslates",
         bluebook.to_str().unwrap(),
         hecksagon.to_str().unwrap(),
@@ -282,8 +282,8 @@ fn aggregate_port_operation_does_not_declare_its_receiver_as_a_fact() {
     let bluebook = fixture("port_routing.bluebook");
     let hecksagon = fixture("port_routing.hecksagon");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "PortRoutingFixture",
         bluebook.to_str().unwrap(),
         hecksagon.to_str().unwrap(),
@@ -309,7 +309,7 @@ fn hecksagon_fixtures_resolve_for_real() {
     let path = fixture("hecksagon.hecksagon");
     let output = run(&[
         "resolve",
-        "--chapter",
+        "--bluebook",
         "FixtureHecksagon",
         path.to_str().unwrap(),
     ]);
@@ -329,7 +329,7 @@ fn hecksagon_fixtures_resolve_for_real() {
     let path = fixture("domain_port.hecksagon");
     let output = run(&[
         "resolve",
-        "--chapter",
+        "--bluebook",
         "FixtureDomainPort",
         path.to_str().unwrap(),
     ]);
@@ -356,11 +356,11 @@ fn resolve_without_chapter_is_a_usage_error_not_a_parse_error() {
     assert_eq!(
         output.status.code(),
         Some(2),
-        "expected exit 2 (usage error) for a missing --chapter. stderr={stderr}"
+        "expected exit 2 (usage error) for a missing --bluebook. stderr={stderr}"
     );
     assert!(
-        stderr.contains("--chapter"),
-        "expected the usage message to name --chapter, got: {stderr}"
+        stderr.contains("--bluebook"),
+        "expected the usage message to name --bluebook, got: {stderr}"
     );
 }
 
@@ -374,7 +374,7 @@ fn a_real_grammar_violation_is_a_hard_error_not_a_stub() {
     let path = dir.join("malformed.bluebook");
     std::fs::write(&path, "aggregate \"Widget\" do\nend\n").unwrap();
 
-    let output = run(&["chapter", "--chapter", "Whatever", path.to_str().unwrap()]);
+    let output = run(&["bluebook", "--bluebook", "Whatever", path.to_str().unwrap()]);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert_eq!(output.status.code(), Some(1));
@@ -397,7 +397,7 @@ fn a_bare_if_is_refused_by_the_shape_gate() {
     let path = dir.join("bare_if.bluebook");
     std::fs::write(&path, "bluebook \"X\" do\n  if true\n  end\nend\n").unwrap();
 
-    let output = run(&["chapter", "--chapter", "X", path.to_str().unwrap()]);
+    let output = run(&["bluebook", "--bluebook", "X", path.to_str().unwrap()]);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert_eq!(output.status.code(), Some(1));
@@ -467,8 +467,8 @@ fn coverage_now_reports_the_pairs_pizzas_bluebook_actually_exercises() {
 fn a_query_returns_names_its_value_object_and_whether_it_is_a_list() {
     let path = fixture("query_returns.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "QueryReturnsFixture",
         path.to_str().unwrap(),
     ]);
@@ -512,8 +512,8 @@ fn a_query_that_returns_twice_or_in_quotes_is_refused() {
         )
         .unwrap();
         let output = run(&[
-            "chapter",
-            "--chapter",
+            "bluebook",
+            "--bluebook",
             "ReturnsRefusal",
             path.to_str().unwrap(),
         ]);
@@ -546,8 +546,8 @@ fn parse_command_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
     );
     std::fs::write(&path, source).unwrap();
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "NeedsFixture",
         path.to_str().unwrap(),
     ]);
@@ -642,8 +642,8 @@ fn parse_query_body(tag: &str, body: &str) -> (Option<i32>, String, String) {
     );
     std::fs::write(&path, source).unwrap();
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "QueryNeedsFixture",
         path.to_str().unwrap(),
     ]);
@@ -715,8 +715,8 @@ fn a_query_refuses_the_same_fact_twice() {
 fn a_lifecycle_mark_is_emitted_and_an_unknown_state_is_refused() {
     let marked = fixture("lifecycle_mark.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureLifecycleMark",
         marked.to_str().unwrap(),
     ]);
@@ -737,8 +737,8 @@ fn a_lifecycle_mark_is_emitted_and_an_unknown_state_is_refused() {
 
     let plain = fixture("lifecycle.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureLifecycle",
         plain.to_str().unwrap(),
     ]);
@@ -749,8 +749,8 @@ fn a_lifecycle_mark_is_emitted_and_an_unknown_state_is_refused() {
 
     let unknown = fixture("lifecycle_mark_unknown_state.bluebook");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureLifecycleMark",
         unknown.to_str().unwrap(),
     ]);
@@ -770,8 +770,8 @@ fn a_removed_attach_spelling_is_refused_naming_its_replacement() {
     let bluebook = fixture("translates.bluebook");
     let hecksagon = fixture("removed_attach_word.hecksagon");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureTranslates",
         bluebook.to_str().unwrap(),
         hecksagon.to_str().unwrap(),
@@ -790,8 +790,8 @@ fn a_retired_hecksagon_word_is_refused_by_name() {
     let bluebook = fixture("translates.bluebook");
     let hecksagon = fixture("retired_hecksagon_word.hecksagon");
     let output = run(&[
-        "chapter",
-        "--chapter",
+        "bluebook",
+        "--bluebook",
         "FixtureTranslates",
         bluebook.to_str().unwrap(),
         hecksagon.to_str().unwrap(),

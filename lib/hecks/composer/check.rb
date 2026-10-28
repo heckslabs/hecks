@@ -49,8 +49,8 @@ module Hecks
       def project(stage, base, name)
         registry = Hecks.boot(stage, install_driving: false, environment: "memory").registry
         chapter = registry.bluebook(name)
-        base.merge(chapter: name, wiring: wiring(registry, name), board: Board.call(chapter, outline: base[:outline]),
-                   **read(chapter, registry.hecksagon(name)))
+        base.merge(bluebook: name, chapter: name, wiring: wiring(registry, name),
+                   board: Board.call(chapter, outline: base[:outline]), **read(chapter, registry.hecksagon(name)))
       end
 
       # The diagrams, statements and model-check findings of a booted bluebook.
@@ -81,8 +81,8 @@ module Hecks
 
       # @api private
       def empty(files, outline)
-        { diagnostic: nil, files: files, outline: outline, chapter: nil, diagrams: {}, statements: [],
-          findings: [], wiring: nil, board: nil }
+        { diagnostic: nil, files: files, outline: outline, bluebook: nil, chapter: nil, diagrams: {},
+          statements: [], findings: [], wiring: nil, board: nil }
       end
     end
   end

@@ -36,8 +36,8 @@
 # `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
 # positional forms ADR 0066 shipped. `maintainer` names the aggregates only someone working on a hecks
 # checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
-# `--maintainer` lists them; `chapters` names the attached bluebooks the help points at, one line each
-# (`hecks deploy`), and `maintainer_chapters` the language's own, added inside a checkout.
+# `--maintainer` lists them; `bluebooks` names the attached bluebooks the help points at, one line each
+# (`hecks deploy`), and `maintainer_bluebooks` the language's own, added inside a checkout.
 # `newcomer` names the only commands the help lists in a folder holding no bluebook yet
 # (`hecks --all` lists the rest), so a first run shows how to start and nothing else.
 Hecks.world "Hecks" do
@@ -50,7 +50,7 @@ Hecks.world "Hecks" do
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
                                   handover.clear rehearsal_run.request push_train.board
-                                  landing.land landing.retire],
+                                  landing.land landing.retire agent_run.dispatch agent_run.check],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
                        names: { "config" => "checkout.settings", "mcp" => "launch.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
@@ -62,8 +62,8 @@ Hecks.world "Hecks" do
                                       CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release
                                       SyntaxBootCache],
                        newcomer: %w[launch.init launch.interview operation.open_console],
-                       chapters: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
-                       maintainer_chapters: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
+                       bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
+                       maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
                        legacy: %w[run docs narrate ir stores model_check smoke_test
                                   project_diagrams project_cli mcp]
