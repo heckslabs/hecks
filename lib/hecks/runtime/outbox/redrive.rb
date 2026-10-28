@@ -19,13 +19,11 @@ module Hecks
         #
         # @param delivery_id [String] the row's `delivery_id`, as the stalled-row warning names it
         # @return [Array<Row>] the row when it redrove, `[]` when its consumer failed again
-        # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id
+        # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id, or the row
+        #   was claimed too recently to be stalled
         def redrive_row!(delivery_id)
-          stores.each do |repository|
-            row = repository.outbox_rows(status: "claimed").find { |candidate| candidate.delivery_id == delivery_id }
-            return (redrive_claimed?(row, repository, true) ? [row] : []) if row
-          end
-          raise Hecks::Runtime::NotFound, "no claimed outbox row #{delivery_id.inspect}"
+          repository, row = stalled_row(delivery_id)
+          redrive_claimed?(row, repository, true) ? [row] : []
         end
 
         # Settles the one claimed row named by its delivery id as failed, without running its
@@ -34,16 +32,32 @@ module Hecks
         #
         # @param delivery_id [String] the row's `delivery_id`, as the stalled-row warning names it
         # @return [Array<Row>] the row that was settled
-        # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id
+        # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id, or the row
+        #   was claimed too recently to be stalled
         def abandon_row!(delivery_id)
+          repository, row = stalled_row(delivery_id)
+          [abandon(row, repository)]
+        end
+
+        private
+
+        # The store and the claimed row that carry `delivery_id`, once the row has stood claimed
+        # past `STALLED_AFTER`: a younger claim is a reaction running in another process.
+        def stalled_row(delivery_id)
           stores.each do |repository|
             row = repository.outbox_rows(status: "claimed").find { |candidate| candidate.delivery_id == delivery_id }
-            return [abandon(row, repository)] if row
+            next unless row
+            raise Hecks::Runtime::NotFound, in_flight_wording(row) unless row.stalled?
+
+            return [repository, row]
           end
           raise Hecks::Runtime::NotFound, "no claimed outbox row #{delivery_id.inspect}"
         end
 
-        private
+        def in_flight_wording(row)
+          "outbox row #{row.delivery_id} is in flight, claimed #{row.claimed_seconds_ago}s ago; only a row " \
+            "claimed over #{STALLED_AFTER}s ago is stalled"
+        end
 
         def abandon(row, repository)
           repository.outbox_settle(row.id, status: "failed", error: "abandoned by an operator, not redelivered")
@@ -54,7 +68,8 @@ module Hecks
         # The rows of one store that redrove: its pending rows first, then its claimed ones.
         def redrive_store(repository, claimed)
           redriven = repository.outbox_rows(status: "pending").select { |row| redrive_pending?(row, repository) }
-          redriven + repository.outbox_rows(status: "claimed").select { |row| redrive_claimed?(row, repository, claimed) }
+          stalled = repository.outbox_rows(status: "claimed").select(&:stalled?)
+          redriven + stalled.select { |row| redrive_claimed?(row, repository, claimed) }
         end
 
         def redrive_pending?(row, repository) = !withheld?(row) && deliver_row(row, repository)
