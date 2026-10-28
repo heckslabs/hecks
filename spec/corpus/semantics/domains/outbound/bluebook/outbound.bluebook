@@ -1,0 +1,60 @@
+Hecks.bluebook "Outbound" do
+  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md).
+  # Its `across` policies hand a domain that is not loaded their payload, so the conformance
+  # harness can read what each would deliver (ADR 0149): a `with:` of literals and `:id`, no
+  # `with:` (the payload unchanged), and a `with:` that reads a payload field.
+  vision "A parcel is sent, forwarded or annotated, and another domain is told."
+  core
+
+  aggregate "Parcel" do
+    identified_by :tag
+
+    attribute :tag,  Tag
+    attribute :note, Note
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    value_object "Note" do
+      attribute :value, String
+    end
+
+    command "Send" do
+      goal "Send a parcel on its way"
+      attribute :tag, Tag
+      emits "ParcelSent"
+    end
+
+    command "Forward" do
+      goal "Forward a parcel unchanged"
+      attribute :tag, Tag
+      emits "ParcelForwarded"
+    end
+
+    command "Annotate" do
+      goal "Write a note on a parcel"
+      attribute :tag,  Tag
+      attribute :note, Note
+      emits "ParcelAnnotated"
+    end
+  end
+
+  policy "FileOnSend" do
+    on      Parcel::ParcelSent
+    trigger Filing::Open, with: { subject_kind: "parcel", subject_key: :id }
+    across  "Registry"
+  end
+
+  policy "FileOnForward" do
+    on      Parcel::ParcelForwarded
+    trigger Filing::Open
+    across  "Registry"
+  end
+
+  policy "FileOnAnnotate" do
+    on      Parcel::ParcelAnnotated
+    trigger Filing::Open, with: { subject_kind: "annotation", detail: :note }
+    across  "Registry"
+  end
+end

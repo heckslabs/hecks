@@ -82,7 +82,15 @@ module Hecks
           "instances" => roundtrip(result[:instances]),
           "events"    => without_timestamps(result[:events])
         }
-        full ? expect.merge!(conformance_expectation(result)) : expect
+        full ? expect.merge!(conformance_expectation(result)) : expect.merge(cross_domain_expectation(result))
+      end
+
+      # @api private
+      # @return [Hash{String => Array}] `cross_domain` (the policy, target verb and payload each
+      #   `across` policy delivered, in order) when the run had any, otherwise empty
+      def cross_domain_expectation(result)
+        deliveries = roundtrip(result[:cross_domain] || [])
+        deliveries.empty? ? {} : { "cross_domain" => deliveries }
       end
 
       # @api private
