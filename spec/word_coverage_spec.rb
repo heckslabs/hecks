@@ -13,6 +13,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.hecksagon"),
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.world"),
+    File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.contextmap"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/grammar", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.hecksagon"),

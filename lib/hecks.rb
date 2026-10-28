@@ -186,6 +186,17 @@ module Hecks
     # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
     def world(name, &)     = collect(:add_world, Bluebook::DSL::WorldBuilder.build(name, &))
 
+    # Declares a context map — a `.contextmap` file's top-level word, naming the contexts a system
+    # holds and how pairs of them relate (ADR 0135).
+    #
+    # @param name [String, Symbol] the system the map covers
+    # @yield the map's body, evaluated against a `Bluebook::DSL::ContextMapBuilder`
+    # @return [Bluebook::ContextMap] the built map
+    # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
+    # @raise [ArgumentError] on an unknown relationship kind, or a relationship naming an
+    #   undeclared context
+    def context_map(name, &) = collect(:add_context_map, Bluebook::DSL::ContextMapBuilder.build(name, &))
+
     # Declares a data translation — a `.translation` file's top-level word,
     # migrating one domain's stored shape from one era to the next.
     #
