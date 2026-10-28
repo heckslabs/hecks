@@ -3,6 +3,7 @@ require_relative "need_word"
 require_relative "command_builder/owner"
 require_relative "command_builder/rules"
 require_relative "command_builder/mutations"
+require_relative "command_builder/folded_sets"
 require_relative "command_builder/implicit_attributes"
 require_relative "command_builder/operands"
 module Hecks
@@ -23,6 +24,7 @@ module Hecks
         include NeedWord
         include ImplicitAttributes
         include Operands
+        include FoldedSets
 
         # Sentinel for "this keyword was never passed" — distinct from Ruby's own
         # nil/false, so `to: false` doesn't get treated as absent.
@@ -135,6 +137,7 @@ module Hecks
         #   state source names an undeclared field, or a delegating command also declares its
         #   own mutations or events
         def build
+          refuse_unowned_folded_sets!
           resolve_implicit_attributes!
           refuse_duplicate_targets!
           refuse_undeclared_needs!

@@ -402,6 +402,7 @@ Hecks.bluebook "Bluebook" do
       member keyword: "attribute",       context: "Command", at: "",  named: "matches",  kind: "symbol",   required: "false", fills: "matches"
       member keyword: "attribute",       context: "Command", at: "",  named: "admits",    kind: "text",     required: "false", fills: "admits"
       member keyword: "attribute",       context: "Command", at: "",  named: "one_of",    kind: "list",     required: "false", fills: "one_of"
+      member keyword: "attribute",       context: "Command", at: "",  named: "sets",      kind: "flag",     required: "false", fills: "sets"
       # `reason` is required in practice; CommandBuilder#corrects_impl refuses its absence.
       member keyword: "corrects",        context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "target"
       member keyword: "corrects",        context: "Command", at: "",  named: "as",        kind: "symbol",   required: "false", fills: "source"

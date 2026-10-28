@@ -228,9 +228,12 @@ pub fn parse_body(
             }
             // A synthesized inline `one_of(...)` closed set is dropped; `CommandBuilder#build`
             // ignores it.
-            "attribute" => command
-                .attributes
-                .push(super::build_attribute(file, line, "attribute", &gated.args)?.0),
+            "attribute" => {
+                let attribute = super::build_attribute(file, line, "attribute", &gated.args)?.0;
+                let name = attribute.name.clone();
+                command.attributes.push(attribute);
+                fold_sets(file, line, &name, &gated.args, owner_attributes, &mut command)?;
+            }
             // `emits` takes a constant argument; see `parse/policy.rs` for the transform.
             "emits" => command.emits.push(super::positional_command_ref(
                 file,
@@ -285,6 +288,35 @@ pub fn parse_body(
             }
         }
     }
+}
+
+/// Records the plain `sets` an attribute's `sets: true` stands for, as a `sets :name` line after
+/// it would. Refused when `sets:` is anything but true, or the owner has no field of that name.
+fn fold_sets(
+    file: &str,
+    line: usize,
+    name: &str,
+    args: &super::ArgumentGateResult,
+    owner_attributes: &[ir::Attribute],
+    command: &mut ir::Command,
+) -> ParseResult<()> {
+    let Some(raw) = super::named_raw(args, "sets") else {
+        return Ok(());
+    };
+    let command_name = &command.name;
+    if raw.trim() != "true" {
+        return Err(Diagnostic::new(file, line, format!("{command_name}'s attribute :{name} takes sets: true or no sets: at all, not {}", raw.trim())));
+    }
+    if !owner_attributes.iter().any(|attr| attr.name == name) {
+        return Err(Diagnostic::new(file, line, format!("{command_name}'s attribute :{name} says sets: true, but the owner declares no field of that name to set — declare it on the owner, or drop sets: true")));
+    }
+    command.mutations.push(ir::Mutation::Other {
+        target: name.to_string(),
+        op: "set".to_string(),
+        sign: mutation_sign("set").to_string(),
+        source: Some(ir::MutationSource::Argument(name.to_string())),
+    });
+    Ok(())
 }
 
 /// Imports owner attributes for bare `sets :field` and `append:` mutations.
