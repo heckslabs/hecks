@@ -225,7 +225,7 @@ Hecks.bluebook "Tickets" do
     attribute :adr,       AdrNumber
     attribute :title,     AdrTitle
     attribute :supersedes, AdrNumber, optional: true
-    attribute :settles,   FindingKey, optional: true
+    reference_to Finding, as: :settles, optional: true
     identified_by :adr
 
     value_object "AdrNumber" do
@@ -236,10 +236,6 @@ Hecks.bluebook "Tickets" do
       attribute :value, String
 
       invariant("a decision has a title") { !value.to_s.empty? }
-    end
-
-    value_object "FindingKey" do
-      attribute :value, String, matches: :present
     end
 
     lifecycle :status, default: "draft" do
@@ -253,7 +249,7 @@ Hecks.bluebook "Tickets" do
 
       attribute :adr,       AdrNumber
       attribute :title,     AdrTitle
-      attribute :settles,   FindingKey, optional: true
+      reference_to Finding, as: :settles, optional: true
 
       sets :adr
       sets :title

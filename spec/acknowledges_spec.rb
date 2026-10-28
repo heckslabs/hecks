@@ -35,7 +35,7 @@ RSpec.describe "acknowledges" do
 
   it "emits the acknowledgements in the IR" do
     expect(acknowledged.to_h[:acknowledgements])
-      .to eq([{ finding: "large_aggregate", reason: "one ledger holds every entry" }])
+      .to eq([{ finding: "large_aggregate", subject: "", reason: "one ledger holds every entry" }])
   end
 
   it "emits an empty list when nothing is acknowledged" do
@@ -50,5 +50,30 @@ RSpec.describe "acknowledges" do
   it "refuses a blank reason" do
     expect { ledger('acknowledges :large_aggregate, "  "') }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /without a reason/)
+  end
+
+  def subject_of(word) = ledger(word).acknowledgements.first.subject
+
+  it "holds the attribute a key_by_value acknowledgement is for" do
+    expect(subject_of('acknowledges :key_by_value, "a path, not a record", of: :code')).to eq("code")
+  end
+
+  it "holds the aggregate an orphaned_reference acknowledgement is for" do
+    expect(subject_of('acknowledges :orphaned_reference, "completes it", of: :Sweep')).to eq("Sweep")
+  end
+
+  it "emits the subject in the IR" do
+    held = ledger('acknowledges :key_by_value, "a path", of: :code').to_h[:acknowledgements]
+    expect(held).to eq([{ finding: "key_by_value", subject: "code", reason: "a path" }])
+  end
+
+  it "refuses a per-subject kind that names no subject" do
+    expect { ledger('acknowledges :key_by_value, "a path"') }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /without saying which — add `of:`/)
+  end
+
+  it "refuses a subject on a kind that has none" do
+    expect { ledger('acknowledges :large_aggregate, "why", of: :code') }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /with `of:`/)
   end
 end
