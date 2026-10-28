@@ -1,6 +1,6 @@
 # A bluebook is all of its files, and "chapter" is retired
 
-**Status:** Proposed. Nothing is renamed yet. Date: 2026-10-25.
+**Status:** Proposed. Nothing is renamed yet. Date: 2026-10-25 (drafted as 0132, renumbered 0134).
 
 ## Context
 
