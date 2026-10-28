@@ -333,6 +333,110 @@ fn head_relations(domains: &[&str], storage_name: &str) -> Vec<String> {
     relations
 }
 
+#[async_trait::async_trait]
+impl super::Backend for PostgresStore {
+    async fn begin<'a>(
+        &'a self,
+        domain: &str,
+    ) -> Result<Box<dyn super::UnitBackend + 'a>, StoreError> {
+        Ok(Box::new(PostgresStore::begin(self, domain).await?))
+    }
+
+    async fn read_state(&self) -> Result<State, StoreError> {
+        PostgresStore::read_state(self).await
+    }
+
+    async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
+        PostgresStore::record_dead_letter(self, dead_letter).await
+    }
+
+    async fn head_by_id(
+        &self,
+        domain: &str,
+        storage_name: &str,
+        id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        let guard = self.lineage.lock().await;
+        Ok(journal::read_lineage_head_by_id(&*guard, domain, storage_name, id).await?)
+    }
+
+    async fn head_all(
+        &self,
+        domain: &str,
+        storage_name: &str,
+    ) -> Result<Vec<(String, serde_json::Value)>, StoreError> {
+        let guard = self.lineage.lock().await;
+        Ok(journal::read_lineage_head_all(&*guard, domain, storage_name).await?)
+    }
+
+    async fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        Ok(self.lineage.head_states(domains, storage_name).await?)
+    }
+
+    async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        self.lineage.head_find(domains, storage_name, matches).await
+    }
+
+    async fn put_head(
+        &self,
+        config: &journal::LineageConfig,
+        mutation: &journal::Mutation<'_>,
+    ) -> Result<(), StoreError> {
+        Ok(self.lineage.put_head(config, mutation).await?)
+    }
+
+    async fn amend_head(
+        &self,
+        config: &journal::LineageConfig,
+        domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: &mut (dyn for<'r> FnMut(
+            &'r [(String, serde_json::Value)],
+        ) -> Option<(String, serde_json::Value)>
+                  + Send),
+    ) -> Result<(), StoreError> {
+        self.lineage
+            .amend_head(
+                config,
+                domain,
+                aggregate,
+                storage_name,
+                |rows: &[(String, serde_json::Value)]| ((), decide(rows)),
+            )
+            .await?;
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+#[async_trait::async_trait]
+impl super::UnitBackend for PostgresUnit<'_> {
+    async fn load(&self) -> Result<State, StoreError> {
+        PostgresUnit::load(self).await
+    }
+
+    async fn commit(self: Box<Self>, accepted: Accepted<'_>) -> Result<(), StoreError> {
+        (*self).commit(accepted).await
+    }
+
+    async fn rollback(self: Box<Self>) -> Result<(), StoreError> {
+        (*self).rollback().await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::head_relations;
