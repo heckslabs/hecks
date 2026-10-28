@@ -41,8 +41,9 @@ deploy:
 	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
 	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
 	  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \
-	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then set" >&2; \
-	  echo "    HECKS_DATABASE=postgres://<role>@localhost/<db>" >&2; \
+	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then name it in" >&2; \
+	  echo "    hecks.local.world: default_database postgres://<role>@localhost/<db>" >&2; \
+	  echo "    and set persisted_by PostgresEra in hecks.local.hecksagon" >&2; \
 	  echo "    deploying anyway so the deploy is not lost" >&2; \
 	  rm -f "$$err"; bash ./deploy-box.sh $(TASKDEF); rc=$$?; \
 	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
