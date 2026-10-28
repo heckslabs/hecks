@@ -185,6 +185,7 @@ Hecks.bluebook "Site" do
       mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
+      mark :terminal, "faulted"
     end
 
     # `hecks site site_projection.project_site <project> [out=<dir>] [template=<file>] [cms=<dir>] [root=<dir>] [editor=<dir>] [extension=ts|mts] [--check]`.

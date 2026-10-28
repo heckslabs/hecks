@@ -103,6 +103,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "failed"
       transition "Succeed" => "succeeded", from: "requested"
       transition "Fail"    => "failed",    from: "requested"
+      mark :terminal, "failed", "succeeded"
     end
 
     # Runs one verb, or a JSON step list, against the domain: `hecks run [domain] script=steps.json`
@@ -585,6 +586,7 @@ policy "RecordTheEra" do
       transition "Ride"  => "carried", from: "requested"
       transition "Fault" => "faulted", from: "requested"
       transition "Summarize" => "surveyed", from: "requested"
+      mark :terminal, "faulted", "pushed"
     end
 
     command "Board" do
@@ -826,6 +828,7 @@ policy "RecordTheEra" do
       transition "Clear"   => "retired", from: "requested"
       transition "Refuse"  => "refused", from: "requested"
       transition "Decline" => "refused", from: "requested"
+      mark :terminal, "landed", "refused", "retired"
     end
 
     command "Land" do
@@ -1043,6 +1046,7 @@ policy "RecordTheEra" do
       transition "Permit"   => "admitted", from: "requested"
       transition "Settle"   => "settled",  from: "admitted"
       transition "Abandon"  => "refused",  from: %w[requested admitted]
+      mark :terminal, "refused", "settled"
     end
 
     # The seven requests. Each records what was asked and names its operation; the journal store

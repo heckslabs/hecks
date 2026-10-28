@@ -241,6 +241,7 @@ Hecks.bluebook "Tickets" do
     lifecycle :status, default: "draft" do
       transition "Accept"    => "accepted",   from: "draft"
       transition "Supersede" => "superseded", from: "accepted"
+      mark :terminal, "superseded"
     end
 
     command "Draft" do

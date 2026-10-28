@@ -118,6 +118,7 @@ Hecks.bluebook "Privacy" do
       transition "Shred"        => "shredding",     from: ["active", "shred_failed"]
       transition "MarkShredded" => "shredded",      from: "shredding"
       transition "FailShred"    => "shred_failed",  from: "shredding"
+      mark :terminal, "shredded"
     end
 
     # Asks for the key; it does not claim one. The `IssueTheKeyWhenAsked` policy asks the key vault,

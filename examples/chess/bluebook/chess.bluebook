@@ -135,6 +135,7 @@ Hecks.bluebook "Chess" do
       transition "DeclareStalemate" => "stalemate",   from: "in_progress"
       transition "Resign"           => "resigned",    from: ["in_progress", "check"]
       transition "AcceptDraw"       => "draw",        from: ["in_progress", "check"]
+      mark :terminal, "checkmate", "draw", "resigned", "stalemate"
     end
 
     command "Start" do

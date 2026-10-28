@@ -82,6 +82,7 @@ Hecks.bluebook "Banking" do
       lifecycle :state, default: "posted" do
         transition "Reverse" => "reversed", from: "posted"
         transition "Amend"   => "posted",   from: "posted"
+        mark :terminal, "reversed"
       end
 
       command "Amend" do
@@ -141,6 +142,7 @@ Hecks.bluebook "Banking" do
       transition "FreezeAccount" => "frozen", from: "open"
       transition "Unfreeze" => "open",  from: "frozen"
       transition "CloseAccount" => "closed", from: ["open", "frozen"]
+      mark :terminal, "closed"
     end
 
     command "Open" do

@@ -25,6 +25,7 @@ Hecks.bluebook "Banking" do
       transition "Lift" => "lifted", from: "placed"
       transition "EscalateAccountHold" => "escalated", from: "placed"
       transition "EscalateCardHold" => "escalated", from: "placed"
+      mark :terminal, "lifted"
     end
 
     command "Place" do

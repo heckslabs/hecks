@@ -623,6 +623,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
+      mark :terminal, "faulted"
     end
 
     # `hecks deploy recipe.project <domain> [tenant=] [schema=] [out=] [environment=]`. A schema override
@@ -736,6 +737,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "faulted"
       transition "Complete" => "cleared", from: "requested"
       transition "Fault"    => "faulted", from: "requested"
+      mark :terminal, "cleared", "faulted"
     end
 
     # `hecks deploy handover.clear <domain> [out=]`. The rest of the file is left as it was, a world
@@ -1056,6 +1058,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "flagged"
       transition "Pass" => "passed", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "passed"
     end
 
     # `hecks deploy smoke_run.run <project> [script=<path>] [taskdef=<family[:rev]>] [skip=true]
@@ -2178,6 +2181,7 @@ Hecks.bluebook "Deploy" do
       transition "RecordLogin" => "signed_in", from: "requested"
       transition "Plan" => "planned", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "deployed", "destroyed"
     end
 
     # `hecks deploy preview_run.<name|url|list|deploy|destroy|login> <project> [branch=<name>]
@@ -2547,6 +2551,7 @@ Hecks.bluebook "Deploy" do
       transition "Complete" => "rolled", from: "requested"
       transition "Plan" => "planned", from: "requested"
       transition "Flag" => "flagged", from: "requested"
+      mark :terminal, "rolled"
     end
 
     # `hecks deploy companion_roll.run <project> taskdef=<family:rev> [companion=umami] [confirm=true]
@@ -2683,6 +2688,7 @@ Hecks.bluebook "Deploy" do
       transition "Match"  => "matching", from: "requested"
       transition "Drift"  => "drifted",  from: "requested"
       transition "Refuse" => "refused",  from: "requested"
+      mark :terminal, "refused"
     end
 
     # `hecks deploy template_comparison.diff <before> after=<template> [--json] [--strict]`. `--strict` also counts
@@ -2806,6 +2812,7 @@ Hecks.bluebook "Deploy" do
       mark :failure, "faulted"
       transition "Complete" => "projected", from: "requested"
       transition "Fault"    => "faulted",   from: "requested"
+      mark :terminal, "faulted"
     end
 
     command "ProjectOidc" do
