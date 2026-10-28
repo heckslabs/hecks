@@ -1,4 +1,5 @@
 require_relative "../runtime/value"
+require_relative "../bluebook/synthesizer"
 
 module Hecks
   module Fuzzing
@@ -55,7 +56,9 @@ module Hecks
         value_object = Runtime::Value.value_object_for(aggregate, attribute.type.to_s)
         return object_for(value_object, aggregate, random: random, known_ids: known_ids) if value_object
 
-        primitive(attribute.type.to_s, random: random, name: "#{context} #{attribute.name}")
+        value = primitive(attribute.type.to_s, random: random, name: "#{context} #{attribute.name}")
+        # A pattern-refused draw is mended except at the edge-case rate, so the refusal path stays.
+        Bluebook::Synthesizer.within_pattern(attribute.pattern, value) { random.rand < EDGE_CASE_PROBABILITY }
       end
 
       # Generates a nested value for a whole value object: a random admitted
@@ -108,9 +111,7 @@ module Hecks
       # Unwrap only a genuinely single-field value object, never `invalid_member`: a wrong
       # combination stays a Hash so its wrongness is what gets exercised.
       def bare_or_hash(fields, random)
-        return fields.values.first if fields.size == 1 && random.rand < BARE_SCALAR_PROBABILITY
-
-        fields
+        fields.size == 1 && random.rand < BARE_SCALAR_PROBABILITY ? fields.values.first : fields
       end
 
       # A combination that (almost certainly) isn't one of the closed set's admitted rows,

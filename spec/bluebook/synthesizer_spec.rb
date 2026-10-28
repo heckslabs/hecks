@@ -35,6 +35,24 @@ RSpec.describe Hecks::Bluebook::Synthesizer do
     end
   end
 
+  describe ".field_value" do
+    let(:field) { Struct.new(:type, :pattern) }
+
+    def value_under(pattern) = described_class.field_value(chapter, order, field.new("String", pattern))
+
+    it "keeps the marker when the field declares no pattern or the pattern admits it" do
+      expect([value_under(nil), value_under("^[a-z-]+$")]).to eq(%w[smoke-test smoke-test])
+    end
+
+    it "gives a date when the marker fails a date pattern" do
+      expect(value_under("^[0-9]{4}-[0-9]{2}-[0-9]{2}$")).to eq("2026-01-01")
+    end
+
+    it "keeps the marker when no candidate fits, so the refusal stays visible" do
+      expect(value_under("^Z+$")).to eq("smoke-test")
+    end
+  end
+
   describe ".value_for" do
     it "uses a closed set's own first admitted member, never an arbitrary string" do
       value = described_class.value_for(chapter, order, "Size")
