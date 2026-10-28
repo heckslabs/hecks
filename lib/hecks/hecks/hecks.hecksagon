@@ -417,6 +417,9 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Search"
+    answers_query "ReadSource"
+    answers_query "Outline"
+    answers_query "Declaration"
   end
 
   Hecks::CodemodRun.port "SourceTree" do
