@@ -62,7 +62,10 @@ Hecks.bluebook "Banking" do
       attribute :narrative, Narrative
 
       lifecycle :state, default: "taken" do
-        transition "Dispute" => "disputed", from: "taken"
+        transition "Dispute"       => "disputed",   from: "taken"
+        transition "Reimburse"     => "reimbursed", from: "disputed"
+        transition "RejectDispute" => "taken",      from: "disputed"
+        mark :terminal, "reimbursed"
       end
 
       command "Dispute", from: "taken" do
@@ -78,6 +81,20 @@ Hecks.bluebook "Banking" do
         sets :narrative
 
         emits WithdrawalDisputed
+      end
+
+      command "Reimburse", from: "disputed" do
+        role "Teller"
+        goal "Give the customer back a withdrawal the bank agrees was not theirs"
+
+        emits WithdrawalReimbursed
+      end
+
+      command "RejectDispute", from: "disputed" do
+        role "Teller"
+        goal "Turn down a dispute the bank finds was the customer's own withdrawal"
+
+        emits WithdrawalDisputeRejected
       end
 
       query "Recent" do

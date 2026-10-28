@@ -117,6 +117,7 @@ Hecks.bluebook "Corrections" do
 
     lifecycle :status, default: "clean" do
       transition "Flag" => "flagged", from: "clean"
+      mark :terminal, "flagged"
     end
 
     command "Open" do
