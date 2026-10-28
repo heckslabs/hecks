@@ -51,7 +51,7 @@ module Hecks
       "project_diagrams" => Command.new(
         "Write a domain's Mermaid diagrams under ./docs/generated/diagrams/ (positional form only).",
         "hecks project_diagrams <domain-path> <ChapterName>  (writes) | " \
-        "hecks project_diagrams domain=<path> chapter=<Name>  (prints; writes nothing)",
+        "hecks project_diagrams domain=<path> bluebook=<Name>  (prints; writes nothing)",
         "cli/project_diagrams",
         ->(argv, program, _name) { ProjectDiagrams.call(argv, program: program, root: Dir.pwd) }
       ),

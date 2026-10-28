@@ -15,10 +15,10 @@ Hecks.bluebook "Hecks" do
       invariant("a domain is named by its path") { !value.to_s.empty? }
     end
 
-    value_object "ChapterName" do
+    value_object "BluebookName" do
       attribute :value, String, matches: :present
 
-      invariant("a chapter is named") { !value.to_s.empty? }
+      invariant("a bluebook is named") { !value.to_s.empty? }
     end
 
     value_object "AggregateName" do
@@ -64,7 +64,7 @@ Hecks.bluebook "Hecks" do
     query "Statements" do
       description "A bluebook's declared facts, as plain English sentences."
       attribute :domain,  DomainPath
-      attribute :chapter, ChapterName
+      attribute :bluebook, BluebookName
       returns Document
     end
 
@@ -109,14 +109,14 @@ Hecks.bluebook "Hecks" do
     query "ProjectDiagrams" do
       description "A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
-      attribute :chapter, ChapterName
+      attribute :bluebook, BluebookName
       returns list_of(ProjectedFile)
     end
 
     query "Glossary" do
       description "A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
-      attribute :chapter, ChapterName
+      attribute :bluebook, BluebookName
       returns list_of(ProjectedFile)
     end
   end
