@@ -344,7 +344,7 @@ Hecks.bluebook "Bluebook" do
       member refusal: "InvariantViolation", site: "admits_declared_set",
              template: "{name} admits {admits} — {admitted} — got {offered}"
       member refusal: "InvariantViolation", site: "undeclared_set",
-             template: "{name} admits {admits}, which this chapter does not declare — a closed set is named " \
+             template: "{name} admits {admits}, which this bluebook does not declare — a closed set is named " \
                        "Aggregate::SetName, and it must be one the bluebook actually holds"
       # ADR 0061 decision D1: a group_by leaf holds one row, so two rows
       # reaching the same full key path refuse at dispatch rather than one

@@ -156,12 +156,12 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
                 let mut known: Vec<&str> = framework_members.iter().map(|(n, _)| n.as_str()).collect();
                 known.extend(other_gem_chapters.iter().map(String::as_str));
                 known.sort_unstable();
-                format!("hecks-build: attaches {fw_name:?} names no chapter the gem carries — known: {}", known.join(", "))
+                format!("hecks-build: attaches {fw_name:?} names no bluebook the gem carries — known: {}", known.join(", "))
             })?;
         let fw_chapter_name = resolve::header_chapter_name(&fw_path)?;
         if &fw_chapter_name != fw_name {
             return Err(format!(
-                "hecks-build: {} declares chapter {fw_chapter_name:?}, but attaches named {fw_name:?}",
+                "hecks-build: {} declares bluebook {fw_chapter_name:?}, but attaches named {fw_name:?}",
                 fw_path.display()
             ));
         }
@@ -186,7 +186,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         let expected_chapter_name = crate::hecks_naming::pascal(pkg_name);
         if pkg_chapter_name != expected_chapter_name {
             return Err(format!(
-                "hecks-build: {} declares chapter {pkg_chapter_name:?}, but attaches {pkg_name:?}, from: :vendor \
+                "hecks-build: {} declares bluebook {pkg_chapter_name:?}, but attaches {pkg_name:?}, from: :vendor \
                  expects {expected_chapter_name:?}",
                 pkg_files[0].display()
             ));

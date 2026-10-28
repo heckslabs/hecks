@@ -130,7 +130,7 @@ impl Parser<'_> {
                 header.line,
                 header.col_of("name"),
                 format!(
-                    "these examples are about '{named}', but the chapter is '{}'",
+                    "these examples are about '{named}', but the bluebook is '{}'",
                     chapter.name
                 ),
             ));

@@ -518,7 +518,7 @@ fn a_policy_running_no_such_command_lists_the_commands() {
     let error = refusal("policy_command.bluebook", &source);
     assert!(
         error.contains(
-            "'archive' is not one command of this chapter. The commands are: draft, publish"
+            "'archive' is not one command of this bluebook. The commands are: draft, publish"
         ),
         "{error}"
     );

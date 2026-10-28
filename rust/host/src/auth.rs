@@ -465,7 +465,7 @@ async fn member_rows(store: &Store, domain_ir: &Value) -> anyhow::Result<Vec<(St
 fn membership_aggregate(domain_ir: &Value) -> anyhow::Result<(String, String)> {
     let provider = crate::ir::membership_provider(domain_ir).ok_or_else(|| {
         anyhow::anyhow!(
-            "this domain attaches no chapter that provides \"membership\" — cannot resolve who may sign in"
+            "this domain attaches no bluebook that provides \"membership\" — cannot resolve who may sign in"
         )
     })?;
     Ok(membership_names(&provider.aggregate))
@@ -589,7 +589,7 @@ pub async fn provision(
     // never a hard-coded bluebook. Link's reference field is `identity`, not
     // `identity_id` -- changing this silently breaks linking.
     let Some(identity) = crate::ir::identity_provider(domain_ir) else {
-        anyhow::bail!("this domain attaches no chapter that provides \"identity\" — cannot register or link an identity");
+        anyhow::bail!("this domain attaches no bluebook that provides \"identity\" — cannot register or link an identity");
     };
 
     // Reuse an Identity already registered+linked for this (issuer, subject)
@@ -646,7 +646,7 @@ pub async fn provision(
     // (`ir::authorization_provider`), never a hard-coded bluebook.
     let Some(provider) = crate::ir::authorization_provider(domain_ir) else {
         anyhow::bail!(
-            "this domain attaches no chapter that provides \"authorization\" — cannot grant a role"
+            "this domain attaches no bluebook that provides \"authorization\" — cannot grant a role"
         );
     };
     let assign_role = dispatch::handle(Host::new(store, wasm_path, config, invoker), &provider.grant, json!({
