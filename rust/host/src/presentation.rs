@@ -2,8 +2,8 @@
 //! read from the attached kernel or else Ruby's Postgres head views (ADR 0059).
 
 use crate::dispatch;
-use crate::journal::{self, LineageConfig};
-use crate::store::{LineageStore, Store};
+use crate::journal::LineageConfig;
+use crate::store::Store;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -35,10 +35,9 @@ pub async fn load(
 /// The Ruby-written relations, split out so the kernel path above reads
 /// as the one decision it is, and so tests can drive this half directly.
 async fn load_from_relations(store: &Store, config: &LineageConfig) -> anyhow::Result<Value> {
-    let lineage = store.require_lineage()?;
-    let states = read_head_states(lineage, &config.domain, STATE_STYLE).await?;
-    let collections = read_head_states(lineage, &config.domain, COLLECTION).await?;
-    let overview = read_head_states(lineage, &config.domain, OVERVIEW).await?;
+    let states = read_head_states(store, &config.domain, STATE_STYLE).await?;
+    let collections = read_head_states(store, &config.domain, COLLECTION).await?;
+    let overview = read_head_states(store, &config.domain, OVERVIEW).await?;
     Ok(reshape(&states, &collections, &overview))
 }
 
@@ -149,31 +148,16 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
     Value::Object(config)
 }
 
-/// Every live `state` document for one ConsoleSettings aggregate.
-///
-/// Tries several relation names in order (see `head_view_candidates`) because different runtimes
-/// have written these rows under different names, all answering the same `id`/`state` columns.
+/// Every live `state` document for one ConsoleSettings aggregate, from the host's own heads or
+/// else the chapter's (ADR 0059).
 async fn read_head_states(
-    lineage: &LineageStore,
+    store: &Store,
     host_domain: &str,
     storage_name: &str,
 ) -> anyhow::Result<Vec<Value>> {
-    lineage
-        .first_existing_states(&head_view_candidates(host_domain, storage_name))
-        .await
-}
-
-/// Pure, and tested as such. Deduplicated, so a host domain that is
-/// ConsoleSettings never probes one relation twice.
-fn head_view_candidates(host_domain: &str, storage_name: &str) -> Vec<String> {
-    let mut candidates = vec![
-        journal::head_view(host_domain, storage_name),
-        journal::head_view(CONFIG_DOMAIN, storage_name),
-        format!("{storage_name}_head"),
-        storage_name.to_string(),
-    ];
-    candidates.dedup();
-    candidates
+    Ok(store
+        .head_states(&[host_domain, CONFIG_DOMAIN], storage_name)
+        .await?)
 }
 
 /// `PresentationConfig.unwrap` — every scalar here is a single-attribute
@@ -446,31 +430,6 @@ mod tests {
 
     // Row literals below are copied from the real rows the console
     // app's own database holds, not invented shapes.
-
-    #[test]
-    fn head_view_candidates_cover_every_relation_a_runtime_has_written_these_rows_to() {
-        assert_eq!(
-            head_view_candidates("SampleApp", "state_style"),
-            vec![
-                "sample_app_state_style_head".to_string(),
-                "console_settings_state_style_head".to_string(),
-                "state_style_head".to_string(),
-                "state_style".to_string()
-            ]
-        );
-    }
-
-    #[test]
-    fn a_host_whose_own_domain_is_the_chapter_never_probes_one_relation_twice() {
-        assert_eq!(
-            head_view_candidates("ConsoleSettings", "state_style"),
-            vec![
-                "console_settings_state_style_head".to_string(),
-                "state_style_head".to_string(),
-                "state_style".to_string()
-            ]
-        );
-    }
 
     #[test]
     fn a_state_row_becomes_a_tone_an_attention_flag_and_its_extras() {

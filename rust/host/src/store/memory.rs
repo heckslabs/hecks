@@ -149,6 +149,23 @@ impl MemoryStore {
             .unwrap_or_default()
     }
 
+    /// Every head state of the first of `domains` that keeps heads for `storage_name`, by id.
+    pub(super) fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> Vec<serde_json::Value> {
+        let data = self.read();
+        domains
+            .iter()
+            .find_map(|domain| {
+                data.heads
+                    .get(&(domain.to_string(), storage_name.to_string()))
+            })
+            .map(|rows| rows.values().cloned().collect())
+            .unwrap_or_default()
+    }
+
     /// The head row whose `matches` fields all hold, from the first of `domains` that has a head
     /// for `storage_name`; that head decides, as the first existing Postgres view does.
     pub(super) fn head_find(

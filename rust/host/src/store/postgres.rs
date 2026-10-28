@@ -23,17 +23,21 @@ pub struct LineageStore {
 }
 
 impl LineageStore {
-    /// Every live `state` document of the first of `relations` that exists, empty when none does.
-    /// `to_regclass` resolves through the connection's own `search_path`, so a same-named
-    /// relation in another schema is never read; one that exists but fails to read still errors.
-    pub async fn first_existing_states(
+    /// Every live `state` document of the first head that exists, trying the head view of each of
+    /// `domains` in turn, then the plain `<storage>_head` view and the plain table, because
+    /// different runtimes have written these rows under different names. A relation that exists
+    /// but fails to read still errors; none existing answers empty.
+    pub async fn head_states(
         &self,
-        relations: &[String],
+        domains: &[&str],
+        storage_name: &str,
     ) -> anyhow::Result<Vec<serde_json::Value>> {
         let client = self.lock().await;
-        for relation in relations {
+        for relation in head_relations(domains, storage_name) {
+            // `to_regclass` resolves through the connection's own `search_path`, so a same-named
+            // relation in another schema is never read.
             let exists: bool = client
-                .query_one("SELECT to_regclass($1) IS NOT NULL", &[relation])
+                .query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation])
                 .await?
                 .get(0);
             if !exists {
@@ -41,7 +45,10 @@ impl LineageStore {
             }
             let rows = client
                 .query(
-                    &format!("SELECT state FROM {}", journal::quote_ident(relation)),
+                    &format!(
+                        "SELECT state FROM {} ORDER BY id COLLATE \"C\"",
+                        journal::quote_ident(&relation)
+                    ),
                     &[],
                 )
                 .await?;
@@ -309,5 +316,49 @@ impl Drop for PostgresUnit<'_> {
                 .as_mut()
                 .poll(&mut Context::from_waker(Waker::noop()));
         }
+    }
+}
+
+/// The relations a head may live in, in the order they are tried: each domain's head view, the
+/// plain `<storage>_head` view, then the plain table. Deduplicated, so a domain named twice never
+/// probes one relation twice.
+fn head_relations(domains: &[&str], storage_name: &str) -> Vec<String> {
+    let mut relations: Vec<String> = domains
+        .iter()
+        .map(|domain| journal::head_view(domain, storage_name))
+        .collect();
+    relations.push(format!("{storage_name}_head"));
+    relations.push(storage_name.to_string());
+    relations.dedup();
+    relations
+}
+
+#[cfg(test)]
+mod tests {
+    use super::head_relations;
+
+    #[test]
+    fn head_relations_cover_every_relation_a_runtime_has_written_these_rows_to() {
+        assert_eq!(
+            head_relations(&["SampleApp", "ConsoleSettings"], "state_style"),
+            vec![
+                "sample_app_state_style_head".to_string(),
+                "console_settings_state_style_head".to_string(),
+                "state_style_head".to_string(),
+                "state_style".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn a_domain_named_twice_never_probes_one_relation_twice() {
+        assert_eq!(
+            head_relations(&["ConsoleSettings", "ConsoleSettings"], "state_style"),
+            vec![
+                "console_settings_state_style_head".to_string(),
+                "state_style_head".to_string(),
+                "state_style".to_string()
+            ]
+        );
     }
 }

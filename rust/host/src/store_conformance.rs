@@ -684,6 +684,30 @@ mod cases {
         );
     }
 
+    pub(super) async fn the_first_domain_that_keeps_heads_answers_every_state<B: Backend>(
+        db: &str,
+    ) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+        assert!(store
+            .head_states(&[DOMAIN, "Chapter"], "customer")
+            .await
+            .unwrap()
+            .is_empty());
+
+        save_head(store, "b", &member("b@x.test", "viewer")).await;
+        save_head(store, "a", &member("a@x.test", "admin")).await;
+
+        assert_eq!(
+            store
+                .head_states(&["Elsewhere", DOMAIN], "customer")
+                .await
+                .unwrap_or_default(),
+            vec![member("a@x.test", "admin"), member("b@x.test", "viewer")],
+            "in id order, from the first domain that has heads"
+        );
+    }
+
     pub(super) async fn a_head_write_without_an_era_is_refused_and_leaves_nothing<B: Backend>(
         db: &str,
     ) {
@@ -1010,6 +1034,7 @@ mod postgres {
         a_saved_head_is_read_back_by_id_and_in_full,
         a_head_is_found_by_the_fields_it_holds,
         an_amended_head_is_read_and_written_as_one_step,
+        the_first_domain_that_keeps_heads_answers_every_state,
         a_head_write_without_an_era_is_refused_and_leaves_nothing,
         a_unit_commits_a_saga_and_then_its_deletion,
     );
@@ -1159,6 +1184,7 @@ mod memory {
         a_saved_head_is_read_back_by_id_and_in_full,
         a_head_is_found_by_the_fields_it_holds,
         an_amended_head_is_read_and_written_as_one_step,
+        the_first_domain_that_keeps_heads_answers_every_state,
         a_head_write_without_an_era_is_refused_and_leaves_nothing,
         a_unit_commits_a_saga_and_then_its_deletion,
     );

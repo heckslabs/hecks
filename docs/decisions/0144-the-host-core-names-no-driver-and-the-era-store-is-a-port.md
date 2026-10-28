@@ -2,8 +2,8 @@
 
 **Status:** Proposed. Built on this branch: the Postgres journal and era SQL under `store/`, the
 `tokio_postgres` entry in the boundary scan, `LineageStore::first_existing_states`, and
-`lib/hecks/ports/dispatch.port`, and the first slice of the era store (heads). Not built: the
-rest of the era store, the crate split and the evaluator merge. Date: 2026-10-28.
+`lib/hecks/ports/dispatch.port`, and the era store's heads. Not built: eras on Memory (undecided), the
+crate split and the evaluator merge. Date: 2026-10-28.
 
 ## Context
 
@@ -36,20 +36,23 @@ An outside review of the ports and adapters found the hexagon held in the Ruby r
 
 4. **Host: the era store's head surface is on `Store`, on both backends.** `head_by_id`,
    `head_all`, `head_find`, `put_head` and `amend_head` (read the heads, decide, write at most one
-   row, atomically) replace the raw connection in the member and sign-in code in `auth.rs`.
+   row, atomically) replace the raw connection in the member and sign-in code in `auth.rs`, and `head_states` does the
+   same for `presentation`.
    Memory keeps heads in process and fills them from a committed step's lineage mutations.
-   `store_conformance` runs four head cases on Postgres and Memory. They found one divergence,
+   `store_conformance` runs five head cases on Postgres and Memory. They found one divergence,
    now fixed: `head_all` answers in id byte order on both (Postgres had answered in storage order).
    `head_find` falls back to the plain `<storage>_head` view on Postgres, which the session lookup
    did not before; a missing head view there now answers `None` instead of an error.
 
 ## Not yet decided, in order
 
-- **The rest of the era store.** Heads are done for `auth.rs`. Still on a raw Postgres connection:
-  `presentation`'s head-state read (`LineageStore::first_existing_states`), boot's era decision
-  (`held_eras`, `current_era`) and minting (`store/mint.rs`), and the ledger seals (`last_ordinal`).
-  Each moves onto `Store` with a Memory implementation and a conformance case, and then
-  `Store::lineage()` and `require_lineage` go.
+- **The rest of the era store.** Heads are done for `auth.rs` and `presentation`, and no domain-side
+  code takes a raw Postgres connection any more. What remains is Postgres provisioning that belongs
+  to the adapter: boot's era decision (`held_eras`, `current_era`) and minting (`store/mint.rs`),
+  and the ledger seals, which the Postgres commit and the operator tools run. Whether Memory should
+  hold eras at all is open: it mints nothing today and `has_lineage` is false for it. If it should,
+  eras move onto `Store` with a conformance case each; if not, `Store::lineage()` stays as the
+  adapter's own handle and the port is complete.
 - **A core crate and an adapters crate.** `rust/host` becomes a core (dispatch, journal data,
   IR, expression and presentation code, the `Store` trait) that cannot name `axum`, `reqwest`,
   `tokio_postgres` or the AWS SDK, because they are not in its `Cargo.toml`. The compiler then
