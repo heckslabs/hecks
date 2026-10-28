@@ -37,7 +37,7 @@ module Hecks
                           .find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
           return attached if attached
 
-          # Falls back to any loaded chapter: a consuming domain often wires Identity as
+          # Falls back to any loaded bluebook: a consuming domain often wires Identity as
           # Hecks.hecksagon "Identity" rather than via `attaches`, so it's loaded but
           # not listed on the consumer's own hecksagon.
           bluebooks.values.find { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }

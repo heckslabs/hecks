@@ -117,7 +117,8 @@ module Hecks
       end
 
       # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it. An
-      # `.adapter` among them stands in for the shared root's adapters, which are then left unloaded, so a
+      # `.adapter` among them stands in for the shared root's adapters, which are then left
+      # unloaded, so a
       # test can answer a port with its own adapter and never construct the domain's real one.
       def self.load_files(loading, files, shared, overlay)
         directory = File.dirname(files.first)

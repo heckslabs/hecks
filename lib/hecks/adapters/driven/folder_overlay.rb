@@ -1,14 +1,14 @@
 module Hecks
   module Adapters
     # The files a copy of a domain keeps for itself, loaded after the domain's own: its overlay,
-    # its chapters' local worlds, and a named environment's overlay. `Folder` mixes this in.
+    # its bluebooks' local worlds, and a named environment's overlay. `Folder` mixes this in.
     module FolderOverlay
       # The overlay one copy of a domain keeps for itself, such as the database its own runs
       # record to. `.gitignore` keeps it out of the repository, so no other copy ever reads it.
       LOCAL_OVERLAY = "local".freeze
 
-      # A chapter's local files, `<chapter>.local.hecksagon` and `<chapter>.local.world`: where a
-      # copy, or a client's working directory, opts a chapter into persistence, the hecksagon with
+      # A bluebook's local files, `<chapter>.local.hecksagon` and `<chapter>.local.world`: where a
+      # copy, or a client's working directory, opts a bluebook into persistence, the hecksagon with
       # `persisted_by` and the world with the values. The base names no persistence, so Memory is
       # the default.
       LOCAL_FILES = %w[*.local.hecksagon *.local.world].freeze

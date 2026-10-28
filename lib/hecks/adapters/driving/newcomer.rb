@@ -25,7 +25,8 @@ module Hecks
           PROJECT_GLOBS.none? { |pattern| bluebook_under?(dir, pattern) }
         end
 
-        # The help options a newcomer gets: only the setting's `newcomer` commands, and no bluebooks.
+        # The help options a newcomer gets: only the setting's `newcomer` commands, and no
+        # bluebooks.
         #
         # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @return [Hash{Symbol => Object}, nil] `:only` and `:chapters`, or nil when the bluebook

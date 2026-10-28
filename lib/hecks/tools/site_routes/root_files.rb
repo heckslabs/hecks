@@ -26,15 +26,16 @@ module Hecks
         # `Payload` row.
         #
         # @param base [String] the directory the project's root files are written under
-        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the rows
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the
+        #   rows
         # @return [Hash{String => String}] each file's path relative to `base` to its text
         def payload_files(base, chapter)
           row = Projections::Site::PayloadDriver::PAYLOAD.read(chapter).first
           return {} unless row
 
           domain_root = File.join(base, row[:domain])
-          domain = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == row[:chapter] }
-          abort "project_site: #{domain_root} declares no bluebook #{row[:chapter]}" unless domain
+          domain = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == row[:bluebook] }
+          abort "project_site: #{domain_root} declares no bluebook #{row[:bluebook]}" unless domain
           Projector.call(:payload_driver, bluebook: chapter, options: { domain_chapter: domain })
         rescue ArgumentError => e
           abort "project_site: #{e.message}"

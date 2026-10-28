@@ -172,7 +172,7 @@ module Hecks
         Hecks.with_registry(scratch) do
           loading.load_library
           # Held text of a bluebook spread over files is several blocks in one string, each
-          # opening the same chapter: judge once after all of them, as a directory load does.
+          # opening the same bluebook: judge once after all of them, as a directory load does.
           Hecks::Bluebook::MetaValidator.defer { Kernel.eval(source, TOPLEVEL_BINDING, path, 1) }
           Hecks::Bluebook::MetaValidator.judge_deferred!(scratch)
         end

@@ -1,9 +1,9 @@
 module Hecks
   module Adapters
     module Driving
-      # The `launcher` setting's keys that name bluebooks. `bluebooks` and `maintainer_bluebooks` are
-      # the keys; `chapters` and `maintainer_chapters` are their retired spellings, still read, each
-      # use saying on standard error which key replaces it (ADR 0134).
+      # The `launcher` setting's keys that name bluebooks. `bluebooks` and `maintainer_bluebooks`
+      # are the keys; `chapters` and `maintainer_chapters` are their retired spellings, still read,
+      # each use saying on standard error which key replaces it (ADR 0134).
       module LauncherBluebookKeys
         module_function
 

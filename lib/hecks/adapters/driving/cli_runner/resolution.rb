@@ -78,7 +78,8 @@ module Hecks
           end
 
           # What the help leaves out and points at for whoever typed the line: the maintainer's
-          # aggregates only in a hecks checkout, and the bluebooks the bluebook's launcher names, each
+          # aggregates only in a hecks checkout, and the bluebooks the bluebook's launcher names,
+          # each
           # with the first sentence of what it is for.
           #
           # @return [Hash{Symbol => Object}] `:hide` and `:chapters` (pairs of word and summary)

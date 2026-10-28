@@ -25,7 +25,8 @@ module Hecks
       #
       # @param bluebook [Bluebook::Declaration] the bluebook the app drives
       # @param options [Hash] the registry's call shape
-      # @option options [Array<Bluebook::Declaration>] :route_chapters every bluebook the routes file
+      # @option options [Array<Bluebook::Declaration>] :route_chapters every bluebook the routes
+      #   file
       #   draws, when the app drives more than this one; this bluebook alone when absent
       # @return [Hash{String => String}] each file's path in the app to its text
       def call(bluebook:, options: {})

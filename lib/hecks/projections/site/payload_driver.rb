@@ -27,11 +27,11 @@ module Hecks
 
         # The `Payload` row.
         PAYLOAD = RootRows.new("Payload",
-                               fields:   { domain: String, chapter: String, out: String, hecks: String, helpers: String,
+                               fields:   { domain: String, bluebook: String, out: String, hecks: String, helpers: String,
 skip: String },
-                               required: %i[domain chapter],
+                               required: %i[domain bluebook],
                                defaults: { out: "cms/src/generated", hecks: "cms/src/driver/hecks",
-                                           helpers: "cms/src/collections/hooks/content", skip: "" })
+                                           helpers: "cms/src/collections/hooks/content", skip: "" }).renaming(chapter: :bluebook)
 
         # A `PayloadField` row: what the editor needs for one attribute (or `attribute.part` of a
         # composite).
@@ -44,7 +44,8 @@ skip: String },
 
         module_function
 
-        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the rows
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the
+        #   rows
         # @param options [Hash{Symbol => Object}] `:domain_chapter` the domain's bluebook, or nil
         # @return [Hash{String => String}] each file's path relative to the project root to its
         #   text; empty when the project declares no `Payload` row

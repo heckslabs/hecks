@@ -1,6 +1,6 @@
-# The Composer chapter: a bluebook being written in an editor, by hand or by asking an agent.
+# The Composer bluebook: a bluebook being written in an editor, by hand or by asking an agent.
 #
-# A Draft is the editor's working copy of one chapter: the text on screen, the conversation that
+# A Draft is the editor's working copy of one bluebook: the text on screen, the conversation that
 # shaped it, and whether the last check of it passed. The files on disk stay the truth; a Draft
 # only holds what is being changed and what was said about it. The check itself (parse, load,
 # project, model-check) and the agent that rewrites the text are the outside, reached through the

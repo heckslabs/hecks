@@ -13,7 +13,8 @@ module Hecks
         # @param domain_name [String] the domain to export the authorization binding for
         # @return [Hash{Symbol => String, nil}] `:provider` (name), `:grant`, `:assignments` and
         #   `:live_assignments` (provided-verb names), and `:assignment_aggregate`
-        #   (`:assignments`' own leading aggregate name); `{}` if nothing this domain attaches provides
+        #   (`:assignments`' own leading aggregate name); `{}` if nothing this domain attaches
+        #   provides
         #   authorization
         def authorization(registry, domain_name)
           provider = registry.authorization_provider_for(domain_name)
@@ -86,7 +87,8 @@ module Hecks
           keys.to_h { |key| [key, provider.provided_verb(capability, key)] }
         end
 
-        # Every capability name a loaded bluebook provides that the language defines no contract for.
+        # Every capability name a loaded bluebook provides that the language defines no contract
+        # for.
         def package_capabilities(registry)
           provided_capabilities(registry).reject { |capability| Bluebook::Capabilities.language_defined?(capability) }
         end

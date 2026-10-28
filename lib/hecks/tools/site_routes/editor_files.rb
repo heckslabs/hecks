@@ -26,14 +26,15 @@ module Hecks
 
         # @return [Hash{Symbol => Object}] the bluebooks the editor reads, and the route table
         def options(project, setting, site)
-          chosen = { domain_chapters: setting.chapters.map { |name| domain_chapter(project, setting, name) }, table: site.table }
+          chosen = { domain_chapters: setting.bluebooks.map { |name| domain_chapter(project, setting, name) }, table: site.table }
           chosen[:media_chapter] = domain_chapter(project, setting, setting.media_chapter) if setting.media_chapter
           chosen
         end
 
         # @param name [String] the bluebook to find; the row's first `chapter` unless given
-        # @return [Bluebook::Declaration] the bluebook the `Editor` row names, from its domain directory
-        def domain_chapter(project, setting, name = setting.chapter)
+        # @return [Bluebook::Declaration] the bluebook the `Editor` row names, from its domain
+        #   directory
+        def domain_chapter(project, setting, name = setting.bluebook)
           domain_root = File.join(project, setting.domain)
           chapter = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == name }
           abort "project_site: #{domain_root} declares no bluebook #{name}" unless chapter

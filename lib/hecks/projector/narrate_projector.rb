@@ -38,7 +38,8 @@ module Hecks
         parts.compact.join("\n\n")
       end
 
-      # The bluebook's classification and former name as one paragraph, or `nil` when it has neither.
+      # The bluebook's classification and former name as one paragraph, or `nil` when it has
+      # neither.
       def chapter_meta(bluebook)
         meta = []
         meta << "This is a #{bluebook.classification} domain." if bluebook.classification

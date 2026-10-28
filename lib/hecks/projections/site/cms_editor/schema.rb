@@ -27,10 +27,12 @@ module Hecks
         # A query that `returns` a value object is answered outside the domain and is left out: the
         # host refuses it, so a list cannot be built from it.
         class Schema
-          # @param bluebooks [Bluebook::Declaration, Array<Bluebook::Declaration>] the bluebook, or the
+          # @param bluebooks [Bluebook::Declaration, Array<Bluebook::Declaration>] the bluebook, or
+          #   the
           #   bluebooks in the order the row names them; the first names the domain addressed
           # @param skip [Array<String>] aggregates to leave out: `Name`, or `Chapter::Name`
-          # @param pictures [Bluebook::Declaration, nil] another bluebook whose picture aggregate the
+          # @param pictures [Bluebook::Declaration, nil] another bluebook whose picture aggregate
+          #   the
           #   editor's pictures use, in place of any in `chapters`
           # @param roles [Hash{String => Array<String>}] the roles each bluebook is limited to
           # @return [Hash{String => Object}] the domain's name and its aggregates; `chapters` too
@@ -64,7 +66,7 @@ module Hecks
             chapter && chapter != first ? found.merge("domain" => chapter) : found
           end
 
-          # The picture aggregate of another chapter: the same record as one in the editor's own
+          # The picture aggregate of another bluebook: the same record as one in the editor's own
           # bluebook, with the bluebook's name and the aggregate itself, since the editor's own
           # aggregates do not hold it.
           #

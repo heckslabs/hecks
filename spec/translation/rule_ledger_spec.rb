@@ -3,7 +3,7 @@ require "hecks/grammar"
 require "hecks/ports/persistence/plugins/era/translation/rule_compiler"
 
 # The translation execution ledger (lib/hecks/grammar/translation_rules.json), replayed through the
-# translation chapter: every rule kind executes in postgres, sqlite and in_process, and the rule
+# translation bluebook: every rule kind executes in postgres, sqlite and in_process, and the rule
 # compiler's Postgres SQL is the ledger's templates filled, byte for byte what it compiled before.
 RSpec.describe "the translation execution ledger" do
   TARGETS = %w[postgres sqlite in_process].freeze

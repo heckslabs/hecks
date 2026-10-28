@@ -167,7 +167,8 @@ module Hecks
     end
 
     # @param root [String] the checkout
-    # @return [Result] `rust/host/core/src/field_hints.rs`, the hints the host's form fields guess from
+    # @return [Result] `rust/host/core/src/field_hints.rs`, the hints the host's form fields guess
+    #   from
     def field_hints(root)
       require "hecks"
       vocabulary = chapter.aggregates.find { |aggregate| aggregate.hecks_name == "Vocabulary" }

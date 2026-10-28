@@ -35,7 +35,7 @@ Hecks.bluebook "PagesSite" do
 
     value_object "Editor" do
       attribute :domain,         String
-      attribute :chapter,        String
+      attribute :bluebook,       String
       attribute :base_path,      String
       attribute :session_cookie, String
       attribute :host_cookie,    String
@@ -45,7 +45,7 @@ Hecks.bluebook "PagesSite" do
       attribute :login,          String
       attribute :title,          String
 
-      member domain: "domain", chapter: "Layouts, Pictures",
+      member domain: "domain", bluebook: "Layouts, Pictures",
              base_path: "/editor", session_cookie: "pages_editor", host_cookie: "pages_session",
              host_env: "PAGES_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4500",
              roles: "Admin,Owner", login: "/admin-login", title: "Pages editor"

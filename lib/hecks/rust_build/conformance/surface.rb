@@ -87,7 +87,8 @@ module Hecks
           theirs.merge(cross_domain_surface(kernel_deliveries(theirs["cross_domain_reactions"])))
         end
 
-        # The kernel's per-step cross-domain reactions as one list of policy, target verb and payload.
+        # The kernel's per-step cross-domain reactions as one list of policy, target verb and
+        # payload.
         def kernel_deliveries(per_step)
           Array(per_step).flatten.map { |row| row.slice("policy", "target_verb", "payload") }
         end

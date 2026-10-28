@@ -46,7 +46,8 @@ module Hecks
         @kept = {}
 
         class << self
-          # @return [Hash{String => Hash}] per checkout root, the scan and the stamp it was built from
+          # @return [Hash{String => Hash}] per checkout root, the scan and the stamp it was built
+          #   from
           attr_reader :kept
         end
 

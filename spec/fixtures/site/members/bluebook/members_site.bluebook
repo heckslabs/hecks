@@ -107,10 +107,10 @@ Hecks.bluebook "MembersSite" do
 
     value_object "Payload" do
       attribute :domain,  String
-      attribute :chapter, String
+      attribute :bluebook, String
       attribute :skip,    String
 
-      member domain: "domain", chapter: "Club"
+      member domain: "domain", bluebook: "Club"
     end
 
     value_object "PayloadField" do

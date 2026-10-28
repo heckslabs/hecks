@@ -42,7 +42,7 @@ module Hecks
         end
       end
 
-      # The app's chapters: every bluebook the boot loaded except a framework member or another
+      # The app's bluebooks: every bluebook the boot loaded except a framework member or another
       # bluebook a hecksagon only attaches.
       def own_chapters
         registry = Hecks.describe(bluebook_dir, environment: nil).registry

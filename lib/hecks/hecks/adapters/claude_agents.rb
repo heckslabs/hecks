@@ -61,8 +61,10 @@ module Hecks
       # Reads the state a started session reports.
       #
       # @param held [Hash] the `AgentRun` record: `session`
-      # @return [Hash{Symbol => String}] `condition:` the state the session reports, as a bare string
-      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed or this one is not among them
+      # @return [Hash{Symbol => String}] `condition:` the state the session reports, as a bare
+      #   string
+      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed or this one is not among
+      #   them
       def examine(**held)
         id = plain(held[:session])
         listing = @shell.capture(@command, "agents", "--json", "--all")

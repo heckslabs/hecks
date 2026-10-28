@@ -34,7 +34,7 @@ module Hecks
 
         module_function
 
-        # Whether a hecksagon of the domain attaches the Bulk chapter: only such a domain can run
+        # Whether a hecksagon of the domain attaches the Bulk bluebook: only such a domain can run
         # a bulk run, so only its seeds pay for the two extra boots.
         #
         # @param domain_path [String] the domain directory

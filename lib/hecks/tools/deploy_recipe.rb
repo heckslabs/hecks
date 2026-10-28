@@ -32,7 +32,8 @@ module Hecks
       Options = Struct.new(:tenant, :out, :environment, :target)
 
       # What the generator resolved about a domain: its directory, the flags, the `.world` file and
-      # its declaration, the `deployed_to` settings, the stack's name, the registry and the bluebook.
+      # its declaration, the `deployed_to` settings, the stack's name, the registry and the
+      # bluebook.
       Deployment = Struct.new(:domain, :options, :world_file, :world, :settings, :infra_name, :registry, :chapter) do
         # @return [Hash{Symbol => String}] the `--tenant` and `--schema` flags
         def tenant = options.tenant

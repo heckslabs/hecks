@@ -1,4 +1,4 @@
-# The RailsApp chapter: what a Rails app says of its own pages, beside the domain it drives.
+# The RailsApp bluebook: what a Rails app says of its own pages, beside the domain it drives.
 #
 # Every page is derived from the domain: a list and a form for each creating command, a record
 # page that offers the commands the signed-in person may run. A project declares only what the

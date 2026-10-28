@@ -35,8 +35,8 @@ Hecks.bluebook "PressSite" do
 
     value_object "Editor" do
       attribute :domain,         String
-      attribute :chapter,        String
-      attribute :chapter_roles,  String
+      attribute :bluebook,       String
+      attribute :bluebook_roles, String
       attribute :page_size,      String
       attribute :base_path,      String
       attribute :session_cookie, String
@@ -47,7 +47,7 @@ Hecks.bluebook "PressSite" do
       attribute :login,          String
       attribute :title,          String
 
-      member domain: "domain", chapter: "Press, Library", chapter_roles: "Library=Admin", page_size: "2",
+      member domain: "domain", bluebook: "Press, Library", bluebook_roles: "Library=Admin", page_size: "2",
              base_path: "/editor", session_cookie: "press_editor", host_cookie: "press_session",
              host_env: "PRESS_DOMAIN_SERVICE_URL", host_default: "http://127.0.0.1:4500",
              roles: "Admin,Owner", login: "/admin-login", title: "Press editor"

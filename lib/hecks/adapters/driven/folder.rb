@@ -83,7 +83,8 @@ module Hecks
       #
       # Files load by category, not in the caller's order: bluebooks (judged as one deferred
       # group), then hecksagons, worlds and context maps, since a hecksagon may reference bluebook
-      # constants, then any adapters named, which stand in for the shared root's (see `Loader.load_files`).
+      # constants, then any adapters named, which stand in for the shared root's (see
+      # `Loader.load_files`).
       #
       # @param files [Array<String>] file paths to load, relative to `bluebook_directory`
       # @param environment [String, nil] the environment name whose overlay, if present,
