@@ -34,6 +34,14 @@ pub fn source(name: &str) -> Option<&'static str> {
         .map(|(_, source)| *source)
 }
 
+/// The name the language gives `source`, or `None` when no name stands for exactly that regex.
+pub fn name_of(source: &str) -> Option<&'static str> {
+    TABLE
+        .iter()
+        .find(|(_, given)| *given == source)
+        .map(|(name, _)| *name)
+}
+
 /// Every name the language gives, in table order.
 pub fn names() -> Vec<&'static str> {
     TABLE.iter().map(|(name, _)| *name).collect()
