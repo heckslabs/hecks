@@ -1,6 +1,7 @@
 # Banking's context map (ADR 0135): the contexts it holds and how they relate, written before the
 # wiring and held against it by `model_check`. Each relationship runs from the upstream context that
-# supplies to the downstream one that consumes.
+# supplies to the downstream one that consumes. An `attaches` is a conformist relationship already
+# (ADR 0155): Banking's takes of Governance, Identity and Bulk, and theirs of Governance, go unwritten.
 Hecks.context_map "Banking" do
   context "Banking"
   context "Compliance"
@@ -13,13 +14,6 @@ Hecks.context_map "Banking" do
   # Banking; Notifications publishes none, so a subscription to it would be undeclared.
   relate "Compliance"    => "Banking", as: :customer_supplier, published: %w[ReviewOpened]
   relate "Notifications" => "Banking", as: :customer_supplier
-
-  # Banking attaches these and takes their model as it is.
-  relate "Governance" => "Banking",  as: :conformist
-  relate "Identity"   => "Banking",  as: :conformist
-  relate "Bulk"       => "Banking",  as: :conformist
-  relate "Governance" => "Identity", as: :conformist
-  relate "Governance" => "Bulk",     as: :conformist
 
   # Notifications and Identity share nothing: no coupling between them may appear.
   separate_ways "Notifications", "Identity"

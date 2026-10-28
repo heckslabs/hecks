@@ -92,4 +92,74 @@ Hecks.bluebook "LifecycleFindings" do
       emits "Escalated"
     end
   end
+
+  # A state marked :terminal raises no stuck_state: Shipment ends deliberately in "closed".
+
+  aggregate "Shipment" do
+    identified_by :code
+
+    attribute :code, Code
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+      mark :terminal, "closed"
+    end
+
+    command "Open" do
+      role "Tester"
+      goal "Bring one into being"
+      attribute :code, Code
+      emits "ShipmentOpened"
+    end
+
+    command "Close" do
+      role "Tester"
+      goal "End the shipment"
+      reference_to Shipment
+      emits "ShipmentClosed"
+    end
+  end
+
+  # A :terminal state a transition still leaves is a terminal_has_exit error.
+
+  aggregate "Parcel" do
+    identified_by :code
+
+    attribute :code, Code
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Close"  => "closed", from: "open"
+      transition "Reopen" => "open",   from: "closed"
+      mark :terminal, "closed"
+    end
+
+    command "Open" do
+      role "Tester"
+      goal "Bring one into being"
+      attribute :code, Code
+      emits "ParcelOpened"
+    end
+
+    command "Close" do
+      role "Tester"
+      goal "Close the parcel"
+      reference_to Parcel
+      emits "ParcelClosed"
+    end
+
+    command "Reopen" do
+      role "Tester"
+      goal "Contradicts the terminal mark"
+      reference_to Parcel
+      emits "ParcelReopened"
+    end
+  end
 end

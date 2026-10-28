@@ -48,6 +48,10 @@ relationship that it allows, each with the reason. A relationship can carry only
 about itself: a coupling with no relationship, or one the map declares apart, is fixed by
 declaring the relationship and not by allowing the finding.
 
+An `attaches` already makes the attaching context a conformist of the attached one, so a map
+writes only what an attach cannot say. A bare conformist line that only an attach explains is
+reported as `redundant_relationship`, which `acknowledges:` can allow.
+
 ```ruby
 shop = Hecks::Bluebook::DSL::ContextMapBuilder.build("Shop") do
   context "Billing"

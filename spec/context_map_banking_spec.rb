@@ -5,7 +5,8 @@ require "hecks/projections/context_map_diagram"
 
 # Banking's context map is the `banking.contextmap` file beside its bluebooks (ADR 0135), loaded at
 # boot and held against the wiring it covers. Compliance and Notifications are suppliers Banking
-# reacts to across a boundary; Governance, Identity and Bulk are bluebooks it attaches.
+# reacts to across a boundary; Governance, Identity and Bulk are bluebooks it attaches, which the
+# map leaves implied (ADR 0155).
 RSpec.describe "Banking's context map" do
   let(:registry) do
     Hecks::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy).registry }
@@ -22,9 +23,14 @@ RSpec.describe "Banking's context map" do
     Hecks::Bluebook::ContextMap.new(name: "Banking", contexts: declared.contexts, relationships: kept)
   end
 
-  it "is read from the file Banking boots, with its suppliers and consumers" do
+  it "is read from the file Banking boots, with the suppliers an attach cannot say" do
     expect(declared.relationships.map { |rel| [rel.upstream, rel.downstream, rel.kind] })
-      .to include(["Compliance", "Banking", :customer_supplier], ["Governance", "Banking", :conformist])
+      .to eq([["Compliance", "Banking", :customer_supplier], ["Notifications", "Banking", :customer_supplier]])
+  end
+
+  it "reads each attach as an implied conformist relationship" do
+    implied = declared.implying(edges).relationships.select(&:implied)
+    expect(implied.map { |rel| [rel.upstream, rel.downstream] }).to include(%w[Governance Banking], %w[Bulk Banking])
   end
 
   it "holds Banking's wiring to its declared relationships" do

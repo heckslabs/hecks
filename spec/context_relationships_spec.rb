@@ -63,12 +63,18 @@ RSpec.describe Hecks::Projections::ContextRelationships do
     end
   end
 
+  # RelDecoy names its aggregate as RelUpstream does, but emits a different event.
+  def declare_contexts
+    DECLARE_REL_CONTEXT.call("RelDecoy", "Thing", "ThingKept")
+    DECLARE_REL_CONTEXT.call("RelUpstream", "Thing", "ThingFired")
+    DECLARE_REL_CONTEXT.call("RelLocal", "Echo", "EchoFired")
+  end
+
   def registry
     @registry ||= Hecks::Runtime::Registry.new.tap do |registry|
       Hecks.with_registry(registry) do
         MemoryPorts.load!
-        DECLARE_REL_CONTEXT.call("RelUpstream", "Thing", "ThingFired")
-        DECLARE_REL_CONTEXT.call("RelLocal", "Echo", "EchoFired")
+        declare_contexts
         DECLARE_REL_ORDERS.call
         Hecks.hecksagon("RelUpstream") { RelUpstream::Thing.persisted_by("Memory") }
         WIRE_REL_LOCAL.call
@@ -82,8 +88,19 @@ RSpec.describe Hecks::Projections::ContextRelationships do
     expect(edges).to include(from: "RelLocal", to: "Governance", kind: "shared_kernel", via: nil)
   end
 
+  it "reads an attaches of the context's own vendored package as no relationship" do
+    attachments = %w[RelLocal Governance].map { |name| Struct.new(:chapter_name).new(name) }
+    wired = Struct.new(:domain, :attachments).new("RelLocal", attachments)
+
+    expect(described_class.attach_edges(wired).map(&:to)).to eq(["Governance"])
+  end
+
   it "reads a hecksagon translates as an anti-corruption layer onto the context that owns the event" do
     expect(edges).to include(from: "RelLocal", to: "RelUpstream", kind: "acl", via: "EchoOnThingFired")
+  end
+
+  it "takes the context whose aggregate emits the event when another declares the same aggregate name" do
+    expect(edges.map { |edge| edge[:to] }).not_to include("RelDecoy")
   end
 
   it "reads a policy marked across as customer/supplier, named for the policy" do

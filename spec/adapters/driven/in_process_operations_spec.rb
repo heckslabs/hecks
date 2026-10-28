@@ -149,6 +149,11 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(answer.dig(:output, :value)).to eq("redrove 0 outbox row(s)")
     end
 
+    it "refuses a row that no claimed outbox row has" do
+      expect { adapter.redrive(**held(subject: @dir, row: "nope")) }
+        .to raise_error(Hecks::Runtime::NotFound, /no claimed outbox row "nope"/)
+    end
+
     it "refuses a domain that is not there" do
       Dir.mktmpdir do |scratch|
         expect { adapter.redrive(**held(subject: File.join(scratch, "no/such/domain"))) }

@@ -49,6 +49,7 @@ Hecks.bluebook "Banking" do
       transition "Settle"   => "settled",   from: "credited"
       transition "Reverse"  => "reversed",  from: "debited"
       transition "Reject"   => "rejected",  from: "requested"
+      mark :terminal, "rejected", "reversed", "settled"
     end
 
     command "Request" do
@@ -178,6 +179,7 @@ Hecks.bluebook "Banking" do
       transition "SendTransfer" => "sent", from: "requested"
       transition "Recall" => "recalled", from: "sent"
       transition "Return" => "returned", from: "sent"
+      mark :terminal, "recalled", "returned"
     end
 
     command "Request" do
@@ -290,6 +292,7 @@ Hecks.bluebook "Banking" do
       transition "Fail"    => "failed",    from: "scheduled"
       transition "Retry"   => "failed",    from: "failed"
       transition "Abandon" => "abandoned", from: "failed"
+      mark :terminal, "abandoned", "cancelled", "executed"
     end
 
     command "Schedule" do

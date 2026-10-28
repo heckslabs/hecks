@@ -119,6 +119,7 @@ Hecks.bluebook "SME" do
       lifecycle :status, default: "proposed" do
         transition "AcceptThing" => "accepted", from: "proposed"
         transition "RejectThing" => "rejected", from: "proposed"
+        mark :terminal, "rejected"
       end
 
       command "AcceptThing", from: "proposed" do
@@ -156,6 +157,7 @@ Hecks.bluebook "SME" do
       lifecycle :status, default: "proposed" do
         transition "AcceptAction" => "accepted", from: "proposed"
         transition "RejectAction" => "rejected", from: "proposed"
+        mark :terminal, "rejected"
       end
 
       command "AcceptAction", from: "proposed" do
@@ -188,6 +190,7 @@ Hecks.bluebook "SME" do
       lifecycle :status, default: "proposed" do
         transition "AcceptRule" => "accepted", from: "proposed"
         transition "RejectRule" => "rejected", from: "proposed"
+        mark :terminal, "rejected"
       end
 
       command "AcceptRule", from: "proposed" do
@@ -223,6 +226,7 @@ Hecks.bluebook "SME" do
       lifecycle :status, default: "proposed" do
         transition "AcceptField" => "accepted", from: "proposed"
         transition "RejectField" => "rejected", from: "proposed"
+        mark :terminal, "rejected"
       end
 
       command "AcceptField", from: "proposed" do
@@ -259,6 +263,7 @@ Hecks.bluebook "SME" do
       lifecycle :status, default: "proposed" do
         transition "AcceptTransition" => "accepted", from: "proposed"
         transition "RejectTransition" => "rejected", from: "proposed"
+        mark :terminal, "rejected"
       end
 
       command "AcceptTransition", from: "proposed" do
@@ -282,6 +287,7 @@ Hecks.bluebook "SME" do
       transition "Begin"    => "underway",  from: "planned"
       transition "Conclude" => "concluded", from: "underway"
       transition "Cancel"   => "cancelled", from: ["planned", "underway"]
+      mark :terminal, "cancelled", "concluded"
     end
 
     command "Plan" do

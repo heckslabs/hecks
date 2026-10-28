@@ -34,6 +34,6 @@ RSpec.describe "the grammar built while a caller is bound" do
     out, err, status = run_with_cold_caches(first_build_script("Customer"))
 
     expect(status).to be_success, err
-    expect(out.strip).to eq("Adapter,Bluebook,Hecksagon,Paging,Port,Translation,World|true")
+    expect(out.strip).to eq("Adapter,Bluebook,ContextMap,Hecksagon,Paging,Port,Translation,World|true")
   end
 end

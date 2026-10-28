@@ -58,3 +58,33 @@ exe/hecks query agent_run.running
 - **Checking the directory in the bluebook.** The bluebook names no file; the port is asked.
 - **Letting the adapter decide when a session has ended.** Which states mean ended is a rule about the
   domain, so it is the bluebook's.
+
+## Addendum: finished sessions are tidied by a command (2026-10-28)
+
+A finished run's background session is removed by `AgentRun.Tidy`, not by a `claude rm` loop.
+
+- **Bluebook.** `Tidy` is allowed from `finished` and refuses unless the session's last known
+  condition is `done` (a `working`, `blocked` or `stopped` session is kept). It emits
+  `TidyRequested`; policies then ask the port to `Review` the session, and on `taken_over == false`
+  to `Remove` it. `Tidied` moves the run to the terminal status `tidied` and records `tidied_at`.
+  `Retain` records why a session was kept (a person took it over, or `claude rm` refused) and leaves
+  the run `finished`. Nothing in the journal is erased.
+- **Hecksagon.** Two new asks on `Agents`: `Review` (answers `taken_over` and a `note`) and `Remove`
+  (answers `removed_at`). The ask is `Review`, not `Inspect`, because the adapter method of the same
+  name would shadow `Object#inspect`. `Examine` is unchanged: its answer drives `Finish`.
+- **Adapter.** `ClaudeAgents#remove` runs `claude rm <session>` as an argument list.
+  `ClaudeAgents#review` finds the full session id in `claude agents --json --all` and asks
+  `ClaudeTranscript` whether `~/.claude/projects/*/<id>.jsonl` holds a user message besides the brief
+  that is not a tool result. A missing or unreadable transcript counts as taken over.
+- **Shape.** A new status, attribute and value object: an additive edge `translations/2-e7114b.bluebook`
+  and a moved `shapes.json`. The persisted `AgentRun` store keeps reading.
+
+```sh
+exe/hecks AgentRun.tidy! to=<run> --wait
+exe/hecks query agent_run.tidyable          # finished runs, oldest first
+```
+
+Not expressed: a batch form. `Tidyable` lists the candidates, but a command that runs `Tidy` over a
+query's rows has no DSL form, and a policy-free one-call "tidy all" is not possible; tidy each run
+named by `tidyable`. `Tidyable` lists every finished run because a query `where` here matches a
+status, not the inner value of the `condition` value object; `Tidy` itself keeps the non-`done` ones.

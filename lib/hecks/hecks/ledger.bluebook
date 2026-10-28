@@ -99,6 +99,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "unproven"
       transition "Confirm" => "verified", from: "requested"
       transition "Fail"    => "unproven", from: "requested"
+      mark :terminal, "unproven", "verified"
     end
 
     command "Verify" do

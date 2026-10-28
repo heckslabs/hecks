@@ -1,7 +1,8 @@
 # A context map is declared, and the wiring is checked against it
 
 **Status:** Built, with the kinds as builder-checked symbols rather than keyword rows (see Consequences).
-Date: 2026-10-27.
+Date: 2026-10-27. An `attaches` is an implied conformist relationship that a map need not write
+(ADR 0155).
 
 ## Context
 

@@ -189,7 +189,7 @@ merged table and cannot tell a core row from an attached one.
 ## provides
 
 <!-- generated:begin word=provides -->
-`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, mark_sensitive:, markings_for:, key_for:, shred:, key:` — fills `provides`
+`provides provides, assignments:, grant:, transitions:, admit:, people:, register:, link:, resolve:, mark_sensitive:, markings_for:, key_for:, shred:, key:, live_assignments:, live_transitions:` — fills `provides`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -207,6 +207,8 @@ merged table and cannot tell a core row from an attached one.
 | `key_for:` | text | false | provides |
 | `shred:` | text | false | provides |
 | `key:` | pairs | false | provides |
+| `live_assignments:` | text | false | provides |
+| `live_transitions:` | text | false | provides |
 <!-- generated:end -->
 
 Declares a capability this bluebook answers for every domain that attaches

@@ -66,6 +66,7 @@ Hecks.bluebook "Roster" do
 
       lifecycle :status, default: "active" do
         transition "Retire" => "retired", from: "active"
+        mark :terminal, "retired"
       end
 
       # Target of `Roster.Retire` below. The given reads `parent` before the change; the

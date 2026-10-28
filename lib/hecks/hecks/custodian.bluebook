@@ -26,12 +26,18 @@ Hecks.bluebook "Hecks" do
     attribute :name,         PersonName, optional: true
     attribute :role,         RoleName,   optional: true
     attribute :claimed,      Switch,     optional: true
+    attribute :row,          RowId,      optional: true
     attribute :output,       Output,     optional: true
     attribute :refusal,      Output,     optional: true
     identified_by :run
 
     value_object "Switch" do
       attribute :value, Boolean
+    end
+
+    # The delivery id an outbox row carries, as the stalled-row warning at boot names it.
+    value_object "RowId" do
+      attribute :value, String, matches: :present
     end
 
     value_object "OperationKey" do
@@ -103,6 +109,7 @@ Hecks.bluebook "Hecks" do
       mark :failure, "failed"
       transition "Succeed" => "succeeded", from: "requested"
       transition "Fail"    => "failed",    from: "requested"
+      mark :terminal, "failed", "succeeded"
     end
 
     # Runs one verb, or a JSON step list, against the domain: `hecks run [domain] script=steps.json`
@@ -146,7 +153,8 @@ Hecks.bluebook "Hecks" do
 
     # Redelivers what a domain's outbox left behind. A row never claimed is always safe to redeliver. A
     # row claimed before a crash and never settled may or may not have run its effect, so it is only
-    # named (on stderr, as at boot) unless `claimed.value=true` says the effect is known not to have run.
+    # named (on stderr, as at boot) unless `claimed.value=true` says the effect is known not to have run,
+    # for every claimed row, or `row.value=<delivery id>` says it for that one row alone.
     command "RedriveOutbox" do
       role "Operator"
       goal "Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled"
@@ -154,10 +162,16 @@ Hecks.bluebook "Hecks" do
       attribute :run,     OperationKey
       attribute :subject, Subject
       attribute :claimed, Switch, optional: true
+      attribute :row,     RowId,  optional: true
+
+      given("one claimed row is named, or all of them are: pass row= or claimed=, not both") do
+        row.unset? || claimed.unset?
+      end
 
       sets :run
       sets :subject
       sets :claimed
+      sets :row
 
       emits OutboxRedriveRequested
     end
@@ -585,6 +599,7 @@ policy "RecordTheEra" do
       transition "Ride"  => "carried", from: "requested"
       transition "Fault" => "faulted", from: "requested"
       transition "Summarize" => "surveyed", from: "requested"
+      mark :terminal, "carried", "faulted", "pushed", "surveyed"
     end
 
     command "Board" do
@@ -826,6 +841,7 @@ policy "RecordTheEra" do
       transition "Clear"   => "retired", from: "requested"
       transition "Refuse"  => "refused", from: "requested"
       transition "Decline" => "refused", from: "requested"
+      mark :terminal, "landed", "refused", "retired"
     end
 
     command "Land" do
@@ -1043,6 +1059,7 @@ policy "RecordTheEra" do
       transition "Permit"   => "admitted", from: "requested"
       transition "Settle"   => "settled",  from: "admitted"
       transition "Abandon"  => "refused",  from: %w[requested admitted]
+      mark :terminal, "refused", "settled"
     end
 
     # The seven requests. Each records what was asked and names its operation; the journal store

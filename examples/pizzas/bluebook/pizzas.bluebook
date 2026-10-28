@@ -64,6 +64,7 @@ Hecks.bluebook "Pizzas" do
 
     lifecycle :status, default: "available" do
       transition "Purchase" => "sold", from: "available"
+      mark :terminal, "sold"
     end
 
     query "Available" do

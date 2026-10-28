@@ -1,3 +1,5 @@
+require_relative "redundant_relationships"
+
 module Hecks
   module Bluebook
     module ModelCheck
@@ -5,6 +7,8 @@ module Hecks
       # is `Projections::ContextRelationships`' edges, each pointing from the context that depends
       # to the one it depends on; the map's relationships run from upstream to downstream.
       module ContextMapChecks
+        include RedundantRelationships
+
         # The declared kinds each derived edge kind may implement. An attach and a subscription are
         # `conformist` unless the map says another kind for the pair; `shared_kernel` is declared,
         # never derived, since the wiring cannot tell a co-owned model from one taken as given.
@@ -28,7 +32,9 @@ module Hecks
         def context_map_findings(map, edges)
           return [] unless map
 
-          [*edges.flat_map { |edge| coupling_findings(map, edge) }, *unused_relationship_findings(map, edges)]
+          held = map.implying(edges)
+          [*edges.flat_map { |edge| coupling_findings(held, edge) }, *unused_relationship_findings(map, edges),
+           *redundant_relationship_findings(map, edges)]
         end
 
         # @return [Array<Finding>] the findings for one derived edge

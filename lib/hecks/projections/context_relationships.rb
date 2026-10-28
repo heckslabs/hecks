@@ -42,9 +42,13 @@ module Hecks
         found.uniq.reject { |edge| redundant_subscription?(edge, found) }
       end
 
+      # A context attaching its own vendored package shares nothing with another context.
+      #
       # @api private
       def attach_edges(hecksagon)
-        hecksagon.attachments.map do |attachment|
+        hecksagon.attachments.filter_map do |attachment|
+          next if attachment.chapter_name.to_s == hecksagon.domain.to_s
+
           Edge.new(hecksagon.domain.to_s, attachment.chapter_name.to_s, :shared_kernel, nil)
         end
       end
@@ -75,8 +79,24 @@ module Hecks
         aggregate = Naming.qualifier(policy.on_event)
         return unless aggregate
 
-        local = registry.bluebooks.values.find { |bluebook| bluebook.aggregate(aggregate) }
+        local = declaring_bluebook(registry, aggregate, policy.on_event)
         (local&.name || sole_owner(owners, aggregate) || aggregate).to_s
+      end
+
+      # Two bluebooks may name an aggregate alike (Deploy's `Tenant` request and Tenancy's `Tenant`
+      # fact), so of those declaring it the one that emits the event is the source: from a command,
+      # or from a port operation that answers or refuses with it.
+      #
+      # @api private
+      def declaring_bluebook(registry, aggregate, event)
+        declaring = registry.bluebooks.values.select { |bluebook| bluebook.aggregate(aggregate) }
+        declaring.find { |bluebook| emits?(bluebook, event) } || declaring.first
+      end
+
+      # @api private
+      def emits?(bluebook, event)
+        emitted = Bluebook::ModelCheck.emitted_events(bluebook).map { |name| Naming.last_segment(name) }
+        emitted.include?(Naming.last_segment(event))
       end
 
       # @api private
