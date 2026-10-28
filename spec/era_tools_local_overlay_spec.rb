@@ -42,6 +42,15 @@ RSpec.describe "the era tools and a local overlay" do
     Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, bluebook.aggregates.first).adapter
   end
 
+  describe "the launcher's held domain" do
+    %i[translated bare scaffold].each do |mode|
+      it "sees the PostgresEra a local hecksagon names in #{mode} mode" do
+        held = Hecks::Adapters::JournalStore::HeldDomain.open(domain_dir(with_local: true), mode: mode, environment: nil)
+        expect(held.adapter_name).to eq("PostgresEra")
+      end
+    end
+  end
+
   [Hecks::Tools::TranslationScaffold, Hecks::Tools::EraReattest, Hecks::Tools::EraProjectionBackfill,
    Hecks::Tools::TranslationAudit, Hecks::Tools::TailMerge].each do |tool|
     describe tool do

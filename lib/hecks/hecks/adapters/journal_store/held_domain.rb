@@ -57,7 +57,7 @@ module Hecks
             loading.load_project(loading.shared_root(nil, directory))
             case mode
             when :translated then loading.load_domain(directory, environment: environment)
-            when :bare then loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
+            when :bare then load_bare(loading, directory, environment)
             else load_scaffold(loading, directory, environment)
             end
           end
@@ -68,10 +68,13 @@ module Hecks
           loading.load_each(directory, %w[*.port *.adapter])
           loading.load_bluebooks(directory)
           loading.load_each(directory, %w[*.hecksagon *.world])
-          return unless environment
+          loading.load_overlay(directory, environment)
+        end
 
-          loading.load_each(directory, [File.join("environments", "#{environment}.hecksagon")])
-          loading.load_each(directory, [File.join("environments", "#{environment}.world")])
+        # @api private
+        def self.load_bare(loading, directory, environment)
+          loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
+          loading.load_overlay(directory, environment)
         end
 
         # @param registry [Runtime::Registry] the loaded registry
