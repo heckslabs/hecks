@@ -63,23 +63,28 @@ impl StoreError {
     }
 }
 
+/// Tells whether a failed call means the store was never provisioned. The backend that can tell
+/// registers it once; with none registered every failure is a plain backend failure.
+static NOT_PROVISIONED_PROBE: std::sync::OnceLock<fn(&anyhow::Error) -> bool> =
+    std::sync::OnceLock::new();
+
+impl StoreError {
+    /// Registers the backend's test for "the tables or views are not there"; the first call wins.
+    pub fn teach_not_provisioned(probe: fn(&anyhow::Error) -> bool) {
+        let _ = NOT_PROVISIONED_PROBE.set(probe);
+    }
+}
+
 impl From<anyhow::Error> for StoreError {
     fn from(error: anyhow::Error) -> Self {
-        let missing = error
-            .chain()
-            .filter_map(|cause| cause.downcast_ref::<tokio_postgres::Error>())
-            .any(|db| db.code() == Some(&tokio_postgres::error::SqlState::UNDEFINED_TABLE));
+        let missing = NOT_PROVISIONED_PROBE
+            .get()
+            .is_some_and(|probe| probe(&error));
         if missing {
             Self::NotProvisioned(error)
         } else {
             Self::Backend(error)
         }
-    }
-}
-
-impl From<tokio_postgres::Error> for StoreError {
-    fn from(error: tokio_postgres::Error) -> Self {
-        anyhow::Error::from(error).into()
     }
 }
 
