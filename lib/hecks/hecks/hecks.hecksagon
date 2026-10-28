@@ -37,6 +37,12 @@ Hecks.hecksagon "Hecks" do
       refuses "OperationRefused"
     end
 
+    asks "Abandon", to: Operation do
+      attribute :run, OperationKey
+      answers "OperationAnswered"
+      refuses "OperationRefused"
+    end
+
     asks "Verify", to: Operation do
       attribute :run, OperationKey
       answers "OperationAnswered"

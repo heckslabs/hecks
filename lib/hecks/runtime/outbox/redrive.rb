@@ -28,7 +28,28 @@ module Hecks
           raise Hecks::Runtime::NotFound, "no claimed outbox row #{delivery_id.inspect}"
         end
 
+        # Settles the one claimed row named by its delivery id as failed, without running its
+        # consumer: for a row whose effect is known to have landed, or that nobody wants run, so
+        # the stalled-row warning stops naming it. The error says it was abandoned by hand.
+        #
+        # @param delivery_id [String] the row's `delivery_id`, as the stalled-row warning names it
+        # @return [Array<Row>] the row that was settled
+        # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id
+        def abandon_row!(delivery_id)
+          stores.each do |repository|
+            row = repository.outbox_rows(status: "claimed").find { |candidate| candidate.delivery_id == delivery_id }
+            return [abandon(row, repository)] if row
+          end
+          raise Hecks::Runtime::NotFound, "no claimed outbox row #{delivery_id.inspect}"
+        end
+
         private
+
+        def abandon(row, repository)
+          repository.outbox_settle(row.id, status: "failed", error: "abandoned by an operator, not redelivered")
+          row.status = "failed"
+          row
+        end
 
         # The rows of one store that redrove: its pending rows first, then its claimed ones.
         def redrive_store(repository, claimed)
