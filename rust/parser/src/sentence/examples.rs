@@ -11,8 +11,8 @@
 #![allow(clippy::format_push_string)]
 
 use super::command_step;
-use super::names::{camel, snake, spoken};
-use super::token::{tokenize, Kind};
+use super::names::{camel, spoken};
+use super::values;
 use super::{column, read_lines, Grammar, Matched, Parser, Scope, Step};
 use crate::diag::ParseResult;
 use crate::ir;
@@ -39,13 +39,6 @@ pub fn compile(
 struct Person {
     name: String,
     role: String,
-}
-
-/// A value written in an example's arguments.
-enum Literal {
-    Text(String),
-    Whole(String),
-    Decimal(String),
 }
 
 /// One line of an example, before its words are read.
@@ -431,7 +424,8 @@ impl Parser<'_> {
         let args = if id.ends_with("bare") {
             Vec::new()
         } else {
-            self.arguments(
+            values::read(
+                self,
                 aggregate,
                 command,
                 &slot("args").value,
@@ -608,163 +602,6 @@ impl Parser<'_> {
                 command_step::with_article(&object.words)
             ),
         ))
-    }
-
-    /// Reads `slug "about" and title "About us"` into the command's argument values.
-    fn arguments(
-        &self,
-        aggregate: &ir::Aggregate,
-        command: &ir::Command,
-        text: &str,
-        line: usize,
-        base_col: usize,
-    ) -> ParseResult<Vec<(String, String)>> {
-        let Ok(tokens) = tokenize(text) else {
-            return Err(self.error(line, base_col, "a quote is not closed"));
-        };
-        let mut given: Vec<(String, String)> = Vec::new();
-        let mut words: Vec<&str> = Vec::new();
-        for token in &tokens {
-            let literal = match token.kind {
-                Kind::Quoted => Some(Literal::Text(token.text.clone())),
-                Kind::Word if is_whole(&token.text) => Some(Literal::Whole(token.text.clone())),
-                Kind::Word if is_decimal(&token.text) => Some(Literal::Decimal(token.text.clone())),
-                Kind::Word => {
-                    let separator = token.text.eq_ignore_ascii_case("and") && words.is_empty();
-                    if !separator {
-                        words.push(&token.text);
-                    }
-                    None
-                }
-                Kind::Punct(',') => None,
-                Kind::Punct(_) => {
-                    return Err(self.error(
-                        line,
-                        column(base_col, text, token.start),
-                        "unexpected punctuation in the values",
-                    ));
-                }
-            };
-            let Some(literal) = literal else { continue };
-            let col = column(base_col, text, token.start);
-            let mut name = words.clone();
-            if name
-                .first()
-                .is_some_and(|w| matches!(w.to_lowercase().as_str(), "a" | "an" | "the"))
-            {
-                name.remove(0);
-            }
-            if name.is_empty() {
-                return Err(self.error(line, col, "this value has no field name before it"));
-            }
-            words.clear();
-            let field = snake(&name.join(" "));
-            let Some(attribute) = command.attributes.iter().find(|a| a.name == field) else {
-                let fields: Vec<String> =
-                    command.attributes.iter().map(|a| spoken(&a.name)).collect();
-                return Err(self.error(
-                    line,
-                    col,
-                    format!(
-                        "{} takes no '{}'. It takes: {}",
-                        spoken(&command.name),
-                        name.join(" "),
-                        if fields.is_empty() {
-                            "nothing".to_string()
-                        } else {
-                            fields.join(", ")
-                        }
-                    ),
-                ));
-            };
-            given.push((
-                field,
-                self.value_of(aggregate, attribute, &literal, line, col)?,
-            ));
-        }
-        if let Some(word) = words.first() {
-            return Err(self.error(line, base_col, format!("'{word}' has no value after it")));
-        }
-        for attribute in &command.attributes {
-            let supplied = given.iter().any(|(name, _)| *name == attribute.name);
-            if !supplied && !attribute.optional && attribute.default.is_none() {
-                return Err(self.error(
-                    line,
-                    base_col,
-                    format!(
-                        "{} needs a {}",
-                        spoken(&command.name),
-                        spoken(&attribute.name)
-                    ),
-                ));
-            }
-        }
-        Ok(given)
-    }
-
-    /// A literal as the argument `attribute` takes: bare for a scalar, `{ value: … }` for a value
-    /// object that holds one value.
-    fn value_of(
-        &self,
-        aggregate: &ir::Aggregate,
-        attribute: &ir::Attribute,
-        literal: &Literal,
-        line: usize,
-        col: usize,
-    ) -> ParseResult<String> {
-        let (scalar, wrapped) = if matches!(
-            attribute.type_name.as_str(),
-            "String" | "Integer" | "Float"
-        ) {
-            (attribute.type_name.clone(), false)
-        } else {
-            let Some(object) = aggregate
-                .value_objects
-                .iter()
-                .find(|v| v.name == attribute.type_name)
-            else {
-                return Err(self.error(
-                    line,
-                    col,
-                    format!(
-                        "I don't know how to write a value for {}",
-                        spoken(&attribute.name)
-                    ),
-                ));
-            };
-            match object.attributes.as_slice() {
-                [only] if only.name == "value" => (only.type_name.clone(), true),
-                _ => {
-                    return Err(self.error(
-                        line,
-                        col,
-                        format!("{} holds more than one value; examples can only give a single value so far", spoken(&attribute.name)),
-                    ));
-                }
-            }
-        };
-        let rendered = match (scalar.as_str(), literal) {
-            ("String", Literal::Text(text)) => ruby_string(text),
-            ("Integer", Literal::Whole(digits))
-            | ("Float", Literal::Whole(digits) | Literal::Decimal(digits)) => digits.clone(),
-            (expected, _) => {
-                let wanted = match expected {
-                    "String" => "text in quotes",
-                    "Integer" => "a whole number",
-                    _ => "a number",
-                };
-                return Err(self.error(
-                    line,
-                    col,
-                    format!("{} is {wanted}", spoken(&attribute.name)),
-                ));
-            }
-        };
-        Ok(if wrapped {
-            format!("{{ value: {rendered} }}")
-        } else {
-            rendered
-        })
     }
 
     /// Reads one `Then` or `And` line after the tested step.
@@ -1040,15 +877,6 @@ fn unique(items: &[String]) -> Vec<String> {
     seen
 }
 
-fn is_whole(text: &str) -> bool {
-    !text.is_empty() && text.chars().all(|c| c.is_ascii_digit())
-}
-
-fn is_decimal(text: &str) -> bool {
-    text.split_once('.')
-        .is_some_and(|(whole, fraction)| is_whole(whole) && is_whole(fraction))
-}
-
 /// Replaces each `<column>` in `text` with the row's cell.
 fn substitute(text: &str, row: &[(String, String)]) -> String {
     row.iter().fold(text.to_string(), |acc, (name, cell)| {
@@ -1180,11 +1008,5 @@ mod tests {
         );
         let ship = declaration.aggregates[0].commands[2].clone();
         assert_eq!(announced_by(&declaration, &ship), ["OrderShipped"]);
-    }
-
-    #[test]
-    fn a_decimal_and_a_whole_number_are_told_apart() {
-        assert!(is_whole("1700000000") && !is_whole("1.5") && !is_whole(""));
-        assert!(is_decimal("1.5") && !is_decimal("15") && !is_decimal("1."));
     }
 }
