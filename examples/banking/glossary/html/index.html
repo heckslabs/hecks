@@ -682,6 +682,20 @@ section.searching > p { display: none; }
 <p>Sets the account, the serial, and the daily fee.</p>
 <p>Records <a href="#atm-card-issued">ATM card issued</a>.</p>
 </article>
+<article class="term" id="reimburse">
+<h4>Reimburse</h4>
+<p>Give the customer back a withdrawal the bank agrees was not theirs. Done by the teller.</p>
+<p class="rule">Allowed only when: the withdrawal is disputed.</p>
+<p>Moves the withdrawal from disputed to reimbursed.</p>
+<p>Records <a href="#withdrawal-reimbursed">Withdrawal reimbursed</a>.</p>
+</article>
+<article class="term" id="reject-dispute">
+<h4>Reject dispute</h4>
+<p>Turn down a dispute the bank finds was the customer&#39;s own withdrawal. Done by the teller.</p>
+<p class="rule">Allowed only when: the withdrawal is disputed.</p>
+<p>Moves the withdrawal from disputed to taken.</p>
+<p>Records <a href="#withdrawal-dispute-rejected">Withdrawal dispute rejected</a>.</p>
+</article>
 <article class="term" id="rename">
 <h4>Rename</h4>
 <p>Name a card so it is recognisable. Done by the customer.</p>
@@ -728,9 +742,17 @@ section.searching > p { display: none; }
 <h4>Cash withdrawn</h4>
 <p>Recorded after <a href="#withdraw">Withdraw</a>.</p>
 </article>
+<article class="term" id="withdrawal-dispute-rejected">
+<h4>Withdrawal dispute rejected</h4>
+<p>Recorded after <a href="#reject-dispute">Reject dispute</a>.</p>
+</article>
 <article class="term" id="withdrawal-disputed">
 <h4>Withdrawal disputed</h4>
 <p>Recorded after <a href="#dispute">Dispute</a>.</p>
+</article>
+<article class="term" id="withdrawal-reimbursed">
+<h4>Withdrawal reimbursed</h4>
+<p>Recorded after <a href="#reimburse">Reimburse</a>.</p>
 </article>
 </div>
 <h3 class="group" id="lists-1">Lists</h3>
@@ -782,7 +804,7 @@ section.searching > p { display: none; }
 <article class="term" id="withdrawal">
 <h4>Withdrawal</h4>
 <p>One handful of cash, in the order it was taken.</p>
-<p>Starts out taken. Can be taken or disputed.</p>
+<p>Starts out taken. Can be taken, disputed, or reimbursed.</p>
 </article>
 <article class="term" id="withdrawal-amount">
 <h4>Withdrawal amount</h4>
@@ -866,7 +888,7 @@ section.searching > p { display: none; }
 <p>Moves the card payment from captured to refunded.</p>
 <p>Records <a href="#card-refunded">Card refunded</a>.</p>
 </article>
-<article class="term" id="reject-dispute">
+<article class="term" id="reject-dispute-1">
 <h4>Reject dispute</h4>
 <p>Uphold the charge and close a customer&#39;s dispute. Done by the compliance officer.</p>
 <p class="rule">Allowed only when: the card payment is disputed; customer is active; account is open.</p>
@@ -904,7 +926,7 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="card-dispute-rejected">
 <h4>Card dispute rejected</h4>
-<p>Recorded after <a href="#reject-dispute">Reject dispute</a>.</p>
+<p>Recorded after <a href="#reject-dispute-1">Reject dispute</a>.</p>
 </article>
 <article class="term" id="card-disputed">
 <h4>Card disputed</h4>
@@ -1214,10 +1236,11 @@ section.searching > p { display: none; }
 <pre class="mermaid">stateDiagram-v2
     [*] --&gt; placed
     placed --&gt; lifted: Lift
+    escalated --&gt; lifted: Lift
     placed --&gt; escalated: Escalate account hold
     placed --&gt; escalated: Escalate card hold</pre>
 </figure>
-<ul class="rules"><li>Lifting a hold moves it from placed to lifted.</li><li>Escalating an account hold moves it from placed to escalated.</li><li>Escalating a card hold moves it from placed to escalated.</li></ul>
+<ul class="rules"><li>Lifting a hold moves it from placed or escalated to lifted.</li><li>Escalating an account hold moves it from placed to escalated.</li><li>Escalating a card hold moves it from placed to escalated.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each hold points at its subject: one account or ATM card.</li><li>A hold reference is present.</li><li>A hold reason is present.</li></ul>
 <h3 class="group" id="actions-5">Actions</h3>
@@ -1239,8 +1262,8 @@ section.searching > p { display: none; }
 <article class="term" id="lift">
 <h4>Lift</h4>
 <p>Take a hold off once the matter is settled. Done by the teller.</p>
-<p class="rule">Allowed only when: the hold is placed.</p>
-<p>Moves the hold from placed to lifted.</p>
+<p class="rule">Allowed only when: the hold is placed or escalated.</p>
+<p>Moves the hold from placed or escalated to lifted.</p>
 <p>Records <a href="#hold-lifted">Hold lifted</a>.</p>
 </article>
 <article class="term" id="place">
@@ -1905,7 +1928,7 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="compliance-officer">
 <h4>Compliance officer</h4>
-<p>Responsible for <a href="#suspend">Suspend</a>, <a href="#reinstate">Reinstate</a>, <a href="#freeze-account">Freeze account</a>, <a href="#unfreeze">Unfreeze</a>, <a href="#clear">Clear</a>, <a href="#decline">Decline</a>, <a href="#chargeback">Chargeback</a>, and <a href="#reject-dispute">Reject dispute</a>.</p>
+<p>Responsible for <a href="#suspend">Suspend</a>, <a href="#reinstate">Reinstate</a>, <a href="#freeze-account">Freeze account</a>, <a href="#unfreeze">Unfreeze</a>, <a href="#clear">Clear</a>, <a href="#decline">Decline</a>, <a href="#chargeback">Chargeback</a>, and <a href="#reject-dispute-1">Reject dispute</a>.</p>
 </article>
 <article class="term" id="customer-1">
 <h4>Customer</h4>
@@ -1917,7 +1940,7 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="teller">
 <h4>Teller</h4>
-<p>Responsible for <a href="#credit">Credit</a>, <a href="#debit">Debit</a>, <a href="#place">Place</a>, and <a href="#lift">Lift</a>.</p>
+<p>Responsible for <a href="#credit">Credit</a>, <a href="#debit">Debit</a>, <a href="#place">Place</a>, <a href="#lift">Lift</a>, <a href="#reimburse">Reimburse</a>, and <a href="#reject-dispute">Reject dispute</a>.</p>
 </article>
 <article class="term" id="vault-officer">
 <h4>Vault officer</h4>
