@@ -12,7 +12,7 @@ RSpec.describe "AgentRun through the Agents port" do
     #!/bin/sh
     here=$(dirname "$0")
     if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
-    echo "started stand-in-session"
+    printf 'backgrounded · stand-in-session\\n  claude agents    list sessions\\n'
   SH
 
   before(:all) do

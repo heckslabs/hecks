@@ -18,8 +18,8 @@ module Hecks
       # The command that starts and lists sessions.
       COMMAND = "claude"
 
-      # A background start prints the id the session is known by, as its last word.
-      SESSION_ID = /([0-9A-Za-z][0-9A-Za-z_-]{5,})\s*\z/
+      # A background start prints `backgrounded · <id>` first, then how to attach to the session.
+      SESSION_ID = /\Abackgrounded\W+([0-9A-Za-z][0-9A-Za-z_-]{5,})/
 
       # Keeps the command to run, so a spec can point it at a stand-in.
       #
