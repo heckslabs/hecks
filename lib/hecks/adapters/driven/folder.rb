@@ -1,12 +1,15 @@
 require_relative "../../vocabulary"
 require_relative "../../ports/loading"
 require_relative "../../sentence_form"
+require_relative "folder_overlay"
 
 module Hecks
   module Adapters
     # Loads a domain's files off disk in `Vocabulary.fetch("LoadOrder")` order and finds
     # a domain's root directory. Used by `Hecks.boot(path)` when given a directory.
     class Folder
+      include FolderOverlay
+
       DOMAIN_ORDER = Hecks::Vocabulary.fetch("LoadOrder")
       PORTS        = "ports".freeze
       ADAPTERS     = "adapters".freeze
@@ -60,23 +63,6 @@ module Hecks
         end
 
         load_overlay(directory, environment)
-      end
-
-      # The overlay one copy of a domain keeps for itself, such as the database its own runs
-      # record to. `.gitignore` keeps it out of the repository, so no other copy ever reads it.
-      LOCAL_OVERLAY = "local".freeze
-
-      # Loads the copy's own overlay, then an environment's, each `.hecksagon` then `.world`,
-      # when present. The environment loads last, so `memory` still wins over a local database.
-      #
-      # @param directory [String] the directory holding the `environments/` folder
-      # @param environment [String, nil] the environment name; nil loads only the local overlay
-      # @return [void]
-      def load_overlay(directory, environment)
-        [LOCAL_OVERLAY, environment].compact.uniq.each do |name|
-          load_each(directory, [File.join("environments", "#{name}.hecksagon")])
-          load_each(directory, [File.join("environments", "#{name}.world")])
-        end
       end
 
       # Loads every bluebook in a folder as one declaration set, judged after all are loaded
@@ -142,7 +128,7 @@ module Hecks
         return unless File.directory?(directory)
 
         patterns.each do |pattern|
-          Dir[File.join(directory, pattern)].each { |file| load_file(file) }
+          Dir[File.join(directory, pattern)].reject { |file| left_to_overlay?(file, pattern) }.each { |file| load_file(file) }
         end
       end
 
