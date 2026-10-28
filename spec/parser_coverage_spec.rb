@@ -84,6 +84,11 @@ RSpec.describe "the Rust parser's own coverage", :io do
       %w[verb DomainPort],
       %w[verb Port]
     ]],
+    # The `.contextmap` file kind (ADR 0135) is read by the Ruby loader only; `hecks-parse`
+    # has no stage for it yet.
+    ["the context map grammar, a file kind hecks-parse does not read", [
+      %w[context ContextMap], %w[context_map File], %w[relate ContextMap], %w[separate_ways ContextMap]
+    ]],
     # Declared query/read-model options no tracked corpus member happens to
     # use — `limit`/`where`/`order_by` are, and are reported.
     ["a query option no parity corpus member uses", [
