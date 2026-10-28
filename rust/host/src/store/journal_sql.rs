@@ -1,11 +1,12 @@
 //! Flat, domain-agnostic journal of every command this domain has ever
 //! accepted, replayed in full on each invocation rather than filtered (ADR 0018).
 
+pub use crate::journal::*;
 use anyhow::Context;
 use sha2::{Digest, Sha256};
-pub use crate::journal::*;
 use tokio_postgres::{Client, GenericClient};
 
+/// Creates the journal, snapshot, saga and dead-letter tables a domain's journal needs, if absent.
 pub async fn ensure_schema(client: &Client) -> anyhow::Result<()> {
     client
         .batch_execute(
@@ -151,7 +152,6 @@ pub async fn load_steps_after<C: GenericClient>(
         .collect())
 }
 
-
 /// The domain's cached snapshot, if one has ever been written. `None`
 /// before the first accepted command, when there's nothing to seed from yet.
 pub async fn load_snapshot<C: GenericClient>(client: &C) -> anyhow::Result<Option<Snapshot>> {
@@ -200,7 +200,6 @@ pub async fn save_snapshot<C: GenericClient>(
         .await?;
     Ok(())
 }
-
 
 /// Every live saga instance for this domain, read once per invocation to
 /// seed the kernel's in-memory `sagas` map.
@@ -265,19 +264,11 @@ pub async fn delete_saga<C: GenericClient>(
     Ok(())
 }
 
-
-
-
-
 /// Quotes a Postgres identifier `PG::Connection.quote_ident`-style —
 /// needed since table names can't be bound as query parameters.
 pub fn quote_ident(name: &str) -> String {
     format!("\"{}\"", name.replace('"', "\"\""))
 }
-
-
-
-
 
 /// The highest era ordinal on file for `domain`, not a bare existence
 /// check — `hecks_eras` is append-only, so a stale checkout still has a row.
@@ -290,7 +281,6 @@ pub async fn current_era(client: &Client, domain: &str) -> anyhow::Result<Option
         .await?;
     Ok(rows.first().map(|row| row.get(0)))
 }
-
 
 /// Mirrors `PostgresEra#append`'s two-step write: journal insert, then a
 /// head-snapshot upsert that never regresses on a stale/reordered write.
@@ -371,9 +361,8 @@ pub async fn append_lineage_mutation<C: GenericClient>(
     Ok(())
 }
 
-
-/// Every row for one lineage-capable aggregate, already translated to its
-/// current shape (reads the same head view Ruby's `Adapters::Postgres` does).
+/// Every row for one lineage-capable aggregate in id byte order (the order Memory keeps),
+/// already translated to its current shape (the head view Ruby's `Adapters::Postgres` reads).
 pub async fn read_lineage_head_all<C: GenericClient>(
     client: &C,
     domain: &str,
@@ -382,7 +371,7 @@ pub async fn read_lineage_head_all<C: GenericClient>(
     let rows = client
         .query(
             &format!(
-                "SELECT id, state FROM {}",
+                "SELECT id, state FROM {} ORDER BY id COLLATE \"C\"",
                 quote_ident(&head_view(domain, storage_name))
             ),
             &[],
@@ -412,7 +401,6 @@ pub async fn read_lineage_head_by_id<C: GenericClient>(
         .await?;
     Ok(row.map(|r| r.get(0)))
 }
-
 
 /// Every held era for `domain`, each verified against its own digest — an
 /// edited `held_text` refuses loudly instead of silently reporting no drift.
@@ -832,7 +820,10 @@ mod naming_vector_tests {
     // spec/fixtures/naming_vectors.json is asserted by spec/naming_vectors_spec.rb against
     // Naming.snake and Lineage#qualified_name, so a drift in either runtime fails a test.
     fn vectors() -> Value {
-        serde_json::from_str(include_str!("../../../../spec/fixtures/naming_vectors.json")).unwrap()
+        serde_json::from_str(include_str!(
+            "../../../../spec/fixtures/naming_vectors.json"
+        ))
+        .unwrap()
     }
 
     fn table(section: &str) -> Vec<Value> {

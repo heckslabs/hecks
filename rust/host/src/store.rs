@@ -12,9 +12,11 @@
 //! Eras, lineage heads, minting and the member lookups over head views exist only on Postgres,
 //! so they are a capability ([`Store::lineage`]) a backend may lack, not a part of every store.
 
+/// The journal's SQL: the Postgres adapter's reads and writes, with the journal's data re-exported.
 pub mod journal_sql;
-pub mod mint;
 mod memory;
+/// Era minting: the Postgres adapter's provisioning of eras, heads and lineage.
+pub mod mint;
 mod postgres;
 
 use crate::journal::{LineageConfig, Mutation, SagaRow, Snapshot};
@@ -214,6 +216,92 @@ impl Store {
         match self {
             Self::Postgres(store) => Some(store.lineage()),
             Self::Memory(_) => None,
+        }
+    }
+
+    /// One aggregate's head row `id`, translated to its current shape; `None` when there is none.
+    pub async fn head_by_id(
+        &self,
+        domain: &str,
+        storage_name: &str,
+        id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        match self {
+            Self::Postgres(store) => {
+                let guard = store.lineage().lock().await;
+                Ok(journal_sql::read_lineage_head_by_id(&*guard, domain, storage_name, id).await?)
+            }
+            Self::Memory(store) => Ok(store.head_by_id(domain, storage_name, id)),
+        }
+    }
+
+    /// Every head row of one aggregate, with its id.
+    pub async fn head_all(
+        &self,
+        domain: &str,
+        storage_name: &str,
+    ) -> Result<Vec<(String, serde_json::Value)>, StoreError> {
+        match self {
+            Self::Postgres(store) => {
+                let guard = store.lineage().lock().await;
+                Ok(journal_sql::read_lineage_head_all(&*guard, domain, storage_name).await?)
+            }
+            Self::Memory(store) => Ok(store.head_all(domain, storage_name)),
+        }
+    }
+
+    /// The head row whose `matches` hold, each `(field, value)` naming a single-attribute value
+    /// object. The first of `domains` that keeps heads for the aggregate decides.
+    pub async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        match self {
+            Self::Postgres(store) => {
+                store
+                    .lineage()
+                    .head_find(domains, storage_name, matches)
+                    .await
+            }
+            Self::Memory(store) => Ok(store.head_find(domains, storage_name, matches)),
+        }
+    }
+
+    /// Reads one aggregate's head rows and lets `decide` answer with at most one `(id, state)` to
+    /// save, atomically with the read: no other writer of the domain's heads gets between them.
+    /// `domain` is the name the head views are qualified by and `config.domain` the journal's.
+    pub async fn amend_head<T>(
+        &self,
+        config: &LineageConfig,
+        domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: impl FnOnce(&[(String, serde_json::Value)]) -> (T, Option<(String, serde_json::Value)>),
+    ) -> Result<T, StoreError> {
+        match self {
+            Self::Postgres(store) => Ok(store
+                .lineage()
+                .amend_head(config, domain, aggregate, storage_name, decide)
+                .await?),
+            Self::Memory(store) => {
+                store
+                    .amend_head(config, aggregate, storage_name, decide)
+                    .await
+            }
+        }
+    }
+
+    /// Writes one head row outside a dispatch, as its own step.
+    pub async fn put_head(
+        &self,
+        config: &LineageConfig,
+        mutation: &Mutation<'_>,
+    ) -> Result<(), StoreError> {
+        match self {
+            Self::Postgres(store) => Ok(store.lineage().put_head(config, mutation).await?),
+            Self::Memory(store) => store.put_heads(config, std::slice::from_ref(mutation)),
         }
     }
 

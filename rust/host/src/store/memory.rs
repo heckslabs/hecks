@@ -7,7 +7,7 @@
 //! leaves the committed data as it was.
 
 use super::{Accepted, DeadLetter, State, StoreError};
-use crate::store::journal_sql::{SagaRow, Snapshot};
+use crate::store::journal_sql::{storage_name, LineageConfig, Mutation, SagaRow, Snapshot};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError, RwLock};
 use tokio::sync::{Mutex, OwnedMutexGuard};
@@ -37,6 +37,9 @@ pub(super) struct Data {
     pub(super) snapshot: Option<Snapshot>,
     pub(super) sagas: BTreeMap<(String, String), SagaRow>,
     pub(super) dead_letters: Vec<DeadLetterRecord>,
+    /// The era-shaped head rows, `(domain, storage name)` to id to state: what the Postgres head
+    /// views answer, written by the lineage mutations of each committed step.
+    pub(super) heads: BTreeMap<(String, String), BTreeMap<String, serde_json::Value>>,
 }
 
 /// Where a commit is made to fail, so a test can assert that nothing became visible.
@@ -114,6 +117,93 @@ impl MemoryStore {
             steps,
             sagas: Vec::new(),
         }
+    }
+
+    /// The head row `id` of one aggregate's head, or `None`.
+    pub(super) fn head_by_id(
+        &self,
+        domain: &str,
+        storage_name: &str,
+        id: &str,
+    ) -> Option<serde_json::Value> {
+        let data = self.read();
+        let key = (domain.to_string(), storage_name.to_string());
+        data.heads.get(&key).and_then(|rows| rows.get(id)).cloned()
+    }
+
+    /// Every head row of one aggregate, by id.
+    pub(super) fn head_all(
+        &self,
+        domain: &str,
+        storage_name: &str,
+    ) -> Vec<(String, serde_json::Value)> {
+        let data = self.read();
+        let key = (domain.to_string(), storage_name.to_string());
+        data.heads
+            .get(&key)
+            .map(|rows| {
+                rows.iter()
+                    .map(|(id, state)| (id.clone(), state.clone()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// The head row whose `matches` fields all hold, from the first of `domains` that has a head
+    /// for `storage_name`; that head decides, as the first existing Postgres view does.
+    pub(super) fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Option<serde_json::Value> {
+        let data = self.read();
+        let rows = domains.iter().find_map(|domain| {
+            data.heads
+                .get(&(domain.to_string(), storage_name.to_string()))
+        })?;
+        rows.values()
+            .find(|state| {
+                matches
+                    .iter()
+                    .all(|(field, value)| state[*field]["value"].as_str() == Some(*value))
+            })
+            .cloned()
+    }
+
+    /// Writes head rows as one step: refused whole when the domain has no era or an operation is
+    /// not `save`, as the Postgres write is.
+    pub(super) fn put_heads(
+        &self,
+        config: &LineageConfig,
+        mutations: &[Mutation<'_>],
+    ) -> Result<(), StoreError> {
+        let mut data = self.write();
+        apply_heads(&mut data, config, mutations)
+    }
+
+    /// The Memory side of `amend_head`: the domain lock held while `decide` reads and the write
+    /// lands, so two amendments never interleave.
+    pub(super) async fn amend_head<T>(
+        &self,
+        config: &LineageConfig,
+        aggregate: &str,
+        storage_name: &str,
+        decide: impl FnOnce(&[(String, serde_json::Value)]) -> (T, Option<(String, serde_json::Value)>),
+    ) -> Result<T, StoreError> {
+        let _unit = self.begin().await;
+        let rows = self.head_all(&config.domain, storage_name);
+        let (answer, write) = decide(&rows);
+        if let Some((id, state)) = write {
+            let mutation = Mutation {
+                aggregate,
+                id: &id,
+                operation: "save",
+                state: &state,
+            };
+            self.put_heads(config, std::slice::from_ref(&mutation))?;
+        }
+        Ok(answer)
     }
 
     /// Records a delivery that failed every retry.
@@ -241,6 +331,34 @@ impl Default for MemoryStore {
     }
 }
 
+/// Checks every mutation, then applies them all, so a refused one leaves the heads as they were.
+fn apply_heads(
+    data: &mut Data,
+    config: &LineageConfig,
+    mutations: &[Mutation<'_>],
+) -> Result<(), StoreError> {
+    if config.era.is_none() && !mutations.is_empty() {
+        return Err(StoreError::Backend(anyhow::anyhow!(
+            "cannot append a lineage mutation for {}: no era is active",
+            config.domain
+        )));
+    }
+    if let Some(bad) = mutations.iter().find(|m| m.operation != "save") {
+        return Err(StoreError::Backend(anyhow::anyhow!(
+            "unsupported operation {:?}: only \"save\" is generated today",
+            bad.operation
+        )));
+    }
+    for mutation in mutations {
+        let key = (config.domain.clone(), storage_name(mutation.aggregate));
+        data.heads
+            .entry(key)
+            .or_default()
+            .insert(mutation.id.to_string(), mutation.state.clone());
+    }
+    Ok(())
+}
+
 fn steps_after(data: &Data, ordinal: Option<i64>) -> Vec<serde_json::Value> {
     data.journal
         .iter()
@@ -272,7 +390,7 @@ impl MemoryUnit {
         state
     }
 
-    /// Stages every write, then applies them together; lineage mutations are not kept.
+    /// Stages every write, then applies them together, the lineage mutations among them.
     pub(super) fn commit(self, accepted: &Accepted<'_>) -> Result<(), StoreError> {
         let store = &self.store;
         let ordinal = store.next_ordinal();
@@ -296,6 +414,9 @@ impl MemoryUnit {
         }
         for key in &accepted.saga_deletes {
             data.sagas.remove(key);
+        }
+        if let Some(lineage) = &accepted.lineage {
+            apply_heads(&mut data, lineage.config, &lineage.mutations)?;
         }
         Ok(())
     }

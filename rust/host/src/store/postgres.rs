@@ -24,8 +24,8 @@ pub struct LineageStore {
 
 impl LineageStore {
     /// Every live `state` document of the first of `relations` that exists, empty when none does.
-    /// `to_regclass` resolves through the connection's own `search_path`, so a same-named relation in
-    /// another schema is never read; a relation that exists but fails to read still errors.
+    /// `to_regclass` resolves through the connection's own `search_path`, so a same-named
+    /// relation in another schema is never read; one that exists but fails to read still errors.
     pub async fn first_existing_states(
         &self,
         relations: &[String],
@@ -40,11 +40,116 @@ impl LineageStore {
                 continue;
             }
             let rows = client
-                .query(&format!("SELECT state FROM {}", journal::quote_ident(relation)), &[])
+                .query(
+                    &format!("SELECT state FROM {}", journal::quote_ident(relation)),
+                    &[],
+                )
                 .await?;
             return Ok(rows.iter().map(|row| row.get(0)).collect());
         }
         Ok(Vec::new())
+    }
+
+    /// The head row whose `matches` fields all hold, read from the first of `domains` whose head
+    /// view exists (then the plain `<storage>_head` view); that view decides, so a miss in it is
+    /// `None` and the later views are not asked. Each match is `(field, value)`, comparing the
+    /// field's single-attribute value object to `value`.
+    pub async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        let mut relations: Vec<String> = domains
+            .iter()
+            .map(|domain| journal::head_view(domain, storage_name))
+            .collect();
+        relations.push(format!("{storage_name}_head"));
+        relations.dedup();
+        let conditions: Vec<String> = matches
+            .iter()
+            .enumerate()
+            .map(|(i, (field, _))| {
+                format!(
+                    "state->'{}'->>'value' = ${}",
+                    field.replace('\'', "''"),
+                    i + 1
+                )
+            })
+            .collect();
+        let values: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = matches
+            .iter()
+            .map(|(_, value)| value as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+        let client = self.lock().await;
+        for relation in relations {
+            let sql = format!(
+                "SELECT state FROM {} WHERE {}",
+                journal::quote_ident(&relation),
+                conditions.join(" AND ")
+            );
+            match client.query_opt(&sql, &values).await {
+                Ok(row) => return Ok(row.map(|row| row.get(0))),
+                Err(e) => {
+                    let e = StoreError::from(e);
+                    if !e.is_not_provisioned() {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Writes one head row under the domain's ordinal lock, in a transaction of its own.
+    pub async fn put_head(
+        &self,
+        config: &journal::LineageConfig,
+        mutation: &journal::Mutation<'_>,
+    ) -> anyhow::Result<()> {
+        let mut client = self.lock().await;
+        let txn = client.transaction().await?;
+        txn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+            &[&config.domain],
+        )
+        .await?;
+        journal::append_lineage_mutation(&txn, config, mutation).await?;
+        txn.commit().await?;
+        Ok(())
+    }
+
+    /// Reads one aggregate's head rows and lets `decide` answer with at most one `(id, state)`
+    /// to write, all under the domain's ordinal lock in one transaction; a `decide` that writes
+    /// nothing leaves the heads untouched.
+    pub async fn amend_head<T>(
+        &self,
+        config: &journal::LineageConfig,
+        domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: impl FnOnce(&[(String, serde_json::Value)]) -> (T, Option<(String, serde_json::Value)>),
+    ) -> anyhow::Result<T> {
+        let mut client = self.lock().await;
+        let txn = client.transaction().await?;
+        txn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+            &[&config.domain],
+        )
+        .await?;
+        let rows = journal::read_lineage_head_all(&txn, domain, storage_name).await?;
+        let (answer, write) = decide(&rows);
+        if let Some((id, state)) = write {
+            let mutation = journal::Mutation {
+                aggregate,
+                id: &id,
+                operation: "save",
+                state: &state,
+            };
+            journal::append_lineage_mutation(&txn, config, &mutation).await?;
+            txn.commit().await?;
+        }
+        Ok(answer)
     }
 
     /// The one connection, held for as long as the guard lives; its mutex serializes every use.

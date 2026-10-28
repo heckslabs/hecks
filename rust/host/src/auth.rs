@@ -5,10 +5,10 @@ use crate::b64;
 use crate::crypto::{constant_time_eq, hex_encode};
 use crate::dispatch;
 use crate::host::Host;
-use crate::store::journal_sql as journal;
-use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::needs::{Clock, ProcessClock};
+use crate::store::journal_sql as journal;
+use crate::store::journal_sql::LineageConfig;
 use crate::store::{Store, StoreError};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -407,33 +407,14 @@ pub async fn resolve_identity_from_head(
         return Ok(None);
     };
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let mut names = vec![
-        journal::head_view(domain, "external_identifier"),
-        journal::head_view("Identity", "external_identifier"),
-        "external_identifier_head".to_string(),
-    ];
-    names.dedup();
-    let guard = store.require_lineage()?.lock().await;
-    for name in names {
-        let sql = format!(
-            "SELECT state FROM {} WHERE state->'issuer'->>'value' = $1 AND state->'subject'->>'value' = $2",
-            journal::quote_ident(&name)
-        );
-        match guard.query_opt(&sql, &[&issuer, &subject]).await {
-            Ok(Some(row)) => {
-                let state: Value = row.get(0);
-                return Ok(identity_id_from_state(&state));
-            }
-            Ok(None) => return Ok(None),
-            Err(e) => {
-                let e = StoreError::from(e);
-                if !e.is_not_provisioned() {
-                    return Err(e.into());
-                }
-            }
-        }
-    }
-    Ok(None)
+    let found = store
+        .head_find(
+            &[domain, "Identity"],
+            "external_identifier",
+            &[("issuer", issuer), ("subject", subject)],
+        )
+        .await?;
+    Ok(found.and_then(|state| identity_id_from_state(&state)))
 }
 
 // Member lives in the PostgresEra head, not `dispatch::read`'s journal
@@ -448,15 +429,13 @@ async fn member_row_by_email(
     // docs/decisions/0059: `head_view` needs the domain name too, the
     // same one `ir.rs`/`web.rs` already extract this way.
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let guard = store.require_lineage()?.lock().await;
-    journal::read_lineage_head_by_id(&*guard, domain, &storage_name, email).await
+    Ok(store.head_by_id(domain, &storage_name, email).await?)
 }
 
 async fn member_rows(store: &Store, domain_ir: &Value) -> anyhow::Result<Vec<(String, Value)>> {
     let (_, storage_name) = membership_aggregate(domain_ir)?;
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let guard = store.require_lineage()?.lock().await;
-    journal::read_lineage_head_all(&*guard, domain, &storage_name).await
+    Ok(store.head_all(domain, &storage_name).await?)
 }
 
 // The membership aggregate comes from `ir.json`'s declared `membership`
@@ -492,28 +471,17 @@ async fn append_member_state(
     state: &Value,
 ) -> anyhow::Result<()> {
     let (aggregate_name, _) = membership_aggregate(domain_ir)?;
-    let mut guard = store.require_lineage()?.lock().await;
-    let txn = guard.transaction().await?;
-
-    txn.execute(
-        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
-        &[&config.domain],
-    )
-    .await?;
-
-    journal::append_lineage_mutation(
-        &txn,
-        config,
-        &journal::Mutation {
-            aggregate: &aggregate_name,
-            id,
-            operation: "save",
-            state,
-        },
-    )
-    .await?;
-
-    txn.commit().await?;
+    store
+        .put_head(
+            config,
+            &journal::Mutation {
+                aggregate: &aggregate_name,
+                id,
+                operation: "save",
+                state,
+            },
+        )
+        .await?;
     Ok(())
 }
 
@@ -525,19 +493,10 @@ pub async fn session_for_member_by_identity(
     let (_, storage_name) = membership_aggregate(domain_ir)?;
     // docs/decisions/0059 — same domain-qualification as above.
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
-    let guard = store.require_lineage()?.lock().await;
-    let row = guard
-        .query_opt(
-            &format!(
-                "SELECT state FROM {} WHERE state->'identity_id'->>'value' = $1",
-                journal::quote_ident(&journal::head_view(domain, &storage_name))
-            ),
-            &[&identity_id],
-        )
+    let row = store
+        .head_find(&[domain], &storage_name, &[("identity_id", identity_id)])
         .await?;
-    drop(guard);
-    Ok(row.and_then(|r| {
-        let state: Value = r.get(0);
+    Ok(row.and_then(|state| {
         if is_lapsed(&state) {
             return None;
         }
@@ -721,47 +680,32 @@ pub async fn grant_access_until(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let target = email.trim().to_lowercase();
 
-    let mut guard = store.require_lineage()?.lock().await;
-    let txn = guard.transaction().await?;
-    txn.execute(
-        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
-        &[&config.domain],
-    )
-    .await?;
-    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
-    let Some((id, member)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
-        return Ok(GrantOutcome::UnknownPerson);
-    };
+    let outcome = store
+        .amend_head(config, domain, &aggregate_name, &storage_name, |rows| {
+            let Some((id, member)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+                return (GrantOutcome::UnknownPerson, None);
+            };
 
-    // Same append protocol `provision` uses. GrantAccess's own bluebook
-    // command sets only `:role`; the window is a host-side field beside it,
-    // like `disabled`, so it needs no bluebook attribute.
-    let mut new_state = member.clone();
-    new_state["role"] = json!({"value": role});
-    match expires_at {
-        Some(instant) => new_state[EXPIRY_FIELD] = json!(instant),
-        None => {
-            if let Some(fields) = new_state.as_object_mut() {
-                fields.remove(EXPIRY_FIELD);
+            // Same append protocol `provision` uses. GrantAccess's own bluebook
+            // command sets only `:role`; the window is a host-side field beside it,
+            // like `disabled`, so it needs no bluebook attribute.
+            let mut new_state = member.clone();
+            new_state["role"] = json!({"value": role});
+            match expires_at {
+                Some(instant) => new_state[EXPIRY_FIELD] = json!(instant),
+                None => {
+                    if let Some(fields) = new_state.as_object_mut() {
+                        fields.remove(EXPIRY_FIELD);
+                    }
+                }
             }
-        }
-    }
-    if strands_open_admin(&rows, id, &new_state) {
-        return Ok(GrantOutcome::LastOpenAdmin);
-    }
-    journal::append_lineage_mutation(
-        &txn,
-        config,
-        &journal::Mutation {
-            aggregate: &aggregate_name,
-            id,
-            operation: "save",
-            state: &new_state,
-        },
-    )
-    .await?;
-    txn.commit().await?;
-    Ok(GrantOutcome::Done)
+            if strands_open_admin(&rows, id, &new_state) {
+                return (GrantOutcome::LastOpenAdmin, None);
+            }
+            (GrantOutcome::Done, Some((id.clone(), new_state)))
+        })
+        .await?;
+    Ok(outcome)
 }
 
 /// Admits a new person (name + email), the same state `Admit` sets.
@@ -1065,56 +1009,40 @@ pub async fn set_person_disabled(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
 
-    let mut guard = store.require_lineage()?.lock().await;
-    let txn = guard.transaction().await?;
-    txn.execute(
-        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
-        &[&config.domain],
-    )
-    .await?;
-    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+    let outcome = store
+        .amend_head(config, domain, &aggregate_name, &storage_name, |rows| {
+            if !rows
+                .iter()
+                .any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state))
+            {
+                return (DisableOutcome::CallerNotAdmin, None);
+            }
+            if disable && caller == target {
+                return (DisableOutcome::SelfDisable, None);
+            }
+            let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+                return (DisableOutcome::UnknownPerson, None);
+            };
+            if is_disabled(state) == disable {
+                return (DisableOutcome::Done, None);
+            }
+            if disable && is_last_active_admin(&rows, state) {
+                return (DisableOutcome::LastAdmin, None);
+            }
 
-    if !rows
-        .iter()
-        .any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state))
-    {
-        return Ok(DisableOutcome::CallerNotAdmin);
-    }
-    if disable && caller == target {
-        return Ok(DisableOutcome::SelfDisable);
-    }
-    let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
-        return Ok(DisableOutcome::UnknownPerson);
-    };
-    if is_disabled(state) == disable {
-        return Ok(DisableOutcome::Done);
-    }
-    if disable && is_last_active_admin(&rows, state) {
-        return Ok(DisableOutcome::LastAdmin);
-    }
-
-    let mut new_state = state.clone();
-    if disable {
-        new_state["disabled"] = json!(true);
-    } else if let Some(fields) = new_state.as_object_mut() {
-        fields.remove("disabled");
-    }
-    if strands_open_admin(&rows, id, &new_state) {
-        return Ok(DisableOutcome::LastOpenAdmin);
-    }
-    journal::append_lineage_mutation(
-        &txn,
-        config,
-        &journal::Mutation {
-            aggregate: &aggregate_name,
-            id,
-            operation: "save",
-            state: &new_state,
-        },
-    )
-    .await?;
-    txn.commit().await?;
-    Ok(DisableOutcome::Done)
+            let mut new_state = state.clone();
+            if disable {
+                new_state["disabled"] = json!(true);
+            } else if let Some(fields) = new_state.as_object_mut() {
+                fields.remove("disabled");
+            }
+            if strands_open_admin(&rows, id, &new_state) {
+                return (DisableOutcome::LastOpenAdmin, None);
+            }
+            (DisableOutcome::Done, Some((id.clone(), new_state)))
+        })
+        .await?;
+    Ok(outcome)
 }
 
 /// What `set_person_deleted` decided.
@@ -1145,46 +1073,30 @@ pub async fn set_person_deleted(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
 
-    let mut guard = store.require_lineage()?.lock().await;
-    let txn = guard.transaction().await?;
-    txn.execute(
-        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
-        &[&config.domain],
-    )
-    .await?;
-    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+    let outcome = store
+        .amend_head(config, domain, &aggregate_name, &storage_name, |rows| {
+            if !rows
+                .iter()
+                .any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state))
+            {
+                return (DeleteOutcome::CallerNotAdmin, None);
+            }
+            let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+                return (DeleteOutcome::UnknownPerson, None);
+            };
+            if is_deleted(state) {
+                return (DeleteOutcome::Done, None);
+            }
+            if !is_disabled(state) {
+                return (DeleteOutcome::NotDisabled, None);
+            }
 
-    if !rows
-        .iter()
-        .any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state))
-    {
-        return Ok(DeleteOutcome::CallerNotAdmin);
-    }
-    let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
-        return Ok(DeleteOutcome::UnknownPerson);
-    };
-    if is_deleted(state) {
-        return Ok(DeleteOutcome::Done);
-    }
-    if !is_disabled(state) {
-        return Ok(DeleteOutcome::NotDisabled);
-    }
-
-    let mut new_state = state.clone();
-    new_state["deleted"] = json!(true);
-    journal::append_lineage_mutation(
-        &txn,
-        config,
-        &journal::Mutation {
-            aggregate: &aggregate_name,
-            id,
-            operation: "save",
-            state: &new_state,
-        },
-    )
-    .await?;
-    txn.commit().await?;
-    Ok(DeleteOutcome::Done)
+            let mut new_state = state.clone();
+            new_state["deleted"] = json!(true);
+            (DeleteOutcome::Done, Some((id.clone(), new_state)))
+        })
+        .await?;
+    Ok(outcome)
 }
 
 /// What `set_person_role` decided.
@@ -1216,49 +1128,33 @@ pub async fn set_person_role(
     let domain = domain_ir.get("name").and_then(|v| v.as_str()).unwrap_or("");
     let (caller, target) = (caller.trim().to_lowercase(), target.trim().to_lowercase());
 
-    let mut guard = store.require_lineage()?.lock().await;
-    let txn = guard.transaction().await?;
-    txn.execute(
-        "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
-        &[&config.domain],
-    )
-    .await?;
-    let rows = journal::read_lineage_head_all(&txn, domain, &storage_name).await?;
+    let outcome = store
+        .amend_head(config, domain, &aggregate_name, &storage_name, |rows| {
+            if !rows
+                .iter()
+                .any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state))
+            {
+                return (RoleOutcome::CallerNotAdmin, None);
+            }
+            let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
+                return (RoleOutcome::UnknownPerson, None);
+            };
+            if role_of(state) == Some(role) {
+                return (RoleOutcome::Done, None);
+            }
+            if !is_admin_role(role) && is_last_active_admin(&rows, state) {
+                return (RoleOutcome::LastAdmin, None);
+            }
 
-    if !rows
-        .iter()
-        .any(|(id, state)| id.to_lowercase() == caller && is_active_admin(state))
-    {
-        return Ok(RoleOutcome::CallerNotAdmin);
-    }
-    let Some((id, state)) = rows.iter().find(|(id, _)| id.to_lowercase() == target) else {
-        return Ok(RoleOutcome::UnknownPerson);
-    };
-    if role_of(state) == Some(role) {
-        return Ok(RoleOutcome::Done);
-    }
-    if !is_admin_role(role) && is_last_active_admin(&rows, state) {
-        return Ok(RoleOutcome::LastAdmin);
-    }
-
-    let mut new_state = state.clone();
-    new_state["role"] = json!({"value": role});
-    if strands_open_admin(&rows, id, &new_state) {
-        return Ok(RoleOutcome::LastOpenAdmin);
-    }
-    journal::append_lineage_mutation(
-        &txn,
-        config,
-        &journal::Mutation {
-            aggregate: &aggregate_name,
-            id,
-            operation: "save",
-            state: &new_state,
-        },
-    )
-    .await?;
-    txn.commit().await?;
-    Ok(RoleOutcome::Done)
+            let mut new_state = state.clone();
+            new_state["role"] = json!({"value": role});
+            if strands_open_admin(&rows, id, &new_state) {
+                return (RoleOutcome::LastOpenAdmin, None);
+            }
+            (RoleOutcome::Done, Some((id.clone(), new_state)))
+        })
+        .await?;
+    Ok(outcome)
 }
 
 /// Whether `identity_id` holds a live Admin/Owner assignment in this

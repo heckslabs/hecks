@@ -2,7 +2,8 @@
 
 **Status:** Proposed. Built on this branch: the Postgres journal and era SQL under `store/`, the
 `tokio_postgres` entry in the boundary scan, `LineageStore::first_existing_states`, and
-`lib/hecks/ports/dispatch.port`. Not built: steps 2 to 4 below. Date: 2026-10-28.
+`lib/hecks/ports/dispatch.port`, and the first slice of the era store (heads). Not built: the
+rest of the era store, the crate split and the evaluator merge. Date: 2026-10-28.
 
 ## Context
 
@@ -33,12 +34,22 @@ An outside review of the ports and adapters found the hexagon held in the Ruby r
    readings; its five failures are the known json 2.7.2 empty-array formatting. No world in the
    corpus binds `dispatched_by`, so the Rust parser's reading of that verb is not yet exercised.
 
+4. **Host: the era store's head surface is on `Store`, on both backends.** `head_by_id`,
+   `head_all`, `head_find`, `put_head` and `amend_head` (read the heads, decide, write at most one
+   row, atomically) replace the raw connection in the member and sign-in code in `auth.rs`.
+   Memory keeps heads in process and fills them from a committed step's lineage mutations.
+   `store_conformance` runs four head cases on Postgres and Memory. They found one divergence,
+   now fixed: `head_all` answers in id byte order on both (Postgres had answered in storage order).
+   `head_find` falls back to the plain `<storage>_head` view on Postgres, which the session lookup
+   did not before; a missing head view there now answers `None` instead of an error.
+
 ## Not yet decided, in order
 
-- **An `EraStore` port with a Memory implementation.** It covers `current_era`, `held_eras`,
-  `last_ordinal`, the lineage mutation append and the head reads. `Store::lineage()` then returns
-  the port on every backend, and the Postgres-only escape hatch goes. The conformance suite gains
-  era cases that run on both backends.
+- **The rest of the era store.** Heads are done for `auth.rs`. Still on a raw Postgres connection:
+  `presentation`'s head-state read (`LineageStore::first_existing_states`), boot's era decision
+  (`held_eras`, `current_era`) and minting (`store/mint.rs`), and the ledger seals (`last_ordinal`).
+  Each moves onto `Store` with a Memory implementation and a conformance case, and then
+  `Store::lineage()` and `require_lineage` go.
 - **A core crate and an adapters crate.** `rust/host` becomes a core (dispatch, journal data,
   IR, expression and presentation code, the `Store` trait) that cannot name `axum`, `reqwest`,
   `tokio_postgres` or the AWS SDK, because they are not in its `Cargo.toml`. The compiler then

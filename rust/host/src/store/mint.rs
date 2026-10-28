@@ -1618,8 +1618,8 @@ mod tests {
             "state is nullable, for a delete tombstone"
         );
     }
-    use super::*;
     use super::super::journal_sql as journal;
+    use super::*;
     use tokio_postgres::NoTls;
 
     fn rule(name: &str, was: Option<&str>, expression: &str) -> EdgeAggregate {
