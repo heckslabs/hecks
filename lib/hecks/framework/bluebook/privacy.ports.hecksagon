@@ -1,0 +1,12 @@
+# The port Privacy declares, for every hecksagon that attaches the bluebook (`Framework.load!` loads
+# this file with it). `Destroy` asks the key vault to destroy a subject's key and answers once it is
+# gone, or refuses with a reason. privacy.key_destroyer.adapter binds it (ADR 0142).
+Hecks.hecksagon "Privacy" do
+  Privacy::SubjectKey.port "Keys" do
+    # No argument: the ask is handed the subject's held state, which names the key.
+    asks "Destroy", to: SubjectKey do
+      answers "SubjectKeyDestroyed"
+      refuses "SubjectKeyDestructionRefused"
+    end
+  end
+end

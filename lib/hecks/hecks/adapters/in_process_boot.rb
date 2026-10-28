@@ -8,6 +8,7 @@ require_relative "../../ports/persistence/plugins/era"
 require_relative "../../cli/stores"
 require_relative "../../cli/shape"
 require_relative "../../cli/history"
+require_relative "../../projections/context_map_diagram"
 require_relative "in_process_operations"
 require_relative "in_process_access"
 
@@ -98,6 +99,16 @@ module Hecks
       # @raise [Runtime::NotFound] if the domain cannot be found
       def relationships(domain:)
         report(Projections::ContextRelationships.text(registry: boot(domain).registry))
+      end
+
+      # @param domain [Hash, String] a domain directory
+      # @return [Hash] `text:` the declared context map drawn as Mermaid beside the wiring, with
+      #   each finding of holding the wiring to the map as a comment
+      # @raise [Runtime::NotFound] if the domain cannot be found
+      def context_map(domain:)
+        registry = boot(domain).registry
+        edges = Projections::ContextRelationships.call(registry: registry)
+        report(Projections::ContextMapDiagram.report(map: registry.context_maps.first, edges: edges))
       end
 
       # @param domain [Hash, String] a domain directory

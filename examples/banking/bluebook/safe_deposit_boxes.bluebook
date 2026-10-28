@@ -154,7 +154,7 @@ Hecks.bluebook "Banking" do
 
       # Two facts from one act: the surrender, and the keys still outstanding.
       emits BoxSurrendered
-      emits KeyReturnDue
+      emits KeyReturnRequested
     end
 
     command "LogVisit", from: "rented" do
@@ -200,7 +200,7 @@ Hecks.bluebook "Banking" do
   end
 
   policy "FlagKeyReturn" do
-    on      SafeDepositBox::KeyReturnDue
+    on      SafeDepositBox::KeyReturnRequested
     trigger Notifications::Send
     # Undelivered on purpose; see NotifyOnClosure in deposit_accounts.bluebook.
     across  "Notifications", expect_undelivered: true

@@ -36,6 +36,25 @@ module Hecks
         lines.join("\n")
       end
 
+      # The diagram, followed by what holding the wiring to the map finds, one Mermaid comment a line.
+      # A system with no declared map is drawn from its wiring alone and says so.
+      #
+      # @param map [Bluebook::ContextMap, nil] the declared map
+      # @param edges [Array<Hash>] `Projections::ContextRelationships.call`
+      # @return [String] the Mermaid source and its findings
+      def report(map:, edges:)
+        notes = map ? findings_lines(map, edges) : ["  %% no context map is declared; the wiring is drawn alone"]
+        [call(map: map, edges: edges), *notes].join("\n")
+      end
+
+      # @api private
+      def findings_lines(map, edges)
+        found = Bluebook::ModelCheck.context_map_findings(map, edges)
+        return ["  %% the wiring matches the declared map"] if found.empty?
+
+        found.map { |finding| "  %% #{finding.severity} #{finding.kind} #{finding.subject}: #{finding.message}" }
+      end
+
       # @api private
       def declared_links(map, edges)
         return [] unless map

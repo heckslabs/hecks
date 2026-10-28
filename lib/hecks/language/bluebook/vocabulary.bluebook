@@ -138,7 +138,8 @@ Hecks.bluebook "Bluebook" do
     # Adapters::Driven::Folder::DOMAIN_ORDER — declarations load in this order
     value_object "LoadOrder" do
       attribute :glob, String,
-                one_of: ["*.port", "*.adapter", "*.bluebook", "translations/*.bluebook", "*.hecksagon", "*.world"]
+                one_of: ["*.port", "*.adapter", "*.bluebook", "translations/*.bluebook", "*.hecksagon", "*.world",
+                         "*.contextmap"]
     end
 
     # The order CommandInterpreter#call follows, ending at the events it

@@ -15,6 +15,7 @@ module Hecks
       GRAMMAR_FILES = Dir.glob(File.join(GRAMMAR_DIR, "*.bluebook")).freeze
       WORLD_GRAMMAR = Dir.glob(File.expand_path("../language/world/*.bluebook", __dir__)).freeze
       HECKSAGON_GRAMMAR = Dir.glob(File.expand_path("../language/hecksagon/*.bluebook", __dir__)).freeze
+      CONTEXT_MAP_GRAMMAR = Dir.glob(File.expand_path("../language/context_map/*.bluebook", __dir__)).freeze
       # Backs PortJudge, the same entry point shape as WorldJudge.
       PORT_GRAMMAR = File.expand_path("../language/port.bluebook", __dir__).freeze
       # Backs AdapterJudge, one file over.
@@ -238,7 +239,8 @@ module Hecks
         preamble = ["../ports/persistence.port", "../ports/extraction.port",
                     "../adapters/driven/memory.adapter", "../adapters/driven/prism.adapter"]
         preamble.map { |path| File.expand_path(path, __dir__) } +
-          GRAMMAR_FILES + WORLD_GRAMMAR + HECKSAGON_GRAMMAR + [PORT_GRAMMAR, ADAPTER_GRAMMAR] + TRANSLATION_GRAMMAR
+          GRAMMAR_FILES + WORLD_GRAMMAR + HECKSAGON_GRAMMAR + [PORT_GRAMMAR, ADAPTER_GRAMMAR] + TRANSLATION_GRAMMAR +
+          CONTEXT_MAP_GRAMMAR
       end
 
       # A dispatcher over the shared grammar registry with its records

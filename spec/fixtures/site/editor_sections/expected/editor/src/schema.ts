@@ -15,8 +15,8 @@ export type Kind = "text" | "integer" | "number" | "boolean" | "object" | "refer
  */
 export interface Picker {
   target?: string;
-  /** The target's chapter, when the editor spans several or the target is in another. */
-  chapter?: string;
+  /** The target's bluebook, when the editor spans several or the target is in another. */
+  bluebook?: string;
   /** The target's identity attribute. */
   key?: string;
   /** The attribute that names an instance to a person (its title, name or label, else its identity). */
@@ -120,7 +120,7 @@ export interface Query {
  */
 export interface Related {
   aggregate: string;
-  chapter?: string;
+  bluebook?: string;
   /** The related aggregate's identity attribute, which the key fills. */
   field: string;
   shape: "document" | "gallery" | "metadata";
@@ -140,9 +140,9 @@ export interface Drafts {
 
 export interface Aggregate {
   name: string;
-  /** The chapter that declares the aggregate; set when the editor spans several. */
-  chapter?: string;
-  /** The roles that may edit it, when its chapter limits them; any admitted role otherwise. */
+  /** The bluebook that declares the aggregate; set when the editor spans several. */
+  bluebook?: string;
+  /** The roles that may edit it, when its bluebook limits them; any admitted role otherwise. */
   roles?: string[];
   description: string | null;
   identity: string;
@@ -163,14 +163,14 @@ export interface MediaField {
   wrap: string | null;
 }
 
-/** The aggregate that registers pictures, when the chapter has one: found by shape, never by name. */
+/** The aggregate that registers pictures, when the bluebook has one: found by shape, never by name. */
 export interface Media {
   aggregate: string;
   command: string;
   fields: { key: MediaField; alt: MediaField; mime: MediaField; width?: MediaField; height?: MediaField };
   /** The query that lists the pictures, or null when every instance is read. */
   listing: string | null;
-  /** The chapter that holds the picture aggregate, when it is not this editor's own chapter. */
+  /** The bluebook that holds the picture aggregate, when it is not this editor's own bluebook. */
   domain?: string;
   /** That aggregate, which is then not among the editor's own; see `domain`. */
   definition?: Aggregate;
@@ -183,7 +183,7 @@ export interface Media {
  */
 export interface Scheduling {
   aggregate: string;
-  chapter?: string;
+  bluebook?: string;
   subject: string;
   action: string;
   actions: string[];
@@ -202,10 +202,10 @@ export interface Scheduling {
 }
 
 export interface Schema {
-  /** The first chapter, which names the domain the host is asked for. */
+  /** The first bluebook, which names the domain the host is asked for. */
   domain: string;
-  /** Every chapter, in the order the navigation groups them; set when the editor spans several. */
-  chapters?: string[];
+  /** Every bluebook, in the order the navigation groups them; set when the editor spans several. */
+  bluebooks?: string[];
   aggregates: Aggregate[];
   media?: Media;
   scheduling?: Scheduling;
@@ -213,14 +213,14 @@ export interface Schema {
 
 export const SCHEMA: Schema = {
   "domain": "Layouts",
-  "chapters": [
+  "bluebooks": [
     "Layouts",
     "Pictures"
   ],
   "aggregates": [
     {
       "name": "PageLayout",
-      "chapter": "Layouts",
+      "bluebook": "Layouts",
       "description": "The ordered, typed panels of one page, and an edit saved aside until it is put live.",
       "identity": "key",
       "lifecycle": null,
@@ -1327,7 +1327,7 @@ export const SCHEMA: Schema = {
     },
     {
       "name": "MediaItem",
-      "chapter": "Pictures",
+      "bluebook": "Pictures",
       "description": "A picture that has been uploaded: its record only, the bytes are kept elsewhere.",
       "identity": "key",
       "lifecycle": null,

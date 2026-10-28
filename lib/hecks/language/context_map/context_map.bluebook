@@ -1,0 +1,77 @@
+Hecks.bluebook "ContextMap" do
+  aggregate "ContextMap" do
+    description "One .contextmap — the contexts a system holds and how pairs of them relate, declared before the wiring and held against it (ADR 0135). A sibling artifact to the bluebook, not part of it."
+
+    identified_by MapName, as: :system
+
+    # What the map's body fills: the contexts it names, the relationships between them and the
+    # pairs declared apart, each written as the builder reads it.
+    attribute :contexts,      String
+    attribute :relationships, String
+    attribute :separate_ways, String
+
+    value_object "MapName" do
+      attribute :value, String
+      invariant("a context map names its system") { !value.to_s.empty? }
+    end
+
+    command "Declare" do
+      role "Architect"
+      goal "Open a context map for a system"
+
+      attribute :system, MapName
+
+      sets :system
+
+      emits "ContextMapDeclared"
+    end
+
+    # Spelling rows for ContextMap keywords; SyntaxBoot discovers every
+    # aggregate-local seed table like this one.
+    value_object "KeywordSeed" do
+      attribute :word,          String
+      attribute :context,       String, admits: "Syntax::Context"
+      attribute :body,          String, admits: "Syntax::Body"
+      attribute :inner,         String
+      attribute :opens,         String
+      attribute :fills,         String
+      attribute :status,        String, default: "admitted", admits: "Syntax::Status"
+      attribute :was,           String
+      attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
+      attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+
+      member word: "context_map",   context: "File",       body: "keywords", inner: "ContextMap", opens: "ContextMap", fills: ""
+      member word: "context",       context: "ContextMap", body: "none", inner: "", opens: "", fills: "contexts"
+      member word: "relate",        context: "ContextMap", body: "none", inner: "", opens: "", fills: "relationships"
+      member word: "separate_ways", context: "ContextMap", body: "none", inner: "", opens: "", fills: "separate_ways"
+    end
+
+    value_object "ArgumentSeed" do
+      attribute :keyword,          String
+      attribute :context,          String, admits: "Syntax::Context"
+      attribute :at,               String
+      attribute :named,            String
+      attribute :kind,             String, admits: "Syntax::ArgumentKind"
+      attribute :required,         String
+      attribute :fills,            String
+      attribute :selects,          String
+      attribute :pair_key_fills,   String
+      attribute :pair_value_fills, String
+      attribute :pairs_shape,      String, admits: "Syntax::PairsShape"
+      attribute :status,           String, default: "admitted", admits: "Syntax::Status"
+      attribute :variadic,         String
+      attribute :coerce,           String
+      attribute :blank_message,    String
+
+      member keyword: "context_map",   context: "File", at: "1", named: "", kind: "text", required: "true", fills: "system"
+      member keyword: "context",       context: "ContextMap", at: "1", named: "", kind: "text", required: "true", fills: "contexts"
+      member keyword: "context",       context: "ContextMap", at: "", named: "team", kind: "text", required: "false", fills: "contexts"
+      member keyword: "relate",        context: "ContextMap", at: "", named: "", kind: "pairs", required: "true", fills: "relationships", pairs_shape: "verbatim"
+      member keyword: "relate",        context: "ContextMap", at: "", named: "as", kind: "symbol", required: "true", fills: "relationships"
+      member keyword: "relate",        context: "ContextMap", at: "", named: "published", kind: "list", required: "false", fills: "relationships"
+      member keyword: "relate",        context: "ContextMap", at: "", named: "of", kind: "list", required: "false", fills: "relationships"
+      member keyword: "separate_ways", context: "ContextMap", at: "1", named: "", kind: "text", required: "true", fills: "separate_ways"
+      member keyword: "separate_ways", context: "ContextMap", at: "2", named: "", kind: "text", required: "true", fills: "separate_ways"
+    end
+  end
+end

@@ -3,8 +3,8 @@ __BANNER__
 // The pages: an overview of what the domain holds, a list per aggregate (table.ts), one instance
 // (detail.ts), and a form per command generated from the command's attributes. Every page is built
 // into the frame in shell.ts. Lifecycle state is a badge, and a lifecycle move is offered only from
-// the states it applies in. An editor of several chapters groups the overview and the navigation by
-// chapter and puts the chapter in each address.
+// the states it applies in. An editor of several bluebooks groups the overview and the navigation by
+// bluebook and puts the bluebook in each address.
 import { EDITOR } from "../config.ts";
 import { at, keyOf } from "../names.ts";
 import type { Aggregate, Attr, Command, Query } from "../schema.ts";
@@ -37,11 +37,11 @@ const OVERVIEW: Crumb = ["Overview", href()];
 const head = (title: string, note: string, extra = ""): string =>
   `<div class="mb-6 flex flex-wrap items-start justify-between gap-3"><div><h1 class="text-3xl">${esc(title)}</h1><p class="mt-1 max-w-prose text-muted">${esc(note)}</p></div>${extra}</div>`;
 
-/** The trail to an aggregate's list: the overview, then the chapter when there are several. */
-const trail = (agg: Aggregate): Crumb[] => [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name), href(...at(agg))]];
+/** The trail to an aggregate's list: the overview, then the bluebook when there are several. */
+const trail = (agg: Aggregate): Crumb[] => [OVERVIEW, ...(agg.bluebook ? [[label(agg.bluebook)] as Crumb] : []), [plural(agg.name), href(...at(agg))]];
 
-/** The words a page of an aggregate carries in its title: the plural, and the chapter when it could be mistaken for another. */
-const titleOf = (agg: Aggregate): string => (agg.chapter ? `${plural(agg.name)} (${label(agg.chapter)})` : plural(agg.name));
+/** The words a page of an aggregate carries in its title: the plural, and the bluebook when it could be mistaken for another. */
+const titleOf = (agg: Aggregate): string => (agg.bluebook ? `${plural(agg.name)} (${label(agg.bluebook)})` : plural(agg.name));
 
 function overviewItems(aggregates: Aggregate[]): string {
   const items = aggregates.map((agg) => {
@@ -53,18 +53,18 @@ function overviewItems(aggregates: Aggregate[]): string {
 
 /** The overview: every aggregate the domain declares, with what it is and how much of it there is. */
 export function home(): string {
-  const sections = groups().map(([chapter, aggregates]) => {
-    if (chapter === null) return overviewItems(aggregates);
-    return groupOf(chapter, `<h2 class="mb-2 mt-8 text-lg">${esc(label(chapter))}</h2>\n${overviewItems(aggregates)}`);
+  const sections = groups().map(([bluebook, aggregates]) => {
+    if (bluebook === null) return overviewItems(aggregates);
+    return groupOf(bluebook, `<h2 class="mb-2 mt-8 text-lg">${esc(label(bluebook))}</h2>\n${overviewItems(aggregates)}`);
   });
-  const body = `${head(SCHEMA.chapters ? EDITOR.brand : SCHEMA.domain, "Choose what to edit.")}
+  const body = `${head(SCHEMA.bluebooks ? EDITOR.brand : SCHEMA.domain, "Choose what to edit.")}
 ${sections.join("\n")}`;
   return page("Overview", body, { crumbs: [["Overview"]] });
 }
 
 /**
  * The page for a path that names nothing, or, with a `title`, for another reason the person is
- * sent back (the domain not answering, a chapter closed to their role): the heading and the tab
+ * sent back (the domain not answering, a bluebook closed to their role): the heading and the tab
  * say that reason, not "Not found".
  */
 export function notFound(what: string, title = "Not found"): string {
@@ -75,7 +75,7 @@ export function notFound(what: string, title = "Not found"): string {
 
 /** An aggregate's list: one page of its rows, with the filters in `view`. */
 export function listPage(agg: Aggregate, rows: Row[], query: Query | null, error: string | null, asked: boolean, view: View, choices: Choices = {}): string {
-  return page(titleOf(agg), list(agg, rows, query, error, asked, view, choices), { active: keyOf(agg), crumbs: [OVERVIEW, ...(agg.chapter ? [[label(agg.chapter)] as Crumb] : []), [plural(agg.name)]] });
+  return page(titleOf(agg), list(agg, rows, query, error, asked, view, choices), { active: keyOf(agg), crumbs: [OVERVIEW, ...(agg.bluebook ? [[label(agg.bluebook)] as Crumb] : []), [plural(agg.name)]] });
 }
 
 /** One instance, with the records and actions that go with it and its preview. */
