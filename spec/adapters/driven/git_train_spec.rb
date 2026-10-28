@@ -100,6 +100,35 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect(carry).to include(outcome: { value: "carried" }, boarded: { value: git("rev-parse", "main") })
   end
 
+  # A pre-push hook that, on its first run only, lands a commit on the local branch the way another
+  # session does while the gate runs.
+  def land_during_first_push
+    hooks = File.join(scratch, "hooks")
+    FileUtils.mkdir_p(hooks)
+    hook = File.join(hooks, "pre-push")
+    File.write(hook, "#!/bin/sh\nunset GIT_DIR GIT_WORK_TREE\n[ -e #{scratch}/seen ] && exit 0\ntouch #{scratch}/seen\n" \
+                     "git -C #{work} commit -q --allow-empty -m landed\n")
+    FileUtils.chmod("+x", hook)
+    git("config", "core.hooksPath", hooks)
+  end
+
+  it "pushes a head that moved on after boarding, even when the boarded commit is already there", :aggregate_failures do
+    boarded = git("rev-parse", "main")
+    commit("newer")
+    carriage = described_class::Carriage.new(Hecks::Adapters::Git.new, work, branch: "main", remote: "origin")
+
+    expect(carriage.carry(boarded)[:outcome]).to eq(value: "pushed")
+    expect(git("rev-parse", "origin/main")).to eq(git("rev-parse", "main"))
+  end
+
+  it "rides again for commits that landed while the gate ran", :aggregate_failures do
+    commit("second")
+    land_during_first_push
+
+    expect(carry[:report][:value]).to include("pushed").and include(";")
+    expect(git("rev-parse", "origin/main")).to eq(git("rev-parse", "main"))
+  end
+
   it "merges a remote that moved and brings the checked-out branch forward", :aggregate_failures do
     commit("mine")
     push_elsewhere("theirs")
