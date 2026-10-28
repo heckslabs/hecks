@@ -35,7 +35,8 @@ RSpec.describe "Rust host query step", :io do
   end
 
   it "routes derivable queries to the kernel and refuses outside-answered ones (cargo unit tests)", :aggregate_failures do
-    stdout, stderr, status = Open3.capture3("cargo", "test", "-p", "rust_host_core", "--lib", "query_step", chdir: QUERY_STEP_HOST_DIR)
+    stdout, stderr, status = Open3.capture3("cargo", "test", "-p", "rust_host_core", "--lib", "query_step",
+                                            chdir: QUERY_STEP_HOST_DIR)
 
     expect(status).to be_success, "cargo test failed:\n#{stdout}\n#{stderr}"
     expect(stdout).to match(/test result: ok\. \d+ passed; 0 failed/)
