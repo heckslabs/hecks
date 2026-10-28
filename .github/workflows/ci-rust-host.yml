@@ -203,8 +203,13 @@ jobs:
           name: host
           crate-root: rust/host
 
+      # The spec builds these two binaries itself and hides cargo's output; building them here
+      # shows in the log whether the restored target is warm, and the profile names the slowest examples.
+      - name: "Build the lineage and mint harnesses (rust/host)"
+        run: cd rust/host && cargo build --bin lineage_harness --bin mint_harness
+
       - name: "rspec: Rust/Ruby lineage parity (rust/host)"
-        run: bundle exec rspec --tag io spec/rust_host_lineage_conformance_spec.rb
+        run: bundle exec rspec --tag io --profile 5 spec/rust_host_lineage_conformance_spec.rb
 
       - name: "rspec: Rust/Ruby expression parity (rust/host)"
         run: bundle exec rspec --tag io spec/rust_host_expr_json_conformance_spec.rb
