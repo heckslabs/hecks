@@ -78,6 +78,21 @@ module Hecks
       return if Hecks.current_registry.bluebook(name.to_s)
 
       SentenceForm.load_file(path)
+      load_wiring(path)
     end
+
+    # Loads what a member ships beside its bluebook, as {Chapters} does for the bluebooks it
+    # carries: `<name>.ports.hecksagon` (the ports it declares) and `<name>.*.adapter` (the
+    # adapters binding them). A member with neither loads exactly the bluebook, as before.
+    #
+    # @param path [String] the member's bluebook file
+    # @return [void]
+    def self.load_wiring(path)
+      stem = File.join(File.dirname(path), File.basename(path, ".bluebook"))
+      ports = "#{stem}.ports.hecksagon"
+      Kernel.load(ports) if File.file?(ports)
+      Dir.glob("#{stem}.*.adapter").each { |adapter| Kernel.load(adapter) }
+    end
+    private_class_method :load_wiring
   end
 end
