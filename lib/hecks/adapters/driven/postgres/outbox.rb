@@ -126,7 +126,7 @@ module Hecks
       #   keys; `[]` when none match
       # @raise [PG::Error] if the statement fails
       def outbox_rows(status: nil)
-        sql   = "SELECT * FROM hecks_outbox WHERE aggregate = $1"
+        sql   = "SELECT *, extract(epoch from (now() - claimed_at)) AS claimed_for FROM hecks_outbox WHERE aggregate = $1"
         binds = [table]
         if status
           sql << " AND status = $2"
@@ -146,11 +146,10 @@ module Hecks
       end
 
       def outbox_row_from(row)
+        text = %w[delivery_id event_uid aggregate domain kind consumer status error].to_h { |name| [name.to_sym, row[name]] }
         Runtime::Outbox::Row.new(
-          id: row["id"].to_i, delivery_id: row["delivery_id"], event_uid: row["event_uid"], aggregate: row["aggregate"],
-          domain: row["domain"], kind: row["kind"], consumer: row["consumer"],
-          event: JSON.parse(row["event"], symbolize_names: true), status: row["status"],
-          attempts: row["attempts"].to_i, error: row["error"]
+          **text, id: row["id"].to_i, event: JSON.parse(row["event"], symbolize_names: true),
+                  attempts: row["attempts"].to_i, claimed_for: row["claimed_for"]&.to_f
         )
       end
 

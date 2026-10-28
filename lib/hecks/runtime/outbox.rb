@@ -13,12 +13,25 @@ module Hecks
       # pending -> claimed -> delivered | failed
       STATUSES = %w[pending claimed delivered failed].freeze
 
+      # How long a row stays claimed before it counts as stalled: a claim that old was left by a
+      # process that is gone, where a younger one is a reaction running in another process.
+      STALLED_AFTER = 1800
+
+      # `claimed_for` is the seconds since the row was claimed, read from the store's own clock; nil
+      # when the store does not say.
       Row = Struct.new(:id, :delivery_id, :event_uid, :aggregate, :domain, :kind, :consumer, :event,
-                       :status, :attempts, :error, keyword_init: true) do
+                       :status, :attempts, :error, :claimed_for, keyword_init: true) do
         def pending?   = status == "pending"
         def claimed?   = status == "claimed"
         def delivered? = status == "delivered"
         def failed?    = status == "failed"
+
+        # A claimed row is stalled when its age is unknown or past `STALLED_AFTER`; a younger one is
+        # a reaction still running.
+        def stalled? = claimed? && (claimed_for.nil? || claimed_for >= STALLED_AFTER)
+
+        # @return [Integer, nil] whole seconds since the claim, or nil when the store does not say
+        def claimed_seconds_ago = claimed_for&.round
 
         # Wire shape persisted by adapters; `Outbox.event_from` reverses it.
         def to_h
