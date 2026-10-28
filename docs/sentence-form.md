@@ -254,6 +254,12 @@ Example: Only an editor may take a page down
   A command several roles may run is written `Who: Customer or Sales Rep`, and an example refuses
   a caller with none of them: `Then it is refused because only a Customer or Sales Rep may do it`.
 - `drafts a page with …` makes one; `publishes it` acts on the page made earlier in the example.
+- A command named by several words reads as its first word and the rest. `Create Pizza` makes one
+  with `creates a pizza with …`, and `Add Topping` acts on the order made earlier with
+  `adds a topping to it with …`. The verb may be written in its base form (`create`, `add`) or its
+  third-person form (`creates`, `adds`). A command that makes a record is not written with `to it`,
+  and one that acts on a record always is. A step that matches nothing is refused with the
+  wordings that would have worked, and two commands that read alike are refused by name.
 - `tries to` is how a step that should be refused reads, and the example then has to say why. The
   reason is the rule's own sentence, copied from the `Rule` or `Given`.
 - An example has one `When`. A `Where:` table runs it once per row.
@@ -291,7 +297,11 @@ A `.hecksagon` beside a bluebook written as sentences is refused by name. So are
 - a report that pages each of several included aggregates separately (`on:` a head);
 - the facts a command or query asks the runtime to supply (`needs`), a query's `cursor`, a command
   argument whose type or default differs from the field it names, and a quote inside a quoted
-  value.
+  value;
+- in an example step, a value for a value object that holds more than one field (a pizza with a
+  price and a size), or whose one field is not called `value` (a price in cents). Such a step is
+  refused with `holds more than one value; examples can only give a single value so far`, so a
+  command that needs one cannot be run by an example yet.
 
 Anything the formatter cannot write is refused with the name of what it could not say, never
 dropped, so a bluebook that formats always reads back as the same thing. Comments are the one

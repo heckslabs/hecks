@@ -6,6 +6,7 @@
 //! refused with the column it stopped fitting at and the nearest phrases, never skipped.
 
 mod changes;
+mod command_step;
 /// The sentences legal at a cursor, for editors.
 pub mod complete;
 mod entity;

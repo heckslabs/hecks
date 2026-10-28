@@ -1,0 +1,42 @@
+Domain: Shop
+  Pizzas are made, topped and closed; two of its commands are named by two words.
+
+Aggregate: Order
+  An order is made, topped and closed.
+
+  An order is identified by its name.
+
+  It has:
+    a name: order name
+    a note: order note, optional
+
+  An order name has a value: text.
+    Rule "an order is named" holds when the value is not empty
+
+  An order note has a value: text.
+
+  Lifecycle: status, starting as open
+    Close moves an order from open to closed
+
+  Command: Create Pizza
+    Goal: Start an order with a pizza on it
+    Who: Chef
+    When a name is given
+    Then the name is set
+    And PizzaCreated is announced
+
+  Command: Add Topping
+    Goal: Put a topping on the pizza
+    Who: Chef
+    It acts on an existing order
+    It takes:
+      a note: order note
+    Then the note is set
+    And ToppingAdded is announced
+
+  Command: Close
+    Goal: Finish the order
+    Who: Chef
+    It acts on an existing order
+    Given "only an open order can be closed" holds when the status is open
+    Then OrderClosed is announced
