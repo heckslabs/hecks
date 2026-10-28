@@ -15,7 +15,7 @@ module Hecks
       # itself. An undeclared coupling or a separate-ways breach has no relationship to carry the
       # allowance; the fix is to declare one.
       RELATIONSHIP_KINDS = %i[relationship_kind_mismatch conformist_translates unpublished_dependency
-                              unused_relationship].freeze
+                              unused_relationship redundant_relationship].freeze
 
       # @param owner [String] the declaration carrying the word, for the message
       # @param finding [Symbol, String] the kind being acknowledged
