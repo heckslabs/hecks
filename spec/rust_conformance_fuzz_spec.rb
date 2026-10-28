@@ -2,6 +2,7 @@ require "json"
 require "open3"
 require "hecks/fuzzing"
 require "hecks/fuzzing/differential"
+require "hecks/rust_build/kernel_input"
 require_relative "support/rust_conformance_helpers"
 require_relative "support/generated_rust"
 
@@ -34,6 +35,10 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
 
   def build_rust_for(domain_feature) = super(domain_feature, FUZZ_RUST_DIR)
 
+  # A query row without the fields only Ruby's oracle reads (`Nondeterministic::FIELDS`): the
+  # compiled kernel answers one ask at a time, so it has no page walk to compare.
+  def without_oracle_only(row) = Hecks::Fuzzing::Nondeterministic.strip(row, :query_row)
+
   it "pends only domains it actually fuzzes" do
     expect(RUST_FUZZ_PENDING.keys - DOMAINS.map { |domain| File.basename(domain) }).to be_empty
   end
@@ -65,10 +70,10 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
           ruby_refusals  = ruby_result[:refusals].map do |r|
             { "verb" => r[:verb].to_s, "kind" => r[:kind].to_s.split("::").last, "error" => r[:error] }
           end
-          ruby_queries   = JSON.parse(JSON.generate(ruby_result[:queries].map { |q| q.except(:instances_at) }))
+          ruby_queries   = JSON.parse(JSON.generate(ruby_result[:queries].map { |q| without_oracle_only(q) }))
           ruby_sagas     = JSON.parse(JSON.generate(ruby_result[:sagas]))
 
-          stdout, status = Open3.capture2(binary, stdin_data: JSON.generate({ "steps" => steps }))
+          stdout, status = Open3.capture2(binary, stdin_data: Hecks::RustBuild::KernelInput.json(domain, steps))
           unless status.success?
             divergences << { seed: seed, field: "process", detail: "exited #{status.exitstatus}: #{stdout}" }
             next
