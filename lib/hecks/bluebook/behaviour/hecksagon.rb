@@ -25,8 +25,15 @@ module Hecks
           specific = @binds.select { |b| b.aggregate_name == aggregate_name.to_s && b.verb.to_s == verb.to_s }
           return specific if specific.any?
 
-          @binds.select { |b| b.aggregate.nil? && b.verb.to_s == verb.to_s }
+          default_binds(verb)
         end
+
+        # The domain-level defaults for `verb`: the binds declared at the hecksagon's root, with no
+        # aggregate, which every aggregate inherits unless it declares its own.
+        #
+        # @param verb [String, Symbol]
+        # @return [Array<Bluebook::Bind>]
+        def default_binds(verb) = @binds.select { |b| b.aggregate.nil? && b.verb.to_s == verb.to_s }
       end
 
       # Settings lookup for a world, with adapter-specific entries falling back to the verb's own.

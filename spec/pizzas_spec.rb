@@ -245,13 +245,12 @@ RSpec.describe "Pizzas" do
       expect(registry.repository("Pizzas", registry.bluebook("Pizzas").aggregate("Order")).count).to eq(1)
     end
 
-    it "refuses an unbound aggregate when the domain declares a hecksagon" do
+    it "keeps an aggregate in Memory when the hecksagon wires no persistence" do
       registry = Hecks::Runtime::Registry.new
       load_charged_pizzas(registry)
       order = registry.bluebook("Pizzas").aggregate("Order")
 
-      expect { registry.repository("Pizzas", order) }
-        .to raise_error(Hecks::Runtime::WiringError, /Order has no persisted_by bind.*forgotten decision/m)
+      expect(Hecks::Ports::Persistence::BindingPolicy.resolve(registry, "Pizzas", order).adapter).to eq("Memory")
     end
 
     it "accepts an aggregate the hecksagon binds to Memory explicitly" do

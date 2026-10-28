@@ -57,10 +57,19 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     end
   end
 
-  it "reports the variable as the source when it is set" do
-    ENV["HECKS_DATABASE"] = database
+  it "says a chapter's local world beside the domain supplied the database" do
+    File.write(File.join(directory, "hecks.local.world"), "")
 
-    expect(line(read, "database")).to include("variable HECKS_DATABASE")
+    expect(line(read, "database")).to end_with("(hecks.local.world)")
+  end
+
+  it "says a local world in the working directory supplied the database" do
+    Dir.mktmpdir("working") do |working|
+      File.write(File.join(working, "hecks.local.world"), "")
+      allow(Dir).to receive(:pwd).and_return(working)
+
+      expect(line(read, "database")).to end_with("(hecks.local.world)")
+    end
   end
 
   it "reports the environment as a variable when set and as the default when not", :aggregate_failures do
