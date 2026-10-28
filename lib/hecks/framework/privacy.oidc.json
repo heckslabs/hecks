@@ -12,8 +12,18 @@
       "role": "Deployment"
     },
     {
+      "scope": "privacy:subject_key.fail_shred",
+      "verb": "Privacy::SubjectKey.FailShred",
+      "role": "System"
+    },
+    {
       "scope": "privacy:subject_key.issue",
       "verb": "Privacy::SubjectKey.Issue",
+      "role": "System"
+    },
+    {
+      "scope": "privacy:subject_key.mark_shredded",
+      "verb": "Privacy::SubjectKey.MarkShredded",
       "role": "System"
     },
     {

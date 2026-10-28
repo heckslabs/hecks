@@ -18,7 +18,7 @@
 //! the one dispatch in every N pays for hashing those N rows. The operator tools (`ledger seal`,
 //! `ledger verify`) seal the tail and walk the chain on demand, and never make a write wait.
 
-use crate::journal::{journal_table, last_ordinal, quote_ident};
+use crate::store::journal_sql::{journal_table, last_ordinal, quote_ident};
 use anyhow::Context;
 use sha2::{Digest, Sha256};
 use tokio_postgres::{Client, GenericClient};
