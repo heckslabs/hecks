@@ -44,7 +44,7 @@ module Hecks
             listed = s.fetch(:containers) { raise ArgumentError, missing_containers }
             task_definition = read_task_definition(s[:task_definition], listed)
             containers = read_containers(listed, infra_name)
-            edge = edge_fields(s, containers, task_definition)
+            edge = edge_fields(s, task_definition)
             Plan.new(**plan_fields(s, target, infra_name, database_name, containers), **edge,
                      **extra_fields(s, task_definition, database_name))
           end
@@ -61,15 +61,13 @@ module Hecks
           end
 
           # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings
-          # @param containers [Array<Container>] the declared containers
           # @param task_definition [String, nil] the declared task definition family
-          # @return [Hash{Symbol => Object}] the origin guard and the tunnel
-          def edge_fields(settings, containers, task_definition)
+          # @return [Hash{Symbol => Object}] the origin guard and the CDN
+          def edge_fields(settings, task_definition)
             header, secret = read_origin(settings)
             origin_env = read_origin_env(settings, secret, task_definition)
-            tunnel, tunnel_service = read_tunnel(settings.fetch(:tunnel, false), containers)
-            { origin_header: header, origin_secret: secret, origin_env: origin_env,
-              tunnel: tunnel, tunnel_service: tunnel_service, cdn: read_cdn(settings[:cdn], header) }
+            refuse_tunnel!(settings)
+            { origin_header: header, origin_secret: secret, origin_env: origin_env, cdn: read_cdn(settings[:cdn], header) }
           end
 
           # @return [Hash{Symbol => Object}] the plan's names, sizes, routes and secret scopes

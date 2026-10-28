@@ -76,22 +76,7 @@ module Hecks
               else
                 [health_probe("the proxy serves /", "", '[ "${code#5}" = "$code" ]')]
               end
-            (probes + tunnel_probe(plan)).join("\n")
-          end
-
-          # @param plan [Settings::Plan] the resolved settings
-          # @return [Array<String>] the probe that waits for the tunnel to register, when one runs
-          def tunnel_probe(plan)
-            return [] unless plan.tunnel_service
-
-            [<<~SH.chomp]
-              for _ in 1 2 3 4 5 6; do
-                n=$(docker compose -f compose.json logs --no-color cloudflared 2>&1 | grep -ci "registered tunnel connection" || true)
-                [ "$n" -gt 0 ] && break
-                sleep 5
-              done
-              [ "$n" -gt 0 ] && echo "ok   the tunnel registered $n connections" || { echo "FAIL the tunnel has no connection"; BAD=1; }
-            SH
+            probes.join("\n")
           end
 
           # @param plan [Settings::Plan] the resolved settings

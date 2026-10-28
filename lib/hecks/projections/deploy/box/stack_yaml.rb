@@ -25,7 +25,6 @@ module Hecks
                      "VOLUME_GB" => plan.volume_gb.to_s, "SNAPSHOTS_KEEP" => plan.snapshots_keep.to_s,
                      "COMPUTE_DOMAIN" => compute_domain(region),
                      "SECRET_RESOURCES" => secret_resources(plan), "WRITABLE_SECRETS" => writable_secrets(plan),
-                     "TUNNEL_EGRESS" => tunnel_egress(plan),
                      "SWAP_COMMANDS" => swap_commands(plan), "ECR_REPOSITORIES" => ecr_repositories(plan),
                      "ECR_OUTPUTS" => ecr_outputs(plan), "S3_POLICY" => s3_policy(plan),
                      "LOG_GROUP" => log_group_yaml(plan), "LOG_POLICY" => log_policy_yaml(plan))
@@ -47,14 +46,6 @@ module Hecks
           # @return [String] the DNS suffix an Elastic address's public name ends with
           def compute_domain(region)
             region == LEGACY_COMPUTE_REGION ? "compute-1.amazonaws.com" : "#{region}.compute.amazonaws.com"
-          end
-
-          # @param plan [Settings::Plan] the resolved settings
-          # @return [String] the outbound rules a Cloudflare Tunnel sidecar needs, or nothing
-          def tunnel_egress(plan)
-            return "" unless plan.tunnel
-
-            template("tunnel-egress.yaml.tmpl", {})
           end
 
           # @param plan [Settings::Plan] the resolved settings
