@@ -39,7 +39,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     build.build_host build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
     fuzz_run.bench fuzz_run.conclusion fuzz_run.halted fuzz_run.generate_sequence
-    rehearsal_run.request
+    rehearsal_run.request agent_run.dispatch agent_run.check
   ].freeze
 
   SHELF_BLUEBOOK = <<~RUBY.freeze
