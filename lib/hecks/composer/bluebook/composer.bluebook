@@ -12,7 +12,7 @@ Hecks.bluebook "Composer" do
     description "One bluebook being edited: its text, the conversation about it, and whether its last check passed."
 
     attribute :slug,         DraftSlug
-    attribute :chapter_name, ChapterName
+    attribute :bluebook_name, BluebookName
     attribute :text,         SourceText
     attribute :note,         Note, optional: true
     attribute :turns,        list_of(Turn)
@@ -27,10 +27,10 @@ Hecks.bluebook "Composer" do
 
     # The name a bluebook's `Hecks.bluebook "Name"` header declares, which is also the name the
     # check loads it under.
-    value_object "ChapterName" do
+    value_object "BluebookName" do
       attribute :value, String, matches: :capitalized
 
-      invariant("a chapter is named") { !value.to_s.empty? }
+      invariant("a bluebook is named") { !value.to_s.empty? }
     end
 
     # What is on screen. A draft may be empty or half-written; the check judges it, not this.
@@ -83,11 +83,11 @@ Hecks.bluebook "Composer" do
       goal "Open a bluebook for editing, with the text it starts from"
 
       attribute :slug,         DraftSlug
-      attribute :chapter_name, ChapterName
+      attribute :bluebook_name, BluebookName
       attribute :text,         SourceText
 
       sets :slug
-      sets :chapter_name
+      sets :bluebook_name
       sets :text
 
       emits "DraftBegun"

@@ -1481,7 +1481,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect(layered).not_to be_empty
     end
 
-    # Each link's CASE names `state` twice, so inlined links double: a long chain overflows one
+    # Each link's `CASE` names `state` twice, so inlined links double: a long chain overflows one
     # statement's range table.
     it "materializes every link of the full chain", :aggregate_failures do
       sql = with_db { |db| full_build_sql(db, V3_SOURCE, @edges, @l3) }
