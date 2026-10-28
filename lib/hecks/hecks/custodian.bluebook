@@ -176,6 +176,23 @@ Hecks.bluebook "Hecks" do
       emits OutboxRedriveRequested
     end
 
+    # Settles one stalled claimed row as failed without running its effect, for a row whose effect is
+    # known to have landed or that nobody wants run. It never redelivers; `RedriveOutbox` does that.
+    command "AbandonOutboxRow" do
+      role "Operator"
+      goal "Settle one stalled outbox row as failed, naming it by its delivery id, without running it"
+
+      attribute :run,     OperationKey
+      attribute :subject, Subject
+      attribute :row,     RowId
+
+      sets :run
+      sets :subject
+      sets :row
+
+      emits OutboxRowAbandonRequested
+    end
+
     command "RunBehaviors" do
       role "Operator"
       goal "Run a domain's behavior tests and keep the verdict"
@@ -351,6 +368,11 @@ Hecks.bluebook "Hecks" do
   policy "RedriveWhenRequested" do
     on      "Operation.OutboxRedriveRequested"
     trigger Operation::DomainRuntime::Redrive, with: { run: :run }
+  end
+
+  policy "AbandonWhenRequested" do
+    on      "Operation.OutboxRowAbandonRequested"
+    trigger Operation::DomainRuntime::Abandon, with: { run: :run }
   end
 
   policy "VerifyWhenRequested" do
