@@ -17,7 +17,7 @@ module Hecks
       # Projects one domain's whole shape into every diagram kind it has data
       # for, one Mermaid file per entry.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled bluebook to project
+      # @param bluebook [Bluebook::Declaration] the assembled bluebook to project
       # @param options [Hash{Symbol => Object}] projection options; only `:hecksagon`
       #   (a `Bluebook::Hecksagon`, or `nil`) is read, and only by `frameworks_diagram`
       # @return [Hash{String => String}] each diagram's filename (such as

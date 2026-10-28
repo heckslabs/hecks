@@ -29,7 +29,7 @@ module Hecks
           # Runs every whole-chapter check against one assembled bluebook.
           # Public so `MetaValidator.judge_deferred!` can call it with no builder instance.
           #
-          # @param bluebook [Bluebook::Chapter] the assembled bluebook to validate
+          # @param bluebook [Bluebook::Declaration] the assembled bluebook to validate
           # @return [void]
           # @raise [Bluebook::DSL::Malformed] if any check finds a violation
           # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a

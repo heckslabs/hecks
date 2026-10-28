@@ -10,7 +10,7 @@ require_relative "qa_ledger_role"
 module QaLedgerFixture
   # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, bluebook ports included.
   HECKSAGON = <<~RUBY.freeze
-    Hecks::Chapters.load!("QualityControl")
+    Hecks::FrameworkBluebooks.load!("QualityControl")
 
     Hecks.hecksagon "QualityControl" do
       attaches "Governance"

@@ -8,7 +8,7 @@ module Hecks
         # a bluebook its hecksagon attaches, that declares `provides "authorization"`.
         #
         # @param domain [String, Symbol] the domain whose role checks are being resolved
-        # @return [Bluebook::Chapter, nil] the bluebook that answers `domain`'s role
+        # @return [Bluebook::Declaration, nil] the bluebook that answers `domain`'s role
         #   checks, or nil if none does
         def authorization_provider_for(domain)
           names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
@@ -18,7 +18,7 @@ module Hecks
 
         # Every loaded bluebook declaring `provides "authorization"`.
         #
-        # @return [Array<Bluebook::Chapter>] every loaded bluebook that provides
+        # @return [Array<Bluebook::Declaration>] every loaded bluebook that provides
         #   authorization
         def authorization_providers
           bluebooks.values.select { |chapter| chapter.provides?(Bluebook::Capabilities::AUTHORIZATION) }
@@ -29,7 +29,7 @@ module Hecks
         # declares `provides "identity"`.
         #
         # @param domain [String, Symbol] the domain whose identity bluebook is being resolved
-        # @return [Bluebook::Chapter, nil] the bluebook that answers `domain`'s identity
+        # @return [Bluebook::Declaration, nil] the bluebook that answers `domain`'s identity
         #   questions, or nil if none does
         def identity_provider_for(domain)
           names = [domain.to_s, *Array(hecksagon(domain)&.member_chapters)]
@@ -51,7 +51,7 @@ module Hecks
         # embryonaut_bluebooks bluebook, not a framework member.
         #
         # @param domain [String, Symbol] the domain whose sign-in aggregate is being resolved
-        # @return [Bluebook::Chapter, nil] the bluebook that answers `domain`'s membership
+        # @return [Bluebook::Declaration, nil] the bluebook that answers `domain`'s membership
         #   questions, or nil if none does
         def membership_provider_for(domain)
           vendored_provider_for(domain, Bluebook::Capabilities::MEMBERSHIP)
@@ -60,7 +60,7 @@ module Hecks
         # The first loaded bluebook that declares `capability`, whichever domain asks.
         #
         # @param capability [String] a `Bluebook::Capabilities` name
-        # @return [Bluebook::Chapter, nil] the providing bluebook, or nil if none loaded does
+        # @return [Bluebook::Declaration, nil] the providing bluebook, or nil if none loaded does
         def provider_of(capability) = bluebooks.values.find { |chapter| chapter.provides?(capability) }
 
         # The bluebook that provides `capability` for `domain`: the domain's own bluebook,
@@ -74,7 +74,7 @@ module Hecks
         # @param domain [String, Symbol] the domain the provider is resolved for
         # @param capability [String] the capability's name: `Bluebook::Capabilities::MEMBERSHIP`,
         #   or one a package declares
-        # @return [Bluebook::Chapter, nil] the providing bluebook, or nil if none loaded does
+        # @return [Bluebook::Declaration, nil] the providing bluebook, or nil if none loaded does
         def vendored_provider_for(domain, capability)
           hecksagon = hecksagon(domain)
           names = [domain.to_s, *Array(hecksagon&.member_chapters)]

@@ -80,7 +80,7 @@ module Hecks
 
         # Reads and checks the edge a bluebook declares.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @param table [Table] the checked route table
         # @param vocabulary [Hash{Symbol => Array<String>}] the Site bluebook's closed sets
         # @param template [String, nil] the template the caller names, which stands in for the

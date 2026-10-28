@@ -42,7 +42,7 @@ module Hecks
         def gather(operation)
           version = declared_version
           facts = { operation: word(operation), version: word(version), client_version: word(client_version),
-                    ir_version: word("#{Bluebook::Chapter::IR_VERSION}.0.0"), ships_from: { path: @tree.root } }
+                    ir_version: word("#{Bluebook::Declaration::IR_VERSION}.0.0"), ships_from: { path: @tree.root } }
           return facts if operation == "publish_gem"
 
           facts.merge(git_facts(version)).merge(changelog: flag(changelog?(version)))

@@ -69,7 +69,7 @@ module Hecks
 
         # Renders the editor's files for a project that declares an `Editor` row.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table and the row
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the row
         # @param options [Hash{Symbol => Object}] `:domain_chapters` the bluebooks to edit, in the
         #   order the row names them (`:domain_chapter` for one);
         #   `:media_chapter` the bluebook the row's `media` names, whose picture aggregate the

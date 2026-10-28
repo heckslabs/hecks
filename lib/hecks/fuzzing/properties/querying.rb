@@ -135,7 +135,7 @@ module Hecks
         # Entity-level queries (dotted query path) return nil: they are not one aggregate's
         # own rows, which #query_eligible_rows assumes.
         #
-        # @param bluebooks [Hash{String => Bluebook::Chapter}] every loaded domain
+        # @param bluebooks [Hash{String => Bluebook::Declaration}] every loaded domain
         # @param verb [String] `"Domain::Aggregate.Query"`
         # @return [Bluebook::Query, nil]
         def query_for_verb(bluebooks, verb)

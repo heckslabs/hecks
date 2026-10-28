@@ -10,7 +10,7 @@ module Hecks
         #
         # @param commands [Hash{String => Hash}] the command map, mutated in place
         # @param questions [Hash{String => Hash}] the question map, mutated in place
-        # @param bluebook [Bluebook::Chapter] the booted domain
+        # @param bluebook [Bluebook::Declaration] the booted domain
         # @param aggregate [Bluebook::Aggregate] the aggregate to claim
         # @return [void]
         def claim_aggregate(commands, questions, bluebook, aggregate)

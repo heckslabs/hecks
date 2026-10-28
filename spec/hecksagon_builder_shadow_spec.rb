@@ -29,7 +29,7 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   # Stubs the bluebook load to record what a bluebook loaded by `attaches` sees; answers the record.
   def record_chapter_load
     seen = {}
-    allow(Hecks::Chapters).to receive(:load!) do |_name|
+    allow(Hecks::FrameworkBluebooks).to receive(:load!) do |_name|
       seen[:defined] = Hecks.const_defined?(:Release, false)
       seen[:module]  = Hecks.const_get(:Release)
       seen[:missing] = missing_constant_error

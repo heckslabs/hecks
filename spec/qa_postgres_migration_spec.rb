@@ -21,7 +21,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
   # Heki-backed wiring, inlined so it stays fixed whatever the real file says. Same as the
   # real hecksagon except for the seven `persisted_by` lines.
   HEKI_HECKSAGON = <<~HECKSAGON.freeze
-    Hecks::Chapters.load!("QualityControl")
+    Hecks::FrameworkBluebooks.load!("QualityControl")
 
     Hecks.hecksagon "QualityControl" do
       attaches "Governance"

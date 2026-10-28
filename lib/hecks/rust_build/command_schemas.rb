@@ -11,7 +11,7 @@ module Hecks
 
       module_function
 
-      # @param bluebook [Bluebook::Chapter] the target domain's bluebook
+      # @param bluebook [Bluebook::Declaration] the target domain's bluebook
       # @param dir [String] the domain's generated directory
       # @return [String] the path written
       def write(bluebook, dir)

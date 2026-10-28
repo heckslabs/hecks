@@ -129,9 +129,9 @@ module Hecks
 
         # Loads a bluebook the gem carries and records it as attached from the gem.
         def attach_gem(name)
-          require_relative "../../chapters"
+          require_relative "../../framework_bluebooks"
           @attachments << Attachment.new(name: name.to_s, source: :gem)
-          self.class.with_real_modules { Hecks::Chapters.attach!(name) }
+          self.class.with_real_modules { Hecks::FrameworkBluebooks.attach!(name) }
           Hecks.current_registry&.mark_bounded(name.to_s)
         end
         private :attach_gem

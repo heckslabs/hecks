@@ -16,7 +16,7 @@ module Hecks
         # How many of the least-attached commands the message names.
         SUGGESTED_COMMANDS = 3
 
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @param limit [Integer] the weight an aggregate may reach before it is reported
         # @return [Array<Finding>] one :large_aggregate warning per aggregate over the limit
         def large_aggregate_findings(bluebook, limit: LARGE_AGGREGATE_LIMIT)

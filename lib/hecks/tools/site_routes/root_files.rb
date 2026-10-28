@@ -13,7 +13,7 @@ module Hecks
         #
         # @param dir [String] the directory they are written under, relative to the working
         #   directory
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @return [Hash{String => String}] each file's absolute path to its text; empty with no rows
         def root_files(dir, chapter)
           base = File.expand_path(dir)
@@ -26,7 +26,7 @@ module Hecks
         # `Payload` row.
         #
         # @param base [String] the directory the project's root files are written under
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table and the rows
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the rows
         # @return [Hash{String => String}] each file's path relative to `base` to its text
         def payload_files(base, chapter)
           row = Projections::Site::PayloadDriver::PAYLOAD.read(chapter).first
@@ -43,7 +43,7 @@ module Hecks
         # The content system's half of the admin sign-in: four files under the `--cms` directory.
         #
         # @param cms [String] the directory the files are written under
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @param admin [Projections::Site::Admin, nil] the checked admin row
         # @return [Hash{String => String}] each file's absolute path to its text
         # @raise [SystemExit] when `--cms` is named and the project declares no `Admin` row

@@ -47,7 +47,7 @@ module Hecks
 
         # Reads and checks the admin row a bluebook declares.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @param table [Table] the checked route table
         # @return [Admin, nil] the checked setting, or nil when the bluebook declares none
         # @raise [Table::Invalid] when the row is refused or contradicts the routes

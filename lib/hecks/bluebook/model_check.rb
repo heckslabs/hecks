@@ -51,7 +51,7 @@ module Hecks
 
       # Runs every static model check over `bluebook` and returns what it finds.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+      # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
       # @param profile [Symbol, nil] :client adds ClientProfile's error findings
       # @param context [Hash] the rest of what one corpus scan knows, each key optional:
       #   `hecksagon` (this bluebook's own sibling wiring file, if the caller loaded one),
@@ -114,7 +114,7 @@ module Hecks
       # Flags a query the hecksagon binds to a port's adapter. Only the Ruby runtime asks an
       # adapter for an answer; a Rust host would find nothing behind the query.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled bluebook, its hecksagon's ports attached
+      # @param bluebook [Bluebook::Declaration] the assembled bluebook, its hecksagon's ports attached
       # @param rust_target [Boolean] whether this domain has a real Rust target; a domain without
       #   one is not checked, since nothing but the Ruby runtime serves it
       # @return [Array<Finding>] one :external_query error per bound query, none off a Rust target

@@ -6,7 +6,7 @@ module Hecks
         # Every bare event name this domain's commands and port operations emit,
         # answer, or refuse — an outbound `asks` port operation has no `.emits`.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook to enumerate
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to enumerate
         # @return [Array<String>] every bare event name emitted, answered, or refused
         #   across this domain, unique
         def emitted_events(bluebook)

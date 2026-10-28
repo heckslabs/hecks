@@ -45,7 +45,10 @@ require_relative "hecks/embryonaut_bluebook"
 Hecks.autoload(:Corpus, File.expand_path("hecks/corpus", __dir__))
 
 # The bluebooks a hecksagon can `attaches` by name (ADR 0080); loads on first use.
-Hecks.autoload(:Chapters, File.expand_path("hecks/chapters", __dir__))
+Hecks.autoload(:FrameworkBluebooks, File.expand_path("hecks/framework_bluebooks", __dir__))
+# Hecks::Chapters was the name until ADR 0134 and still answers, saying so once per use.
+require_relative "hecks/retired_names"
+Hecks::RetiredNames.constant(Hecks, :Chapters, :FrameworkBluebooks)
 
 # The Composer's staging, parse stage and check; loads on first use.
 Hecks.autoload(:Composer, File.expand_path("hecks/composer", __dir__))
@@ -139,7 +142,7 @@ module Hecks
     # @param name [String] the bluebook's declared name
     # @param version [String, nil] the bluebook's pinned version, or nil for unversioned
     # @yield the bluebook's body, evaluated against a `Bluebook::DSL::BluebookBuilder`
-    # @return [Bluebook::Chapter] the built, judged bluebook
+    # @return [Bluebook::Declaration] the built, judged bluebook
     # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
     # @raise [Bluebook::DSL::Malformed] if the bluebook fails the language's own judgment
     def bluebook(name, version: nil, &)

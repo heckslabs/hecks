@@ -23,7 +23,7 @@ module Hecks
 
       module_function
 
-      # @param bluebook [Bluebook::Chapter] the Sentence bluebook
+      # @param bluebook [Bluebook::Declaration] the Sentence bluebook
       # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
       #   `Projector::Target` calling convention
       # @return [String] the rendered Rust source
@@ -31,14 +31,14 @@ module Hecks
 
       # Loads the Sentence bluebook on its own, in a registry of its own.
       #
-      # @return [Bluebook::Chapter] the bluebook declared by `SENTENCE_FILE`
+      # @return [Bluebook::Declaration] the bluebook declared by `SENTENCE_FILE`
       def chapter
         registry = Hecks::Runtime::Registry.new
         Hecks.with_registry(registry) { (SUPPORT_FILES + [SENTENCE_FILE]).each { |file| Kernel.load(file) } }
         registry.bluebook("Sentence")
       end
 
-      # @param bluebook [Bluebook::Chapter] the Sentence bluebook
+      # @param bluebook [Bluebook::Declaration] the Sentence bluebook
       # @return [Array<Hash{Symbol => String}>] one row per declared phrase, every field a string
       #   and an omitted column read as its default
       def rows(bluebook)
@@ -60,7 +60,7 @@ module Hecks
         "    PhraseRow { #{fields.join(", ")} },"
       end
 
-      # @param bluebook [Bluebook::Chapter] the Sentence bluebook
+      # @param bluebook [Bluebook::Declaration] the Sentence bluebook
       # @return [String] the whole `phrases.rs`
       def render(bluebook)
         <<~RUST

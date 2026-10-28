@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/chapters"
+require "hecks/framework_bluebooks"
 
 # `attaches` brings a bluebook the gem carries (the language, Expression, Tenancy, Deploy,
 # Site, QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the
@@ -112,9 +112,9 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
     it "loads nothing twice when a second hecksagon attaches the bluebook" do
       registry_with do
         declare_console
-        Hecks::Chapters.load!("QualityControl")
+        Hecks::FrameworkBluebooks.load!("QualityControl")
 
-        expect(Hecks::Chapters.load!("QualityControl")).to be_nil
+        expect(Hecks::FrameworkBluebooks.load!("QualityControl")).to be_nil
       end
     end
 
@@ -124,7 +124,7 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
   end
 
   it "offers only the language's Translation bluebook, never the grammar's" do
-    paths = Hecks::Chapters.index.fetch("Translation")
+    paths = Hecks::FrameworkBluebooks.index.fetch("Translation")
 
     expect(paths).to all(include("/language/translation/"))
   end
@@ -133,7 +133,7 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
   # are deprecated spellings that behave as before and warn.
   describe "attaches, from the gem or from vendor" do
     it "finds a framework member and a language bluebook through the one table" do
-      expect(Hecks::Chapters.table.keys).to include("Governance", "Identity", "Deploy", "Site", "Tenancy")
+      expect(Hecks::FrameworkBluebooks.table.keys).to include("Governance", "Identity", "Deploy", "Site", "Tenancy")
     end
 
     it "records each attachment with its source" do

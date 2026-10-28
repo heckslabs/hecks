@@ -17,7 +17,7 @@ module Hecks
         # @raise [RuntimeError] if no domain has been booted
         def dispatcher = @dispatcher || raise("no Hecks domain booted; call Hecks::Rails::Booted.boot")
 
-        # @return [Array<Hecks::Bluebook::Chapter>] the booted bluebooks the app declared, without
+        # @return [Array<Hecks::Bluebook::Declaration>] the booted bluebooks the app declared, without
         #   the ones a hecksagon attached, such as Governance
         def app_chapters = registry.bluebooks.values.reject { |chapter| registry.bounded?(chapter.name) }
 
@@ -30,7 +30,7 @@ module Hecks
         # Finds a booted bluebook by name, ignoring case, so `hecks_routes "ledger"` finds Ledger.
         #
         # @param name [String, Symbol] the bluebook's name in any case
-        # @return [Hecks::Bluebook::Chapter] the bluebook
+        # @return [Hecks::Bluebook::Declaration] the bluebook
         # @raise [KeyError] if no booted bluebook has that name
         def chapter(name)
           registry.bluebooks.each { |chapter_name, chapter| return chapter if chapter_name.to_s.casecmp?(name.to_s) }

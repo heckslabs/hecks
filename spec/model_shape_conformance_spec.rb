@@ -4,7 +4,7 @@ require "spec_helper"
 # named deviations, each categorised and checked.
 RSpec.describe "the model's shape, held to the language" do
   MODEL_CONSTRUCTS = {
-    "Bluebook"       => Hecks::Bluebook::Chapter,
+    "Bluebook"       => Hecks::Bluebook::Declaration,
     "Aggregate"      => Hecks::Bluebook::Aggregate,
     "Command"        => Hecks::Bluebook::Command,
     "Entity"         => Hecks::Bluebook::Entity,

@@ -15,7 +15,7 @@ module Hecks
           # outcome, or the domain's refusal, into `[json_or_message, status]`. With `--wait`, a
           # question whose report names a gap (`LauncherOptions.gap_reported?`) answers status 1.
           #
-          # @param bluebook [Bluebook::Chapter] the bluebook the command belongs to
+          # @param bluebook [Bluebook::Declaration] the bluebook the command belongs to
           # @param launcher [Hash, nil] the bluebook's `launcher` world setting; nil when not opted
           #   in
           def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil) # rubocop:disable Metrics/ParameterLists -- the signature is what `call` passes

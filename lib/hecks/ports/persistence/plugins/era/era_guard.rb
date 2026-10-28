@@ -20,8 +20,8 @@ module Hecks
       # `retired` translation can explain it.
       #
       # @param registry [Runtime::Registry] the registry searched for a `was:`/`retired` entry
-      # @param bluebook [Bluebook::Chapter] the bluebook booting now
-      # @param held_bluebook [Bluebook::Chapter] the bluebook parsed from the held era's text
+      # @param bluebook [Bluebook::Declaration] the bluebook booting now
+      # @param held_bluebook [Bluebook::Declaration] the bluebook parsed from the held era's text
       # @return [void]
       # @raise [Runtime::WiringError] if a held aggregate matches no current aggregate, no
       #   `was:` declares it, and no translation retires it
@@ -39,7 +39,7 @@ module Hecks
       # or retired by a translation.
       #
       # @param registry [Runtime::Registry] the registry whose translations are searched
-      # @param bluebook [Bluebook::Chapter] the bluebook booting now
+      # @param bluebook [Bluebook::Declaration] the bluebook booting now
       # @param held_aggregate [Bluebook::Aggregate] the aggregate from the held era
       # @return [Boolean] true when a current aggregate or a translation explains it
       def explained?(registry, bluebook, held_aggregate)
@@ -54,7 +54,7 @@ module Hecks
       # Says whether a translation declares a current aggregate was the held one.
       #
       # @param registry [Runtime::Registry] the registry whose translations are searched
-      # @param bluebook [Bluebook::Chapter] the bluebook booting now
+      # @param bluebook [Bluebook::Declaration] the bluebook booting now
       # @param aggregate [Bluebook::Aggregate] the current aggregate
       # @param held_aggregate [Bluebook::Aggregate] the aggregate from the held era
       # @return [Boolean] true when some translation's `was:` names the held aggregate
@@ -71,7 +71,7 @@ module Hecks
       # calls it (today, `PostgresEra::LineageManager::CoverageCheck`'s
       # own mint-time coverage check).
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook booting now, named in the message
+      # @param bluebook [Bluebook::Declaration] the bluebook booting now, named in the message
       # @param aggregate [Bluebook::Aggregate] the aggregate whose shape changed
       # @param uncovered [Array<String>] the unexplained paths, as `uncovered_attributes`
       #   returns them; must not be empty, since the first one seeds the suggested rule
@@ -91,7 +91,7 @@ module Hecks
       # wording shape, different cause: nothing vanished or changed type,
       # something new arrived that an existing record has no way to hold.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook booting now, named in the message
+      # @param bluebook [Bluebook::Declaration] the bluebook booting now, named in the message
       # @param aggregate [Bluebook::Aggregate] the aggregate that gained the attributes
       # @param unsafe [Array<Symbol>] the attribute names, as `unsafe_additions` returns them;
       #   must not be empty, since the first one seeds the suggested `backfill`
@@ -134,7 +134,7 @@ module Hecks
       #
       # @param source [String] the held bluebook text to evaluate
       # @param path [String] the file path reported as the text's origin
-      # @return [Bluebook::Chapter, nil] the first bluebook declared; nil when it declares none
+      # @return [Bluebook::Declaration, nil] the first bluebook declared; nil when it declares none
       # @raise [Bluebook::DSL::Malformed] if neither grammar accepts the text
       # @raise [SyntaxError] if the text is not valid Ruby
       def shadow_parse(source, path)
@@ -149,7 +149,7 @@ module Hecks
       # @param path [String] the file path reported to `Kernel.eval` as the text's origin
       # @param shadow [Boolean] true evaluates inside `MetaValidator.while_shadow_parsing`
       #   (the shadow grammar); false evaluates under the live grammar
-      # @return [Bluebook::Chapter, nil] the first bluebook the text registered in the scratch
+      # @return [Bluebook::Declaration, nil] the first bluebook the text registered in the scratch
       #   registry; nil when it declares none
       # @raise [Bluebook::DSL::Malformed] if the chosen grammar refuses the text
       # @raise [SyntaxError] if the text is not valid Ruby

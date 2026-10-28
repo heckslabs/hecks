@@ -15,7 +15,7 @@ module Hecks
         # A `translates` reacts to a foreign event, so the context that owns that event has to be
         # attached or subscribed to, as an `across` policy's target does.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook whose policies are checked
+        # @param bluebook [Bluebook::Declaration] the bluebook whose policies are checked
         # @param hecksagon [Bluebook::Hecksagon, nil] the bluebook's own wiring
         # @param owners [Hash{String => Array<String>}, nil] each aggregate name to the contexts
         #   that declare it; nothing is checked without it

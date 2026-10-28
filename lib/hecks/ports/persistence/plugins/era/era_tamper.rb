@@ -45,7 +45,7 @@ module Hecks
       # Parses the text from a tempfile that is removed afterwards.
       #
       # @param text [String] the bluebook source
-      # @return [Bluebook::Chapter, nil] the parsed bluebook; nil when the text declares none
+      # @return [Bluebook::Declaration, nil] the parsed bluebook; nil when the text declares none
       def parse_from_tempfile(text)
         file = Tempfile.new(["hecks-tamper-", ".bluebook"])
         file.write(text)

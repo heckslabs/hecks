@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecks/chapters"
+require "hecks/framework_bluebooks"
 
-# `Chapters.load!` brings a gem bluebook into the open registry whole or not at all.
-RSpec.describe Hecks::Chapters, ".load!" do
+# `FrameworkBluebooks.load!` brings a gem bluebook into the open registry whole or not at all.
+RSpec.describe Hecks::FrameworkBluebooks, ".load!" do
   around do |example|
     Hecks.with_registry(Hecks::Runtime::Registry.new) do
       MemoryPorts.load!

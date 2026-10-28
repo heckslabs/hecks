@@ -176,7 +176,7 @@ RSpec.describe "the editor's fixed-structure pages, derived from a chapter" do
     it "mentions no name of this project in a template of fixed pages", :aggregate_failures do
       text = files.values_at("src/ui/fields.ts", "src/ui/blocks.ts", "src/ui/block_list.js", "src/ui/input.ts",
                              "src/ui/values.ts", "src/ui/pages.ts", "src/browser/blocks.js", "src/browser/forms.js").join
-      names = [/\bLeaflets?\b/, /\b(Note|Chapters|Gallery|Roster)Page\b/, /\bhero\b/i, /\bverse\b/i, /\bband\b/i,
+      names = [/\bLeaflets?\b/, /\b(Note|FrameworkBluebooks|Gallery|Roster)Page\b/, /\bhero\b/i, /\bverse\b/i, /\bband\b/i,
                /\bportrait\b/i, /\bphotos?\b/i]
 
       expect(names.map { |name| text.match?(name) }).to eq([false] * names.size)
