@@ -30,6 +30,8 @@ flowchart LR
     role_Customer((Customer)) -->|issues| cmd_ATMCard_Activate(["ATMCard.Activate"])
     role_Back_office((Back office)) -->|issues| cmd_ATMCard_Retire(["ATMCard.Retire"])
     role_Customer((Customer)) -->|issues| cmd_Withdrawal_Dispute(["Withdrawal.Dispute"])
+    role_Teller((Teller)) -->|issues| cmd_Withdrawal_Reimburse(["Withdrawal.Reimburse"])
+    role_Teller((Teller)) -->|issues| cmd_Withdrawal_RejectDispute(["Withdrawal.RejectDispute"])
     role_System((System)) -->|issues| cmd_CardPayment_Capture(["CardPayment.Capture"])
     role_System((System)) -->|issues| cmd_CardPayment_Void(["CardPayment.Void"])
     role_System((System)) -->|issues| cmd_CardPayment_Refund(["CardPayment.Refund"])

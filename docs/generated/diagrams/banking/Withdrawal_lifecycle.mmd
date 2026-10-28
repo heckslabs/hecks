@@ -3,3 +3,5 @@
 stateDiagram-v2
     [*] --> taken
     taken --> disputed: Dispute
+    disputed --> reimbursed: Reimburse
+    disputed --> taken: RejectDispute

@@ -3,5 +3,6 @@
 stateDiagram-v2
     [*] --> placed
     placed --> lifted: Lift
+    escalated --> lifted: Lift
     placed --> escalated: EscalateAccountHold
     placed --> escalated: EscalateCardHold
