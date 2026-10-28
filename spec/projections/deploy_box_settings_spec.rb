@@ -36,7 +36,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     { infra_name: "shop", stack_prefix: "hecks", instance_type: "t4g.medium", volume_gb: 30, swap_gb: 2,
       database_class: "db.t4g.small", storage_gb: 20, backup_days: 7, snapshots_keep: 7, database_name: "shop",
       engine_version: "16", default_container: "web", origin_header: nil, origin_secret: nil,
-      secret_prefixes: ["shop/*"], tunnel: false, routes: [] }
+      secret_prefixes: ["shop/*"], routes: [] }
   end
 
   describe "with only a container" do
@@ -164,44 +164,15 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
     end
   end
 
-  describe "secret prefixes, tunnel and sizes" do
+  describe "secret prefixes and sizes" do
     it "takes a list of secret name patterns and refuses one with shell characters", :aggregate_failures do
       expect(resolve(secret_prefixes: ["a/*", "b/c"]).secret_prefixes).to eq(["a/*", "b/c"])
       expect(refusal(secret_prefixes: ["a b"])).to include("secret_prefixes")
     end
 
-    it "takes a boolean tunnel, which opens the egress and runs no service", :aggregate_failures do
-      plan = resolve(tunnel: true)
-
-      expect(plan.tunnel).to be(true)
-      expect(plan.tunnel_service).to be_nil
-      expect(resolve.tunnel_service).to be_nil
-      expect(refusal(tunnel: "yes")).to include("must be true or false")
-    end
-
-    describe "a tunnel service" do
-      let(:two) { [web, { name: "stats", port: 3000 }] }
-
-      it "forwards to the named container's port and reads its token from a secret", :aggregate_failures do
-        plan = resolve(containers: two, default_container: "web", tunnel: { to: "stats", token_secret: "shop/tunnel" })
-
-        expect(plan.tunnel).to be(true)
-        expect(plan.tunnel_service).to have_attributes(container: "stats", port: 3000, token_secret: "shop/tunnel",
-                                                       image: described_class::TUNNEL_IMAGE)
-      end
-
-      it "takes an image of its own" do
-        plan = resolve(tunnel: { to: "web", token_secret: "shop/tunnel", image: "cloudflare/cloudflared:2026.9.0" })
-
-        expect(plan.tunnel_service.image).to eq("cloudflare/cloudflared:2026.9.0")
-      end
-
-      it "refuses a missing half, an unknown container and an image that could not be spliced safely", :aggregate_failures do
-        expect(refusal(tunnel: { to: "web" })).to include("token_secret")
-        expect(refusal(tunnel: { token_secret: "shop/tunnel" })).to include("`to`")
-        expect(refusal(tunnel: { to: "ghost", token_secret: "shop/tunnel" })).to include('"ghost" is not a declared container')
-        expect(refusal(tunnel: { to: "web", token_secret: "shop/tunnel", image: "x; rm -rf /" })).to include("tunnel_image")
-      end
+    it "refuses a tunnel in any form, and names what replaces it", :aggregate_failures do
+      expect(refusal(tunnel: true)).to include("ADR 0156", "cdn")
+      expect(refusal(tunnel: { to: "web", token_secret: "shop/tunnel" })).to include("no third-party tunnel")
     end
 
     it "bounds backup days, snapshots and swap, and checks the engine version", :aggregate_failures do
@@ -298,8 +269,7 @@ RSpec.describe Hecks::Projections::Deploy::Box::Settings do
   end
 
   describe "images" do
-    it "pins both default images by version and digest", :aggregate_failures do
-      expect(described_class::TUNNEL_IMAGE).to match(%r{\Acloudflare/cloudflared:\d+\.\d+\.\d+@sha256:\h{64}\z})
+    it "pins the default proxy image by version and digest", :aggregate_failures do
       expect(described_class::PROXY_IMAGE).to match(%r{\Apublic\.ecr\.aws/docker/library/caddy:\d+\.\d+@sha256:\h{64}\z})
       expect(resolve.proxy_image).to eq(described_class::PROXY_IMAGE)
     end

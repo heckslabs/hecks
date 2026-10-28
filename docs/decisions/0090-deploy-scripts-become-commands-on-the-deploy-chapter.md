@@ -109,6 +109,6 @@ Every script of the table is now a command. What is left is moving logic, not sc
 
 - The registry read of `bluebooks-diff.sh` (the running image's label from the active task definition) and the local-image read can move behind a port, read-only, once a project declares its cluster, repository, family and label in its world rather than in the script.
 - Preview name derivation (branch to stack, with a hash when the slug was altered) is pure and can move to Ruby; it stays in the script until the preview's prefix and limits are declared in the world.
-- The companion roll could be projected by the generator from a declared companion (image, secrets, tunnel) instead of read from a hand-written script, as the box scripts are.
+- The companion roll could be projected by the generator from a declared companion (image, secrets) instead of read from a hand-written script, as the box scripts are. A companion declares no tunnel ([ADR 0156](0156-a-box-is-reached-through-its-edge-and-no-third-party-tunnel-runs-on-it.md)).
 - Retention of old `SmokeRun`, `BoxRoll`, `ServiceRoll`, `DataCopy`, `PreviewRun` and `CompanionRoll` rows.
 - Scheduling a smoke or a cost check (ADR 0081).

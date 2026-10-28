@@ -7,7 +7,7 @@ module Hecks
     module Deploy
       module Box
         module Settings
-          # Reads the containers a box runs and what points at them: routes, the default, a tunnel.
+          # Reads the containers a box runs and what points at them: routes and the default.
           # Extended onto `Settings`, which supplies the checks.
           module ContainerReaders
             include Patterns
@@ -67,20 +67,13 @@ module Hecks
               raise ArgumentError, "#{key}: #{name.inspect} is not a declared container"
             end
 
-            # `tunnel true` only opens the outbound port; a hash also runs cloudflared as a service.
+            # A world that still declares `tunnel` is refused, so the tunnel it relied on does not
+            # vanish from the box without a word (ADR 0156).
             #
-            # @param value [Boolean, Hash{Symbol => Object}] the world's `tunnel` setting
-            # @param containers [Array<Container>] the declared containers
-            # @return [Array(Boolean, Tunnel)] whether the egress opens, and the service if one runs
-            def read_tunnel(value, containers)
-              return [boolean(:tunnel, value), nil] unless value.is_a?(Hash)
-
-              to = value.fetch(:to) { raise ArgumentError, TUNNEL_SHAPE }
-              target = known_container!(:tunnel, check(:tunnel_to, to, NAME), containers)
-              token = check(:tunnel_token_secret, value.fetch(:token_secret) { raise ArgumentError, TUNNEL_SHAPE }, SECRET_NAME)
-              image = check(:tunnel_image, value.fetch(:image, TUNNEL_IMAGE), IMAGE)
-              port = containers.find { |c| c.name == target }.port
-              [true, Tunnel.new(container: target, port: port, token_secret: token, image: image)]
+            # @param settings [Hash{Symbol => Object}] the world's `AwsBox` settings
+            # @raise [ArgumentError] when the world declares `tunnel`
+            def refuse_tunnel!(settings)
+              raise ArgumentError, TUNNEL_REMOVED if settings.key?(:tunnel)
             end
 
             def missing_containers

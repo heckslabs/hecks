@@ -27,14 +27,6 @@ module Hecks
             # @!attribute [r] paths [Array<String>] Caddy path patterns, such as "/cms/*"
             Route = Struct.new(:container, :paths, keyword_init: true)
 
-            # A Cloudflare tunnel the box runs as a service, pointed at one container.
-            #
-            # @!attribute [r] container [String] the container the tunnel forwards to
-            # @!attribute [r] port [Integer] that container's port
-            # @!attribute [r] token_secret [String] the secret holding the tunnel token
-            # @!attribute [r] image [String] the cloudflared image
-            Tunnel = Struct.new(:container, :port, :token_secret, :image, keyword_init: true)
-
             # The data a project moves from its old database into the new RDS instance.
             #
             # @!attribute [r] schemas [Array<String>] the schemas to copy
@@ -58,7 +50,7 @@ module Hecks
               :infra_name, :stack_prefix, :instance_type, :volume_gb, :swap_gb, :database_class,
               :storage_gb, :backup_days, :snapshots_keep, :database_name, :engine_version,
               :containers, :routes, :default_container, :origin_header, :origin_secret,
-              :secret_prefixes, :writable_secrets, :origin_env, :tunnel, :tunnel_service, :proxy_image,
+              :secret_prefixes, :writable_secrets, :origin_env, :proxy_image,
               :task_definition, :migration, :s3_buckets, :hosting, :shared_database, :cdn,
               :logs, :log_retention_days, keyword_init: true
             ) do
