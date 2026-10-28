@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "../../hecks"
+require_relative "persistence_notice"
 
 module Hecks
   module CLI
@@ -18,7 +19,9 @@ module Hecks
       # @raise [SystemExit] when `argv` is empty
       def call(argv, program: "hecks history")
         domain = argv.first or abort "usage: #{program} <domain>"
-        puts JSON.generate(document(Hecks.boot(domain).registry))
+        registry = Hecks.boot(domain).registry
+        PersistenceNotice.announce(registry, program: program)
+        puts JSON.generate(document(registry))
       end
 
       # @param registry [Runtime::Registry] a booted domain's registry
