@@ -10,16 +10,17 @@ URL     ?= @@URL@@
 
 # Pushes one container's already-built local image under a fresh tag and rolls it onto the box, as the
 # service_roll.run command: it runs deploy-service.sh, records the roll in the Hecks database
-# (HECKS_DATABASE, default postgres://hecks@localhost/hecks) and requests the smoke. Build the image
-# first; see deploy-service.sh. EXISTING_TAG=<tag> redeploys a tag already in ECR. Without the
-# database the script runs by itself and the target exits non-zero (24 if it all passed).
+# this checkout's hecks.local.world names (default_database; with no local files nothing is
+# recorded) and requests the smoke. Build the image first; see deploy-service.sh. EXISTING_TAG=<tag>
+# redeploys a tag already in ECR. When that database cannot be opened the script runs by itself and
+# the target exits non-zero (24 if it all passed).
 deploy-service:
 	@@SERVICE_RECIPE@@
 
 # Waits for the last roll to settle, then dispatches and follows the smoke, as the smoke_run.run
-# command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database
-# (HECKS_DATABASE, default postgres://hecks@localhost/hecks). Without that database the smoke still
-# runs and its result is printed, and the target exits non-zero (24 if the smoke passed).
+# command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database this
+# checkout's hecks.local.world names. When that database cannot be opened the smoke still runs and
+# its result is printed, and the target exits non-zero (24 if the smoke passed).
 # SKIP_POST_DEPLOY_SMOKE=1 opts out, DRY_RUN=1 dispatches nothing.
 smoke-after-deploy:
 	@@SMOKE_RECIPE@@

@@ -10,9 +10,10 @@ URL     ?= https://widgets.example.com
 
 # Pushes one container's already-built local image under a fresh tag and rolls it onto the box, as the
 # service_roll.run command: it runs deploy-service.sh, records the roll in the Hecks database
-# (HECKS_DATABASE, default postgres://hecks@localhost/hecks) and requests the smoke. Build the image
-# first; see deploy-service.sh. EXISTING_TAG=<tag> redeploys a tag already in ECR. Without the
-# database the script runs by itself and the target exits non-zero (24 if it all passed).
+# this checkout's hecks.local.world names (default_database; with no local files nothing is
+# recorded) and requests the smoke. Build the image first; see deploy-service.sh. EXISTING_TAG=<tag>
+# redeploys a tag already in ECR. When that database cannot be opened the script runs by itself and
+# the target exits non-zero (24 if it all passed).
 deploy-service:
 	@err=$$(mktemp); run=deploy-$$(date -u +%Y%m%d%H%M%S); \
 	$(HECKS) deploy service_roll.run project="$(CURDIR)" run="$$run" service=$(SERVICE) $(if $(EXISTING_TAG),existing_tag=$(EXISTING_TAG)) $(if $(LOCAL_IMAGE),local_image=$(LOCAL_IMAGE)) \
@@ -20,8 +21,9 @@ deploy-service:
 	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
 	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
 	  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \
-	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then set" >&2; \
-	  echo "    HECKS_DATABASE=postgres://<role>@localhost/<db>" >&2; \
+	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then name it in" >&2; \
+	  echo "    hecks.local.world: default_database postgres://<role>@localhost/<db>" >&2; \
+	  echo "    and set persisted_by PostgresEra in hecks.local.hecksagon" >&2; \
 	  echo "    deploying anyway so the deploy is not lost" >&2; \
 	  rm -f "$$err"; bash ./deploy-service.sh $(SERVICE); rc=$$?; \
 	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
@@ -30,9 +32,9 @@ deploy-service:
 	cat "$$err" >&2; rm -f "$$err"; exit $$rc
 
 # Waits for the last roll to settle, then dispatches and follows the smoke, as the smoke_run.run
-# command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database
-# (HECKS_DATABASE, default postgres://hecks@localhost/hecks). Without that database the smoke still
-# runs and its result is printed, and the target exits non-zero (24 if the smoke passed).
+# command, which runs smoke-after-deploy.sh and records how it ended in the Hecks database this
+# checkout's hecks.local.world names. When that database cannot be opened the smoke still runs and
+# its result is printed, and the target exits non-zero (24 if the smoke passed).
 # SKIP_POST_DEPLOY_SMOKE=1 opts out, DRY_RUN=1 dispatches nothing.
 smoke-after-deploy:
 	@err=$$(mktemp); \
@@ -40,8 +42,9 @@ smoke-after-deploy:
 	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
 	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
 	  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \
-	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then set" >&2; \
-	  echo "    HECKS_DATABASE=postgres://<role>@localhost/<db>" >&2; \
+	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then name it in" >&2; \
+	  echo "    hecks.local.world: default_database postgres://<role>@localhost/<db>" >&2; \
+	  echo "    and set persisted_by PostgresEra in hecks.local.hecksagon" >&2; \
 	  echo "    running the smoke anyway so its result is not lost" >&2; \
 	  rm -f "$$err"; TASKDEF="$(TASKDEF)" bash ./smoke-after-deploy.sh; rc=$$?; \
 	  echo "==> smoke exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
