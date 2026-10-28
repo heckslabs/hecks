@@ -42,9 +42,13 @@ module Hecks
         found.uniq.reject { |edge| redundant_subscription?(edge, found) }
       end
 
+      # A context attaching its own vendored package shares nothing with another context.
+      #
       # @api private
       def attach_edges(hecksagon)
-        hecksagon.attachments.map do |attachment|
+        hecksagon.attachments.filter_map do |attachment|
+          next if attachment.chapter_name.to_s == hecksagon.domain.to_s
+
           Edge.new(hecksagon.domain.to_s, attachment.chapter_name.to_s, :shared_kernel, nil)
         end
       end
