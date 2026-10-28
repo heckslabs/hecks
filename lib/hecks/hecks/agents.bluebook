@@ -1,5 +1,5 @@
 Hecks.bluebook "Hecks" do
-  # Agents: handing one brief to a background Claude session (ADR 0140). A dispatch is a run like
+  # Agents: handing one brief to a background Claude session (ADR 0141). A dispatch is a run like
   # the Custodian `*Run`s: it is requested, the outside is asked, and what came back is judged by
   # the givens and reactions below.
   #
