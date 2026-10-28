@@ -438,7 +438,7 @@ created this box is still in the list — the last two are `Surrender`'s.)
 ```ruby
 box = Banking::SafeDepositBox.rent!(customer: "cm-1", branch_code: "DT",
                                    box_number: 4, size: "small")
-box.surrender!.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnDue"]
+box.surrender!.events.map(&:name)  # => ["BoxRented", "BoxSurrendered", "KeyReturnRequested"]
 ```
 
 ## state
