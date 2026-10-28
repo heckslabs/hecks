@@ -305,11 +305,11 @@ jobs:
 
       # The main crate's default build compiles the chapters mod.rs declares outright: banking brings
       # bulk and identity, checkout_fixture consolesettings and payments, embryonaut_vendoring_demo
-      # widgets, and reserved_names_fixture is Cargo's default feature. rust/host's tests include
+      # widgets, and chess is Cargo's default feature. rust/host's tests include
       # lease_clock's ir.json. Nothing else is linted, so the other domains are not regenerated.
       - uses: ./.github/actions/generated-rust
         with:
-          domains: banking checkout_fixture embryonaut_vendoring_demo reserved_names_fixture lease_clock
+          domains: banking checkout_fixture embryonaut_vendoring_demo chess lease_clock
 
       - uses: ./.github/actions/cargo-cache
         with:
