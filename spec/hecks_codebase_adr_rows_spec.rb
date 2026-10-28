@@ -63,6 +63,8 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "pattern-cases", verbs: %w[record_pattern_cases],
                note: "a query: it prints JSON and writes nothing"),
     AdrRow.new(script: "corpus", verbs: %w[rust_domains regen_order corpus_rust_coverage]),
+    AdrRow.new(script: "preview", verbs: %w[preview],
+               note: "no script preceded it: it serves one directory of static files on the loopback address"),
     AdrRow.new(script: "query_ir", verbs: %w[ir_constructs ir_duplicates ir_impact]),
     AdrRow.new(script: "hecks_query_ir_mcp", verbs: %w[serve_query_ir_mcp]),
     AdrRow.new(script: "present", verbs: %w[present]),
