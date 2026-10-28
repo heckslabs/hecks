@@ -1,0 +1,317 @@
+{
+  "ir_version": 1,
+  "name": "Relay",
+  "version": null,
+  "vision": "A parcel is posted, scanned along the way, and delivered when its last scan lands.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Parcel",
+      "description": null,
+      "identified_by": [
+        "tag.value"
+      ],
+      "attributes": [
+        {
+          "name": "tag",
+          "type": "Tag",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Tag",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Post",
+          "role": null,
+          "goal": "Hand a parcel to the relay",
+          "references": null,
+          "attributes": [
+            {
+              "name": "tag",
+              "type": "Tag",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ParcelPosted"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Scan",
+          "role": null,
+          "goal": "Record the parcel passing a hand-over point",
+          "references": "Parcel",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ParcelScanned"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Deliver",
+          "role": null,
+          "goal": "Mark the parcel delivered once its last scan lands",
+          "references": "Parcel",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ParcelDelivered"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "posted",
+        "transitions": [
+          {
+            "command": "Scan",
+            "to_state": "in_transit",
+            "from_state": "posted"
+          },
+          {
+            "command": "Scan",
+            "to_state": "in_transit",
+            "from_state": "in_transit"
+          },
+          {
+            "command": "Deliver",
+            "to_state": "delivered",
+            "from_state": "in_transit"
+          }
+        ]
+      },
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+    {
+      "name": "Delivery",
+      "correlates_by": "tag.value",
+      "starts_on": "ParcelPosted",
+      "ends_on": "ParcelDelivered",
+      "states": [
+        "posted",
+        "picked_up",
+        "handed_over"
+      ],
+      "handlers": [
+        {
+          "event_type": "ParcelScanned",
+          "from_state": "posted",
+          "to_state": "picked_up",
+          "dispatches": [
+
+          ]
+        },
+        {
+          "event_type": "ParcelScanned",
+          "from_state": "picked_up",
+          "to_state": "handed_over",
+          "dispatches": [
+            {
+              "command_name": "Parcel.Deliver",
+              "with_spec": [
+                [
+                  "parcel",
+                  ":tag"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Parcel",
+        "storage_name": "parcel",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "Hecks.bluebook \"Relay\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.3).\n  # No example domain declares two saga legs on the SAME event with\n  # different `from:` states, so the clause that decides which leg\n  # answers could not be pinned against any of them. This domain exists\n  # for exactly that shape and nothing else: one parcel, scanned twice —\n  # the first scan picks it up, the second hands it over and dispatches\n  # the delivery. Under first-match-by-event-name (the pre-C10.3\n  # reading) the second scan would find the first leg again, refuse it\n  # as \"in picked_up, not posted\", and the parcel would never be\n  # delivered.\n  vision \"A parcel is posted, scanned along the way, and delivered when its last scan lands.\"\n  core\n\n  aggregate \"Parcel\" do\n    identified_by :tag\n\n    attribute :tag, Tag\n\n    value_object \"Tag\" do\n      attribute :value, String\n    end\n\n    lifecycle :status, default: \"posted\" do\n      transition \"Scan\"    => \"in_transit\", from: [\"posted\", \"in_transit\"]\n      transition \"Deliver\" => \"delivered\",  from: \"in_transit\"\n    end\n\n    command \"Post\" do\n      goal \"Hand a parcel to the relay\"\n      attribute :tag, Tag\n      emits \"ParcelPosted\"\n    end\n\n    command \"Scan\" do\n      goal \"Record the parcel passing a hand-over point\"\n      reference_to Parcel\n      emits \"ParcelScanned\"\n    end\n\n    command \"Deliver\" do\n      goal \"Mark the parcel delivered once its last scan lands\"\n      reference_to Parcel\n      emits \"ParcelDelivered\"\n    end\n  end\n\n  process_manager \"Delivery\" do\n    correlates_by :\"tag.value\"\n    starts_on \"ParcelPosted\"\n    ends_on   \"ParcelDelivered\"\n\n    # TWO LEGS, ONE EVENT — selected by (event, current state), C10.3.\n    transition \"ParcelScanned\" => \"picked_up\",   from: \"posted\"\n    transition \"ParcelScanned\" => \"handed_over\", from: \"picked_up\" do\n      dispatch Parcel::Deliver, with: { parcel: :tag }\n    end\n  end\nend\n"
+}

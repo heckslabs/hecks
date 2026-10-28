@@ -31,9 +31,9 @@ module Hecks
         lib/hecks/adapters/driven/*.adapter lib/hecks/adapters/driven/folder*
       ].freeze
 
-      # The generated modules a checkout commits (rust/.gitignore ignores the rest). The cache saves
-      # and restores the whole generated tree, these among it, so what is committed is hashed into
-      # every key: a restored entry then never overwrites them with another commit's.
+      # The generated modules hashed into every key, whichever domains are named: pizzas, whose
+      # translations carry SQL only the Ruby toolchain compiles, so it is not a function of its
+      # own bluebook alone.
       COMMITTED_OUTPUT = %w[pizzas].freeze
 
       # Every bluebook, hecksagon, world and adapter file of the gem: what a domain that attaches a

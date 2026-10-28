@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Compliance::Review",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::Review.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::Review.Clear",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Compliance::Review.Escalate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "lineage_aggregate",
+    "id": "Compliance::Review",
+    "generated": true,
+    "routed": true,
+    "reason": "read via rust/host's journal::read_lineage_head_all/_by_id, written via journal::append_lineage_mutation — both generic over storage_name (\"review\"), dispatched OUTSIDE the WASM kernel/InMemoryRepository path entirely, matching Ruby's own CommandInterpreter routing for a Postgres-bound aggregate (rust/codegen/src/domain_generator.rs)"
+  }
+]

@@ -1,0 +1,328 @@
+{
+  "ir_version": 1,
+  "name": "Courier",
+  "version": null,
+  "vision": "A courier run is started, advances, and every leg is both logged by the route and noted by the audit.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Run",
+      "description": null,
+      "identified_by": [
+        "tag.value"
+      ],
+      "attributes": [
+        {
+          "name": "tag",
+          "type": "Tag",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Tag",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Start",
+          "role": null,
+          "goal": "Open a run",
+          "references": null,
+          "attributes": [
+            {
+              "name": "tag",
+              "type": "Tag",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "RunStarted"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Advance",
+          "role": null,
+          "goal": "Move the run one leg on — announced twice, to the route and to the audit",
+          "references": "Run",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "RunLegged",
+            "RunReported"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Log",
+          "role": null,
+          "goal": "The route's own record of a leg",
+          "references": "Run",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "RunLogged"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Note",
+          "role": null,
+          "goal": "The audit's own record of a leg",
+          "references": "Run",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "RunNoted"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+    {
+      "name": "Audit",
+      "on_event": "Run.RunReported",
+      "trigger_command": "Run.Note",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [
+    {
+      "name": "Route",
+      "correlates_by": "tag.value",
+      "starts_on": "RunStarted",
+      "ends_on": "RunLogged",
+      "states": [
+        "started",
+        "logged"
+      ],
+      "handlers": [
+        {
+          "event_type": "RunLegged",
+          "from_state": "started",
+          "to_state": "logged",
+          "dispatches": [
+            {
+              "command_name": "Run.Log",
+              "with_spec": [
+                [
+                  "run",
+                  ":tag"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Run",
+        "storage_name": "run",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "Hecks.bluebook \"Courier\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.2).\n  # Reaction ORDER is only observable when one dispatch announces more\n  # than one event and different reactions answer each — no example\n  # domain has a command that emits twice, so the clause that decides\n  # the order could not be pinned against any of them. Here `Advance`\n  # announces two events: a saga leg answers the first, a policy answers\n  # the second. Per C10.2 reactions run per event, in `emits` order —\n  # policies then sagas for each — so the saga's own dispatch (on the\n  # FIRST event) lands before the policy's (on the second). Under the\n  # pre-C10.2 Ruby reading (every policy of the batch, then every saga)\n  # the policy's dispatch landed first.\n  vision \"A courier run is started, advances, and every leg is both logged by the route and noted by the audit.\"\n  core\n\n  aggregate \"Run\" do\n    identified_by :tag\n\n    attribute :tag, Tag\n\n    value_object \"Tag\" do\n      attribute :value, String\n    end\n\n    command \"Start\" do\n      goal \"Open a run\"\n      attribute :tag, Tag\n      emits \"RunStarted\"\n    end\n\n    command \"Advance\" do\n      goal \"Move the run one leg on — announced twice, to the route and to the audit\"\n      reference_to Run\n      emits \"RunLegged\"\n      emits \"RunReported\"\n    end\n\n    command \"Log\" do\n      goal \"The route's own record of a leg\"\n      reference_to Run\n      emits \"RunLogged\"\n    end\n\n    command \"Note\" do\n      goal \"The audit's own record of a leg\"\n      reference_to Run\n      emits \"RunNoted\"\n    end\n  end\n\n  # THE SAGA answers the FIRST announced event.\n  process_manager \"Route\" do\n    correlates_by :\"tag.value\"\n    starts_on \"RunStarted\"\n    ends_on   \"RunLogged\"\n\n    transition \"RunLegged\" => \"logged\", from: \"started\" do\n      dispatch Run::Log, with: { run: :tag }\n    end\n  end\n\n  # THE POLICY answers the SECOND.\n  policy \"Audit\" do\n    on      Run::RunReported\n    trigger Run::Note\n  end\nend\n"
+}

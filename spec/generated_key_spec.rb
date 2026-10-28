@@ -185,10 +185,10 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
     expect { described_class.files(%w[nope], root: @root) }.to raise_error(Hecks::Corpus::UnknownDomain)
   end
 
-  it "names the committed generated modules the way rust/.gitignore does" do
-    ignore = File.read(File.join(real_root, "rust/.gitignore"))
+  it "names only generated modules the repository tracks" do
+    generated = File.join(real_root, "rust/src/generated")
 
-    expect(described_class::COMMITTED_OUTPUT).to eq(ignore.scan(%r{^!/src/generated/(\w+)/$}).flatten)
+    expect(described_class::COMMITTED_OUTPUT).to all(satisfy { |feature| File.directory?(File.join(generated, feature)) })
   end
 
   it "hashes the committed generated output into every key, and no generated output that is not committed",
