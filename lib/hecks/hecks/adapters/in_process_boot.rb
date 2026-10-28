@@ -82,8 +82,8 @@ module Hecks
       # @param bluebook [Hash, String] the bluebook's name
       # @return [Hash] `text:` the bluebook's declared facts, one sentence a line
       # @raise [Runtime::NotFound] if the domain or bluebook cannot be found
-      def statements(domain:, chapter:)
-        report(Projector.call(:statements, bluebook: chapter_of(domain, chapter)).join("\n"))
+      def statements(domain:, bluebook:)
+        report(Projector.call(:statements, bluebook: chapter_of(domain, bluebook)).join("\n"))
       end
 
       # @param domain [Hash, String, nil] a domain directory; the nearest enclosing one when absent
@@ -130,9 +130,9 @@ module Hecks
       # @param bluebook [Hash, String] the bluebook's name
       # @return [Array<Hash{Symbol => String}>] one `name:`/`text:` row per diagram file
       # @raise [Runtime::NotFound] if the domain or bluebook cannot be found
-      def project_diagrams(domain:, chapter:)
+      def project_diagrams(domain:, bluebook:)
         runtime = boot(domain)
-        name    = plain(chapter)
+        name    = plain(bluebook)
         options = { hecksagon: runtime.hecksagon(name) }
 
         projected_files(Projector.call(:diagrams, bluebook: chapter_in(runtime, name), options: options))
@@ -142,9 +142,9 @@ module Hecks
       # @param bluebook [Hash, String] the bluebook's name
       # @return [Array<Hash{Symbol => String}>] one `name:`/`text:` row per glossary file
       # @raise [Runtime::NotFound] if the domain or bluebook cannot be found
-      def glossary(domain:, chapter:)
+      def glossary(domain:, bluebook:)
         runtime = boot(domain)
-        name    = plain(chapter)
+        name    = plain(bluebook)
         markings = runtime.pending_privacy_markings.select do |marking|
           marking[:domain].to_s.start_with?("#{name}::")
         end

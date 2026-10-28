@@ -104,7 +104,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   it "answers a chapter's statements, one sentence a line" do
-    expect(adapter.statements(domain: domain, chapter: { value: "Shelf" }).fetch(:text)).to include("A book is titled.")
+    expect(adapter.statements(domain: domain, bluebook: { value: "Shelf" }).fetch(:text)).to include("A book is titled.")
   end
 
   it "answers the domain narrated and documented, whole or for one aggregate", :aggregate_failures do
@@ -129,8 +129,8 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   context "with the diagrams and the glossary" do
-    let(:diagrams) { adapter.project_diagrams(domain: domain, chapter: { value: "Shelf" }) }
-    let(:glossary) { adapter.glossary(domain: domain, chapter: { value: "Shelf" }) }
+    let(:diagrams) { adapter.project_diagrams(domain: domain, bluebook: { value: "Shelf" }) }
+    let(:glossary) { adapter.glossary(domain: domain, bluebook: { value: "Shelf" }) }
 
     it "answers diagrams as files", :aggregate_failures do
       expect(diagrams).not_to be_empty
@@ -181,7 +181,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   it "refuses a bluebook that cannot be found" do
-    expect { adapter.statements(domain: domain, chapter: { value: "Nope" }) }
+    expect { adapter.statements(domain: domain, bluebook: { value: "Nope" }) }
       .to raise_error(Hecks::Runtime::NotFound, /no bluebook named Nope/)
   end
 end
