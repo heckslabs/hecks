@@ -66,7 +66,7 @@ module Hecks
             return { "COMPOSE_LOG_NOTE" => "", **local_log_values } unless plan.cloudwatch_logs?
 
             { "COMPOSE_LOG_NOTE" => COMPOSE_LOG_NOTE, "LOG_DEF" => awslogs_definition(plan, region),
-              "LOG_SERVICE" => "log(#{service})", "LOG_CADDY" => 'log("caddy")', "LOG_TUNNEL" => 'log("cloudflared")' }
+              "LOG_SERVICE" => "log(#{service})", "LOG_CADDY" => 'log("caddy")' }
           end
 
           # The `deploy-box.sh` pieces that stop a roll onto a stack without the log group.
@@ -89,8 +89,7 @@ module Hecks
           end
 
           def local_log_values
-            { "LOG_DEF" => "def log: #{JSON_FILE};", "LOG_SERVICE" => "log", "LOG_CADDY" => "log",
-              "LOG_TUNNEL" => "log" }
+            { "LOG_DEF" => "def log: #{JSON_FILE};", "LOG_SERVICE" => "log", "LOG_CADDY" => "log" }
           end
         end
       end
