@@ -2,6 +2,8 @@
 
 **Status:** Proposed. Date: 2026-10-02. A domain that runs a few containers and a Postgres database does not need a load balancer, a container service and a database cluster. One client project moved to a single EC2 box behind Caddy and a plain RDS instance by hand; this ADR makes that shape something `hecks deploy project` generates.
 
+**Amended:** the `tunnel` setting of items 5 to 7 is retired by [ADR 0156](0156-a-box-is-reached-through-its-edge-and-no-third-party-tunnel-runs-on-it.md).
+
 ## Context
 
 `hecks deploy project` generates `AwsLambda` and `AwsFargate` stacks. Fargate puts the containers behind an ALB, on a service that is billed per task and has its own database cluster. For a small client project that was most of the bill. One client project replaced it with:

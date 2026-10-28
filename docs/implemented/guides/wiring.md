@@ -555,11 +555,10 @@ says why: `skip_smoke=true` leaves it out, and a project with no `smoke-after-de
 Any other status is a step that failed under `set -e` (1 from bash, 254 or 255 from the `aws` CLI).
 The design for the other deploy scripts is [ADR 0090](../../decisions/0090-deploy-scripts-become-commands-on-the-deploy-chapter.md).
 
-To reach a container through a Cloudflare Tunnel instead of the CDN origin, add
-`tunnel({ to: "stats", token_secret: "acme/tunnel-token" })`. The box then runs
-`cloudflared` beside the containers, forwarding to `stats`' port, and the deploy
-waits for a registered connection. `tunnel true` alone only opens the outbound
-port, for a tunnel you run yourself.
+A box is reached through its CDN or load balancer and Caddy, with an origin-secret header; no third-party
+tunnel runs on it ([ADR 0156](../../decisions/0156-a-box-is-reached-through-its-edge-and-no-third-party-tunnel-runs-on-it.md)).
+A world that declares `tunnel` is refused. A container that should be public gets a `routes` entry and a `cdn`
+alias; one that should not be stays private and is reached over an SSM port-forward.
 
 To put CloudFront in front of the box, add `cdn({ aliases: ["app.example.com", "auth.example.com"] })`
 ([ADR 0108](../../decisions/0108-an-awsbox-world-declares-its-cloudfront-edge.md)). It needs `origin_header` and

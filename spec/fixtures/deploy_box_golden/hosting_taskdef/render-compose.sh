@@ -55,17 +55,13 @@ jq --argjson def "$DEF" --arg host "$DB_HOST" --arg secret "$DB_SECRET" '
           end)))
       + {caddy: ({image: "public.ecr.aws/docker/library/caddy:2.8@sha256:226d1f059b75399fe19182893c7184591c07b97afc8dfcf44eeb80c9a77a530f", network_mode: "host", restart: "unless-stopped",
                   volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "./caddy-extra:/etc/caddy/extra:ro"], logging: log("caddy")}
-                 + (if $in.origin then {env_file: ["caddy.secrets.env"]} else {} end))}
-      + (if $in.tunnel then {cloudflared: {image: $in.tunnel.image, network_mode: "host", restart: "unless-stopped",
-                  command: ["tunnel", "--no-autoupdate", "--url", $in.tunnel.url, "run"],
-                  env_file: ["cloudflared.secrets.env"], logging: log("cloudflared")}} else {} end))}' \
+                 + (if $in.origin then {env_file: ["caddy.secrets.env"]} else {} end))})}' \
   "$HERE/services.json" > compose.json
 
 jq --argjson def "$DEF" '. as $in
     | [ ($in.services | keys[]) as $n | $def[] | select(.name == $n) | (.secrets // [])[]
         | {service: $n, name: .name, valueFrom: .valueFrom} ]
-      + [ (if $in.origin then {service: "caddy", name: "ORIGIN_SECRET", valueFrom: $in.origin.secret} else empty end),
-          (if $in.tunnel then {service: "cloudflared", name: "TUNNEL_TOKEN", valueFrom: $in.tunnel.token_secret} else empty end) ]' \
+      + [ (if $in.origin then {service: "caddy", name: "ORIGIN_SECRET", valueFrom: $in.origin.secret} else empty end) ]' \
   "$HERE/services.json" > secrets.json
 
 echo "rendered compose.json and secrets.json ($(jq '.services | length' compose.json) services)"

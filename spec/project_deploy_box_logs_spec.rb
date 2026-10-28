@@ -5,9 +5,8 @@ require "json"
 require "open3"
 require "hecks/projections/deploy/template_diff"
 
-# Where an AwsBox box's container logs go. By default every service, the proxy and the tunnel
-# included,
-# uses Docker's `awslogs` driver into one log group the box stack creates, with a bounded retention
+# Where an AwsBox box's container logs go. By default every service and the proxy
+# use Docker's `awslogs` driver into one log group the box stack creates, with a bounded retention
 # and
 # a role that may write to that group only; `logs "local"` keeps the rotating `json-file` logs.
 RSpec.describe "hecks deploy project — an AwsBox box's logs" do
@@ -89,14 +88,13 @@ RSpec.describe "hecks deploy project — an AwsBox box's logs" do
   def refusal(*lines) = generate(world(*lines)).last
 
   let(:files) { generate(world).first }
-  let(:tunnelled) { generate(world('tunnel({ to: "stats", token_secret: "widget/tunnel-token" })')).first }
 
   describe "by default" do
-    it "gives every service, the proxy and the tunnel their own awslogs stream in the box's group", :aggregate_failures,
+    it "gives every service and the proxy their own awslogs stream in the box's group", :aggregate_failures,
        :process do
-      services = compose_services(tunnelled)
+      services = compose_services(files)
 
-      expect(services.keys).to contain_exactly("web", "stats", "caddy", "cloudflared")
+      expect(services.keys).to contain_exactly("web", "stats", "caddy")
       expect(services.to_h { |name, service| [name, service["logging"]] }).to eq(services.keys.to_h { |n| [n, awslogs_for(n)] })
     end
 
