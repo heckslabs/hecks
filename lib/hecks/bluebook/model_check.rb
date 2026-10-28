@@ -5,6 +5,7 @@ require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
 require_relative "model_check/context_checks"
+require_relative "model_check/context_map_checks"
 require_relative "model_check/ask_checks"
 require_relative "model_check/reference_checks"
 require_relative "model_check/orphan_checks"
@@ -36,7 +37,6 @@ module Hecks
         rust_target: false, strict: false
       }.freeze
 
-      extend LifecycleChecks
       extend SagaChecks
       extend PolicyChecks
       extend ContextChecks

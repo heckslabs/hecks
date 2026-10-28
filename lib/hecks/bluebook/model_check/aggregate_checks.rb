@@ -1,9 +1,14 @@
+require_relative "lifecycle_checks"
+
 module Hecks
   module Bluebook
     module ModelCheck
       # The checks over an aggregate's size: one that keeps collecting commands, entities and
-      # states usually holds more than one consistency boundary (ADR 0137).
+      # states usually holds more than one consistency boundary (ADR 0137). Its lifecycle states
+      # are counted with {LifecycleChecks#full_states}, so the two come together.
       module AggregateChecks
+        include LifecycleChecks
+
         # How much an aggregate may declare before it is reported: its commands, entities and
         # lifecycle states, counted together.
         LARGE_AGGREGATE_LIMIT = 40
