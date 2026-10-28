@@ -1,4 +1,5 @@
 require_relative "consumer_runner"
+require_relative "redrive"
 
 module Hecks
   module Runtime
@@ -7,6 +8,7 @@ module Hecks
       # them inline, and redrives whatever a crash left behind.
       class Relay
         include ConsumerRunner
+        include Redrive
 
         attr_reader :registry, :log
 
@@ -75,13 +77,6 @@ module Hecks
           stores.flat_map { |repository| repository.outbox_rows(status: status) }
         end
 
-        # `pending` rows are always safe to redrive (never claimed yet).
-        # `claimed` rows are only surfaced — redelivering a maybe-already-run
-        # consumer needs an explicit `claimed: true`.
-        def redrive!(claimed: false)
-          stores.flat_map { |repository| redrive_store(repository, claimed) }
-        end
-
         private
 
         def settle_delivery(row, repository)
@@ -103,37 +98,6 @@ module Hecks
           row.error  = "#{error.class}: #{error.message}"
           @log << { outbox: row.delivery_id, consumer: row.consumer, delivered: false, defect: true,
                     reason: row.error }
-        end
-
-        # The rows of one store that redrove: its pending rows first, then its claimed ones.
-        def redrive_store(repository, claimed)
-          redriven = repository.outbox_rows(status: "pending").select { |row| deliver_row(row, repository) }
-          redriven + repository.outbox_rows(status: "claimed").select { |row| redrive_claimed?(row, repository, claimed) }
-        end
-
-        def redrive_claimed?(row, repository, claimed)
-          unless claimed
-            warn_stalled(row)
-            return false
-          end
-
-          repository.outbox_settle(row.id, status: "pending")
-          row.status = "pending"
-          deliver_row(row, repository)
-        end
-
-        def warn_stalled(row)
-          warn stalled_wording(row)
-          @log << { outbox: row.delivery_id, consumer: row.consumer, kind: row.kind, stalled: true,
-                    event: row.event[:name], aggregate: row.event[:aggregate], id: row.event[:id] }
-        end
-
-        def stalled_wording(row)
-          "[hecks] outbox row #{row.delivery_id} (#{row.consumer} on #{row.event[:name]} for " \
-            "#{row.event[:aggregate]}##{row.event[:id]}) was claimed before the last crash/restart and never " \
-            "settled — its #{row.kind} may or may not have actually run. hecks does not auto-redrive a claimed " \
-            "row (the outcome is unknown, and redelivering it could double the effect); inspect it and " \
-            "redrive by hand with `runtime.outbox.redrive!(claimed: true)` once you know it is safe."
         end
 
         # Bluebooks, not hecksagons: a domain with no hecksagon is still
