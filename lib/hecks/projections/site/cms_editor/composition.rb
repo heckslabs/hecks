@@ -32,7 +32,7 @@ module Hecks
 
           # @return [Hash{String => Object}] `shaped` with its bluebook and roles after its name
           def stamp(shaped, named, roles)
-            extra = { "chapter" => named, "roles" => roles }.compact
+            extra = { "bluebook" => named, "roles" => roles }.compact
             { "name" => shaped["name"], **extra, **shaped.except("name") }
           end
         end

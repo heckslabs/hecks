@@ -79,11 +79,11 @@ function picture(storage: MediaStorage, media: Media, state: State) {
 }
 
 function aggregateOf(media: Media): Aggregate {
-  const own = (candidate: Aggregate): boolean => candidate.name === media.aggregate && (candidate.chapter ?? SCHEMA.domain) === (media.domain ?? SCHEMA.domain);
+  const own = (candidate: Aggregate): boolean => candidate.name === media.aggregate && (candidate.bluebook ?? SCHEMA.domain) === (media.domain ?? SCHEMA.domain);
   return media.definition ?? (SCHEMA.aggregates.find(own) as Aggregate);
 }
 
-/** Whether a person in `role` may use the pictures: not when the chapter that holds them limits its roles to others. */
+/** Whether a person in `role` may use the pictures: not when the bluebook that holds them limits its roles to others. */
 export function mediaOpen(role: string | null): boolean {
   const media = SCHEMA.media as Media;
   return mayEdit(aggregateOf(media), role);
@@ -161,8 +161,8 @@ async function serve(storage: MediaStorage, key: string): Promise<Response> {
 
 /**
  * The handler of everything under `<base>/media`, given the path segments after `media`. When the
- * pictures are kept in another chapter (`media.domain`), they are read and registered through a
- * client for that chapter, not the editor's own.
+ * pictures are kept in another bluebook (`media.domain`), they are read and registered through a
+ * client for that bluebook, not the editor's own.
  */
 export function mediaHandler(storage: MediaStorage = diskStorage(), options: HostOptions = {}) {
   const media = SCHEMA.media as Media;

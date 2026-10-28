@@ -57,11 +57,11 @@ export function standInHost(schema, { instances = {} } = {}) {
   const sent = [];
   const refusals = new Map();
   const find = (qualified) => {
-    const [chapter, rest] = qualified.includes("::") ? qualified.split("::") : [undefined, qualified];
+    const [bluebook, rest] = qualified.includes("::") ? qualified.split("::") : [undefined, qualified];
     const [name] = rest.split(".");
-    return schema.aggregates.find((agg) => agg.name === name && (!chapter || agg.chapter === chapter || !agg.chapter));
+    return schema.aggregates.find((agg) => agg.name === name && (!bluebook || agg.bluebook === bluebook || !agg.bluebook));
   };
-  const hostName = (agg) => `${agg.chapter ?? schema.domain}::${agg.name}`;
+  const hostName = (agg) => `${agg.bluebook ?? schema.domain}::${agg.name}`;
   const answer = (extra = {}) => ({ ok: true, status: 200, json: async () => ({ instances: structuredClone(instances), refusals: [], ...extra }) });
   const rowsOf = (agg) => Object.entries(instances).filter(([id]) => id.startsWith(`${hostName(agg)}#`)).map(([, row]) => row);
 

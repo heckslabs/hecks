@@ -49,13 +49,13 @@ export const countMark = MARK.count;
 /** `html` as the part of a page only the people who may edit `agg` see: `decorate` cuts it out for the rest. */
 export const onlyFor = (agg: Aggregate, html: string): string => `<!--editor:only:${keyOf(agg)}-->${html}<!--editor:/only:${keyOf(agg)}-->`;
 
-/** `html` as the part of a page that belongs to a chapter, cut out when the person may edit none of it. */
-export const groupOf = (chapter: string, html: string): string => `<!--editor:group:${chapter}-->${html}<!--editor:/group:${chapter}-->`;
+/** `html` as the part of a page that belongs to a bluebook, cut out when the person may edit none of it. */
+export const groupOf = (bluebook: string, html: string): string => `<!--editor:group:${bluebook}-->${html}<!--editor:/group:${bluebook}-->`;
 
-/** The chapters in the order they are shown, each with the aggregates it holds; one nameless group for an editor of one chapter. */
-export function groups(): [chapter: string | null, aggregates: Aggregate[]][] {
-  if (!SCHEMA.chapters) return [[null, SCHEMA.aggregates]];
-  return SCHEMA.chapters.map((chapter): [string, Aggregate[]] => [chapter, SCHEMA.aggregates.filter((agg) => agg.chapter === chapter)]);
+/** The bluebooks in the order they are shown, each with the aggregates it holds; one nameless group for an editor of one bluebook. */
+export function groups(): [bluebook: string | null, aggregates: Aggregate[]][] {
+  if (!SCHEMA.bluebooks) return [[null, SCHEMA.aggregates]];
+  return SCHEMA.bluebooks.map((bluebook): [string, Aggregate[]] => [bluebook, SCHEMA.aggregates.filter((agg) => agg.bluebook === bluebook)]);
 }
 
 function brandMark(extra: string): string {
@@ -80,10 +80,10 @@ function scheduledLink(active: string | undefined): string {
 }
 
 function navigation(active: string | undefined): string {
-  const sections = groups().map(([chapter, aggregates]) => {
-    const heading = `<li class="menu-title mt-4 px-3 text-muted">${chapter === null ? "Content" : esc(label(chapter))}</li>`;
+  const sections = groups().map(([bluebook, aggregates]) => {
+    const heading = `<li class="menu-title mt-4 px-3 text-muted">${bluebook === null ? "Content" : esc(label(bluebook))}</li>`;
     const section = `${heading}\n${navItems(aggregates, active)}`;
-    return chapter === null ? section : groupOf(chapter, section);
+    return bluebook === null ? section : groupOf(bluebook, section);
   });
   return `<nav id="rail" aria-label="Sections" class="flex-1 overflow-y-auto">
 <ul class="menu w-full gap-0.5 p-3">
@@ -191,8 +191,8 @@ function cutBetween(html: string, open: string, close: string): string {
 function visibleTo(html: string, role: string | null): string {
   const hidden = SCHEMA.aggregates.filter((agg) => !mayEdit(agg, role));
   const gone = hidden.map((agg): [string, string] => [`<!--editor:only:${keyOf(agg)}-->`, `<!--editor:/only:${keyOf(agg)}-->`]);
-  const empty = (SCHEMA.chapters ?? []).filter((chapter) => SCHEMA.aggregates.every((agg) => agg.chapter !== chapter || hidden.includes(agg)));
-  const groups = empty.map((chapter): [string, string] => [`<!--editor:group:${chapter}-->`, `<!--editor:/group:${chapter}-->`]);
+  const empty = (SCHEMA.bluebooks ?? []).filter((bluebook) => SCHEMA.aggregates.every((agg) => agg.bluebook !== bluebook || hidden.includes(agg)));
+  const groups = empty.map((bluebook): [string, string] => [`<!--editor:group:${bluebook}-->`, `<!--editor:/group:${bluebook}-->`]);
   const cut = [...gone, ...groups].reduce((text, [open, close]) => cutBetween(text, open, close), html);
   return cut.replace(/<!--editor:\/?(?:only|group):[^>]*-->/g, "");
 }

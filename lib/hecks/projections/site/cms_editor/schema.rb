@@ -48,7 +48,7 @@ module Hecks
           # @return [Hash{String => Object}] the schema: the domain, the bluebooks when several, the
           #   aggregates, and the picture and scheduling aggregates when there are such
           def self.assemble(list, aggregates, media)
-            chapters = list.size > 1 ? { "chapters" => list.map(&:name) } : {}
+            chapters = list.size > 1 ? { "bluebooks" => list.map(&:name) } : {}
             scheduling = Scheduling.read(aggregates)
             { "domain" => list.first.name, **chapters, "aggregates" => aggregates, **(media ? { "media" => media } : {}),
               **(scheduling ? { "scheduling" => scheduling } : {}) }
@@ -60,7 +60,7 @@ module Hecks
           # @return [Hash{String => Object}, nil] the picture aggregate, as `Media` describes it
           def self.within(shaped, first)
             found = Media.read(shaped)
-            chapter = found&.delete("chapter")
+            chapter = found&.delete("bluebook")
             chapter && chapter != first ? found.merge("domain" => chapter) : found
           end
 
