@@ -332,7 +332,13 @@ impl Parser<'_> {
             } else {
                 format!(
                     "{}.{event}",
-                    self.event_source(declaration, &event, owner.as_deref(), event_line, event_col)?
+                    self.event_source(
+                        declaration,
+                        &event,
+                        owner.as_deref(),
+                        event_line,
+                        event_col
+                    )?
                 )
             };
             let mut policy = ir::Policy {
@@ -434,8 +440,11 @@ impl Parser<'_> {
                 .find(|a| spoken(&a.name) == noun.to_lowercase())
                 .map(|a| a.name.clone())
                 .ok_or_else(|| {
-                    let known: Vec<String> =
-                        declaration.aggregates.iter().map(|a| spoken(&a.name)).collect();
+                    let known: Vec<String> = declaration
+                        .aggregates
+                        .iter()
+                        .map(|a| spoken(&a.name))
+                        .collect();
                     self.error(
                         line,
                         col,

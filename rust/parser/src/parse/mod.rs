@@ -3,8 +3,8 @@
 
 pub mod adapter;
 pub mod aggregate;
-pub mod declaration;
 pub mod command;
+pub mod declaration;
 pub mod domain_port;
 pub mod entity;
 pub mod file;

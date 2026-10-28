@@ -178,9 +178,12 @@ pub fn parse_body(
     loop {
         // Peeked before `next_line`: the grammar row still requires a block for `given`, so a
         // bare reference must be consumed here.
-        if let Some(outcome) =
-            try_reference_named_bluebook_entity_given(file, lines, pos, bluebook_entity_named_givens)?
-        {
+        if let Some(outcome) = try_reference_named_bluebook_entity_given(
+            file,
+            lines,
+            pos,
+            bluebook_entity_named_givens,
+        )? {
             match outcome {
                 BluebookEntityGivenLookup::Resolved(given) => {
                     entity.preconditions.push(given.clone());

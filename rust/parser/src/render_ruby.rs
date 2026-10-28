@@ -13,7 +13,10 @@ use crate::ir;
 /// The Ruby-form text of `bluebook`, or the name of the construct it has no spelling for.
 pub fn ruby_form(declaration: &ir::Bluebook) -> Result<String, String> {
     let mut out = String::new();
-    out.push_str(&format!("Hecks.bluebook {} do\n", string(&declaration.name)));
+    out.push_str(&format!(
+        "Hecks.bluebook {} do\n",
+        string(&declaration.name)
+    ));
     if let Some(vision) = &declaration.vision {
         out.push_str(&format!("  vision {}\n", string(vision)));
     }

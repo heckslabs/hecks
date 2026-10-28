@@ -108,7 +108,12 @@ fn export(seam: &Seam, provider: &Json) -> Json {
 fn package_provides(declarations: &[Json]) -> Json {
     let mut capabilities: Vec<String> = declarations
         .iter()
-        .flat_map(|declaration| declaration.get("provides").map_or(&[][..], Json::each).iter())
+        .flat_map(|declaration| {
+            declaration
+                .get("provides")
+                .map_or(&[][..], Json::each)
+                .iter()
+        })
         .filter_map(|entry| entry.get("capability").and_then(Json::as_str))
         .filter(|capability| !LANGUAGE_DEFINED.contains(capability))
         .map(str::to_string)

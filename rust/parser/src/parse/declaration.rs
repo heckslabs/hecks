@@ -12,7 +12,10 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 
 /// Parses one bluebook across one or more `.bluebook` files plus any `.hecksagon` files.
 /// Stops at the first diagnostic, whichever file it comes from.
-pub fn parse_bluebook(declaration_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
+pub fn parse_bluebook(
+    declaration_name: &str,
+    files: &[(String, String)],
+) -> ParseResult<ir::Bluebook> {
     if files.is_empty() {
         return Err(Diagnostic::new(
             "<none>",

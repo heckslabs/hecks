@@ -8,7 +8,7 @@ require "json"
 RSpec.describe "the operator domain" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecks/grammar/expression_operators.json"))).freeze
-  BLUEBOOK = File.join(ROOT_DIR, "lib/hecks/grammar/expression.bluebook")
+  EXPRESSION_BLUEBOOK = File.join(ROOT_DIR, "lib/hecks/grammar/expression.bluebook")
 
   Evaluator     = Hecks::Bluebook::Expression::Evaluator
   Resolver      = Hecks::Bluebook::Expression::Resolver
@@ -19,7 +19,7 @@ RSpec.describe "the operator domain" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      Kernel.load(BLUEBOOK)
+      Kernel.load(EXPRESSION_BLUEBOOK)
     end
     Hecks::Runtime::Dispatcher.new(registry)
   end

@@ -274,7 +274,10 @@ fn run_resolve(args: &[String]) -> Result<(), RunError> {
         )
     };
     let value = emit::JsonValue::Object(vec![
-        ("domain".to_string(), emit::JsonValue::String(declaration_name)),
+        (
+            "domain".to_string(),
+            emit::JsonValue::String(declaration_name),
+        ),
         ("gem_bluebooks".to_string(), gem_bluebooks()),
         (
             "vendored_packages".to_string(),

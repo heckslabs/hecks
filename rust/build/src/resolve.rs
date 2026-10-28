@@ -83,7 +83,12 @@ pub fn resolve_gem_bluebooks(
     declaration_name: &str,
     hecksagon_path: &Path,
 ) -> Result<Vec<String>, String> {
-    resolve_json(parser_bin, declaration_name, hecksagon_path, "gem_bluebooks")
+    resolve_json(
+        parser_bin,
+        declaration_name,
+        hecksagon_path,
+        "gem_bluebooks",
+    )
 }
 
 // The names `attaches "name", from: :vendor` gave, for a vendored package.

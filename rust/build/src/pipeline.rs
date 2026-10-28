@@ -72,7 +72,10 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     for path in bluebook_paths {
         let declaration = resolve::header_bluebook_name(&path)?;
         if declaration != target_bluebook_name {
-            match sibling_files.iter_mut().find(|(name, _)| *name == declaration) {
+            match sibling_files
+                .iter_mut()
+                .find(|(name, _)| *name == declaration)
+            {
                 Some((_, files)) => files.push(path),
                 None => sibling_files.push((declaration, vec![path])),
             }
