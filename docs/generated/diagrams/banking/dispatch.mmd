@@ -40,7 +40,7 @@ flowchart LR
     cmd_CardPayment_RejectDispute(["CardPayment.RejectDispute"]) -->|emits| evt_CardDisputeRejected{{"CardDisputeRejected"}}
     cmd_SafeDepositBox_Rent(["SafeDepositBox.Rent"]) -->|emits| evt_BoxRented{{"BoxRented"}}
     cmd_SafeDepositBox_Surrender(["SafeDepositBox.Surrender"]) -->|emits| evt_BoxSurrendered{{"BoxSurrendered"}}
-    cmd_SafeDepositBox_Surrender(["SafeDepositBox.Surrender"]) -->|emits| evt_KeyReturnDue{{"KeyReturnDue"}}
+    cmd_SafeDepositBox_Surrender(["SafeDepositBox.Surrender"]) -->|emits| evt_KeyReturnRequested{{"KeyReturnRequested"}}
     cmd_SafeDepositBox_LogVisit(["SafeDepositBox.LogVisit"]) -->|emits| evt_BoxOpened{{"BoxOpened"}}
     cmd_SafeDepositBox_IssueKey(["SafeDepositBox.IssueKey"]) -->|emits| evt_KeyIssued{{"KeyIssued"}}
     cmd_Visit_Annotate(["Visit.Annotate"]) -->|emits| evt_VisitAnnotated{{"VisitAnnotated"}}
@@ -68,4 +68,4 @@ flowchart LR
     evt_CustomerSuspended{{"CustomerSuspended"}} -->|triggers| cmd_Account_FreezeAccount(["Account.FreezeAccount"])
     evt_AccountClosed{{"AccountClosed"}} -->|triggers in Notifications| cmd_Notifications_Send(["Notifications.Send"])
     evt_BoxSurrendered{{"BoxSurrendered"}} -->|triggers in Compliance| cmd_Review_Open(["Review.Open"])
-    evt_KeyReturnDue{{"KeyReturnDue"}} -->|triggers in Notifications| cmd_Notifications_Send(["Notifications.Send"])
+    evt_KeyReturnRequested{{"KeyReturnRequested"}} -->|triggers in Notifications| cmd_Notifications_Send(["Notifications.Send"])

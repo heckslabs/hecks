@@ -470,7 +470,7 @@ rather than through the single-argument facade sugar used above:
 runtime.dispatch("Banking::SafeDepositBox.Rent", with: { customer: customer.id,
                                                          branch_code: "DT", box_number: 12, size: "small" })
 runtime.dispatch_flat("Banking::SafeDepositBox.Surrender", branch_code: "DT", box_number: 12)
-Banking::SafeDepositBox.find("DT:12").events.last(2).map(&:name)  # => ["BoxSurrendered", "KeyReturnDue"]
+Banking::SafeDepositBox.find("DT:12").events.last(2).map(&:name)  # => ["BoxSurrendered", "KeyReturnRequested"]
 ```
 
 ## The argument gate

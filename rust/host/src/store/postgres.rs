@@ -4,7 +4,7 @@
 //! the SQL unchanged inside the open transaction.
 
 use super::{Accepted, DeadLetter, State, StoreError};
-use crate::journal;
+use crate::store::journal_sql as journal;
 use std::future::Future;
 use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
@@ -23,6 +23,142 @@ pub struct LineageStore {
 }
 
 impl LineageStore {
+    /// Every live `state` document of the first head that exists, trying the head view of each of
+    /// `domains` in turn, then the plain `<storage>_head` view and the plain table, because
+    /// different runtimes have written these rows under different names. A relation that exists
+    /// but fails to read still errors; none existing answers empty.
+    pub async fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> anyhow::Result<Vec<serde_json::Value>> {
+        let client = self.lock().await;
+        for relation in head_relations(domains, storage_name) {
+            // `to_regclass` resolves through the connection's own `search_path`, so a same-named
+            // relation in another schema is never read.
+            let exists: bool = client
+                .query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation])
+                .await?
+                .get(0);
+            if !exists {
+                continue;
+            }
+            let rows = client
+                .query(
+                    &format!(
+                        "SELECT state FROM {} ORDER BY id COLLATE \"C\"",
+                        journal::quote_ident(&relation)
+                    ),
+                    &[],
+                )
+                .await?;
+            return Ok(rows.iter().map(|row| row.get(0)).collect());
+        }
+        Ok(Vec::new())
+    }
+
+    /// The head row whose `matches` fields all hold, read from the first of `domains` whose head
+    /// view exists (then the plain `<storage>_head` view); that view decides, so a miss in it is
+    /// `None` and the later views are not asked. Each match is `(field, value)`, comparing the
+    /// field's single-attribute value object to `value`.
+    pub async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        let mut relations: Vec<String> = domains
+            .iter()
+            .map(|domain| journal::head_view(domain, storage_name))
+            .collect();
+        relations.push(format!("{storage_name}_head"));
+        relations.dedup();
+        let conditions: Vec<String> = matches
+            .iter()
+            .enumerate()
+            .map(|(i, (field, _))| {
+                format!(
+                    "state->'{}'->>'value' = ${}",
+                    field.replace('\'', "''"),
+                    i + 1
+                )
+            })
+            .collect();
+        let values: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = matches
+            .iter()
+            .map(|(_, value)| value as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+        let client = self.lock().await;
+        for relation in relations {
+            let sql = format!(
+                "SELECT state FROM {} WHERE {}",
+                journal::quote_ident(&relation),
+                conditions.join(" AND ")
+            );
+            match client.query_opt(&sql, &values).await {
+                Ok(row) => return Ok(row.map(|row| row.get(0))),
+                Err(e) => {
+                    let e = StoreError::from(e);
+                    if !e.is_not_provisioned() {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Writes one head row under the domain's ordinal lock, in a transaction of its own.
+    pub async fn put_head(
+        &self,
+        config: &journal::LineageConfig,
+        mutation: &journal::Mutation<'_>,
+    ) -> anyhow::Result<()> {
+        let mut client = self.lock().await;
+        let txn = client.transaction().await?;
+        txn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+            &[&config.domain],
+        )
+        .await?;
+        journal::append_lineage_mutation(&txn, config, mutation).await?;
+        txn.commit().await?;
+        Ok(())
+    }
+
+    /// Reads one aggregate's head rows and lets `decide` answer with at most one `(id, state)`
+    /// to write, all under the domain's ordinal lock in one transaction; a `decide` that writes
+    /// nothing leaves the heads untouched.
+    pub async fn amend_head<T>(
+        &self,
+        config: &journal::LineageConfig,
+        domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: impl FnOnce(&[(String, serde_json::Value)]) -> (T, Option<(String, serde_json::Value)>),
+    ) -> anyhow::Result<T> {
+        let mut client = self.lock().await;
+        let txn = client.transaction().await?;
+        txn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('hecks_ordinal:' || $1))",
+            &[&config.domain],
+        )
+        .await?;
+        let rows = journal::read_lineage_head_all(&txn, domain, storage_name).await?;
+        let (answer, write) = decide(&rows);
+        if let Some((id, state)) = write {
+            let mutation = journal::Mutation {
+                aggregate,
+                id: &id,
+                operation: "save",
+                state: &state,
+            };
+            journal::append_lineage_mutation(&txn, config, &mutation).await?;
+            txn.commit().await?;
+        }
+        Ok(answer)
+    }
+
     /// The one connection, held for as long as the guard lives; its mutex serializes every use.
     pub async fn lock(&self) -> MutexGuard<'_, Client> {
         self.client.lock().await
@@ -180,5 +316,153 @@ impl Drop for PostgresUnit<'_> {
                 .as_mut()
                 .poll(&mut Context::from_waker(Waker::noop()));
         }
+    }
+}
+
+/// The relations a head may live in, in the order they are tried: each domain's head view, the
+/// plain `<storage>_head` view, then the plain table. Deduplicated, so a domain named twice never
+/// probes one relation twice.
+fn head_relations(domains: &[&str], storage_name: &str) -> Vec<String> {
+    let mut relations: Vec<String> = domains
+        .iter()
+        .map(|domain| journal::head_view(domain, storage_name))
+        .collect();
+    relations.push(format!("{storage_name}_head"));
+    relations.push(storage_name.to_string());
+    relations.dedup();
+    relations
+}
+
+#[async_trait::async_trait]
+impl super::Backend for PostgresStore {
+    async fn begin<'a>(
+        &'a self,
+        domain: &str,
+    ) -> Result<Box<dyn super::UnitBackend + 'a>, StoreError> {
+        Ok(Box::new(PostgresStore::begin(self, domain).await?))
+    }
+
+    async fn read_state(&self) -> Result<State, StoreError> {
+        PostgresStore::read_state(self).await
+    }
+
+    async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
+        PostgresStore::record_dead_letter(self, dead_letter).await
+    }
+
+    async fn head_by_id(
+        &self,
+        domain: &str,
+        storage_name: &str,
+        id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        let guard = self.lineage.lock().await;
+        Ok(journal::read_lineage_head_by_id(&*guard, domain, storage_name, id).await?)
+    }
+
+    async fn head_all(
+        &self,
+        domain: &str,
+        storage_name: &str,
+    ) -> Result<Vec<(String, serde_json::Value)>, StoreError> {
+        let guard = self.lineage.lock().await;
+        Ok(journal::read_lineage_head_all(&*guard, domain, storage_name).await?)
+    }
+
+    async fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        Ok(self.lineage.head_states(domains, storage_name).await?)
+    }
+
+    async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        self.lineage.head_find(domains, storage_name, matches).await
+    }
+
+    async fn put_head(
+        &self,
+        config: &journal::LineageConfig,
+        mutation: &journal::Mutation<'_>,
+    ) -> Result<(), StoreError> {
+        Ok(self.lineage.put_head(config, mutation).await?)
+    }
+
+    async fn amend_head(
+        &self,
+        config: &journal::LineageConfig,
+        domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: &mut (dyn for<'r> FnMut(
+            &'r [(String, serde_json::Value)],
+        ) -> Option<(String, serde_json::Value)>
+                  + Send),
+    ) -> Result<(), StoreError> {
+        self.lineage
+            .amend_head(
+                config,
+                domain,
+                aggregate,
+                storage_name,
+                |rows: &[(String, serde_json::Value)]| ((), decide(rows)),
+            )
+            .await?;
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+#[async_trait::async_trait]
+impl super::UnitBackend for PostgresUnit<'_> {
+    async fn load(&self) -> Result<State, StoreError> {
+        PostgresUnit::load(self).await
+    }
+
+    async fn commit(self: Box<Self>, accepted: Accepted<'_>) -> Result<(), StoreError> {
+        (*self).commit(accepted).await
+    }
+
+    async fn rollback(self: Box<Self>) -> Result<(), StoreError> {
+        (*self).rollback().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::head_relations;
+
+    #[test]
+    fn head_relations_cover_every_relation_a_runtime_has_written_these_rows_to() {
+        assert_eq!(
+            head_relations(&["SampleApp", "ConsoleSettings"], "state_style"),
+            vec![
+                "sample_app_state_style_head".to_string(),
+                "console_settings_state_style_head".to_string(),
+                "state_style_head".to_string(),
+                "state_style".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn a_domain_named_twice_never_probes_one_relation_twice() {
+        assert_eq!(
+            head_relations(&["ConsoleSettings", "ConsoleSettings"], "state_style"),
+            vec![
+                "console_settings_state_style_head".to_string(),
+                "state_style_head".to_string(),
+                "state_style".to_string()
+            ]
+        );
     }
 }

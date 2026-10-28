@@ -4,7 +4,7 @@ use crate::clock::unix_now;
 use crate::commerce_ir::{payments_provider, PaymentsProvider};
 use crate::dispatch;
 use crate::host::Host;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::payments;
 use crate::store::Store;
 use serde_json::{json, Value};

@@ -186,7 +186,7 @@ aggregate "SafeDepositBox" do
     given("only a rented box is surrendered") { status == "rented" }
 
     emits "BoxSurrendered"
-    emits "KeyReturnDue"
+    emits "KeyReturnRequested"
   end
 end
 ```

@@ -138,6 +138,25 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     end
   end
 
+  describe "#redrive" do
+    it "reports how many outbox rows it redrove" do
+      expect(adapter.redrive(**held(subject: @dir)).dig(:output, :value)).to eq("redrove 0 outbox row(s)")
+    end
+
+    it "takes the claimed switch" do
+      answer = adapter.redrive(**held(subject: @dir, claimed: true))
+
+      expect(answer.dig(:output, :value)).to eq("redrove 0 outbox row(s)")
+    end
+
+    it "refuses a domain that is not there" do
+      Dir.mktmpdir do |scratch|
+        expect { adapter.redrive(**held(subject: File.join(scratch, "no/such/domain"))) }
+          .to raise_error(Hecks::Runtime::NotFound)
+      end
+    end
+  end
+
   describe "#verify" do
     def behaviors_path = File.join(@dir, "bluebook/shelf.behaviors")
 
