@@ -14,7 +14,7 @@ module Hecks
       class CodegenRun
         META_LABEL = "the self-hosted language (lib/hecks/language/bluebook)"
 
-        # One chapter's IR, generated into its own module.
+        # One bluebook's IR, generated into its own module.
         Chapter = Struct.new(:mod_name, :label, :ir)
 
         # The `hecks-codegen` crate: the workspace's own copy when it carries one (a packaged
@@ -41,8 +41,8 @@ module Hecks
 
         # @param rust_dir [String] the workspace being generated into
         # @param out_root [String] the crate's `src/generated`
-        # @param target [Chapter] the domain being projected
-        # @param chapters [Array<Chapter>] every other bluebook the target attached
+        # @param target [Bluebook] the domain being projected
+        # @param bluebooks [Array<Bluebook>] every other bluebook the target attached
         # @param meta [Hash] the self-hosted language's IR
         def initialize(rust_dir:, out_root:, target:, chapters:, meta:)
           @rust_dir = rust_dir

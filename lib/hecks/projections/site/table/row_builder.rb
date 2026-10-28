@@ -14,7 +14,7 @@ module Hecks
                          :seo_title, :edge_verbs, :mobile_heading, :explicit_cache, :edge, keyword_init: true)
 
         # Turns a declared member into a `Row`: checks its fields and their types, fills the
-        # defaults, and checks each closed-set value against the Site chapter's vocabulary.
+        # defaults, and checks each closed-set value against the Site bluebook's vocabulary.
         class RowBuilder
           # The fields a row may carry, with the Ruby class each takes (`:bool` is true or false).
           FIELDS = { path: String, kind: String, render: String, auth: String, methods: String,
@@ -28,7 +28,7 @@ module Hecks
           # What an `edge:` names: the logical id of an `EdgeFunction` row.
           EDGE_NAME = /\A[A-Za-z][A-Za-z0-9]*\z/
 
-          # The value objects of the Site chapter's `Route` aggregate whose members are the closed
+          # The value objects of the Site bluebook's `Route` aggregate whose members are the closed
           # sets, by the row field each constrains.
           VOCABULARY = { kind: "Kind", render: "Render", auth: "Auth", cache: "CacheClass",
                          origin: "Origin", preview: "Preview" }.freeze

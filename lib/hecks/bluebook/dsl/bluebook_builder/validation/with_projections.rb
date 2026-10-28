@@ -6,7 +6,7 @@ module Hecks
           # Checks `with:` projections of policies and saga legs against the source event's shape
           # and the target command's fields.
           module WithProjections
-            # What every `with:` check shares: the chapter's commands by "Owner.Command", its
+            # What every `with:` check shares: the bluebook's commands by "Owner.Command", its
             # aggregates, and the sagas' correlation heads.
             WithContext = Struct.new(:lookup, :aggregates, :correlation_heads)
             # One `with:` to check: the command it targets, the event it reads from, the spec
@@ -23,7 +23,7 @@ module Hecks
             # Checks `with:` projections against the source event's shape and the target's fields.
             # Same-chapter only: an unresolvable cross-chapter source or target is skipped.
             # A for_each policy's source is the event plus a query row; the row's names are known
-            # only when the query's aggregate is in this chapter, otherwise only the target is
+            # only when the query's aggregate is in this bluebook, otherwise only the target is
             # checked.
             def validate_with_projections!(policies, process_managers, aggregates)
               context = WithContext.new(command_lookup(aggregates), aggregates, correlation_heads(process_managers))

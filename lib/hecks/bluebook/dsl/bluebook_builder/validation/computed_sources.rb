@@ -4,7 +4,7 @@ module Hecks
       class BluebookBuilder
         module Validation
           # Checks that every name and dotted path a computed `sets` source reads resolves, once
-          # every aggregate and value object in the chapter exists.
+          # every aggregate and value object in the bluebook exists.
           module ComputedSources
             private
 
@@ -26,7 +26,7 @@ module Hecks
             end
 
             # Where a path is read: the aggregate and command it belongs to, the mutation, and the
-            # chapter's value objects by name.
+            # bluebook's value objects by name.
             PathCheck = Struct.new(:aggregate, :command, :mutation, :value_objects) do
               # @param name [String] a path's first segment
               # @return [Bluebook::Attribute, nil] the command's argument by that name, else the

@@ -140,7 +140,7 @@ module Hecks
         # `command_name`'s shape — unlike a policy's explicit `target_domain`
         # (set by `across`), a saga's `dispatch`/`compensates` has no such
         # field, and every command a saga fires lands inside its own
-        # bluebook chapter.
+        # bluebook.
         def qualified(command_name, domain)
           "#{domain}::#{command_name}"
         end

@@ -7,7 +7,7 @@ module Hecks
   end
 end
 
-# Required here because the chapter's frozen files lean on these at class-body level.
+# Required here because the bluebook's frozen files lean on these at class-body level.
 # Load order: expression and IR first, assembly's collaborators before its face, DSL last.
 require_relative "construct"
 require_relative "literal"

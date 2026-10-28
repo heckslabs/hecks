@@ -68,7 +68,7 @@ module Hecks
           # ORDER BY refuses a hop outright: a hop answers with a candidate set, not a sort key.
           #
           # A where hop is only recognised here. Its head must be one of this aggregate's own
-          # references, but the target cannot resolve before the chapter exists, so
+          # references, but the target cannot resolve before the bluebook exists, so
           # BluebookBuilder#validate_query_hops! checks the tail and the target later.
           def seal_query_hop(scope, field, ordering:)
             refuse_undeclared_query_field!(scope, field) unless QuerySpecification::HopPath.hop_head?(field, scope.fields)

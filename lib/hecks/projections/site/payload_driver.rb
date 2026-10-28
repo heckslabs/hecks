@@ -16,7 +16,7 @@ module Hecks
       # the command that creates it) and the Payload field definitions with the readers that turn a
       # saved document back into an input.
       #
-      # A `Payload` row names the domain, its chapter and where the files go; `PayloadField` rows
+      # A `Payload` row names the domain, its bluebook and where the files go; `PayloadField` rows
       # say what the editor needs that an attribute's shape cannot (a date picker, a choice list,
       # an upload, a relation). The domain stays free of the content system: it is read, never
       # annotated.
@@ -44,8 +44,8 @@ skip: String },
 
         module_function
 
-        # @param bluebook [Bluebook::Chapter] the chapter that declares the route table and the rows
-        # @param options [Hash{Symbol => Object}] `:domain_chapter` the domain's chapter, or nil
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table and the rows
+        # @param options [Hash{Symbol => Object}] `:domain_chapter` the domain's bluebook, or nil
         # @return [Hash{String => String}] each file's path relative to the project root to its
         #   text; empty when the project declares no `Payload` row
         # @raise [Table::Invalid] when a row is refused

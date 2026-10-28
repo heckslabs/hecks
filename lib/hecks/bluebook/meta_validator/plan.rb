@@ -12,8 +12,8 @@ module Hecks
         # Reads the language's own self-description off `registry`.
         #
         # @param registry [Runtime::Registry] a registry with the language's
-        #   own "Bluebook" chapter already judged and assembled
-        # @return [Plan] the plan, built from that chapter's own aggregates
+        #   own "Bluebook" bluebook already judged and assembled
+        # @return [Plan] the plan, built from that bluebook's own aggregates
         def self.for(registry)
           new(registry.bluebook("Bluebook"))
         end
@@ -21,7 +21,7 @@ module Hecks
         attr_reader :categories
 
         # @param meta [Bluebook::Chapter] the language's own assembled
-        #   "Bluebook" chapter
+        #   "Bluebook" bluebook
         def initialize(meta)
           @categories = {}
           meta.aggregates.each do |aggregate|

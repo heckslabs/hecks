@@ -33,7 +33,7 @@ module Hecks
 
           # A port attaches to its aggregate from the hecksagon, not the bluebook, so a
           # deaf-policy check that skipped it would miss a policy reacting to an event
-          # nothing emits. Recording a bind builds IR only; no adapter resolves here. A chapter
+          # nothing emits. Recording a bind builds IR only; no adapter resolves here. A bluebook
           # that ships its ports beside its bluebook (`<name>.ports.hecksagon`) is read with them.
           hecksagons_of(source).each { |hecksagon| Kernel.load(hecksagon) if File.exist?(hecksagon) }
         end

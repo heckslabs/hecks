@@ -13,7 +13,7 @@ module Hecks
     # fires, in silence.
     #
     # Given domain paths it checks just those, cross-domain; given none it sweeps
-    # the repository's corpus and the language's own chapters, which needs `root:`.
+    # the repository's corpus and the language's own bluebooks, which needs `root:`.
     module ModelCheck
       # The directory the framework's own `.port` and `.adapter` files live under.
       HECKS_DIR = File.expand_path("..", __dir__)

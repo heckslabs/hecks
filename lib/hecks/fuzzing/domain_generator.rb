@@ -45,7 +45,7 @@ module Hecks
       end
 
       # `blueprint.json` is written beside the domain directory, never
-      # inside it — a stray file under `bluebook/` would load as a chapter.
+      # inside it — a stray file under `bluebook/` would load as a bluebook.
       def write(blueprint, root)
         domain = File.join(root, DIRECTORY)
         FileUtils.rm_rf(domain)

@@ -7,7 +7,7 @@ module Hecks
   module Adapters
     module Codebase
       module Promotion
-        # Where every `RequiredCheck` of the Vocabulary chapter stands against one commit.
+        # Where every `RequiredCheck` of the Vocabulary bluebook stands against one commit.
         #
         # It reports and does not decide: `Accept` holds the rule that a promotion needs every check
         # green. A check that has not finished (or has not started) is told apart from one that

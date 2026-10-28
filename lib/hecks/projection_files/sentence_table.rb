@@ -6,7 +6,7 @@ module Hecks
     # Extended onto `ProjectionFiles`.
     module SentenceTable
       # @param root [String] the checkout
-      # @return [Result] `rust/parser/src/phrases.rs`, from the Sentence chapter
+      # @return [Result] `rust/parser/src/phrases.rs`, from the Sentence bluebook
       def phrase_table(root)
         require "hecks"
         text = Projector.call(:phrase_table, bluebook: Projections::PhraseTable.chapter)

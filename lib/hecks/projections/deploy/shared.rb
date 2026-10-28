@@ -77,10 +77,10 @@ module Hecks
           end
         end
 
-        # Every domain a cross-domain policy targets, across every loaded chapter, so an attached
-        # chapter's policies count as well as the domain's own.
+        # Every domain a cross-domain policy targets, across every loaded bluebook, so an attached
+        # bluebook's policies count as well as the domain's own.
         #
-        # @param registry [Hecks::Runtime::Registry] the registry holding the loaded chapters
+        # @param registry [Hecks::Runtime::Registry] the registry holding the loaded bluebooks
         # @return [Array<String>] the target domain names, sorted and without repeats
         def cross_domain_targets(registry)
           targets = registry.bluebooks.flat_map { |_name, chapter| chapter.policies.filter_map(&:target_domain) }

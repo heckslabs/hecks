@@ -53,7 +53,7 @@ module Hecks
             found
           end
 
-          # @return [Array<String>] the problem with a `media` chapter that is one the editor edits
+          # @return [Array<String>] the problem with a `media` bluebook that is one the editor edits
           def media_chapter_problems(row)
             named = row[:media].strip
             return [] unless row[:chapter].split(",").map(&:strip).include?(named)

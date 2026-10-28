@@ -3,7 +3,7 @@ module Hecks
     module DSL
       class HecksagonBuilder
         # The per-thread state of the hecksagon build in progress, and the shadowing of `Hecks`'s
-        # real modules that lets the Hecks chapter spell its aggregates `Hecks::Operation`.
+        # real modules that lets the Hecks bluebook spell its aggregates `Hecks::Operation`.
         # Extended onto `HecksagonBuilder`.
         module ChapterScope
           # The bind collector of the build running on this thread; thread-local, so a build
@@ -17,10 +17,10 @@ module Hecks
             Thread.current.thread_variable_set(:hecks_hecksagon_collector, value)
           end
 
-          # @return [String, nil] the name of the chapter whose hecksagon is being built
+          # @return [String, nil] the name of the bluebook whose hecksagon is being built
           def building = Thread.current.thread_variable_get(:hecks_hecksagon_building)
 
-          # @param value [String, nil] the name of the chapter whose hecksagon is being built
+          # @param value [String, nil] the name of the bluebook whose hecksagon is being built
           def building=(value)
             Thread.current.thread_variable_set(:hecks_hecksagon_building, value)
           end
@@ -33,11 +33,11 @@ module Hecks
             Thread.current.thread_variable_set(:hecks_hecksagon_hidden, value)
           end
 
-          # Takes off `Hecks` each real module a chapter aggregate shares its name with, so the
-          # name reaches `ChapterConstants#const_missing`. Only the chapter named Hecks has this
+          # Takes off `Hecks` each real module a bluebook aggregate shares its name with, so the
+          # name reaches `ChapterConstants#const_missing`. Only the bluebook named Hecks has this
           # collision; a nested build of it leaves the outer build's shadows in place.
           #
-          # @param domain [String, Symbol] the chapter whose hecksagon is being built
+          # @param domain [String, Symbol] the bluebook whose hecksagon is being built
           # @return [Hash{Symbol => Object}] what was taken off, by name: the module, or the
           #   autoload path when the constant had not loaded yet
           def shadowed(domain)
@@ -52,7 +52,7 @@ module Hecks
           end
 
           # Runs the block with every module the running build shadowed back on `Hecks`, and a
-          # missing `Hecks::X` an ordinary `NameError`, then shadows them again. A chapter loaded
+          # missing `Hecks::X` an ordinary `NameError`, then shadows them again. A bluebook loaded
           # from inside the hecksagon block is ordinary code, not the hecksagon's own vocabulary.
           # A no-op when nothing is shadowed.
           #
@@ -83,10 +83,10 @@ module Hecks
             end
           end
 
-          # Runs the block with this thread's collector, chapter name and shadowed modules set for
+          # Runs the block with this thread's collector, bluebook name and shadowed modules set for
           # building `domain`'s hecksagon, restoring the outer build's state afterwards.
           #
-          # @param domain [String, Symbol] the chapter whose hecksagon is being built
+          # @param domain [String, Symbol] the bluebook whose hecksagon is being built
           # @param binds [Array] the binds the build collects into
           # @yield the build
           # @return [Object] the block's result

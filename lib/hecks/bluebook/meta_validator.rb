@@ -23,22 +23,22 @@ module Hecks
       TRANSLATION_GRAMMAR = Dir.glob(File.expand_path("../language/translation/*.bluebook", __dir__)).freeze
 
       # (ADR 0026) Any bluebook file placed here is auto-discovered and
-      # loaded as an extension chapter; nothing else in this file changes.
+      # loaded as an extension bluebook; nothing else in this file changes.
       ATTACHED_GRAMMAR_DIR = File.expand_path("../language/bluebook/attaches", __dir__).freeze
 
-      # The chapters loaded raw at bootstrap, then judged through themselves
+      # The bluebooks loaded raw at bootstrap, then judged through themselves
       # and replaced by their own self-assembled graphs.
       LANGUAGE_CHAPTERS = %w[Bluebook World Hecksagon].freeze
 
       # Process-wide judging cache, keyed on a SHA-256 digest of the judged
       # artifact so a changed bluebook is always re-judged.
       #
-      # Seeded once per process with the chapter verdicts earlier processes
+      # Seeded once per process with the bluebook verdicts earlier processes
       # stored (see `VerdictCache`); every other verdict starts empty.
       #
       # @return [Hash{String => Object}] refusal messages per digest for a
       #   world/port/adapter/translation (`[]` when well formed); the held
-      #   verdict Hash for a chapter
+      #   verdict Hash for a bluebook
       def self.verdicts = @verdicts ||= VerdictCache.seed
 
       # Judges `world` through the meta-domain's own `WorldJudge` entry point.
@@ -92,7 +92,7 @@ module Hecks
         judge_artifact(translation, TranslationJudge, "#{translation.domain}'s translation") { translation.inspect }
       end
 
-      # The one entry point every artifact but a chapter goes through: skip while judging is off,
+      # The one entry point every artifact but a bluebook goes through: skip while judging is off,
       # else judge once per distinct `key_text` and refuse a malformed artifact.
       #
       # @param subject [Object] the artifact to judge
@@ -115,7 +115,7 @@ module Hecks
       # meta-domain assembles from its own judged declarations, not the
       # builder's original object graph.
       #
-      # @param bluebook [Object] a built bluebook chapter graph (an
+      # @param bluebook [Object] a built bluebook graph (an
       #   `Aggregate`/`Entity`/`ValueObject`/... instance from
       #   `lib/hecks/bluebook/`), answering `to_h` and `hecks_name`
       # @return [Object] `bluebook` unchanged while disabled, bootstrapping,
@@ -137,14 +137,14 @@ module Hecks
         Assembly.call(held[:declaration])
       end
 
-      # @param bluebook [Object] a built bluebook chapter graph
+      # @param bluebook [Object] a built bluebook graph
       # @return [Object] `bluebook`, queued for `judge_deferred!`
       def self.defer_chapter(bluebook)
         deferred_chapters << bluebook.hecks_name
         bluebook
       end
 
-      # @param bluebook [Object] a built bluebook chapter graph
+      # @param bluebook [Object] a built bluebook graph
       # @return [Hash{Symbol => Object}] the verdict `hold` produced for it, cached by digest
       def self.held_verdict(bluebook)
         key = Digest::SHA256.hexdigest(JSON.generate(bluebook.to_h))
@@ -152,10 +152,10 @@ module Hecks
       end
 
       # Dispatches `bluebook` into the meta-domain and reads the result back.
-      # A refused chapter carries only its refusals — the records are
+      # A refused bluebook carries only its refusals — the records are
       # half-written by definition.
       #
-      # @param bluebook [Object] a built bluebook chapter graph, as `call`
+      # @param bluebook [Object] a built bluebook graph, as `call`
       #   receives it
       # @return [Hash{Symbol => Object}] `{refusals: [...]}` when `Judge`
       #   refuses any declaration; otherwise `{refusals: [],
@@ -173,7 +173,7 @@ module Hecks
       # ambient caller bound. A caller inside `while_shadow_parsing` that is first to ask would
       # otherwise memoize a grammar parsed in that mode, or fail to load it; one inside
       # `Hecks.as_caller` would have the language's own `Language`-role commands refused, and the
-      # grammar would be memoized without the chapters those refusals dropped.
+      # grammar would be memoized without the bluebooks those refusals dropped.
       #
       # @return [Runtime::Registry] the booted, fixpoint-judged language
       #   registry
@@ -204,11 +204,11 @@ module Hecks
         registry
       end
 
-      # Loads every `ATTACHED_GRAMMAR_DIR` chapter file into `registry`,
+      # Loads every `ATTACHED_GRAMMAR_DIR` bluebook file into `registry`,
       # judged the ordinary way since the fixpoint has already run.
       #
       # @param registry [Runtime::Registry] the registry to load every
-      #   `ATTACHED_GRAMMAR_DIR` chapter file into
+      #   `ATTACHED_GRAMMAR_DIR` bluebook file into
       # @return [void]
       def self.load_attached_grammar_into(registry)
         Hecks.with_registry(registry) do
@@ -216,10 +216,10 @@ module Hecks
         end
       end
 
-      # Loads the whole grammar (ports, adapters, every language chapter)
+      # Loads the whole grammar (ports, adapters, every language bluebook)
       # into `registry`, raw and unjudged.
       #
-      # The `@bootstrapping` guard matters: without it a chapter split
+      # The `@bootstrapping` guard matters: without it a bluebook split
       # across files would get judged one file at a time and refuse early.
       #
       # @param registry [Runtime::Registry] the registry to load the whole

@@ -19,12 +19,12 @@ module Hecks
       # A path segment ending in a format extension, capturing the rest and the format.
       FORMAT_SUFFIX = /\A(.*)\.(html|json)\z/
 
-      # Builds the Rack app for a configured app name, exposing exactly the chapters its
+      # Builds the Rack app for a configured app name, exposing exactly the bluebooks its
       # `Forms.configure` block declared.
       #
-      # @param registry [Runtime::Registry] the booted registry holding the exposed chapters
+      # @param registry [Runtime::Registry] the booted registry holding the exposed bluebooks
       # @param app_name [String, Symbol] the name an earlier `Forms.configure` call registered
-      # @return [Forms::App] a Rack app routing only the configured chapters
+      # @return [Forms::App] a Rack app routing only the configured bluebooks
       # @raise [ArgumentError] if no app of that name has been configured
       def self.for(registry:, app_name:)
         config = Forms.config(app_name) ||
@@ -33,8 +33,8 @@ module Hecks
         new(registry: registry, exposed: config.exposes)
       end
 
-      # @param registry [Runtime::Registry] the booted registry holding the exposed chapters
-      # @param exposed [Array<String>] names of the chapters (domains) this app routes; a
+      # @param registry [Runtime::Registry] the booted registry holding the exposed bluebooks
+      # @param exposed [Array<String>] names of the bluebooks (domains) this app routes; a
       #   request for any other domain is answered 404
       # @param dispatcher [Runtime::Dispatcher, nil] the dispatcher commands and queries go
       #   through; nil builds a `Runtime::Dispatcher` over `registry`

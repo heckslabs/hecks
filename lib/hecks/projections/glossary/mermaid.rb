@@ -11,7 +11,7 @@ module Hecks
 
         module_function
 
-        # Draws the whole chapter's aggregates and which points at which.
+        # Draws the whole bluebook's aggregates and which points at which.
         #
         # @return [String] a Mermaid `flowchart LR` source
         def map(bluebook)

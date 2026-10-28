@@ -9,7 +9,7 @@ module Hecks
     #
     # Shared by the combination-coverage spec and `hecks quality_control target.judge_novelty` so
     # they cannot drift. The unit is one aggregate: forms on one head meet at dispatch, forms in one
-    # chapter do not.
+    # bluebook do not.
     module FormCensus
       # Ports and adapters a census boots with, relative to the repository root.
       CENSUS_SUPPORT = [
@@ -94,7 +94,7 @@ module Hecks
       end
 
       # The census over a domain on disk, booted lightweight (no `Hecks.boot`, no database).
-      # Only the first-loaded chapter is measured.
+      # Only the first-loaded bluebook is measured.
       #
       # @raise [ArgumentError] if `domain_path` has no bluebook files
       def census(domain_path)

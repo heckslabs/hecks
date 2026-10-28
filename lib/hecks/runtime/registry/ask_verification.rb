@@ -9,7 +9,7 @@ module Hecks
       module AskVerification
         private
 
-        # A port operation a chapter provides, and an ask a policy makes, each name a port
+        # A port operation a bluebook provides, and an ask a policy makes, each name a port
         # operation the hecksagon declared.
         def refuse_unresolved_ports!
           refuse_unresolved_port_operations!

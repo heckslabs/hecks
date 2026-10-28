@@ -2,7 +2,7 @@ module Hecks
   module Adapters
     module Driving
       module CliRunner
-        # Words the answer for a command or question the chapter does not declare. Extended into
+        # Words the answer for a command or question the bluebook does not declare. Extended into
         # `CliRunner`.
         module Suggestions
           # Words the answer for an unknown command or question, suggesting up to five near names.

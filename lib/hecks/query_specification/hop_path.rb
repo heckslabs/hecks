@@ -55,7 +55,7 @@ module Hecks
       #   starts from
       # @return [Array(Hop, String), nil] the hop and the rest of the path after the first
       #   `/`; the hop's `target` is `nil` when the referenced aggregate is not in the
-      #   declaring chapter. `nil` when the path has no `/` or its head names no reference
+      #   declaring bluebook. `nil` when the path has no `/` or its head names no reference
       # @raise [Bluebook::DSL::Malformed] if the reference has no `declared_in` aggregate
       #   to resolve its target through
       def next_hop(field, attributes)

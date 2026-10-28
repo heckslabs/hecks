@@ -87,7 +87,7 @@ module Hecks
 
           # The local half of `projects` resolution: `reference` must name a reference attribute
           # here and `name` must not collide with a declared attribute. The target aggregate's
-          # field is checked later by BluebookBuilder, once the whole chapter exists.
+          # field is checked later by BluebookBuilder, once the whole bluebook exists.
           def seal_projected_fields
             declared = attributes.map { |attribute| attribute.name.to_sym }
 

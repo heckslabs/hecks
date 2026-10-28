@@ -1,13 +1,13 @@
 module Hecks
   module Composer
-    # The event-storming board of a chapter, on the hecksagon side: its aggregates with their
+    # The event-storming board of a bluebook, on the hecksagon side: its aggregates with their
     # commands, the events each command emits, and the policies that make one event trigger another
-    # command. It is read off the booted chapter, so it always shows what the text declares; the
+    # command. It is read off the booted bluebook, so it always shows what the text declares; the
     # board's own edits go through {BoardEdit}, which rewrites the text.
     module Board
       module_function
 
-      # @param chapter [Bluebook::Chapter] the booted chapter
+      # @param bluebook [Bluebook::Chapter] the booted bluebook
       # @param outline [Array<Hash>] the text outline (see {Outline}), which says where each note
       #   is declared
       # @return [Hash] `aggregates` (each with `name`, `at` and its `commands`, each command with

@@ -149,7 +149,7 @@ module Hecks
         registry
       end
 
-      # The registry, chapter and checked table of the project at `root`.
+      # The registry, bluebook and checked table of the project at `root`.
       def read_table(root)
         registry = registry_of(root)
         chapter = Projections::Site::Table.chapter(registry)

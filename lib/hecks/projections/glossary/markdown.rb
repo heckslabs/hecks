@@ -24,7 +24,7 @@ module Hecks
 
         module_function
 
-        # Titles the document after its chapter.
+        # Titles the document after its bluebook.
         def title(bluebook) = "#{bluebook.name} glossary"
 
         # Renders the full `glossary.md` document.

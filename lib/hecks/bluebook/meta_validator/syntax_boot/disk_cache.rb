@@ -10,7 +10,7 @@ module Hecks
           # marks an entry as used, so only the tables of other code age out.
           UNREAD_KEEP_SECONDS = 24 * 60 * 60
 
-          # `equal?`, not `==` — chapter identity, not value equality, is the
+          # `equal?`, not `==` — bluebook identity, not value equality, is the
           # fact this cache key tracks.
           def same_chapters?(cached, current)
             cached.size == current.size &&
@@ -20,7 +20,7 @@ module Hecks
           end
 
           # Cross-process persistence for the same build `call` already memoizes
-          # in-process, keyed by chapter name (not identity, which means nothing
+          # in-process, keyed by bluebook name (not identity, which means nothing
           # across processes) plus a content hash of every grammar file `boot`
           # can read from — so a source edit anywhere in that set misses the
           # cache rather than silently serving a stale table.
@@ -89,7 +89,7 @@ module Hecks
           # The key also carries `VerdictCache.code_digest` (all of `lib/`), so an
           # edit to Ruby that builds or judges the grammar misses too.
           #
-          # Covers every chapter's grammar files, not just the core ones —
+          # Covers every bluebook's grammar files, not just the core ones —
           # coarser than strictly necessary, but under-covering this set would
           # let a stale table survive a real grammar edit.
           def grammar_content_digest

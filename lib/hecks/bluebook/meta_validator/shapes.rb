@@ -28,7 +28,7 @@ module Hecks
 
           type = text(field[:type]).to_s
           # A qualified name is the tell: an ordinary type (`Money`, `AccountNumber`)
-          # carries no join at all, while a head's id always does (chapter + name).
+          # carries no join at all, while a head's id always does (bluebook + name).
           attribute_row(field, type.include?(Naming::IDENTITY_JOIN) ? reference_type(type) : text(field[:type]))
         end
 

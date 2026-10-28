@@ -2,13 +2,13 @@ module Hecks
   module Runtime
     # **A domain's declarations**, asked of the dispatcher or described domain that holds them.
     #
-    # A caller holding a dispatcher (or a described domain) asks it for a chapter, a repository
+    # A caller holding a dispatcher (or a described domain) asks it for a bluebook, a repository
     # or the translations, rather than reaching through its registry. The includer answers
     # `registry`.
     module Declarations
-      # Every loaded chapter, by name.
+      # Every loaded bluebook, by name.
       #
-      # @return [Hash{String => Bluebook::Chapter}] the loaded chapters, keyed by name
+      # @return [Hash{String => Bluebook::Chapter}] the loaded bluebooks, keyed by name
       def bluebooks = registry.bluebooks
 
       # Exposes one loaded domain's bluebook.
@@ -17,15 +17,15 @@ module Hecks
       # @return [Bluebook::Bluebook, nil] the bluebook, or nil when no such domain is loaded
       def bluebook(domain) = registry.bluebook(domain)
 
-      # The first chapter loaded: a one-domain boot's own bluebook.
+      # The first bluebook loaded: a one-domain boot's own bluebook.
       #
-      # @return [Bluebook::Chapter, nil] the first loaded chapter, or nil when none loaded
+      # @return [Bluebook::Chapter, nil] the first loaded bluebook, or nil when none loaded
       def first_bluebook = registry.first_bluebook
 
-      # Answers whether a domain was loaded as a bounded chapter.
+      # Answers whether a domain was loaded as a bounded bluebook.
       #
       # @param domain [String, Symbol] the domain name
-      # @return [Boolean] whether the domain is a bounded chapter
+      # @return [Boolean] whether the domain is a bounded bluebook
       def bounded?(domain) = registry.bounded?(domain)
 
       # The repository that stores `aggregate`.

@@ -6,7 +6,7 @@ module Hecks
   module Adapters
     module Driving
       module Ruby
-        # One chapter's module: vision and aggregate list on the singleton, one
+        # One bluebook's module: vision and aggregate list on the singleton, one
         # aggregate module per declared head, and a `const_missing` hook for undeclared names.
         module Chapter
           # Builds the anonymous module that stands for one booted chapter: `vision`,
@@ -15,7 +15,7 @@ module Hecks
           #
           # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted
           #   dispatcher each aggregate module closes over
-          # @param bluebook [Bluebook::Chapter] the chapter to project into a module
+          # @param bluebook [Bluebook::Chapter] the bluebook to project into a module
           # @return [Module] a fresh, unnamed module; `Ruby.install` gives it its
           #   top-level name
           # @raise [NameError] if an aggregate's name is not a valid constant name
@@ -34,20 +34,20 @@ module Hecks
 
           private
 
-          # The chapter's vision and its aggregate names.
+          # The bluebook's vision and its aggregate names.
           def define_readers(chapter, bluebook)
             chapter.define_singleton_method(:vision)     { bluebook.vision }
             chapter.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
           end
 
-          # The chapter's documents and projections, each projected from its IR on every call so
+          # The bluebook's documents and projections, each projected from its IR on every call so
           # none can go stale.
           def define_projections(chapter, bluebook)
             chapter.define_singleton_method(:docs) do |**options|
               Projector.call(:docs, bluebook: bluebook, options: options)
             end
 
-            # The chapter read back in english, via `Projector::NarrateProjector`.
+            # The bluebook read back in english, via `Projector::NarrateProjector`.
             chapter.define_singleton_method(:narrate) do |**options|
               Projector.call(:narrate, bluebook: bluebook, options: options)
             end
@@ -55,7 +55,7 @@ module Hecks
             define_project(chapter, bluebook)
           end
 
-          # Projects the chapter's IR through a target; `out:` writes the artifact and
+          # Projects the bluebook's IR through a target; `out:` writes the artifact and
           # the remaining options go to the projector (`audience:` for OIDC).
           #
           #   Pizzas.project(Projections::OIDC)

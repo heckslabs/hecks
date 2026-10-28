@@ -9,7 +9,7 @@ module Hecks
       # The ruleset GitHub is given for a guarded lane.
       #
       # A guarded lane cannot be deleted or rewound, and a `green` lane takes only a commit on
-      # which every `RequiredCheck` of the Vocabulary chapter has already passed. No actor is let
+      # which every `RequiredCheck` of the Vocabulary bluebook has already passed. No actor is let
       # past it: a push of a commit that passed is how a promotion moves the lane, and the GitHub
       # Actions app cannot be named as a bypass actor.
       module Ruleset

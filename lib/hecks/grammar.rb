@@ -12,12 +12,12 @@ module Hecks
   # for reading them as data, replayed through the expression admission ledger.
   #
   # Booted on call, never at require: the Prism adapter normalises predicates
-  # while a bluebook loads, so the expression machinery cannot boot its own chapter.
+  # while a bluebook loads, so the expression machinery cannot boot its own bluebook.
   module Grammar
     DIR    = File.expand_path("grammar", __dir__)
     LEDGER = File.join(DIR, "expression_operators.json")
 
-    # The ports and adapters a chapter needs loaded before its own bluebook, relative to the
+    # The ports and adapters a bluebook needs loaded before its own bluebook, relative to the
     # repository root.
     CHAPTER_PREREQUISITES = %w[lib/hecks/ports/persistence.port lib/hecks/ports/extraction.port
                                lib/hecks/adapters/driven/memory.adapter
@@ -29,12 +29,12 @@ module Hecks
 
     module_function
 
-    # Boots the expression chapter and replays the admission ledger through
+    # Boots the expression bluebook and replays the admission ledger through
     # its real commands; a refused step raises.
     #
     # @return [Runtime::Dispatcher] the dispatcher bound to the booted, replayed
-    #   expression chapter
-    # @raise [Runtime::WiringError] if a ledger step is refused by the chapter's
+    #   expression bluebook
+    # @raise [Runtime::WiringError] if a ledger step is refused by the bluebook's
     #   own domain rules
     def expression
       registry = Runtime::Registry.new
@@ -44,10 +44,10 @@ module Hecks
       dispatcher
     end
 
-    # Loads a chapter's bluebook into a registry, after the ports and adapters it needs.
+    # Loads a bluebook's bluebook into a registry, after the ports and adapters it needs.
     #
-    # @param registry [Runtime::Registry] the registry the chapter loads into
-    # @param chapter [String] the path of the chapter's `.bluebook`
+    # @param registry [Runtime::Registry] the registry the bluebook loads into
+    # @param bluebook [String] the path of the bluebook's `.bluebook`
     # @return [void]
     def load_chapter(registry, chapter)
       root = File.expand_path("../..", __dir__)
@@ -59,10 +59,10 @@ module Hecks
 
     # Dispatches one admission-ledger step.
     #
-    # @param dispatcher [Runtime::Dispatcher] the dispatcher bound to the expression chapter
+    # @param dispatcher [Runtime::Dispatcher] the dispatcher bound to the expression bluebook
     # @param step [Hash] a ledger step, with `"verb"` and `"args"`
     # @return [void]
-    # @raise [Runtime::WiringError] if the chapter's own domain rules refuse the step
+    # @raise [Runtime::WiringError] if the bluebook's own domain rules refuse the step
     def replay_step(dispatcher, step)
       dispatcher.dispatch_flat(step.fetch("verb"), symbolize(step.fetch("args")))
     rescue *Runtime::DOMAIN_REFUSALS => e
@@ -70,10 +70,10 @@ module Hecks
             "the admission ledger refused at #{step["verb"]} #{step["args"]} — #{e.message}"
     end
 
-    # Reads every admitted operator from the ledger's replayed chapter.
+    # Reads every admitted operator from the ledger's replayed bluebook.
     #
     # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the booted
-    #   expression chapter; defaults to booting and replaying a fresh one
+    #   expression bluebook; defaults to booting and replaying a fresh one
     # @return [Array<Hash>] one Hash per admitted operator, with `:symbol`,
     #   `:category`, `:precedence`, `:arity`, and `:renderings` (an Array of
     #   `{target:, form:}` Hashes)
@@ -90,10 +90,10 @@ module Hecks
     end
 
     # Reads every admitted normalisation rule from the ledger's replayed
-    # chapter, in position order.
+    # bluebook, in position order.
     #
     # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the booted
-    #   expression chapter; defaults to booting and replaying a fresh one
+    #   expression bluebook; defaults to booting and replaying a fresh one
     # @return [Array<Hash>] one Hash per admitted rule, with `:strategy`,
     #   `:source_token`, `:replacement`, `:boundary`, and `:position`
     def admitted_normalisations(dispatcher = expression)
@@ -111,11 +111,11 @@ module Hecks
         position: rule[:position].value }
     end
 
-    # Reads every record of one aggregate from the expression chapter's own
+    # Reads every record of one aggregate from the expression bluebook's own
     # repository.
     #
     # @param dispatcher [Runtime::Dispatcher] a dispatcher bound to the booted
-    #   expression chapter
+    #   expression bluebook
     # @param aggregate_name [String] the aggregate's declared name, such as
     #   `"Operator"`
     # @return [Array<Runtime::Instance>] every stored instance of the aggregate

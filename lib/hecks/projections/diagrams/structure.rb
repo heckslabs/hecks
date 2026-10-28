@@ -12,7 +12,7 @@ module Hecks
         # `has_many`/`has_one` read from the owning side; `belongs_to`/`reference_to` read
         # from the target's side, since a bare reference does not promise uniqueness.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled chapter
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook
         # @return [String, nil] the entity-relationship diagram, or nil without references
         def relationship_diagram(bluebook)
           edges = Diagrams.holders(bluebook).flat_map do |holder|
@@ -36,7 +36,7 @@ module Hecks
           end
         end
 
-        # @param bluebook [Bluebook::Chapter] the assembled chapter
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook
         # @return [String, nil] who issues which command, or nil when no command names a role
         def roles_diagram(bluebook)
           lines = Diagrams.holders(bluebook).flat_map do |holder|
@@ -59,7 +59,7 @@ module Hecks
 
         # Walks `bluebook.aggregates`, not `holders`: an entity has no `ports` method.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled chapter
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook
         # @return [String, nil] the port operations, or nil when no aggregate has a port
         def ports_diagram(bluebook)
           lines = bluebook.aggregates.flat_map do |holder|
@@ -84,7 +84,7 @@ module Hecks
           %(#{id}[/"#{port_name}.#{operation_name}"/])
         end
 
-        # @param bluebook [Bluebook::Chapter] the assembled chapter
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook
         # @return [String, nil] each read model and its source aggregates, or nil without any
         def read_model_diagram(bluebook)
           lines = bluebook.read_models.flat_map { |read_model| read_model_edges(read_model) }

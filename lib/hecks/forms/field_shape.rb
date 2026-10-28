@@ -102,7 +102,7 @@ module Hecks
         Field.new(**common, kind: :reference, html_type: "text", target_aggregate: target, help: help)
       end
 
-      # Mirrors Runtime::Value::Admission#admitted_members (same split, chapter walk and
+      # Mirrors Runtime::Value::Admission#admitted_members (same split, bluebook walk and
       # discriminant rule) so a `<select>` never offers a member the runtime would refuse.
       def self.admitted_field(attribute, aggregate, common)
         set = admitted_set(attribute, aggregate)

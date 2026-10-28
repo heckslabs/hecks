@@ -11,9 +11,9 @@ module Hecks
 
       module_function
 
-      # Boots the domain and prints one sentence per declared fact of the named chapter.
+      # Boots the domain and prints one sentence per declared fact of the named bluebook.
       #
-      # @param argv [Array<String>] the domain path, then the chapter's name
+      # @param argv [Array<String>] the domain path, then the bluebook's name
       # @param cwd [String] what a relative domain path resolves against
       # @param out [IO] where the sentences go
       # @return [Integer] the exit status, 0 once printed

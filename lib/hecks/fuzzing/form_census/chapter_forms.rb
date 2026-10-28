@@ -4,14 +4,14 @@ module Hecks
       # The chapter-level constructs an aggregate takes part in, folded onto its own hash so the
       # per-aggregate forms can read them.
       #
-      # Policies and read models live on the chapter, not the aggregate: an `across` policy is
+      # Policies and read models live on the bluebook, not the aggregate: an `across` policy is
       # attributed to the aggregate whose event it answers, and a read model to each aggregate it
       # takes a head from.
       module ChapterForms
         module_function
 
-        # @param aggregate [Hash] one aggregate of an exported chapter
-        # @param chapter_ir [Hash] the exported chapter it belongs to
+        # @param aggregate [Hash] one aggregate of an exported bluebook
+        # @param chapter_ir [Hash] the exported bluebook it belongs to
         # @return [Hash] the aggregate with `across_policies` and `multi_head_read_models` added
         def onto(aggregate, chapter_ir)
           aggregate.merge("across_policies"        => across_policies(aggregate, chapter_ir),

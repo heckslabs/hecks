@@ -12,7 +12,7 @@ module Hecks
         include Reading
         include Heads
 
-        # Reads one judged chapter back out of `runtime` and assembles it.
+        # Reads one judged bluebook back out of `runtime` and assembles it.
         def self.of(runtime, chapter) = new(runtime, chapter).to_h
 
         def initialize(runtime, chapter)
@@ -52,12 +52,12 @@ module Hecks
           end
         end
 
-        # Everything of `category` declared in the chapter, each row read back by `builder`.
+        # Everything of `category` declared in the bluebook, each row read back by `builder`.
         def declared_as(category, builder)
           declared(category, chapter_id).map { |row| send(builder, row) }
         end
 
-        # What the chapter itself holds, apart from what is declared in it.
+        # What the bluebook itself holds, apart from what is declared in it.
         def chapter_fields
           {
             name:              text(@chapter[:name]),

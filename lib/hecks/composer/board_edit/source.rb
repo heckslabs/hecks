@@ -12,7 +12,7 @@ module Hecks
         # A bluebook file's path.
         BLUEBOOK_FILE = /\.bluebook\z/
 
-        # The `Hecks.bluebook "Name"` line that declares a chapter.
+        # The `Hecks.bluebook "Name"` line that declares a bluebook.
         CHAPTER_HEADER = /\A\s*Hecks\.bluebook\s+"/
 
         # The spaces a line starts with.
@@ -43,9 +43,9 @@ module Hecks
         # @return [Integer] how many spaces its line is indented
         def indent(at) = indent_of(@lines.fetch(at[:file])[at[:line] - 1])
 
-        # The file and `end` of the chapter's own block, where new aggregates and policies go.
-        # @return [Hash] `{file:, line:}` of the chapter header
-        # @raise [Refused] if no file declares the chapter
+        # The file and `end` of the bluebook's own block, where new aggregates and policies go.
+        # @return [Hash] `{file:, line:}` of the bluebook header
+        # @raise [Refused] if no file declares the bluebook
         def chapter
           file = @lines.keys.sort.find { |path| @lines[path].any? { |line| line.match?(CHAPTER_HEADER) } }
           raise Refused, "no file declares the chapter" unless file

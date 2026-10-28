@@ -28,12 +28,12 @@ module Hecks
         # Unlike `admit_member`, the set is declared elsewhere and named, not written inline.
         #
         # @param owner [Bluebook::Aggregate, Bluebook::Entity, Bluebook::ValueObject] declares
-        #   `attribute`; the walk to the chapter starts here
+        #   `attribute`; the walk to the bluebook starts here
         # @param attribute [Bluebook::Attribute, nil] nil, or one with no `admits:`, checks nothing
         # @param value [Object, nil] a bare scalar or a one-field `Runtime::Value`; nil is skipped
         # @return [Object, nil] `value`, unchanged
         # @raise [Runtime::InvariantViolation] if the value is not a member of the named set,
-        #   or `admits:` names a set no aggregate in the chapter declares
+        #   or `admits:` names a set no aggregate in the bluebook declares
         def admit_declared_set(owner, attribute, value)
           return value if attribute.nil? || attribute.admits.nil? || value.nil?
 
@@ -56,8 +56,8 @@ module Hecks
         #   `attribute`
         # @param attribute [Bluebook::Attribute] an attribute whose `admits` is `"Aggregate::Set"`
         # @return [Array<String>] each member's first-attribute value as a String, in order
-        # @raise [Runtime::InvariantViolation] if `admits` is not qualified, no chapter is
-        #   reachable from `owner`, or the chapter declares no such aggregate or value object
+        # @raise [Runtime::InvariantViolation] if `admits` is not qualified, no bluebook is
+        #   reachable from `owner`, or the bluebook declares no such aggregate or value object
         def admitted_members(owner, attribute)
           set = declared_set(owner, attribute)
           unless set
@@ -70,10 +70,10 @@ module Hecks
           set.members.map { |member| member.to_h[discriminant].to_s }
         end
 
-        # Walks `hecks_owner` links upward until it reaches the chapter.
+        # Walks `hecks_owner` links upward until it reaches the bluebook.
         #
         # @param construct [Bluebook::ValueObject, Bluebook::Entity, Bluebook::Aggregate,
-        #   Bluebook::Chapter, nil] the construct to start from; the chapter answers itself
+        #   Bluebook::Chapter, nil] the construct to start from; the bluebook answers itself
         # @return [Bluebook::Chapter, nil] the first construct on the way up that responds to
         #   `aggregate`; nil when the chain ends without one
         def chapter_of(construct)
@@ -111,7 +111,7 @@ module Hecks
           member.all? { |field, value| fields[field].to_s == value.to_s }
         end
 
-        # The value object `attribute.admits` names (`"Aggregate::Set"`), when the chapter declares
+        # The value object `attribute.admits` names (`"Aggregate::Set"`), when the bluebook declares
         # it.
         def declared_set(owner, attribute)
           aggregate_name, set_name = attribute.admits.to_s.split("::", 2)

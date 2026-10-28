@@ -4,7 +4,7 @@ module Hecks
       # Property: the role check at dispatch agrees with the grants the replay itself made.
       #
       # `CommandRules::Authorization` asks the authorization provider whether an identified caller
-      # holds a command's role, through the `assignments` verb the provider's chapter declares with
+      # holds a command's role, through the `assignments` verb the provider's bluebook declares with
       # `provides "authorization"`. Each `history[:role_checks]` entry carries the grants read back
       # through that same verb before the dispatch, so the answer is recomputed from them.
       module RoleChecks

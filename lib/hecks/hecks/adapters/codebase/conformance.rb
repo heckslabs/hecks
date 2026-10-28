@@ -62,7 +62,7 @@ module Hecks
         #   with it writes the empty edge for a shape that moved with none
         # @param tree [Tree] the checkout
         # @return [String] the clean verdict, or what was written
-        # @raise [ConsoleCapture::Failure] with each chapter whose shape moved without an edge
+        # @raise [ConsoleCapture::Failure] with each bluebook whose shape moved without an edge
         def shape_ledger(held, tree)
           ShapeLedger.check(tree.path("lib/hecks/hecks"), confirm: on?(held[:confirm]), additive: on?(held[:additive]))
         rescue ShapeLedger::Failure => e

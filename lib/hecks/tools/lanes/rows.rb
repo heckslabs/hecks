@@ -5,7 +5,7 @@ require "hecks/vocabulary"
 module Hecks
   module Tools
     module Lanes
-      # The `Lane` rows of the Vocabulary chapter, checked against what the projection can express.
+      # The `Lane` rows of the Vocabulary bluebook, checked against what the projection can express.
       module Rows
         # Empty, or a trailer key of dash-joined words such as `Release-Approved-By`.
         TRAILER_KEY = /\A([A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*)?\z/

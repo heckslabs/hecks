@@ -4,10 +4,10 @@ require_relative "site/table"
 
 module Hecks
   module Projections
-    # A chapter projected as the files a Rails app needs to drive it through `hecks-rails`: a
+    # A bluebook projected as the files a Rails app needs to drive it through `hecks-rails`: a
     # controller per aggregate, and a routes file with a `resources` line for each.
     #
-    #   Projector.call(:rails_app, bluebook: chapter)
+    #   Projector.call(:rails_app, bluebook: bluebook)
     #   # => { "app/controllers/accounts_controller.rb" => "...", "config/routes.rb" => "..." }
     #
     # A model needs no file: `hecks-rails` generates one per aggregate at boot, so one is written by
@@ -21,19 +21,19 @@ module Hecks
 
       module_function
 
-      # Projects every file the app needs for a chapter.
+      # Projects every file the app needs for a bluebook.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter the app drives
+      # @param bluebook [Bluebook::Chapter] the bluebook the app drives
       # @param options [Hash] the registry's call shape
-      # @option options [Array<Bluebook::Chapter>] :route_chapters every chapter the routes file
-      #   draws, when the app drives more than this one; this chapter alone when absent
+      # @option options [Array<Bluebook::Chapter>] :route_chapters every bluebook the routes file
+      #   draws, when the app drives more than this one; this bluebook alone when absent
       # @return [Hash{String => String}] each file's path in the app to its text
       def call(bluebook:, options: {})
         controllers = driven(bluebook).to_h { |aggregate| controller(aggregate) }
         controllers.merge("config/routes.rb" => routes(options[:route_chapters] || [bluebook]))
       end
 
-      # @param chapter [Bluebook::Chapter] a chapter
+      # @param bluebook [Bluebook::Chapter] a bluebook
       # @return [Array<Bluebook::Aggregate>] its aggregates that take commands; one that only holds
       #   rows, such as an `App` row, has no page
       def driven(chapter) = chapter.aggregates.select { |aggregate| aggregate.commands.any? }
@@ -47,7 +47,7 @@ module Hecks
          "class #{name} < ApplicationController\nend\n"]
       end
 
-      # @param chapters [Array<Bluebook::Chapter>] the chapters to draw
+      # @param bluebooks [Array<Bluebook::Chapter>] the bluebooks to draw
       # @return [String] the routes file's text
       def routes(chapters)
         resources = resources_of(chapters)
@@ -56,14 +56,14 @@ module Hecks
           "Rails.application.routes.draw do\n#{drawn.join("\n")}\nend\n"
       end
 
-      # @param chapters [Array<Bluebook::Chapter>] the chapters to draw
+      # @param bluebooks [Array<Bluebook::Chapter>] the bluebooks to draw
       # @return [Array<Array(String, String)>] each driven aggregate's name and resource name
       def resources_of(chapters)
         aggregates = chapters.flat_map { |chapter| driven(chapter) }
         aggregates.map { |aggregate| [aggregate.hecks_name, Naming.plural(Naming.snake(aggregate.hecks_name))] }
       end
 
-      # @param chapters [Array<Bluebook::Chapter>] the chapters to draw
+      # @param bluebooks [Array<Bluebook::Chapter>] the bluebooks to draw
       # @param resources [Array<Array(String, String)>] each aggregate's name and resource name
       # @return [String] the resource the root path lists: the `App` row's home, else the first
       def home(chapters, resources)

@@ -3,11 +3,11 @@ require_relative "capabilities/package_declared"
 
 module Hecks
   module Bluebook
-    # What a chapter may declare it provides — trusted in place of a literal
+    # What a bluebook may declare it provides — trusted in place of a literal
     # chapter-name check by role checks, adapters and the fuzzer.
     #
     # The language defines a contract only for the capabilities Hecks itself consumes. Any other
-    # `provides` name is the package's own: its keys are checked to name something the chapter
+    # `provides` name is the package's own: its keys are checked to name something the bluebook
     # declares (`PackageDeclared`), and whoever reads the capability checks the keys it needs.
     module Capabilities
       extend AttributeValues
@@ -22,7 +22,7 @@ module Hecks
       IDENTITY = "identity".freeze
 
       # Marking a domain's attributes sensitive and reading the markings back, recognised by
-      # declaration rather than the literal chapter name "Privacy".
+      # declaration rather than the literal bluebook name "Privacy".
       PRIVACY = "privacy".freeze
 
       # A subject's key record, shredded to erase them, recognised by declaration rather than the

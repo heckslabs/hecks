@@ -48,7 +48,7 @@ module Hecks
       end
 
       # @param runtime [Runtime] a booted domain
-      # @return [String] each chapter's vision, and its aggregates' descriptions and commands
+      # @return [String] each bluebook's vision, and its aggregates' descriptions and commands
       def overview(runtime)
         chapters = runtime.bluebooks.each_value.map { |bluebook| chapter_overview(bluebook) }
         chapters.join

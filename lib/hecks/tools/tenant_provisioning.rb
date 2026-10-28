@@ -22,7 +22,7 @@ module Hecks
       USAGE = "usage: hecks deploy provision <domain-directory> <slug> --domain=NAME --realm=NAME " \
               "--schema=NAME --database=NAME [--adapter=PostgresEra]"
 
-      # The chapters that must boot together for a tenant to be declared and registered.
+      # The bluebooks that must boot together for a tenant to be declared and registered.
       CHAPTER_FILES = %w[deploy/bluebook/deploy.bluebook deploy/bluebook/deploy.hecksagon
                          tenancy/bluebook/tenancy.bluebook tenancy/bluebook/tenancy.hecksagon].freeze
 
@@ -31,7 +31,7 @@ module Hecks
       # Provisions the tenant and prints what it wrote and confirmed.
       #
       # @param argv [Array<String>] the domain directory, the tenant's slug, then the flags
-      # @param root [String] unused: the chapters are read from the library
+      # @param root [String] unused: the bluebooks are read from the library
       # @return [Integer] 0
       # @raise [SystemExit] with the reason on stderr when the shape is invalid, provisioning is
       #   refused, or the tenant never registers
@@ -76,7 +76,7 @@ module Hecks
       # @param slug [String] the tenant's slug
       # @param options [Hash] the parsed flags
       # @param domain_directory [String] the domain's directory
-      # @return [Hecks::Runtime::Dispatcher] the dispatcher both chapters share
+      # @return [Hecks::Runtime::Dispatcher] the dispatcher both bluebooks share
       # @raise [SystemExit] when the declared shape is refused, or provisioning is refused
       def provision(slug, options, domain_directory)
         lib_hecks  = File.expand_path("..", __dir__)

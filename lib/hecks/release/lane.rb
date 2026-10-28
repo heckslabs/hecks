@@ -2,7 +2,7 @@ require "hecks/vocabulary"
 
 module Hecks
   module Release
-    # The lane a release is cut from, read from the `Lane` rows of the Vocabulary chapter.
+    # The lane a release is cut from, read from the `Lane` rows of the Vocabulary bluebook.
     #
     # A release ships what the gates passed, so it is cut from the guarded lane that feeds a tag
     # (`stable`, which feeds `edge`), never from the lane that takes pushes with no gate.

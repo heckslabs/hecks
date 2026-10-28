@@ -15,7 +15,7 @@ module Hecks
 
         module_function
 
-        # Memoized per grammar-registry chapter set (identity, not a "ready"
+        # Memoized per grammar-registry bluebook set (identity, not a "ready"
         # flag), and cross-process on disk, since a full boot is real work.
         #
         # @return [Hash{Symbol => Array<Hash{Symbol => String}>}] `:keywords`
@@ -36,9 +36,9 @@ module Hecks
           result
         end
 
-        # The chapters the grammar registry holds, in insertion order.
+        # The bluebooks the grammar registry holds, in insertion order.
         #
-        # @return [Hash{String => Bluebook::Chapter}] each chapter by name
+        # @return [Hash{String => Bluebook::Chapter}] each bluebook by name
         def grammar_chapters
           registry = MetaValidator.grammar_registry
           registry.bluebooks
@@ -81,7 +81,7 @@ module Hecks
           v(text)
         end
 
-        # This fresh runtime holds no chapter record of its own, so one is
+        # This fresh runtime holds no bluebook record of its own, so one is
         # declared first, purely to satisfy `Syntax.Declare`'s `reference_to
         # Bluebook` — its vision/classification are never read afterward.
         def declare_syntax(runtime, bluebook)
@@ -143,7 +143,7 @@ module Hecks
         end
 
         # `bluebook` first, then registry insertion order, so the core
-        # chapter is never read twice.
+        # bluebook is never read twice.
         def seed_chapters(bluebook)
           [bluebook] + grammar_chapters.values.reject { |chapter| chapter.name == bluebook.name }
         end

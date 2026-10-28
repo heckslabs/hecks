@@ -10,13 +10,13 @@ require_relative "../../switches"
 module Hecks
   module Bluebook
     module MetaValidator
-      # Cross-process store of the meta-domain's chapter verdicts, so a boot
-      # judges only the chapters no earlier process has judged.
+      # Cross-process store of the meta-domain's bluebook verdicts, so a boot
+      # judges only the bluebooks no earlier process has judged.
       #
-      # Only chapter verdicts live here; `Assembly.call` still runs every boot
+      # Only bluebook verdicts live here; `Assembly.call` still runs every boot
       # and a miss judges as a cold process does. The file name carries a digest
       # of the judging code (`lib/` outside `CONSUMER_TREES`, the Ruby and Hecks
-      # versions, `FORMAT`); each entry is keyed by the chapter IR's SHA-256.
+      # versions, `FORMAT`); each entry is keyed by the bluebook IR's SHA-256.
       # The file is tagged JSON, never `Marshal`, read only from a private,
       # user-owned directory: a forged "no refusals" entry would skip validation.
       #
@@ -32,7 +32,7 @@ module Hecks
         FORMAT = 1
 
         # The subtrees of `lib/` that read the language and never judge it: they
-        # project, serve or deploy from a chapter, and nothing the judge runs
+        # project, serve or deploy from a bluebook, and nothing the judge runs
         # calls into them. An edit there leaves every verdict as it was, so
         # their files stay out of the key. Paths are relative to `lib/hecks`.
         CONSUMER_TREES = %r{\A/hecks/(?:bench|cli|codemod|deploy|doc|adapters/driving|fuzzing|projections|
@@ -91,7 +91,7 @@ module Hecks
         # Loads the stored verdicts, once per process; later calls return an
         # empty hash so a caller that resets its own memo re-judges for real.
         #
-        # @return [Hash{String => Hash}] verdicts by chapter key; empty when
+        # @return [Hash{String => Hash}] verdicts by bluebook key; empty when
         #   the cache is off, absent, unreadable, corrupt or not private
         def seed
           return {} if @seeded
@@ -106,9 +106,9 @@ module Hecks
           {}
         end
 
-        # Remembers a freshly judged chapter verdict for the next `flush`.
+        # Remembers a freshly judged bluebook verdict for the next `flush`.
         #
-        # @param key [String] the chapter's SHA-256 key
+        # @param key [String] the bluebook's SHA-256 key
         # @param held [Hash] the verdict `MetaValidator.hold` returned
         # @return [void]
         def record(key, held)
@@ -161,7 +161,7 @@ module Hecks
         end
 
         # @param entries [Object] a decoded `entries` value
-        # @return [Boolean] whether it is a hash of chapter verdicts
+        # @return [Boolean] whether it is a hash of bluebook verdicts
         def well_formed?(entries)
           entries.is_a?(Hash) && entries.all? do |key, held|
             key.is_a?(String) && held.is_a?(Hash) && held[:refusals].is_a?(Array) &&

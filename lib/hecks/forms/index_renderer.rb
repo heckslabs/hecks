@@ -3,12 +3,12 @@ require_relative "field_shape"
 
 module Hecks
   module Forms
-    # The home page: every exposed chapter and the aggregates on it.
+    # The home page: every exposed bluebook and the aggregates on it.
     module IndexRenderer
-      # Renders the home page body: one section per exposed chapter, each linking to its
+      # Renders the home page body: one section per exposed bluebook, each linking to its
       # aggregates.
       #
-      # @param chapters [Hash{String => Bluebook::Chapter}] the loaded chapters by domain
+      # @param bluebooks [Hash{String => Bluebook::Chapter}] the loaded bluebooks by domain
       #   name, in `expose` order
       # @return [String] the HTML page body; only the heading when `chapters` is empty
       def self.render(chapters)
@@ -19,11 +19,11 @@ module Hecks
         HTML
       end
 
-      # Renders one chapter's section: its name, its vision as a badge when it declares one,
+      # Renders one bluebook's section: its name, its vision as a badge when it declares one,
       # and a link per aggregate showing how many commands and queries it has.
       #
       # @param name [String] the domain name, used as the heading and the first path segment
-      # @param chapter [Bluebook::Chapter] the loaded chapter
+      # @param bluebook [Bluebook::Chapter] the loaded bluebook
       # @return [String] HTML for the section's heading and aggregate list
       def self.chapter_section(name, chapter)
         items = chapter.aggregates.map { |aggregate| aggregate_item(name, aggregate) }

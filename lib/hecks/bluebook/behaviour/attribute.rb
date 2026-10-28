@@ -23,7 +23,7 @@ module Hecks
         # @return [String, nil] the referenced aggregate's name, or `nil` when this is no reference
         def target_name = (@type.target_name if reference?)
 
-        # The aggregate a `reference_to` attribute points at, resolved in its own chapter.
+        # The aggregate a `reference_to` attribute points at, resolved in its own bluebook.
         #
         # @return [Bluebook::Aggregate, nil] the target aggregate, or `nil` when this is no
         #   reference or the target belongs to another domain

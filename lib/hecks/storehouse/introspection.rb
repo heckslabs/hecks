@@ -40,12 +40,12 @@ module Hecks
           queries:  aggregate.queries.map { |q| Naming.snake(q.hecks_name) }.sort }
       end
 
-      # One aggregate's (or the whole chapter's) full usage documentation — the
+      # One aggregate's (or the whole bluebook's) full usage documentation — the
       # same document hecks docs renders for a human.
       #
       # @param runtime [Runtime::Registry] the booted domain to describe
       # @param aggregate [String, Symbol, nil] one aggregate's name, or nil for the
-      #   whole chapter
+      #   whole bluebook
       # @return [Hash] :ok, :domain, :docs; or the refused shape
       # @raise [Runtime::NotFound] if aggregate names no known aggregate
       def describe(runtime:, aggregate: nil)

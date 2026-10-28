@@ -10,10 +10,10 @@ module Hecks
     #
     # Each launcher is a dozen lines pinning one directory and handing over to
     # `Adapters::Driving::CliRunner`; the surface itself is projected at the moment it runs,
-    # so editing a chapter changes behaviour without regenerating anything.
+    # so editing a bluebook changes behaviour without regenerating anything.
     #
-    # A chapter whose world's `launcher` setting names an `executable` gets its launcher
-    # there instead: the Hecks chapter's is the gem's `exe/hecks`.
+    # A bluebook whose world's `launcher` setting names an `executable` gets its launcher
+    # there instead: the Hecks bluebook's is the gem's `exe/hecks`.
     module ProjectCli
       # Raised when the project loads no bluebook.
       class Error < RuntimeError; end
@@ -21,8 +21,8 @@ module Hecks
       # Build output and other trees under a root that hold no domain a caller means.
       IGNORED = %r{\A(rust|deploy|tmp|coverage)/}
 
-      # One launcher to write: its chapter's name, its label under the root, its file, its text,
-      # the snake-cased name and the executable path its chapter's world named (nil when none).
+      # One launcher to write: its bluebook's name, its label under the root, its file, its text,
+      # the snake-cased name and the executable path its bluebook's world named (nil when none).
       Target = Struct.new(:name, :label, :file, :text, :snake, :executable)
 
       extend LauncherSource

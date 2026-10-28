@@ -11,7 +11,7 @@ module Hecks
     # inherit the base's certification instead of running the suite again.
     #
     # The files a bump edits, and which of their lines it may change, are the `ReleaseFile` rows of
-    # the Vocabulary chapter. A change is a release bump when it touches at least one file, every
+    # the Vocabulary bluebook. A change is a release bump when it touches at least one file, every
     # file it touches is a row, and every line it adds or removes in a file matches that row's
     # `lines` pattern (an empty pattern admits any line). Whether the base is certified is read
     # from the base commit's own check runs: every `RequiredCheck` row that is not marked

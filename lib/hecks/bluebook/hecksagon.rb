@@ -52,18 +52,18 @@ module Hecks
       def aggregate_name = Naming.demodulise(aggregate)
     end
 
-    # One chapter a hecksagon attaches, with where it was found.
+    # One bluebook a hecksagon attaches, with where it was found.
     #
-    # `source` is `:gem` for a chapter the gem carries (a framework member such as Governance,
-    # or a language chapter such as Deploy) and `:vendor` for a package vendored into the
+    # `source` is `:gem` for a bluebook the gem carries (a framework member such as Governance,
+    # or a language bluebook such as Deploy) and `:vendor` for a package vendored into the
     # consuming project, whose `name` is the package's directory name (`"membership"`) and whose
     # `chapter` is the name its bluebook declares, which the directory name need not spell.
     Attachment = Struct.new(:name, :source, :chapter, keyword_init: true) do
-      # @return [Boolean] whether the chapter is a vendored package
+      # @return [Boolean] whether the bluebook is a vendored package
       def vendor? = source == :vendor
 
-      # @return [String] the chapter's name in the registry: a gem chapter's own name, a
-      #   vendored package's declared chapter, else its directory name in Pascal case
+      # @return [String] the bluebook's name in the registry: a gem bluebook's own name, a
+      #   vendored package's declared bluebook, else its directory name in Pascal case
       def chapter_name = chapter || (vendor? ? Naming.pascal(name) : name)
 
       # @return [Hash{Symbol => String}] the attachment as plain data
@@ -100,10 +100,10 @@ module Hecks
       # @param binds [Array<Bluebook::Bind>] the declared adapter binds
       # @param subscriptions [Array<String, Symbol>] the external events this domain
       #   subscribes to
-      # @param attachments [Array<Bluebook::Attachment>] every chapter this hecksagon attaches,
+      # @param attachments [Array<Bluebook::Attachment>] every bluebook this hecksagon attaches,
       #   each with its source (`:gem` or `:vendor`)
-      # @param bounded [Boolean] whether this chapter is an explicit bounded context
-      #   (consumer-owned; `attaches` marks attached chapters bounded on the registry instead)
+      # @param bounded [Boolean] whether this bluebook is an explicit bounded context
+      #   (consumer-owned; `attaches` marks attached bluebooks bounded on the registry instead)
       # @param translates [Array<String>] names of `translates` ACL blocks declared here
       # @param driving [Array<String>] the driving adapters `driven_by` admits; empty admits all
       def initialize(domain:, **given)
@@ -114,21 +114,21 @@ module Hecks
         @driving            = Array(@driving).map(&:to_s)
       end
 
-      # Says whether this hecksagon marked its own chapter `bounded`.
+      # Says whether this hecksagon marked its own bluebook `bounded`.
       #
       # @return [Boolean] whether `bounded` was declared on this block
       def bounded? = @bounded
 
-      # Every chapter this hecksagon brings into its domain's registry, gem and vendored alike.
+      # Every bluebook this hecksagon brings into its domain's registry, gem and vendored alike.
       #
-      # @return [Array<String>] the chapters' names as the registry holds them, in the order
+      # @return [Array<String>] the bluebooks' names as the registry holds them, in the order
       #   they were attached
       def member_chapters = attachments.map(&:chapter_name)
 
-      # Says whether this hecksagon attaches a chapter, whatever its source.
+      # Says whether this hecksagon attaches a bluebook, whatever its source.
       #
-      # @param chapter [String, Symbol] a chapter's name as the registry holds it
-      # @return [Boolean] whether that chapter is attached here
+      # @param bluebook [String, Symbol] a bluebook's name as the registry holds it
+      # @return [Boolean] whether that bluebook is attached here
       def attaches?(chapter) = member_chapters.include?(chapter.to_s)
 
       # Says whether a driving adapter may reach this hecksagon's domain: every adapter may when
@@ -167,11 +167,11 @@ module Hecks
       #   if none is declared
       # @param settings [Hash] the declared adapter bind settings, keyed by verb and,
       #   for a qualified entry, `"verb:adapter"`
-      # @param default_database [String, nil] the connection every chapter's
+      # @param default_database [String, nil] the connection every bluebook's
       #   database-taking persistence adapter uses unless its own settings name one,
       #   or `nil` if none is declared
       # @param default_adapter [String, nil] the persistence adapter every aggregate
-      #   binds to unless its chapter's hecksagon binds it, or `nil` if none is declared
+      #   binds to unless its bluebook's hecksagon binds it, or `nil` if none is declared
       def initialize(domain:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @domain           = domain.to_s

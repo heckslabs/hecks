@@ -2,11 +2,11 @@ module Hecks
   module Bluebook
     module DSL
       class EntityBuilder
-        # The rule words of a piece: `given` preconditions, shared across the chapter by
+        # The rule words of a piece: `given` preconditions, shared across the bluebook by
         # description, and per-instance `invariant`s.
         module Rules
           # Declares a rule this piece's own commands must satisfy, or references one a sibling
-          # piece anywhere in the chapter already declared.
+          # piece anywhere in the bluebook already declared.
           #
           # Order doesn't matter: `command` only queues a descriptor here and builds for real at
           # `#drain_pending!` time, after every `given` in this block has already run.
@@ -80,9 +80,9 @@ module Hecks
               "#{candidates.keys.first.inspect}))"
           end
 
-          # A chapter may be split across files, so an unresolved bare reference defers rather
+          # A bluebook may be split across files, so an unresolved bare reference defers rather
           # than raising immediately; `BluebookBuilder#resolve_pending_chapter_entity_givens!`
-          # fills in the placeholder once every file in the chapter has loaded.
+          # fills in the placeholder once every file in the bluebook has loaded.
           def pending_chapter_entity_given(description, declared_by:)
             placeholder = Given.new(description: description, canonical: nil, predicate: nil)
             @chapter_entity_pending_givens << { entity: "#{@aggregate_name}.#{@name}", description: description,

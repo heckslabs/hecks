@@ -15,7 +15,7 @@ end
 require_relative "../construct"
 require_relative "../query_specification"
 # The model the builders construct — `bluebook.rb` requires the whole
-# set; this names the one file that declares the chapter class itself,
+# set; this names the one file that declares the bluebook class itself,
 # which every builder returns into.
 require_relative "chapter"
 

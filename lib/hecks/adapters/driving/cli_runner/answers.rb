@@ -8,15 +8,15 @@ module Hecks
         # `CliRunner`.
         module Answers
           # What a dispatch needs beyond the spec: the parsed arguments, whether `--wait` was given,
-          # and the chapter and launcher setting the command belongs to.
+          # and the bluebook and launcher setting the command belongs to.
           Invocation = Struct.new(:args, :wait, :bluebook, :launcher)
 
           # Parses one resolved command's arguments, runs it as a query or command, and turns the
           # outcome, or the domain's refusal, into `[json_or_message, status]`. With `--wait`, a
           # question whose report names a gap (`LauncherOptions.gap_reported?`) answers status 1.
           #
-          # @param bluebook [Bluebook::Chapter] the chapter the command belongs to
-          # @param launcher [Hash, nil] the chapter's `launcher` world setting; nil when not opted
+          # @param bluebook [Bluebook::Chapter] the bluebook the command belongs to
+          # @param launcher [Hash, nil] the bluebook's `launcher` world setting; nil when not opted
           #   in
           def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil) # rubocop:disable Metrics/ParameterLists -- the signature is what `call` passes
             args, wait = command_line(spec, rest, launcher)
@@ -27,7 +27,7 @@ module Hecks
             # A bad argument and a missing record both need the same next step: read the help.
             ["#{e.message}\n\n  #{program} #{"query " if asking}#{name} --help", 1]
           rescue *Runtime::DOMAIN_REFUSALS => e
-            # The refusal is the chapter's own sentence, verbatim.
+            # The refusal is the bluebook's own sentence, verbatim.
             [e.message, 1]
           rescue StandardError => e
             # So is a wrapped tool's, when a question's adapter refuses to answer.
@@ -44,7 +44,7 @@ module Hecks
 
           # Whether the error is a wrapped tool's refusal. Matched by name: the adapters belong to
           # the
-          # Hecks chapter, which a client's runtime never loads.
+          # Hecks bluebook, which a client's runtime never loads.
           def tool_refusal?(error)
             ancestor_names = error.class.ancestors.map(&:name)
             ancestor_names.include?(CliRunner::TOOL_REFUSAL)
@@ -81,7 +81,7 @@ module Hecks
           # Runs a question and answers its rows, or its text when an adapter answered in text.
           #
           # @param wait [Boolean, nil] whether `--wait` was given: a report naming a gap then fails
-          # @param launcher [Hash, nil] the chapter's `launcher` setting, which may name the
+          # @param launcher [Hash, nil] the bluebook's `launcher` setting, which may name the
           #   questions that refuse a run they do not hold
           # @return [Array(String, Integer)] the answer and the status
           def answer_query(runtime, spec, args, wait, launcher = nil)

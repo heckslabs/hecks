@@ -10,9 +10,9 @@ module Hecks
 
       # Projects `bluebook` as prose; `options[:heading]` sets the top heading level.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the chapter to narrate
+      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook to narrate
       # @param options [Hash] `:heading` (Integer, default 1) and `:aggregate` (narrows to one
-      #   aggregate, omitting the chapter intro and reactions)
+      #   aggregate, omitting the bluebook intro and reactions)
       # @return [String] Markdown prose ending in a newline
       # @raise [Runtime::NotFound] if `options[:aggregate]` names no declared aggregate
       def call(bluebook:, options: {})
@@ -38,7 +38,7 @@ module Hecks
         parts.compact.join("\n\n")
       end
 
-      # The chapter's classification and former name as one paragraph, or `nil` when it has neither.
+      # The bluebook's classification and former name as one paragraph, or `nil` when it has neither.
       def chapter_meta(bluebook)
         meta = []
         meta << "This is a #{bluebook.classification} domain." if bluebook.classification

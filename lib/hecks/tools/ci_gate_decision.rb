@@ -10,7 +10,7 @@ require_relative "release_only"
 module Hecks
   module Tools
     # Answers whether a change touches what a gated CI job covers: the decision a `CiGate` row of
-    # the Vocabulary chapter names, made by `hecks decide_ci_gate gate=<name>` in the detector job
+    # the Vocabulary bluebook names, made by `hecks decide_ci_gate gate=<name>` in the detector job
     # `hecks project_ci_gates` writes into each workflow.
     #
     # The change is read from the run's own event (`GITHUB_EVENT_PATH`) and head (`GITHUB_SHA`),

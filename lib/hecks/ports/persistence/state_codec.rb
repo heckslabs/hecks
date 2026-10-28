@@ -159,7 +159,7 @@ module Hecks
         # Decodes one stored value object or entity, looked up by type name.
         #
         # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct that
-        #   declares, or whose chapter declares, the type
+        #   declares, or whose bluebook declares, the type
         # @param type [String] the declared type name, such as `"Address"`
         # @param value [Object] the stored value
         # @return [Hash, Object] a new decoded Hash; `value` unchanged when it is not a Hash or
@@ -249,7 +249,7 @@ module Hecks
         # Checks one stored value object or entity, the mirror of `decode_composite`.
         #
         # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct that
-        #   declares, or whose chapter declares, the type
+        #   declares, or whose bluebook declares, the type
         # @param type [String] the declared type name
         # @param value [Object] the value to inspect
         # @return [Boolean] true when `value` is not a Hash, `type` names neither an entity nor
@@ -264,7 +264,7 @@ module Hecks
         # Maps the declared keys of a stored value object or entity, looked up by type name.
         #
         # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the root construct that
-        #   declares, or whose chapter declares, the type
+        #   declares, or whose bluebook declares, the type
         # @param type [String] the declared type name
         # @return [Hash{Symbol => Bluebook::Attribute, nil}, nil] the entity's fields, else the
         #   unambiguous value object's; nil when `type` names neither

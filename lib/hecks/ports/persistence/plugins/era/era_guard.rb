@@ -171,7 +171,7 @@ module Hecks
       def evaluate_into(scratch, loading, source, path)
         Hecks.with_registry(scratch) do
           loading.load_library
-          # Held text of a chapter spread over files is several blocks in one string, each
+          # Held text of a bluebook spread over files is several blocks in one string, each
           # opening the same chapter: judge once after all of them, as a directory load does.
           Hecks::Bluebook::MetaValidator.defer { Kernel.eval(source, TOPLEVEL_BINDING, path, 1) }
           Hecks::Bluebook::MetaValidator.judge_deferred!(scratch)

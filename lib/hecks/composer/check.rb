@@ -13,7 +13,7 @@ module Hecks
 
       # @param dir [String] the workspace directory
       # @param buffers [Hash{String => String}] unsaved text by path relative to `dir`
-      # @param chapter_name [String, nil] the chapter to draw; the first bluebook's when nil
+      # @param chapter_name [String, nil] the bluebook to draw; the first bluebook's when nil
       # @return [Hash] `diagnostic` (nil, or `{file:, line:, message:, expected:}` for the first
       #   refusal), `files` (the workspace's declaration files), `outline` (see {Outline}),
       #   `chapter` (the name drawn), `diagrams` (Mermaid text by file name), `statements` (plain
@@ -53,7 +53,7 @@ module Hecks
                    **read(chapter, registry.hecksagon(name)))
       end
 
-      # The diagrams, statements and model-check findings of a booted chapter.
+      # The diagrams, statements and model-check findings of a booted bluebook.
       # @api private
       def read(chapter, hecksagon)
         { diagrams:   Projections::Diagrams.call(bluebook: chapter, options: { hecksagon: hecksagon }),
@@ -61,12 +61,12 @@ module Hecks
           findings:   Bluebook::ModelCheck.call(chapter, hecksagon: hecksagon).map(&:to_h) }
       end
 
-      # What the chapter is wired to: the binds its hecksagon declares, the chapters it attaches,
+      # What the bluebook is wired to: the binds its hecksagon declares, the bluebooks it attaches,
       # the driving adapters it admits, the world's default adapter, and each declared port with
       # the adapters bound to it.
       #
       # @param registry [Runtime::Registry] a booted registry
-      # @param name [String] the chapter's name
+      # @param name [String] the bluebook's name
       # @return [Hash] `binds`, `attaches`, `driving`, `default_adapter` and `ports`
       def wiring(registry, name)
         hecksagon = registry.hecksagon(name)
