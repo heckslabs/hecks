@@ -82,6 +82,18 @@ module Hecks
       dispatcher
     end
 
+    # Installs the Ruby driving adapter only for a domain that declares ports. An adapter behind a
+    # port reaches its domain through those constants, so a run that boots without them (a verb
+    # run, an outbox redrive) would have the adapter refused with `uninitialized constant`; a
+    # domain with no port keeps the cheaper boot.
+    #
+    # @param dispatcher [Runtime::Dispatcher] a booted dispatcher
+    # @return [Runtime::Dispatcher] the same dispatcher
+    def bind_ported_runtime(dispatcher)
+      registry = dispatcher.registry
+      registry.ports.any? ? bind_runtime(dispatcher) : dispatcher
+    end
+
     # The dispatcher, with the Ruby driving adapter installed over it when asked.
     def drive(dispatcher, install_driving) = install_driving ? bind_runtime(dispatcher) : dispatcher
     private_class_method :drive

@@ -37,10 +37,11 @@ longer chooses anything.
    an aggregate that owns the rule (ADR 0081): a command on the owner that emits one event,
    and a policy that reacts per record. An operator sweep that must not leave a partial
    result is run again until it settles; the record lists the refused rows.
-5. **The `:rollback` persistence capability stays for now.** Sqlite and Postgres still
-   advertise it and nothing else reads it. It is not removed here, because a store
-   capability is a wider contract than one chapter's mode; it is a candidate for a later
-   change once nothing needs it.
+5. **The `:rollback` persistence capability is removed in a later change.** Sqlite and
+   Postgres advertised it and nothing else read it once the mode went. It was left here
+   because a store capability is a wider contract than one chapter's mode. It is removed
+   from both adapters and from the two specs that pinned it; `transaction` itself stays,
+   since the compiled bulk statement and dispatch open one.
 
 ## Alternatives considered
 

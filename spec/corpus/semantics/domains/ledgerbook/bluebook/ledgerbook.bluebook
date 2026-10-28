@@ -1,0 +1,51 @@
+Hecks.bluebook "Ledgerbook" do
+  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md).
+  # No example domain has a plain policy (not `across`) that reads the emitting record's whole
+  # identity as `:id` (ADR 0144). A shelf is identified by its row and its slot, so the identity
+  # is composite and the policy hands the Register the two joined by a colon.
+  vision "A shelf is stocked, and the register notes which shelf it was."
+  core
+
+  aggregate "Shelf" do
+    identified_by :row, :slot
+
+    attribute :row,  Row
+    attribute :slot, Slot
+
+    value_object "Row" do
+      attribute :value, String
+    end
+
+    value_object "Slot" do
+      attribute :value, String
+    end
+
+    command "Stock" do
+      goal "Put a shelf into service"
+      attribute :row,  Row
+      attribute :slot, Slot
+      emits "ShelfStocked"
+    end
+  end
+
+  aggregate "Register" do
+    identified_by :shelf
+
+    attribute :shelf, Label
+
+    value_object "Label" do
+      attribute :value, String
+    end
+
+    command "Note" do
+      goal "Write down which shelf was stocked"
+      attribute :shelf, Label
+      emits "ShelfNoted"
+    end
+  end
+
+  policy "NoteOnStock" do
+    on      Shelf::ShelfStocked
+    trigger Register::Note, with: { shelf: :id }
+  end
+end

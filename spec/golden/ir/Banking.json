@@ -6037,7 +6037,7 @@
           ],
           "emits": [
             "BoxSurrendered",
-            "KeyReturnDue"
+            "KeyReturnRequested"
           ],
           "ensures": [
 
@@ -10330,7 +10330,7 @@
       "expect_undelivered": true,
       "for_each": null,
       "name": "FlagKeyReturn",
-      "on_event": "SafeDepositBox.KeyReturnDue",
+      "on_event": "SafeDepositBox.KeyReturnRequested",
       "target_domain": "Notifications",
       "trigger_command": "Notifications.Send",
       "where": null,
