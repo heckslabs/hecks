@@ -3,7 +3,7 @@
   "spec": [
     "C10.1"
   ],
-  "note": "A plain policy's `with:` reads `:id`, the emitting record's whole identity (ADR 0149). Shelf is identified by row and slot, so the identity is composite and `:id` is the two joined by a colon; the Register note carries `A:3`, not either field alone.",
+  "note": "A plain policy's `with:` reads `:id`, the emitting record's whole identity (ADR 0153). Shelf is identified by row and slot, so the identity is composite and `:id` is the two joined by a colon; the Register note carries `A:3`, not either field alone.",
   "steps": [
     {
       "verb": "Ledgerbook::Shelf.Stock",

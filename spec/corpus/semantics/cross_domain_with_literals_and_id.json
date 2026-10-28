@@ -3,7 +3,7 @@
   "spec": [
     "C10.1"
   ],
-  "note": "An across policy's with: hands the other domain its literals and :id, the emitting record's identity (ADR 0149); the payload's own fields are not sent.",
+  "note": "An across policy's with: hands the other domain its literals and :id, the emitting record's identity (ADR 0153); the payload's own fields are not sent.",
   "steps": [
     {
       "verb": "Outbound::Parcel.Send",

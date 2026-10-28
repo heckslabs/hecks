@@ -13,7 +13,7 @@ Hecks.bluebook "Compliance" do
   # It names no consumer. What is reviewed is a subject: a kind the consumer chooses and the
   # subject's identity as its own context writes it. The consuming context maps its own event to
   # those two in the `with:` of its policy, which is where that translation belongs (ADR 0143),
-  # reading the event's record as `:id` (ADR 0149).
+  # reading the event's record as `:id` (ADR 0153).
 
   aggregate "Review" do
     description "The compliance review of one subject another context already acted on, opened the moment it happened."
