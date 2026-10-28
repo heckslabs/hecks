@@ -33,12 +33,14 @@ module Hecks
       #
       # @param root [String, nil] the shared root directory, as `shared_root` resolves it;
       #   nil is a no-op
+      # @param adapters [Boolean] false leaves the root's adapters unloaded, for a boot that names
+      #   its own (see `load_selected`)
       # @return [void]
-      def load_project(root)
+      def load_project(root, adapters: true)
         return unless root
 
-        load_each(File.join(root, PORTS),    %w[*.port */*.port])
-        load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter])
+        load_each(File.join(root, PORTS), %w[*.port */*.port])
+        load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter]) if adapters
       end
 
       # Loads bluebooks first, judged once as a deferred group, then everything
@@ -80,7 +82,8 @@ module Hecks
       # Loads exactly the named files in place, without globbing (see `Loader.boot_files`).
       #
       # Files load by category, not in the caller's order: bluebooks (judged as one deferred
-      # group), then hecksagons, then worlds, since a hecksagon may reference bluebook constants.
+      # group), then hecksagons, then worlds, since a hecksagon may reference bluebook constants, then
+      # any adapters named, which stand in for the shared root's (see `Loader.load_files`).
       #
       # @param files [Array<String>] file paths to load, relative to `bluebook_directory`
       # @param environment [String, nil] the environment name whose overlay, if present,
@@ -89,7 +92,7 @@ module Hecks
       def load_selected(files, environment: nil)
         bluebooks, rest = files.partition { |f| f.end_with?(".bluebook") }
         load_selected_bluebooks(bluebooks)
-        %w[.hecksagon .world].each do |ext|
+        %w[.hecksagon .world .adapter].each do |ext|
           rest.select { |f| f.end_with?(ext) }.sort.each { |f| Kernel.load(f) }
         end
         load_overlay(File.dirname(files.first), environment) if environment
