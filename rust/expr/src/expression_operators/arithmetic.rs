@@ -1,8 +1,9 @@
-//! `+`, `-`, `*`, `/` and `.modulo` (`Resolver::Addition`/`Subtraction`/`Multiplication`/`Division`/
-//! `Modulo`); all require numeric operands.
+//! `+`, `-`, `*`, `/` and `.modulo` (`Resolver::Addition`, `Subtraction`, `Multiplication`,
+//! `Division`, `Modulo`); all require numeric operands.
 
 use crate::attribute_shapes::scalar;
 use crate::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
+use crate::rendering;
 use crate::Refusal;
 
 /// `-`, `*`, `/` and `+`, each the counterpart of the Ruby `Resolver` operation of that name.
@@ -102,6 +103,7 @@ fn floored_div(l: i64, r: i64) -> Option<i64> {
     })
 }
 
+/// `a % b`: floored for integers, Ruby's `Float#%` otherwise; a zero divisor is a fault.
 pub fn modulo(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
     let Expr::Modulo { receiver, divisor } = expr else {
         return Err(Refusal::TypeMismatch(format!(
@@ -109,12 +111,27 @@ pub fn modulo(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
         )));
     };
 
-    let r = require_number(&eval(receiver, ctx)?, "modulo")?.trunc() as i64;
-    let d = require_number(&eval(divisor, ctx)?, "modulo")?.trunc() as i64;
-    if d == 0 {
+    let receiver = eval(receiver, ctx)?;
+    let divisor = eval(divisor, ctx)?;
+    let x = require_number(&receiver, "modulo")?;
+    let y = require_number(&divisor, "modulo")?;
+    if y == 0.0 {
         return Err(eval_error("divided by 0".to_string()));
     }
-    Ok(Value::Int(floored_mod(r, d)))
+    if let (Value::Int(r), Value::Int(d)) = (&receiver, &divisor) {
+        return Ok(Value::Int(floored_mod(*r, *d)));
+    }
+    // Ruby's `Float#%` takes the divisor's sign; an infinite divisor leaves a finite receiver be.
+    let remainder = if y.is_infinite() && !x.is_infinite() {
+        x
+    } else {
+        x % y
+    };
+    Ok(Value::Float(if y * remainder < 0.0 {
+        remainder + y
+    } else {
+        remainder
+    }))
 }
 
 // Floored like Ruby's `Integer#%` (the result takes the divisor's sign); Rust's `%` truncates.
@@ -321,7 +338,12 @@ pub fn sum(lhs: &Value, rhs: &Value) -> Result<Value, Refusal> {
 
 /// Shared with `sign_test.rs` — see this file's own header.
 pub fn require_number(v: &Value, operation: &str) -> Result<f64, Refusal> {
-    scalar::numeric(v).ok_or_else(|| eval_error(format!("{operation} expects a number, got {v:?}")))
+    scalar::numeric(v).ok_or_else(|| {
+        eval_error(format!(
+            "{operation} expects a number, got {}",
+            rendering::describe(v)
+        ))
+    })
 }
 
 #[cfg(test)]

@@ -2,6 +2,7 @@
 
 use crate::attribute_shapes::{list, scalar};
 use crate::expr::{eval_error, interpret as eval, EvalContext, Expr, Value};
+use crate::rendering;
 use crate::Refusal;
 
 pub fn empty(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
@@ -22,9 +23,12 @@ pub fn empty(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
         })?)),
         // A materialised Array answers from its own length.
         Value::Array(ref elements) => Ok(Value::Bool(elements.is_empty())),
-        Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil => Err(eval_error(format!(
-            "empty? expects a list or string, got {v:?}"
-        ))),
+        Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil | Value::Object(_) => {
+            Err(eval_error(format!(
+                "empty? expects a list or string, got {}",
+                rendering::describe(&v)
+            )))
+        }
     }
 }
 
@@ -44,8 +48,11 @@ pub fn size(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
             eval_error("router bug: List always answers size".to_string())
         })?)),
         Value::Array(ref elements) => Ok(Value::Int(elements.len() as i64)),
-        Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil => Err(eval_error(format!(
-            "size expects a list or string, got {v:?}"
-        ))),
+        Value::Int(_) | Value::Float(_) | Value::Bool(_) | Value::Nil | Value::Object(_) => {
+            Err(eval_error(format!(
+                "size expects a list or string, got {}",
+                rendering::describe(&v)
+            )))
+        }
     }
 }

@@ -1,8 +1,7 @@
 //! Interprets `.first` and `.last` over an Array value or a list-typed field lookup.
 
-use crate::expr::{
-    eval_error, interpret as eval, lookup_items, EvalContext, Expr, Field, Value,
-};
+use crate::expr::{eval_error, interpret as eval, lookup_items, EvalContext, Expr, Field, Value};
+use crate::rendering;
 use crate::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
@@ -36,7 +35,10 @@ pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
                 elements.pop()
             }
             .unwrap_or(Value::Nil)),
-            v => Err(eval_error(format!("{op} expects a list, got {v:?}"))),
+            v => Err(eval_error(format!(
+                "{op} expects a list, got {}",
+                rendering::describe(&v)
+            ))),
         },
     }
 }

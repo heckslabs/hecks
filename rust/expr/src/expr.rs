@@ -1,9 +1,10 @@
 //! Interprets the `Expr` AST — a structural port of Ruby's
 //! `Evaluator`/`Resolver` (docs/implemented/guides/running-a-runtime.md).
 
-use crate::Refusal;
 use crate::attribute_shapes::composite;
 use crate::expression_operators::{self, comparison, OperatorCategory};
+use crate::rendering;
+use crate::Refusal;
 
 /// The dynamic runtime value an expression evaluates to — mirrors
 /// Ruby's `Resolver#interpret`, plus `List(usize)`: a list field's length.
@@ -20,6 +21,10 @@ pub enum Value {
     /// `.include?`'s haystack (`expr_emitter.rb`'s `emit_include` rewrites
     /// that shape at codegen time instead).
     Array(Vec<Self>),
+    /// A multi-field value object met as a value, keyed by field name. Only a host that reads
+    /// its instances as JSON produces one; a generated kernel struct is `Field::Nested`, which has
+    /// no value form. A one-field object never survives a lookup (see `Fielded::as_scalar`).
+    Object(std::collections::BTreeMap<String, Self>),
 }
 
 impl Value {
@@ -62,6 +67,7 @@ impl Value {
     }
 }
 
+/// What a lookup resolves to: a plain value, or an object to keep walking.
 pub enum Field<'a> {
     Value(Value),
     Nested(&'a dyn Fielded),
@@ -75,6 +81,13 @@ pub trait Fielded {
     /// The bare (undotted) `Lookup` reading of this object — Ruby's
     /// `unwrap_scalar` fallthrough. `DerefNode` overrides to answer its id.
     fn as_scalar(&self) -> Option<Value> {
+        None
+    }
+
+    /// This object read as one `Value::Object`, for a host whose instances are plain data and
+    /// whose bare `Lookup` may end on a multi-field object. A generated struct has no such
+    /// reading and keeps the default, so a bare lookup of one still refuses.
+    fn to_value(&self) -> Option<Value> {
         None
     }
 
@@ -334,7 +347,8 @@ pub enum Expr {
     Last(Box<Self>),
 }
 
-/// Which ends of a string `Expr::Strip` trims: `.strip` both, `.lstrip` the start, `.rstrip` the end.
+/// Which ends of a string `Expr::Strip` trims: `.strip` both, `.lstrip` the start, `.rstrip`
+/// the end.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StripSide {
     Both,
@@ -550,11 +564,12 @@ pub(crate) fn lookup_items<'a>(
 fn describe_field(field: Option<Field<'_>>) -> String {
     match field {
         None => "nothing".to_string(),
-        Some(Field::Value(v)) => format!("{v:?}"),
+        Some(Field::Value(v)) => rendering::describe(&v),
         Some(Field::Nested(_)) => "an object".to_string(),
     }
 }
 
+/// A fault raised while evaluating, worded for the author of the expression.
 pub(crate) const fn eval_error(message: String) -> Refusal {
     Refusal::Fault(message)
 }

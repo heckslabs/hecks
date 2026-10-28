@@ -6,6 +6,7 @@ use crate::attribute_shapes::composite;
 use crate::expr::{
     eval_error, interpret as eval, lookup_items, BlockMode, Bound, EvalContext, Expr, Field, Value,
 };
+use crate::rendering;
 use crate::Refusal;
 
 pub fn interpret(expr: &Expr, ctx: &EvalContext) -> Result<Value, Refusal> {
@@ -100,7 +101,10 @@ fn elements<'a>(
         Expr::Lookup(path) => lookup_items(path, ctx, op),
         other => {
             let v = eval(other, ctx)?;
-            Err(eval_error(format!("{op} expects a list, got {v:?}")))
+            Err(eval_error(format!(
+                "{op} expects a list, got {}",
+                rendering::describe(&v)
+            )))
         }
     }
 }
@@ -125,8 +129,8 @@ fn project(item: Field<'_>, path: &[&str]) -> Result<Value, Refusal> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::expr::{Fielded, NoFields};
     use crate::expr::Comparison;
+    use crate::expr::{Fielded, NoFields};
 
     // Shaped like generated `Fielded` impls: `field` answers a list's length, `items` its members.
     struct Seat {

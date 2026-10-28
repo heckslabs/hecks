@@ -5,11 +5,11 @@
 
 use crate::Refusal;
 
-// Ruby switches to scientific notation when the decimal point sits left of 1e-4 or right of 1e16.
+// Ruby switches to scientific notation when the decimal point sits left of 1e-4 or right of 1e15.
 const FIXED_MIN_EXPONENT: i32 = -4;
-const FIXED_MAX_EXPONENT: i32 = 15;
+const FIXED_MAX_EXPONENT: i32 = 14;
 
-/// `Float#to_s`: shortest round-trip digits, fixed notation for `1e-4 <= |n| < 1e16`, else `d.ddde+XX`.
+/// `Float#to_s`: shortest round-trip digits, fixed notation for `1e-4 <= |n| < 1e15`, else `d.ddde+XX`.
 pub fn to_s(n: f64) -> String {
     if n.is_nan() {
         return "NaN".to_string();
@@ -90,8 +90,9 @@ mod tests {
     }
 
     #[test]
-    fn large_magnitudes_switch_to_scientific_at_1e16() {
-        assert_eq!(to_s(1.0e15), "1000000000000000.0");
+    fn large_magnitudes_switch_to_scientific_at_1e15() {
+        assert_eq!(to_s(999_999_999_999_999.9), "999999999999999.9");
+        assert_eq!(to_s(1.0e15), "1.0e+15");
         assert_eq!(to_s(1.0e16), "1.0e+16");
         assert_eq!(to_s(1.0e308), "1.0e+308");
         assert_eq!(to_s(1.5e20), "1.5e+20");
