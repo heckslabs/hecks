@@ -97,8 +97,8 @@ spec/qa_tick_stale_hold_spec.rb
 spec/query_answers_from_outside_spec.rb
 spec/referral_chain_spec.rb
 spec/runtime/boot_loads_bound_plugins_spec.rb
-spec/runtime/era_check_postgres_vendored_bluebook_spec.rb
 spec/runtime/era_check_postgres_vendored_bluebook_name_spec.rb
+spec/runtime/era_check_postgres_vendored_bluebook_spec.rb
 spec/runtime/outbox_postgres_spec.rb
 spec/runtime/postgres_era_shared_connection_spec.rb
 spec/runtime/postgres_era_storage_name_collision_spec.rb
@@ -107,6 +107,8 @@ spec/runtime/saga_durability_postgres_spec.rb
 spec/rust_conformance_dry_runs_spec.rb
 spec/rust_generated/has_many_spec.rb
 spec/self_consistency_rust_spec.rb
+spec/sentence_multi_word_examples_spec.rb
+spec/sentence_pizzas_examples_spec.rb
 spec/smoke_harness_node_spec.rb
 spec/smoke_http_spec.rb
 spec/support/persistence_adapter_examples.rb
