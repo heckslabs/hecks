@@ -40,6 +40,6 @@ RSpec.describe Hecks::Composer::Session do
   it "takes the chapter's name from the text" do
     session.record(path: "a.bluebook", text: %(Hecks.bluebook "Ledger" do\nend\n))
 
-    expect(Hecks::Composer::Plain.call(session.draft("a.bluebook")[:chapter_name])).to eq("Ledger")
+    expect(Hecks::Composer::Plain.call(session.draft("a.bluebook")[:bluebook_name])).to eq("Ledger")
   end
 end
