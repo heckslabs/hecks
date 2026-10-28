@@ -22,6 +22,7 @@ mod process;
 mod queries;
 mod report;
 mod token;
+mod values;
 
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;

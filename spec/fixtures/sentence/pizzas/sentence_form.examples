@@ -1,0 +1,42 @@
+Examples for: Pizzas
+
+Background:
+  Remy is a Chef
+  Chris is a Customer
+
+Example: A new pizza is on the menu, available for sale
+  When Remy creates a pizza with name "Margherita", price 1200 cents and size "large"
+  Then the order is available
+
+Example: A pizza takes no more than ten toppings
+  Given Remy creates a pizza with name "Loaded", price 1500 cents and size "large"
+  And Remy adds a topping to it with topping "Basil" and amount 1
+  And Remy adds a topping to it with topping "Olives" and amount 1
+  And Remy adds a topping to it with topping "Mushroom" and amount 1
+  And Remy adds a topping to it with topping "Onion" and amount 1
+  And Remy adds a topping to it with topping "Pepper" and amount 1
+  And Remy adds a topping to it with topping "Sausage" and amount 1
+  And Remy adds a topping to it with topping "Bacon" and amount 1
+  And Remy adds a topping to it with topping "Pineapple" and amount 1
+  And Remy adds a topping to it with topping "Anchovy" and amount 1
+  And Remy adds a topping to it with topping "Jalapeno" and amount 1
+  When Remy tries to add a topping to it with topping "Extra Cheese" and amount 1
+  Then it is refused because at most 10 toppings
+
+Example: A pizza with no toppings cannot be bought
+  Given Remy creates a pizza with name "Bare", price 900 cents and size "small"
+  When Chris tries to purchase it with amount 900 cents and customer name "Chris"
+  Then it is refused because a pizza needs at least one topping
+
+Example: Buying a pizza sells it
+  Given Remy creates a pizza with name "Sold Out", price 1200 cents and size "large"
+  And Remy adds a topping to it with topping "Basil" and amount 2
+  When Chris purchases it with amount 1200 cents and customer name "Chris"
+  Then the order is sold
+  And PizzaPurchased is announced
+
+Example: A payment that does not cover the price is refused
+  Given Remy creates a pizza with name "Underpaid", price 1200 cents and size "large"
+  And Remy adds a topping to it with topping "Basil" and amount 1
+  When Chris tries to purchase it with amount 500 cents and customer name "Chris"
+  Then it is refused because the payment covers the price
