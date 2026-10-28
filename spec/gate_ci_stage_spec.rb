@@ -11,9 +11,19 @@ RSpec.describe "the ci gate stage" do
   let(:workflow) { YAML.load_file(File.join(root, ".github/workflows/ci-checks.yml")) }
   let(:ci_ids) { stages.dig("ci", "checks").map { |check| check["id"] } }
 
-  # Every step of ci-checks.yml that runs something, with its command.
-  def run_steps
-    workflow.fetch("jobs").values.flat_map { |job| job.fetch("steps", []) }.select { |step| step["run"] }
+  # Every command of ci-checks.yml's run steps, one for each leg of a job's matrix, with the
+  # leg's value written in where the command names it.
+  def run_commands
+    workflow.fetch("jobs").values.flat_map do |job|
+      commands = job.fetch("steps", []).filter_map { |step| step["run"]&.strip }
+      commands.flat_map { |command| legs_of(job, command) }
+    end
+  end
+
+  def legs_of(job, command)
+    job.dig("strategy", "matrix").to_h.reduce([command]) do |texts, (key, values)|
+      texts.flat_map { |text| values.map { |value| text.gsub("${{ matrix.#{key} }}", value.to_s) } }
+    end
   end
 
   describe "the ci stage" do
@@ -45,8 +55,8 @@ RSpec.describe "the ci gate stage" do
 
   describe "ci-checks.yml" do
     let(:launched) do
-      run_steps.map { |step| step["run"].strip }.map do |command|
-        match = command.match(%r{\Abundle exec exe/hecks gate_run\.gate stage=ci only=([a-z_,]+) --wait\z})
+      run_commands.map do |command|
+        match = command.match(%r{\Abundle exec exe/hecks gate_run\.gate stage=ci only=([a-z0-9_,]+) --wait\z})
         [command, match && match[1].split(",")]
       end
     end

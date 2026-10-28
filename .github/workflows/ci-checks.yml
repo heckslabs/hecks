@@ -46,6 +46,14 @@ jobs:
   # domain's own IR, checking every declared property plus interpreter-crash
   # and determinism. hecks fuzz's own defaults (20 seeds, 30 steps) keep this
   # fast enough for every push while still exercising real depth.
+  #
+  # Two legs, each sweeping its own half of the domains (`shard=I/N`, see
+  # lib/hecks/tools/fuzz_sweep/shards.rb), so the sweep takes about half the time. The leg
+  # number picks the gate check `fuzz_<leg>_of_2`; spec/ci_fuzz_shards_spec.rb holds the legs
+  # to 1..N for the N those checks name. The job reports one result for all its legs: any red
+  # or cancelled leg makes it red, so `checks_fuzz` still means every domain was swept clean,
+  # and the `checks` wrapper in ci.yml reads it through `checks_impl`. A leg takes no
+  # `continue-on-error`, and the `if:` below is the job's, so it skips every leg or none.
   checks_fuzz:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -53,6 +61,12 @@ jobs:
     needs: ci_attestation_checks_heavy
     if: always() && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
+    strategy:
+      # A red leg should not hide what the other found.
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -63,13 +77,15 @@ jobs:
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
 
-      - name: hecks fuzz
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz --wait
+      - name: hecks fuzz (shard ${{ matrix.shard }} of 2)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_${{ matrix.shard }}_of_2 --wait
 
   # Runs the same corpus sweep through a real on-disk SQLite database instead
   # of the Memory adapter's hand-written Hash, so SqlQueryBuilder's
   # compilation and a real transaction are exercised too. Seeds are 1..N, so
   # the run is deterministic: a red here is a finding, not a flake.
+  #
+  # Two legs, sharded and reported as `checks_fuzz` above is.
   checks_fuzz_sqlite:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -77,6 +93,11 @@ jobs:
     needs: ci_attestation_checks_heavy
     if: always() && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -87,8 +108,8 @@ jobs:
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
 
-      - name: hecks fuzz adapter=sqlite
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite --wait
+      - name: hecks fuzz adapter=sqlite (shard ${{ matrix.shard }} of 2)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite_${{ matrix.shard }}_of_2 --wait
 
   # Runs the same sweep against real Postgres, reduced to 3 seeds of 20 steps
   # since every dispatch is a real round trip. Single worker only: every
@@ -183,6 +204,12 @@ jobs:
       # touched, so this belongs here rather than in `rspec`.
       - name: lint generated deploy recipes
         run: bundle exec exe/hecks gate_run.gate stage=ci only=lint_deploy_recipes --wait
+
+      # The fuzz sweeps run as shards in checks_fuzz and checks_fuzz_sqlite. This lists the split
+      # and refuses one that leaves a domain out or sweeps one twice, so a leg that is missing or
+      # repeated is not read as a whole sweep. Reads the corpus only, never a database.
+      - name: fuzz shards
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_shards --wait
 
       # The comment linter as a gate (ADR 0069, widened by ADR 0075 ticket 01): checks every
       # comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md; the block-length cap
