@@ -232,7 +232,14 @@ pub fn parse_body(
                 let attribute = super::build_attribute(file, line, "attribute", &gated.args)?.0;
                 let name = attribute.name.clone();
                 command.attributes.push(attribute);
-                fold_sets(file, line, &name, &gated.args, owner_attributes, &mut command)?;
+                fold_sets(
+                    file,
+                    line,
+                    &name,
+                    &gated.args,
+                    owner_attributes,
+                    &mut command,
+                )?;
             }
             // `emits` takes a constant argument; see `parse/policy.rs` for the transform.
             "emits" => command.emits.push(super::positional_command_ref(
@@ -305,7 +312,14 @@ fn fold_sets(
     };
     let command_name = &command.name;
     if raw.trim() != "true" {
-        return Err(Diagnostic::new(file, line, format!("{command_name}'s attribute :{name} takes sets: true or no sets: at all, not {}", raw.trim())));
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!(
+                "{command_name}'s attribute :{name} takes sets: true or no sets: at all, not {}",
+                raw.trim()
+            ),
+        ));
     }
     if !owner_attributes.iter().any(|attr| attr.name == name) {
         return Err(Diagnostic::new(file, line, format!("{command_name}'s attribute :{name} says sets: true, but the owner declares no field of that name to set — declare it on the owner, or drop sets: true")));

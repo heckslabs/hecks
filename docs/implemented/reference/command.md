@@ -497,7 +497,7 @@ An explicit local `attribute :field` is never clobbered by this — it is checke
 
 `sets: true` says both in one line: the argument, and the plain write of the owner's field of the same name. `attribute :serial, Serial, sets: true` builds exactly what `attribute :serial, Serial` followed by `sets :serial` builds, in the same order, so a command that also writes with `to:`, `append:` or another op keeps those lines as they are. It is refused when the owner declares no field of that name, and it takes `true` or nothing.
 
-```ruby
+```ruby sample
 command "Install" do
   attribute :serial, Serial, sets: true
   emits "MeterInstalled"
