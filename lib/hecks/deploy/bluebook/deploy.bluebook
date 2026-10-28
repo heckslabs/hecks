@@ -91,29 +91,20 @@ Hecks.bluebook "Deploy" do
     command "Declare" do
       goal "Validate one domain's AwsLambda deploy target before anything is generated from it"
 
-      attribute :domain,   DomainName
-      attribute :region,   Region
-      attribute :memory,   Memory
-      attribute :timeout,  Timeout
-      attribute :database, Database
-      attribute :web,      Web
-      attribute :dispatch, Dispatch,      optional: true
-      attribute :handler_module, HandlerModule, optional: true
-      attribute :secret_env, SecretEnv,   optional: true
+      attribute :domain,   DomainName, sets: true
+      attribute :region,   Region, sets: true
+      attribute :memory,   Memory, sets: true
+      attribute :timeout,  Timeout, sets: true
+      attribute :database, Database, sets: true
+      attribute :web,      Web, sets: true
+      attribute :dispatch, Dispatch,      optional: true, sets: true
+      attribute :handler_module, HandlerModule, optional: true, sets: true
+      attribute :secret_env, SecretEnv,   optional: true, sets: true
 
       given('dispatch "None" names its handler_module: add handler_module "YourModuleName" for the module lambda_handler.rb defines') do
         dispatch.unset? || dispatch.value != "None" || handler_module.set?
       end
 
-      sets :domain
-      sets :region
-      sets :memory
-      sets :timeout
-      sets :database
-      sets :web
-      sets :dispatch
-      sets :handler_module
-      sets :secret_env
 
       emits "LambdaTargetDeclared"
     end
@@ -181,21 +172,14 @@ Hecks.bluebook "Deploy" do
     command "Declare" do
       goal "Validate one domain's AwsFargate deploy target before anything is generated from it"
 
-      attribute :domain,   DomainName
-      attribute :region,   Region
-      attribute :cpu,      Cpu
-      attribute :memory,   Memory
-      attribute :database, Database
-      attribute :web,      Web
-      attribute :port,     Port
+      attribute :domain,   DomainName, sets: true
+      attribute :region,   Region, sets: true
+      attribute :cpu,      Cpu, sets: true
+      attribute :memory,   Memory, sets: true
+      attribute :database, Database, sets: true
+      attribute :web,      Web, sets: true
+      attribute :port,     Port, sets: true
 
-      sets :domain
-      sets :region
-      sets :cpu
-      sets :memory
-      sets :database
-      sets :web
-      sets :port
 
       emits "FargateTargetDeclared"
     end
@@ -268,21 +252,14 @@ Hecks.bluebook "Deploy" do
     command "Declare" do
       goal "Validate one domain's AwsBox deploy target before anything is generated from it"
 
-      attribute :domain,         DomainName
-      attribute :region,         Region
-      attribute :instance_type,  InstanceType
-      attribute :volume_gb,      VolumeGb
-      attribute :database_class, DatabaseClass
-      attribute :storage_gb,     StorageGb
-      attribute :cdn_aliases,    list_of(CdnAlias), optional: true
+      attribute :domain,         DomainName, sets: true
+      attribute :region,         Region, sets: true
+      attribute :instance_type,  InstanceType, sets: true
+      attribute :volume_gb,      VolumeGb, sets: true
+      attribute :database_class, DatabaseClass, sets: true
+      attribute :storage_gb,     StorageGb, sets: true
+      attribute :cdn_aliases,    list_of(CdnAlias), optional: true, sets: true
 
-      sets :domain
-      sets :region
-      sets :instance_type
-      sets :volume_gb
-      sets :database_class
-      sets :storage_gb
-      sets :cdn_aliases
 
       emits "BoxTargetDeclared"
     end
@@ -330,15 +307,11 @@ Hecks.bluebook "Deploy" do
     command "Declare" do
       goal "Validate one domain's Vercel deploy target before anything is generated from it"
 
-      attribute :domain,       DomainName
-      attribute :region,       Region
-      attribute :memory,       Memory
-      attribute :max_duration, MaxDuration
+      attribute :domain,       DomainName, sets: true
+      attribute :region,       Region, sets: true
+      attribute :memory,       Memory, sets: true
+      attribute :max_duration, MaxDuration, sets: true
 
-      sets :domain
-      sets :region
-      sets :memory
-      sets :max_duration
 
       emits "VercelTargetDeclared"
     end
@@ -383,15 +356,11 @@ Hecks.bluebook "Deploy" do
     command "Declare" do
       goal "Validate one platform's shared database target before anything is generated from it"
 
-      attribute :domain,         DomainName
-      attribute :region,         Region
-      attribute :database_class, DatabaseClass
-      attribute :storage_gb,     StorageGb
+      attribute :domain,         DomainName, sets: true
+      attribute :region,         Region, sets: true
+      attribute :database_class, DatabaseClass, sets: true
+      attribute :storage_gb,     StorageGb, sets: true
 
-      sets :domain
-      sets :region
-      sets :database_class
-      sets :storage_gb
 
       emits "SharedDatabaseTargetDeclared"
     end
@@ -476,21 +445,14 @@ Hecks.bluebook "Deploy" do
     command "Provision" do
       goal "Validate one tenant, write its environment overlay world, and register it"
 
-      attribute :directory, DirectoryPath
-      attribute :slug,      Slug
-      attribute :domain,    DomainName
-      attribute :realm,     Realm
-      attribute :schema,    Schema
-      attribute :database,  DatabaseName
-      attribute :adapter,   AdapterName, optional: true
+      attribute :directory, DirectoryPath, sets: true
+      attribute :slug,      Slug, sets: true
+      attribute :domain,    DomainName, sets: true
+      attribute :realm,     Realm, sets: true
+      attribute :schema,    Schema, sets: true
+      attribute :database,  DatabaseName, sets: true
+      attribute :adapter,   AdapterName, optional: true, sets: true
 
-      sets :directory
-      sets :slug
-      sets :domain
-      sets :realm
-      sets :schema
-      sets :database
-      sets :adapter
 
       emits "TenantProvisionRequested"
     end
@@ -501,13 +463,10 @@ Hecks.bluebook "Deploy" do
       goal "Write a provisioned or refused tenant's environment overlay world again"
 
       reference_to Tenant
-      attribute :directory, DirectoryPath
-      attribute :database,  DatabaseName
-      attribute :adapter,   AdapterName, optional: true
+      attribute :directory, DirectoryPath, sets: true
+      attribute :database,  DatabaseName, sets: true
+      attribute :adapter,   AdapterName, optional: true, sets: true
 
-      sets :directory
-      sets :database
-      sets :adapter
 
       emits "TenantReprovisionRequested"
     end
@@ -516,9 +475,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the tenant's overlay was written, and where"
 
       reference_to Tenant
-      attribute :output, Report
+      attribute :output, Report, sets: true
 
-      sets :output
 
       emits "TenantRecorded"
     end
@@ -527,9 +485,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the tenant could not be provisioned, and why"
 
       reference_to Tenant
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "ProvisioningAbandoned"
     end
@@ -632,19 +589,13 @@ Hecks.bluebook "Deploy" do
     command "Project" do
       goal "Generate a domain's AWS deploy recipe from its declared deployed_to target"
 
-      attribute :domain,      DomainPath
-      attribute :run,         RunKey
-      attribute :tenant,      TenantSlug,      optional: true
-      attribute :schema,      SchemaName,      optional: true
-      attribute :out,         Location,        optional: true
-      attribute :environment, EnvironmentName, optional: true
+      attribute :domain,      DomainPath, sets: true
+      attribute :run,         RunKey, sets: true
+      attribute :tenant,      TenantSlug,      optional: true, sets: true
+      attribute :schema,      SchemaName,      optional: true, sets: true
+      attribute :out,         Location,        optional: true, sets: true
+      attribute :environment, EnvironmentName, optional: true, sets: true
 
-      sets :domain
-      sets :run
-      sets :tenant
-      sets :schema
-      sets :out
-      sets :environment
 
       emits "ProjectionRequested"
     end
@@ -653,9 +604,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the recipe was written, and where"
 
       reference_to Recipe
-      attribute :output, Report
+      attribute :output, Report, sets: true
 
-      sets :output
 
       emits "RecipeProjected"
     end
@@ -664,9 +614,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the recipe could not be generated, and why"
 
       reference_to Recipe
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "RecipeFaulted"
     end
@@ -746,13 +695,10 @@ Hecks.bluebook "Deploy" do
     command "Clear" do
       goal "Empty the body of every deployed_to block in a domain's .world, keeping the settings' names in a comment"
 
-      attribute :domain, DomainPath
-      attribute :run,    RunKey
-      attribute :out,    Location, optional: true
+      attribute :domain, DomainPath, sets: true
+      attribute :run,    RunKey, sets: true
+      attribute :out,    Location, optional: true, sets: true
 
-      sets :domain
-      sets :run
-      sets :out
 
       emits "ClearingRequested"
     end
@@ -761,9 +707,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the deployment settings were cleared, from which file and which settings"
 
       reference_to Handover
-      attribute :output, Report
+      attribute :output, Report, sets: true
 
-      sets :output
 
       emits "DeploymentCleared"
     end
@@ -772,9 +717,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the deployment settings could not be cleared, and why"
 
       reference_to Handover
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "ClearingFaulted"
     end
@@ -844,11 +788,9 @@ Hecks.bluebook "Deploy" do
     command "Lint" do
       goal "Lint generated deploy Makefiles for recipes that hide the failure of a command that touches prod"
 
-      attribute :makefiles, PathList, optional: true
-      attribute :run,       RunKey
+      attribute :makefiles, PathList, optional: true, sets: true
+      attribute :run,       RunKey, sets: true
 
-      sets :makefiles
-      sets :run
 
       emits "LintRequested"
     end
@@ -857,9 +799,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that no recipe hides a failure"
 
       reference_to MakefileCheck
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "LintPassed"
     end
@@ -868,9 +809,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that a recipe hides a failure, or that the lint could not run, and what it said"
 
       reference_to MakefileCheck
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "LintFlagged"
     end
@@ -949,13 +889,10 @@ Hecks.bluebook "Deploy" do
     command "Check" do
       goal "Read what hosting has billed since a day and compare its monthly rate to a budget"
 
-      attribute :run,    RunKey
-      attribute :budget, Budget
-      attribute :since,  Since
+      attribute :run,    RunKey, sets: true
+      attribute :budget, Budget, sets: true
+      attribute :since,  Since, sets: true
 
-      sets :run
-      sets :budget
-      sets :since
 
       emits "CostCheckRequested"
     end
@@ -964,9 +901,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the monthly rate is within the budget, and what it was"
 
       reference_to CostCheck
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "CostWithinBudget"
     end
@@ -975,9 +911,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the monthly rate is over the budget, or that it could not be read, and what was said"
 
       reference_to CostCheck
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "CostFlagged"
     end
@@ -1072,23 +1007,15 @@ Hecks.bluebook "Deploy" do
     command "Run" do
       goal "Run a project's generated post-deploy smoke and record whether the live site passed"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :taskdef, TaskDefinition, optional: true
-      attribute :skip,    Switch, optional: true
-      attribute :async,   Switch, optional: true
-      attribute :dry_run, Switch, optional: true
-      attribute :after,   Origin, default: { value: "alone" }
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :taskdef, TaskDefinition, optional: true, sets: true
+      attribute :skip,    Switch, optional: true, sets: true
+      attribute :async,   Switch, optional: true, sets: true
+      attribute :dry_run, Switch, optional: true, sets: true
+      attribute :after,   Origin, default: { value: "alone" }, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :taskdef
-      sets :skip
-      sets :async
-      sets :dry_run
-      sets :after
 
       emits "SmokeRequested"
     end
@@ -1097,11 +1024,9 @@ Hecks.bluebook "Deploy" do
       goal "Record that the smoke passed, was skipped on purpose, or was left running, and what it said"
 
       reference_to SmokeRun
-      attribute :report, Report
-      attribute :after,  Origin, default: { value: "alone" }
+      attribute :report, Report, sets: true
+      attribute :after,  Origin, default: { value: "alone" }, sets: true
 
-      sets :report
-      sets :after
 
       emits "SmokePassed"
     end
@@ -1110,11 +1035,9 @@ Hecks.bluebook "Deploy" do
       goal "Record that the smoke failed, did not run or could not be read, and what was said"
 
       reference_to SmokeRun
-      attribute :refusal, Report
-      attribute :after,   Origin, default: { value: "alone" }
+      attribute :refusal, Report, sets: true
+      attribute :after,   Origin, default: { value: "alone" }, sets: true
 
-      sets :refusal
-      sets :after
 
       emits "SmokeFlagged"
     end
@@ -1224,21 +1147,14 @@ Hecks.bluebook "Deploy" do
     command "Run" do
       goal "Roll one service's local image onto the box and record whether it took (exit 1 when flagged: 2 unknown service, 30-38 a refused step, 40-42 the box roll)"
 
-      attribute :project,      Location
-      attribute :script,       Location, optional: true
-      attribute :run,          RunKey
-      attribute :service,      ServiceName
-      attribute :existing_tag, ImageTag, optional: true
-      attribute :local_image,  ImageName, optional: true
-      attribute :skip_smoke,   Switch, optional: true
+      attribute :project,      Location, sets: true
+      attribute :script,       Location, optional: true, sets: true
+      attribute :run,          RunKey, sets: true
+      attribute :service,      ServiceName, sets: true
+      attribute :existing_tag, ImageTag, optional: true, sets: true
+      attribute :local_image,  ImageName, optional: true, sets: true
+      attribute :skip_smoke,   Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :service
-      sets :existing_tag
-      sets :local_image
-      sets :skip_smoke
 
       emits "ServiceRollRequested"
     end
@@ -1247,15 +1163,11 @@ Hecks.bluebook "Deploy" do
       goal "Record that the service rolled, with the task definition and tag it rolled"
 
       reference_to ServiceRoll
-      attribute :report,     Report
-      attribute :taskdef,    TaskDefinition, optional: true
-      attribute :tag,        ImageTag, optional: true
-      attribute :smoke,      Report, optional: true
+      attribute :report,     Report, sets: true
+      attribute :taskdef,    TaskDefinition, optional: true, sets: true
+      attribute :tag,        ImageTag, optional: true, sets: true
+      attribute :smoke,      Report, optional: true, sets: true
 
-      sets :report
-      sets :taskdef
-      sets :tag
-      sets :smoke
 
       emits "ServiceRollCompleted"
     end
@@ -1264,9 +1176,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the roll failed or could not start, with the script's status and what it said"
 
       reference_to ServiceRoll
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "ServiceRollFlagged"
     end
@@ -1275,9 +1186,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the smoke the roll requested passed"
 
       reference_to ServiceRoll
-      attribute :smoke, Report
+      attribute :smoke, Report, sets: true
 
-      sets :smoke
 
       emits "ServiceRollVerified"
     end
@@ -1286,11 +1196,9 @@ Hecks.bluebook "Deploy" do
       goal "Record that the roll took but the smoke it requested did not pass, and why"
 
       reference_to ServiceRoll
-      attribute :smoke,   Report
-      attribute :refusal, Report
+      attribute :smoke,   Report, sets: true
+      attribute :refusal, Report, sets: true
 
-      sets :smoke
-      sets :refusal
 
       emits "ServiceRollSmokeFlagged"
     end
@@ -1410,19 +1318,13 @@ Hecks.bluebook "Deploy" do
     command "Run" do
       goal "Roll the app box and record whether it came up healthy (exit 1 when flagged: 40 no instance, 41 roll failed, 42 box unhealthy, 43 no restore anchor)"
 
-      attribute :project,    Location
-      attribute :script,     Location, optional: true
-      attribute :run,        RunKey
-      attribute :taskdef,    TaskDefinition, optional: true
-      attribute :tags,       Tags, optional: true
-      attribute :skip_smoke, Switch, optional: true
+      attribute :project,    Location, sets: true
+      attribute :script,     Location, optional: true, sets: true
+      attribute :run,        RunKey, sets: true
+      attribute :taskdef,    TaskDefinition, optional: true, sets: true
+      attribute :tags,       Tags, optional: true, sets: true
+      attribute :skip_smoke, Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :taskdef
-      sets :tags
-      sets :skip_smoke
 
       emits "BoxRollRequested"
     end
@@ -1431,13 +1333,10 @@ Hecks.bluebook "Deploy" do
       goal "Record that the box rolled and answered healthy, and what the script said"
 
       reference_to BoxRoll
-      attribute :report,     Report
-      attribute :taskdef,    TaskDefinition, optional: true
-      attribute :smoke,      Report, optional: true
+      attribute :report,     Report, sets: true
+      attribute :taskdef,    TaskDefinition, optional: true, sets: true
+      attribute :smoke,      Report, optional: true, sets: true
 
-      sets :report
-      sets :taskdef
-      sets :smoke
 
       emits "BoxRollCompleted"
     end
@@ -1446,9 +1345,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the roll failed or could not start, with the script's status and what it said"
 
       reference_to BoxRoll
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "BoxRollFlagged"
     end
@@ -1457,9 +1355,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the smoke the roll requested passed"
 
       reference_to BoxRoll
-      attribute :smoke, Report
+      attribute :smoke, Report, sets: true
 
-      sets :smoke
 
       emits "BoxRollVerified"
     end
@@ -1468,11 +1365,9 @@ Hecks.bluebook "Deploy" do
       goal "Record that the roll took but the smoke it requested did not pass, and why"
 
       reference_to BoxRoll
-      attribute :smoke,   Report
-      attribute :refusal, Report
+      attribute :smoke,   Report, sets: true
+      attribute :refusal, Report, sets: true
 
-      sets :smoke
-      sets :refusal
 
       emits "BoxRollSmokeFlagged"
     end
@@ -1607,35 +1502,21 @@ Hecks.bluebook "Deploy" do
     command "Restore" do
       goal "Copy a project's schemas into RDS and record whether the copy matches (exit 1 when flagged or drifted: 60 old client, 61 target has the schema, 62 restore errors)"
 
-      attribute :project,       Location
-      attribute :script,        Location, optional: true
-      attribute :run,           RunKey
-      attribute :bastion,       Bastion
-      attribute :source,        Host
-      attribute :source_secret, Secret
-      attribute :target,        Host
-      attribute :target_secret, Secret
-      attribute :source_db,     DatabaseName, default: { value: "" }
-      attribute :target_db,     DatabaseName, default: { value: "" }
-      attribute :force,         Switch, optional: true
-      attribute :confirm,       Switch, optional: true
-      attribute :dry_run,       Switch, optional: true
-      attribute :skip_verify,   Switch, optional: true
+      attribute :project,       Location, sets: true
+      attribute :script,        Location, optional: true, sets: true
+      attribute :run,           RunKey, sets: true
+      attribute :bastion,       Bastion, sets: true
+      attribute :source,        Host, sets: true
+      attribute :source_secret, Secret, sets: true
+      attribute :target,        Host, sets: true
+      attribute :target_secret, Secret, sets: true
+      attribute :source_db,     DatabaseName, default: { value: "" }, sets: true
+      attribute :target_db,     DatabaseName, default: { value: "" }, sets: true
+      attribute :force,         Switch, optional: true, sets: true
+      attribute :confirm,       Switch, optional: true, sets: true
+      attribute :dry_run,       Switch, optional: true, sets: true
+      attribute :skip_verify,   Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :bastion
-      sets :source
-      sets :source_secret
-      sets :target
-      sets :target_secret
-      sets :source_db
-      sets :target_db
-      sets :force
-      sets :confirm
-      sets :dry_run
-      sets :skip_verify
 
       emits "DataCopyRequested"
     end
@@ -1648,27 +1529,17 @@ Hecks.bluebook "Deploy" do
     command "Verify" do
       goal "Compare two databases without a restore and record whether they match (exit 1 when drifted: 50, or flagged: could not compare)"
 
-      attribute :project,       Location
-      attribute :script,        Location, optional: true
-      attribute :run,           RunKey
-      attribute :bastion,       Bastion
-      attribute :source,        Host
-      attribute :source_secret, Secret
-      attribute :target,        Host
-      attribute :target_secret, Secret
-      attribute :source_db,     DatabaseName, default: { value: "" }
-      attribute :target_db,     DatabaseName, default: { value: "" }
+      attribute :project,       Location, sets: true
+      attribute :script,        Location, optional: true, sets: true
+      attribute :run,           RunKey, sets: true
+      attribute :bastion,       Bastion, sets: true
+      attribute :source,        Host, sets: true
+      attribute :source_secret, Secret, sets: true
+      attribute :target,        Host, sets: true
+      attribute :target_secret, Secret, sets: true
+      attribute :source_db,     DatabaseName, default: { value: "" }, sets: true
+      attribute :target_db,     DatabaseName, default: { value: "" }, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :bastion
-      sets :source
-      sets :source_secret
-      sets :target
-      sets :target_secret
-      sets :source_db
-      sets :target_db
 
       emits "DataCopyVerifyRequested"
     end
@@ -1677,9 +1548,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the copy ran, and what the script said"
 
       reference_to DataCopy
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "DataCopyCompleted"
     end
@@ -1688,9 +1558,8 @@ Hecks.bluebook "Deploy" do
       goal "Record the plan a dry run printed: what would be copied and overwritten, with nothing run"
 
       reference_to DataCopy
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "DataCopyPlanned"
     end
@@ -1699,9 +1568,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the copy was refused or failed, with the script's status and what it said"
 
       reference_to DataCopy
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "DataCopyFlagged"
     end
@@ -1710,9 +1578,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the verification the copy requested found both databases identical"
 
       reference_to DataCopy
-      attribute :verification, Report
+      attribute :verification, Report, sets: true
 
-      sets :verification
 
       emits "DataCopyVerified"
     end
@@ -1721,11 +1588,9 @@ Hecks.bluebook "Deploy" do
       goal "Record that the verification the copy requested found the databases differ, and where"
 
       reference_to DataCopy
-      attribute :verification, Report
-      attribute :refusal,      Report
+      attribute :verification, Report, sets: true
+      attribute :refusal,      Report, sets: true
 
-      sets :verification
-      sets :refusal
 
       emits "DataCopyDrifted"
     end
@@ -1734,11 +1599,9 @@ Hecks.bluebook "Deploy" do
       goal "Record that the copy ran but its verification could not be made, and why"
 
       reference_to DataCopy
-      attribute :verification, Report
-      attribute :refusal,      Report
+      attribute :verification, Report, sets: true
+      attribute :refusal,      Report, sets: true
 
-      sets :verification
-      sets :refusal
 
       emits "DataCopyVerificationFlagged"
     end
@@ -1883,27 +1746,17 @@ Hecks.bluebook "Deploy" do
     command "Run" do
       goal "Compare two databases and record whether they match (exit 1 when drifted: 50 differ, or flagged: could not compare)"
 
-      attribute :project,       Location
-      attribute :script,        Location, optional: true
-      attribute :run,           RunKey
-      attribute :bastion,       Bastion
-      attribute :source,        Host
-      attribute :source_secret, Secret
-      attribute :target,        Host
-      attribute :target_secret, Secret
-      attribute :source_db,     DatabaseName, default: { value: "" }
-      attribute :target_db,     DatabaseName, default: { value: "" }
+      attribute :project,       Location, sets: true
+      attribute :script,        Location, optional: true, sets: true
+      attribute :run,           RunKey, sets: true
+      attribute :bastion,       Bastion, sets: true
+      attribute :source,        Host, sets: true
+      attribute :source_secret, Secret, sets: true
+      attribute :target,        Host, sets: true
+      attribute :target_secret, Secret, sets: true
+      attribute :source_db,     DatabaseName, default: { value: "" }, sets: true
+      attribute :target_db,     DatabaseName, default: { value: "" }, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :bastion
-      sets :source
-      sets :source_secret
-      sets :target
-      sets :target_secret
-      sets :source_db
-      sets :target_db
 
       emits "CopyVerificationRequested"
     end
@@ -1912,9 +1765,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that both databases hold the same structure and row counts"
 
       reference_to CopyVerification
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "CopyMatched"
     end
@@ -1923,9 +1775,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the databases differ, with what the script printed"
 
       reference_to CopyVerification
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "CopyDrifted"
     end
@@ -1934,9 +1785,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the comparison could not be made, and why"
 
       reference_to CopyVerification
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "CopyUnverified"
     end
@@ -2031,17 +1881,12 @@ Hecks.bluebook "Deploy" do
     command "Run" do
       goal "Report which bluebook releases a deploy changes and record it (never a failure: unchanged, changed or unavailable)"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :old,     Location, optional: true
-      attribute :new,     Location, optional: true
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :old,     Location, optional: true, sets: true
+      attribute :new,     Location, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :old
-      sets :new
 
       emits "BluebookDiffRequested"
     end
@@ -2050,9 +1895,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the deploy changes no bluebook"
 
       reference_to BluebookDiff
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "BluebooksUnchanged"
     end
@@ -2061,9 +1905,8 @@ Hecks.bluebook "Deploy" do
       goal "Record the bluebooks the deploy adds, removes, re-versions or changes in content"
 
       reference_to BluebookDiff
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "BluebooksChanged"
     end
@@ -2072,9 +1915,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the report could not be made, and why; the deploy carries on"
 
       reference_to BluebookDiff
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "BluebookDiffUnavailable"
     end
@@ -2083,9 +1925,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the request was malformed (only one of old and new), and why"
 
       reference_to BluebookDiff
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "BluebookDiffFlagged"
     end
@@ -2201,21 +2042,14 @@ Hecks.bluebook "Deploy" do
     command "Name" do
       goal "Print the names a branch's preview would have, from the project's preview script (no AWS call)"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :action,  Action, default: { value: "name" }
-      attribute :branch,  Branch, optional: true
-      attribute :confirm, Switch, optional: true
-      attribute :dry_run, Switch, optional: true
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :action,  Action, default: { value: "name" }, sets: true
+      attribute :branch,  Branch, optional: true, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
+      attribute :dry_run, Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :action
-      sets :branch
-      sets :confirm
-      sets :dry_run
 
       emits "PreviewNameRequested"
     end
@@ -2223,21 +2057,14 @@ Hecks.bluebook "Deploy" do
     command "Url" do
       goal "Print a branch's preview URL, read from its stack"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :action,  Action, default: { value: "url" }
-      attribute :branch,  Branch, optional: true
-      attribute :confirm, Switch, optional: true
-      attribute :dry_run, Switch, optional: true
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :action,  Action, default: { value: "url" }, sets: true
+      attribute :branch,  Branch, optional: true, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
+      attribute :dry_run, Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :action
-      sets :branch
-      sets :confirm
-      sets :dry_run
 
       emits "PreviewUrlRequested"
     end
@@ -2245,21 +2072,14 @@ Hecks.bluebook "Deploy" do
     command "List" do
       goal "List every preview stack that exists, read from AWS"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :action,  Action, default: { value: "list" }
-      attribute :branch,  Branch, optional: true
-      attribute :confirm, Switch, optional: true
-      attribute :dry_run, Switch, optional: true
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :action,  Action, default: { value: "list" }, sets: true
+      attribute :branch,  Branch, optional: true, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
+      attribute :dry_run, Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :action
-      sets :branch
-      sets :confirm
-      sets :dry_run
 
       emits "PreviewListRequested"
     end
@@ -2267,21 +2087,14 @@ Hecks.bluebook "Deploy" do
     command "Deploy" do
       goal "Create or update a branch's preview from the images built locally (writes to AWS; refuses unless confirm=true)"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :action,  Action, default: { value: "deploy" }
-      attribute :branch,  Branch, optional: true
-      attribute :confirm, Switch, optional: true
-      attribute :dry_run, Switch, optional: true
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :action,  Action, default: { value: "deploy" }, sets: true
+      attribute :branch,  Branch, optional: true, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
+      attribute :dry_run, Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :action
-      sets :branch
-      sets :confirm
-      sets :dry_run
 
       emits "PreviewDeployRequested"
     end
@@ -2289,21 +2102,14 @@ Hecks.bluebook "Deploy" do
     command "Destroy" do
       goal "Tear a branch's preview stack down (writes to AWS; refuses unless confirm=true)"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :action,  Action, default: { value: "destroy" }
-      attribute :branch,  Branch, optional: true
-      attribute :confirm, Switch, optional: true
-      attribute :dry_run, Switch, optional: true
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :action,  Action, default: { value: "destroy" }, sets: true
+      attribute :branch,  Branch, optional: true, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
+      attribute :dry_run, Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :action
-      sets :branch
-      sets :confirm
-      sets :dry_run
 
       emits "PreviewDestroyRequested"
     end
@@ -2311,21 +2117,14 @@ Hecks.bluebook "Deploy" do
     command "Login" do
       goal "Mint a line that signs the deployer in to a preview as its first admin (reads its session secret; refuses unless confirm=true)"
 
-      attribute :project, Location
-      attribute :script,  Location, optional: true
-      attribute :run,     RunKey
-      attribute :action,  Action, default: { value: "login" }
-      attribute :branch,  Branch, optional: true
-      attribute :confirm, Switch, optional: true
-      attribute :dry_run, Switch, optional: true
+      attribute :project, Location, sets: true
+      attribute :script,  Location, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :action,  Action, default: { value: "login" }, sets: true
+      attribute :branch,  Branch, optional: true, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
+      attribute :dry_run, Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :action
-      sets :branch
-      sets :confirm
-      sets :dry_run
 
       emits "PreviewLoginRequested"
     end
@@ -2334,9 +2133,8 @@ Hecks.bluebook "Deploy" do
       goal "Record the names the script printed"
 
       reference_to PreviewRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "PreviewNamed"
     end
@@ -2345,9 +2143,8 @@ Hecks.bluebook "Deploy" do
       goal "Record the preview URL the script printed"
 
       reference_to PreviewRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "PreviewLocated"
     end
@@ -2356,9 +2153,8 @@ Hecks.bluebook "Deploy" do
       goal "Record the preview stacks the script listed"
 
       reference_to PreviewRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "PreviewListed"
     end
@@ -2367,9 +2163,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the preview was created or updated, and what the script said"
 
       reference_to PreviewRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "PreviewDeployed"
     end
@@ -2378,9 +2173,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the preview was torn down, and what the script said"
 
       reference_to PreviewRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "PreviewDestroyed"
     end
@@ -2389,9 +2183,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the sign-in line was minted, and where the script put it"
 
       reference_to PreviewRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "PreviewSignedIn"
     end
@@ -2400,9 +2193,8 @@ Hecks.bluebook "Deploy" do
       goal "Record the plan a dry run printed: what would run and where, with nothing run"
 
       reference_to PreviewRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "PreviewPlanned"
     end
@@ -2411,9 +2203,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the run was refused or failed, with the script's status and what it said"
 
       reference_to PreviewRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "PreviewFlagged"
     end
@@ -2570,21 +2361,14 @@ Hecks.bluebook "Deploy" do
     command "Run" do
       goal "Roll a companion Compose project onto the box and record the check on the box (refuses unless confirm=true)"
 
-      attribute :project,   Location
-      attribute :script,    Location, optional: true
-      attribute :run,       RunKey
-      attribute :companion, Companion, default: { value: "umami" }
-      attribute :taskdef,   TaskDefinition
-      attribute :confirm,   Switch, optional: true
-      attribute :dry_run,   Switch, optional: true
+      attribute :project,   Location, sets: true
+      attribute :script,    Location, optional: true, sets: true
+      attribute :run,       RunKey, sets: true
+      attribute :companion, Companion, default: { value: "umami" }, sets: true
+      attribute :taskdef,   TaskDefinition, sets: true
+      attribute :confirm,   Switch, optional: true, sets: true
+      attribute :dry_run,   Switch, optional: true, sets: true
 
-      sets :project
-      sets :script
-      sets :run
-      sets :companion
-      sets :taskdef
-      sets :confirm
-      sets :dry_run
 
       emits "CompanionRollRequested"
     end
@@ -2593,9 +2377,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the companion rolled and passed its check on the box, and what the script printed"
 
       reference_to CompanionRoll
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "CompanionRolled"
     end
@@ -2604,9 +2387,8 @@ Hecks.bluebook "Deploy" do
       goal "Record the plan a dry run printed: what would be rolled and where, with nothing run"
 
       reference_to CompanionRoll
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits "CompanionRollPlanned"
     end
@@ -2615,9 +2397,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the roll was refused, or the companion did not roll or is not healthy, and why"
 
       reference_to CompanionRoll
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "CompanionRollFlagged"
     end
@@ -2703,17 +2484,12 @@ Hecks.bluebook "Deploy" do
     command "Diff" do
       goal "Compare two CloudFormation templates and report what differs by logical id"
 
-      attribute :before, Location
-      attribute :after,  Location
-      attribute :run,    RunKey
-      attribute :json,   Switch, optional: true
-      attribute :strict, Switch, optional: true
+      attribute :before, Location, sets: true
+      attribute :after,  Location, sets: true
+      attribute :run,    RunKey, sets: true
+      attribute :json,   Switch, optional: true, sets: true
+      attribute :strict, Switch, optional: true, sets: true
 
-      sets :before
-      sets :after
-      sets :run
-      sets :json
-      sets :strict
 
       emits "ComparisonRequested"
     end
@@ -2722,12 +2498,11 @@ Hecks.bluebook "Deploy" do
       goal "Record that the templates agree"
 
       reference_to TemplateComparison
-      attribute :report,    Report
+      attribute :report,    Report, sets: true
       attribute :different, Switch
 
       given("the templates agree") { !different.value }
 
-      sets :report
 
       emits "TemplatesMatched"
     end
@@ -2736,12 +2511,11 @@ Hecks.bluebook "Deploy" do
       goal "Record that the templates differ, and how"
 
       reference_to TemplateComparison
-      attribute :report,    Report
+      attribute :report,    Report, sets: true
       attribute :different, Switch
 
       given("the templates differ") { different.value }
 
-      sets :report
 
       emits "TemplatesDrifted"
     end
@@ -2750,9 +2524,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that a template could not be read, and why"
 
       reference_to TemplateComparison
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "ComparisonRefused"
     end
@@ -2825,11 +2598,9 @@ Hecks.bluebook "Deploy" do
     command "ProjectOidc" do
       goal "Write each domain's OIDC client and scope manifest beside it: oidc.json, or one <bluebook>.oidc.json for each bluebook of a directory that holds several"
 
-      attribute :domains, DomainList, optional: true
-      attribute :run,     RunKey
+      attribute :domains, DomainList, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
 
-      sets :domains
-      sets :run
 
       emits "OidcProjectionRequested"
     end
@@ -2838,9 +2609,8 @@ Hecks.bluebook "Deploy" do
       goal "Record which manifests were written"
 
       reference_to OidcManifest
-      attribute :output, Report
+      attribute :output, Report, sets: true
 
-      sets :output
 
       emits "OidcProjected"
     end
@@ -2849,9 +2619,8 @@ Hecks.bluebook "Deploy" do
       goal "Record that the manifests could not be projected, and why"
 
       reference_to OidcManifest
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits "OidcFaulted"
     end

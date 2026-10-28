@@ -141,7 +141,7 @@ Hecks.bluebook "QualityControl" do
       # The window lives on the record, not in an argument: a caller-supplied window would let any
       # agent take a live claim by asking with a window of one second.
       reference_to Target
-      attribute :held_by,    Engineer
+      attribute :held_by,    Engineer, sets: true
       attribute :now,        Instant
       needs :now
 
@@ -149,7 +149,6 @@ Hecks.bluebook "QualityControl" do
         status != "held" || claimed_at.value + window.value <= now.value
       end
 
-      sets :held_by
       sets :claimed_at, to: :now
 
       emits "TargetClaimed"
@@ -196,9 +195,8 @@ Hecks.bluebook "QualityControl" do
       goal "Take a bluebook out of the rotation because a check surprised, until a person releases it"
 
       reference_to Target
-      attribute :reason, TargetReason
+      attribute :reason, TargetReason, sets: true
 
-      sets :reason
 
       emits "TargetSuspended"
     end
@@ -208,9 +206,8 @@ Hecks.bluebook "QualityControl" do
       goal "Decide a bluebook is not worth the practice's time, and say why"
 
       reference_to Target
-      attribute :reason, TargetReason
+      attribute :reason, TargetReason, sets: true
 
-      sets :reason
 
       emits "TargetShelved"
     end
@@ -221,9 +218,8 @@ Hecks.bluebook "QualityControl" do
       goal "Put a shelved bluebook back in the rotation, and say what changed"
 
       reference_to Target
-      attribute :reason, TargetReason
+      attribute :reason, TargetReason, sets: true
 
-      sets :reason
 
       emits "TargetRestored"
     end
@@ -237,9 +233,8 @@ Hecks.bluebook "QualityControl" do
       goal "Correct where a bluebook's own domain actually lives, once its recorded path stops resolving"
 
       reference_to Target
-      attribute :path, TargetPath
+      attribute :path, TargetPath, sets: true
 
-      sets :path
 
       emits "TargetRelocated"
     end
@@ -469,9 +464,8 @@ Hecks.bluebook "QualityControl" do
         goal "Record that the system did what the bluebook promised"
 
         attribute :sequence,    CheckSequence
-        attribute :observation, Observation
+        attribute :observation, Observation, sets: true
 
-        sets :observation
 
         emits "CheckHeld"
       end
@@ -481,13 +475,12 @@ Hecks.bluebook "QualityControl" do
         goal "Record that the system did something other than what was written down"
 
         attribute :sequence,    CheckSequence
-        attribute :observation, Observation
+        attribute :observation, Observation, sets: true
         # Restated so `CheckSurprised` carries a `Target` id for `SuspendOnSurprise`; see
         # `TargetRef`. Required: a caller that omits it is refused (`AbsentArgument`) rather than
         # suspending nothing.
         attribute :target,      TargetRef
 
-        sets :observation
         # A literal, set here and nowhere else; see `ever_surprised`.
         sets :ever_surprised, to: "yes"
 
@@ -499,9 +492,8 @@ Hecks.bluebook "QualityControl" do
         goal "Record a check that ran and settled nothing"
 
         attribute :sequence,    CheckSequence
-        attribute :observation, Observation
+        attribute :observation, Observation, sets: true
 
-        sets :observation
 
         emits "CheckUnsettled"
       end
@@ -598,13 +590,12 @@ Hecks.bluebook "QualityControl" do
       goal "End a pass and say what it taught"
 
       reference_to Sweep
-      attribute :notes, SweepNotes
+      attribute :notes, SweepNotes, sets: true
 
       # A sweep that checked nothing tested nothing; the `waived` clause makes this a gate, not a
       # wall.
       given("a sweep that checked nothing tested nothing") { made.value.positive? || waived.value.positive? }
 
-      sets :notes
 
       emits "SweepConcluded"
     end
@@ -956,9 +947,8 @@ Hecks.bluebook "QualityControl" do
       goal "Say what should be dealt with first"
 
       reference_to Bug
-      attribute :order, BugOrder
+      attribute :order, BugOrder, sets: true
 
-      sets :order
 
       emits "BugRanked"
     end
@@ -970,9 +960,8 @@ Hecks.bluebook "QualityControl" do
       goal "Say what kind of thing this bug is, so it can be found with its kind later"
 
       reference_to Bug
-      attribute :tags, list_of(Tag)
+      attribute :tags, list_of(Tag), sets: true
 
-      sets :tags
 
       emits "BugTagged"
     end
@@ -984,14 +973,13 @@ Hecks.bluebook "QualityControl" do
       goal "Write down whether this can be fixed on the spot or needs a bigger judgment"
 
       reference_to Bug
-      attribute :disposition, one_of("self_contained", "bigger")
+      attribute :disposition, one_of("self_contained", "bigger"), sets: true
 
       # The `given` is the fence: an argument named like the record's own `one_of` field coerces
       # against the wider set, so the narrower inline set did not refuse "undecided". Predicates
       # read args first.
       given("a triage decides — self_contained or bigger, never undecided") { disposition.value != "undecided" }
 
-      sets :disposition
 
       emits "BugTriaged"
     end
@@ -1003,9 +991,8 @@ Hecks.bluebook "QualityControl" do
       goal "Give a bug a short, memorable slug — at log time or any point after"
 
       reference_to Bug
-      attribute :name, BugName
+      attribute :name, BugName, sets: true
 
-      sets :name
 
       emits "BugNamed"
     end
@@ -1034,7 +1021,7 @@ Hecks.bluebook "QualityControl" do
 
       # Same reason as `Target.Claim`: the window is on the record, not the claimer's to name.
       reference_to Bug
-      attribute :held_by, Engineer
+      attribute :held_by, Engineer, sets: true
       attribute :now,     Instant
       needs :now
 
@@ -1042,7 +1029,6 @@ Hecks.bluebook "QualityControl" do
         held_by.value == "nobody" || claimed_at.value + window.value <= now.value
       end
 
-      sets :held_by
       sets :claimed_at, to: :now
 
       emits "BugClaimed"
@@ -1053,9 +1039,8 @@ Hecks.bluebook "QualityControl" do
       goal "Put a bug back on the queue without finishing it"
 
       reference_to Bug
-      attribute :held_by, Engineer
+      attribute :held_by, Engineer, sets: true
 
-      sets :held_by
 
       emits "BugDropped"
     end
@@ -1065,11 +1050,9 @@ Hecks.bluebook "QualityControl" do
       goal "Name the code that is wrong and say why"
 
       reference_to Bug
-      attribute :site,  BugSite
-      attribute :cause, BugCause
+      attribute :site,  BugSite, sets: true
+      attribute :cause, BugCause, sets: true
 
-      sets :site
-      sets :cause
 
       emits "BugInvestigated"
     end
@@ -1083,9 +1066,8 @@ Hecks.bluebook "QualityControl" do
 
       reference_to Bug
       attribute :reference, BugReference
-      attribute :commit,    CommitRef
+      attribute :commit,    CommitRef, sets: true
 
-      sets :commit
 
       emits "BugFixed"
     end
@@ -1107,11 +1089,9 @@ Hecks.bluebook "QualityControl" do
       goal "Stop on a bug that is real and too large to fix here — why, and what would move it"
 
       reference_to Bug
-      attribute :reason,    BugReason
-      attribute :next_step, NextStep
+      attribute :reason,    BugReason, sets: true
+      attribute :next_step, NextStep, sets: true
 
-      sets :reason
-      sets :next_step
 
       emits "BugPaused"
     end
@@ -1121,9 +1101,8 @@ Hecks.bluebook "QualityControl" do
       goal "Take back a report whose test turned out to prove something else"
 
       reference_to Bug
-      attribute :reason, BugReason
+      attribute :reason, BugReason, sets: true
 
-      sets :reason
 
       emits "BugWithdrawn"
     end
@@ -1331,9 +1310,8 @@ Hecks.bluebook "QualityControl" do
       goal "Say what actually came of chasing this lead"
 
       reference_to Angle
-      attribute :resolution, AngleResolution
+      attribute :resolution, AngleResolution, sets: true
 
-      sets :resolution
 
       emits "AngleBuilt"
     end
@@ -1343,9 +1321,8 @@ Hecks.bluebook "QualityControl" do
       goal "Decide a lead is not worth the practice's time, and say why"
 
       reference_to Angle
-      attribute :reason, AngleReason
+      attribute :reason, AngleReason, sets: true
 
-      sets :reason
 
       emits "AngleDiscarded"
     end
@@ -1517,11 +1494,9 @@ Hecks.bluebook "QualityControl" do
       goal "Record that the tracker took it, and where it landed"
 
       reference_to Ticket
-      attribute :number, IssueNumber
-      attribute :url,    IssueUrl
+      attribute :number, IssueNumber, sets: true
+      attribute :url,    IssueUrl, sets: true
 
-      sets :number
-      sets :url
 
       emits "TicketFiled"
     end
@@ -1531,9 +1506,8 @@ Hecks.bluebook "QualityControl" do
       goal "Record that the tracker would not take it, and what it said"
 
       reference_to Ticket
-      attribute :refusal, RefusalText
+      attribute :refusal, RefusalText, sets: true
 
-      sets :refusal
       sets :attempts, increment: { value: 1 }
 
       emits "TicketFilingRefused"
@@ -1547,11 +1521,10 @@ Hecks.bluebook "QualityControl" do
       goal "Ask again, up to the limit, carrying what was refused"
 
       reference_to Ticket
-      attribute :refusal, RefusalText
+      attribute :refusal, RefusalText, sets: true
 
       given("a retry is still allowed") { attempts.value < max_attempts.value }
 
-      sets :refusal
 
       emits "TicketRetried"
     end
@@ -1797,10 +1770,9 @@ Hecks.bluebook "QualityControl" do
       role "QA engineer"
       goal "Open the day the clock reads, with no slot taken yet"
 
-      attribute :today, Day
+      attribute :today, Day, sets: true
       needs :today
 
-      sets :today
 
       emits "QuotaOpened"
     end
@@ -1937,9 +1909,8 @@ Hecks.bluebook "QualityControl" do
 
       reference_to Improvement
       attribute :number, ImprovementNumber
-      attribute :commit, CommitRef
+      attribute :commit, CommitRef, sets: true
 
-      sets :commit
 
       emits "ImprovementLanded"
     end
@@ -2036,9 +2007,8 @@ Hecks.bluebook "QualityControl" do
       goal "Record that the suite went green against this commit"
 
       reference_to Clearance
-      attribute :summary, RunSummary
+      attribute :summary, RunSummary, sets: true
 
-      sets :summary
 
       emits "ClearanceGiven"
     end

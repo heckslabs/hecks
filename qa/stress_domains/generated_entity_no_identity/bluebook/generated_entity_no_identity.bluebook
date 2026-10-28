@@ -40,8 +40,7 @@ Hecks.bluebook "GeneratedEntityNoIdentity" do
 
       command "Label" do
         goal "Label it"
-        attribute :label, LineLabel
-        sets :label
+        attribute :label, LineLabel, sets: true
         emits "LineLabeled"
       end
 
@@ -53,8 +52,7 @@ Hecks.bluebook "GeneratedEntityNoIdentity" do
 
     command "Open" do
       goal "Open it"
-      attribute :code, KioskCode
-      sets :code
+      attribute :code, KioskCode, sets: true
       emits "KioskOpened"
     end
   end

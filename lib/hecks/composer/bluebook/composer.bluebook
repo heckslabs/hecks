@@ -82,13 +82,10 @@ Hecks.bluebook "Composer" do
       role "Author"
       goal "Open a bluebook for editing, with the text it starts from"
 
-      attribute :slug,         DraftSlug
-      attribute :bluebook_name, BluebookName
-      attribute :text,         SourceText
+      attribute :slug,         DraftSlug, sets: true
+      attribute :bluebook_name, BluebookName, sets: true
+      attribute :text,         SourceText, sets: true
 
-      sets :slug
-      sets :bluebook_name
-      sets :text
 
       emits "DraftBegun"
     end
@@ -98,9 +95,8 @@ Hecks.bluebook "Composer" do
       goal "Replace the draft's text with what is now on screen"
 
       reference_to Draft
-      attribute :text, SourceText
+      attribute :text, SourceText, sets: true
 
-      sets :text
 
       emits "DraftRevised"
     end
@@ -110,9 +106,8 @@ Hecks.bluebook "Composer" do
       goal "Record that the draft's text passed its check"
 
       reference_to Draft
-      attribute :note, Note
+      attribute :note, Note, sets: true
 
-      sets :note
 
       emits "DraftAccepted"
     end
@@ -122,9 +117,8 @@ Hecks.bluebook "Composer" do
       goal "Record that the draft's text failed its check, and why"
 
       reference_to Draft
-      attribute :note, Note
+      attribute :note, Note, sets: true
 
-      sets :note
 
       emits "DraftRejected"
     end
@@ -149,9 +143,8 @@ Hecks.bluebook "Composer" do
       reference_to Draft
       attribute :sequence, TurnSequence
       attribute :said,     Utterance
-      attribute :text,     SourceText
+      attribute :text,     SourceText, sets: true
 
-      sets :text
       sets :turns, append: { sequence: :sequence, speaker: { value: "agent" }, said: :said }
 
       emits "TurnAnswered"

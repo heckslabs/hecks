@@ -130,9 +130,8 @@ Hecks.bluebook "Waybill" do
         role "Loader"
         goal "Load an item into the slot"
 
-        attribute :item, ItemLabel
+        attribute :item, ItemLabel, sets: true
 
-        sets :item
 
         emits SlotFilled
       end
@@ -142,9 +141,8 @@ Hecks.bluebook "Waybill" do
         role "Loader"
         goal "Clear a slot's item back out — the compensating half of Fill"
 
-        attribute :item, ItemLabel
+        attribute :item, ItemLabel, sets: true
 
-        sets :item
 
         emits SlotCleared
       end

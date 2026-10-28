@@ -41,9 +41,8 @@ Hecks.bluebook "LeaseClock" do
       role "Operator"
       goal "Register a lease slot before anyone can acquire it"
 
-      attribute :key, LeaseKey
+      attribute :key, LeaseKey, sets: true
 
-      sets :key
 
       emits "LeaseRegistered"
     end
@@ -54,7 +53,7 @@ Hecks.bluebook "LeaseClock" do
       goal "Take a free lease, or one whose recorded expiry a passed clock value has already passed"
 
       reference_to Lease
-      attribute :holder, LeaseHolder
+      attribute :holder, LeaseHolder, sets: true
       attribute :now,    LeaseInstant
       needs :now
       attribute :expiry, LeaseInstant
@@ -62,7 +61,6 @@ Hecks.bluebook "LeaseClock" do
       given("a live lease is not taken from its own holder") { status != "held" || expires_at.value <= now.value }
       given("a lease's own new expiry is set after the moment it is acquired") { expiry.value > now.value }
 
-      sets :holder
       sets :expires_at, to: :expiry
 
       emits "LeaseAcquired"

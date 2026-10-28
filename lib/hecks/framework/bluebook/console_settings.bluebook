@@ -69,9 +69,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Color one state"
 
       reference_to StateStyle
-      attribute :tone, one_of("good", "warn", "danger", "muted", "accent")
+      attribute :tone, one_of("good", "warn", "danger", "muted", "accent"), sets: true
 
-      sets :tone
       emits StateStyleToned
     end
 
@@ -80,9 +79,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Mark whether one state needs a person's attention"
 
       reference_to StateStyle
-      attribute :attention, Flag
+      attribute :attention, Flag, sets: true
 
-      sets :attention
       emits StateStyleFlagged
     end
 
@@ -91,9 +89,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Carry whatever per-state fields aren't individually modeled yet (label, note, ...)"
 
       reference_to StateStyle
-      attribute :extra_json, StateStyleExtra
+      attribute :extra_json, StateStyleExtra, sets: true
 
-      sets :extra_json
       emits StateStyleAnnotated
     end
   end
@@ -144,9 +141,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Name a collection's own nav label"
 
       reference_to Collection
-      attribute :label, SettingsText
+      attribute :label, SettingsText, sets: true
 
-      sets :label
       emits CollectionLabeled
     end
 
@@ -155,9 +151,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Override a collection's own nav/route key"
 
       reference_to Collection
-      attribute :key, SettingsText
+      attribute :key, SettingsText, sets: true
 
-      sets :key
       emits CollectionKeyed
     end
 
@@ -166,9 +161,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Place a collection in the nav"
 
       reference_to Collection
-      attribute :nav_order, SettingsNumber
+      attribute :nav_order, SettingsNumber, sets: true
 
-      sets :nav_order
       emits CollectionPlaced
     end
 
@@ -177,9 +171,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Name which field stands in for a whole record"
 
       reference_to Collection
-      attribute :primary_field, SettingsText
+      attribute :primary_field, SettingsText, sets: true
 
-      sets :primary_field
       emits PrimaryFieldChosen
     end
 
@@ -188,9 +181,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Name which of an aggregate's own queries lists its records"
 
       reference_to Collection
-      attribute :list_query, SettingsText
+      attribute :list_query, SettingsText, sets: true
 
-      sets :list_query
       emits ListQueryChosen
     end
 
@@ -199,9 +191,8 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Carry whatever per-collection fields aren't individually modeled yet (noun_sing, create_label, nav_group, ...)"
 
       reference_to Collection
-      attribute :extra_json, CollectionExtra
+      attribute :extra_json, CollectionExtra, sets: true
 
-      sets :extra_json
       emits CollectionAnnotated
     end
   end
@@ -247,11 +238,9 @@ Hecks.bluebook "ConsoleSettings" do
       goal "Name how a collection assigns its own new records' identity"
 
       reference_to CollectionIdentity
-      attribute :identity_field,       IdentityText
-      attribute :identity_strategy,    one_of("slug", "sequence", "port")
+      attribute :identity_field,       IdentityText, sets: true
+      attribute :identity_strategy,    one_of("slug", "sequence", "port"), sets: true
 
-      sets :identity_field
-      sets :identity_strategy
       sets :identity_source
       sets :identity_prefix
       sets :identity_extra_json

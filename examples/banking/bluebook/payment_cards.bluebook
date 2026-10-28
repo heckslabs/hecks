@@ -134,9 +134,8 @@ Hecks.bluebook "Banking" do
       goal "Name a card so it is recognisable"
 
       reference_to ATMCard
-      attribute :nickname, CardNickname
+      attribute :nickname, CardNickname, sets: true
       given("customer is active")
-      sets :nickname
 
       emits ATMCardRenamed
     end

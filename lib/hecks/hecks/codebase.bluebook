@@ -109,11 +109,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the model's holding half from the language that declares it"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_model"
 
       emits ProjectModelRequested
@@ -123,11 +121,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the language's closed sets into the vocabulary"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_vocabulary"
 
       emits ProjectVocabularyRequested
@@ -137,11 +133,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the vocabulary tables into the Rust kernel, one enum a table"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_rust_vocabulary"
 
       emits ProjectRustVocabularyRequested
@@ -151,11 +145,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the refusal template table, a second name of ProjectRustVocabulary"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_rust_vocabulary"
 
       emits ProjectRefusalWordingRequested
@@ -165,11 +157,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the Rust and Cargo reserved words into the codegen and build crates"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_reserved_names"
 
       emits ProjectReservedNamesRequested
@@ -179,11 +169,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the Rust parser's keyword table"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_parser_table"
 
       emits ProjectParserTableRequested
@@ -193,11 +181,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the Rust parser's sentence table from the Sentence bluebook's phrase rows"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_phrase_table"
 
       emits ProjectPhraseTableRequested
@@ -207,11 +193,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the DSL's bootstrap-window fallbacks from the keyword rows"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_bootstrap_table"
 
       emits ProjectBootstrapTableRequested
@@ -221,11 +205,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the host's form-field hints"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_field_hints"
 
       emits ProjectFieldHintsRequested
@@ -235,13 +217,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the expression machinery's operator and normalisation tables"
 
-      attribute :stdout,  Switch, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :stdout,  Switch, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :stdout
-      sets :run
-      sets :confirm
       sets :operation, to: "project_expression_tables"
 
       emits ProjectExpressionTablesRequested
@@ -251,11 +230,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Regenerate the DSL reference from the Syntax bluebook, keeping the committed prose"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_reference"
 
       emits ProjectReferenceRequested
@@ -265,23 +242,15 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Enter a keyword row, proposed: it reaches no projection until admitted"
 
-      attribute :word,    Word
-      attribute :context, Context
-      attribute :body,    Body, optional: true
-      attribute :inner,   Fill, optional: true
-      attribute :opens,   Fill, optional: true
-      attribute :fills,   Fill, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :word,    Word, sets: true
+      attribute :context, Context, sets: true
+      attribute :body,    Body, optional: true, sets: true
+      attribute :inner,   Fill, optional: true, sets: true
+      attribute :opens,   Fill, optional: true, sets: true
+      attribute :fills,   Fill, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :body
-      sets :inner
-      sets :opens
-      sets :fills
-      sets :run
-      sets :confirm
       sets :operation, to: "propose"
 
       emits ProposeRequested
@@ -291,15 +260,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Move a proposed keyword row to admitted"
 
-      attribute :word,    Word
-      attribute :context, Context
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :word,    Word, sets: true
+      attribute :context, Context, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :run
-      sets :confirm
       sets :operation, to: "admit"
 
       emits AdmitRequested
@@ -309,15 +274,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Move an admitted keyword row to deprecated"
 
-      attribute :word,    Word
-      attribute :context, Context
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :word,    Word, sets: true
+      attribute :context, Context, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :run
-      sets :confirm
       sets :operation, to: "deprecate"
 
       emits DeprecateRequested
@@ -327,15 +288,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Move a deprecated or admitted keyword row to retired"
 
-      attribute :word,    Word
-      attribute :context, Context
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :word,    Word, sets: true
+      attribute :context, Context, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :run
-      sets :confirm
       sets :operation, to: "retire"
 
       emits RetireRequested
@@ -345,17 +302,12 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Respell a keyword row; the old spelling keeps parsing"
 
-      attribute :word,     Word
-      attribute :context,  Context
-      attribute :new_name, Word
-      attribute :run,      RunKey
-      attribute :confirm,  Switch, optional: true
+      attribute :word,     Word, sets: true
+      attribute :context,  Context, sets: true
+      attribute :new_name, Word, sets: true
+      attribute :run,      RunKey, sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :new_name
-      sets :run
-      sets :confirm
       sets :operation, to: "rename"
 
       emits RenameRequested
@@ -365,27 +317,17 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Enter an argument row of a keyword, proposed"
 
-      attribute :word,        Word
-      attribute :context,     Context
-      attribute :kind,        Kind
-      attribute :required,    Flag, optional: true
-      attribute :at,          Position, optional: true
-      attribute :named,       Fill, optional: true
-      attribute :fills,       Fill, optional: true
-      attribute :pairs_shape, Shape, optional: true
-      attribute :run,         RunKey
-      attribute :confirm,     Switch, optional: true
+      attribute :word,        Word, sets: true
+      attribute :context,     Context, sets: true
+      attribute :kind,        Kind, sets: true
+      attribute :required,    Flag, optional: true, sets: true
+      attribute :at,          Position, optional: true, sets: true
+      attribute :named,       Fill, optional: true, sets: true
+      attribute :fills,       Fill, optional: true, sets: true
+      attribute :pairs_shape, Shape, optional: true, sets: true
+      attribute :run,         RunKey, sets: true
+      attribute :confirm,     Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :kind
-      sets :required
-      sets :at
-      sets :named
-      sets :fills
-      sets :pairs_shape
-      sets :run
-      sets :confirm
       sets :operation, to: "propose_argument"
 
       emits ProposeArgumentRequested
@@ -395,19 +337,13 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Move a proposed argument row to admitted"
 
-      attribute :word,    Word
-      attribute :context, Context
-      attribute :at,      Position, optional: true
-      attribute :named,   Fill, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :word,    Word, sets: true
+      attribute :context, Context, sets: true
+      attribute :at,      Position, optional: true, sets: true
+      attribute :named,   Fill, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :at
-      sets :named
-      sets :run
-      sets :confirm
       sets :operation, to: "admit_argument"
 
       emits AdmitArgumentRequested
@@ -417,19 +353,13 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Move an admitted argument row to deprecated"
 
-      attribute :word,    Word
-      attribute :context, Context
-      attribute :at,      Position, optional: true
-      attribute :named,   Fill, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :word,    Word, sets: true
+      attribute :context, Context, sets: true
+      attribute :at,      Position, optional: true, sets: true
+      attribute :named,   Fill, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :at
-      sets :named
-      sets :run
-      sets :confirm
       sets :operation, to: "deprecate_argument"
 
       emits DeprecateArgumentRequested
@@ -439,19 +369,13 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Move a deprecated or admitted argument row to retired"
 
-      attribute :word,    Word
-      attribute :context, Context
-      attribute :at,      Position, optional: true
-      attribute :named,   Fill, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :word,    Word, sets: true
+      attribute :context, Context, sets: true
+      attribute :at,      Position, optional: true, sets: true
+      attribute :named,   Fill, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :word
-      sets :context
-      sets :at
-      sets :named
-      sets :run
-      sets :confirm
       sets :operation, to: "retire_argument"
 
       emits RetireArgumentRequested
@@ -464,11 +388,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to LanguageRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits LanguageAccepted
     end
@@ -478,9 +401,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to LanguageRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits LanguageCompleted
     end
@@ -490,9 +412,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to LanguageRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits LanguageFaulted
     end
@@ -690,11 +611,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the capability enums the hand-written Rust kernel is matched against"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "project_kernel_capabilities"
 
       emits ProjectKernelCapabilitiesRequested
@@ -704,9 +623,8 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Check that every capability the grammar admits has its hand-written kernel file"
 
-      attribute :run, RunKey
+      attribute :run, RunKey, sets: true
 
-      sets :run
       sets :operation, to: "measure_kernel_coverage"
 
       emits MeasureKernelCoverageRequested
@@ -719,11 +637,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to KernelRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits KernelAccepted
     end
@@ -733,9 +650,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to KernelRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits KernelCompleted
     end
@@ -745,9 +661,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to KernelRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits KernelFaulted
     end
@@ -847,9 +762,8 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Check that the query engines route every comparator through the one shared implementation"
 
-      attribute :run, RunKey
+      attribute :run, RunKey, sets: true
 
-      sets :run
       sets :operation, to: "check_engine_agreement"
 
       emits CheckEngineAgreementRequested
@@ -859,9 +773,8 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Check that every live word of the language has prose and a running example in the reference"
 
-      attribute :run, RunKey
+      attribute :run, RunKey, sets: true
 
-      sets :run
       sets :operation, to: "measure_doc_coverage"
 
       emits MeasureDocCoverageRequested
@@ -871,14 +784,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed"
 
-      attribute :run,      RunKey
-      attribute :confirm,  Switch, optional: true
+      attribute :run,      RunKey, sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
       # With `confirm`: write the empty edge for a shape that moved with none, for a change that only adds.
-      attribute :additive, Switch, optional: true
+      attribute :additive, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
-      sets :additive
       sets :operation, to: "check_shape_ledger"
 
       emits CheckShapeLedgerRequested
@@ -888,11 +798,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "argument_gate_matrix"
 
       emits ArgumentGateMatrixRequested
@@ -905,11 +813,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to ConformanceRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits ConformanceAccepted
     end
@@ -919,9 +826,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to ConformanceRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits ConformanceCompleted
     end
@@ -931,9 +837,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to ConformanceRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits ConformanceFaulted
     end
@@ -1050,13 +955,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Regenerate every corpus domain's Rust output, or with check only compare it with the tree"
 
-      attribute :check,   Switch, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :check,   Switch, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :check
-      sets :run
-      sets :confirm
       sets :operation, to: "regenerate_corpus"
 
       emits RegenerateCorpusRequested
@@ -1066,13 +968,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them"
 
-      attribute :check,   Switch, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :check,   Switch, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :check
-      sets :run
-      sets :confirm
       sets :operation, to: "project_ci_gates"
 
       emits ProjectCiGatesRequested
@@ -1082,15 +981,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets"
 
-      attribute :check,   Switch, optional: true
-      attribute :live,    Switch, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :check,   Switch, optional: true, sets: true
+      attribute :live,    Switch, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :check
-      sets :live
-      sets :run
-      sets :confirm
       sets :operation, to: "project_lanes"
 
       emits ProjectLanesRequested
@@ -1100,13 +995,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them"
 
-      attribute :check,   Switch, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :check,   Switch, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :check
-      sets :run
-      sets :confirm
       sets :operation, to: "project_tools_doc"
 
       emits ProjectToolsDocRequested
@@ -1116,11 +1008,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Say whether this run's change touches what a CiGate row guards, as the gated job's detector"
 
-      attribute :gate, GateName
-      attribute :run,  RunKey
+      attribute :gate, GateName, sets: true
+      attribute :run,  RunKey, sets: true
 
-      sets :gate
-      sets :run
       sets :operation, to: "decide_ci_gate"
 
       emits DecideCiGateRequested
@@ -1133,11 +1023,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to RegenerationRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits RegenerationAccepted
     end
@@ -1147,9 +1036,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to RegenerationRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits RegenerationCompleted
     end
@@ -1159,9 +1047,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to RegenerationRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits RegenerationFaulted
     end
@@ -1286,13 +1173,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Run every check of a stage, or the ones named, and keep whether the gate is green"
 
-      attribute :stage, Stage
-      attribute :only,  CheckList, optional: true
-      attribute :run,   RunKey
+      attribute :stage, Stage, sets: true
+      attribute :only,  CheckList, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :stage
-      sets :only
-      sets :run
       sets :operation, to: "gate"
 
       emits GateRequested
@@ -1303,11 +1187,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to GateRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits GateAccepted
     end
@@ -1317,9 +1200,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that every check passed, and which"
 
       reference_to GateRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits GateCompleted
     end
@@ -1329,9 +1211,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that a check was red or the run could not be made, and why"
 
       reference_to GateRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits GateFaulted
     end
@@ -1460,13 +1341,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "List every comment that breaks the Ruby style guide"
 
-      attribute :paths, PathList
-      attribute :only,  CategoryList, optional: true
-      attribute :run,   RunKey
+      attribute :paths, PathList, sets: true
+      attribute :only,  CategoryList, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :paths
-      sets :only
-      sets :run
       sets :operation, to: "check_comments"
 
       emits CheckCommentsRequested
@@ -1476,15 +1354,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Rewrite the mechanical Ruby comment violations"
 
-      attribute :paths,   PathList
-      attribute :only,    CategoryList, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :paths,   PathList, sets: true
+      attribute :only,    CategoryList, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :paths
-      sets :only
-      sets :run
-      sets :confirm
       sets :operation, to: "fix_comments"
 
       emits FixCommentsRequested
@@ -1494,13 +1368,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Record every long comment block as tolerated, for lib/hecks unless paths are named"
 
-      attribute :paths,   PathList, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :paths,   PathList, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :paths
-      sets :run
-      sets :confirm
       sets :operation, to: "write_comment_baseline"
 
       emits WriteCommentBaselineRequested
@@ -1510,13 +1381,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Prove an edit was comment-only: no file's code differs from the ref"
 
-      attribute :ref,   Ref
-      attribute :paths, PathList, optional: true
-      attribute :run,   RunKey
+      attribute :ref,   Ref, sets: true
+      attribute :paths, PathList, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :ref
-      sets :paths
-      sets :run
       sets :operation, to: "check_comments_unchanged"
 
       emits CheckCommentsUnchangedRequested
@@ -1526,13 +1394,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "List every comment that breaks the Rust style guide"
 
-      attribute :paths, PathList
-      attribute :only,  CategoryList, optional: true
-      attribute :run,   RunKey
+      attribute :paths, PathList, sets: true
+      attribute :only,  CategoryList, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :paths
-      sets :only
-      sets :run
       sets :operation, to: "check_rust_comments"
 
       emits CheckRustCommentsRequested
@@ -1542,15 +1407,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Rewrite the mechanical Rust comment violations"
 
-      attribute :paths,   PathList
-      attribute :only,    CategoryList, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :paths,   PathList, sets: true
+      attribute :only,    CategoryList, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :paths
-      sets :only
-      sets :run
-      sets :confirm
       sets :operation, to: "fix_rust_comments"
 
       emits FixRustCommentsRequested
@@ -1560,11 +1421,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Write a JSON document with every object's keys sorted"
 
-      attribute :file, FilePath
-      attribute :run,  RunKey
+      attribute :file, FilePath, sets: true
+      attribute :run,  RunKey, sets: true
 
-      sets :file
-      sets :run
       sets :operation, to: "canonicalise"
 
       emits CanonicaliseRequested
@@ -1577,11 +1436,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to StyleRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits StyleAccepted
     end
@@ -1591,9 +1449,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to StyleRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits StyleCompleted
     end
@@ -1603,9 +1460,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to StyleRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits StyleFaulted
     end
@@ -1765,13 +1621,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Rank the Ruby methods by complexity, worst first"
 
-      attribute :paths, PathList, optional: true
-      attribute :top,   Top, optional: true
-      attribute :run,   RunKey
+      attribute :paths, PathList, optional: true, sets: true
+      attribute :top,   Top, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :paths
-      sets :top
-      sets :run
       sets :operation, to: "flog"
 
       emits FlogRequested
@@ -1781,13 +1634,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Find Ruby code that is copied or nearly copied"
 
-      attribute :paths, PathList, optional: true
-      attribute :top,   Top, optional: true
-      attribute :run,   RunKey
+      attribute :paths, PathList, optional: true, sets: true
+      attribute :top,   Top, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :paths
-      sets :top
-      sets :run
       sets :operation, to: "flay"
 
       emits FlayRequested
@@ -1797,13 +1647,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "List the design smells in the Ruby"
 
-      attribute :paths, PathList, optional: true
-      attribute :top,   Top, optional: true
-      attribute :run,   RunKey
+      attribute :paths, PathList, optional: true, sets: true
+      attribute :top,   Top, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :paths
-      sets :top
-      sets :run
       sets :operation, to: "reek"
 
       emits ReekRequested
@@ -1813,13 +1660,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Write the combined quality report, with git churn"
 
-      attribute :paths, PathList, optional: true
-      attribute :top,   Top, optional: true
-      attribute :run,   RunKey
+      attribute :paths, PathList, optional: true, sets: true
+      attribute :top,   Top, optional: true, sets: true
+      attribute :run,   RunKey, sets: true
 
-      sets :paths
-      sets :top
-      sets :run
       sets :operation, to: "rubycritic"
 
       emits RubycriticRequested
@@ -1832,11 +1676,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to InspectionRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits InspectionAccepted
     end
@@ -1846,9 +1689,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the inspection was carried out, and what it reported"
 
       reference_to InspectionRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits InspectionCompleted
     end
@@ -1858,9 +1700,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the inspection was refused or could not be carried out, and why"
 
       reference_to InspectionRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits InspectionFaulted
     end
@@ -2033,11 +1874,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Hoist a given that several commands of one owner repeat into one owner-level given"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "hoist_local_givens"
 
       emits HoistLocalGivensRequested
@@ -2047,11 +1886,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Drop an attribute line that only repeats what an append target element declares"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "drop_implicit_append_fields"
 
       emits DropImplicitAppendFieldsRequested
@@ -2064,11 +1901,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to CodemodRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits CodemodAccepted
     end
@@ -2078,9 +1914,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to CodemodRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits CodemodCompleted
     end
@@ -2090,9 +1925,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to CodemodRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits CodemodFaulted
     end
@@ -2264,15 +2098,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Regenerate the committed runtime baselines the sharded jobs group from"
 
-      attribute :workers,  Count, default: 6
-      attribute :from_run, RunId, optional: true
-      attribute :run,      RunKey
-      attribute :confirm,  Switch, optional: true
+      attribute :workers,  Count, default: 6, sets: true
+      attribute :from_run, RunId, optional: true, sets: true
+      attribute :run,      RunKey, sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
 
-      sets :workers
-      sets :from_run
-      sets :run
-      sets :confirm
       sets :operation, to: "refresh_runtime_baseline"
 
       emits RefreshRuntimeBaselineRequested
@@ -2282,30 +2112,22 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Run one spec file filtered to one example, through the test runner in this process"
 
-      attribute :file,        FilePath
-      attribute :example,     ExampleText
-      attribute :run,         RunKey
+      attribute :file,        FilePath, sets: true
+      attribute :example,     ExampleText, sets: true
+      attribute :run,         RunKey, sets: true
       # Run the specs as CI does: the slow io, process and fuzzing groups included, and a Postgres
       # that is not reachable a failure, not a skip.
-      attribute :strict,      Switch, optional: true
+      attribute :strict,      Switch, optional: true, sets: true
       # How many seeds the property specs try, where they default to a few.
-      attribute :seeds,       Count, optional: true
+      attribute :seeds,       Count, optional: true, sets: true
       # The environment overlay the example boots its domains on, such as `memory`.
-      attribute :environment, EnvironmentName, optional: true
+      attribute :environment, EnvironmentName, optional: true, sets: true
       # RSpec tag filters, such as `cloudfront` for the examples that call a real AWS account.
-      attribute :tags, TagArguments, optional: true
+      attribute :tags, TagArguments, optional: true, sets: true
       # Whether specs share the loaded declarations of an unchanged domain directory; false loads each
       # boot afresh.
-      attribute :declaration_cache, Switch, default: true
+      attribute :declaration_cache, Switch, default: true, sets: true
 
-      sets :file
-      sets :example
-      sets :run
-      sets :strict
-      sets :seeds
-      sets :environment
-      sets :tags
-      sets :declaration_cache
       sets :operation, to: "run_spec_example"
 
       emits RunSpecExampleRequested
@@ -2315,16 +2137,12 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Rerun the thread-safety specs under many seeds, several processes at a time"
 
-      attribute :runs,       Count, default: 30
+      attribute :runs,       Count, default: 30, sets: true
       # The machine's own core count when none is named, which no fixed default can say.
-      attribute :parallel,   Count, optional: true
-      attribute :seed_start, Count, default: 1
-      attribute :run,        RunKey
+      attribute :parallel,   Count, optional: true, sets: true
+      attribute :seed_start, Count, default: 1, sets: true
+      attribute :run,        RunKey, sets: true
 
-      sets :runs
-      sets :parallel
-      sets :seed_start
-      sets :run
       sets :operation, to: "stress_concurrency"
 
       emits StressConcurrencyRequested
@@ -2334,15 +2152,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Run the cargo tests of the host, the parser or the JSON fuzzer, with the seed counts their fuzzers take"
 
-      attribute :crate,       CrateName
-      attribute :seeds,       Count, optional: true
-      attribute :seed_start,  Count, optional: true
-      attribute :run,         RunKey
+      attribute :crate,       CrateName, sets: true
+      attribute :seeds,       Count, optional: true, sets: true
+      attribute :seed_start,  Count, optional: true, sets: true
+      attribute :run,         RunKey, sets: true
 
-      sets :crate
-      sets :seeds
-      sets :seed_start
-      sets :run
       sets :operation, to: "run_cargo_tests"
 
       emits RunCargoTestsRequested
@@ -2354,9 +2168,8 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Delete the on-disk syntax-boot and verdict caches, so the next boot builds and judges afresh"
 
-      attribute :run, RunKey
+      attribute :run, RunKey, sets: true
 
-      sets :run
       sets :operation, to: "clear_caches"
 
       emits ClearCachesRequested
@@ -2366,11 +2179,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Regenerate the persistence legacy fixtures through the real adapters"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "regenerate_legacy_fixtures"
 
       emits RegenerateLegacyFixturesRequested
@@ -2380,11 +2191,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Fill the expected outcome of every semantics fixture that lacks one, or re-seed one"
 
-      attribute :fixture, FixtureName, optional: true
-      attribute :run,     RunKey
+      attribute :fixture, FixtureName, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
 
-      sets :fixture
-      sets :run
       sets :operation, to: "seed_semantics_corpus"
 
       emits SeedSemanticsCorpusRequested
@@ -2394,17 +2203,12 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Write the committed list of the spec files a tag filter selects"
 
-      attribute :exclude, ExcludePattern
-      attribute :tags,    TagArguments, optional: true
-      attribute :write,   FilePath
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :exclude, ExcludePattern, sets: true
+      attribute :tags,    TagArguments, optional: true, sets: true
+      attribute :write,   FilePath, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :exclude
-      sets :tags
-      sets :write
-      sets :run
-      sets :confirm
       sets :operation, to: "write_io_parallel_spec_list"
 
       emits WriteIoParallelSpecListRequested
@@ -2417,11 +2221,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to TestSuiteRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits TestSuiteAccepted
     end
@@ -2431,9 +2234,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to TestSuiteRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits TestSuiteCompleted
     end
@@ -2443,9 +2245,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to TestSuiteRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits TestSuiteFaulted
     end
@@ -2649,9 +2450,8 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Serve the IR queries to an MCP client over stdio until it closes"
 
-      attribute :run, RunKey
+      attribute :run, RunKey, sets: true
 
-      sets :run
       sets :operation, to: "serve_query_ir_mcp"
 
       emits ServeQueryIrMcpRequested
@@ -2661,11 +2461,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Serve the banking example's rendered forms and views on a local port until stopped"
 
-      attribute :port, Port, optional: true
-      attribute :run,  RunKey
+      attribute :port, Port, optional: true, sets: true
+      attribute :run,  RunKey, sets: true
 
-      sets :port
-      sets :run
       sets :operation, to: "present"
 
       emits PresentRequested
@@ -2675,15 +2473,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped"
 
-      attribute :port,    Port, optional: true
-      attribute :domains, PathList, optional: true
-      attribute :agent,   AgentName, default: "claude"
-      attribute :run,     RunKey
+      attribute :port,    Port, optional: true, sets: true
+      attribute :domains, PathList, optional: true, sets: true
+      attribute :agent,   AgentName, default: "claude", sets: true
+      attribute :run,     RunKey, sets: true
 
-      sets :port
-      sets :domains
-      sets :agent
-      sets :run
       sets :operation, to: "compose"
 
       emits ComposeRequested
@@ -2693,13 +2487,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Serve one directory of static files, such as a website, on a local port until stopped"
 
-      attribute :directory, Directory
-      attribute :port,      Port, optional: true
-      attribute :run,       RunKey
+      attribute :directory, Directory, sets: true
+      attribute :port,      Port, optional: true, sets: true
+      attribute :run,       RunKey, sets: true
 
-      sets :directory
-      sets :port
-      sets :run
       sets :operation, to: "preview"
 
       emits PreviewRequested
@@ -2712,11 +2503,10 @@ Hecks.bluebook "Hecks" do
       goal "Let a request through only when the working tree is a hecks checkout"
 
       reference_to CorpusRun
-      attribute :checkout, Switch
+      attribute :checkout, Switch, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
 
-      sets :checkout
 
       emits CorpusAccepted
     end
@@ -2726,9 +2516,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to CorpusRun
-      attribute :report, Report
+      attribute :report, Report, sets: true
 
-      sets :report
 
       emits CorpusCompleted
     end
@@ -2738,9 +2527,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to CorpusRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits CorpusFaulted
     end
@@ -2932,19 +2720,13 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Tag the merged release commit, publish the gem, and get the client package published"
 
-      attribute :gem_only,  Switch, optional: true
-      attribute :npm_only,  Switch, optional: true
-      attribute :npm_local, Switch, optional: true
-      attribute :no_wait,   Switch, optional: true
-      attribute :run,       RunKey
-      attribute :confirm,   Switch, optional: true
+      attribute :gem_only,  Switch, optional: true, sets: true
+      attribute :npm_only,  Switch, optional: true, sets: true
+      attribute :npm_local, Switch, optional: true, sets: true
+      attribute :no_wait,   Switch, optional: true, sets: true
+      attribute :run,       RunKey, sets: true
+      attribute :confirm,   Switch, optional: true, sets: true
 
-      sets :gem_only
-      sets :npm_only
-      sets :npm_local
-      sets :no_wait
-      sets :run
-      sets :confirm
       sets :operation, to: "publish"
 
       emits PublishRequested
@@ -2954,11 +2736,9 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Build the gem and push it to the gem registry, with the key the vault holds"
 
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :run
-      sets :confirm
       sets :operation, to: "publish_gem"
 
       emits PublishGemRequested
@@ -2971,19 +2751,19 @@ Hecks.bluebook "Hecks" do
       goal "Let a release go ahead only in a hecks checkout, and only when the facts satisfy every rule"
 
       reference_to PublishingRun
-      attribute :checkout,       Switch
-      attribute :branch,         Word
-      attribute :release_lane,   Word
-      attribute :on_origin,      Switch
-      attribute :clean,          Switch
-      attribute :version,        Version
-      attribute :client_version, Version
-      attribute :changelog,      Switch
-      attribute :approved,       Switch
-      attribute :tag_state,      Word
-      attribute :head,           Word
-      attribute :ir_version,     Version
-      attribute :ships_from,     Checkout
+      attribute :checkout,       Switch, sets: true
+      attribute :branch,         Word, sets: true
+      attribute :release_lane,   Word, sets: true
+      attribute :on_origin,      Switch, sets: true
+      attribute :clean,          Switch, sets: true
+      attribute :version,        Version, sets: true
+      attribute :client_version, Version, sets: true
+      attribute :changelog,      Switch, sets: true
+      attribute :approved,       Switch, sets: true
+      attribute :tag_state,      Word, sets: true
+      attribute :head,           Word, sets: true
+      attribute :ir_version,     Version, sets: true
+      attribute :ships_from,     Checkout, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
       given("a release is cut from the release lane (the Lane row that feeds a tag): switch to it first") do
@@ -3002,19 +2782,6 @@ Hecks.bluebook "Hecks" do
         tag_state.value != "elsewhere"
       end
 
-      sets :checkout
-      sets :branch
-      sets :release_lane
-      sets :on_origin
-      sets :clean
-      sets :version
-      sets :client_version
-      sets :changelog
-      sets :approved
-      sets :tag_state
-      sets :head
-      sets :ir_version
-      sets :ships_from
 
       emits PublishingAccepted
     end
@@ -3025,22 +2792,17 @@ Hecks.bluebook "Hecks" do
       goal "Let a gem push go ahead only in a hecks checkout, with the client package at the gem's version"
 
       reference_to PublishingRun
-      attribute :checkout,       Switch
-      attribute :version,        Version
-      attribute :client_version, Version
-      attribute :ir_version,     Version
-      attribute :ships_from,     Checkout
+      attribute :checkout,       Switch, sets: true
+      attribute :version,        Version, sets: true
+      attribute :client_version, Version, sets: true
+      attribute :ir_version,     Version, sets: true
+      attribute :ships_from,     Checkout, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
       given("the client package is at the gem's version: bump the package first") do
         client_version.value == version.value
       end
 
-      sets :checkout
-      sets :version
-      sets :client_version
-      sets :ir_version
-      sets :ships_from
 
       emits GemAccepted
     end
@@ -3050,15 +2812,11 @@ Hecks.bluebook "Hecks" do
       goal "Record that the release was carried out, what it did, and what it reported"
 
       reference_to PublishingRun
-      attribute :report,    Report
-      attribute :tagged,    Switch
-      attribute :published, Switch
-      attribute :verified,  Switch
+      attribute :report,    Report, sets: true
+      attribute :tagged,    Switch, sets: true
+      attribute :published, Switch, sets: true
+      attribute :verified,  Switch, sets: true
 
-      sets :report
-      sets :tagged
-      sets :published
-      sets :verified
 
       emits PublishingCompleted
     end
@@ -3068,9 +2826,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was refused or could not be carried out, and why"
 
       reference_to PublishingRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits PublishingFaulted
     end
@@ -3268,13 +3025,10 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Fault when a lane has stood behind the lane it follows for longer than its Lane row allows"
 
-      attribute :lane,      Word
-      attribute :run,       RunKey
-      attribute :alert_key, Word
+      attribute :lane,      Word, sets: true
+      attribute :run,       RunKey, sets: true
+      attribute :alert_key, Word, sets: true
 
-      sets :lane
-      sets :run
-      sets :alert_key
       sets :operation, to: "watch"
 
       emits WatchRequested
@@ -3284,15 +3038,11 @@ Hecks.bluebook "Hecks" do
       role "Maintainer"
       goal "Move a lane onto a commit that has passed every required check, or with no --confirm rehearse the move"
 
-      attribute :lane,    Word
-      attribute :commit,  Word, optional: true
-      attribute :run,     RunKey
-      attribute :confirm, Switch, optional: true
+      attribute :lane,    Word, sets: true
+      attribute :commit,  Word, optional: true, sets: true
+      attribute :run,     RunKey, sets: true
+      attribute :confirm, Switch, optional: true, sets: true
 
-      sets :lane
-      sets :commit
-      sets :run
-      sets :confirm
       sets :operation, to: "promote"
 
       emits PromoteRequested
@@ -3305,24 +3055,18 @@ Hecks.bluebook "Hecks" do
       goal "Let a lane move only in a hecks checkout, onto a commit that is green on every required check and contains the lane's head"
 
       reference_to PromotionRun
-      attribute :checkout,   Switch
-      attribute :lane_known, Switch
-      attribute :green,      Switch
-      attribute :descends,   Switch
-      attribute :commit,     Word
-      attribute :head,       Word, optional: true
+      attribute :checkout,   Switch, sets: true
+      attribute :lane_known, Switch, sets: true
+      attribute :green,      Switch, sets: true
+      attribute :descends,   Switch, sets: true
+      attribute :commit,     Word, sets: true
+      attribute :head,       Word, optional: true, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
       given("the lane is one of the Lane rows, and follows another lane") { lane_known.value }
       given("every RequiredCheck is green on the commit: wait for the checks, or fix the red one") { green.value }
       given("the commit is on the lane it follows and contains the lane's head: a lane only moves forward") { descends.value }
 
-      sets :checkout
-      sets :lane_known
-      sets :green
-      sets :descends
-      sets :commit
-      sets :head
 
       emits PromotionAccepted
     end
@@ -3334,24 +3078,17 @@ Hecks.bluebook "Hecks" do
       goal "Let a lane be judged late or on time only in a hecks checkout, for a lane that follows another"
 
       reference_to PromotionRun
-      attribute :checkout,     Switch
-      attribute :lane_known,   Switch
-      attribute :behind_hours, Hours
-      attribute :limit_hours,  Hours
-      attribute :alert_key,    Word
-      attribute :promoted,     Switch
-      attribute :reason,       Report
+      attribute :checkout,     Switch, sets: true
+      attribute :lane_known,   Switch, sets: true
+      attribute :behind_hours, Hours, sets: true
+      attribute :limit_hours,  Hours, sets: true
+      attribute :alert_key,    Word, sets: true
+      attribute :promoted,     Switch, sets: true
+      attribute :reason,       Report, sets: true
 
       given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
       given("the lane is one of the Lane rows, and follows another lane") { lane_known.value }
 
-      sets :checkout
-      sets :lane_known
-      sets :behind_hours
-      sets :limit_hours
-      sets :alert_key
-      sets :promoted
-      sets :reason
 
       emits LaneObserved
     end
@@ -3361,11 +3098,9 @@ Hecks.bluebook "Hecks" do
       goal "Record that the promotion was carried out or rehearsed, or the lane was on time, and what it reported"
 
       reference_to PromotionRun
-      attribute :report,   Report
-      attribute :promoted, Switch
+      attribute :report,   Report, sets: true
+      attribute :promoted, Switch, sets: true
 
-      sets :report
-      sets :promoted
 
       emits PromotionCompleted
     end
@@ -3376,11 +3111,9 @@ Hecks.bluebook "Hecks" do
       goal "Record that a lane is late, and what it is waiting on, under the alert key that names its finding"
 
       reference_to PromotionRun
-      attribute :refusal,   Report
-      attribute :alert_key, Word
+      attribute :refusal,   Report, sets: true
+      attribute :alert_key, Word, sets: true
 
-      sets :refusal
-      sets :alert_key
 
       emits LaneLagged
     end
@@ -3390,9 +3123,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the promotion was refused or could not be carried out, and why"
 
       reference_to PromotionRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits PromotionFaulted
     end

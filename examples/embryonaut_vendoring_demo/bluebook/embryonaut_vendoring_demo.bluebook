@@ -21,9 +21,8 @@ Hecks.bluebook "EmbryonautVendoringDemo" do
     command "Register" do
       goal "Register a gadget, idle"
 
-      attribute :name, GadgetName
+      attribute :name, GadgetName, sets: true
 
-      sets :name
       sets :status, to: "idle"
 
       emits GadgetRegistered

@@ -71,17 +71,13 @@ Hecks.bluebook "Hecks" do
       role "Operator"
       goal "Hand one brief to a background Claude session working in a directory"
 
-      attribute :run,   RunKey
-      attribute :repo,  Path
-      attribute :brief, Brief
-      attribute :agent, AgentName, optional: true
+      attribute :run,   RunKey, sets: true
+      attribute :repo,  Path, sets: true
+      attribute :brief, Brief, sets: true
+      attribute :agent, AgentName, optional: true, sets: true
 
       given("a brief says something") { !brief.value.to_s.strip.empty? }
 
-      sets :run
-      sets :repo
-      sets :brief
-      sets :agent
 
       emits AgentRunRequested
     end
@@ -91,9 +87,8 @@ Hecks.bluebook "Hecks" do
       goal "Record the session the directory's agent started"
 
       reference_to AgentRun
-      attribute :session, SessionId
+      attribute :session, SessionId, sets: true
 
-      sets :session
 
       emits AgentRunStarted
     end
@@ -103,9 +98,8 @@ Hecks.bluebook "Hecks" do
       goal "Record why no session was started"
 
       reference_to AgentRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits AgentRunDeclined
     end
@@ -124,9 +118,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the session has ended, and how it ended"
 
       reference_to AgentRun
-      attribute :condition, Condition
+      attribute :condition, Condition, sets: true
 
-      sets :condition
 
       emits AgentRunFinished
     end
@@ -149,9 +142,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the session was removed, and when"
 
       reference_to AgentRun
-      attribute :tidied_at, Moment
+      attribute :tidied_at, Moment, sets: true
 
-      sets :tidied_at
 
       emits AgentRunTidied
     end
@@ -161,9 +153,8 @@ Hecks.bluebook "Hecks" do
       goal "Record why a finished session was kept"
 
       reference_to AgentRun
-      attribute :refusal, Report
+      attribute :refusal, Report, sets: true
 
-      sets :refusal
 
       emits AgentRunRetained
     end

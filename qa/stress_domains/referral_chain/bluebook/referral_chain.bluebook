@@ -59,11 +59,10 @@ Hecks.bluebook "ReferralChain" do
       goal "Join under a sponsor"
 
       reference_to Sponsor
-      attribute :handle, Handle
+      attribute :handle, Handle, sets: true
 
       given("the sponsor is in good standing") { sponsor.standing == "good" }
 
-      sets :handle
       sets :sponsor
 
       emits "MemberJoined"
@@ -92,12 +91,11 @@ Hecks.bluebook "ReferralChain" do
       goal "Issue a referral on behalf of a member"
 
       reference_to Member
-      attribute :code, Code
+      attribute :code, Code, sets: true
 
       # Two hops: `member` hydrates, then its own `sponsor` (`dereference` recursion).
       given("the member's sponsor is in good standing") { member.sponsor.standing == "good" }
 
-      sets :code
       sets :member
 
       emits "ReferralIssued"
@@ -109,9 +107,8 @@ Hecks.bluebook "ReferralChain" do
       goal "Re-point a referral at a different member, by handle"
 
       reference_to Referral
-      attribute :member, Handle
+      attribute :member, Handle, sets: true
 
-      sets :member
 
       emits "ReferralReassigned"
     end

@@ -32,12 +32,9 @@ Hecks.bluebook "Banking" do
       role "Teller"
       goal "Stop an account or a card while something is looked into"
 
-      attribute :reference, HoldReference
-      attribute :subject, Subject
-      attribute :reason, HoldReason
-      sets :reference
-      sets :subject
-      sets :reason
+      attribute :reference, HoldReference, sets: true
+      attribute :subject, Subject, sets: true
+      attribute :reason, HoldReason, sets: true
       emits "HoldPlaced"
     end
 

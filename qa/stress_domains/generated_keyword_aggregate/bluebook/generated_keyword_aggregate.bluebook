@@ -35,8 +35,7 @@ Hecks.bluebook "GeneratedKeywordAggregate" do
     command "Open" do
       role "Manager"
       goal "Open it"
-      attribute :code, CrateCode
-      sets :code
+      attribute :code, CrateCode, sets: true
       emits "CrateOpened"
     end
 
@@ -51,8 +50,7 @@ Hecks.bluebook "GeneratedKeywordAggregate" do
     command "Annotate" do
       goal "Annotate it"
       reference_to Crate
-      attribute :note, CrateNote, optional: true
-      sets :note
+      attribute :note, CrateNote, optional: true, sets: true
       emits "CrateAnnotated"
     end
 
@@ -60,8 +58,7 @@ Hecks.bluebook "GeneratedKeywordAggregate" do
       role "Clerk"
       goal "Prioritize it"
       reference_to Crate
-      attribute :priority, CratePriority
-      sets :priority
+      attribute :priority, CratePriority, sets: true
       emits "CratePrioritized"
     end
   end

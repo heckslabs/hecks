@@ -44,17 +44,12 @@ Hecks.bluebook "Hecks" do
       role "System"
       goal "Keep the head the chain had, and the seal it followed"
 
-      attribute :domain,   Domain
-      attribute :run,      SealKey
-      attribute :through,  Ordinal
-      attribute :head,     ChainDigest
-      attribute :previous, ChainDigest
+      attribute :domain,   Domain, sets: true
+      attribute :run,      SealKey, sets: true
+      attribute :through,  Ordinal, sets: true
+      attribute :head,     ChainDigest, sets: true
+      attribute :previous, ChainDigest, sets: true
 
-      sets :domain
-      sets :run
-      sets :through
-      sets :head
-      sets :previous
 
       emits SealRecorded
     end
@@ -106,11 +101,9 @@ Hecks.bluebook "Hecks" do
       role "Auditor"
       goal "Walk a domain's journal chain from its latest seal and say whether it was altered"
 
-      attribute :domain, AuditedDomain
-      attribute :run,    AuditKey
+      attribute :domain, AuditedDomain, sets: true
+      attribute :run,    AuditKey, sets: true
 
-      sets :domain
-      sets :run
 
       emits VerificationRequested
     end
@@ -120,13 +113,11 @@ Hecks.bluebook "Hecks" do
       goal "Record that every row's digest held, and how many were checked"
 
       reference_to Audit
-      attribute :checked, Count
-      attribute :report,  Finding
+      attribute :checked, Count, sets: true
+      attribute :report,  Finding, sets: true
 
       given("the walk checked a row") { checked.value > 0 }
 
-      sets :checked
-      sets :report
 
       emits ChainConfirmed
     end
@@ -138,9 +129,8 @@ Hecks.bluebook "Hecks" do
       goal "Record that the chain could not be shown intact, and why"
 
       reference_to Audit
-      attribute :report, Finding
+      attribute :report, Finding, sets: true
 
-      sets :report
 
       emits ChainUnproven
     end
