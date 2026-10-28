@@ -45,6 +45,16 @@ module Hecks
                       "# after adding one: the admin API is off, so a reload cannot reach it.\n" \
                       "import /etc/caddy/extra/*\n".freeze
 
+        # What a recipe tells the operator when the Hecks database cannot be opened: the database
+        # and role to create, and the local files that name it. Hecks is in Memory unless this
+        # checkout's `hecks.local.hecksagon` and `hecks.local.world` opt it in (ADR 0136).
+        NO_DATABASE_ADVICE = [
+          '  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \\',
+          '  echo "    (a superuser skips the era write-fence, so createdb alone fails), then name it in" >&2; \\',
+          '  echo "    hecks.local.world: default_database postgres://<role>@localhost/<db>" >&2; \\',
+          '  echo "    and set persisted_by PostgresEra in hecks.local.hecksagon" >&2; \\'
+        ].freeze
+
         # The `smoke-after-deploy` recipe: the smoke runs as `smoke_run.run`, which finds
         # `smoke-after-deploy.sh` beside the Makefile and records how it ended in the Hecks
         # database. When that database cannot be opened the command never starts, so the recipe
@@ -55,9 +65,7 @@ module Hecks
           '$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait $(if $(TASKDEF),taskdef=$(TASKDEF)) 2>"$$err"; rc=$$?; \\',
           'if [ $$rc -ne 0 ] && grep -q \'^cannot open Hecks\' "$$err"; then \\',
           '  echo "==> the deploy record was NOT written: $$(grep -m1 \'^cannot open Hecks\' "$$err")" >&2; \\',
-          '  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \\',
-          '  echo "    (a superuser skips the era write-fence, so createdb alone fails), then set" >&2; \\',
-          '  echo "    HECKS_DATABASE=postgres://<role>@localhost/<db>" >&2; \\',
+          *NO_DATABASE_ADVICE,
           '  echo "    running the smoke anyway so its result is not lost" >&2; \\',
           '  rm -f "$$err"; TASKDEF="$(TASKDEF)" bash ./smoke-after-deploy.sh; rc=$$?; \\',
           '  echo "==> smoke exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \\',

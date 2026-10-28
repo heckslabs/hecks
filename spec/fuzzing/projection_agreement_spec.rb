@@ -39,7 +39,7 @@ RSpec.describe Hecks::Fuzzing::ProjectionAgreement do
     expect(outcomes(:sqlite).flat_map(&:offenders)).to include(/the projection answered \[\{"tampered":true\}\]/)
   end
 
-  # One chapter of the language, whose `WholeBluebook` includes entities (`Handler`, `Dispatch`)
+  # One bluebook of the language, whose `WholeBluebook` includes entities (`Handler`, `Dispatch`)
   # beside its aggregates.
   def one_chapter
     args = { strategy: { value: "" }, source_token: "", replacement: { value: "" }, boundary: { value: "" },

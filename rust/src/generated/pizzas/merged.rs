@@ -886,7 +886,7 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
         authorization: None,
     },
 ];
-/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no chapter here declares one.
+/// `provides "authorization", assignments:` — the query `kernel::check_role_via` reads; `None` when no bluebook here declares one.
 pub const AUTHORIZATION_ASSIGNMENTS: Option<&str> =
     Some("Governance::RoleAssignment.AssignmentsForActor");
 /// Declared entity queries (`Aggregate.Entity.Query`) — `kernel::named_query::run_entity`.

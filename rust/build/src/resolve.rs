@@ -1,4 +1,4 @@
-//! Chapter resolution: header names, framework members and vendored packages, found by text
+//! Bluebook resolution: header names, framework members and vendored packages, found by text
 //! scanning and directory listing rather than by executing any DSL.
 
 use std::path::{Path, PathBuf};
@@ -77,13 +77,13 @@ pub fn grammar_files(root: &Path) -> Result<Vec<PathBuf>, String> {
     bluebook_files(&dir)
 }
 
-// The names `attaches "Name"` gave, for a chapter the gem carries.
+// The names `attaches "Name"` gave, for a bluebook the gem carries.
 pub fn resolve_gem_chapters(
     parser_bin: &Path,
     chapter_name: &str,
     hecksagon_path: &Path,
 ) -> Result<Vec<String>, String> {
-    resolve_json(parser_bin, chapter_name, hecksagon_path, "gem_chapters")
+    resolve_json(parser_bin, chapter_name, hecksagon_path, "gem_bluebooks")
 }
 
 // The names `attaches "name", from: :vendor` gave, for a vendored package.
@@ -100,7 +100,7 @@ pub fn resolve_vendored_packages(
     )
 }
 
-// Where the gem keeps the chapters other than framework members, relative to `lib/hecks`; the
+// Where the gem keeps the bluebooks other than framework members, relative to `lib/hecks`; the
 // same places `Hecks::Chapters::GLOBS` lists.
 const OTHER_GEM_CHAPTER_DIRS: &[&str] = &[
     "language",
@@ -115,7 +115,7 @@ const OTHER_GEM_CHAPTER_DIRS: &[&str] = &[
     "ci_pipeline",
 ];
 
-// Every bluebook the gem carries beside the framework members, with the chapter its header names.
+// Every bluebook the gem carries beside the framework members, with the bluebook its header names.
 fn other_gem_chapter_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
     fn walk(directory: &Path, entries: &mut Vec<(String, PathBuf)>) -> Result<(), String> {
         let Ok(listing) = std::fs::read_dir(directory) else {
@@ -143,8 +143,8 @@ fn other_gem_chapter_entries(root: &Path) -> Result<Vec<(String, PathBuf)>, Stri
     Ok(entries)
 }
 
-// The names of the chapters the gem carries beside the framework members, found by reading each
-// file's header, so the build tells a real gem chapter from a misspelt name.
+// The names of the bluebooks the gem carries beside the framework members, found by reading each
+// file's header, so the build tells a real gem bluebook from a misspelt name.
 pub fn other_gem_chapter_names(root: &Path) -> Result<Vec<String>, String> {
     let mut names: Vec<String> = other_gem_chapter_entries(root)?
         .into_iter()
@@ -154,8 +154,8 @@ pub fn other_gem_chapter_names(root: &Path) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-// The files that declare one of the gem's other chapters, sorted, as `Hecks::Chapters` loads them,
-// then the `<snake_name>.ports.hecksagon` beside them that declares the chapter's ports.
+// The files that declare one of the gem's other bluebooks, sorted, as `Hecks::Chapters` loads them,
+// then the `<snake_name>.ports.hecksagon` beside them that declares the bluebook's ports.
 pub fn other_gem_chapter_files(root: &Path, chapter: &str) -> Result<Vec<PathBuf>, String> {
     let mut files: Vec<PathBuf> = other_gem_chapter_entries(root)?
         .into_iter()
@@ -203,7 +203,7 @@ fn resolve_json(
     let hecksagon_str = hecksagon_path.to_string_lossy().to_string();
     let out = subprocess::run_capture(
         &parser_bin_str,
-        &["resolve", "--chapter", chapter_name, &hecksagon_str],
+        &["resolve", "--bluebook", chapter_name, &hecksagon_str],
     )?;
     let json = Json::parse(&out)
         .map_err(|e| format!("parsing 'hecks-parse resolve' output: {e}\n{out}"))?;
@@ -216,7 +216,7 @@ fn resolve_json(
 }
 
 /// `/\A[a-z][a-z0-9_]*\z/` — the shape `hecks vendor` accepts for a package directory name.
-/// The name is joined into a path and, through its chapter, into a directory the build deletes,
+/// The name is joined into a path and, through its bluebook, into a directory the build deletes,
 /// so `../x` or an absolute path must never reach either.
 pub fn valid_package_name(name: &str) -> bool {
     let mut chars = name.chars();

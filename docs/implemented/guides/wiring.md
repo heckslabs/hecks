@@ -834,17 +834,17 @@ deploy kind, owns the data (Postgres by URL), so the move is a deploy choice.
 
 ### Project-wide defaults
 
-A project that attaches many chapters does not have to repeat that
-`persisted_by ... database` block in a world per chapter, nor a
-`persisted_by` line per aggregate in a hecksagon per chapter. The
+A project that attaches many bluebooks does not have to repeat that
+`persisted_by ... database` block in a world per bluebook, nor a
+`persisted_by` line per aggregate in a hecksagon per bluebook. The
 project's own world can say both once — `default_adapter "PostgresEra"`
 binds every aggregate no hecksagon binds, and `default_database "..."`
 supplies the `database` of every bound adapter that takes one — and a
-chapter's own bind or settings still win. `examples/compliance` does
+bluebook's own bind or settings still win. `examples/compliance` does
 exactly this; the [world reference](../reference/world.md) has the
 resolution order.
 
-A chapter can also come from a package of the shared bluebook registry
+A bluebook can also come from a package of the shared bluebook registry
 instead of hecks's own `lib/`: `attaches "<name>", from: :vendor` in the
 hecksagon loads the package vendored into the project, and `hecks package.vendor` pins
 one there. The [hecksagon reference](../reference/hecksagon.md#vendoring-a-package)

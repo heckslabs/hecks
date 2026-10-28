@@ -1,4 +1,4 @@
-# The Bulk chapter, bound so it boots standing alone (a fuzz or model_check boot of this directory).
+# The Bulk bluebook, bound so it boots standing alone (a fuzz or model_check boot of this directory).
 # The Rows port every attaching hecksagon shares is in bulk.ports.hecksagon.
 Hecks.hecksagon "Bulk" do
   # `Record` and `Decline` declare a role; Governance must be attached for it to be checked.

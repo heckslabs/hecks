@@ -32,11 +32,11 @@ module Hecks
         end
 
         # @param name [String] the bluebook to find; the row's first `chapter` unless given
-        # @return [Bluebook::Chapter] the bluebook the `Editor` row names, from its domain directory
+        # @return [Bluebook::Declaration] the bluebook the `Editor` row names, from its domain directory
         def domain_chapter(project, setting, name = setting.chapter)
           domain_root = File.join(project, setting.domain)
           chapter = registry_for(domain_root).bluebooks.values.find { |candidate| candidate.name == name }
-          abort "project_site: #{domain_root} declares no chapter #{name}" unless chapter
+          abort "project_site: #{domain_root} declares no bluebook #{name}" unless chapter
           chapter
         end
       end

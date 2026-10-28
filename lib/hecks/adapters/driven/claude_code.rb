@@ -30,7 +30,7 @@ module Hecks
         call(
           system:  SYSTEM_PREFIX + "Given the domain model so far and a sentence the human just said, " \
                                    "propose zero or more declarations that capture what the sentence names as domain " \
-                                   "fact. A verb must be fully qualified as Chapter::Aggregate.Command. Reply as " \
+                                   "fact. A verb must be fully qualified as Bluebook::Aggregate.Command. Reply as " \
                                    '{"proposals": [{"verb": "...", "rationale": "...", "arguments": ' \
                                    '[{"name": "...", "field": "...", "value": "..."}]}]}. If the sentence carries no ' \
                                    'declaration (a question back, a clarification), reply {"proposals": []}.',

@@ -31,7 +31,7 @@ RSpec.describe "the generated bootstrap table" do
   end
 
   # A `calls:` typo in a KeywordSeed row would otherwise surface only as a
-  # NoMethodError the first time a bootstrap chapter used that word.
+  # NoMethodError the first time a bootstrap bluebook used that word.
   # `Module#name` bound directly: some loaded modules (rubocop-ast's NodePattern
   # sets) override `name` to take an argument.
   def hecks_modules

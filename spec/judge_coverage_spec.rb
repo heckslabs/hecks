@@ -14,10 +14,10 @@ RSpec.describe "the judge's coverage of the language" do
       load_bluebook_files(InMemoryDomain::BANKING_BLUEBOOK_DIR)
     end
     @banking = registry.bluebook("Banking")
-    # Paging is the one real chapter that calls `attaches_to`, so
+    # Paging is the one real bluebook that calls `attaches_to`, so
     # `Bluebook::Bluebook.Attach` needs a second bluebook judged.
     @paging = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Paging")
-    # Governance is the one real chapter that declares `provides "authorization"`.
+    # Governance is the one real bluebook that declares `provides "authorization"`.
     @governance = Hecks::Framework.chapter("Governance")
     # "Bluebook" (the meta-grammar) is the one real user of `Entity.Holds`; judged
     # here so that verb counts as offered.
@@ -104,7 +104,7 @@ RSpec.describe "the judge's coverage of the language" do
   end
 
   # `Command.Need` and `Query.Need` are real DSL surface only a declaration that asks the runtime
-  # for a fact reaches, and no corpus chapter the judge walks declares one that way, so a small
+  # for a fact reaches, and no corpus bluebook the judge walks declares one that way, so a small
   # fixture does (ADR 0081).
   def needs_chapter
     @needs_chapter ||= Hecks::Bluebook::DSL::BluebookBuilder.build("NeedsCoverage", &clocked_aggregate)
@@ -152,7 +152,7 @@ RSpec.describe "the judge's coverage of the language" do
   end
 
   # Banking carries every query and read_model option itself, so no union with
-  # another chapter is needed for `Query.Option` and `ReadModel.Option`.
+  # another bluebook is needed for `Query.Option` and `ReadModel.Option`.
   def offered_verbs
     [banking, paging, grammar, relationships, governance, needs_chapter, marks_chapter]
       .flat_map { |chapter| offered_in_order(chapter) }

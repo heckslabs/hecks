@@ -1,7 +1,7 @@
 require "spec_helper"
 require "json"
 
-# `hecks deploy cost_check.check` end to end: the Deploy chapter's CostCheck asks the CostExplorer
+# `hecks deploy cost_check.check` end to end: the Deploy bluebook's CostCheck asks the CostExplorer
 # port, the Hecks domain binds its adapter, and the answer or the refusal is recorded on the check.
 # `aws` is stubbed, so the readings here are what the stub returns and nothing reaches AWS.
 RSpec.describe "the Deploy chapter's CostCheck" do
@@ -27,7 +27,7 @@ RSpec.describe "the Deploy chapter's CostCheck" do
     [JSON.parse(out), status]
   end
 
-  it "is declared in the Deploy chapter, with the CostExplorer port it asks" do
+  it "is declared in the Deploy bluebook, with the CostExplorer port it asks" do
     bluebook = @hecks.registry.bluebook("Deploy")
 
     expect(bluebook.aggregate("CostCheck").commands.map(&:hecks_name)).to eq(%w[Check Pass Flag])

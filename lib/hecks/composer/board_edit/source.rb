@@ -48,7 +48,7 @@ module Hecks
         # @raise [Refused] if no file declares the bluebook
         def chapter
           file = @lines.keys.sort.find { |path| @lines[path].any? { |line| line.match?(CHAPTER_HEADER) } }
-          raise Refused, "no file declares the chapter" unless file
+          raise Refused, "no file declares the bluebook" unless file
 
           { file: file, line: @lines[file].index { |line| line.match?(CHAPTER_HEADER) } + 1 }
         end

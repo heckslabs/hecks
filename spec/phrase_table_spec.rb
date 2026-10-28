@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/rust_format"
 
-# Fails when rust/parser/src/phrases.rs drifts from the Sentence chapter's PhraseSeed rows:
+# Fails when rust/parser/src/phrases.rs drifts from the Sentence bluebook's PhraseSeed rows:
 # regenerates the file in memory and compares it with the committed one.
 RSpec.describe "the generated sentence table" do
   let(:committed_path) { File.expand_path("../rust/parser/src/phrases.rs", __dir__) }

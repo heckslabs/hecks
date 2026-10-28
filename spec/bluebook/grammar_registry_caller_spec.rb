@@ -5,8 +5,8 @@ require "tmpdir"
 
 # The language's grammar is built once per process, by whichever code asks for it first. A caller
 # bound by an enclosing `Hecks.as_caller` must not reach the language's own `Language`-role
-# commands: they would be refused, and the grammar would be memoized without the chapters those
-# refusals dropped (the Paging chapter, so no `limit`), for every boot after it in that process.
+# commands: they would be refused, and the grammar would be memoized without the bluebooks those
+# refusals dropped (the Paging bluebook, so no `limit`), for every boot after it in that process.
 # A fresh interpreter with cold caches is the only place the first build can be observed.
 RSpec.describe "the grammar built while a caller is bound" do
   # The program that asks for the grammar for the first time inside `as_caller` and prints what it
@@ -30,7 +30,7 @@ RSpec.describe "the grammar built while a caller is bound" do
     end
   end
 
-  it "holds every chapter and the words they admit, as when no caller is bound", :aggregate_failures, :process do
+  it "holds every bluebook and the words they admit, as when no caller is bound", :aggregate_failures, :process do
     out, err, status = run_with_cold_caches(first_build_script("Customer"))
 
     expect(status).to be_success, err

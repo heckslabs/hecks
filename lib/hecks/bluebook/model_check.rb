@@ -5,10 +5,12 @@ require_relative "model_check/lifecycle_checks"
 require_relative "model_check/saga_checks"
 require_relative "model_check/policy_checks"
 require_relative "model_check/context_checks"
+require_relative "model_check/context_map_checks"
 require_relative "model_check/ask_checks"
 require_relative "model_check/reference_checks"
 require_relative "model_check/orphan_checks"
 require_relative "model_check/one_of_checks"
+require_relative "model_check/aggregate_checks"
 require_relative "model_check/verbs"
 
 module Hecks
@@ -35,7 +37,6 @@ module Hecks
         rust_target: false, strict: false
       }.freeze
 
-      extend LifecycleChecks
       extend SagaChecks
       extend PolicyChecks
       extend ContextChecks
@@ -43,13 +44,14 @@ module Hecks
       extend ReferenceChecks
       extend OrphanChecks
       extend OneOfChecks
+      extend AggregateChecks
       extend Verbs
 
       module_function
 
       # Runs every static model check over `bluebook` and returns what it finds.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+      # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
       # @param profile [Symbol, nil] :client adds ClientProfile's error findings
       # @param context [Hash] the rest of what one corpus scan knows, each key optional:
       #   `hecksagon` (this bluebook's own sibling wiring file, if the caller loaded one),
@@ -70,11 +72,12 @@ module Hecks
         findings
       end
 
-      # Lifecycles, sagas, policies and references: what the model says about itself.
+      # Lifecycles, sagas, policies, references and aggregate size: what the model says about itself.
       def modelled_findings(bluebook, options)
         [
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
           *reference_findings(bluebook),
+          *large_aggregate_findings(bluebook),
           *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
           *reaction_findings(bluebook, options),
           *unused_ask_findings(bluebook)
@@ -111,7 +114,7 @@ module Hecks
       # Flags a query the hecksagon binds to a port's adapter. Only the Ruby runtime asks an
       # adapter for an answer; a Rust host would find nothing behind the query.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled bluebook, its hecksagon's ports attached
+      # @param bluebook [Bluebook::Declaration] the assembled bluebook, its hecksagon's ports attached
       # @param rust_target [Boolean] whether this domain has a real Rust target; a domain without
       #   one is not checked, since nothing but the Ruby runtime serves it
       # @return [Array<Finding>] one :external_query error per bound query, none off a Rust target

@@ -192,7 +192,7 @@ stable enough signal to publish or gate on.
 | `hecks stores lib/hecks/hecks` (boots the Hecks domain) | about 22 s | about 0.77 s |
 | `require "hecks"` alone | not applicable | about 0.18 s |
 
-"Cold" is a fresh `XDG_CACHE_HOME`; "warm" is the next run. The cold run judges every chapter of the language and the chapters Hecks
+"Cold" is a fresh `XDG_CACHE_HOME`; "warm" is the next run. The cold run judges every bluebook of the language and the bluebooks Hecks
 attaches (`MetaValidator::VerdictCache` stores the verdicts; `HECKS_VERDICT_CACHE=off` turns it off).
 
 What decides cold or warm: the cache file's name carries a digest of every file under `lib/`, the Ruby and Hecks versions and the

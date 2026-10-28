@@ -1,4 +1,4 @@
-# The port Tickets declares, for every hecksagon that attaches the chapter (`Chapters` loads this
+# The port Tickets declares, for every hecksagon that attaches the bluebook (`Chapters` loads this
 # file with it). Each lifecycle event of a finding asks the GitHubIssues port, which the Hecks domain
 # binds (lib/hecks/hecks/adapters/finding_github.rb): the outside a finding reaches. The ask is
 # answered with the record's own arguments or refused with a reason, and a refusal is recorded on the

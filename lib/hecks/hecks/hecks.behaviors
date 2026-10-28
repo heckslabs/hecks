@@ -1,7 +1,7 @@
 Hecks.behaviors "Hecks" do
   vision "A release moves tagged, published, verified; the grammar cache moves fresh, stale, fresh."
 
-  loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "rehearsal.bluebook", "codebase.bluebook", "ledger.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
+  loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "rehearsal.bluebook", "agents.bluebook", "codebase.bluebook", "ledger.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
 
   test "Tag records a version as tagged" do
     tests "Tag", on: "Release"
@@ -10,7 +10,7 @@ Hecks.behaviors "Hecks" do
   end
 
   test "MarkPublished advances a tagged release" do
-    # The setup is spelled in full: the attached QualityControl chapter also has a `Tag` command.
+    # The setup is spelled in full: the attached QualityControl bluebook also has a `Tag` command.
     tests "MarkPublished", on: "Release"
     setup  "Hecks::Release.Tag", version: { value: "3.0.0" }, ir_version: { value: "1.0.0" }, ships_from: { path: "/work/hecks" }
     input  version: { value: "3.0.0" }

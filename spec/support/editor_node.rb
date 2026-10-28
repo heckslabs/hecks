@@ -96,7 +96,7 @@ module EditorNode
     @results ||= run(files)
   end
 
-  # The results of the scenario for a chapter with no picture aggregate; the block gives its files.
+  # The results of the scenario for a bluebook with no picture aggregate; the block gives its files.
   def bare_results
     @bare_results ||= run(yield, EDITOR_BARE_SCENARIO)
   end

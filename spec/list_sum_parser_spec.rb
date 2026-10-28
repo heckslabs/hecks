@@ -38,7 +38,7 @@ RSpec.describe "a sum over a list, read by hecks-parse", :io do
   let(:binary) { File.expand_path("../rust/parser/target/debug/hecks-parse", __dir__) }
   let(:scratch) { Dir.mktmpdir }
   let(:path) { File.join(scratch, "cart.bluebook").tap { |file| File.write(file, CART_WITH_SUM) } }
-  let(:read) { Open3.capture3(binary, "chapter", "--chapter", "Cart", path) }
+  let(:read) { Open3.capture3(binary, "bluebook", "--bluebook", "Cart", path) }
 
   before { skip "build rust/parser first" unless File.exist?(binary) }
 

@@ -140,7 +140,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
                     .freeze
 
     def self.run_chapter(*paths)
-      Open3.capture3(GRAMMAR_BINARY, "chapter", "--chapter", "GrammarCorpusHost", *paths)
+      Open3.capture3(GRAMMAR_BINARY, "bluebook", "--bluebook", "GrammarCorpusHost", *paths)
     end
 
     # The host bluebook with the fixture's own name and canonical text filled in.
@@ -156,7 +156,7 @@ RSpec.describe "the Bluebook expression grammar (docs/semantics/bluebook-grammar
         File.write(bluebook_path, host_source(path, fixture))
 
         stdout, stderr, status = run_chapter(bluebook_path)
-        next [nil, "hecks-parse chapter failed:\n#{stderr}\n#{stdout}"] unless status.success?
+        next [nil, "hecks-parse bluebook failed:\n#{stderr}\n#{stdout}"] unless status.success?
 
         [JSON.parse(stdout).fetch("aggregates").first.fetch("commands").first.fetch("givens").first.fetch("ast"), nil]
       end

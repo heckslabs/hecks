@@ -30,7 +30,7 @@ pub(super) async fn newsletter_route(
     let Host {
         store, wasm_path, ..
     } = host;
-    // The chapter that declares `provides "newsletter"` names the verbs
+    // The bluebook that declares `provides "newsletter"` names the verbs
     // and the subscribing aggregate; a domain that attaches none serves
     // none of these routes.
     let provider = ir().and_then(newsletter_provider)?;
@@ -175,7 +175,7 @@ fn naming_window() -> &'static naming::NamingWindow {
 }
 
 // Reads directly off `instances`, not `dispatch::query`: Subscriber lives
-// under the Newsletter chapter, not `config.domain`, so the qualified
+// under the Newsletter bluebook, not `config.domain`, so the qualified
 // question name would not resolve there.
 async fn newsletter_subscribers_list_route(
     provider: &NewsletterProvider,

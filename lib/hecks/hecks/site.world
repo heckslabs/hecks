@@ -1,6 +1,6 @@
-# The Site chapter's launcher when the Hecks domain attaches it: `hecks site <verb>` reads the
-# world named for the chapter, as `deploy.world` does for the Deploy chapter. Its store is not set
-# here: the chapter takes the one the Hecks domain gives the chapters it attaches.
+# The Site bluebook's launcher when the Hecks domain attaches it: `hecks site <verb>` reads the
+# world named for the bluebook, as `deploy.world` does for the Deploy bluebook. Its store is not set
+# here: the bluebook takes the one the Hecks domain gives the bluebooks it attaches.
 #
 # `run_keys` mints the `run` key of a projection, and `--wait` reports a faulted projection (a
 # routes.ts out of date under `--check`, or a route table the projector refused) as exit 1, and

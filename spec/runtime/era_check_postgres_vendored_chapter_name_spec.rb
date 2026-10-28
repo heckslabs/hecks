@@ -5,15 +5,15 @@ require_relative "../support/postgres_probe"
 require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
 
-# Pins a fix: a vendored package whose chapter is not the Pascal-cased package name (package
+# Pins a fix: a vendored package whose bluebook is not the Pascal-cased package name (package
 # `note` declaring `Notes`) had no source found for its era-1 mint, so the single-file fallback
-# stamped the host domain's own text under the chapter's name and the next boot refused.
-RSpec.describe "PostgresEra era-1 minting for a vendored chapter named unlike its package", :io do
+# stamped the host domain's own text under the bluebook's name and the next boot refused.
+RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike its package", :io do
   CHAPTER_NAME_DB = "hecks_era_vendored_chapter_name_spec".freeze
 
   CHAPTER_NAME_TARGET = <<~BLUEBOOK.freeze
     Hecks.bluebook "Target" do
-      vision "the domain that attaches a vendored chapter named unlike its package"
+      vision "the domain that attaches a vendored bluebook named unlike its package"
       core
 
       aggregate "Widget" do
@@ -43,8 +43,8 @@ RSpec.describe "PostgresEra era-1 minting for a vendored chapter named unlike it
   CHAPTER_NAME_NOTES = CHAPTER_NAME_TARGET
                        .sub('"Target"', '"Notes"').sub("Widget", "Note").sub("widget", "note")
                        .sub("WidgetMade", "NoteWritten").sub('"Make"', '"Write"')
-                       .sub("the domain that attaches a vendored chapter named unlike its package",
-                            "a vendored chapter whose name is not its package's Pascal-cased name")
+                       .sub("the domain that attaches a vendored bluebook named unlike its package",
+                            "a vendored bluebook whose name is not its package's Pascal-cased name")
 
   CHAPTER_NAME_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Target" do

@@ -9,6 +9,8 @@ require_relative "gate"
 require_relative "style"
 require_relative "inspection"
 require_relative "search"
+require_relative "reading"
+require_relative "generated_keys"
 require_relative "codemods"
 require_relative "test_suite"
 require_relative "corpus_tasks"
@@ -85,6 +87,24 @@ module Hecks
         { text: Codebase::Search.report(args.transform_values { |value| plain(value) }, tree) }
       end
 
+      # @param args [Hash] the query's arguments: `path`, `from`, `to`, `top`
+      # @return [Hash] `text:` the numbered lines of the file, one `line: text` row each
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the path is not a readable text file of the checkout
+      def read_source(**args) = { text: reading(:read, args) }
+
+      # @param args [Hash] the query's argument: `path`
+      # @return [Hash] `text:` what the file declares, one `from-to: kind name` row each
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when the path is not a readable text file of the checkout
+      def outline(**args) = { text: reading(:outline, args) }
+
+      # @param args [Hash] the query's arguments: `name`, `kind`, `paths`, `show`
+      # @return [Hash] `text:` where the named construct is declared, one `path:from-to` row each
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when nothing by that name is declared
+      def declaration(**args) = { text: reading(:declaration, args) }
+
       # @return [Hash] `text:` where every word of the language stands
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       def word_status(**)
@@ -156,11 +176,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when a name is not a domain, listing the valid ones
       def generated_key(**args)
         tree.require_checkout!
-        plain_args = args.transform_values { |value| plain(value) }
-        names = plain_args[:domains]&.split(",")
-        { text: Corpus::GeneratedKey.report(names, files: plain_args[:files] == true, root: tree.root) }
-      rescue Corpus::UnknownDomain => e
-        raise ConsoleCapture::Failure, e.message
+        { text: Codebase::GeneratedKeys.report(args.transform_values { |value| plain(value) }, tree) }
       end
 
       # @param args [Hash] the query's arguments: `names`
@@ -191,6 +207,11 @@ module Hecks
         tree.require_checkout!
         plain_args = args.transform_values { |value| plain(value) }
         Codebase::TestSuite.report(operation, plain_args, tree, shell: self.class.shell)
+      end
+
+      def reading(operation, args)
+        tree.require_checkout!
+        Codebase::Reading.public_send(operation, args.transform_values { |value| plain(value) }, tree)
       end
 
       def corpus(operation, args)

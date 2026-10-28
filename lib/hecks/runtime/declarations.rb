@@ -8,7 +8,7 @@ module Hecks
     module Declarations
       # Every loaded bluebook, by name.
       #
-      # @return [Hash{String => Bluebook::Chapter}] the loaded bluebooks, keyed by name
+      # @return [Hash{String => Bluebook::Declaration}] the loaded bluebooks, keyed by name
       def bluebooks = registry.bluebooks
 
       # Exposes one loaded domain's bluebook.
@@ -19,7 +19,7 @@ module Hecks
 
       # The first bluebook loaded: a one-domain boot's own bluebook.
       #
-      # @return [Bluebook::Chapter, nil] the first loaded bluebook, or nil when none loaded
+      # @return [Bluebook::Declaration, nil] the first loaded bluebook, or nil when none loaded
       def first_bluebook = registry.first_bluebook
 
       # Answers whether a domain was loaded as a bounded bluebook.

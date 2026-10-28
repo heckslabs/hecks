@@ -221,7 +221,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       expect(banking[:usage]).to include("freeze")
     end
 
-    # A chapter with several aggregates reads as a table of contents: a heading per aggregate, its
+    # A bluebook with several aggregates reads as a table of contents: a heading per aggregate, its
     # commands beneath it, instead of one flat list in declaration order.
     it "groups the commands and questions under a heading per aggregate", :aggregate_failures do
       usage = banking[:usage]
@@ -264,7 +264,7 @@ RSpec.describe Hecks::Projector::CliProjector do
         .to eq("Pizza.make!")
     end
 
-    it "lists a command the chapter gave a short name by its real name, and says the short name", :aggregate_failures do
+    it "lists a command the bluebook gave a short name by its real name, and says the short name", :aggregate_failures do
       spec = { kind: :command, short: "mcp", short_was: "launch.serve_mcp", group: "Launch" }
 
       expect(described_class.send(:entry_name, spec, true)).to eq("serve_mcp!")
@@ -330,11 +330,11 @@ RSpec.describe Hecks::Projector::CliProjector do
         expect(banking[:usage]).not_to include("--maintainer")
       end
 
-      it "points at the chapters it is given, one line each, cut to a line", :aggregate_failures do
+      it "points at the bluebooks it is given, one line each, cut to a line", :aggregate_failures do
         chapters = [["deploy", "Ship it."], ["tenancy", "word " * 40]]
         usage = described_class.call(bluebook: banking_bluebook, options: { program: "hecks", chapters: chapters })[:usage]
 
-        expect(usage).to include("chapters (`hecks <chapter>` lists a chapter's own commands and queries):")
+        expect(usage).to include("bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):")
         expect(usage).to match(/^  deploy   Ship it\.$/)
         expect(usage).to match(/^  tenancy  word word.*word…$/)
       end

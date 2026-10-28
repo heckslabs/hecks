@@ -63,13 +63,8 @@ module Hecks
       # @raise [Runtime::NotFound] if the domain cannot be found
       def stores(domain:)
         registry = boot(domain).registry
-        stores = registry.bluebooks.each_with_object({}) do |(name, bluebook), all|
-          bluebook.aggregates.each do |aggregate|
-            all[aggregate.storage_name] = CLI::Stores.data_for(registry.repository(name, aggregate))
-          end
-        end
-
-        report(JSON.generate(stores))
+        CLI::PersistenceNotice.announce(registry, program: "hecks stores")
+        report(JSON.generate(CLI::Stores.stores_of(registry)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -77,7 +72,9 @@ module Hecks
       #   hold, as JSON
       # @raise [Runtime::NotFound] if the domain cannot be found
       def history(domain:)
-        report(JSON.generate(CLI::History.document(boot(domain).registry)))
+        registry = boot(domain).registry
+        CLI::PersistenceNotice.announce(registry, program: "hecks history")
+        report(JSON.generate(CLI::History.document(registry)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -196,7 +193,7 @@ module Hecks
       end
 
       def chapter_in(runtime, name)
-        runtime.bluebook(name) or raise Runtime::NotFound, "no chapter named #{name}"
+        runtime.bluebook(name) or raise Runtime::NotFound, "no bluebook named #{name}"
       end
 
       # The domain's own bluebook, not a framework member it attached: insertion order.

@@ -38,7 +38,7 @@ module Hecks
 
         module_function
 
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @param options [Hash{Symbol => Object}] unused
         # @return [Hash{String => String}] each file's path relative to the project root to its
         #   text;

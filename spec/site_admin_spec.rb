@@ -127,7 +127,7 @@ ADMIN_NODE_SSO_SCRIPT = <<~JS.freeze
   console.log(JSON.stringify({ signed, none, refused: await admin.ssoRedirect("abc") }));
 JS
 
-# The admin sign-in module a project gets when its chapter declares an `Admin` row. The sample is
+# The admin sign-in module a project gets when its bluebook declares an `Admin` row. The sample is
 # spec/fixtures/site/members; its golden sits in spec/fixtures/site/members/expected
 # (`GOLDEN=rewrite` regenerates it, to be read in the diff).
 # Stands in for `@hecks/client` beside the generated membership module: the token is the
@@ -184,7 +184,7 @@ RSpec.describe "the admin sign-in module" do
 
   def admin_ts(project = members) = projected(project).fetch("/work/out/admin.ts")
 
-  # A copy of the members project whose route chapter is changed by the block, given its text.
+  # A copy of the members project whose route bluebook is changed by the block, given its text.
   def edited_members
     dir = File.join(work, "project")
     FileUtils.cp_r(members, dir)
@@ -594,10 +594,10 @@ RSpec.describe "the admin sign-in module" do
       expect(refusal(dir, root_dir: root_for_domain)).to include("is upload and needs a relation")
     end
 
-    it "is refused when the domain has no such chapter" do
+    it "is refused when the domain has no such bluebook" do
       dir = edited_members { |text| text.sub('chapter: "Club"', 'chapter: "Elsewhere"') }
 
-      expect(refusal(dir, root_dir: root_for_domain)).to include("declares no chapter Elsewhere")
+      expect(refusal(dir, root_dir: root_for_domain)).to include("declares no bluebook Elsewhere")
     end
 
     it "installs with the command the row names, enabling corepack first for yarn", :aggregate_failures do

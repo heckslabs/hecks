@@ -7,7 +7,7 @@ require_relative "memory_ports"
 # for it, so a spec can test the interpreter without the grammar's admission rules in the way.
 module InlineBluebookBoot
   # @param source [String] the bluebook text
-  # @param hecksagon_name [String] the chapter whose ports the block binds
+  # @param hecksagon_name [String] the bluebook whose ports the block binds
   # @param validate [Boolean] whether the Judge runs while the source loads
   # @param root [String, nil] the registry's root directory, for an adapter that writes files
   # @param adapters [Array<String>] adapter files to load after the memory stack

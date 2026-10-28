@@ -32,7 +32,7 @@ module Hecks
     # One member's bluebook, built in isolation.
     #
     # @param name [String, Symbol] the member's name, such as `"Governance"`
-    # @return [Bluebook::Chapter] the member's bluebook, loaded into a scratch registry
+    # @return [Bluebook::Declaration] the member's bluebook, loaded into a scratch registry
     # @raise [Runtime::WiringError] if no framework member has that name
     def self.chapter(name)
       path = members.fetch(name.to_s) do
@@ -78,6 +78,21 @@ module Hecks
       return if Hecks.current_registry.bluebook(name.to_s)
 
       SentenceForm.load_file(path)
+      load_wiring(path)
     end
+
+    # Loads what a member ships beside its bluebook, as {Chapters} does for the bluebooks it
+    # carries: `<name>.ports.hecksagon` (the ports it declares) and `<name>.*.adapter` (the
+    # adapters binding them). A member with neither loads exactly the bluebook, as before.
+    #
+    # @param path [String] the member's bluebook file
+    # @return [void]
+    def self.load_wiring(path)
+      stem = File.join(File.dirname(path), File.basename(path, ".bluebook"))
+      ports = "#{stem}.ports.hecksagon"
+      Kernel.load(ports) if File.file?(ports)
+      Dir.glob("#{stem}.*.adapter").each { |adapter| Kernel.load(adapter) }
+    end
+    private_class_method :load_wiring
   end
 end

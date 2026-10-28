@@ -1,4 +1,4 @@
-//! The `Bluebook` construct and the driver for `hecks-parse chapter`.
+//! The `Bluebook` construct and the driver for `hecks-parse bluebook`.
 //! Parses each `.bluebook` file into one `ir::Bluebook`, then applies `.hecksagon` files onto it.
 
 use super::{aggregate, command, entity, policy, process_manager, read_model};
@@ -10,19 +10,19 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Bluebook.{word}"))
 }
 
-/// Parses one chapter across one or more `.bluebook` files plus any `.hecksagon` files.
+/// Parses one bluebook across one or more `.bluebook` files plus any `.hecksagon` files.
 /// Stops at the first diagnostic, whichever file it comes from.
 pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
     if files.is_empty() {
         return Err(Diagnostic::new(
             "<none>",
             0,
-            "hecks-parse chapter requires at least one file",
+            "hecks-parse bluebook requires at least one file",
         ));
     }
 
-    // A chapter written as sentences is read by the sentence front end; the Ruby-shaped grammar
-    // below never sees it. The two forms do not mix inside one chapter.
+    // A bluebook written as sentences is read by the sentence front end; the Ruby-shaped grammar
+    // below never sees it. The two forms do not mix inside one bluebook.
     let sentence_files: Vec<&(String, String)> = files
         .iter()
         .filter(|(_, source)| crate::sentence::is_sentence_form(source))
@@ -42,7 +42,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             return Err(Diagnostic::not_yet_implemented(
                 path,
                 1,
-                "a .hecksagon beside a chapter written as sentences",
+                "a .hecksagon beside a bluebook written as sentences",
             ));
         }
         let owned: Vec<(String, String)> = sentence_files.into_iter().cloned().collect();
@@ -78,7 +78,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                 return Err(Diagnostic::new(
                     path,
                     header_line,
-                    format!("--chapter {chapter_name} was requested, but this file declares '{declared_name}'"),
+                    format!("--bluebook {chapter_name} was requested, but this file declares '{declared_name}'"),
                 ));
             }
         }
@@ -125,7 +125,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                 return Err(Diagnostic::new(
                     path,
                     header_line,
-                    format!("hecks-parse chapter reads .bluebook/.hecksagon files ('bluebook'/'hecksagon'); got '{}' (inner context '{other}')", call.word),
+                    format!("hecks-parse bluebook reads .bluebook/.hecksagon files ('bluebook'/'hecksagon'); got '{}' (inner context '{other}')", call.word),
                 ));
             }
         }
@@ -135,7 +135,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         Diagnostic::new(
             "<none>",
             0,
-            format!("no .bluebook file given for chapter '{chapter_name}'"),
+            format!("no .bluebook file given for bluebook '{chapter_name}'"),
         )
     })?;
 
@@ -330,7 +330,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     Ok(bluebook)
 }
 
-/// Lists the chapters `<Name>`'s block pulls in via `attaches` (or its deprecated spellings).
+/// Lists the bluebooks `<Name>`'s block pulls in via `attaches` (or its deprecated spellings).
 /// Every block is still gated; the IR accumulator is a throwaway.
 pub fn resolve_hecksagon_dependencies(
     chapter_name: &str,
@@ -412,7 +412,7 @@ fn parse_body_into(
     pending_chapter_entity_givens: &mut Vec<(usize, entity::PendingChapterEntityGiven)>,
     pending_entity_command_givens: &mut Vec<(usize, entity::PendingEntityCommandGiven)>,
 ) -> ParseResult<()> {
-    // The given pool spans the whole chapter, not one file: a later concept file may reference
+    // The given pool spans the whole bluebook, not one file: a later concept file may reference
     // a named given an earlier one declared. Entries are (owner aggregate name, `Given`).
     while let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? {
         let line = gated.line.number;

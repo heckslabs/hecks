@@ -1,5 +1,5 @@
 //! `hecks-lsp`: a minimal stdio language server for `.bluebook`/`.hecksagon` files.
-//! Publishes diagnostics from `hecks-parse chapter` and serves document symbols and definitions.
+//! Publishes diagnostics from `hecks-parse bluebook` and serves document symbols and definitions.
 
 mod diagnostics;
 mod json;
@@ -285,7 +285,7 @@ impl Server {
     }
 
     /// Resolves the identifier under the cursor to its declaration in this buffer,
-    /// then in sibling `.bluebook`/`.hecksagon` files, since a chapter spans several files.
+    /// then in sibling `.bluebook`/`.hecksagon` files, since a bluebook spans several files.
     fn find_definition(&self, message: &Json) -> Option<Json> {
         let params = message.get("params")?;
         let uri = params.get("textDocument")?.get("uri")?.as_str()?;

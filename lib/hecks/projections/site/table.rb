@@ -37,21 +37,21 @@ module Hecks
         # Finds the one bluebook of a project that declares the route table.
         #
         # @param registry [Runtime::Registry] the registry the project booted into
-        # @return [Bluebook::Chapter] the bluebook holding the `Route` value object with member rows
+        # @return [Bluebook::Declaration] the bluebook holding the `Route` value object with member rows
         # @raise [Invalid] when no bluebook, or more than one, declares one
         def self.chapter(registry)
           chapters = registry.bluebooks.values
           holders = chapters.reject { |chapter| chapter.name == "Site" }.select { |chapter| rows_of(chapter).any? }
-          raise Invalid, "no chapter declares a value_object \"#{ROW_OBJECT}\" with member rows" if holders.empty?
+          raise Invalid, "no bluebook declares a value_object \"#{ROW_OBJECT}\" with member rows" if holders.empty?
           return holders.first if holders.one?
 
-          raise Invalid, "#{holders.size} chapters declare a value_object \"#{ROW_OBJECT}\": " \
+          raise Invalid, "#{holders.size} bluebooks declare a value_object \"#{ROW_OBJECT}\": " \
                          "#{holders.map(&:name).join(", ")}; a project has one route table"
         end
 
         # Reads and checks one bluebook's route table.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the rows
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the rows
         # @param registry [Runtime::Registry] the registry the project booted into: it holds the
         #   Site bluebook and, for a `command:` or `query:` source, the command or query
         # @return [Table] the checked table
@@ -68,7 +68,7 @@ module Hecks
         # @raise [Invalid] when the registry does not hold the Site bluebook
         def self.vocabulary(registry)
           site = registry.bluebook("Site") or
-            raise Invalid, "the project does not attach the Site chapter (attaches \"Site\")"
+            raise Invalid, "the project does not attach the Site bluebook (attaches \"Site\")"
           route = site.aggregate("Route")
           members = lambda do |name|
             closed_set = route.value_objects.find { |object| object.hecks_name == name }
@@ -78,7 +78,7 @@ module Hecks
           closed.merge(http_method: members.call("HttpMethod"), edge_function_kind: members.call("EdgeFunctionKind"))
         end
 
-        # @param bluebook [Bluebook::Chapter] a bluebook to search
+        # @param bluebook [Bluebook::Declaration] a bluebook to search
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
         def self.rows_of(chapter, object = ROW_OBJECT)

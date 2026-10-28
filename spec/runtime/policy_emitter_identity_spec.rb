@@ -144,4 +144,67 @@ RSpec.describe "a policy projecting its emitter's identity" do
     expect { boot_board({ label: :board_name, id: :id }) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /reads :board_name off "PieceCaptured", which does not declare it/)
   end
+
+  # A two-field identity whose event carries neither field by the name `id`: the policy can
+  # hand the whole of it to another aggregate only by reading `:id` (ADR 0144).
+  # rubocop:disable-next Metrics/AbcSize
+  # rubocop:disable-next Metrics/MethodLength
+  def boot_id_reader
+    registry = Hecks::Runtime::Registry.new
+
+    Hecks.with_registry(registry) do
+      MemoryPorts.load!
+
+      Hecks.bluebook "Ids" do
+        aggregate "Slot" do
+          attribute :row,  Row
+          attribute :seat, Seat
+          identified_by :row, :seat
+          value_object("Row")  { attribute :value, String }
+          value_object("Seat") { attribute :value, String }
+
+          command "Take" do
+            attribute :row, Row
+            attribute :seat, Seat
+            sets :row
+            sets :seat
+            emits "SlotTaken"
+          end
+        end
+
+        aggregate "Note" do
+          attribute :key, Key
+          identified_by :key
+          value_object("Key") { attribute :value, String }
+
+          command "Write" do
+            attribute :key, Key
+            sets :key
+            emits "NoteWritten"
+          end
+        end
+
+        policy "NoteTheSlot" do
+          on      "SlotTaken"
+          trigger Note::Write, with: { key: :id }
+        end
+      end
+
+      Hecks.hecksagon("Ids") do
+        Ids::Slot.persisted_by("Memory")
+        Ids::Note.persisted_by("Memory")
+      end
+    end
+
+    registry.verify!
+    Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  end
+
+  it "reads a composite identity whole as :id, joined by a colon", :aggregate_failures do
+    runtime = boot_id_reader
+    runtime.dispatch_flat("Ids::Slot.Take", row: { value: "A" }, seat: { value: "7" })
+
+    expect(runtime.reactions.find { |row| row[:policy] == "NoteTheSlot" }).to include(delivered: true)
+    expect(Ids::Note.find("A:7")).not_to be_nil
+  end
 end

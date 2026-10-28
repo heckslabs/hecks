@@ -1,6 +1,6 @@
 Hecks.world "Banking" do
   realm "Examples"
-  # (ADR 0025) Restates the chapter's own `version: "v1"` pin on the
+  # (ADR 0025) Restates the bluebook's own `version: "v1"` pin on the
   # world, so an unversioned FQN resolves to it here too.
   latest "v1"
   persisted_by("Heki") do

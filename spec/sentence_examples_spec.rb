@@ -27,7 +27,7 @@ RSpec.describe "examples written as sentences", :io do
 
   after { FileUtils.remove_entry(scratch) }
 
-  # Runs the Page examples from the scratch directory, beside the Page chapter, with `replace`
+  # Runs the Page examples from the scratch directory, beside the Page bluebook, with `replace`
   # swapped for `with` in their text.
   def run_changed(replace = nil, with = nil)
     FileUtils.cp(File.join(FIXTURE_DIR, "sentence_form.bluebook"), File.join(scratch, "page.bluebook"))
@@ -108,7 +108,7 @@ RSpec.describe "examples written as sentences", :io do
     end
   end
 
-  it "says so when no chapter file stands beside the examples" do
+  it "says so when no bluebook file stands beside the examples" do
     path = File.join(scratch, "orphan.examples")
     File.write(path, "Examples for: Cms\n")
 

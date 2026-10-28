@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# The translation chapter's Rule.Kind closed set must equal the rule vocabulary the DSL admits,
+# The translation bluebook's Rule.Kind closed set must equal the rule vocabulary the DSL admits,
 # the same drift gate vocabulary_conformance_spec.rb applies to every other closed set.
 RSpec.describe "the declared translation rule kinds" do
   def self.declared_kinds

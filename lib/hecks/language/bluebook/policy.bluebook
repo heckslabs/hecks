@@ -4,11 +4,11 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Bluebook
 
-    # The chapter it belongs to, and its name; a policy hangs off the chapter, not an aggregate.
+    # The bluebook it belongs to, and its name; a policy hangs off the bluebook, not an aggregate.
     identified_by :bluebook, :name
 
     attribute :name,            PolicyName
-    # The head that declared it, empty for a reaction the chapter owns. Where it was written is a
+    # The head that declared it, empty for a reaction the bluebook owns. Where it was written is a
     # fact about the source, which the language holds; Aggregate#to_h does not carry it.
     attribute :aggregate,       PolicyText
     attribute :on_event,        PolicyText
@@ -60,7 +60,7 @@ Hecks.bluebook "Bluebook" do
     end
     command "Declare" do
       role "Language"
-      goal "Declare a policy on a chapter"
+      goal "Declare a policy on a bluebook"
 
       reference_to Bluebook
       attribute :name,            PolicyName

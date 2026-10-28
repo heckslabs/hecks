@@ -1,5 +1,5 @@
 Hecks.behaviors "Bluebook" do
-  vision "A policy hangs off a chapter and names the event it watches; an unnamed policy is refused."
+  vision "A policy hangs off a bluebook and names the event it watches; an unnamed policy is refused."
 
   loads "bluebook.bluebook", "policy.bluebook", "bluebook.hecksagon"
 

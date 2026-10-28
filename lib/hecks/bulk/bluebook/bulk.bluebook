@@ -1,7 +1,7 @@
 # The Bulk chapter: one command sent to every row one query answers, and what each row did with it
 # (ADR 0125). A domain attaches it with `attaches "Bulk"`.
 #
-# The sweep itself is the Rows port's: the chapter says a run was asked for, what it ran over and
+# The sweep itself is the Rows port's: the bluebook says a run was asked for, what it ran over and
 # how each row came out, and never which store or adapter did the work. The adapter that answers
 # the port sends the command through the same row sweep a `for_each` policy uses, one row at a
 # time, under the authority of whoever asked for the run.
@@ -16,7 +16,6 @@ Hecks.bluebook "Bulk" do
     attribute :verb,      VerbName
     attribute :over,      QueryName
     attribute :arguments, list_of(Argument),  optional: true
-    attribute :mode,      Mode
     attribute :results,   list_of(RowResult), optional: true
     attribute :refusal,   Report,             optional: true
     identified_by :run
@@ -44,12 +43,6 @@ Hecks.bluebook "Bulk" do
       attribute :value, String
     end
 
-    # `best_effort` sends every row and keeps each outcome; `all_or_nothing` sends every row or
-    # none, inside one transaction of a store that can roll back.
-    value_object "Mode" do
-      attribute :value, String, one_of: ["best_effort", "all_or_nothing"]
-    end
-
     # How one row came out: the row's identity, whether the command was delivered or refused, and
     # the refusal's message when it was refused.
     value_object "RowResult" do
@@ -69,19 +62,12 @@ Hecks.bluebook "Bulk" do
     end
 
     command "Request" do
-      goal "Send one command to every row a query answers, in one of the two modes"
-
-      attribute :run,       RunKey
-      attribute :verb,      VerbName
-      attribute :over,      QueryName
-      attribute :arguments, list_of(Argument), optional: true
-      attribute :mode,      Mode
+      goal "Send one command to every row a query answers, keeping each row's outcome"
 
       sets :run
       sets :verb
       sets :over
       sets :arguments
-      sets :mode
 
       emits BulkRunRequested
     end
@@ -118,7 +104,7 @@ Hecks.bluebook "Bulk" do
     end
 
     query "Declined" do
-      description "Every run that could not start, such as all_or_nothing on a store that cannot roll back."
+      description "Every run that could not start, such as one whose command no loaded bluebook declares."
       where(status: "declined")
       order_by :run
     end

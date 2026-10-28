@@ -162,7 +162,7 @@ RSpec.describe "a query a wasm plugin answers" do
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /PluginModule/)
     end
 
-    it "refuses a query written without its chapter" do
+    it "refuses a query written without its bluebook" do
       expect { boot_domain(adapters: { "doubler" => plugin_adapter("Doubler", answers: ["Ledger.Doubled"]) }) }
         .to raise_error(Hecks::Bluebook::DSL::Malformed, /AnsweredQuery/)
     end

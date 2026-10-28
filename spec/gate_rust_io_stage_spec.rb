@@ -1,12 +1,13 @@
 require "spec_helper"
 require "yaml"
+require "hecks/tools"
 
-# The `rust_io` stage of lib/hecks/gate/stages.yml runs the specs ci-rust-io.yml's `rspec_rust_io`
+# The `rust_io` stage of the Vocabulary gate rows runs the specs ci-rust-io.yml's `rspec_rust_io`
 # job runs, so a person can ask before a push. These specs hold the stage to the workflow's matrix,
 # so a spec file cannot be added to one and not the other.
 RSpec.describe "the rust_io gate stage" do
   let(:root) { File.expand_path("..", __dir__) }
-  let(:stages) { YAML.load_file(File.join(root, "lib/hecks/gate/stages.yml"), aliases: true) }
+  let(:stages) { Hecks::Tools.fetch("gate").stages }
   let(:workflow) { YAML.load_file(File.join(root, ".github/workflows/ci-rust-io.yml")) }
   let(:script) { stages.dig("rust_io", "checks").flat_map { |check| check["run"] }.join("\n") }
   let(:legs) { workflow.dig("jobs", "rspec_rust_io", "strategy", "matrix", "include").map { |leg| leg["specs"] } }

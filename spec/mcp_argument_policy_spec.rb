@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # A restricted server checks an argument by its name (ADR 0089), so every name a public command of
-# the Hecks chapter takes has to be classified: denied, a path, a git ref, or known to be plain
+# the Hecks bluebook takes has to be classified: denied, a path, a git ref, or known to be plain
 # data. A new argument name that is none of these fails here, so whoever adds it decides.
 RSpec.describe Hecks::Adapters::Driving::McpScope do
   # Names that carry data and reach nothing outside the domain's own files.
@@ -27,7 +27,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
                   .flat_map { |spec| spec[:arguments].map { |argument| argument[:path].split(".").first } }.uniq
   end
 
-  it "classifies every argument name of every public command of the Hecks chapter" do
+  it "classifies every argument name of every public command of the Hecks bluebook" do
     unclassified = public_argument_names - classes.values.flatten
 
     expect(unclassified).to be_empty,

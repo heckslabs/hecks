@@ -49,7 +49,7 @@ pub fn header_name(call: &Call) -> Option<String> {
 /// The header's own optional `version:` named argument — `Hecks.bluebook
 /// "Banking", version: "v1" do`, `bluebook`'s own `named: "version"` row
 /// (`context: "File"`). Not exercised by pizzas.bluebook/the framework
-/// trio/the grammar chapters (none pins a version) — confirmed real by
+/// trio/the grammar bluebooks (none pins a version) — confirmed real by
 /// banking.bluebook, the first real corpus member to.
 pub fn header_version(call: &Call) -> Option<String> {
     ruby_value::split_items(&call.args)

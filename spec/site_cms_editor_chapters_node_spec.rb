@@ -11,7 +11,7 @@ require_relative "support/editor_fixture_project"
 # The multi-chapter editor, run under node against a fake host: its navigation, its roles, the
 # pickers and the checks on what they name, the lists a page at a time, the moments, and the forms.
 # The fake host answers `/members` and the body-shaped `/dispatch`, keeping the instances of both
-# chapters; each request it is sent is recorded in `sent`.
+# bluebooks; each request it is sent is recorded in `sent`.
 EDITOR_CHAPTERS_SCENARIO = <<~JS.freeze
   import { accountToken } from "@hecks/client";
   import { mkdirSync, writeFileSync } from "node:fs";
@@ -195,7 +195,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
   def verbs_of(key) = result(key)["sent"].map { |body| body["verb"] }
 
   describe "the navigation" do
-    it "groups the aggregates under a heading for each chapter, in the order the row gives them", :aggregate_failures, :process do
+    it "groups the aggregates under a heading for each bluebook, in the order the row gives", :aggregate_failures, :process do
       home = result("home")
 
       expect(home).to include('<li class="menu-title mt-4 px-3 text-muted">Press</li>',
@@ -203,7 +203,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(home.index(">Press</li>")).to be < home.index(">Library</li>")
     end
 
-    it "addresses each aggregate by its chapter and its name", :aggregate_failures, :process do
+    it "addresses each aggregate by its bluebook and its name", :aggregate_failures, :process do
       expect(result("home")).to include('href="/editor/Press/Article"', 'href="/editor/Library/Gallery"',
                                         'href="/editor/Library/Category"')
       expect(result("noChapterPath")).to eq(404)
@@ -220,19 +220,19 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(result("libraryCategories")).not_to include("Guides")
     end
 
-    it "marks only the page the person is on, by chapter and name", :aggregate_failures, :process do
+    it "marks only the page the person is on, by bluebook and name", :aggregate_failures, :process do
       expect(result("pressCategories")).to include('<a href="/editor/Press/Category" aria-current="page">')
       expect(result("pressCategories")).not_to include('<a href="/editor/Library/Category" aria-current="page">')
     end
   end
 
-  describe "the roles of a chapter" do
-    it "leaves a chapter out of the navigation and the overview for a role it is not open to", :aggregate_failures, :process do
+  describe "the roles of a bluebook" do
+    it "leaves a bluebook out of the navigation and the overview for a role it is not open to", :aggregate_failures, :process do
       expect(result("ownerHome")).to include('href="/editor/Press/Article"')
       expect(result("ownerHome")).not_to include("Library", "/editor/Library/")
     end
 
-    it "refuses the pages of that chapter, and its pictures, to that role, and serves them to the others", :aggregate_failures,
+    it "refuses the pages of that bluebook, and its pictures, to that role, and serves them to the others", :aggregate_failures,
        :process do
       expect(result("ownerGallery")).to eq(403)
       expect(result("ownerPicture")).to eq(403)
@@ -306,7 +306,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(form).not_to include('<option value="opinion">')
     end
 
-    it "asks each target's own query, in its own chapter, for what to offer", :process do
+    it "asks each target's own query, in its own bluebook, for what to offer", :process do
       expect(result("draftAsked").map { |body| body["query"] }).to eq(["Press::Category.Active", "Library::MediaItem.Pictures"])
     end
 
@@ -356,7 +356,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
       expect(result("galleryMissing")["sent"]).to be_empty
     end
 
-    it "sends a gallery named for a record that is there, in the chapter that declares the gallery", :aggregate_failures,
+    it "sends a gallery named for a record that is there, in the bluebook that declares the gallery", :aggregate_failures,
        :process do
       expect(result("galleryOk")["status"]).to eq(303)
       expect(verbs_of("galleryOk")).to eq(["Library::Gallery.Compose"])
@@ -364,12 +364,12 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
   end
 
   describe "dispatch" do
-    it "names each verb with its chapter, so aggregates of one name are not confused", :aggregate_failures, :process do
+    it "names each verb with its bluebook, so aggregates of one name are not confused", :aggregate_failures, :process do
       expect(verbs_of("acceptedCategory")).to eq(["Press::Article.Draft"])
       expect(result("galleryOk")["location"]).to eq("/editor/Library/Gallery/id/article%3Abravo")
     end
 
-    it "sends the person to the new instance's page, in its chapter", :process do
+    it "sends the person to the new instance's page, in its bluebook", :process do
       expect(result("acceptedCategory")["location"]).to eq("/editor/Press/Article/id/golf")
     end
   end

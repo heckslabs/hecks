@@ -436,7 +436,7 @@ RSpec.describe Hecks::Forms::App do
     end
   end
 
-  it "refuses a chapter this app does not expose" do
+  it "refuses a bluebook this app does not expose" do
     get "/Deploy/Anything.html"
     expect(last_response.status).to eq(404)
   end

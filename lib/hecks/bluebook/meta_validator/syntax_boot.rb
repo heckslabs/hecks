@@ -38,7 +38,7 @@ module Hecks
 
         # The bluebooks the grammar registry holds, in insertion order.
         #
-        # @return [Hash{String => Bluebook::Chapter}] each bluebook by name
+        # @return [Hash{String => Bluebook::Declaration}] each bluebook by name
         def grammar_chapters
           registry = MetaValidator.grammar_registry
           registry.bluebooks

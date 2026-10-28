@@ -23,6 +23,8 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
     "Comparison"            => "expression operators, held by spec/operator_conformance_spec.rb",
     "DispatchStage"         => "the stages a refusal comes from, held by spec/runtime/refusal_classification_spec.rb",
     "FieldHint"             => "form field hints, held by spec/field_hint_conformance_spec.rb",
+    "GateCheck"             => "the checks of a gate stage, held by spec/gate_spec.rb",
+    "GateStage"             => "the stages of the gate, held by spec/gate_spec.rb",
     "IncludeHaystack"       => "grammar table, held by spec/vocabulary_conformance_spec.rb",
     "Lane"                  => "release lanes, held by spec/tools_lanes_spec.rb",
     "LoadOrder"             => "grammar table, held by spec/vocabulary_conformance_spec.rb",

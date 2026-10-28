@@ -83,7 +83,7 @@ RSpec.describe "the Composer's known domains" do
       listed = get("domains")["domains"]
 
       expect(listed.map { |entry| entry["id"] }).to eq(ids)
-      expect(listed.map { |entry| entry["group"] }.uniq).to eq(["Examples", "Hecks chapters"])
+      expect(listed.map { |entry| entry["group"] }.uniq).to eq(["Examples", "Hecks bluebooks"])
     end
 
     it "switches to a domain's scratch copy, so its files are the ones listed next", :aggregate_failures do

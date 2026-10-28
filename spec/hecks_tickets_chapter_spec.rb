@@ -1,10 +1,10 @@
 require "spec_helper"
 
-# The Tickets chapter is attached to the Hecks domain: Finding and Adr are declared in it,
+# The Tickets bluebook is attached to the Hecks domain: Finding and Adr are declared in it,
 # the finding's lifecycle drives GitHub through the GitHubIssues port, and a refused ask never
 # blocks
 # the finding.
-RSpec.describe "the Tickets chapter" do
+RSpec.describe "the Tickets bluebook" do
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @bluebook = @hecks.registry.bluebook("Tickets")

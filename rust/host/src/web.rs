@@ -9,7 +9,7 @@ use crate::extension::{self, Ctx};
 use crate::field_hints::{EMAIL_HINT, TEL_HINT, TEXTAREA_HINT, URL_HINT};
 use crate::host::Host;
 use crate::ir::ir;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::platform_signin::jti::JtiStore;
 use crate::store::Store;
@@ -1415,7 +1415,7 @@ fn humanize(path: &str) -> String {
 const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseClass"];
 
 // Dispatch order: list? -> reference? -> admits -> value object ->
-// primitive. `domain_ir` is the whole chapter, needed for cross-aggregate lookups.
+// primitive. `domain_ir` is the whole bluebook, needed for cross-aggregate lookups.
 fn resolve_field(domain_ir: &Value, attribute: &Value, aggregate: &Value, path: &str) -> Field {
     let is_list = attribute
         .get("list")
@@ -3344,7 +3344,7 @@ mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        crate::journal::ensure_schema(&client).await.unwrap();
+        crate::store::journal_sql::ensure_schema(&client).await.unwrap();
         Store::postgres(client)
     }
 
@@ -3370,7 +3370,7 @@ mod tests {
             .await
             .unwrap();
 
-        let journal_table = format!("hecks_journal_{}", crate::journal::snake(domain));
+        let journal_table = format!("hecks_journal_{}", crate::store::journal_sql::snake(domain));
         client
             .batch_execute(&format!(
                 "CREATE TABLE IF NOT EXISTS \"{journal_table}\" (
@@ -3388,9 +3388,9 @@ mod tests {
         for name in aggregate_storage_names {
             // domain-qualified (docs/decisions/0059) — matches what a real
             // `journal::append_lineage_mutation` write actually targets now.
-            let snapshot_table = crate::journal::qualified_name(
+            let snapshot_table = crate::store::journal_sql::qualified_name(
                 domain,
-                &format!("{}_head_snapshot_{era}", crate::journal::snake(name)),
+                &format!("{}_head_snapshot_{era}", crate::store::journal_sql::snake(name)),
             );
             client
                 .batch_execute(&format!("CREATE TABLE IF NOT EXISTS \"{snapshot_table}\" (id text PRIMARY KEY, ordinal bigint NOT NULL, state jsonb NOT NULL)"))

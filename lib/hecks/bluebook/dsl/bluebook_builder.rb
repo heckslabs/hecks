@@ -90,7 +90,7 @@ module Hecks
         # @param capability [String] the capability's own name, such as `"authorization"`
         # @param verbs [Hash{Symbol => String}] one command/query reference per capability
         #   key, e.g. `grant: "RoleAssignment.Assign"`
-        # @return [Array<Bluebook::Chapter::Provision>] every provision row declared so far,
+        # @return [Array<Bluebook::Declaration::Provision>] every provision row declared so far,
         #   this capability's included
         # @raise [Bluebook::DSL::Malformed] if `verbs` is empty
         def provides_impl(capability, **verbs)
@@ -99,7 +99,7 @@ module Hecks
                              "chapter's commands and queries answer it"
           end
 
-          rows = verbs.map { |key, verb| Chapter::Provision.new(capability: capability.to_s, key: key.to_s, verb: verb.to_s) }
+          rows = verbs.map { |key, verb| Declaration::Provision.new(capability: capability.to_s, key: key.to_s, verb: verb.to_s) }
           (@provides ||= []).concat(rows)
         end
 
@@ -187,7 +187,7 @@ module Hecks
 
         # Assembles this builder's accumulated declarations into a judged `Chapter`.
         #
-        # @return [Bluebook::Chapter] the built bluebook, judged by the language when not
+        # @return [Bluebook::Declaration] the built bluebook, judged by the language when not
         #   deferring across a multi-file bluebook
         # @raise [Bluebook::DSL::Malformed] if a chapter-wide given reference cannot be
         #   resolved, if cross-construct validation fails, or if the language's own
@@ -198,7 +198,7 @@ module Hecks
           # The bluebook is the top of the construct chain — its constructor stamps every
           # aggregate and read model with itself as owner, so `hecks_fqn` resolves by
           # walking up to it.
-          bluebook = Bluebook::Chapter.new(**chapter_identity, **chapter_constructs)
+          bluebook = Bluebook::Declaration.new(**chapter_identity, **chapter_constructs)
 
           # A bare chapter-given may still be pending if a file that would resolve it
           # hasn't loaded yet; deferred to `MetaValidator.judge_deferred!`, before
@@ -223,7 +223,7 @@ module Hecks
         # @param name [String] the bluebook's declared name
         # @param version [String, nil] the bluebook's pinned version, or nil for unversioned
         # @yield the bluebook body; a bare constant resolves to a `ConstShim::ScopedConstant`
-        # @return [Bluebook::Chapter] the built, judged bluebook
+        # @return [Bluebook::Declaration] the built, judged bluebook
         # @raise [Bluebook::DSL::Malformed] if `version` conflicts with an already-adopted
         #   version, or the built bluebook fails validation
         # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a process

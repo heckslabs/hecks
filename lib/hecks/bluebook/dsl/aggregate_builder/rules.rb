@@ -63,7 +63,7 @@ module Hecks
         end
 
         def ambiguous_chapter_given_message(candidates, description)
-          "#{@name}'s given #{description.inspect} is ambiguous in this chapter — " \
+          "#{@name}'s given #{description.inspect} is ambiguous in this bluebook — " \
             "#{candidates.keys.join(", ")} each declare a DIFFERENT predicate under " \
             "this same description; name which one with declared_by: (e.g. " \
             "given(#{description.inspect}, declared_by: #{candidates.keys.first}))"

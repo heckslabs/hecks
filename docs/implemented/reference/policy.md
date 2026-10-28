@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 `on`, `trigger` and `across` run against `examples/banking` and
 `examples/compliance`, which wire a real cross-domain reaction between
 them. `where` and `for_each` appear nowhere in the corpus, so they get a
-chapter of their own here — a card that is blocked whenever its holder
+bluebook of their own here — a card that is blocked whenever its holder
 draws a severe enough alert:
 
 ```ruby bluebook
@@ -122,7 +122,7 @@ Kernel.load(File.join(InMemoryDomain::ROOT, "examples/compliance/bluebook/compli
 
 Hecks.hecksagon("Banking") do
   attaches "Governance"
-  subscribe "Compliance.AccountFreezeReviewOpened"
+  subscribe "Compliance.ReviewOpened"
   Banking::Customer.persisted_by("Memory")
   Banking::Account.persisted_by("Memory")
 end
@@ -133,8 +133,7 @@ end
 
 Hecks.hecksagon("Compliance") do
   attaches "Governance"
-  Compliance::AccountFreezeReview.persisted_by("Memory")
-  Compliance::BoxSurrenderReview.persisted_by("Memory")
+  Compliance::Review.persisted_by("Memory")
 end
 
 Hecks.hecksagon("PolicyReference") do
@@ -208,9 +207,9 @@ The triggered command really ran — a review exists that nothing in the
 banking call chain asked for:
 
 ```ruby
-runtime.registry.reaction_log.last[:trigger]    # => "Compliance::AccountFreezeReview.Open"
+runtime.registry.reaction_log.last[:trigger]    # => "Compliance::Review.Open"
 runtime.registry.reaction_log.last[:delivered]  # => true
-Compliance::AccountFreezeReview.find("po-a1").status  # => "open"
+Compliance::Review.find("account_freeze:po-a1").status  # => "open"
 ```
 
 **`with:` names what the trigger is given.** Same `key => value` shape a
@@ -218,8 +217,19 @@ saga's own `dispatch ..., with:` takes, and read the same way: a Symbol
 names a field on the triggering event, anything else is a literal the
 policy supplies itself.
 
+`:id` names the emitting record's whole identity, a composite one joined by
+a colon, so a policy can hand another context "the thing that happened"
+without naming its fields. It sits below everything else: a payload field
+called `id` wins it, and so does a fan-out row's own `id`. `ReviewOnFreeze`
+uses it to name the account it froze, which is why Compliance's `Review`
+knows no Banking field:
+
+```ruby skip
+trigger Review::Open, with: { subject_kind: "account_freeze", subject_key: :id }
+```
+
 Left off, the whole payload forwards — which is a real constraint on the
-target, not a detail. `FreezeAccountsOnSuspension`, in the same chapter,
+target, not a detail. `FreezeAccountsOnSuspension`, in the same bluebook,
 reacts to `CustomerSuspended` and triggers `Account::FreezeAccount`;
 without a projection, `FreezeAccount` would have to be able to TAKE the
 `standing` that event carries, a field a freeze never reads, and Account
@@ -301,11 +311,11 @@ policy's own. Leave it off and `trigger` is assumed to name a command
 in the same domain as the event that fired it — the ordinary case.
 
 `ReviewOnFreeze` declares `across "Compliance"`, and that is the whole
-difference between the bare `AccountFreezeReview::Open` it writes and
+difference between the bare `Review::Open` it writes and
 the fully-qualified command the runtime actually dispatched:
 
 ```ruby
-runtime.registry.reaction_log.first[:trigger]  # => "Compliance::AccountFreezeReview.Open"
+runtime.registry.reaction_log.first[:trigger]  # => "Compliance::Review.Open"
 ```
 
 `across` is a real relationship declaration now, not just a routing
@@ -313,7 +323,7 @@ detail — `Hecks::Bluebook::ModelCheck` checks it against the sibling
 hecksagon's own `subscribe`/`attaches` lines (see
 `docs/implemented/reference/hecksagon.md`'s own "Checked, not routed"
 section for the other half). Banking's real corpus is clean here — its
-own `subscribe "Compliance.AccountFreezeReviewOpened"` is exactly what
+own `subscribe "Compliance.ReviewOpened"` is exactly what
 acknowledges `ReviewOnFreeze`'s `across "Compliance"`:
 
 ```ruby

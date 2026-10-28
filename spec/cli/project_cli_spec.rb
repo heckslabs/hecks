@@ -67,7 +67,7 @@ RSpec.describe Hecks::CLI::ProjectCli do
 
     it "refuses a name, path, executable or legacy command that could end its string", :aggregate_failures do
       expect { source('x"; system("id"); "', "Shelf") }.to raise_error(ArgumentError, /domain path/)
-      expect { source("shelf", "Sh\"elf") }.to raise_error(ArgumentError, /chapter name/)
+      expect { source("shelf", "Sh\"elf") }.to raise_error(ArgumentError, /bluebook name/)
       expect { source("shelf", "Shelf", executable: "../out") }.to raise_error(ArgumentError, /launcher executable/)
       expect { source("shelf", "Shelf", executable: "bin/x", legacy: ["run]; exit"]) }
         .to raise_error(ArgumentError, /legacy command/)
@@ -81,14 +81,14 @@ RSpec.describe Hecks::CLI::ProjectCli do
       expect(nested).to include('File.expand_path("../dom", __dir__)', 'File.expand_path("../lib", __dir__)')
     end
 
-    it "sets UTF-8 and prints a failed --wait run's record on stdout, for a chapter that opted in", :aggregate_failures do
+    it "sets UTF-8 and prints a failed --wait run's record on stdout, for a bluebook that opted in", :aggregate_failures do
       text = source(opted: true)
 
       expect(text).to include("Encoding.default_external = Encoding::UTF_8", "puts text", "warn reason", "exit status")
       expect(RubyVM::InstructionSequence.compile(text)).to be_a(RubyVM::InstructionSequence)
     end
 
-    it "leaves the launcher of a chapter that did not opt in as every earlier generator wrote it", :aggregate_failures do
+    it "leaves the launcher of a bluebook that did not opt in as every earlier generator wrote it", :aggregate_failures do
       text = source
 
       expect(text).not_to include("Encoding.default_external", "reason")

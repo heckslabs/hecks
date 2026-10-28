@@ -3,7 +3,8 @@ require "time"
 module Hecks
   module Adapters
     # The `authorization` port, answered by dispatching queries against Governance's records
-    # in the same registry. Only assignments with no `ends_at` count as live.
+    # in the same registry. Which grants are live is Governance's own declaration, its two
+    # `Live` queries; this reads them and decides nothing about liveness.
     module GovernanceAuthorization
       module_function
 
@@ -20,16 +21,8 @@ module Hecks
       # @return [Boolean] true if a live grant of `role` to `actor_id` passes both checks
       # @raise [Runtime::WiringError] unless exactly one bluebook provides `"authorization"`
       def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
-        rows = Runtime::Dispatcher.new(registry).query(
-          provided_verb(registry, :assignments),
-          actor_id: { value: actor_id.to_s }
-        )
-
-        rows.any? do |row|
-          row[:role_name][:value] == role.to_s &&
-            row[:ends_at].nil? &&
-            in_scope?(row, scope) &&
-            started?(row, as_of)
+        live_assignments(registry, actor_id).any? do |row|
+          row[:role_name][:value] == role.to_s && in_scope?(row, scope) && started?(row, as_of)
         end
       end
 
@@ -43,8 +36,9 @@ module Hecks
         scope.nil? || row[:scope][:value] == scope.to_s
       end
 
-      # `starts_at` is free text, so it is parsed with `Time.parse` rather than compared
-      # lexically. Fails closed: an unparseable value counts as not yet started.
+      # `starts_at` is a UTC date or date-time (the aggregate refuses anything else), parsed with
+      # `Time.parse` to compare against `as_of`. Fails closed on a record that predates that
+      # rule: an unparseable value counts as not yet started.
       #
       # @param row [Hash{Symbol => Object}] one `RoleAssignment` row as
       #   `Runtime::Dispatcher#query` returns it; `:starts_at` holds a `{value: String}` Hash
@@ -61,20 +55,16 @@ module Hecks
 
       # Answers whether one role may act as another.
       #
-      # Read with `.any?` rather than trusting that the exact-pair lookup returns one row.
-      #
       # @param registry [Runtime::Registry] the booted registry
       # @param from_role [String, Symbol] the role the caller holds, compared as a String
       # @param to_role [String, Symbol] the role the caller wants to act as, compared as a String
       # @return [Boolean] true if a live allowance lets `from_role` act as `to_role`
       # @raise [Runtime::WiringError] unless exactly one bluebook provides `"authorization"`
       def authorized_as?(registry, from_role:, to_role:)
-        rows = Runtime::Dispatcher.new(registry).query(
-          provided_verb(registry, :transitions),
+        Runtime::Dispatcher.new(registry).query(
+          provided_verb(registry, :live_transitions),
           from_role: { value: from_role.to_s }, to_role: { value: to_role.to_s }
-        )
-
-        rows.any? { |row| row[:ends_at].nil? }
+        ).any?
       end
 
       # Returns the actor's live role name, or nil; any fallback is the caller's.
@@ -82,18 +72,24 @@ module Hecks
       # @param registry [Runtime::Registry] the booted registry, to resolve the authorization
       #   provider's verb
       # @param actor_id [String] the actor to look up, compared as a String
-      # @return [String, nil] the role name of the actor's first live (not ended) grant, or
-      #   nil if it has none
+      # @return [String, nil] the role name of the actor's first live grant, or nil if it has none
       # @raise [Runtime::WiringError] if the loaded bluebooks providing `"authorization"` are
       #   not exactly one (see `provided_verb`)
       def live_role_for(registry, actor_id:)
-        rows = Runtime::Dispatcher.new(registry).query(
-          provided_verb(registry, :assignments),
+        live = live_assignments(registry, actor_id).first
+        live && live[:role_name][:value]
+      end
+
+      # The rows the provider's `live_assignments` query answers for one actor.
+      #
+      # @param registry [Runtime::Registry] the booted registry
+      # @param actor_id [String] the actor, compared as a String
+      # @return [Array<Hash{Symbol => Object}>] the actor's grants that have not ended
+      def live_assignments(registry, actor_id)
+        Runtime::Dispatcher.new(registry).query(
+          provided_verb(registry, :live_assignments),
           actor_id: { value: actor_id.to_s }
         )
-
-        live = rows.find { |row| row[:ends_at].nil? }
-        live && live[:role_name][:value]
       end
 
       # Reads a verb from the one bluebook that `provides "authorization"`; the runtime will
@@ -101,8 +97,8 @@ module Hecks
       #
       # @param registry [Runtime::Registry] the booted registry to search for the
       #   `"authorization"` provider
-      # @param key [Symbol] which declared verb to read — `:assignments`, `:grant`, or
-      #   `:transitions`
+      # @param key [Symbol] which declared verb to read: `:live_assignments`, `:live_transitions`,
+      #   `:grant`, or one of the history queries `:assignments` and `:transitions`
       # @return [String] the fully-qualified verb the loaded bluebook provides for `key`
       # @raise [Runtime::WiringError] if the loaded bluebooks providing `"authorization"` are
       #   not exactly one
@@ -110,7 +106,7 @@ module Hecks
         providers = registry.authorization_providers
         unless providers.size == 1
           raise Runtime::WiringError,
-                "#{providers.size} loaded chapters provide \"authorization\"" \
+                "#{providers.size} loaded bluebooks provide \"authorization\"" \
                 "#{" (#{providers.map(&:name).sort.join(", ")})" unless providers.empty?} — " \
                 "a role lookup needs exactly one (framework members declaring it: " \
                 "#{Framework.providers_of(Bluebook::Capabilities::AUTHORIZATION).join(", ")})"

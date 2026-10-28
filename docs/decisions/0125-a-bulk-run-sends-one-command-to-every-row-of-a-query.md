@@ -34,7 +34,7 @@ that fan-out directly.
    run is a caller's request, so each row is dispatched under the caller bound when the
    cascade began (`Runtime::Caller.origin`), and a command's own `role` is checked per row.
    `Request` declares no role: the target command's role is the gate, row by row.
-4. **Two modes.** `best_effort` sends every row and records each outcome. `all_or_nothing`
+4. **Two modes.** *(Amended by [0138](0138-a-bulk-run-has-no-all-or-nothing-mode-because-the-aggregate-is-the-transaction.md): the `all_or_nothing` mode and the `mode` field are removed; a run is `best_effort` alone.)* `best_effort` sends every row and records each outcome. `all_or_nothing`
    first dry-runs every row; if any would refuse, nothing is sent, and the refusing row
    keeps its reason while the others record that the run stopped. When all would pass,
    every row is sent inside one transaction of the target's repository, so a row that

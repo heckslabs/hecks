@@ -24,7 +24,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing", :generated_all do
   end
 
   # Every bucket a generated module can land in: a domain's feature, a framework or vendored
-  # chapter, a sibling chapter, an attached gem chapter, or a route elsewhere.
+  # bluebook, a sibling bluebook, an attached gem bluebook, or a route elsewhere.
   def buckets
     features + side_chapter_modules + corpus.rust_sibling_chapters + corpus.rust_attached_chapters +
       corpus::RUST_ELSEWHERE.keys
@@ -39,7 +39,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing", :generated_all do
     expect(corpus.generated_modules.sort).to eq(buckets.sort)
   end
 
-  it "finds payments as a sibling chapter beside an in-repo domain's own bluebook" do
+  it "finds payments as a sibling bluebook beside an in-repo domain's own bluebook" do
     expect(corpus.rust_sibling_chapters).to include("payments")
   end
 
@@ -56,7 +56,7 @@ RSpec.describe "Hecks::Corpus, Rust-facing", :generated_all do
     expect(features).to include(corpus.cargo_default)
   end
 
-  it "attaches every framework chapter through some Rust domain's hecksagon" do
+  it "attaches every framework bluebook through some Rust domain's hecksagon" do
     hecksagons = corpus.rust_attachment_hecksagon_text
     corpus.rust_framework_chapters.each do |stem|
       chapter = corpus.chapter_name_of(File.join(root, "lib/hecks/framework/bluebook/#{stem}.bluebook"))
@@ -64,20 +64,20 @@ RSpec.describe "Hecks::Corpus, Rust-facing", :generated_all do
     end
   end
 
-  it "attaches every vendored chapter through some Rust domain's hecksagon" do
+  it "attaches every vendored bluebook through some Rust domain's hecksagon" do
     hecksagons = corpus.rust_attachment_hecksagon_text
     corpus.rust_vendored_chapters.each do |stem|
       expect(hecksagons).to match(/^\s*attaches\s+"#{stem}",\s*from:\s*:vendor/), stem
     end
   end
 
-  # A vendored chapter's name is not its file stem, so it is read from the bluebook header.
+  # A vendored bluebook's name is not its file stem, so it is read from the bluebook header.
   def vendored_chapter(stem)
     member = corpus.members(:vendored).to_h { |candidate| [candidate.stem, candidate] }.fetch(stem)
     [member.path, corpus.chapter_name_of(corpus.bluebook_files(member.path))]
   end
 
-  it "names every vendored chapter by the stem of its file" do
+  it "names every vendored bluebook by the stem of its file" do
     corpus.rust_vendored_chapters.each do |stem|
       path, chapter = vendored_chapter(stem)
       expected = Hecks::Naming.pascal(stem)

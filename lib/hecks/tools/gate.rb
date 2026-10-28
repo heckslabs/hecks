@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 require "open3"
-require "yaml"
+require "hecks/vocabulary"
 require_relative "../tools"
 
 module Hecks
   module Tools
-    # Runs a stage's checks, which `lib/hecks/gate/stages.yml` holds as data, all at once and
-    # reports every one, so a red check does not hide the others.
+    # Runs a stage's checks, which the `GateStage` and `GateCheck` rows of the Vocabulary bluebook
+    # hold as data, all at once and reports every one, so a red check does not hide the others.
     #
     #   hecks gate pre_push                # every check of the stage
     #   hecks gate pre_push only=rubocop   # the named checks
@@ -16,16 +16,38 @@ module Hecks
     # A green stage prints which checks passed; a red one prints each failing check's whole output
     # and what its failure means, and answers status 1.
     module Gate
-      STAGES_FILE = File.expand_path("../gate/stages.yml", __dir__)
       USAGE = "usage: hecks gate <stage> [only=a,b] | hecks gate --list"
 
       module_function
+
+      # @return [Hash{String => Hash}] each stage by name: its `env` and its `checks`, in order,
+      #   each check with its `id`, `title`, `run` words and `blocked`
+      def stages
+        checks = Vocabulary.rows("GateCheck").to_h { |row| [row["name"], check(row)] }
+        Vocabulary.rows("GateStage").to_h do |row|
+          stage = { "env" => env(row["env"]), "checks" => row["checks"].split(",").map { |name| checks.fetch(name) } }
+          [row["name"], stage]
+        end
+      end
+
+      # @param row [Hash{String => String}] a `GateCheck` row
+      # @return [Hash] the check: a script runs as `sh -ec`, otherwise `argv` is the command's words
+      def check(row)
+        run = row["script"].empty? ? row["argv"].split : ["sh", "-ec", row["script"]]
+        row.slice("id", "title", "blocked").merge("run" => run)
+      end
+
+      # @param words [String] `NAME=value` words
+      # @return [Hash{String => String}] the variables a stage sets
+      def env(words)
+        words.split.to_h { |word| word.split("=", 2) }
+      end
 
       # @param argv [Array<String>] a stage name and optionally `only=a,b`, or `--list`
       # @param root [String] the checkout the checks run in
       # @return [Integer] 0 when every check passed, 1 when one failed, 2 on bad usage
       def main(argv, root: Tools::ROOT, **)
-        stages = YAML.load_file(STAGES_FILE, aliases: true)
+        stages = self.stages
         return list(stages) if argv == ["--list"]
 
         name, only = parse(argv)

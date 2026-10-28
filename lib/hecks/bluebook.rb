@@ -2,7 +2,7 @@
 # assembly, authoring DSL and meta-validator.
 
 module Hecks
-  # `Hecks::Bluebook` is a class defined in bluebook/chapter.rb; reopen it with `class`.
+  # `Hecks::Bluebook` is a class defined in bluebook/declaration.rb; reopen it with `class`.
   module Bluebook
   end
 end
@@ -12,9 +12,11 @@ end
 require_relative "construct"
 require_relative "literal"
 require_relative "query_specification"
+require_relative "retired_names"
 
 require_relative "bluebook/expression"
-require_relative "bluebook/chapter"
+require_relative "bluebook/declaration"
+Hecks::RetiredNames.constant(Hecks::Bluebook, :Chapter, :Declaration)
 require_relative "bluebook/reference"
 require_relative "bluebook/one_of_union"
 require_relative "bluebook/attribute"
@@ -30,6 +32,7 @@ require_relative "bluebook/ask_resolution"
 require_relative "bluebook/process_manager"
 require_relative "bluebook/aggregate"
 require_relative "bluebook/hecksagon"
+require_relative "bluebook/context_map"
 require_relative "bluebook/translation_expression"
 require_relative "bluebook/translation"
 require_relative "bluebook/translation_plan"

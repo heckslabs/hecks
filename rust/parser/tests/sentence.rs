@@ -60,7 +60,7 @@ fn write(name: &str, source: &str) -> PathBuf {
 fn parse(name: &str, source: &str) -> Output {
     let path = write(name, source);
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
-        .args(["chapter", "--chapter", "Cms", path.to_str().unwrap()])
+        .args(["bluebook", "--bluebook", "Cms", path.to_str().unwrap()])
         .output()
         .expect("failed to run hecks-parse")
 }
@@ -225,7 +225,7 @@ fn the_wrong_chapter_name_is_refused() {
     let source = changed("Domain: Cms", "Domain: Blog");
     let error = refusal("chapter.bluebook", &source);
     assert!(
-        error.contains("--chapter Cms was requested, but this file declares 'Blog'"),
+        error.contains("--bluebook Cms was requested, but this file declares 'Blog'"),
         "{error}"
     );
 }
@@ -236,8 +236,8 @@ fn the_ruby_form_and_the_sentence_form_do_not_mix_in_one_chapter() {
     let ruby = write("mixed_ruby.bluebook", "Hecks.bluebook \"Cms\" do\nend\n");
     let output = Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
         .args([
-            "chapter",
-            "--chapter",
+            "bluebook",
+            "--bluebook",
             "Cms",
             sentence.to_str().unwrap(),
             ruby.to_str().unwrap(),
@@ -278,7 +278,7 @@ fn compile_examples(name: &str, examples: &str) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
         .args([
             "examples",
-            "--chapter",
+            "--bluebook",
             "Cms",
             "--examples",
             source.to_str().unwrap(),
@@ -518,7 +518,7 @@ fn a_policy_running_no_such_command_lists_the_commands() {
     let error = refusal("policy_command.bluebook", &source);
     assert!(
         error.contains(
-            "'archive' is not one command of this chapter. The commands are: draft, publish"
+            "'archive' is not one command of this bluebook. The commands are: draft, publish"
         ),
         "{error}"
     );
@@ -558,7 +558,7 @@ fn policies_survive_the_formatter_and_the_ruby_form() {
         "policy_trip.bluebook",
         &with_policy("  Whenever PageReviewed is announced by a page\n  Then Publish runs\n"),
     );
-    let before = run_on("chapter", source.to_str().unwrap());
+    let before = run_on("bluebook", source.to_str().unwrap());
     let formatted = run_on("format", source.to_str().unwrap());
     assert!(
         formatted.status.success(),
@@ -571,7 +571,7 @@ fn policies_survive_the_formatter_and_the_ruby_form() {
     );
     assert_eq!(
         String::from_utf8_lossy(&before.stdout),
-        String::from_utf8_lossy(&run_on("chapter", again.to_str().unwrap()).stdout)
+        String::from_utf8_lossy(&run_on("bluebook", again.to_str().unwrap()).stdout)
     );
 
     let rendered = run_on("render", source.to_str().unwrap());
@@ -580,13 +580,13 @@ fn policies_survive_the_formatter_and_the_ruby_form() {
     let ruby = write("policy_trip_ruby.bluebook", &text);
     assert_eq!(
         String::from_utf8_lossy(&before.stdout),
-        String::from_utf8_lossy(&run_on("chapter", ruby.to_str().unwrap()).stdout)
+        String::from_utf8_lossy(&run_on("bluebook", ruby.to_str().unwrap()).stdout)
     );
 }
 
 fn run_on(subcommand: &str, path: &str) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
-        .args([subcommand, "--chapter", "Cms", path])
+        .args([subcommand, "--bluebook", "Cms", path])
         .output()
         .expect("failed to run hecks-parse")
 }
@@ -594,7 +594,7 @@ fn run_on(subcommand: &str, path: &str) -> Output {
 #[test]
 fn the_rendered_ruby_form_reads_back_to_the_same_ir() {
     let sentences = write("round_trip.bluebook", GOOD);
-    let first = run_on("chapter", sentences.to_str().unwrap());
+    let first = run_on("bluebook", sentences.to_str().unwrap());
     let rendered = run_on("render", sentences.to_str().unwrap());
     assert!(
         rendered.status.success(),
@@ -606,7 +606,7 @@ fn the_rendered_ruby_form_reads_back_to_the_same_ir() {
         "round_trip_ruby.bluebook",
         &String::from_utf8_lossy(&rendered.stdout),
     );
-    let second = run_on("chapter", ruby.to_str().unwrap());
+    let second = run_on("bluebook", ruby.to_str().unwrap());
     assert!(
         second.status.success(),
         "{}",
@@ -621,7 +621,7 @@ fn the_rendered_ruby_form_reads_back_to_the_same_ir() {
 #[test]
 fn the_formatter_is_the_reverse_of_the_parser_and_settles_on_one_wording() {
     let source = write("format.bluebook", GOOD);
-    let before = run_on("chapter", source.to_str().unwrap());
+    let before = run_on("bluebook", source.to_str().unwrap());
     let formatted = run_on("format", source.to_str().unwrap());
     assert!(
         formatted.status.success(),
@@ -633,7 +633,7 @@ fn the_formatter_is_the_reverse_of_the_parser_and_settles_on_one_wording() {
         "format_again.bluebook",
         &String::from_utf8_lossy(&formatted.stdout),
     );
-    let after = run_on("chapter", again.to_str().unwrap());
+    let after = run_on("bluebook", again.to_str().unwrap());
     assert_eq!(
         String::from_utf8_lossy(&before.stdout),
         String::from_utf8_lossy(&after.stdout),
@@ -665,7 +665,7 @@ fn a_rule_without_a_friendly_phrase_is_said_as_an_expression_and_reads_back() {
         "{text}"
     );
     let again = write("unsaid_again.bluebook", &text);
-    let read = run_on("chapter", again.to_str().unwrap());
+    let read = run_on("bluebook", again.to_str().unwrap());
     assert!(
         read.status.success(),
         "{}",
@@ -780,7 +780,7 @@ fn several_roles_survive_the_formatter_and_the_ruby_form() {
             "    Who: Editor or Sales Rep\n    When a slug",
         ),
     );
-    let before = run_on("chapter", source.to_str().unwrap());
+    let before = run_on("bluebook", source.to_str().unwrap());
     let formatted = run_on("format", source.to_str().unwrap());
     assert!(String::from_utf8_lossy(&formatted.stdout).contains("Who: Editor or Sales Rep"));
     let again = write(
@@ -789,7 +789,7 @@ fn several_roles_survive_the_formatter_and_the_ruby_form() {
     );
     assert_eq!(
         String::from_utf8_lossy(&before.stdout),
-        String::from_utf8_lossy(&run_on("chapter", again.to_str().unwrap()).stdout)
+        String::from_utf8_lossy(&run_on("bluebook", again.to_str().unwrap()).stdout)
     );
 
     let rendered = run_on("render", source.to_str().unwrap());
@@ -798,7 +798,7 @@ fn several_roles_survive_the_formatter_and_the_ruby_form() {
     let ruby = write("roles_trip_ruby.bluebook", &text);
     assert_eq!(
         String::from_utf8_lossy(&before.stdout),
-        String::from_utf8_lossy(&run_on("chapter", ruby.to_str().unwrap()).stdout)
+        String::from_utf8_lossy(&run_on("bluebook", ruby.to_str().unwrap()).stdout)
     );
 }
 
@@ -817,7 +817,7 @@ const LIBRARY: &str = include_str!("fixtures/sentence_library.sentences");
 
 fn run_on_chapter(subcommand: &str, chapter: &str, path: &std::path::Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_hecks-parse"))
-        .args([subcommand, "--chapter", chapter, path.to_str().unwrap()])
+        .args([subcommand, "--bluebook", chapter, path.to_str().unwrap()])
         .output()
         .expect("failed to run hecks-parse")
 }
@@ -837,7 +837,7 @@ fn a_domain_using_most_constructs_formats_to_itself() {
 #[test]
 fn a_domain_using_most_constructs_lowers_what_each_sentence_means() {
     let path = write("library_ir.bluebook", LIBRARY);
-    let output = run_on_chapter("chapter", "Library", &path);
+    let output = run_on_chapter("bluebook", "Library", &path);
     assert!(
         output.status.success(),
         "{}",

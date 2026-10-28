@@ -11,7 +11,7 @@ module Hecks
         # Marks this bluebook the root of the owner chain, attaches the ports
         # table (filled later by a `.hecksagon`), and stamps ownership.
         #
-        # @return [Bluebook::Chapter] self
+        # @return [Bluebook::Declaration] self
         def settle
           @hecks_root    = true
           @ports         = []

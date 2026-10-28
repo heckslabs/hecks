@@ -16,7 +16,7 @@ module Hecks
 
         # Runs every client-profile rule over one bluebook.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @param hecksagon [Bluebook::Hecksagon, nil] the bluebook's sibling wiring file
         # @return [Array<ModelCheck::Finding>] one error-severity finding per construct refused
         def call(bluebook, hecksagon: nil)

@@ -2,13 +2,16 @@ Hecks.bluebook "Governance" do
   vision "Organizational authority is explicit, reviewable, and historically explainable."
   supporting
 
-  # What this chapter answers for every attaching domain: the role check at dispatch, boot's
+  # What this bluebook answers for every attaching domain: the role check at dispatch, boot's
   # refusal of an ungoverned `role`, the authorization adapter and the fuzzer's grant
-  # steering read these three verbs from here rather than recognising "Governance" by name.
+  # steering read these verbs from here rather than recognising "Governance" by name. What counts
+  # as live is declared here, as the two `Live` queries, and not decided by the reader.
   provides "authorization",
-           assignments: "RoleAssignment.AssignmentsForActor",
-           grant:       "RoleAssignment.Assign",
-           transitions: "RoleTransition.Allowed"
+           assignments:      "RoleAssignment.AssignmentsForActor",
+           live_assignments: "RoleAssignment.LiveAssignmentsForActor",
+           grant:            "RoleAssignment.Assign",
+           transitions:      "RoleTransition.Allowed",
+           live_transitions: "RoleTransition.LiveAllowed"
 
   aggregate "RoleAssignment" do
     description "One actor holding one role, over one scope, from one point in time — revoked by setting when it ended, never deleted."
@@ -39,8 +42,10 @@ Hecks.bluebook "Governance" do
       invariant("a scope is named") { !value.to_s.empty? }
     end
 
+    # A UTC instant: a date, or a date and time ending in Z. Both read and sort the same way, so
+    # "has it started" and "does it end after it starts" are string comparisons the model can state.
     value_object "Timestamp" do
-      attribute :value, String
+      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$'
       invariant("a timestamp is present") { !value.to_s.empty? }
     end
 
@@ -63,6 +68,8 @@ Hecks.bluebook "Governance" do
       reference_to RoleAssignment
       attribute :ends_at, Timestamp
 
+      given("a grant ends no earlier than it starts") { ends_at.value >= starts_at.value }
+
       sets :ends_at
       emits RoleRevoked
     end
@@ -71,6 +78,14 @@ Hecks.bluebook "Governance" do
       description "Every role an actor currently or historically holds."
       attribute :actor_id, IdentityId
       where(actor_id: :actor_id)
+    end
+
+    # Live means not yet revoked: a grant whose `ends_at` was never set. The adapter that checks a
+    # role reads this and does not decide liveness itself.
+    query "LiveAssignmentsForActor" do
+      description "Every role an actor holds right now: assigned and not yet revoked."
+      attribute :actor_id, IdentityId
+      where(actor_id: :actor_id, ends_at: nil)
     end
   end
 
@@ -94,7 +109,7 @@ Hecks.bluebook "Governance" do
     end
 
     value_object "Timestamp" do
-      attribute :value, String
+      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)?$'
       invariant("a timestamp is present") { !value.to_s.empty? }
     end
 
@@ -116,18 +131,27 @@ Hecks.bluebook "Governance" do
       reference_to RoleTransition
       attribute :ends_at, Timestamp
 
+      given("a grant ends no earlier than it starts") { ends_at.value >= starts_at.value }
+
       sets :ends_at
       emits RoleTransitionRevoked
     end
 
-    # Every grant of this pair, current or historical: `where` cannot ask "ends_at is absent",
-    # so the caller reads `ends_at` to tell a live grant from a revoked one. A pair granted
-    # again after a revocation is a second row.
+    # Every grant of this pair, current or historical. A pair granted again after a revocation is
+    # a second row.
     query "Allowed" do
       description "Every role transition granted for this exact pair, current or historical."
       attribute :from_role, RoleName
       attribute :to_role,   RoleName
       where(from_role: :from_role, to_role: :to_role)
+    end
+
+    # The grants of this pair that were never revoked: the ones that let one role act as another.
+    query "LiveAllowed" do
+      description "Every role transition granted for this exact pair and not yet revoked."
+      attribute :from_role, RoleName
+      attribute :to_role,   RoleName
+      where(from_role: :from_role, to_role: :to_role, ends_at: nil)
     end
   end
 end

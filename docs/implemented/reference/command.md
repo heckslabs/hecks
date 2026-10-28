@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 Most of these run against `examples/banking`, whose `Account` commands
 carry roles, goals, givens, ensures, multi-fact `emits`, and `sets`
 for real. A command-level `provenance` is written nowhere in the
-corpus, and so is `idempotent`, so they get a chapter of their own:
+corpus, and so is `idempotent`, so they get a bluebook of their own:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))

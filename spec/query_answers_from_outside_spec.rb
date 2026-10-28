@@ -525,10 +525,10 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
       raise "cargo build failed in rust/parser" unless built
 
       File.write(path, OUTSIDE_BLUEBOOK)
-      Open3.capture3(PARSER_BINARY, "chapter", "--chapter", "Lookup", path)
+      Open3.capture3(PARSER_BINARY, "bluebook", "--bluebook", "Lookup", path)
     end
 
-    # The Lookup chapter as the Ruby exporter writes its IR.
+    # The Lookup bluebook as the Ruby exporter writes its IR.
     def ruby_export(path)
       registry = Hecks::Runtime::Registry.new(root: @dir)
       Hecks.with_registry(registry) do

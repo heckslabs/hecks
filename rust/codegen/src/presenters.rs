@@ -57,7 +57,7 @@ pub fn emit_aggregate_presenter(
 const PRESENT_DOC: &str = "/// This aggregate's state, or one of its events' payloads, as a caller is answered with\n/// it: each single-field value object as its bare field (the shape a command takes it in).\n";
 
 /// Emits the merged target's `present(aggregate, state)`: one arm per generated aggregate across
-/// every chapter, keyed by its qualified `Domain::Aggregate` name; any other name passes through.
+/// every bluebook, keyed by its qualified `Domain::Aggregate` name; any other name passes through.
 pub fn emit_present_router(aggregates: &[AggregateEntry]) -> String {
     let arms: Vec<String> = aggregates
         .iter()

@@ -44,7 +44,7 @@ skip: String },
 
         module_function
 
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table and the rows
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the rows
         # @param options [Hash{Symbol => Object}] `:domain_chapter` the domain's bluebook, or nil
         # @return [Hash{String => String}] each file's path relative to the project root to its
         #   text; empty when the project declares no `Payload` row
@@ -56,7 +56,7 @@ skip: String },
 
           chapter = options.fetch(:domain_chapter)
           aggregates = Payload::Model.read(chapter, skip: row[:skip].split(",").map(&:strip))
-          raise ArgumentError, "the #{chapter.name} chapter has no aggregate with a lifecycle to drive" if aggregates.empty?
+          raise ArgumentError, "the #{chapter.name} bluebook has no aggregate with a lifecycle to drive" if aggregates.empty?
 
           files(row, aggregates, FIELD.read(bluebook))
         end

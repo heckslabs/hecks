@@ -2,7 +2,7 @@ require "spec_helper"
 require_relative "../../support/memory_ports"
 
 # A capability the language defines no contract for belongs to the package that provides it: each
-# `provides` key must name one thing the chapter declares, and `ir.json`'s `provides` map hands the
+# `provides` key must name one thing the bluebook declares, and `ir.json`'s `provides` map hands the
 # reader what that thing resolves to. The reader checks the keys it needs.
 RSpec.describe "package-declared capability" do
   let(:full_row) do
@@ -72,7 +72,7 @@ RSpec.describe "package-declared capability" do
     end
   end
 
-  it "resolves the chapter that provides it through the generic lookup" do
+  it "resolves the bluebook that provides it through the generic lookup" do
     expect(registry_with.vendored_provider_for("Workshop", "glazing").name).to eq("Workshop")
   end
 
@@ -80,7 +80,7 @@ RSpec.describe "package-declared capability" do
     expect(Hecks::Projector::Exporter.provides(registry_with, "Workshop")).to eq("glazing" => full_export)
   end
 
-  it "exports nothing when no loaded chapter declares a package capability" do
+  it "exports nothing when no loaded bluebook declares a package capability" do
     expect(Hecks::Projector::Exporter.provides(Hecks::Runtime::Registry.new, "Pizzas")).to eq({})
   end
 
@@ -93,7 +93,7 @@ RSpec.describe "package-declared capability" do
       .to raise_error(Hecks::Runtime::WiringError, /Workshop provides "glazing" cooled.*no such port operation/)
   end
 
-  it "refuses a key that names nothing the chapter declares" do
+  it "refuses a key that names nothing the bluebook declares" do
     expect { registry_with(provides: full_row.merge(fire: "Kiln.Ignite")) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /glazing" fire: "Kiln\.Ignite", which names nothing/)
   end

@@ -4,7 +4,7 @@ use crate::clock::unix_now;
 use crate::commerce_ir::{payments_provider, PaymentsProvider};
 use crate::dispatch;
 use crate::host::Host;
-use crate::journal::LineageConfig;
+use crate::store::journal_sql::LineageConfig;
 use crate::payments;
 use crate::store::Store;
 use serde_json::{json, Value};
@@ -77,7 +77,7 @@ fn payment_holds_seat(payment: &Value, payments: &PaymentsProvider) -> bool {
     payments.holds_seat.iter().any(|held| held == status) && !waiting_walkthrough
 }
 
-/// Whether a registration's own lifecycle state is one the chapter declares gives its seat
+/// Whether a registration's own lifecycle state is one the bluebook declares gives its seat
 /// back (`RegistrationsProvider::frees_seat`). A missing or non-text `status` is active.
 fn registration_frees_seat(registration: &Value, frees_seat: &[String]) -> bool {
     let status = registration.get("status").and_then(|s| s.as_str());
@@ -459,7 +459,7 @@ fn schedules_the_same(event: &Value, args: &Value) -> bool {
 }
 
 /// POST /events. Dispatches `<domain>::Event.Schedule` — Event is this deploy's own top-level
-/// aggregate, not a vendored chapter like Payments — for an active Admin or Owner holding the
+/// aggregate, not a vendored bluebook like Payments — for an active Admin or Owner holding the
 /// account cookie. The host vouches for the caller as GET /registrations does and dispatches
 /// host-internally: a member's role (Admin, Owner) is not one the domain's commands declare.
 /// A repeat call for a scheduled slug answers the event as it stands when every field matches,

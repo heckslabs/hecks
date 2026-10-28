@@ -34,7 +34,7 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   HB_REGISTRY_ONLY_IR_KEYS = %w[persistence authorization membership identity provides translations approvals
                                 source_text].freeze
 
-  # [domain, dirs its run touches]: the target, `meta`, and any framework chapter it attaches.
+  # [domain, dirs its run touches]: the target, `meta`, and any framework bluebook it attaches.
   HB_PARITY_DOMAINS = {
     "examples/pizzas"                    => %w[pizzas meta],
     "examples/banking"                   => %w[banking governance identity bulk meta],

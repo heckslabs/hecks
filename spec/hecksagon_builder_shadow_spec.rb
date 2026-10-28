@@ -1,7 +1,7 @@
 require "spec_helper"
 
-# While the Hecks chapter's hecksagon builds, a real `Hecks::Release` is taken off the gem so
-# the chapter can name an aggregate `Hecks::Release`. A chapter that `attaches` loads is
+# While the Hecks bluebook's hecksagon builds, a real `Hecks::Release` is taken off the gem so
+# the bluebook can name an aggregate `Hecks::Release`. A bluebook that `attaches` loads is
 # ordinary code and must see the real module.
 RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   let(:builder) { described_class }
@@ -26,10 +26,10 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
     e
   end
 
-  # Stubs the chapter load to record what a chapter loaded by `attaches` sees; answers the record.
+  # Stubs the bluebook load to record what a bluebook loaded by `attaches` sees; answers the record.
   def record_chapter_load
     seen = {}
-    allow(Hecks::Chapters).to receive(:load!) do |_name|
+    allow(Hecks::FrameworkBluebooks).to receive(:load!) do |_name|
       seen[:defined] = Hecks.const_defined?(:Release, false)
       seen[:module]  = Hecks.const_get(:Release)
       seen[:missing] = missing_constant_error
@@ -37,7 +37,7 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
     seen
   end
 
-  # Builds a hecksagon that attaches a chapter; answers whether the real module is visible
+  # Builds a hecksagon that attaches a bluebook; answers whether the real module is visible
   # right after.
   def release_visible_after_attach
     visible = nil
@@ -48,7 +48,7 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
     visible
   end
 
-  it "shows a chapter loaded by `attaches` the real module", :aggregate_failures do
+  it "shows a bluebook loaded by `attaches` the real module", :aggregate_failures do
     seen = record_chapter_load
     release_visible_after_attach
 

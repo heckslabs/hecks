@@ -1,4 +1,4 @@
-//! Maps the first error from `hecks-parse chapter` on a buffer to an LSP diagnostic.
+//! Maps the first error from `hecks-parse bluebook` on a buffer to an LSP diagnostic.
 //! The parser reports a file and line only, so a diagnostic covers the whole line.
 
 use std::path::{Path, PathBuf};
@@ -16,9 +16,9 @@ pub struct FileDiagnostic {
     pub not_yet_implemented: bool,
 }
 
-/// Runs `hecks-parse chapter` on the file at `path` and returns at most one diagnostic.
+/// Runs `hecks-parse bluebook` on the file at `path` and returns at most one diagnostic.
 ///
-/// `Ok(None)` means the parse succeeded or the buffer declares no chapter.
+/// `Ok(None)` means the parse succeeded or the buffer declares no bluebook.
 /// Runs the parser as a subprocess because `rust/parser` ships only a binary target.
 pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDiagnostic>, String> {
     let Some(name) = chapter_name(text) else {
@@ -26,8 +26,8 @@ pub fn run(hecks_parse: &Path, path: &Path, text: &str) -> Result<Option<FileDia
     };
 
     let output = Command::new(hecks_parse)
-        .arg("chapter")
-        .arg("--chapter")
+        .arg("bluebook")
+        .arg("--bluebook")
         .arg(&name)
         .arg(path)
         .output()

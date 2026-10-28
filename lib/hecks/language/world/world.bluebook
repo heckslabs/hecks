@@ -24,8 +24,8 @@ Hecks.bluebook "World" do
       invariant("a latest version says something") { !value.to_s.empty? }
     end
 
-    # The connection every chapter's database-taking persistence adapter
-    # uses unless that chapter's own world says otherwise — a world's
+    # The connection every bluebook's database-taking persistence adapter
+    # uses unless that bluebook's own world says otherwise — a world's
     # per-chapter `persisted_by ... database` block, written once.
     value_object "DefaultDatabase" do
       attribute :value, String
@@ -33,7 +33,7 @@ Hecks.bluebook "World" do
     end
 
     # The persistence adapter every aggregate binds to unless its own
-    # chapter's hecksagon binds it — between an explicit bind and the
+    # bluebook's hecksagon binds it — between an explicit bind and the
     # framework's in-memory fallback.
     value_object "DefaultAdapter" do
       attribute :value, String
@@ -76,8 +76,8 @@ Hecks.bluebook "World" do
       member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
       member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm", calls: "realm_impl"
       member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest", calls: "latest_impl"
-      # The connection string and persistence adapter every chapter of a
-      # project would otherwise repeat, written once here; a chapter's own
+      # The connection string and persistence adapter every bluebook of a
+      # project would otherwise repeat, written once here; a bluebook's own
       # world or hecksagon bind still wins.
       member word: "default_database", context: "World", body: "none", inner: "", opens: "", fills: "default_database", calls: "default_database_impl"
       member word: "default_adapter",  context: "World", body: "none", inner: "", opens: "", fills: "default_adapter", calls: "default_adapter_impl"

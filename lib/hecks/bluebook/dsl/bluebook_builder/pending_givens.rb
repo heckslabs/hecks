@@ -56,20 +56,20 @@ module Hecks
 
         def undeclared_given_message(entry)
           "#{entry[:aggregate]}'s given #{entry[:description].inspect} names no precondition " \
-            "#{entry[:declared_by]} declares in this chapter — #{entry[:declared_by]} " \
+            "#{entry[:declared_by]} declares in this bluebook — #{entry[:declared_by]} " \
             "either hasn't declared #{entry[:description].inspect}, or declared_by: named the " \
             "wrong aggregate"
         end
 
         def unknown_given_message(entry)
           "#{entry[:aggregate]}'s given #{entry[:description].inspect} names no precondition " \
-            "any aggregate in this chapter ever declares — declare it once with a block " \
+            "any aggregate in this bluebook ever declares — declare it once with a block " \
             "(some aggregate's own given(#{entry[:description].inspect}) { ... })"
         end
 
         def ambiguous_given_message(entry, candidates)
           "#{entry[:aggregate]}'s given #{entry[:description].inspect} is ambiguous in this " \
-            "chapter — #{candidates.keys.join(", ")} each declare a DIFFERENT predicate " \
+            "bluebook — #{candidates.keys.join(", ")} each declare a DIFFERENT predicate " \
             "under this same description; name which one with declared_by: (e.g. " \
             "given(#{entry[:description].inspect}, declared_by: #{candidates.keys.first}))"
         end
@@ -86,14 +86,14 @@ module Hecks
 
         def undeclared_entity_given_message(entry)
           "#{entry[:entity]}'s given #{entry[:description].inspect} names no precondition " \
-            "#{entry[:declared_by]} declares in this chapter — #{entry[:declared_by]} " \
+            "#{entry[:declared_by]} declares in this bluebook — #{entry[:declared_by]} " \
             "either hasn't declared #{entry[:description].inspect}, or declared_by: named the " \
             "wrong piece"
         end
 
         def unknown_entity_given_message(entry)
           "#{entry[:entity]}'s given #{entry[:description].inspect} names no precondition " \
-            "any piece in this chapter ever declares — declare it once with a block " \
+            "any piece in this bluebook ever declares — declare it once with a block " \
             "(some piece's own given(#{entry[:description].inspect}) { ... })"
         end
 

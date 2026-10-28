@@ -193,7 +193,7 @@ RSpec.describe "the expression sublanguage" do
       expect(evaluate('missing.to_s == ""',   { missing: nil })).to be true
     end
 
-    it "composes with emptiness and negation, the shape the chapters use", :aggregate_failures do
+    it "composes with emptiness and negation, the shape the bluebooks use", :aggregate_failures do
       expect(evaluate("!target.to_s.empty?", { target: "ruby" })).to be true
       expect(evaluate("!target.to_s.empty?", { target: nil })).to be false
     end

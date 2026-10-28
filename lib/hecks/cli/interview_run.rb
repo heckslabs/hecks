@@ -6,9 +6,10 @@ require_relative "interview_session"
 
 module Hecks
   module CLI
-    # The command behind `hecks interview <Name>` (ADR 0088): boots the SME bluebook on demand, holds
-    # the interview at the terminal, then writes the first domain, or the next interview's proposed
-    # additions, and says what to type next. Nothing is written unless the interview concludes.
+    # The command behind `hecks interview <Name>` (ADR 0088): boots the SME bluebook on demand,
+    # holds the interview at the terminal, then writes the first domain, or the next interview's
+    # proposed additions, and says what to type next. Nothing is written unless the interview
+    # concludes.
     module InterviewRun
       SME = File.expand_path("../sme", __dir__)
 

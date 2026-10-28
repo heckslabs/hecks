@@ -3,7 +3,7 @@ require "tmpdir"
 require "fileutils"
 
 # Who the launcher's help is for: someone working on a hecks checkout sees the maintainer's
-# commands, anyone else sees what they run against their own project, plus the chapters.
+# commands, anyone else sees what they run against their own project, plus the bluebooks.
 RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
   let(:root) { Dir.mktmpdir("launcher-audience") }
 
@@ -44,17 +44,31 @@ RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
   end
 
   describe ".audience" do
-    let(:setting) { { maintainer: %w[LanguageRun], chapters: %w[Deploy], maintainer_chapters: %w[Bluebook] } }
+    let(:setting) { { maintainer: %w[LanguageRun], bluebooks: %w[Deploy], maintainer_bluebooks: %w[Bluebook] } }
 
-    it "hides the maintainer's aggregates from anyone else and points at the chapters" do
+    it "hides the maintainer's aggregates from anyone else and points at the bluebooks" do
       expect(described_class.audience(setting, false)).to eq(hide: %w[LanguageRun], chapters: %w[Deploy])
     end
 
-    it "hides nothing from a maintainer, and adds the language's own chapters" do
+    it "hides nothing from a maintainer, and adds the language's own bluebooks" do
       expect(described_class.audience(setting, true)).to eq(hide: [], chapters: %w[Deploy Bluebook])
     end
 
-    it "leaves a chapter that did not opt in whole" do
+    it "still reads the retired keys, each use naming the key that replaces it", :aggregate_failures do
+      retired = { maintainer: %w[LanguageRun], chapters: %w[Deploy], maintainer_chapters: %w[Bluebook] }
+
+      said = ["setting chapters is deprecated, use bluebooks",
+              "setting maintainer_chapters is deprecated, use maintainer_bluebooks"]
+
+      expect { expect(described_class.audience(retired, true)).to eq(hide: [], chapters: %w[Deploy Bluebook]) }
+        .to output(a_string_including(*said)).to_stderr
+    end
+
+    it "says nothing for the new keys", :aggregate_failures do
+      expect { described_class.audience(setting, true) }.not_to output.to_stderr
+    end
+
+    it "leaves a bluebook that did not opt in whole" do
       expect(described_class.audience(nil, false)).to eq({})
     end
   end

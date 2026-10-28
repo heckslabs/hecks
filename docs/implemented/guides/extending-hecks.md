@@ -91,7 +91,7 @@ admitting two shapes gets two rows, not one row with a maybe.
 
 Adding a word by hand — editing the row, teaching the builder, moving
 the golden IR, remembering which specs gate the change — is a many-file
-walk that used to live in memory and review alone. the `Language` commands of the `Hecks` chapter make
+walk that used to live in memory and review alone. the `Language` commands of the `Hecks` bluebook make
 it mechanical. Run `hecks <verb> --help` before you touch anything; this
 is what it actually does, station by station:
 
@@ -188,7 +188,7 @@ not just which symbols exist.
 **`spec/translation_vocabulary_conformance_spec.rb`** is the smallest,
 and the best one to read start to finish if
 you ever have to build another — it's a template with all the
-scaffolding stripped away. The situation: the translation chapter
+scaffolding stripped away. The situation: the translation bluebook
 declares a closed set of rule kinds (`Rule.Kind` in
 `lib/hecks/grammar/translation.bluebook`), and `TranslationAggregateBuilder`
 re-spelled the identical list by hand in its `method_missing` refusal
@@ -365,7 +365,7 @@ record in this codebase isn't about the syntax table directly — it's in
 because it's the reason gates like `syntax_conformance_spec` exist at
 all: a new value-object rule landed, the example domains were migrated
 to satisfy it, and `lib/hecks/grammar/expression.bluebook` — one
-chapter, loaded by nothing in `spec/` — was left behind. It raised
+bluebook, loaded by nothing in `spec/` — was left behind. It raised
 `Malformed` at load. The hand-run corpus walk that would have caught it
 died silently at its first stage. And `rspec` reported green the
 whole time, because nothing in the suite ever booted that file, so

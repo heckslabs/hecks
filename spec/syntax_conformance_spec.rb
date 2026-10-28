@@ -9,7 +9,7 @@ RSpec.describe "the declared syntax" do
 
   def self.syntax = judged_meta.aggregates.find { |a| a.hecks_name == "Syntax" }
 
-  # The same chapter, reachable from inside an example.
+  # The same bluebook, reachable from inside an example.
   def meta = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
 
   # Every cell as text. Fields decode back through typed literal decoding on
@@ -75,8 +75,8 @@ RSpec.describe "the declared syntax" do
   # with reasons, so an unexplained allowlist can't quietly cover a retired word.
   NOT_A_WORD = {
     "Bluebook"  => {
-      classification:                         "an attr_reader BluebookBuilder.build reads when merging one chapter across files",
-      resolve_pending_chapter_givens!:        "called by MetaValidator.judge_deferred! once a chapter split " \
+      classification:                         "an attr_reader BluebookBuilder.build reads when merging one bluebook across files",
+      resolve_pending_chapter_givens!:        "called by MetaValidator.judge_deferred! once a bluebook split " \
                                               "across files has fully loaded, to resolve any bare chapter-given " \
                                               "reference an earlier file left pending",
       resolve_pending_chapter_entity_givens!: "the entity-scoped analogue, one level down — called by " \
@@ -503,7 +503,7 @@ RSpec.describe "the declared syntax" do
   # `Type` is a position, not a record, so nothing it declares may fill anything.
   CATEGORY_OF = {
     # `hecksagon`/`world`/`port` are File-context words too, filling fields
-    # on their own chapters' aggregates, not Bluebook's — the same
+    # on their own bluebooks' aggregates, not Bluebook's — the same
     # "checked against more than one category" shape Lifecycle already has.
     "File"                 => %w[Bluebook Hecksagon World Port Adapter Translation],
     "Bluebook"             => %w[Bluebook],
@@ -523,7 +523,7 @@ RSpec.describe "the declared syntax" do
     "World"                => %w[World],
     "DomainPort"           => %w[DomainPort],
     "PortOperation"        => %w[PortOperation],
-    # Port/Adapter are their own sibling chapters, each declaring a real
+    # Port/Adapter are their own sibling bluebooks, each declaring a real
     # aggregate that its own Judge dispatches into.
     "Port"                 => %w[Port],
     "Adapter"              => %w[Adapter],
@@ -533,7 +533,7 @@ RSpec.describe "the declared syntax" do
     "TranslationAggregate" => %w[TranslationAggregate]
   }.freeze
 
-  # Hecksagon/World are sibling chapters, not aggregates inside Bluebook, so
+  # Hecksagon/World are sibling bluebooks, not aggregates inside Bluebook, so
   # fields for File/Hecksagon/World words come from three registries merged.
   # Recurses into each aggregate's own entities too, since Dispatch nests two levels deep.
   def self.all_entities(entity)

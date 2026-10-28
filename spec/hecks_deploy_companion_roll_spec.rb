@@ -3,7 +3,7 @@ require "json"
 require "tmpdir"
 require "fileutils"
 
-# `hecks deploy companion_roll.run` end to end: the Deploy chapter's CompanionRoll asks the
+# `hecks deploy companion_roll.run` end to end: the Deploy bluebook's CompanionRoll asks the
 # DeployToolchain port, the Hecks domain binds its adapter, and a stand-in `deploy-umami.sh` (the
 # steps a project's companion script takes: read the task definition, send a Compose project over
 # SSM, check it on the box) runs against a stand-in `aws`. Nothing reaches AWS or a box.
@@ -77,7 +77,7 @@ RSpec.describe "the Deploy chapter's CompanionRoll", :io do
      "stack widget-box", "over SSM", "confirm=true"]
   end
 
-  it "declares the roll and its recorders in the Deploy chapter" do
+  it "declares the roll and its recorders in the Deploy bluebook" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("CompanionRoll").commands.map(&:hecks_name)
 
     expect(commands).to eq(%w[Run Complete Plan Flag])

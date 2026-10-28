@@ -46,13 +46,18 @@ module Hecks
         loading = Hecks::Ports::Loading.bootstrap
         directory = loading.bluebook_directory(domain_path)
         registry = Hecks::Runtime::Registry.new(root: File.dirname(directory))
-        Hecks.with_registry(registry) do
-          loading.load_library
-          loading.load_project(loading.shared_root(nil, directory))
-          loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
-        end
+        Hecks.with_registry(registry) { load_chapters(loading, directory) }
         bluebook = registry.first_bluebook or abort "no bluebook in #{directory}"
         [registry, bluebook]
+      end
+
+      # Loads the library, the project and the domain's files into the registry in scope, then the
+      # copy's local files and any named environment, so the bindings are the runtime's own.
+      def load_chapters(loading, directory)
+        loading.load_library
+        loading.load_project(loading.shared_root(nil, directory))
+        loading.load_each(directory, %w[*.port *.adapter *.bluebook *.hecksagon *.world])
+        loading.load_overlay(directory, ENV.fetch("HECKS_PROJECT_ENVIRONMENT", nil))
       end
 
       # @return [Object] the domain's ensured lineage

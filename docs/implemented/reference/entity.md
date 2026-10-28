@@ -13,7 +13,7 @@ Seven of these nine run against `examples/banking`'s `LedgerEntry` — the
 movements inside an `Account`, which have their own identity, their own
 state machine and their own commands, but no life apart from the account
 holding them. `reference_to` and nested `entity` appear on no entity
-anywhere in the real corpus, so both get a small chapter of their own
+anywhere in the real corpus, so both get a small bluebook of their own
 further down.
 
 ```ruby boot
@@ -229,7 +229,7 @@ ledger_entry.commands.find { |c| c.hecks_name == "Reverse" }.givens.map(&:canoni
 `given` also SHARES CHAPTER-WIDE, ACROSS AGGREGATES — a bare
 `given(description)`, written directly inside a DIFFERENT aggregate's
 own entity, resolves against whichever piece anywhere in the same
-chapter already declared that description, the identical move
+bluebook already declared that description, the identical move
 `aggregate.md`'s own "given" makes one level up
 (`docs/implemented/resolution-rules/chapter-entity-given.md`).
 `SafeDepositBox::Visit` names `Account::LedgerEntry`'s own "customer is
@@ -246,8 +246,8 @@ visit.preconditions.map { |g| [g.description, g.canonical] }  # => [["customer i
 
 `declared_by:` disambiguates the same way it does one level up — only
 needed once the same description means a genuinely different predicate
-somewhere else in the chapter's own pieces; omitted here because
-`Account::LedgerEntry` is currently the only piece in this chapter
+somewhere else in the bluebook's own pieces; omitted here because
+`Account::LedgerEntry` is currently the only piece in this bluebook
 declaring "customer is active" with a block.
 
 ## invariant

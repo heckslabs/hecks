@@ -20,7 +20,7 @@ module Hecks
 
         attr_reader :categories
 
-        # @param meta [Bluebook::Chapter] the language's own assembled
+        # @param meta [Bluebook::Declaration] the language's own assembled
         #   "Bluebook" bluebook
         def initialize(meta)
           @categories = {}

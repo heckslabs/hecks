@@ -4,7 +4,7 @@ require "tmpdir"
 require "fileutils"
 require_relative "support/box_hosting_stubs"
 
-# `hecks deploy smoke_run.run` end to end: the Deploy chapter's SmokeRun asks the DeployToolchain
+# `hecks deploy smoke_run.run` end to end: the Deploy bluebook's SmokeRun asks the DeployToolchain
 # port, the Hecks domain binds its adapter, and the generated `smoke-after-deploy.sh` (the golden
 # file) runs against stand-in `aws`, `docker` and `gh` programs. Nothing reaches AWS or GitHub.
 RSpec.describe "the Deploy chapter's SmokeRun", :io do
@@ -67,7 +67,7 @@ RSpec.describe "the Deploy chapter's SmokeRun", :io do
 
   def refusal_of(json) = json.dig("state", "refusal")
 
-  it "is declared in the Deploy chapter, with the DeployToolchain port it asks" do
+  it "is declared in the Deploy bluebook, with the DeployToolchain port it asks" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("SmokeRun").commands.map(&:hecks_name)
 
     expect(commands).to eq(%w[Run Pass Flag])

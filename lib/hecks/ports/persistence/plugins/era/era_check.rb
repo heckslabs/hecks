@@ -3,7 +3,7 @@ require_relative "../../../../ports/persistence/binding_policy"
 require_relative "lineage"
 require_relative "../../../../naming"
 require_relative "../../../../framework"
-require_relative "../../../../chapters"
+require_relative "../../../../framework_bluebooks"
 require_relative "../../../../runtime/registry"
 
 module Hecks
@@ -72,7 +72,7 @@ module Hecks
       # member or vendored bluebook is excluded from the single-file
       # fallback so its own real source is read, not a sibling's.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook whose source is wanted
+      # @param bluebook [Bluebook::Declaration] the bluebook whose source is wanted
       # @param directory [String] path of the domain's own bluebook directory
       # @param registry [Runtime::Registry, nil] nil skips the vendored-bluebook lookup
       # @return [String, nil] UTF-8 text of every matching file joined with `"\n"`, or nil
@@ -103,7 +103,7 @@ module Hecks
       # Tries, in order: a bluebook the gem carries (the QA ledger's QualityControl), the domain's
       # own single remaining file, a framework member, then a vendored embryonaut bluebook.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook whose source is wanted
+      # @param bluebook [Bluebook::Declaration] the bluebook whose source is wanted
       # @param directory [String] path of the domain's own bluebook directory
       # @param domain_files [Array<String>] paths of every `.bluebook` file in `directory`
       # @param registry [Runtime::Registry, nil] the registry asked for a vendored name; nil
@@ -115,7 +115,7 @@ module Hecks
         return [framework_path] if framework_path
         return vendored_source_for(directory, vendored_name) if vendored_name
 
-        attached = Chapters.index.fetch(bluebook.name, [])
+        attached = FrameworkBluebooks.index.fetch(bluebook.name, [])
         return attached if attached.any?
 
         domain_files.size == 1 ? domain_files : []
@@ -172,7 +172,7 @@ module Hecks
       # The first aggregate is the anchor: its binding alone decides the adapter asked.
       #
       # @param registry [Runtime::Registry] the registry being booted
-      # @param bluebook [Bluebook::Chapter] the bluebook to check
+      # @param bluebook [Bluebook::Declaration] the bluebook to check
       # @param current_text [String, nil] the bluebook's source; nil means none was found
       # @param directory [String, nil] the domain's bluebook directory, named in the refusal
       # @return [void]
@@ -197,7 +197,7 @@ module Hecks
 
       # Refuses the boot of a lineage-bound bluebook whose source file was not found.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook being checked
+      # @param bluebook [Bluebook::Declaration] the bluebook being checked
       # @param directory [String, nil] the domain's bluebook directory, named in the message
       # @return [void]
       # @raise [Runtime::WiringError] always

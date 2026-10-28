@@ -17,7 +17,7 @@ Hecks.bluebook "Adapter" do
     attribute :provides, list_of(AdapterCapability)
 
     # **A plugin answers named queries** — one that `runs` a wasm module says which queries it
-    # answers, each qualified by chapter and aggregate, and the runtime binds them to it.
+    # answers, each qualified by bluebook and aggregate, and the runtime binds them to it.
     invariant("only a plugin answers queries") do
       answers.unset? || answers.size == 0 || !runs.unset?
     end

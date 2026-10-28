@@ -4,9 +4,9 @@
 use crate::host::Host;
 use crate::ir::Backend;
 use crate::{
-    auth, aws_lambda_invoker, dispatch, extension, ir, journal, ledger, log, mint, rate_limit,
+    auth, aws_lambda_invoker, dispatch, extension, ir, ledger, log, rate_limit,
     secrets, server, storage_shape,
-    store::{MemoryStore, Store},
+    store::{journal_sql as journal, mint, MemoryStore, Store},
 };
 
 use lambda_runtime::{service_fn, Error, LambdaEvent};
@@ -392,7 +392,7 @@ async fn boot_postgres(
             mint::Aggregate { name, storage_name }
         })
         .collect();
-    // A chapter that `provides "membership"` names who may sign in; that
+    // A bluebook that `provides "membership"` names who may sign in; that
     // aggregate can be vendored, so it may be missing from this domain's
     // lineage-capable list. Mint its head anyway for Google-auth to read.
     if let Some(membership) = ir::membership_provider(ir) {

@@ -1,5 +1,5 @@
 # The bluebook language as an ordinary domain, so it can be booted, fuzzed and model-checked.
-# Memory: this chapter is read, never written to a store.
+# Memory: this bluebook is read, never written to a store.
 Hecks.hecksagon "Bluebook" do
   # `role "Language"` is real access control only once Governance can check it (S8).
   attaches "Governance"

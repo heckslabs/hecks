@@ -1,12 +1,12 @@
 require "spec_helper"
-require "hecks/chapters"
+require "hecks/framework_bluebooks"
 
-# `attaches` brings a chapter the gem carries (the language, Expression, Tenancy, Deploy,
+# `attaches` brings a bluebook the gem carries (the language, Expression, Tenancy, Deploy,
 # Site, QualityControl) into a domain by name (ADR 0080, section 4). Like a vendored package, the
 # attached
-# chapter is a bounded context, and the consumer's sibling hecksagon for it is the
+# bluebook is a bounded context, and the consumer's sibling hecksagon for it is the
 # anti-corruption layer.
-RSpec.describe "a hecksagon attaching a chapter the gem carries" do
+RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
   def registry_with(&)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -56,7 +56,7 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     end
   end
 
-  it "loads the chapter and records it", :aggregate_failures do
+  it "loads the bluebook and records it", :aggregate_failures do
     registry = attach("Deploy")
 
     expect(registry.bluebook("Deploy")).not_to be_nil
@@ -64,14 +64,14 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     expect(registry.hecksagon("Console").to_h[:attachments]).to eq([{ name: "Deploy", source: "gem" }])
   end
 
-  it "marks the chapter bounded, and boots with its sibling hecksagon", :aggregate_failures do
+  it "marks the bluebook bounded, and boots with its sibling hecksagon", :aggregate_failures do
     registry = attach("Deploy")
 
     expect(registry.bounded?("Deploy")).to be true
     expect { registry.verify! }.not_to raise_error
   end
 
-  it "attaches the Site chapter, with the closed sets a route table is read against", :aggregate_failures do
+  it "attaches the Site bluebook, with the closed sets a route table is read against", :aggregate_failures do
     registry = attach("Site")
 
     expect(registry.bluebook("Site").aggregate("Route")).not_to be_nil
@@ -80,19 +80,19 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
     expect { registry.verify! }.not_to raise_error
   end
 
-  it "refuses boot when the attached chapter has no sibling hecksagon" do
+  it "refuses boot when the attached bluebook has no sibling hecksagon" do
     registry = attach("Deploy", sibling: false)
 
     expect { registry.verify! }.to raise_error(Hecks::Runtime::WiringError, /attaches "Deploy".*bounded context/m)
   end
 
-  it "refuses a name no attachable chapter has, listing the ones that exist" do
-    expect { attach("Nowhere") }.to raise_error(Hecks::Runtime::WiringError, /no chapter of that name.*Deploy.*from: :vendor/)
+  it "refuses a name no attachable bluebook has, listing the ones that exist" do
+    expect { attach("Nowhere") }.to raise_error(Hecks::Runtime::WiringError, /no bluebook of that name.*Deploy.*from: :vendor/)
   end
 
   # QualityControl ships its ports and adapters beside its bluebook, so every hecksagon that
-  # attaches it (the Hecks chapter, the QA ledger) gets the same contract.
-  describe "a chapter that ships its ports and adapters" do
+  # attaches it (the Hecks bluebook, the QA ledger) gets the same contract.
+  describe "a bluebook that ships its ports and adapters" do
     let(:registry) { attach("QualityControl") }
 
     it "declares the chapter's ports on its aggregates", :aggregate_failures do
@@ -109,31 +109,31 @@ RSpec.describe "a hecksagon attaching a chapter the gem carries" do
                                "GitPr" => "GitPr", "Agent" => "Agent")
     end
 
-    it "loads nothing twice when a second hecksagon attaches the chapter" do
+    it "loads nothing twice when a second hecksagon attaches the bluebook" do
       registry_with do
         declare_console
-        Hecks::Chapters.load!("QualityControl")
+        Hecks::FrameworkBluebooks.load!("QualityControl")
 
-        expect(Hecks::Chapters.load!("QualityControl")).to be_nil
+        expect(Hecks::FrameworkBluebooks.load!("QualityControl")).to be_nil
       end
     end
 
-    it "leaves a chapter with no ports file or adapters as it was" do
+    it "leaves a bluebook with no ports file or adapters as it was" do
       expect(attach("Deploy").adapters.keys).not_to include("GithubIssues")
     end
   end
 
-  it "offers only the language's Translation chapter, never the grammar's" do
-    paths = Hecks::Chapters.index.fetch("Translation")
+  it "offers only the language's Translation bluebook, never the grammar's" do
+    paths = Hecks::FrameworkBluebooks.index.fetch("Translation")
 
     expect(paths).to all(include("/language/translation/"))
   end
 
-  # `attaches` is the one word for a gem chapter and for a vendored package; the two older words
+  # `attaches` is the one word for a gem bluebook and for a vendored package; the two older words
   # are deprecated spellings that behave as before and warn.
   describe "attaches, from the gem or from vendor" do
-    it "finds a framework member and a language chapter through the one table" do
-      expect(Hecks::Chapters.table.keys).to include("Governance", "Identity", "Deploy", "Site", "Tenancy")
+    it "finds a framework member and a language bluebook through the one table" do
+      expect(Hecks::FrameworkBluebooks.table.keys).to include("Governance", "Identity", "Deploy", "Site", "Tenancy")
     end
 
     it "records each attachment with its source" do

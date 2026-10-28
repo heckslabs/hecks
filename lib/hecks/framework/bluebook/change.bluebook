@@ -4,7 +4,7 @@ Hecks.bluebook "Change" do
 
   # A framework member like Governance and Identity: attach it with `attaches "Change"` in the
   # consuming domain's own `.hecksagon`. The script is the port's adapter, so what a change
-  # does lives behind the `Script` port, and this chapter holds only how any change moves.
+  # does lives behind the `Script` port, and this bluebook holds only how any change moves.
   aggregate "Change" do
     description "One change a script makes, previewed before it is carried out and applied only if its plan is unchanged."
 

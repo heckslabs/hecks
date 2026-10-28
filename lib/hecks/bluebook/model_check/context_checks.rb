@@ -1,9 +1,13 @@
+require_relative "context_map_checks"
+
 module Hecks
   module Bluebook
     module ModelCheck
       # The checks over how contexts relate to each other: a `translates` has to listen to a context
       # this hecksagon acknowledges, and no two contexts may depend on each other in a cycle.
       module ContextChecks
+        include ContextMapChecks
+
         # The edge kinds that couple two contexts at run time. A shared kernel merges in-process, so
         # two contexts attaching each other is a different question and is left out.
         COUPLING_KINDS = %w[customer_supplier acl].freeze
@@ -11,7 +15,7 @@ module Hecks
         # A `translates` reacts to a foreign event, so the context that owns that event has to be
         # attached or subscribed to, as an `across` policy's target does.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook whose policies are checked
+        # @param bluebook [Bluebook::Declaration] the bluebook whose policies are checked
         # @param hecksagon [Bluebook::Hecksagon, nil] the bluebook's own wiring
         # @param owners [Hash{String => Array<String>}, nil] each aggregate name to the contexts
         #   that declare it; nothing is checked without it

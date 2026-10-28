@@ -1,4 +1,4 @@
-//! The formatter: a parsed chapter written back out as plain sentences, one canonical wording for
+//! The formatter: a parsed bluebook written back out as plain sentences, one canonical wording for
 //! each thing, so two authors saying the same thing leave the same text and diffs stay quiet.
 //!
 //! It is the reverse of `lower`: each phrase the parser reads has one spelling here, and anything
@@ -207,7 +207,7 @@ fn policy_text(
             });
             if !declared {
                 return Err(format!(
-                    "policy {} triggers {command}, a command this chapter does not declare",
+                    "policy {} triggers {command}, a command this bluebook does not declare",
                     policy.name
                 ));
             }

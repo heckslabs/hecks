@@ -24,7 +24,7 @@ module Hecks
           # each is.
           SINGLE = { "value" => :value, "url" => :url, "address" => :address }.freeze
 
-          # @param bluebook [Bluebook::Chapter] the domain bluebook
+          # @param bluebook [Bluebook::Declaration] the domain bluebook
           # @param skip [Array<String>] aggregates to leave out
           # @return [Array<Aggregate>] each aggregate with a lifecycle and a creating command
           # @raise [ArgumentError] when such an aggregate cannot be driven

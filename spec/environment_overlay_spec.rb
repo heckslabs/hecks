@@ -134,7 +134,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
   end
 
   # A vendored package's own bluebook plus a consumer hecksagon beside it. The package directory
-  # need not be the chapter's name in snake case: `widget` may hold `Hecks.bluebook "Widgets"`.
+  # need not be the bluebook's name in snake case: `widget` may hold `Hecks.bluebook "Widgets"`.
   def write_vendored_widgets(package: "widgets")
     write(dir, "vendor/embryonaut_bluebooks/#{package}/bluebook/widget.bluebook", OVERLAY_WIDGETS_BLUEBOOK)
     write(dir, "bluebook/consumer.hecksagon", CONSUMER_HECKSAGON.sub("PACKAGE", package))
@@ -201,7 +201,7 @@ RSpec.describe "environment overlays and vendored bluebooks" do
       expect(File.directory?(File.join(dir, "vendor", "embryonaut_bluebooks", "widgets", "bluebook"))).to be true
     end
 
-    it "names the chapter after the bluebook the package declares, not after its directory", :aggregate_failures do
+    it "names the bluebook after the bluebook the package declares, not after its directory", :aggregate_failures do
       write_vendored_widgets(package: "widget")
 
       registry = Hecks.boot(File.join(dir, "bluebook"), install_driving: false).registry

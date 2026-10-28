@@ -49,8 +49,8 @@ module Hecks
             def refuse_unresolvable_projection!(aggregate, field, plan)
               raise Malformed,
                     "#{aggregate.hecks_name}.projects :#{field.name} reads through :#{field.reference}, " \
-                    "which hops to #{plan.hops.last.target_name}, which this chapter never declares — " \
-                    "a projection through an aggregate this chapter cannot see resolves to nothing"
+                    "which hops to #{plan.hops.last.target_name}, which this bluebook never declares — " \
+                    "a projection through an aggregate this bluebook cannot see resolves to nothing"
             end
 
             def refuse_undeclared_projection!(aggregate, field, target, plan)

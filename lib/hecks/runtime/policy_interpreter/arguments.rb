@@ -19,8 +19,14 @@ module Hecks
           payload = event.payload.transform_keys(&:to_sym).merge(extra)
           return payload unless ReactionInvocation.projection_declared?(policy)
 
-          source = row.transform_keys(&:to_sym).merge(emitter_identity(event)).merge(payload)
+          source = emitter_id(event).merge(row.transform_keys(&:to_sym)).merge(emitter_identity(event)).merge(payload)
           projected_args(policy, event, source)
+        end
+
+        # The emitting record's whole identity as `:id`, below everything else: a fan-out row
+        # carries its own `id`, and a payload field of that name wins (ADR 0144).
+        def emitter_id(event)
+          event.id.nil? || event.id.to_s.empty? ? {} : { id: event.id }
         end
 
         def projected_args(policy, event, payload)

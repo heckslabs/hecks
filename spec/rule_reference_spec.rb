@@ -134,7 +134,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
 
   # Needs a third aggregate (Box) sharing no `declared_by:` conflict, to
   # prove the unambiguous path actually resolves rather than merely never
-  # hitting the ambiguous branch by omission; a minimal 2-aggregate chapter
+  # hitting the ambiguous branch by omission; a minimal 2-aggregate bluebook
   # wouldn't distinguish the two.
   RULE_REF_SINGLE_CANDIDATE = <<~BLUEBOOK.freeze
     Hecks.bluebook "OwnerKeyedSingle", version: "v1" do
@@ -347,7 +347,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
     end
 
     it "refuses AMBIGUOUS when two candidates exist and declared_by: is omitted" do
-      expect { load(RULE_REF_AMBIGUOUS) }.to raise_error(Hecks::Bluebook::DSL::Malformed, /is ambiguous in this chapter/)
+      expect { load(RULE_REF_AMBIGUOUS) }.to raise_error(Hecks::Bluebook::DSL::Malformed, /is ambiguous in this bluebook/)
     end
 
     it "resolves the named candidate when declared_by: disambiguates" do

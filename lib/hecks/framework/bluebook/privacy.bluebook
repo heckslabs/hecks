@@ -2,7 +2,7 @@ Hecks.bluebook "Privacy" do
   vision "Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI."
   supporting
 
-  # What this chapter answers for every attaching domain: the boot that seeds `mark_sensitive`
+  # What this bluebook answers for every attaching domain: the boot that seeds `mark_sensitive`
   # facts, the masking of a read and the cryptoshred read these verbs from here rather than
   # recognising "Privacy" by name.
   provides "privacy",
@@ -82,6 +82,7 @@ Hecks.bluebook "Privacy" do
     attribute :domain,        KeyDomain
     attribute :subject_id,    SubjectId
     attribute :key_reference, KeyReference
+    attribute :refusal,       Report, optional: true
 
     identified_by :domain, :subject_id
 
@@ -100,9 +101,18 @@ Hecks.bluebook "Privacy" do
       invariant("a key carries the vault's own opaque reference to it") { !value.to_s.empty? }
     end
 
-    # Guards `Shred` against running twice.
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # A shred is asked for, then the vault destroys the key, then it is recorded (ADR 0142). The
+    # record reads `shredded` only after the vault said the key is gone. A refused destruction
+    # leaves it `shred_failed`, which a privacy officer may ask to shred again.
     lifecycle :status, default: "active" do
-      transition "Shred" => "shredded", from: "active"
+      mark :failure, "shred_failed"
+      transition "Shred"        => "shredding",   from: ["active", "shred_failed"]
+      transition "MarkShredded" => "shredded",    from: "shredding"
+      transition "FailShred"    => "shred_failed", from: "shredding"
     end
 
     command "Issue" do
@@ -120,15 +130,37 @@ Hecks.bluebook "Privacy" do
       emits SubjectKeyIssued
     end
 
-    # Records the destruction, never performs it: `Ports::KeyVault.destroy` runs in
-    # driving-side code before this is dispatched.
+    # Asks for the destruction; it does not claim it. The `DestroyTheKeyWhenAsked` policy asks the
+    # key vault, and `MarkShredded` records the answer.
     command "Shred" do
       role "Privacy officer"
-      goal "Mark this subject's key destroyed, so its ciphertext is recorded as permanently unrecoverable"
+      goal "Ask for this subject's key to be destroyed, so its ciphertext becomes permanently unrecoverable"
 
       reference_to SubjectKey
 
+      emits SubjectKeyShredRequested
+    end
+
+    # The vault said the key is gone. System-only, so nothing reaches `shredded` by a caller's say-so.
+    command "MarkShredded" do
+      role "System"
+      goal "Record that the vault destroyed this subject's key, so its ciphertext is recorded as unrecoverable"
+
+      reference_to SubjectKey
+      attribute :key_reference, KeyReference
+
       emits SubjectKeyShredded
+    end
+
+    command "FailShred" do
+      role "System"
+      goal "Record why the vault could not destroy this subject's key, leaving it live and the shred to retry"
+
+      reference_to SubjectKey
+      attribute :refusal, Report
+      sets :refusal
+
+      emits SubjectKeyShredFailed
     end
 
     query "ForSubject" do
@@ -137,5 +169,22 @@ Hecks.bluebook "Privacy" do
       attribute :subject_id, SubjectId
       where(domain: :domain, subject_id: :subject_id)
     end
+  end
+
+  # What a shred does once asked for: the key vault destroys the key, and the answer is recorded.
+  # The port is declared in privacy.ports.hecksagon and bound by privacy.key_destroyer.adapter.
+  policy "DestroyTheKeyWhenAsked" do
+    on  "SubjectKey.SubjectKeyShredRequested"
+    ask :destroy
+  end
+
+  policy "RecordTheDestruction" do
+    on      "SubjectKey.SubjectKeyDestroyed"
+    trigger SubjectKey::MarkShredded, with: { key_reference: :key_reference }
+  end
+
+  policy "RecordTheRefusal" do
+    on      "SubjectKey.SubjectKeyDestructionRefused"
+    trigger SubjectKey::FailShred, with: { refusal: :refusal }
   end
 end

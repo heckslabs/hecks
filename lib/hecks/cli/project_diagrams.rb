@@ -33,7 +33,7 @@ module Hecks
       # @return [Array(Object, Object)] the named bluebook and its hecksagon
       def boot_chapter(domain_path, chapter_name)
         registry = Hecks.boot(File.expand_path(domain_path, Dir.pwd)).registry
-        chapter = registry.bluebook(chapter_name) or abort "no chapter named #{chapter_name}"
+        chapter = registry.bluebook(chapter_name) or abort "no bluebook named #{chapter_name}"
         [chapter, registry.hecksagon(chapter_name)]
       end
 

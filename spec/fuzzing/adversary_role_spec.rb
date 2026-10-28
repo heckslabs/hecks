@@ -93,11 +93,13 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
     end
 
     # Only grants whose `role_name` the argument layer left alone: a
-    # `refusal_precedence`/`omit_mapped_argument` mutation can corrupt or drop it.
+    # `refusal_precedence`/`omit_mapped_argument` mutation can corrupt or drop it, and so can the
+    # ordinary malformation of a step's arguments, which records no mutation at all.
     def untouched_grants(steps, grant_verbs)
       steps.select do |s|
         grant_verbs.include?(s["verb"]) &&
-          (s["adversarial"] || []).none? { |m| m.value?("role_name") }
+          (s["adversarial"] || []).none? { |m| m.value?("role_name") } &&
+          s.dig("args", "role_name").is_a?(Hash)
       end
     end
 
@@ -109,7 +111,7 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
     end
 
     it "produces every shape on banking, with the fingerprint in the step's own keys" do
-      pairs  = notes_over(ROLE_BANKING, seeds: 16, mutation: "caller_role", adversarial: 0.3, role_draw: 1.0)
+      pairs  = notes_over(ROLE_BANKING, seeds: 32, mutation: "caller_role", adversarial: 0.3, role_draw: 1.0)
       shapes = pairs.group_by { |_, note| note["shape"] }
 
       expect(shapes.keys).to match_array(described_class::CALLER_SHAPES)

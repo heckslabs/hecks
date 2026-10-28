@@ -2,9 +2,9 @@ require "spec_helper"
 require "json"
 
 # Replays the operator admission ledger (lib/hecks/grammar/expression_operators.json)
-# through the expression chapter's real commands and holds the admitted set equal to the
+# through the expression bluebook's real commands and holds the admitted set equal to the
 # evaluator's tables, both directions. The evaluator cannot build its tables from the
-# chapter itself (CanonicalForm runs while it loads), hence the checked-in projection.
+# bluebook itself (CanonicalForm runs while it loads), hence the checked-in projection.
 RSpec.describe "the operator domain" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecks/grammar/expression_operators.json"))).freeze
@@ -14,7 +14,7 @@ RSpec.describe "the operator domain" do
   Resolver      = Hecks::Bluebook::Expression::Resolver
   CanonicalForm = Hecks::Bluebook::Expression::CanonicalForm
 
-  # Boots the chapter without a facade: the ledger dispatches by FQN, as MetaValidator does.
+  # Boots the bluebook without a facade: the ledger dispatches by FQN, as MetaValidator does.
   def self.boot_expression
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
@@ -58,7 +58,7 @@ RSpec.describe "the operator domain" do
   it "replays the admission ledger without a single refusal" do
     expect(REFUSALS).to be_empty,
                         "the ledger refused — an operator was admitted without reading in every " \
-                        "target, or a step no longer matches the chapter:\n  #{REFUSALS.join("\n  ")}"
+                        "target, or a step no longer matches the bluebook:\n  #{REFUSALS.join("\n  ")}"
   end
 
   it "admits exactly the comparison operators the evaluator runs, in check order" do
@@ -279,7 +279,7 @@ RSpec.describe "the operator domain" do
   end
 
   it "admits every operator the language itself stands on" do
-    # Guards and invariants in the language's own chapters evaluate through this operator
+    # Guards and invariants in the language's own bluebooks evaluate through this operator
     # table, so retiring one would leave the language unable to read its rules.
     # hecks project_expression_tables refuses the same case at regeneration.
     require "hecks/grammar"
@@ -288,7 +288,7 @@ RSpec.describe "the operator domain" do
     expect(stranded).to be_empty, self_bearing_message(stranded)
   end
 
-  # A throwaway chapter runtime with the `**` operator proposed and nothing else done to it.
+  # A throwaway bluebook runtime with the `**` operator proposed and nothing else done to it.
   def power_runtime
     self.class.boot_expression.tap do |throwaway|
       throwaway.dispatch_flat("Expression::Operator.Propose",

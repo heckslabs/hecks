@@ -292,7 +292,7 @@ When [Account closed](#account-closed) happens, [ATM card](#atm-card) is asked t
 
 #### Review on freeze
 
-When [Account frozen](#account-frozen) happens, Account freeze review is asked to open, in Compliance.
+When [Account frozen](#account-frozen) happens, Review is asked to open, in Compliance.
 
 ### Lists
 
@@ -1500,7 +1500,7 @@ When [Key return due](#key-return-due) happens, Notifications is asked to send, 
 
 #### Review on box surrender
 
-When [Box surrendered](#box-surrendered) happens, Box surrender review is asked to open, in Compliance.
+When [Box surrendered](#box-surrendered) happens, Review is asked to open, in Compliance.
 
 ### Lists
 

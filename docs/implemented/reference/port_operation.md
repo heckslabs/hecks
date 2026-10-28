@@ -237,7 +237,7 @@ under `refusal`.
 EVERY failure lands here, deliberately: a timeout, a bad credential, a
 missing adapter, a nil where a number was wanted. A raise from the far side
 of a boundary is not an exception in this domain's terms, it is the outside
-refusing, and the chapter has already named the word for that. So an ask
+refusing, and the bluebook has already named the word for that. So an ask
 never propagates — the command that triggered it stands, and a `policy`
 reacting to this event is where a retry or a give-up lives (see banking's
 `ScheduledPayment`, whose `attempts` counter and `Retry` command are the

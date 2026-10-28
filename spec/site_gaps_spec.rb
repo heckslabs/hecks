@@ -6,7 +6,7 @@ require "json"
 require "hecks/tools"
 require "hecks/tools/site_routes"
 
-# What a real client's adoption of the Site chapter needed beyond the studio sample: a project
+# What a real client's adoption of the Site bluebook needed beyond the studio sample: a project
 # run from outside a checkout with its template and output anywhere, a site with no load
 # balancer, a page that is off but keeps its navigation slots, links to an endpoint and to a
 # fragment, a heading in the mobile menu, edge verbs apart from a route's own, a search-engine
@@ -14,7 +14,7 @@ require "hecks/tools/site_routes"
 # Node loads under a commonjs package.
 # spec/fixtures/site/gallery is the neutral sample project that uses them; its goldens sit in
 # spec/fixtures/site/gallery/expected (`GOLDEN=rewrite` regenerates them, to be read in the diff).
-RSpec.describe "the Site chapter beyond the studio sample" do
+RSpec.describe "the Site bluebook beyond the studio sample" do
   let(:gallery)  { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/gallery") }
   let(:expected) { File.join(gallery, "expected") }
   let(:work)     { Dir.mktmpdir("site_gaps") }
@@ -56,7 +56,7 @@ RSpec.describe "the Site chapter beyond the studio sample" do
 
   def routes_ts(project = gallery) = projected(project).fetch("/work/out/routes.ts")
 
-  # A copy of the gallery whose route chapter is changed by the block, given its text.
+  # A copy of the gallery whose route bluebook is changed by the block, given its text.
   def edited_gallery
     dir = File.join(work, "project")
     FileUtils.cp_r(gallery, dir)

@@ -79,7 +79,7 @@ module Hecks
           else value
           end
         rescue ArgumentError
-          raise Runtime::TypeMismatch, "#{value.inspect} is not #{type} — the chapter declares this field as #{type}"
+          raise Runtime::TypeMismatch, "#{value.inspect} is not #{type} — the bluebook declares this field as #{type}"
         end
 
         # Reads a Boolean word: `true`, `yes`, `1` or `on` is true; `false`, `no`, `0` or `off` is

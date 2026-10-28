@@ -124,12 +124,12 @@ own gitignored local files (`hecks.local.hecksagon` and `hecks.local.world`, or 
 checkout against it.
 
 - Dev work needs no environment variable: Hecks is in Memory unless a local hecksagon's root
-  `persisted_by "PostgresEra"` opts it in (the attached chapters inherit it), and only the train's
+  `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it), and only the train's
   copy does. Do not add local files to a development checkout or point them at the train's
   database: a checkout that boots a newer shape against a records database mints an era the
   train's launcher then refuses, and the pushes stop.
   `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
-- A change to the shape of a persisted chapter needs a translation edge under that chapter's
+- A change to the shape of a persisted bluebook needs a translation edge under that bluebook's
   `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
   `exe/hecks conformance_run.check_shape_ledger --wait` (a gate check, no database) fails with the
   edge to commit; `--confirm --additive` writes that empty edge and moves the ledger for a change
@@ -170,7 +170,7 @@ passes the first time:
 
 ## Two lanes: `main` takes pushes, `stable` is promoted
 
-The branches are data: the `Lane` rows of the Vocabulary chapter
+The branches are data: the `Lane` rows of the Vocabulary bluebook
 (`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
 commit must pass as `RequiredCheck` rows beside them.
 
@@ -181,7 +181,7 @@ commit must pass as `RequiredCheck` rows beside them.
   is not trivial: `hecks gate_run.gate stage=quick --wait` runs the seconds-long checks (shape
   ledger, rubocop, comment style) and is worth running before every commit. A push of `main` runs
   those first, then only the `unguarded_push` stage of
-  `lib/hecks/gate/stages.yml`, and `hecks push_train.board! full_gate.value=true` runs the
+  the Vocabulary gate rows, and `hecks push_train.board! full_gate.value=true` runs the
   whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push

@@ -106,7 +106,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
-  # The language's own chapters come from the bootstrap registry, as in spec/ir_golden_spec.rb:
+  # The language's own bluebooks come from the bootstrap registry, as in spec/ir_golden_spec.rb:
   # judging one while loading it from a file would recurse.
   LANGUAGE_CHAPTERS = %w[Bluebook World Hecksagon].freeze
 
@@ -126,7 +126,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     expect(back.keys).to eq(%i[name version vision classification formerly_known_as namespace attaches_to provides aggregates
                                read_models policies
                                process_managers])
-    expect(Hecks::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
+    expect(Hecks::Bluebook::Declaration.instance_method(:to_h).owner).to be_truthy
   end
 
   # The round-trip comparison cannot see a key that `Reconstruction#aggregate`/`#entity`
@@ -159,7 +159,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     expect(back[:version]).to eq("v1")
   end
 
-  it "leaves version absent when a chapter pins none, since ABSENT IS NOT EMPTY" do
+  it "leaves version absent when a bluebook pins none, since ABSENT IS NOT EMPTY" do
     back, = read_back(load_corpus(ROUND_TRIP_CORPUS["Pizzas"]).bluebook("Pizzas"))
 
     expect(back[:version]).to be_nil

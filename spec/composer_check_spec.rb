@@ -25,6 +25,7 @@ RSpec.describe Hecks::Composer::Check, :io do
     result = check
 
     expect(result[:diagnostic]).to be_nil
+    expect(result[:bluebook]).to eq("Ledger")
     expect(result[:chapter]).to eq("Ledger")
     expect(result[:elapsed_ms]).to be_a(Integer)
   end
@@ -54,7 +55,7 @@ RSpec.describe Hecks::Composer::Check, :io do
     expect(names).to include("Account", "Credit")
   end
 
-  it "reports what the chapter is wired to", :aggregate_failures do
+  it "reports what the bluebook is wired to", :aggregate_failures do
     wiring = check[:wiring]
 
     expect(wiring[:binds]).to include(a_hash_including(verb: "persisted_by", adapter: "Memory"))

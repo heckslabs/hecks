@@ -3,7 +3,7 @@ require "json"
 require "tmpdir"
 require "fileutils"
 
-# `hecks deploy bluebook_diff.run` end to end: the Deploy chapter's BluebookDiff asks the
+# `hecks deploy bluebook_diff.run` end to end: the Deploy bluebook's BluebookDiff asks the
 # DeployToolchain port, the Hecks domain binds its adapter, and the comparison runs in Ruby on two
 # files, or by a stand-in `bluebooks-diff.sh` that prints what the project's script prints. Nothing
 # reaches a registry, a docker daemon or AWS.
@@ -87,7 +87,7 @@ RSpec.describe "the Deploy chapter's BluebookDiff", :io do
     File.exist?(path) ? File.readlines(path, chomp: true) : []
   end
 
-  it "is declared in the Deploy chapter, with the port it asks" do
+  it "is declared in the Deploy bluebook, with the port it asks" do
     commands = @hecks.registry.bluebook("Deploy").aggregate("BluebookDiff").commands.map(&:hecks_name)
 
     expect(commands).to eq(%w[Run Match Differ Withhold Flag])

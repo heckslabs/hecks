@@ -2,13 +2,13 @@ require "spec_helper"
 require "json"
 require_relative "support/editor_fixture_project"
 
-# What the editor derives, from one chapter's declarations, for editing an ordered list of mixed
+# What the editor derives, from one bluebook's declarations, for editing an ordered list of mixed
 # blocks: a `list_of` value object that has a discriminator (a part that is one of a closed set).
 # Each rule reads shape, never a name, so the examples change the declarations and look at what is
 # derived. The neutral project in spec/fixtures/site/editor_sections holds the files that depend on
 # the project, and the three files only a block list needs, as goldens, rewritten with
 # `GOLDEN=rewrite`.
-RSpec.describe "the editor's block lists, derived from a chapter" do
+RSpec.describe "the editor's block lists, derived from a bluebook" do
   let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_sections") }
   let(:layouts) { "domain/bluebook/layouts.bluebook" }
 

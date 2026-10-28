@@ -132,11 +132,12 @@ fn cross_domain_policy_rows(domain_name: &str, policies: &[Json]) -> Vec<String>
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::CrossDomainPolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_domain: {}, target_verb: {}, where_expr: {} }},",
+                "    crate::kernel::CrossDomainPolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_domain: {}, target_verb: {}, with_spec: {}, where_expr: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
                 naming::ruby_inspect_string(&target_domain),
                 naming::ruby_inspect_string(&target_verb),
+                with_spec_expr(policy),
                 where_expr(policy)
             ))
         })
@@ -157,13 +158,13 @@ pub fn emit_cross_domain_policy_table(
     exemplar.render(
         "cross_domain_policy_table",
         &[(
-            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", where_expr: None },",
+            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", with_spec: &[], where_expr: None },",
             rows.join("\n"),
         )],
     )
 }
 
-/// One chapter's policies for a merged-table call. `aggregates` feeds the fan-out
+/// One bluebook's policies for a merged-table call. `aggregates` feeds the fan-out
 /// addressing key of local rows only; cross-domain rows ignore it.
 pub struct PolicySource<'a> {
     pub domain_name: &'a str,
@@ -171,10 +172,10 @@ pub struct PolicySource<'a> {
     pub aggregates: &'a [Json],
 }
 
-/// The policy table for `merged.rs`, spanning the target domain and every attached chapter.
+/// The policy table for `merged.rs`, spanning the target domain and every attached bluebook.
 ///
 /// Each source's `target_verb` is qualified against its own domain, never the target's;
-/// omitting a chapter's policies would leave them out of the table `kernel::orchestrate` reads.
+/// omitting a bluebook's policies would leave them out of the table `kernel::orchestrate` reads.
 pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -> String {
     let rows: Vec<String> = sources
         .iter()
@@ -198,7 +199,7 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
     }
 }
 
-/// The cross-domain policy table for `merged.rs`, folding in every attached chapter.
+/// The cross-domain policy table for `merged.rs`, folding in every attached bluebook.
 pub fn emit_merged_cross_domain_policy_table(
     exemplar: &Exemplar,
     sources: &[PolicySource],
@@ -215,7 +216,7 @@ pub fn emit_merged_cross_domain_policy_table(
     exemplar.render(
         "cross_domain_policy_table",
         &[(
-            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", where_expr: None },",
+            "crate::kernel::CrossDomainPolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_domain: \"tmpl_target_domain\", target_verb: \"tmpl_target_verb\", with_spec: &[], where_expr: None },",
             rows.join("\n"),
         )],
     )
@@ -675,7 +676,7 @@ mod tests {
 
         // The target domain's own policy, qualified against its own domain.
         assert!(table.contains("target_verb: \"Orders::Invoice.Open\""));
-        // A vendored chapter's same-domain policy, qualified against its own domain.
+        // A vendored bluebook's same-domain policy, qualified against its own domain.
         assert!(table.contains("policy_name: \"OnPaymentConfirmedByProcessor\""));
         assert!(table.contains("target_verb: \"Payments::Payment.Succeed\""));
         // Cross-domain policies belong to the cross-domain table.
@@ -714,7 +715,7 @@ mod tests {
 
         let table = emit_merged_cross_domain_policy_table(&Exemplar::load(), &sources);
 
-        // A vendored chapter's own cross-domain policy, qualified
+        // A vendored bluebook's own cross-domain policy, qualified
         // against its own trigger domain.
         assert!(table.contains("policy_name: \"OnPaymentFailed\""));
         assert!(table.contains("target_domain: \"Ledger\""));

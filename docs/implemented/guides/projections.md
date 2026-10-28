@@ -49,7 +49,7 @@ interpreted at runtime by one small, hand-written kernel
 means extending one interpreter twice, not maintaining a second
 hand-written implementation that silently drifts. The parser is
 generated too (`hecks language_run.project_parser_table`, from the language's own
-`Syntax` chapter), not hand-written a second time either.
+`Syntax` bluebook), not hand-written a second time either.
 
 Ruby is the reference implementation; Rust is checked against it
 continuously, not just at release time: `hecks regeneration_run.regenerate_corpus --check`
@@ -83,7 +83,7 @@ read model asked for a record that does not exist), both fixed in Rust.
 Corpus scripts are promoted to that whole-script bar one at a time; the
 rest are covered by the smaller pinned fixtures, or have no Rust build of
 their own to compare against: the framework/grammar
-[chapters](../../../README.md#chapter)
+[bluebooks](../../../README.md#bluebook)
 (`governance`, `identity`, `console_settings`, `expression`,
 `translation` — `lib/hecks/framework` and `lib/hecks/grammar`) have no
 Cargo feature and are only folded into the build of a domain that

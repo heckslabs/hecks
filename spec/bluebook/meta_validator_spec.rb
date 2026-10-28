@@ -3,7 +3,7 @@ require "digest"
 require "json"
 
 # Pins the process-wide verdict cache key, `SHA256(JSON(bluebook.to_h))`.
-# A read-model field missing from `to_h` would hand a reloaded chapter the stale read model.
+# A read-model field missing from `to_h` would hand a reloaded bluebook the stale read model.
 RSpec.describe "MetaValidator's verdict cache" do
   def in_registry
     registry = Hecks::Runtime::Registry.new
@@ -15,7 +15,7 @@ RSpec.describe "MetaValidator's verdict cache" do
     registry
   end
 
-  # Built through the DSL so MetaValidator judges a real chapter, not a hand-rolled IR object.
+  # Built through the DSL so MetaValidator judges a real bluebook, not a hand-rolled IR object.
   def build_catalog(name, filter_value)
     widget = widget_definition
     catalog = catalog_definition(filter_value)

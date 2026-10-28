@@ -1,7 +1,7 @@
 require "spec_helper"
 
 # 2.0: `attaches` / `attaches ... from: :vendor` load bounded contexts
-# (module wrap, no Object shortcut). A consumer chapter can also write
+# (module wrap, no Object shortcut). A consumer bluebook can also write
 # `bounded` itself. An explicit `bounded` mark always needs a `translates`
 # ACL or boot refuses. Attaching a BC without its sibling hecksagon
 # refuses too — that sibling is the anti-corruption layer.
@@ -175,7 +175,7 @@ RSpec.describe "bounded contexts" do
       .to raise_error(Hecks::Runtime::WiringError, /bounded context.*Governance/)
   end
 
-  it "refuses boot when a consumer chapter is marked bounded with no translates ACL", :aggregate_failures do
+  it "refuses boot when a consumer bluebook is marked bounded with no translates ACL", :aggregate_failures do
     registry = registry_declaring([:declare_echo, :echo_bounded_hexagon])
 
     expect(registry.hecksagon("BoundedEcho").bounded?).to be true
@@ -183,7 +183,7 @@ RSpec.describe "bounded contexts" do
       .to raise_error(Hecks::Runtime::WiringError, /marked bounded but never declared a translates ACL/)
   end
 
-  it "boots a bounded consumer chapter that declares a translates ACL", :aggregate_failures do
+  it "boots a bounded consumer bluebook that declares a translates ACL", :aggregate_failures do
     registry = translating_registry
 
     expect { registry.verify! }.not_to raise_error

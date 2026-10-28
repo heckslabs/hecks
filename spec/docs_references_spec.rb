@@ -96,7 +96,7 @@ module DocReferences
     second.to_s.match?(WORD) ? [first, second] : [first]
   end
 
-  # The verb after a launcher. A chapter's own `query` or `ask` is passed over, as the chapter's
+  # The verb after a launcher. A bluebook's own `query` or `ask` is passed over, as the bluebook's
   # launcher passes it: `hecks quality_control query sweep.create_ledger_role`.
   def chapter_verb(launcher, rest)
     asking = %w[query ask]
@@ -127,8 +127,8 @@ module DocReferences
       chapter_query?(argv)
   end
 
-  # `hecks <chapter> query <name>` reads through a chapter's own launcher, so a claim that stops at
-  # `query` resolves when the chapter has one.
+  # `hecks <chapter> query <name>` reads through a bluebook's own launcher, so a claim that stops at
+  # `query` resolves when the bluebook has one.
   def chapter_query?(argv) = argv.size == 2 && argv.last == "query" && known_verbs.key?([argv.first])
 
   def unresolved_verbs

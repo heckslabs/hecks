@@ -31,7 +31,7 @@ module Hecks
         # @param _domain [String, Symbol] domain name; not read
         # @param model [Bluebook::ReadModel, Runtime::TenantScope::Scoped] read model to answer
         # @param args [Hash] arguments; `model.reference_name` holds the root id
-        # @param bluebook [Bluebook::Chapter, nil] resolves each included aggregate; nil refused
+        # @param bluebook [Bluebook::Declaration, nil] resolves each included aggregate; nil refused
         # @return [Array<Hash>] one-element Array of the report, keyed by each head's `as`
         # @raise [ArgumentError] if bluebook is nil
         # @raise [Runtime::NotFound] if no projected row matches the referenced root id

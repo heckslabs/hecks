@@ -4,7 +4,7 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Bluebook
 
-    # The chapter it belongs to, and its name.
+    # The bluebook it belongs to, and its name.
     identified_by :bluebook, :name
 
     attribute :name,             ReadModelName
@@ -80,7 +80,7 @@ Hecks.bluebook "Bluebook" do
     end
     command "Declare" do
       role "Language"
-      goal "Open a read model on a chapter"
+      goal "Open a read model on a bluebook"
 
       reference_to Bluebook
       attribute :name,             ReadModelName

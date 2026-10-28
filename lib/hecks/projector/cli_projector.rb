@@ -20,7 +20,7 @@ module Hecks
       # Projects the command and question tables and the usage text. Commands and queries are
       # separate namespaces (a bluebook may declare both under one name); ask a query with `ask`.
       #
-      # @param bluebook [Bluebook::Chapter] the booted domain to project
+      # @param bluebook [Bluebook::Declaration] the booted domain to project
       # @param options [Hash{Symbol => Object}] `:program` (default `"hecks run"`) for the usage
       #   text; `:command` and `:ask` select one command's `--help` text; `:names` maps a launcher
       #   name to the command it stands for (`{ "mcp" => "serve_mcp" }`); `:mint_run_keys` makes a

@@ -3,8 +3,8 @@ require "json"
 require "tmpdir"
 require "fileutils"
 
-# The opt-in launcher features the Hecks chapter's world switches on: generated run keys,
-# launcher names, `--wait`, and the constant rule of the chapter's hecksagon build.
+# The opt-in launcher features the Hecks bluebook's world switches on: generated run keys,
+# launcher names, `--wait`, and the constant rule of the bluebook's hecksagon build.
 RSpec.describe "the launcher's opt-in options" do
   SHELF = <<~RUBY.freeze
     Hecks.bluebook "Shelf" do
@@ -103,7 +103,7 @@ RSpec.describe "the launcher's opt-in options" do
       expect(JSON.parse(run_verb("query", "model_check_run.verdict", "mine-1").first).first["run"]).to eq("mine-1")
     end
 
-    it "leaves a chapter that did not opt in alone" do
+    it "leaves a bluebook that did not opt in alone" do
       runtime = boot_in_memory
       expect(Hecks::Adapters::Driving::LauncherOptions.settings(runtime, "Pizzas")).to be_nil
     end
@@ -202,6 +202,15 @@ RSpec.describe "the launcher's opt-in options" do
     end
   end
 
+  describe "--text" do
+    it "waits and prints the recorded output alone, not the record", :aggregate_failures do
+      out, status = run_verb("model_check_run.model_check", "run=text-1", "domains=#{File.join(@dir, "clean")}", "--text")
+
+      expect(status).to eq(0)
+      expect { JSON.parse(out) }.to raise_error(JSON::ParserError)
+    end
+  end
+
   describe "a run this process does not hold" do
     let(:options) { Hecks::Adapters::Driving::LauncherOptions }
 
@@ -212,7 +221,7 @@ RSpec.describe "the launcher's opt-in options" do
       expect(options.unknown_run?(launcher, { kind: :query, short: "shelf_run.other" })).to be(false)
     end
 
-    it "is never refused when the chapter did not opt in" do
+    it "is never refused when the bluebook did not opt in" do
       expect(options.unknown_run?(nil, { kind: :query, short: "shelf_run.outcome" })).to be(false)
     end
   end

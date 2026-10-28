@@ -10,7 +10,7 @@ The boundary is real, but it was previously stated in exactly one place: `bluebo
 
 The boundary is also reinforced structurally, independent of that sentence:
 
-- **Ports/adapters are separate self-hosted chapters**, not aggregates inside Bluebook. `hecksagon.bluebook`, `adapter.bluebook`, and `world.bluebook` are judged through their own doors (`MetaValidator.call_world`, `call_adapter`) — IO isn't described by the Bluebook language because it structurally isn't part of it.
+- **Ports/adapters are separate self-hosted bluebooks**, not aggregates inside Bluebook. `hecksagon.bluebook`, `adapter.bluebook`, and `world.bluebook` are judged through their own doors (`MetaValidator.call_world`, `call_adapter`) — IO isn't described by the Bluebook language because it structurally isn't part of it.
 - **A command's rules are held as data, never as an evaluator.** `givens`/`ensures` are captured as `Rule` — a description plus canonical *text* — with no self-hosted "Interpreter" construct that says how to turn that text into a boolean against a real record. The language can say what a rule claims; evaluating it stays a Ruby proc.
 
 This matters beyond documentation hygiene: [0007](0007-rust-generates-code-not-ruby-source.md) commits a second runtime to generating code from this same self-hosted shape. That only works cleanly if the shape/interpreter/IO boundary is something everyone can find and rely on — not an implicit convention that happened to be true because nobody had reason to cross it yet.
@@ -22,7 +22,7 @@ The self-hosted `Bluebook` language describes **shape**: what constructs exist, 
 - **The interpreter** — how a `given`/`ensures` canonical-text predicate gets evaluated against a real record at dispatch time.
 - **IO** — persistence, adapters, external port calls.
 
-Both stay hand-written Ruby, deliberately and permanently, not as a gap awaiting a future self-hosting milestone. This was already true structurally (rules as text, IO as sibling chapters); it's now also written down as its own decision rather than left for a single vision sentence to carry alone.
+Both stay hand-written Ruby, deliberately and permanently, not as a gap awaiting a future self-hosting milestone. This was already true structurally (rules as text, IO as sibling bluebooks); it's now also written down as its own decision rather than left for a single vision sentence to carry alone.
 
 ## Consequences
 

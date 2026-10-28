@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::FirstAdmin do
   end
 
   def admit_ada_beforehand
-    # Boot first: the lazy runtime would otherwise load the chapters inside the Admin caller,
+    # Boot first: the lazy runtime would otherwise load the bluebooks inside the Admin caller,
     # and their own Declare commands are refused for the role they were not gated to.
     runtime
     Hecks.as_caller(role: "Admin") do

@@ -33,7 +33,7 @@ RSpec.describe Hecks::Projector::Exporter do
   }.freeze
 
   describe ".authorization" do
-    it "names the attached chapter that provides authorization, with its declared verbs qualified" do
+    it "names the attached bluebook that provides authorization, with its declared verbs qualified" do
       expect(described_class.authorization(pizzas_registry(with_hecksagon: true), "Pizzas")).to eq(EXPORTER_AUTHORIZATION)
     end
 
@@ -78,7 +78,7 @@ RSpec.describe Hecks::Projector::Exporter do
       registry
     end
 
-    it "names the attached chapter that provides identity, with its declared verbs qualified" do
+    it "names the attached bluebook that provides identity, with its declared verbs qualified" do
       expect(described_class.identity(identity_registry, "Probe")).to eq(EXPORTER_IDENTITY)
     end
   end

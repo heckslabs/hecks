@@ -31,17 +31,17 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PARITY_GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
   PARITY_FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
   # Globbed recursively so subdirectories such as `eras/` and `model_check/` are covered. A
-  # translation edge (`translations/`) is not a chapter and has no `Hecks.bluebook` header to
+  # translation edge (`translations/`) is not a bluebook and has no `Hecks.bluebook` header to
   # compare, so it is left out.
   PARITY_FIXTURES_ROOT = File.join(InMemoryDomain::ROOT, "spec/fixtures")
   PARITY_FIXTURE_MEMBERS = Hecks::Corpus.members(:fixture).map(&:path)
                                         .reject { |path| path.include?("/translations/") }.freeze
 
-  # The self-hosted grammar: several concept files that together declare one `Bluebook` chapter.
+  # The self-hosted grammar: several concept files that together declare one `Bluebook` bluebook.
   PARITY_LANGUAGE_GRAMMAR_FILES = Hecks::Bluebook::MetaValidator::GRAMMAR_FILES
 
-  # [chapter name, bluebook path]; the name is read off the file's `Hecks.bluebook` header,
-  # since grammar files are named by role, not by chapter.
+  # [bluebook name, bluebook path]; the name is read off the file's `Hecks.bluebook` header,
+  # since grammar files are named by role, not by bluebook.
   def self.chapter_name_of(bluebook_path)
     Hecks::Corpus.chapter_name_of(bluebook_path)
   end
@@ -78,7 +78,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   # Expected stderr for a pending member.
   PENDING_MEMBERS_DIAGNOSTIC = Hash.new("not yet implemented").freeze
 
-  # stem -> [chapter name, files...] in the order hecks project_rust loads them: the `.bluebook`,
+  # stem -> [bluebook name, files...] in the order hecks project_rust loads them: the `.bluebook`,
   # then its `.hecksagon`. Derived from the corpus, not hand-listed.
   REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster chess directory embryonaut_vendoring_demo].to_h do |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
@@ -88,7 +88,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     chapter_name = chapter_name_of(bluebooks) or raise "#{bluebooks.first} has no 'Hecks.bluebook \"Name\"' header"
     [stem, [chapter_name, bluebooks + [hecksagon_in(domain)].compact]]
   end.merge(
-    # Framework chapters stand alone: no `.hecksagon`, so no `attaches` resolution is
+    # Framework bluebooks stand alone: no `.hecksagon`, so no `attaches` resolution is
     # involved. `compliance` is keyed through `framework_stem` because `examples/compliance`
     # has the same bare stem.
     %w[identity governance console_settings compliance privacy change].to_h do |stem|
@@ -98,7 +98,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       [framework_stem(bluebook), [chapter_name, [bluebook]]]
     end
   ).merge(
-    # Grammar chapters stand alone, like the framework chapters.
+    # Grammar bluebooks stand alone, like the framework bluebooks.
     %w[expression translation].to_h do |stem|
       bluebook = PARITY_GRAMMAR_CHAPTERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecks/grammar/#{stem}.bluebook"
@@ -107,20 +107,20 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     end
   ).merge(
     # Every `spec/fixtures/**/*.bluebook`, globbed. `payments.hecksagon` exists for
-    # hecks model_check, not for the chapter compared here.
+    # hecks model_check, not for the bluebook compared here.
     PARITY_FIXTURE_MEMBERS.to_h do |bluebook|
       stem = fixture_stem(bluebook)
       chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
       [stem, [chapter_name, [bluebook]]]
     end
   ).merge(
-    # The self-hosted grammar: all concept files go to one `hecks-parse chapter` call, in
+    # The self-hosted grammar: all concept files go to one `hecks-parse bluebook` call, in
     # `MetaValidator.load_grammar_into` order. See `ruby_ir_json` for its oracle.
     { "bluebook_language" => [chapter_name_of(PARITY_LANGUAGE_GRAMMAR_FILES.first), PARITY_LANGUAGE_GRAMMAR_FILES] }
   ).freeze
 
   def self.run_chapter(chapter_name, *paths)
-    Open3.capture3(PARITY_BINARY_PATH, "chapter", "--chapter", chapter_name, *paths)
+    Open3.capture3(PARITY_BINARY_PATH, "bluebook", "--bluebook", chapter_name, *paths)
   end
 
   # Ruby oracle: loads a domain as hecks project_rust does and exports it with `Exporter.call`.
@@ -184,7 +184,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
                            "byte-match assertion below — a member must be one or the other: #{unaccounted.inspect}"
   end
 
-  # The chapter name a pending member is parsed under; skips a member that is not marked pending.
+  # The bluebook name a pending member is parsed under; skips a member that is not marked pending.
   def pending_chapter_name(stem, bluebook)
     unless PENDING_MEMBERS[stem]
       skip "#{stem} is not marked pending, but no real byte-match assertion exists for it yet — " \

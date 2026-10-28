@@ -9,7 +9,7 @@ Hecks.bluebook "Hecks" do
   # The records are named for the run, as ModelCheckRun is, because several of the table's
   # concerns share a name with a module the gem already owns.
 
-  # The language: the tables the Bluebook chapter declares and everything projected from them. A
+  # The language: the tables the Bluebook bluebook declares and everything projected from them. A
   # projection reports drift from the committed files and writes only when it is confirmed; an
   # evolution edits the syntax tables, regenerates the golden and holds the gates, and only when
   # confirmed (without it, the edit is rehearsed in memory and nothing is written).
@@ -190,7 +190,7 @@ Hecks.bluebook "Hecks" do
 
     command "ProjectPhraseTable" do
       role "Maintainer"
-      goal "Project the Rust parser's sentence table from the Sentence chapter's phrase rows"
+      goal "Project the Rust parser's sentence table from the Sentence bluebook's phrase rows"
 
       attribute :run,     RunKey
       attribute :confirm, Switch, optional: true
@@ -248,7 +248,7 @@ Hecks.bluebook "Hecks" do
 
     command "ProjectReference" do
       role "Maintainer"
-      goal "Regenerate the DSL reference from the Syntax chapter, keeping the committed prose"
+      goal "Regenerate the DSL reference from the Syntax bluebook, keeping the committed prose"
 
       attribute :run,     RunKey
       attribute :confirm, Switch, optional: true
@@ -866,7 +866,7 @@ Hecks.bluebook "Hecks" do
 
     command "CheckShapeLedger" do
       role "Maintainer"
-      goal "Check that no chapter's storage shape moved without a translation edge, and rewrite the ledger when confirmed"
+      goal "Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed"
 
       attribute :run,      RunKey
       attribute :confirm,  Switch, optional: true
@@ -1031,7 +1031,7 @@ Hecks.bluebook "Hecks" do
       attribute :value, String
     end
 
-    # A `CiGate` row of the Vocabulary chapter, by name.
+    # A `CiGate` row of the Vocabulary bluebook, by name.
     value_object "GateName" do
       attribute :value, String, matches: :present
     end
@@ -1257,7 +1257,7 @@ Hecks.bluebook "Hecks" do
   end
 
   # Gate: the checks a stage holds a change against before it is let through. The checks are data
-  # (lib/hecks/gate/stages.yml), run together, and a red one faults the run, so `--wait` fails the
+  # (the Vocabulary gate rows), run together, and a red one faults the run, so `--wait` fails the
   # push or the build that asked, and the journal keeps when the gate went red.
   aggregate "GateRun" do
     description "One run of a stage's checks: every check of the stage, or the ones named."
@@ -1915,6 +1915,52 @@ Hecks.bluebook "Hecks" do
       attribute :pattern, Pattern
       attribute :paths, PathList, optional: true
       attribute :top, Top, optional: true
+      returns Document
+    end
+
+    # A file of the checkout, named from its root.
+    value_object "SourcePath" do
+      attribute :value, String, matches: :present
+    end
+
+    # A line of a file, counted from 1.
+    value_object "LineNumber" do
+      attribute :value, Integer
+
+      invariant("a line is counted from 1") { value > 0 }
+    end
+
+    # The name a construct is declared under, as it stands between the quotes.
+    value_object "DeclaredName" do
+      attribute :value, String, matches: :present
+    end
+
+    # What a declaration is: aggregate, command, query, policy and the rest.
+    value_object "DeclaredKind" do
+      attribute :value, String, pattern: '^[a-z_]+$'
+    end
+
+    query "ReadSource" do
+      description "The numbered lines of one file of the checkout, whole or from one line to another."
+      attribute :path, SourcePath
+      attribute :from, LineNumber, optional: true
+      attribute :to,   LineNumber, optional: true
+      attribute :top,  Top, optional: true
+      returns Document
+    end
+
+    query "Outline" do
+      description "What a file declares, by line: each construct of a bluebook, each definition of Ruby."
+      attribute :path, SourcePath
+      returns Document
+    end
+
+    query "Declaration" do
+      description "Where a named construct is declared across the corpus, as path:from-to, with its text on request."
+      attribute :name,  DeclaredName
+      attribute :kind,  DeclaredKind, optional: true
+      attribute :paths, PathList, optional: true
+      attribute :show,  Switch, optional: true
       returns Document
     end
   end

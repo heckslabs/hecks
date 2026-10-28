@@ -28,7 +28,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
     expect(Hecks::Projector.call(:narrate, bluebook: registry.bluebook("Pizzas"))).to eq(pizzas)
   end
 
-  describe "the chapter" do
+  describe "the bluebook" do
     it "opens with the vision, verbatim" do
       expect(banking).to include(registry.bluebook("Banking").vision)
     end
@@ -124,7 +124,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
     it "reads a policy as a sentence: what happens, and on what", :aggregate_failures do
       expect(banking).to include("## Reactions")
       expect(banking).to include("Whenever `Account.AccountFrozen` happens, " \
-                                 "`AccountFreezeReview.Open` fires on its own in Compliance")
+                                 "`Review.Open` fires on its own in Compliance")
     end
 
     it "describes a saga by where it starts, ends and correlates, in prose", :aggregate_failures do
@@ -142,7 +142,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   end
 
   describe "options" do
-    it "narrows to one aggregate, dropping the chapter frame", :aggregate_failures do
+    it "narrows to one aggregate, dropping the bluebook frame", :aggregate_failures do
       only = described_class.call(bluebook: registry.bluebook("Banking"), options: { aggregate: "Account" })
 
       expect(only).to start_with("# Account")
@@ -159,7 +159,7 @@ RSpec.describe Hecks::Projector::NarrateProjector do
   end
 
   describe "as a method on a booted domain" do
-    it "answers on the chapter, beside docs", :aggregate_failures do
+    it "answers on the bluebook, beside docs", :aggregate_failures do
       boot_in_memory
 
       expect(Pizzas).to respond_to(:narrate)

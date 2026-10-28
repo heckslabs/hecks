@@ -4,7 +4,7 @@ Hecks.bluebook "Bluebook" do
 
     reference_to Aggregate
 
-    # Identity is the owning aggregate plus the name; `Name` recurs across chapters.
+    # Identity is the owning aggregate plus the name; `Name` recurs across bluebooks.
     identified_by :aggregate, :name
 
     attribute :name,       ValueObjectName

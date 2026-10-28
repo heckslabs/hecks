@@ -1,12 +1,12 @@
 Hecks.hecksagon "Hecks" do
   attaches "Governance"
 
-  # The chapters the gem carries: the language declared in itself (Paging comes with Bluebook),
+  # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring their own ports).
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl]
     .each { |chapter| attaches chapter }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
-  # hecks.local.hecksagon whose `persisted_by` the attached chapters inherit (ADR 0136).
+  # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
   # The outside a journaled Custodian command reaches: each port names what its adapter does,
   # and every ask is answered with the record's own arguments or refused with a reason.
@@ -114,6 +114,28 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Unlanded"
+  end
+
+  # The outside an agent run reaches: it finds the directory, starts the background session, and
+  # reports the state the session is in. The state is judged in the bluebook, not here.
+  Hecks::AgentRun.port "Agents" do
+    asks "Locate", to: AgentRun do
+      attribute :run, RunKey
+      answers "RepoLocated"
+      refuses "RepoMissing"
+    end
+
+    asks "Start", to: AgentRun do
+      attribute :run, RunKey
+      answers "AgentStarted"
+      refuses "StartRefused"
+    end
+
+    asks "Examine", to: AgentRun do
+      attribute :run, RunKey
+      answers "SessionChecked"
+      refuses "CheckRefused"
+    end
   end
 
   Hecks::PushTrain.port "Launcher" do
@@ -395,6 +417,9 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Search"
+    answers_query "ReadSource"
+    answers_query "Outline"
+    answers_query "Declaration"
   end
 
   Hecks::CodemodRun.port "SourceTree" do
@@ -652,8 +677,8 @@ Hecks.hecksagon "Hecks" do
 end
 
 # The one seam where Deploy's "Tenant" (a validated request) becomes Tenancy's "Tenant" (a fact),
-# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy tenant.provision`
-# registers the tenant it provisioned. It sits here, after `attaches` has loaded both chapters.
+# as tenancy.hecksagon declares it for the bluebooks booted on their own: `hecks deploy tenant.provision`
+# registers the tenant it provisioned. It sits here, after `attaches` has loaded both bluebooks.
 Hecks.hecksagon "Tenancy" do
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned

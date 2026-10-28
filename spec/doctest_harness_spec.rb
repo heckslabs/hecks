@@ -205,7 +205,7 @@ RSpec.describe Doctest do
 
     expect(parsed.postgres).to be(true)
     # Only the fresh `Hecks.bluebook` invention counts as owned — the
-    # hecksagon/world block wires an already-declared chapter and is not
+    # hecksagon/world block wires an already-declared bluebook and is not
     # itself an invented name (see declared_domains' own comment).
     expect(described_class.declared_domains(parsed)).to contain_exactly("DoctestSampleB")
   end

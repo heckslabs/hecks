@@ -20,7 +20,7 @@ module Hecks
 
           module_function
 
-          # Defines `name!(over:, mode:)` on `mod` for each command of `aggregate` that does not
+          # Defines `name!(over:)` on `mod` for each command of `aggregate` that does not
           # create its record. Called without `over:`, it says what the bulk form is
           # ({refuse_unaimed!}).
           #
@@ -32,9 +32,9 @@ module Hecks
           def define(mod, dispatcher, domain, aggregate)
             aggregate.commands.reject(&:creates?).each do |command|
               verb = "#{domain}::#{aggregate.hecks_name}.#{command.hecks_name}"
-              mod.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |over: nil, mode: :best_effort|
+              mod.define_singleton_method("#{Naming.snake(command.hecks_name)}!") do |over: nil|
                 BulkVerbs.refuse_unaimed!(command, over)
-                BulkVerbs.run(dispatcher, verb, over, mode)
+                BulkVerbs.run(dispatcher, verb, over)
               end
             end
           end
@@ -61,23 +61,22 @@ module Hecks
           # @param dispatcher [Runtime::Dispatcher] the booted dispatcher
           # @param verb [String] the command each row receives
           # @param over [QueryRows] what a query method answered
-          # @param mode [Symbol, String] `:best_effort` or `:all_or_nothing`
           # @return [Handle] the `Bulk::BulkRun` record: `status`, and `results` per row
           # @raise [ArgumentError] if `over` is not what a query method answered
           # @raise [Runtime::WiringError] if Bulk is not attached, or the run was declined
-          #   before any row was sent (a mode the store cannot honour)
-          def run(dispatcher, verb, over, mode)
+          #   before any row was sent
+          def run(dispatcher, verb, over)
             refuse_unnamed_query!(over)
             bulk = bulk_aggregate(dispatcher.registry, verb)
             run = SecureRandom.uuid
-            dispatcher.dispatch_flat("#{CHAPTER}::BulkRun.Request", **request(run, verb, over, mode))
+            dispatcher.dispatch_flat("#{CHAPTER}::BulkRun.Request", **request(run, verb, over))
             declined!(record(dispatcher, bulk, run))
           end
 
           # The `Request` facts for one run.
-          def request(run, verb, over, mode)
+          def request(run, verb, over)
             { run: { value: run }, verb: { value: verb }, over: { value: over.verb },
-              arguments: Bulk::Plan.argument_rows(over.arguments), mode: { value: mode.to_s } }
+              arguments: Bulk::Plan.argument_rows(over.arguments) }
           end
 
           # Says what the bulk form is when it is called without `over:`, the usual sign that the
@@ -105,7 +104,7 @@ module Hecks
 
           def bulk_aggregate(registry, verb)
             registry.bluebook(CHAPTER)&.aggregate("BulkRun") or
-              raise Runtime::WiringError, "#{verb} over a query needs the Bulk chapter: " \
+              raise Runtime::WiringError, "#{verb} over a query needs the Bulk bluebook: " \
                                           "add `attaches \"Bulk\"` to the domain's hecksagon"
           end
 

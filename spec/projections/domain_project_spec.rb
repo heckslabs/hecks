@@ -159,9 +159,9 @@ RSpec.describe "Domain.project" do
       expect(Hecks::Projector.capable?(command, Hecks::IR)).to be true
     end
 
-    # Defaulting to the chapter capability keeps the check safe; a permissive default would
+    # Defaulting to the bluebook capability keeps the check safe; a permissive default would
     # preserve the fail-quiet.
-    it "defaults an undeclared target to the chapter capability", :aggregate_failures do
+    it "defaults an undeclared target to the bluebook capability", :aggregate_failures do
       legacy = register_legacy_target
 
       expect(legacy.projection_requires).to eq([Hecks::Bluebook::Behaviour::Chapter])

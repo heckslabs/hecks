@@ -79,7 +79,7 @@ RSpec.describe Hecks::Bluebook::ModelCheck::ContextChecks do
         .not_to include(:unacknowledged_source)
     end
 
-    it "is not checked without the corpus's owners, or when the chapter owns the aggregate itself", :aggregate_failures do
+    it "is not checked without the corpus's owners, or when the bluebook owns the aggregate itself", :aggregate_failures do
       expect(kinds(owners: nil)).not_to include(:unacknowledged_source)
       expect(kinds(owners: { "Thing" => ["ChkLocal"] })).not_to include(:unacknowledged_source)
     end

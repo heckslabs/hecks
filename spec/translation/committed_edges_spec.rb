@@ -6,7 +6,7 @@ require_relative "../support/memory_ports"
 # era to era, and the newest lands on the shape the bluebook declares today.
 # Nothing else reads them: Fuzzing::IsolatedBoot strips translations/ before every sweep.
 RSpec.describe "the committed translation edges" do
-  # The QA ledger's chapter ships in lib/, so its directory holds no bluebook of its own to be
+  # The QA ledger's bluebook ships in lib/, so its directory holds no bluebook of its own to be
   # swept; its edges stay beside the wiring and the world that name its database.
   def self.domains_with_edges
     ledgers = Hecks::Corpus::ROTATION_LEDGER.values.map { |path| File.join(InMemoryDomain::ROOT, File.dirname(path)) }
@@ -35,8 +35,8 @@ RSpec.describe "the committed translation edges" do
     Dir[File.join(bluebook_dir, "translations", "*.bluebook")].sort_by { |file| File.basename(file).to_i }
   end
 
-  # Expects every edge to name the chapter and start where the one before it ended, and the newest
-  # to land on the storage shape the chapter declares today.
+  # Expects every edge to name the bluebook and start where the one before it ended, and the newest
+  # to land on the storage shape the bluebook declares today.
   def expect_chain(chapter, files)
     edges = files.map { |file| edge_in(file) }
     files.zip(edges).each { |file, edge| expect_edge(chapter, file, edge) }

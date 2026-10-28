@@ -17,7 +17,7 @@ use std::collections::HashMap;
 /// Every structural violation in one translated record; empty means it satisfies its aggregate.
 ///
 /// `domain_ir` is the whole `ir.json`: a declared set named by `admits: "Aggregate::Set"` and a
-/// value object another aggregate of the chapter declares are looked up there.
+/// value object another aggregate of the bluebook declares are looked up there.
 pub fn validate(domain_ir: &Value, aggregate_ir: &Value, id: &str, state: &Value) -> Vec<String> {
     let name = aggregate_ir
         .get("name")
@@ -98,7 +98,7 @@ impl<'a> Checker<'a> {
         ));
     }
 
-    /// The aggregate's own value object of that name, else the one every aggregate of the chapter
+    /// The aggregate's own value object of that name, else the one every aggregate of the bluebook
     /// that declares it agrees on (`Value::Coercion#value_object_for`).
     fn value_object(&self, type_name: &str) -> Option<&'a Value> {
         if let Some(vo) = self.value_objects.get(type_name) {
@@ -215,7 +215,7 @@ impl<'a> Checker<'a> {
             self.refuse(
                 violations,
                 format!(
-                    "{name} admits {admits}, which this chapter does not declare — a closed set is named \
+                    "{name} admits {admits}, which this bluebook does not declare — a closed set is named \
                      Aggregate::SetName, and it must be one the bluebook actually holds"
                 ),
             );
@@ -774,7 +774,7 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(
             violations[0]
-                .contains("size admits Order::Missing, which this chapter does not declare"),
+                .contains("size admits Order::Missing, which this bluebook does not declare"),
             "{violations:?}"
         );
     }

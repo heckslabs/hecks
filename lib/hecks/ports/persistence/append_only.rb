@@ -346,7 +346,7 @@ module Hecks
         # @param model [Bluebook::ReadModel] the read model to answer
         # @param args [Hash{Symbol => Object}] the read model's arguments, including its
         #   reference argument
-        # @param bluebook [Bluebook::Chapter, nil] the domain's bluebook, which the SQLite
+        # @param bluebook [Bluebook::Declaration, nil] the domain's bluebook, which the SQLite
         #   projection needs to find the included aggregates
         # @return [Array<Hash>, nil] a one-element Array holding the report Hash keyed by head
         #   name; nil when the adapter has no `query_read_model`

@@ -39,7 +39,7 @@ module Hecks
 
       # Renders every `HOST`-listed construct's holding half.
       #
-      # @param bluebook [Bluebook::Chapter] the "Bluebook" bluebook itself (the language
+      # @param bluebook [Bluebook::Declaration] the "Bluebook" bluebook itself (the language
       #   describing its own constructs), not a domain being projected
       # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
       #   `Projector::Target` calling convention
@@ -52,7 +52,7 @@ module Hecks
       # Renders one construct's class: emission, readers and constructor, wrapped in
       # the generated-file header and namespace.
       #
-      # @param bluebook [Bluebook::Chapter] the "Bluebook" bluebook the construct's own
+      # @param bluebook [Bluebook::Declaration] the "Bluebook" bluebook the construct's own
       #   attributes are read from
       # @param name [String] the construct's name, a key into `HOST` (`"Policy"`, ...)
       # @param host [Hash{Symbol => Object}] `name`'s `HOST` entry
@@ -84,7 +84,7 @@ module Hecks
       # Renders the `emits_ir` call. A computed field (Deviations::COMPUTED) rides after the
       # declared ones and needs a `renders` entry, since there is nothing to `send`.
       #
-      # @param bluebook [Bluebook::Chapter] the "Bluebook" bluebook the construct's own
+      # @param bluebook [Bluebook::Declaration] the "Bluebook" bluebook the construct's own
       #   attributes are read from
       # @param name [String] the construct's name, a key into `HOST`
       # @return [String] the rendered `emits_ir(...)` call, one field per line
@@ -99,7 +99,7 @@ module Hecks
       # What the construct emits: the declared attributes less every `Deviations` entry.
       # spec/model_shape_conformance_spec computes it from the same tables.
       #
-      # @param bluebook [Bluebook::Chapter] the "Bluebook" bluebook the construct's own
+      # @param bluebook [Bluebook::Declaration] the "Bluebook" bluebook the construct's own
       #   attributes are read from
       # @param name [String] the construct's name, an aggregate on `bluebook`
       # @return [Array<Symbol>] the declared attribute names, minus every field

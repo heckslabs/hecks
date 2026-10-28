@@ -46,7 +46,7 @@ module Hecks
       ATTACHES_LINE = /\A\s*attaches\s+"(?<name>\w+)"(?<vendored>,\s*from:\s*:vendor)?\s*(?:#.*)?\z/
 
       # Any other line that names an attachment, which this key cannot follow: it hashes wide.
-      ATTACHMENT_WORD = /\battaches\b|Chapters\.|\battach!|Framework\.load!/
+      ATTACHMENT_WORD = /\battaches\b|Chapters\.|FrameworkBluebooks\.|\battach!|Framework\.load!/
 
       # The files a hecksagon's own text can name an attachment in.
       ATTACHING_FILES = /\.(hecksagon|world|adapter)\z/
@@ -178,8 +178,8 @@ module Hecks
       # @return [Array<String>] the files attaching it reads, relative to the checkout
       # @raise [Unresolved] when the gem carries no chapter of that name
       def chapter_paths(name, root)
-        require_relative "../chapters"
-        Chapters.files_of(name).map do |path|
+        require_relative "../framework_bluebooks"
+        FrameworkBluebooks.files_of(name).map do |path|
           raise Unresolved, "#{name}: #{path} is outside the gem" unless path.start_with?("#{GEM_LIB}/")
 
           relative = File.join("lib/hecks", path.delete_prefix("#{GEM_LIB}/"))

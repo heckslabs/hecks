@@ -12,7 +12,11 @@
 //! Eras, lineage heads, minting and the member lookups over head views exist only on Postgres,
 //! so they are a capability ([`Store::lineage`]) a backend may lack, not a part of every store.
 
+/// The journal's SQL: the Postgres adapter's reads and writes, with the journal's data re-exported.
+pub mod journal_sql;
 mod memory;
+/// Era minting: the Postgres adapter's provisioning of eras, heads and lineage.
+pub mod mint;
 mod postgres;
 
 use crate::journal::{LineageConfig, Mutation, SagaRow, Snapshot};
@@ -140,24 +144,113 @@ pub struct DeadLetter<'a> {
     pub attempts: i32,
 }
 
+/// What a journal backend offers the host: the atomic scope a dispatch writes in, the lock-free
+/// read, the dead-letter row and the head rows. The host reaches a backend only through this trait,
+/// so it names no driver; the adapters implement it.
+#[async_trait::async_trait]
+pub trait Backend: Send + Sync {
+    /// Takes the lock of `domain` and opens the scope a dispatch writes in.
+    async fn begin<'a>(&'a self, domain: &str) -> Result<Box<dyn UnitBackend + 'a>, StoreError>;
+
+    /// The state a read replays, taking no domain lock.
+    async fn read_state(&self) -> Result<State, StoreError>;
+
+    /// Records a delivery that failed every retry.
+    async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError>;
+
+    /// One aggregate's head row `id`; `None` when there is none.
+    async fn head_by_id(
+        &self,
+        domain: &str,
+        storage_name: &str,
+        id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError>;
+
+    /// Every head row of one aggregate, in id byte order.
+    async fn head_all(
+        &self,
+        domain: &str,
+        storage_name: &str,
+    ) -> Result<Vec<(String, serde_json::Value)>, StoreError>;
+
+    /// Every head state from the first of `domains` that keeps the aggregate, in id byte order.
+    async fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError>;
+
+    /// The head row whose `matches` fields all hold; the first of `domains` that keeps heads decides.
+    async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError>;
+
+    /// Writes one head row as its own step.
+    async fn put_head(
+        &self,
+        config: &LineageConfig,
+        mutation: &Mutation<'_>,
+    ) -> Result<(), StoreError>;
+
+    /// Reads one aggregate's head rows and lets `decide` answer with at most one `(id, state)` to
+    /// save, with no other writer of the domain's heads between the read and the write.
+    async fn amend_head(
+        &self,
+        config: &LineageConfig,
+        domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: &mut (dyn for<'r> FnMut(
+            &'r [(String, serde_json::Value)],
+        ) -> Option<(String, serde_json::Value)>
+                  + Send),
+    ) -> Result<(), StoreError>;
+
+    /// The concrete backend, for the adapters' own tools and for test fixtures.
+    fn as_any(&self) -> &dyn std::any::Any;
+}
+
+/// What a backend's atomic scope offers: load, then commit or roll back. Dropping it unfinished
+/// writes nothing.
+#[async_trait::async_trait]
+pub trait UnitBackend: Send + Sync {
+    /// Loads what the dispatch replays and the sagas it starts from, inside the scope.
+    async fn load(&self) -> Result<State, StoreError>;
+
+    /// Persists the accepted command and everything with it, then ends the scope.
+    async fn commit(self: Box<Self>, accepted: Accepted<'_>) -> Result<(), StoreError>;
+
+    /// Ends the scope with nothing persisted.
+    async fn rollback(self: Box<Self>) -> Result<(), StoreError>;
+}
+
 /// One domain's journal, snapshot and sagas, behind whichever backend the host booted with.
-pub enum Store {
-    Postgres(PostgresStore),
-    /// Process memory, for local runs and tests; nothing survives a restart.
-    Memory(MemoryStore),
+pub struct Store {
+    backend: Box<dyn Backend>,
 }
 
 impl Store {
+    /// A store over `backend`.
+    #[must_use]
+    pub fn new(backend: impl Backend + 'static) -> Self {
+        Self {
+            backend: Box::new(backend),
+        }
+    }
+
     /// A store over one Postgres connection, whose mutex serializes every use of it.
     #[must_use]
     pub fn postgres(client: Client) -> Self {
-        Self::Postgres(PostgresStore::new(client))
+        Self::new(PostgresStore::new(client))
     }
 
     /// A store over `memory`, which a sibling handle may share.
     #[must_use]
-    pub const fn memory(memory: MemoryStore) -> Self {
-        Self::Memory(memory)
+    pub fn memory(memory: MemoryStore) -> Self {
+        Self::new(memory)
     }
 
     /// Takes the lock of `domain` and opens the atomic scope a dispatch writes in.
@@ -169,10 +262,9 @@ impl Store {
     ///
     /// Returns the backend's error when the lock or the scope cannot be opened.
     pub async fn begin(&self, domain: &str) -> Result<Unit<'_>, StoreError> {
-        match self {
-            Self::Postgres(store) => store.begin(domain).await.map(Unit::Postgres),
-            Self::Memory(store) => Ok(Unit::Memory(store.begin().await)),
-        }
+        Ok(Unit {
+            inner: self.backend.begin(domain).await?,
+        })
     }
 
     /// The state a read replays, taking no domain lock.
@@ -184,10 +276,7 @@ impl Store {
     ///
     /// Returns the backend's error when the journal cannot be read.
     pub async fn read_state(&self) -> Result<State, StoreError> {
-        match self {
-            Self::Postgres(store) => store.read_state().await,
-            Self::Memory(store) => Ok(store.read_state()),
-        }
+        self.backend.read_state().await
     }
 
     /// Records a delivery that failed every retry. Written after the command committed, so a
@@ -197,89 +286,146 @@ impl Store {
     ///
     /// Returns the backend's error when the row cannot be written.
     pub async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
-        match self {
-            Self::Postgres(store) => store.record_dead_letter(dead_letter).await,
-            Self::Memory(store) => {
-                store.record_dead_letter(dead_letter);
-                Ok(())
-            }
-        }
+        self.backend.record_dead_letter(dead_letter).await
     }
 
-    /// The era, head-view and member-lookup surface, on a backend that has one.
+    /// The Postgres adapter's own connection handle, for minting, seals and operator tools;
+    /// code that runs a domain uses the head methods and never this.
     #[must_use]
-    pub const fn lineage(&self) -> Option<&LineageStore> {
-        match self {
-            Self::Postgres(store) => Some(store.lineage()),
-            Self::Memory(_) => None,
-        }
+    pub fn lineage(&self) -> Option<&LineageStore> {
+        self.backend
+            .as_any()
+            .downcast_ref::<PostgresStore>()
+            .map(PostgresStore::lineage)
     }
 
-    /// [`Store::lineage`] for a caller that cannot proceed without it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StoreError::Unsupported`] on a backend without lineage.
-    pub fn require_lineage(&self) -> Result<&LineageStore, StoreError> {
-        self.lineage().ok_or(StoreError::Unsupported("lineage"))
+    /// One aggregate's head row `id`, translated to its current shape; `None` when there is none.
+    pub async fn head_by_id(
+        &self,
+        domain: &str,
+        storage_name: &str,
+        id: &str,
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        self.backend.head_by_id(domain, storage_name, id).await
+    }
+
+    /// Every head row of one aggregate, with its id.
+    pub async fn head_all(
+        &self,
+        domain: &str,
+        storage_name: &str,
+    ) -> Result<Vec<(String, serde_json::Value)>, StoreError> {
+        self.backend.head_all(domain, storage_name).await
+    }
+
+    /// Every head state of one aggregate, from the first of `domains` that keeps it; empty when
+    /// none does.
+    pub async fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        self.backend.head_states(domains, storage_name).await
+    }
+
+    /// The head row whose `matches` hold, each `(field, value)` naming a single-attribute value
+    /// object. The first of `domains` that keeps heads for the aggregate decides.
+    pub async fn head_find(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+        matches: &[(&str, &str)],
+    ) -> Result<Option<serde_json::Value>, StoreError> {
+        self.backend.head_find(domains, storage_name, matches).await
+    }
+
+    /// Reads one aggregate's head rows and lets `decide` answer with at most one `(id, state)` to
+    /// save, atomically with the read: no other writer of the domain's heads gets between them.
+    /// `domain` is the name the head views are qualified by and `config.domain` the journal's.
+    pub async fn amend_head<T: Send>(
+        &self,
+        config: &LineageConfig,
+        domain: &str,
+        aggregate: &str,
+        storage_name: &str,
+        decide: impl FnOnce(&[(String, serde_json::Value)]) -> (T, Option<(String, serde_json::Value)>)
+            + Send,
+    ) -> Result<T, StoreError> {
+        let mut decide = Some(decide);
+        let mut answer = None;
+        self.backend
+            .amend_head(config, domain, aggregate, storage_name, &mut |rows| {
+                let (settled, write) = decide.take().expect("a decision is made once")(rows);
+                answer = Some(settled);
+                write
+            })
+            .await?;
+        Ok(answer.expect("the backend asked for the decision"))
+    }
+
+    /// Writes one head row outside a dispatch, as its own step.
+    pub async fn put_head(
+        &self,
+        config: &LineageConfig,
+        mutation: &Mutation<'_>,
+    ) -> Result<(), StoreError> {
+        self.backend.put_head(config, mutation).await
     }
 
     /// Every journaled step in order, whichever backend holds them.
     #[cfg(test)]
     pub async fn journal_steps(&self) -> Vec<serde_json::Value> {
-        match self {
-            Self::Postgres(store) => {
-                let guard = store.lineage().lock().await;
-                crate::journal::load_steps(&*guard).await.unwrap()
-            }
-            Self::Memory(store) => store
-                .committed()
-                .0
-                .into_iter()
-                .map(|(_, verb, args)| serde_json::json!({ "verb": verb, "args": args }))
-                .collect(),
+        if let Some(store) = self.backend.as_any().downcast_ref::<PostgresStore>() {
+            let guard = store.lineage().lock().await;
+            return journal_sql::load_steps(&*guard).await.unwrap();
         }
+        let memory = self.backend.as_any().downcast_ref::<MemoryStore>();
+        memory
+            .expect("a Postgres or Memory store")
+            .committed()
+            .0
+            .into_iter()
+            .map(|(_, verb, args)| serde_json::json!({ "verb": verb, "args": args }))
+            .collect()
     }
 
     /// Every dead letter as `(policy, target_domain, target_verb, attempts)`, ordered by policy.
     #[cfg(test)]
     pub async fn dead_letter_rows(&self) -> Vec<(String, String, String, i32)> {
-        match self {
-            Self::Postgres(store) => {
-                let guard = store.lineage().lock().await;
-                let sql = "SELECT policy, target_domain, target_verb, attempts \
-                           FROM hecks_cross_domain_dead_letters ORDER BY policy";
-                let rows = guard.query(sql, &[]).await.unwrap();
-                rows.iter()
-                    .map(|r| (r.get(0), r.get(1), r.get(2), r.get(3)))
-                    .collect()
-            }
-            Self::Memory(store) => {
-                let mut rows: Vec<_> = store
-                    .dead_letters()
-                    .into_iter()
-                    .map(|d| (d.policy, d.target_domain, d.target_verb, d.attempts))
-                    .collect();
-                rows.sort();
-                rows
-            }
+        if let Some(store) = self.backend.as_any().downcast_ref::<PostgresStore>() {
+            let guard = store.lineage().lock().await;
+            let sql = "SELECT policy, target_domain, target_verb, attempts \
+                       FROM hecks_cross_domain_dead_letters ORDER BY policy";
+            let rows = guard.query(sql, &[]).await.unwrap();
+            return rows
+                .iter()
+                .map(|r| (r.get(0), r.get(1), r.get(2), r.get(3)))
+                .collect();
         }
+        let memory = self.backend.as_any().downcast_ref::<MemoryStore>();
+        let mut rows: Vec<_> = memory
+            .expect("a Postgres or Memory store")
+            .dead_letters()
+            .into_iter()
+            .map(|d| (d.policy, d.target_domain, d.target_verb, d.attempts))
+            .collect();
+        rows.sort();
+        rows
     }
 
     /// The raw connection, for test fixtures and assertions that reach beneath the seam.
     #[cfg(test)]
     pub async fn lock(&self) -> tokio::sync::MutexGuard<'_, Client> {
-        match self {
-            Self::Postgres(store) => store.lineage().lock().await,
-            Self::Memory(_) => panic!("a memory store has no connection to lock"),
+        match self.lineage() {
+            Some(lineage) => lineage.lock().await,
+            None => panic!("a memory store has no connection to lock"),
         }
     }
 }
 
 /// The atomic scope of one dispatch, holding the domain lock until it commits or drops.
-pub enum Unit<'a> {
-    Postgres(PostgresUnit<'a>),
-    Memory(MemoryUnit),
+pub struct Unit<'a> {
+    inner: Box<dyn UnitBackend + 'a>,
 }
 
 impl Unit<'_> {
@@ -289,10 +435,7 @@ impl Unit<'_> {
     ///
     /// Returns the backend's error when the journal, snapshot or sagas cannot be read.
     pub async fn load(&self) -> Result<State, StoreError> {
-        match self {
-            Self::Postgres(unit) => unit.load().await,
-            Self::Memory(unit) => Ok(unit.load()),
-        }
+        self.inner.load().await
     }
 
     /// Persists the accepted command and everything with it, then ends the scope.
@@ -301,10 +444,7 @@ impl Unit<'_> {
     ///
     /// Returns the backend's error from the first write that fails; nothing is persisted.
     pub async fn commit(self, accepted: Accepted<'_>) -> Result<(), StoreError> {
-        match self {
-            Self::Postgres(unit) => unit.commit(accepted).await,
-            Self::Memory(unit) => unit.commit(&accepted),
-        }
+        self.inner.commit(accepted).await
     }
 
     /// Ends the scope with nothing persisted, for a command the kernel refused.
@@ -313,9 +453,6 @@ impl Unit<'_> {
     ///
     /// Returns the backend's error when the scope cannot be closed.
     pub async fn rollback(self) -> Result<(), StoreError> {
-        match self {
-            Self::Postgres(unit) => unit.rollback().await,
-            Self::Memory(_) => Ok(()),
-        }
+        self.inner.rollback().await
     }
 }

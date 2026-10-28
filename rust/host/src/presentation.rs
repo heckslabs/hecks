@@ -2,18 +2,17 @@
 //! read from the attached kernel or else Ruby's Postgres head views (ADR 0059).
 
 use crate::dispatch;
-use crate::journal::{self, LineageConfig};
+use crate::journal::LineageConfig;
 use crate::store::Store;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
 use std::path::Path;
-use tokio_postgres::GenericClient;
 
-/// The chapter the console's config lives in, matching
+/// The bluebook the console's config lives in, matching
 /// `presentation_config.rb`'s own `registry.bluebook("ConsoleSettings")`.
 pub const CONFIG_DOMAIN: &str = "ConsoleSettings";
 
-/// `Naming.snake` of each of that chapter's three aggregates — the
+/// `Naming.snake` of each of that bluebook's three aggregates — the
 /// `storage_name` Ruby derives its relation names from.
 const STATE_STYLE: &str = "state_style";
 const COLLECTION: &str = "collection";
@@ -36,18 +35,16 @@ pub async fn load(
 /// The Ruby-written relations, split out so the kernel path above reads
 /// as the one decision it is, and so tests can drive this half directly.
 async fn load_from_relations(store: &Store, config: &LineageConfig) -> anyhow::Result<Value> {
-    let guard = store.require_lineage()?.lock().await;
-    let states = read_head_states(&*guard, &config.domain, STATE_STYLE).await?;
-    let collections = read_head_states(&*guard, &config.domain, COLLECTION).await?;
-    let overview = read_head_states(&*guard, &config.domain, OVERVIEW).await?;
-    drop(guard);
+    let states = read_head_states(store, &config.domain, STATE_STYLE).await?;
+    let collections = read_head_states(store, &config.domain, COLLECTION).await?;
+    let overview = read_head_states(store, &config.domain, OVERVIEW).await?;
     Ok(reshape(&states, &collections, &overview))
 }
 
 /// The three aggregates' live records, straight off the kernel, or
-/// `None` when this kernel does not carry the chapter at all.
+/// `None` when this kernel does not carry the bluebook at all.
 ///
-/// An empty read is ambiguous — no chapter, or the chapter with nothing
+/// An empty read is ambiguous — no bluebook, or the bluebook with nothing
 /// saved yet — so only then does this probe `ConsoleSettings.Styles` as
 /// a query; a kernel that knows it answers, one that doesn't refuses.
 /// Keeping the plain read a single SELECT (via `dispatch::read`'s
@@ -127,7 +124,7 @@ pub(crate) struct KernelRows {
 
 impl KernelRows {
     /// No row of any of the three kinds — the one answer that cannot
-    /// tell a kernel without this chapter from one nobody has saved to.
+    /// tell a kernel without this bluebook from one nobody has saved to.
     const fn is_empty(&self) -> bool {
         self.states.is_empty() && self.collections.is_empty() && self.overview.is_empty()
     }
@@ -151,54 +148,16 @@ pub fn reshape(states: &[Value], collections: &[Value], overview: &[Value]) -> V
     Value::Object(config)
 }
 
-/// Every live `state` document for one ConsoleSettings aggregate.
-///
-/// Tries several relation names in order — host-qualified, then
-/// chapter-qualified (ADR 0059), then the plain view or table — because
-/// different runtimes have written these rows under different names,
-/// all answering the same `id`/`state` columns. First one that exists
-/// wins; a relation that exists but fails to read still errors.
-async fn read_head_states<C: GenericClient>(
-    store: &C,
+/// Every live `state` document for one ConsoleSettings aggregate, from the host's own heads or
+/// else the chapter's (ADR 0059).
+async fn read_head_states(
+    store: &Store,
     host_domain: &str,
     storage_name: &str,
 ) -> anyhow::Result<Vec<Value>> {
-    for relation in head_view_candidates(host_domain, storage_name) {
-        if !relation_exists(store, &relation).await? {
-            continue;
-        }
-        let rows = store
-            .query(
-                &format!("SELECT state FROM {}", journal::quote_ident(&relation)),
-                &[],
-            )
-            .await?;
-        return Ok(rows.iter().map(|row| row.get(0)).collect());
-    }
-    Ok(Vec::new())
-}
-
-/// Pure, and tested as such. Deduplicated, so a host domain that is
-/// ConsoleSettings never probes one relation twice.
-fn head_view_candidates(host_domain: &str, storage_name: &str) -> Vec<String> {
-    let mut candidates = vec![
-        journal::head_view(host_domain, storage_name),
-        journal::head_view(CONFIG_DOMAIN, storage_name),
-        format!("{storage_name}_head"),
-        storage_name.to_string(),
-    ];
-    candidates.dedup();
-    candidates
-}
-
-/// `to_regclass` resolves through the connection's own `search_path`,
-/// same as the unqualified SELECT below — never a same-named relation
-/// in some other schema.
-async fn relation_exists<C: GenericClient>(store: &C, relation: &str) -> anyhow::Result<bool> {
-    let row = store
-        .query_one("SELECT to_regclass($1) IS NOT NULL", &[&relation])
-        .await?;
-    Ok(row.get(0))
+    Ok(store
+        .head_states(&[host_domain, CONFIG_DOMAIN], storage_name)
+        .await?)
 }
 
 /// `PresentationConfig.unwrap` — every scalar here is a single-attribute
@@ -471,31 +430,6 @@ mod tests {
 
     // Row literals below are copied from the real rows the console
     // app's own database holds, not invented shapes.
-
-    #[test]
-    fn head_view_candidates_cover_every_relation_a_runtime_has_written_these_rows_to() {
-        assert_eq!(
-            head_view_candidates("SampleApp", "state_style"),
-            vec![
-                "sample_app_state_style_head".to_string(),
-                "console_settings_state_style_head".to_string(),
-                "state_style_head".to_string(),
-                "state_style".to_string()
-            ]
-        );
-    }
-
-    #[test]
-    fn a_host_whose_own_domain_is_the_chapter_never_probes_one_relation_twice() {
-        assert_eq!(
-            head_view_candidates("ConsoleSettings", "state_style"),
-            vec![
-                "console_settings_state_style_head".to_string(),
-                "state_style_head".to_string(),
-                "state_style".to_string()
-            ]
-        );
-    }
 
     #[test]
     fn a_state_row_becomes_a_tone_an_attention_flag_and_its_extras() {

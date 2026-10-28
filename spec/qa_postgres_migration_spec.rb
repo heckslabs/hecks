@@ -21,7 +21,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
   # Heki-backed wiring, inlined so it stays fixed whatever the real file says. Same as the
   # real hecksagon except for the seven `persisted_by` lines.
   HEKI_HECKSAGON = <<~HECKSAGON.freeze
-    Hecks::Chapters.load!("QualityControl")
+    Hecks::FrameworkBluebooks.load!("QualityControl")
 
     Hecks.hecksagon "QualityControl" do
       attaches "Governance"
@@ -115,7 +115,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     sweep.conclude!(notes: { value: "found several surprising divergences in the freeze/unfreeze cycle" })
 
     sweep2 = QualityControl::Sweep.open!(target: t3.id, reference: { value: "SW-2" }, engineer: { value: "Claude QA 2" })
-    sweep2.waive!(reason:    { value: "the chapter would not boot; recording the pass so the rotation moves on" },
+    sweep2.waive!(reason:    { value: "the bluebook would not boot; recording the pass so the rotation moves on" },
                   waived_by: { value: "Claude QA 2" })
     sweep2.conclude!(notes: { value: "boot refused outright; nothing could be checked this pass" })
 

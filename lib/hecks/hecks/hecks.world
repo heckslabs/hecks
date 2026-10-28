@@ -3,7 +3,7 @@
 # **Memory** is the default, as for any hexagonal domain: neither this world nor hecks.hecksagon
 # names persistence, so the domain boots with nothing behind it and a run writes nothing it cannot
 # lose. Persistence is an opt-in, made in local files and never in these: a `hecks.local.hecksagon`
-# with `persisted_by "PostgresEra"` (the attached chapters inherit it) and a `hecks.local.world` with
+# with `persisted_by "PostgresEra"` (the attached bluebooks inherit it) and a `hecks.local.world` with
 # the values, beside this file or in the working directory. `.gitignore` keeps them out of the
 # repository, so one copy persists without any other copy knowing. The copy that runs the push
 # train does this, and so does a client who wants `hecks stores` and `hecks history` to read a
@@ -30,14 +30,14 @@
 # refusal is an exit status and a reason on standard error (`package.vendor`, which a script runs
 # for its outcome), `unknown_runs` names the questions about one run that refuse a run the process
 # does not hold, as unknown, not as an empty list (`rehearsal_run.rehearsal_outcome`: a run is kept
-# by the process that made it, so `request` waits and prints the whole outcome), `executable` is where `hecks project_cli` writes this chapter's launcher (the
+# by the process that made it, so `request` waits and prints the whole outcome), `executable` is where `hecks project_cli` writes this bluebook's launcher (the
 # gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
 # the commands that launcher runs on the Memory environment unless `HECKS_ENVIRONMENT` is set (so
 # `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
 # positional forms ADR 0066 shipped. `maintainer` names the aggregates only someone working on a hecks
 # checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
-# `--maintainer` lists them; `chapters` names the attached chapters the help points at, one line each
-# (`hecks deploy`), and `maintainer_chapters` the language's own, added inside a checkout.
+# `--maintainer` lists them; `bluebooks` names the attached bluebooks the help points at, one line each
+# (`hecks deploy`), and `maintainer_bluebooks` the language's own, added inside a checkout.
 # `newcomer` names the only commands the help lists in a folder holding no bluebook yet
 # (`hecks --all` lists the rest), so a first run shows how to start and nothing else.
 Hecks.world "Hecks" do
@@ -50,7 +50,7 @@ Hecks.world "Hecks" do
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
                                   handover.clear rehearsal_run.request push_train.board
-                                  landing.land landing.retire],
+                                  landing.land landing.retire agent_run.dispatch agent_run.check],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
                        names: { "config" => "checkout.settings", "mcp" => "launch.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
@@ -62,8 +62,8 @@ Hecks.world "Hecks" do
                                       CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release
                                       SyntaxBootCache],
                        newcomer: %w[launch.init launch.interview operation.open_console],
-                       chapters: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
-                       maintainer_chapters: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
+                       bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
+                       maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
                        legacy: %w[run docs narrate ir stores model_check smoke_test
                                   project_diagrams project_cli mcp]

@@ -10,7 +10,8 @@
 //! seal, or every seal held; exits 1 when the chain could not be shown intact or the database
 //! could not be reached, so a scheduler or a deploy gate can act on it.
 
-use rust_host::{boot, journal, ledger};
+use rust_host::store::journal_sql as journal;
+use rust_host::{boot, ledger};
 use serde_json::json;
 use std::process::ExitCode;
 

@@ -1,16 +1,15 @@
 # Bulk runs (ADR 0125): one command sent to every row of one query, each row's outcome kept on a
 # `Bulk::BulkRun`. Freezing every open account of a suspended customer by hand is
 #
-#     Account.freeze_account!(over: Account.open_for_customer(reference: "C-1"), mode: :best_effort)
+#     Account.freeze_account!(over: Account.open_for_customer(reference: "C-1"))
 #
-# and the CLI or MCP sends `Bulk::BulkRun.Request` with the same verb, query and mode.
+# and the CLI or MCP sends `Bulk::BulkRun.Request` with the same verb and query.
 Hecks.hecksagon "Banking" do
   attaches "Bulk"
 end
 
-# The chapter brings its shape, not its persistence. Memory here because this is an example
-# corpus member; all_or_nothing needs a store that rolls back, so on Heki or Memory a run of that
-# mode is declined before any row is sent.
+# The bluebook brings its shape, not its persistence. Memory here because this is an example
+# corpus member.
 Hecks.hecksagon "Bulk" do
   # `Record` and `Decline` are the system's: Governance must be attached for the role to be checked.
   attaches "Governance"

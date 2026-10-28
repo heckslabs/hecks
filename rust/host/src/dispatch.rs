@@ -938,6 +938,7 @@ pub(crate) mod tests {
     }
     use super::*;
     use crate::journal::LineageConfig;
+    use crate::store::journal_sql;
     use crate::lambda_client::LambdaInvoker;
     use tokio_postgres::{Client, NoTls};
 
@@ -966,7 +967,7 @@ pub(crate) mod tests {
         tokio::spawn(async move {
             let _ = conn.await;
         });
-        journal::ensure_schema(&client).await.unwrap();
+        journal_sql::ensure_schema(&client).await.unwrap();
         Store::postgres(client)
     }
 
@@ -986,7 +987,7 @@ pub(crate) mod tests {
     }
 
     // Not Ruby's real provisioning — just enough structure for
-    // `journal::current_era` and `append_lineage_mutation` to succeed,
+    // `journal_sql::current_era` and `append_lineage_mutation` to succeed,
     // without reproducing Ruby's full DDL.
     pub(crate) async fn provision_lineage(
         client: &Client,
@@ -1010,7 +1011,7 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let journal_table = format!("hecks_journal_{}", journal::snake(domain));
+        let journal_table = format!("hecks_journal_{}", journal_sql::snake(domain));
         client
             .batch_execute(&format!(
                 "CREATE TABLE IF NOT EXISTS \"{journal_table}\" (
@@ -1029,9 +1030,9 @@ pub(crate) mod tests {
         for name in aggregate_storage_names {
             // Domain-qualified (ADR 0059), matching what a real write
             // targets.
-            let snapshot_table = journal::qualified_name(
+            let snapshot_table = journal_sql::qualified_name(
                 domain,
-                &format!("{}_head_snapshot_{era}", journal::snake(name)),
+                &format!("{}_head_snapshot_{era}", journal_sql::snake(name)),
             );
             client
                 .batch_execute(&format!(
@@ -1310,7 +1311,7 @@ pub(crate) mod tests {
         assert!(outcome.accepted);
         assert_eq!(outcome.result["refusals"].as_array().unwrap().len(), 0);
         let guard = client.lock().await;
-        let steps = journal::load_steps(&*guard).await.unwrap();
+        let steps = journal_sql::load_steps(&*guard).await.unwrap();
         assert_eq!(steps.len(), 1);
 
         // The lineage write itself: a row landed in the era-tagged,
@@ -1499,11 +1500,11 @@ pub(crate) mod tests {
             );
 
             let guard = client.lock().await;
-            let snapshot = journal::load_snapshot(&*guard)
+            let snapshot = journal_sql::load_snapshot(&*guard)
                 .await
                 .unwrap()
                 .expect("a snapshot should exist after the first accepted command");
-            let tail = journal::load_steps_after(&*guard, snapshot.ordinal)
+            let tail = journal_sql::load_steps_after(&*guard, snapshot.ordinal)
                 .await
                 .unwrap();
             assert!(tail.is_empty(), "the snapshot should already reflect every accepted command, leaving nothing to replay");
@@ -1517,7 +1518,7 @@ pub(crate) mod tests {
             );
         }
 
-        let final_snapshot = journal::load_snapshot(&*client.lock().await)
+        let final_snapshot = journal_sql::load_snapshot(&*client.lock().await)
             .await
             .unwrap()
             .unwrap();
@@ -1594,7 +1595,7 @@ pub(crate) mod tests {
         .unwrap();
         assert!(first.accepted, "{:?}", first.result);
 
-        let whole_world = journal::load_snapshot(&*client.lock().await)
+        let whole_world = journal_sql::load_snapshot(&*client.lock().await)
             .await
             .unwrap()
             .unwrap()
@@ -1705,7 +1706,7 @@ pub(crate) mod tests {
         .await
         .unwrap();
         assert!(second.accepted, "{:?}", second.result);
-        let after = journal::load_snapshot(&*client.lock().await)
+        let after = journal_sql::load_snapshot(&*client.lock().await)
             .await
             .unwrap()
             .unwrap()
@@ -1922,7 +1923,7 @@ pub(crate) mod tests {
             .find(|r| r["policy"] == "ReviewOnFreeze")
             .expect("ReviewOnFreeze should appear in \"reactions\" too");
         assert_eq!(merged["on"], "AccountFrozen");
-        assert_eq!(merged["trigger"], "Compliance::AccountFreezeReview.Open");
+        assert_eq!(merged["trigger"], "Compliance::Review.Open");
         assert_eq!(merged["delivered"], true);
 
         {
@@ -1933,9 +1934,10 @@ pub(crate) mod tests {
             let sent: serde_json::Value = serde_json::from_str(payload).unwrap();
             // Fully qualified, not the bare "Compliance.OpenReview":
             // generated match arms are always "Domain::Aggregate.Command",
-            // and Compliance's own aggregate is named `AccountFreezeReview`.
-            assert_eq!(sent["verb"], "Compliance::AccountFreezeReview.Open");
-            assert_eq!(sent["args"]["number"]["value"], "acct-freeze-me");
+            // and Compliance's own aggregate is named `Review`.
+            assert_eq!(sent["verb"], "Compliance::Review.Open");
+            assert_eq!(sent["args"]["subject_kind"], "account_freeze");
+            assert_eq!(sent["args"]["subject_key"], "acct-freeze-me");
         }
 
         // Never re-delivered on a later replay: `pending_cross_domain`
@@ -2577,7 +2579,7 @@ pub(crate) mod tests {
         let (policy, target_domain, target_verb, attempts) = dead_letters[0].clone();
         assert_eq!(policy, "ReviewOnFreeze");
         assert_eq!(target_domain, "Compliance");
-        assert_eq!(target_verb, "Compliance::AccountFreezeReview.Open");
+        assert_eq!(target_verb, "Compliance::Review.Open");
         assert_eq!(attempts, lambda_client::MAX_DELIVERY_ATTEMPTS as i32);
     }
 

@@ -305,7 +305,7 @@ answers each leaf with that reduction of the leaf's rows, in place of
 the row ([ADR 0126](../../decisions/0126-a-group-by-reduces-each-group-and-each-reducer-is-a-row.md)).
 A leaf is a value, so two rows sharing a key path are added up, never
 refused. What each reducer answers over no rows, and how two partial
-answers combine, are the `Reducer` rows of the Vocabulary chapter, which
+answers combine, are the `Reducer` rows of the Vocabulary bluebook, which
 Ruby and the generated Rust both read. `CardPaymentTotalsByStatus`
 groups every card charge by its status and adds up the amounts:
 

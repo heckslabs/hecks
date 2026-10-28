@@ -1,6 +1,7 @@
 # A context map is declared, and the wiring is checked against it
 
-**Status:** Proposed. Not built. Date: 2026-10-27.
+**Status:** Partly built (the map as data, the comparison and the diagram; see Consequences).
+Date: 2026-10-27.
 
 ## Context
 
@@ -10,6 +11,11 @@ hecksagon `translates` becomes the anti-corruption layer, and a bare `subscribe`
 a listener. `ModelCheck::ContextChecks` then reports an unacknowledged `translates`
 source and a cycle among the coupled contexts.
 
+An attached member such as Governance is a context in its own right, with its own
+language. Calling its `attaches` a shared kernel claims the two sides co-own a model,
+which the wiring cannot know and which is usually false: the attaching context takes the
+attached one's model as it is.
+
 Every edge in that map is a consequence of code someone wrote. Nothing states the
 relationship first, so nothing can say a coupling was a mistake. A developer who adds a
 `subscribe` to a neighbour's internal event creates a dependency the review never sees,
@@ -17,31 +23,29 @@ and the map afterwards reports it as if it had been designed. A context map in t
 Evans uses it is a decision the teams make before the wiring, and the wiring is held to
 it.
 
-Three smaller gaps follow from the same cause:
+Smaller gaps follow from the same cause:
 
 - The relationship kinds the projection can derive are the ones the wiring can express.
   Conformist, open host service with a published language, partnership and separate ways
   have no source in the wiring, so they cannot be derived and cannot be checked.
 - A `subscribe` or `translates` names any event of the supplier. There is no way to say
   which events a context publishes to its neighbours and which are its own business.
-- The domain classification that decides how hard a context should be reviewed (core,
-  supporting, generic) is written nowhere the tooling can read.
 
 ## Decision
 
 1. **A system may declare a context map**, a `.contextmap` file beside the bluebooks it
-   covers. It names each context with its owning team and subdomain kind (`core`,
-   `supporting` or `generic`), and each relationship between two contexts:
+   covers. It names each context with its owning team, and each relationship between two
+   contexts:
 
    ```ruby skip
    Hecks.context_map "Shop" do
-     context "Ordering", team: "storefront", subdomain: :core
-     context "Billing",  team: "payments",   subdomain: :supporting
-     context "Identity", team: "platform",   subdomain: :generic
+     context "Ordering",   team: "storefront"
+     context "Billing",    team: "payments"
+     context "Governance", team: "platform"
 
      relate "Billing" => "Ordering", as: :customer_supplier,
             published: %w[Billing.InvoicePaid Billing.PaymentFailed]
-     relate "Identity" => "Ordering", as: :conformist
+     relate "Governance" => "Ordering", as: :conformist
      separate_ways "Shipping", "Billing"
    end
    ```
@@ -65,9 +69,11 @@ Three smaller gaps follow from the same cause:
    | `:conformist_translates` | a `translates` on the consuming side of a `conformist` edge | warning |
 
    Derived kinds map as before. A `translates` implements `anticorruption_layer`, an
-   `across` policy implements `customer_supplier`, an `attaches` implements
-   `shared_kernel`. A bare `subscribe` implements `conformist` unless the map declares
-   another kind for the pair.
+   `across` policy implements `customer_supplier`, an `attaches` implements `conformist`
+   (the attaching context takes the attached one's model as it is), and a bare `subscribe`
+   implements `conformist` too. The map may declare another kind for any pair, and
+   `shared_kernel` is only ever declared, never derived, since the wiring cannot tell a
+   model co-owned by two teams from one taken as given.
 4. **`published:` is the published language.** On a `customer_supplier` or `open_host`
    edge it lists the supplier events a consumer may depend on. An event not listed is the
    supplier's internal event: it can change without notice, and a consumer reacting to it
@@ -80,11 +86,21 @@ Three smaller gaps follow from the same cause:
    it. This keeps the command surface and every existing domain unchanged.
 7. **The map is readable.** `hecks query context_map` renders the declared and derived
    edges together, one line per pair, marking which side each came from. The glossary
-   generator groups each context's terms under its declared team and subdomain kind.
-8. **The subdomain kind sets review depth, and nothing else.** A `core` context is where
-   the aggregate-boundary checks of a later decision apply at their strictest, and a
-   `generic` context is a candidate to attach from a package. This decision adds the
-   word and the report and no behaviour keyed on it.
+   generator groups each context's terms under its declared team.
+8. **The map is drawn in the standard notation.** The same query renders a Mermaid
+   flowchart, the form the generated glossaries already use for lifecycles. Each context is
+   a node labelled with its team, and each relationship is an edge from the upstream
+   context to the downstream one, with the end marks of Evans's context map: `U` on the
+   upstream end and `D` on the downstream end; `OHS` and `PL` on the upstream end of an
+   open host service with a published language; `ACL` or `CF` on the downstream end of an
+   anticorruption layer or a conformist; `S` and `C` on the ends of a customer/supplier
+   pair. A `shared_kernel` is an undirected edge marked `SK`, a `partnership` one marked
+   `P`, and `separate_ways` is drawn as no edge, with the pair listed beside the diagram as
+   declared apart. An edge the wiring implements but the map does not declare is drawn
+   dashed and red,
+   so a reviewer sees the undeclared coupling on the picture before the finding is read.
+   An edge the map declares and the wiring never uses is drawn grey. The diagram is
+   generated from the map and the derived edges, so it cannot drift from either.
 
 ## Alternatives considered
 
@@ -116,5 +132,20 @@ Three smaller gaps follow from the same cause:
 - `.contextmap` is a new file kind, so ADR 0134's list of what a bluebook is made of
   gains it, and the sentence form (ADR 0131) needs a plain-sentence spelling before the
   map is offered to business readers.
-- Open: whether a context's team and subdomain kind belong in the map or in each
-  context's own declaration, and whether `partnership` needs a pair of `published:` lists.
+- **Built so far, over plain data:** `Bluebook::ContextMap` holds the contexts, their teams,
+  the relationships and the separate-ways pairs; `ModelCheck::ContextMapChecks` reports
+  `:undeclared_coupling`, `:unused_relationship`, `:relationship_kind_mismatch`,
+  `:unpublished_dependency`, `:separate_ways_violated` and `:conformist_translates` against
+  `ContextRelationships`' edges; `Projections::ContextMapDiagram` draws the Mermaid form.
+  `ContextRelationships` still labels an attach `shared_kernel`, and the checks accept that
+  edge as a `conformist`, a declared `shared_kernel` or an `open_host`.
+- **Not built:** the `.contextmap` file kind and its builder, loading a map beside a system's
+  bluebooks, the `hecks query context_map` verb, running the comparison from `model_check`,
+  the keyword rows for the kinds, and the Rust parser's side of the new file kind. A
+  `published:` check holds only for subscriptions, which name the event they depend on; a
+  policy edge names a policy, which has no event to hold to the list.
+- Open: whether a context's team belongs in the map or in each context's own
+  declaration, and whether `partnership` needs a pair of `published:` lists.
+- Not decided here: a subdomain kind (core, supporting, generic) per context. No check
+  would read it yet, and a word earns its place by being used (ADR 0026); it joins the
+  map when a check keys on it.

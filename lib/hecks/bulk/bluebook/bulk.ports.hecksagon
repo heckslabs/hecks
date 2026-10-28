@@ -1,4 +1,4 @@
-# The port Bulk declares, for every hecksagon that attaches the chapter (`Chapters` loads this file
+# The port Bulk declares, for every hecksagon that attaches the bluebook (`Chapters` loads this file
 # with it). `Sweep` sends the run's command to every row and answers each row's outcome, or refuses
 # the run with a reason (a mode the store cannot honour, a verb or query that does not resolve).
 # adapters/row_sweeper.adapter binds it.
