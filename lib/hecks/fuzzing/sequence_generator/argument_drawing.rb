@@ -62,7 +62,8 @@ module Hecks
           droppable = args.keys - [identity, "id"] - needed
           return args if droppable.empty?
 
-          args.reject { |name, _| name == droppable.sample(random: @random) }
+          dropped = droppable.sample(random: @random)
+          args.reject { |name, _| name == dropped }
         end
 
         def corrupt_one(args, attributes, aggregate)

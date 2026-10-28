@@ -16,7 +16,7 @@ RSpec.describe "the editor over several bluebooks" do
   def golden_files = %w[package.json src/config.ts src/schema.ts src/app.ts]
 
   def aggregate(name, chapter, dir = project)
-    schema(dir)["aggregates"].find { |agg| agg["name"] == name && agg["chapter"] == chapter }
+    schema(dir)["aggregates"].find { |agg| agg["name"] == name && agg["bluebook"] == chapter }
   end
 
   def attribute(name, chapter, attr, dir = project)
@@ -41,8 +41,8 @@ RSpec.describe "the editor over several bluebooks" do
     it "names each aggregate's bluebook, in the order the row gives them", :aggregate_failures do
       data = schema
 
-      expect(data["chapters"]).to eq(%w[Press Library])
-      expect(data["aggregates"].map { |agg| "#{agg["chapter"]}.#{agg["name"]}" })
+      expect(data["bluebooks"]).to eq(%w[Press Library])
+      expect(data["aggregates"].map { |agg| "#{agg["bluebook"]}.#{agg["name"]}" })
         .to eq(%w[Press.Article Press.Category Press.Note Library.MediaItem Library.Category Library.Gallery])
     end
 
@@ -62,7 +62,7 @@ RSpec.describe "the editor over several bluebooks" do
 
     it "leaves out an aggregate named with its bluebook, and only that chapter's" do
       with_row('title: "Press editor"', 'title: "Press editor", skip: "Library::Category"') do |dir|
-        expect(schema(dir)["aggregates"].map { |agg| "#{agg["chapter"]}.#{agg["name"]}" }).not_to include("Library.Category")
+        expect(schema(dir)["aggregates"].map { |agg| "#{agg["bluebook"]}.#{agg["name"]}" }).not_to include("Library.Category")
       end
     end
 
@@ -71,8 +71,8 @@ RSpec.describe "the editor over several bluebooks" do
       text = Hecks::Tools::SiteRoutes.projection(other, out: "/w", editor: "/w/e").fetch("/w/e/src/schema.ts")
       single = JSON.parse(text[/SCHEMA: Schema = (\{.*\});\n/m, 1])
 
-      expect(single).not_to have_key("chapters")
-      expect(single["aggregates"].flat_map(&:keys)).not_to include("chapter", "roles")
+      expect(single).not_to have_key("bluebooks")
+      expect(single["aggregates"].flat_map(&:keys)).not_to include("bluebook", "roles")
     end
   end
 
@@ -80,14 +80,14 @@ RSpec.describe "the editor over several bluebooks" do
     it "offers the same chapter's category for a list of category slugs, by what the declarations say", :aggregate_failures do
       picker = attribute("Article", "Press", "categories")["picker"]
 
-      expect(picker).to include("target" => "Category", "chapter" => "Press", "key" => "slug", "label" => "name")
+      expect(picker).to include("target" => "Category", "bluebook" => "Press", "key" => "slug", "label" => "name")
       expect(picker).to include("listing" => "Active", "strict" => true)
     end
 
     it "suggests pictures, without insisting, for a name ending in a picture word and Ref", :aggregate_failures do
       picker = attribute("Article", "Press", "cover")["picker"]
 
-      expect(picker).to include("target" => "MediaItem", "chapter" => "Library", "listing" => "Pictures", "strict" => false)
+      expect(picker).to include("target" => "MediaItem", "bluebook" => "Library", "listing" => "Pictures", "strict" => false)
     end
 
     it "reads a `<kind>:<slug>` key from the pattern of its attribute, and the aggregate each kind names", :aggregate_failures do
@@ -95,7 +95,7 @@ RSpec.describe "the editor over several bluebooks" do
 
       expect(kinds.map { |kind| kind["kind"] }).to eq(%w[article note])
       expect(kinds.map do |kind|
-        [kind["target"], kind["chapter"], kind["label"]]
+        [kind["target"], kind["bluebook"], kind["label"]]
       end).to eq([%w[Article Press title], %w[Note Press key]])
     end
 
