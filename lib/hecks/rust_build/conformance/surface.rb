@@ -23,7 +23,13 @@ module Hecks
             "events"    => result[:events].map { |event| event_surface(event) },
             "refusals"  => result[:refusals].map { |refusal| refusal_surface(refusal) }
           }
-          surface.merge(read_only_surface(result))
+          surface.merge(read_only_surface(result)).merge(cross_domain_surface(result[:cross_domain]))
+        end
+
+        # What each `across` policy delivered (policy, target verb, payload), omitted when none did.
+        def cross_domain_surface(deliveries)
+          rows = JSON.parse(JSON.generate(deliveries || []))
+          rows.empty? ? {} : { "cross_domain" => rows }
         end
 
         # The dry runs and validations, each omitted when the script has none.
@@ -78,7 +84,12 @@ module Hecks
         def normalize(theirs)
           strip_snapshot_flags(theirs["instances"])
           strip_timestamps(theirs["events"])
-          theirs
+          theirs.merge(cross_domain_surface(kernel_deliveries(theirs["cross_domain_reactions"])))
+        end
+
+        # The kernel's per-step cross-domain reactions as one list of policy, target verb and payload.
+        def kernel_deliveries(per_step)
+          Array(per_step).flatten.map { |row| row.slice("policy", "target_verb", "payload") }
         end
 
         def strip_snapshot_flags(instances)
