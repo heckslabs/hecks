@@ -2586,7 +2586,7 @@ RSpec.describe "the DSL surface" do
       end
 
       it "refuses a hop into an aggregate this bluebook never declares" do
-        message = %r{asks about client/status, which hops to Client, which this chapter never declares}
+        message = %r{asks about client/status, which hops to Client, which this bluebook never declares}
         bad_query = proc { query("Bad") { where("client/status": "active") } }
 
         expect_refusal(:bluebook, "Dangling", message, &hop_proposal_aggregate(bad_query))
