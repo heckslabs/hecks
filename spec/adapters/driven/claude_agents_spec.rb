@@ -14,7 +14,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
     printf '%s\\n' "$@" > "$here/argv"
     pwd -P > "$here/cwd"
-    echo "started session-id-abc123"
+    printf 'backgrounded · session-id-abc123\\n  claude agents    list sessions\\n  claude stop session-id-abc123    stop this session\\n'
   SH
 
   let(:scratch) { File.realpath(Dir.mktmpdir("claude-agents")) }
