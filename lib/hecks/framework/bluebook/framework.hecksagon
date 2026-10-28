@@ -21,3 +21,10 @@ Hecks.hecksagon "Identity" do
   attaches "Governance"
   persisted_by "Memory"
 end
+
+# Privacy's `Keys` port is declared in privacy.ports.hecksagon, beside its adapter binding.
+Hecks.hecksagon "Privacy" do
+  # `Marking.Mark` declares `role "Deployment"` and `Shred` a privacy officer; same reason as Compliance.
+  attaches "Governance"
+  persisted_by "Memory"
+end
