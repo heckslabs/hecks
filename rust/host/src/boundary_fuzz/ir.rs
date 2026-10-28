@@ -2,10 +2,11 @@
 //! boot, so a stale, hand-edited or truncated file must come back as `None` or a refusal, never
 //! a panic.
 
-use super::*;
 use crate::commerce_ir::*;
 use crate::fuzz_support::*;
+use crate::ir::*;
 use serde_json::json;
+use serde_json::Value;
 
 const KEYS: &[&str] = &[
     "name",

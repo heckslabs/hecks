@@ -354,15 +354,15 @@ impl super::Backend for PostgresStore {
         &'a self,
         domain: &str,
     ) -> Result<Box<dyn super::UnitBackend + 'a>, StoreError> {
-        Ok(Box::new(PostgresStore::begin(self, domain).await?))
+        Ok(Box::new(Self::begin(self, domain).await?))
     }
 
     async fn read_state(&self) -> Result<State, StoreError> {
-        PostgresStore::read_state(self).await
+        Self::read_state(self).await
     }
 
     async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
-        PostgresStore::record_dead_letter(self, dead_letter).await
+        Self::record_dead_letter(self, dead_letter).await
     }
 
     async fn head_by_id(
@@ -440,7 +440,7 @@ impl super::Backend for PostgresStore {
 #[async_trait::async_trait]
 impl super::UnitBackend for PostgresUnit<'_> {
     async fn load(&self) -> Result<State, StoreError> {
-        PostgresUnit::load(self).await
+        Self::load(self).await
     }
 
     async fn commit(self: Box<Self>, accepted: Accepted<'_>) -> Result<(), StoreError> {

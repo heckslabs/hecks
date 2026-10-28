@@ -7,7 +7,7 @@
 //! leaves the committed data as it was.
 
 use super::{Accepted, DeadLetter, State, StoreError};
-use crate::store::journal_sql::{storage_name, LineageConfig, Mutation, SagaRow, Snapshot};
+use crate::journal::{storage_name, LineageConfig, Mutation, SagaRow, Snapshot};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError, RwLock};
 use tokio::sync::{Mutex, OwnedMutexGuard};
@@ -64,7 +64,7 @@ pub struct MemoryStore {
 }
 
 /// Journal rows as `(ordinal, verb, args)`, the snapshot and the live sagas.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 type Committed = (
     Vec<(i64, String, serde_json::Value)>,
     Option<Snapshot>,
@@ -260,7 +260,7 @@ impl MemoryStore {
     }
 
     /// Makes the next commits fail at `fault`, until [`MemoryStore::clear_fault`].
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn inject_fault(&self, fault: Fault) {
         *self
             .shared
@@ -270,7 +270,7 @@ impl MemoryStore {
     }
 
     /// Lets commits succeed again.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn clear_fault(&self) {
         *self
             .shared
@@ -280,13 +280,13 @@ impl MemoryStore {
     }
 
     /// Holds the domain lock as a competing writer would, until the guard drops.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub async fn hold_lock(&self) -> OwnedMutexGuard<()> {
         Arc::clone(&self.shared.lock).lock_owned().await
     }
 
     /// Every committed row as `(ordinal, verb, args)`, the snapshot and the live sagas.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn committed(&self) -> Committed {
         let data = self.read();
         let rows = data.journal.iter().map(|row| {
@@ -301,7 +301,7 @@ impl MemoryStore {
     }
 
     /// Appends a journal row the snapshot does not cover.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn append_unsnapshotted(&self, verb: &str, args: &serde_json::Value) {
         let ordinal = self.next_ordinal();
         let mut data = self.write();
@@ -310,7 +310,7 @@ impl MemoryStore {
     }
 
     /// Rewrites the snapshot's seed.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn replace_seed(&self, seed: serde_json::Value) {
         if let Some(snapshot) = self.write().snapshot.as_mut() {
             snapshot.seed = seed;
@@ -318,7 +318,7 @@ impl MemoryStore {
     }
 
     /// Resets to a snapshot written before saga durability: latch unset, no sagas.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     pub fn forget_saga_backfill(&self) {
         let mut data = self.write();
         if let Some(snapshot) = data.snapshot.as_mut() {
@@ -445,15 +445,15 @@ impl super::Backend for MemoryStore {
         &'a self,
         _domain: &str,
     ) -> Result<Box<dyn super::UnitBackend + 'a>, StoreError> {
-        Ok(Box::new(MemoryStore::begin(self).await))
+        Ok(Box::new(Self::begin(self).await))
     }
 
     async fn read_state(&self) -> Result<State, StoreError> {
-        Ok(MemoryStore::read_state(self))
+        Ok(Self::read_state(self))
     }
 
     async fn record_dead_letter(&self, dead_letter: &DeadLetter<'_>) -> Result<(), StoreError> {
-        MemoryStore::record_dead_letter(self, dead_letter);
+        Self::record_dead_letter(self, dead_letter);
         Ok(())
     }
 
@@ -463,7 +463,7 @@ impl super::Backend for MemoryStore {
         storage_name: &str,
         id: &str,
     ) -> Result<Option<serde_json::Value>, StoreError> {
-        Ok(MemoryStore::head_by_id(self, domain, storage_name, id))
+        Ok(Self::head_by_id(self, domain, storage_name, id))
     }
 
     async fn head_all(
@@ -471,7 +471,7 @@ impl super::Backend for MemoryStore {
         domain: &str,
         storage_name: &str,
     ) -> Result<Vec<(String, serde_json::Value)>, StoreError> {
-        Ok(MemoryStore::head_all(self, domain, storage_name))
+        Ok(Self::head_all(self, domain, storage_name))
     }
 
     async fn head_states(
@@ -479,7 +479,7 @@ impl super::Backend for MemoryStore {
         domains: &[&str],
         storage_name: &str,
     ) -> Result<Vec<serde_json::Value>, StoreError> {
-        Ok(MemoryStore::head_states(self, domains, storage_name))
+        Ok(Self::head_states(self, domains, storage_name))
     }
 
     async fn head_find(
@@ -488,7 +488,7 @@ impl super::Backend for MemoryStore {
         storage_name: &str,
         matches: &[(&str, &str)],
     ) -> Result<Option<serde_json::Value>, StoreError> {
-        Ok(MemoryStore::head_find(self, domains, storage_name, matches))
+        Ok(Self::head_find(self, domains, storage_name, matches))
     }
 
     async fn put_head(
@@ -510,7 +510,7 @@ impl super::Backend for MemoryStore {
         ) -> Option<(String, serde_json::Value)>
                   + Send),
     ) -> Result<(), StoreError> {
-        MemoryStore::amend_head(
+        Self::amend_head(
             self,
             config,
             aggregate,
@@ -528,7 +528,7 @@ impl super::Backend for MemoryStore {
 #[async_trait::async_trait]
 impl super::UnitBackend for MemoryUnit {
     async fn load(&self) -> Result<State, StoreError> {
-        Ok(MemoryUnit::load(self))
+        Ok(Self::load(self))
     }
 
     async fn commit(self: Box<Self>, accepted: Accepted<'_>) -> Result<(), StoreError> {
@@ -540,8 +540,15 @@ impl super::UnitBackend for MemoryUnit {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 mod tests {
+    #![allow(
+        dead_code,
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::wildcard_imports
+    )]
     use super::*;
 
     fn ping() -> serde_json::Value {

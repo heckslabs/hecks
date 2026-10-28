@@ -164,13 +164,13 @@ mod tests {
     use super::*;
     use std::fs;
 
-    const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+    const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../..");
 
     // spec/fixtures/storage_shape_vectors.json is asserted by spec/runtime/storage_shape_spec.rb
     // too, so a drift in either implementation fails a test on its own side.
     fn vectors() -> Vec<Value> {
         serde_json::from_str(include_str!(
-            "../../../spec/fixtures/storage_shape_vectors.json"
+            "../../../../spec/fixtures/storage_shape_vectors.json"
         ))
         .expect("valid vectors JSON")
     }

@@ -5,7 +5,7 @@ require_relative "support/generated_rust"
 # The Rust host's wire takes a query step (`{"query": "Aggregate.Query", "args": {...}}`). A
 # declared query that filters stored records is the kernel's to answer; a query that `returns` a
 # value object is answered from outside the domain and the host binds no adapter, so it refuses
-# in the words Ruby's own refusals use. rust/host/src/query_step.rs pins the routing decision
+# in the words Ruby's own refusals use. rust/host/core/src/query_step.rs pins the routing decision
 # against a hand-written IR; this spec pins the wording against Ruby's.
 RSpec.describe "Rust host query step", :io do
   include_context "with the generated Rust tree"
@@ -17,7 +17,7 @@ RSpec.describe "Rust host query step", :io do
                                                       aggregate: "Ledger", query: "Nope")
 
     expect(ruby).to eq('Ledger has no query "Nope"')
-    expect(File.read(File.join(QUERY_STEP_HOST_DIR, "src", "query_step.rs"))).to include('Ledger has no query \"Nope\"')
+    expect(File.read(File.join(QUERY_STEP_HOST_DIR, "core", "src", "query_step.rs"))).to include('Ledger has no query \"Nope\"')
   end
 
   # The refusal Ruby's adapter lookup gives for a query nothing can answer.
@@ -28,14 +28,14 @@ RSpec.describe "Rust host query step", :io do
   end
 
   it "refuses an outside-answered query with the tail Ruby's adapter lookup ends on", :aggregate_failures do
-    source = File.read(File.join(QUERY_STEP_HOST_DIR, "src", "query_step.rs"))
+    source = File.read(File.join(QUERY_STEP_HOST_DIR, "core", "src", "query_step.rs"))
 
     expect(adapter_lookup_refusal).to end_with("nothing can answer Note.Echo")
     expect(source).to include("answered outside the domain").and include("nothing can answer {short}")
   end
 
   it "routes derivable queries to the kernel and refuses outside-answered ones (cargo unit tests)", :aggregate_failures do
-    stdout, stderr, status = Open3.capture3("cargo", "test", "--lib", "query_step", chdir: QUERY_STEP_HOST_DIR)
+    stdout, stderr, status = Open3.capture3("cargo", "test", "-p", "rust_host_core", "--lib", "query_step", chdir: QUERY_STEP_HOST_DIR)
 
     expect(status).to be_success, "cargo test failed:\n#{stdout}\n#{stderr}"
     expect(stdout).to match(/test result: ok\. \d+ passed; 0 failed/)

@@ -4,9 +4,9 @@
 use crate::auth::Session;
 use crate::dispatch;
 use crate::host::Host;
-use crate::store::journal_sql::LineageConfig;
 use crate::presentation;
 use crate::presentation_write;
+use crate::store::journal_sql::LineageConfig;
 use crate::store::Store;
 use crate::ui_schema;
 use crate::web::{percent_decode, respond};
@@ -1031,6 +1031,8 @@ pub(crate) fn refusal(status: u16, error: &str, message: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
 
     fn session() -> Session {
         Session {
@@ -1767,7 +1769,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_presentation_config_is_saved_and_read_back_through_the_kernels_own_commands() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
@@ -1871,7 +1873,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_config_that_breaks_a_rule_refuses_422_malformed_and_writes_nothing() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
@@ -1909,7 +1911,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_body_that_is_not_json_at_all_is_a_400_before_anything_is_validated() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
@@ -1938,8 +1940,8 @@ mod tests {
     /// asks the kernel rather than inferring it from anything else.
     #[tokio::test]
     async fn a_host_whose_kernel_has_no_console_settings_chapter_still_refuses_501() {
-        let client = crate::dispatch::tests::memory_store();
-        let wasm = crate::dispatch::tests::wasm_path();
+        let client = crate::dispatch_tests::tests::memory_store();
+        let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir = banking_ir();
         let lineage = LineageConfig {
             domain: "Banking".to_string(),
@@ -1973,15 +1975,15 @@ mod tests {
 
     #[tokio::test]
     async fn a_record_is_created_then_commanded_then_read_back_through_the_api_routes() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_write_routes").await;
-        crate::dispatch::tests::provision_lineage(
+        let client = crate::dispatch_tests::tests::scratch_db("rust_host_api_write_routes").await;
+        crate::dispatch_tests::tests::provision_lineage(
             &*client.lock().await,
             "Banking",
             1,
             &["Customer"],
         )
         .await;
-        let wasm = crate::dispatch::tests::wasm_path();
+        let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir = banking_ir();
         let lineage = LineageConfig {
             domain: "Banking".to_string(),
@@ -2102,15 +2104,15 @@ mod tests {
     #[tokio::test]
     async fn a_write_route_dispatches_as_the_signed_in_caller_and_refuses_a_role_the_command_does_not_declare(
     ) {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_write_roles").await;
-        crate::dispatch::tests::provision_lineage(
+        let client = crate::dispatch_tests::tests::scratch_db("rust_host_api_write_roles").await;
+        crate::dispatch_tests::tests::provision_lineage(
             &*client.lock().await,
             "Banking",
             1,
             &["Customer"],
         )
         .await;
-        let wasm = crate::dispatch::tests::wasm_path();
+        let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir = banking_ir();
         let lineage = LineageConfig {
             domain: "Banking".to_string(),
@@ -2159,7 +2161,7 @@ mod tests {
     // only an admin may save it.
     #[tokio::test]
     async fn only_an_admin_may_save_the_presentation_config() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let (wasm, ir) = console_fixture();
         let lineage = LineageConfig {
             domain: "CheckoutFixture".to_string(),
@@ -2234,15 +2236,15 @@ mod tests {
     // `?dry_run=1`: the same routes answer whether the command would be accepted, and keep nothing.
     #[tokio::test]
     async fn a_preview_through_the_api_routes_answers_the_envelope_and_keeps_nothing() {
-        let client = crate::dispatch::tests::scratch_db("rust_host_api_preview_routes").await;
-        crate::dispatch::tests::provision_lineage(
+        let client = crate::dispatch_tests::tests::scratch_db("rust_host_api_preview_routes").await;
+        crate::dispatch_tests::tests::provision_lineage(
             &*client.lock().await,
             "Banking",
             1,
             &["Customer"],
         )
         .await;
-        let wasm = crate::dispatch::tests::wasm_path();
+        let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir = banking_ir();
         let lineage = LineageConfig {
             domain: "Banking".to_string(),
