@@ -44,6 +44,8 @@ module Hecks
           { name: text(row[:name]), reference: text(row[:reference]), remote_field: text(row[:remote_field]) }
         end
 
+        def acknowledgement(row) = { finding: text(row[:finding]), reason: text(row[:reason]) }
+
         # `provenance from: {...}` rides the same literal encoding `default:` does,
         # one level up: a whole keyword's argument rather than an attribute's.
         def provenance(row) = decode_literal(text(row[:provenance]))

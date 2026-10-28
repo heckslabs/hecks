@@ -49,11 +49,11 @@ module Hecks
         # @return [Array<Finding>] the kind and published-language findings for an aligned edge
         def kind_findings(edge, aligned)
           if edge[:kind] == "acl" && aligned.any? { |relationship| relationship.kind == :conformist }
-            return [conformist_translates_finding(edge)]
+            return allowed?(aligned, :conformist_translates) ? [] : [conformist_translates_finding(edge)]
           end
 
           match = aligned.find { |relationship| IMPLEMENTS.fetch(edge[:kind], []).include?(relationship.kind) }
-          return [kind_mismatch_finding(edge, aligned)] unless match
+          return mismatch_findings(edge, aligned) unless match
 
           unpublished_findings(edge, match)
         end
@@ -62,12 +62,20 @@ module Hecks
         # relationship's published list. Other edges name a policy, which has no event to check.
         def unpublished_findings(edge, relationship)
           return [] unless edge[:kind] == "subscription" && relationship.published.to_a.any?
-          return [] if published?(relationship, edge[:via])
+          return [] if published?(relationship, edge[:via]) || relationship.acknowledges?(:unpublished_dependency)
 
           [Finding.new(kind: :unpublished_dependency, severity: :error, subject: edge_subject(edge),
                        message: "#{edge[:from]} reacts to #{edge[:via]}, which #{relationship.upstream} " \
                                 "does not publish to it (published: #{relationship.published.join(", ")})")]
         end
+
+        # @return [Array<Finding>] the mismatch, unless an aligned relationship allows it
+        def mismatch_findings(edge, aligned)
+          allowed?(aligned, :relationship_kind_mismatch) ? [] : [kind_mismatch_finding(edge, aligned)]
+        end
+
+        # @return [Boolean] whether any of the relationships acknowledges the finding kind
+        def allowed?(relationships, finding) = relationships.any? { |relationship| relationship.acknowledges?(finding) }
 
         # @return [Boolean] whether the event is in the relationship's published list, by name
         def published?(relationship, event)
@@ -91,6 +99,7 @@ module Hecks
         def unused_relationship_findings(map, edges)
           map.relationships.filter_map do |relationship|
             next if edges.any? { |edge| edge_uses?(edge, relationship) }
+            next if relationship.acknowledges?(:unused_relationship)
 
             Finding.new(kind: :unused_relationship, severity: :warning,
                         subject: "#{relationship.downstream} <- #{relationship.upstream}",

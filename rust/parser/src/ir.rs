@@ -44,6 +44,13 @@ pub struct ProjectedField {
     pub remote_field: String,
 }
 
+// `acknowledges :finding, "reason"`: a finding model_check would report, allowed with its reason.
+#[derive(Debug, Clone, Default)]
+pub struct Acknowledgement {
+    pub finding: String,
+    pub reason: String,
+}
+
 // One state or several, stored as the plain captured value rather than a `Given`-shaped rule.
 // `None` when the command has no `from:` guard.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -238,6 +245,7 @@ pub struct Aggregate {
     pub ports: Vec<DomainPort>,
     // Same raw-captured-Hash shape as `Command.provenance`.
     pub provenance: Literal,
+    pub acknowledgements: Vec<Acknowledgement>,
 }
 
 #[derive(Debug, Clone, Default)]

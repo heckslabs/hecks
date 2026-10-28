@@ -29,6 +29,8 @@ Hecks.bluebook "Bluebook" do
     # A field read through a reference and held locally (`projects :name, from: :"ref.field"`).
     # Kept out of `attributes`; see `projected_fields:` in `Aggregate#emits_ir` (ADR 0025).
     attribute :projected_fields, list_of(ProjectedField)
+    # A finding model_check would report, allowed with the reason it is allowed (ADR 0150).
+    attribute :acknowledgements, list_of(Acknowledgement)
 
     value_object "AggregateName" do
       attribute :value, String
@@ -94,6 +96,12 @@ Hecks.bluebook "Bluebook" do
       attribute :name,         String
       attribute :reference,    String
       attribute :remote_field, String
+    end
+
+    # `finding` names the kind of finding; `reason` is the text that says why it is allowed.
+    value_object "Acknowledgement" do
+      attribute :finding, String
+      attribute :reason,  String
     end
 
     command "Declare" do
@@ -332,6 +340,21 @@ Hecks.bluebook "Bluebook" do
       emits PreconditionAttached
     end
 
+    # Allows one finding about this aggregate, with its reason.
+    command "Acknowledges" do
+      role "Language"
+      goal "Allow a finding on the aggregate that means what it says"
+
+      attribute :finding, FieldName
+      attribute :reason,  Description
+
+      given("an acknowledged finding is named") { !finding.value.to_s.empty? }
+
+      sets :acknowledgements, append: { finding: :finding, reason: :reason }
+
+      emits AcknowledgementAttached
+    end
+
     # The local half of a cross-aggregate read. The target is checked in
     # `BluebookBuilder#validate_projected_fields!` once every aggregate in the bluebook exists.
     command "Projects" do
@@ -384,6 +407,7 @@ Hecks.bluebook "Bluebook" do
       member word: "attribute",       context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "attribute_impl"
       member word: "invariant",       context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "invariants", calls: "invariant_impl"
       member word: "given",           context: "Aggregate", body: "source",   inner: "",              opens: "",               fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by", calls: "given_impl"
+      member word: "acknowledges",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "acknowledgements", calls: "acknowledges_impl"
       member word: "projects",        context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "projected_fields", calls: "projects_impl"
       member word: "transition",      context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "transitions", calls: "transition_impl"
       member word: "mark",            context: "Lifecycle", body: "none", inner: "", opens: "",       fills: "marks", calls: "mark_impl"
@@ -446,6 +470,8 @@ Hecks.bluebook "Bluebook" do
       member keyword: "invariant",       context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       member keyword: "given",           context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description"
       member keyword: "given",           context: "Aggregate", at: "",  named: "declared_by", kind: "constant", required: "false", fills: "declared_by"
+      member keyword: "acknowledges",    context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "finding"
+      member keyword: "acknowledges",    context: "Aggregate", at: "2", named: "",         kind: "text",     required: "true",  fills: "reason", coerce: "false"
       member keyword: "projects",        context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "true",  fills: "name"
       member keyword: "projects",        context: "Aggregate", at: "",  named: "from",     kind: "symbol",   required: "true",  fills: "from"
       member keyword: "transition",      context: "Lifecycle", at: "1", named: "",     kind: "pairs", required: "true",  fills: "", pair_key_fills: "command", pair_value_fills: "to_state", pairs_shape: "fields"

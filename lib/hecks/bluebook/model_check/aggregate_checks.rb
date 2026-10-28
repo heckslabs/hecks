@@ -27,6 +27,7 @@ module Hecks
         def large_aggregate_finding(aggregate, limit)
           weight = aggregate_weight(aggregate)
           return unless weight > limit
+          return if Acknowledgements.held?(aggregate, :large_aggregate)
 
           Finding.new(kind: :large_aggregate, severity: :warning, subject: aggregate.hecks_name,
                       message: "declares #{weight} commands, entities and states together, past the " \
