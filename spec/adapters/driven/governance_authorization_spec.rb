@@ -69,6 +69,28 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     ).to be(false)
   end
 
+  describe "liveness, declared by Governance" do
+    let(:live) { Hecks::Bluebook::Capabilities::AUTHORIZATION }
+
+    def provider = business.registry.authorization_providers.first
+
+    def rows_of(key)
+      business.query(described_class.provided_verb(business.registry, key), actor_id: { value: "officer-4" })
+    end
+
+    it "names the queries that say what is live", :aggregate_failures do
+      expect(provider.provided_verb(live, :live_assignments)).to eq("Governance::RoleAssignment.LiveAssignmentsForActor")
+      expect(provider.provided_verb(live, :live_transitions)).to eq("Governance::RoleTransition.LiveAllowed")
+    end
+
+    it "answers a revoked assignment from the history query and not from the live one", :aggregate_failures do
+      created = assign(business, actor: "officer-4", role: "Compliance officer")
+      business.dispatch_flat("Governance::RoleAssignment.Revoke", id: created.instance.id, ends_at: { value: "2026-02-01" })
+      expect(rows_of(:assignments).size).to eq(1)
+      expect(rows_of(:live_assignments)).to be_empty
+    end
+  end
+
   describe "as_of — starts_at, opt-in" do
     it "answers true for a not-yet-started assignment when as_of is not given" do
       assign(business, actor: "officer-1", role: "Compliance officer") # starts_at: "2026-01-01"
