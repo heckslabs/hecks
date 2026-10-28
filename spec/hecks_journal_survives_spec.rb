@@ -65,11 +65,19 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   # root `persisted_by` the attached Governance chapter inherits, and a `hecks.local.world` with
   # the database for both.
   def opt_in_to_postgres_era(directory)
+    write_local_hecksagon(directory)
+    write_local_worlds(directory)
+  end
+
+  def write_local_hecksagon(directory)
     File.write(File.join(directory, "hecks.local.hecksagon"), <<~HECKSAGON)
       Hecks.hecksagon "Hecks" do
         persisted_by "PostgresEra"
       end
     HECKSAGON
+  end
+
+  def write_local_worlds(directory)
     %w[Hecks Governance].each do |chapter|
       File.write(File.join(directory, "#{chapter.downcase}.local.world"), <<~WORLD)
         Hecks.world "#{chapter}" do
