@@ -28,7 +28,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   end
 
   PARITY_EXAMPLE_ROOTS = Hecks::Corpus.members(:example).map(&:path).freeze
-  PARITY_GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
+  PARITY_GRAMMAR_BLUEBOOKS = Hecks::Corpus.members(:grammar).map(&:path).freeze
   PARITY_FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
   # Globbed recursively so subdirectories such as `eras/` and `model_check/` are covered. A
   # translation edge (`translations/`) is not a bluebook and has no `Hecks.bluebook` header to
@@ -42,8 +42,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
 
   # [bluebook name, bluebook path]; the name is read off the file's `Hecks.bluebook` header,
   # since grammar files are named by role, not by bluebook.
-  def self.chapter_name_of(bluebook_path)
-    Hecks::Corpus.chapter_name_of(bluebook_path)
+  def self.bluebook_name_of(bluebook_path)
+    Hecks::Corpus.bluebook_name_of(bluebook_path)
   end
 
   # Keeps the subdirectory so `eras/base` and a future `model_check/base` cannot collide.
@@ -60,7 +60,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
 
   PARITY_CORPUS_MEMBERS = (
     PARITY_EXAMPLE_ROOTS.map { |domain| [File.basename(domain), bluebooks_in(domain)] } +
-    PARITY_GRAMMAR_CHAPTERS.map { |chapter| [File.basename(chapter, ".bluebook"), chapter] } +
+    PARITY_GRAMMAR_BLUEBOOKS.map { |declaration| [File.basename(declaration, ".bluebook"), declaration] } +
     PARITY_FRAMEWORK_MEMBERS.map { |member| [framework_stem(member), member] } +
     PARITY_FIXTURE_MEMBERS.map { |member| [fixture_stem(member), member] } +
     # One member built from several concept files; not stemmed "bluebook", which is one of them.
@@ -85,8 +85,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     bluebooks = bluebooks_in(domain)
     raise "#{domain} has no .bluebook" if bluebooks.empty?
 
-    chapter_name = chapter_name_of(bluebooks) or raise "#{bluebooks.first} has no 'Hecks.bluebook \"Name\"' header"
-    [stem, [chapter_name, bluebooks + [hecksagon_in(domain)].compact]]
+    declaration_name = bluebook_name_of(bluebooks) or raise "#{bluebooks.first} has no 'Hecks.bluebook \"Name\"' header"
+    [stem, [declaration_name, bluebooks + [hecksagon_in(domain)].compact]]
   end.merge(
     # Framework bluebooks stand alone: no `.hecksagon`, so no `attaches` resolution is
     # involved. `compliance` is keyed through `framework_stem` because `examples/compliance`
@@ -94,42 +94,42 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     %w[identity governance console_settings compliance privacy change].to_h do |stem|
       bluebook = PARITY_FRAMEWORK_MEMBERS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecks/framework/bluebook/#{stem}.bluebook"
-      chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
-      [framework_stem(bluebook), [chapter_name, [bluebook]]]
+      declaration_name = bluebook_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
+      [framework_stem(bluebook), [declaration_name, [bluebook]]]
     end
   ).merge(
     # Grammar bluebooks stand alone, like the framework bluebooks.
     %w[expression translation].to_h do |stem|
-      bluebook = PARITY_GRAMMAR_CHAPTERS.find { |path| File.basename(path, ".bluebook") == stem } or
+      bluebook = PARITY_GRAMMAR_BLUEBOOKS.find { |path| File.basename(path, ".bluebook") == stem } or
         raise "no lib/hecks/grammar/#{stem}.bluebook"
-      chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
-      [stem, [chapter_name, [bluebook]]]
+      declaration_name = bluebook_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
+      [stem, [declaration_name, [bluebook]]]
     end
   ).merge(
     # Every `spec/fixtures/**/*.bluebook`, globbed. `payments.hecksagon` exists for
     # hecks model_check, not for the bluebook compared here.
     PARITY_FIXTURE_MEMBERS.to_h do |bluebook|
       stem = fixture_stem(bluebook)
-      chapter_name = chapter_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
-      [stem, [chapter_name, [bluebook]]]
+      declaration_name = bluebook_name_of(bluebook) or raise "#{bluebook} has no 'Hecks.bluebook \"Name\"' header"
+      [stem, [declaration_name, [bluebook]]]
     end
   ).merge(
     # The self-hosted grammar: all concept files go to one `hecks-parse bluebook` call, in
     # `MetaValidator.load_grammar_into` order. See `ruby_ir_json` for its oracle.
-    { "bluebook_language" => [chapter_name_of(PARITY_LANGUAGE_GRAMMAR_FILES.first), PARITY_LANGUAGE_GRAMMAR_FILES] }
+    { "bluebook_language" => [bluebook_name_of(PARITY_LANGUAGE_GRAMMAR_FILES.first), PARITY_LANGUAGE_GRAMMAR_FILES] }
   ).freeze
 
-  def self.run_chapter(chapter_name, *paths)
-    Open3.capture3(PARITY_BINARY_PATH, "bluebook", "--bluebook", chapter_name, *paths)
+  def self.run_bluebook(declaration_name, *paths)
+    Open3.capture3(PARITY_BINARY_PATH, "bluebook", "--bluebook", declaration_name, *paths)
   end
 
   # Ruby oracle: loads a domain as hecks project_rust does and exports it with `Exporter.call`.
   # Uses Hash insertion order, not the key-sorted golden fixtures.
-  def self.ruby_ir_json(stem, chapter_name, paths)
+  def self.ruby_ir_json(stem, declaration_name, paths)
     # `bluebook_language` must go through `grammar_registry`: loading `aggregate.bluebook` the
     # ordinary way fails validation, since it references types declared in later files.
     registry = stem == "bluebook_language" ? Hecks::Bluebook::MetaValidator.grammar_registry : loaded_registry(paths)
-    ir = Hecks::Projector::Exporter.call(registry).fetch(chapter_name)
+    ir = Hecks::Projector::Exporter.call(registry).fetch(declaration_name)
     "#{JSON.pretty_generate(strip_invariant_ast(ir))}\n"
   end
 
@@ -185,13 +185,13 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   end
 
   # The bluebook name a pending member is parsed under; skips a member that is not marked pending.
-  def pending_chapter_name(stem, bluebook)
+  def pending_bluebook_name(stem, bluebook)
     unless PENDING_MEMBERS[stem]
       skip "#{stem} is not marked pending, but no real byte-match assertion exists for it yet — " \
            "add one or restore the pending entry"
     end
 
-    self.class.chapter_name_of(bluebook) ||
+    self.class.bluebook_name_of(bluebook) ||
       raise("#{bluebook} has no 'Hecks.bluebook \"Name\"' header this spec could find — " \
             "either the file's shape changed or the header-reading regex needs updating")
   end
@@ -222,8 +222,8 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
     next if REAL_PARITY_MEMBERS.key?(stem)
 
     it "#{stem}: still Stage 1 pending, and fails the honest way (not yet implemented, not a crash)" do
-      chapter_name = pending_chapter_name(stem, bluebook)
-      stdout, stderr, status = self.class.run_chapter(chapter_name, *Array(bluebook))
+      declaration_name = pending_bluebook_name(stem, bluebook)
+      stdout, stderr, status = self.class.run_bluebook(declaration_name, *Array(bluebook))
       problems = [exit_code_problem(bluebook, stdout, stderr, status), stdout_problem(bluebook, stdout),
                   diagnostic_problem(bluebook, stem, stderr)]
 
@@ -241,12 +241,12 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       "JSON.pretty_generate(Exporter.call(...)) for the same files"
   end
 
-  REAL_PARITY_MEMBERS.each do |stem, (chapter_name, paths)|
+  REAL_PARITY_MEMBERS.each do |stem, (declaration_name, paths)|
     it "#{stem}: hecks-parse's own ir.json is byte-identical to Ruby's", :aggregate_failures do
-      stdout, stderr, status = self.class.run_chapter(chapter_name, *paths)
+      stdout, stderr, status = self.class.run_bluebook(declaration_name, *paths)
 
       expect(status.exitstatus).to eq(0), parse_failure_message(stem, stdout, stderr)
-      expect(stdout).to eq(self.class.ruby_ir_json(stem, chapter_name, paths)), byte_mismatch_message(stem)
+      expect(stdout).to eq(self.class.ruby_ir_json(stem, declaration_name, paths)), byte_mismatch_message(stem)
     end
   end
 end

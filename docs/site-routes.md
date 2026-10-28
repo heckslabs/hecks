@@ -50,7 +50,7 @@ place.
 | `cache` | `page`, `home`, `static`, `media`, `immutable` or `no_store`. Defaults to `no_store` for an admin or signed route and an endpoint, `immutable` from `assets`, `page` otherwise. |
 | `methods` | the verbs the route answers, comma separated, `GET` by default, `POST` for a command. |
 | `edge_methods` | the verbs the edge lets through for the route, when more than `methods` (below). Defaults to `methods`. |
-| `source` | `none`, `global:<slug>`, `collection:<name>`, `command:<Chapter>.<Aggregate>.<Command>` or `query:...`. |
+| `source` | `none`, `global:<slug>`, `collection:<name>`, `command:<Bluebook>.<Aggregate>.<Command>` or `query:...`. |
 | `indexable` | whether the sitemap lists it; true for a public page that is on. |
 | `switch`, `off` | the id a page is switched by, and whether it is off now. An off page answers 404 and stays out of the sitemap; it may keep its navigation slots (below). |
 | `compress`, `alb_rule`, `cdn`, `edge` | for the edge, below: whether CloudFront compresses the response (true by default); the listener rule that carries the path; false for a path the CDN never sees; the `EdgeFunction` that runs on the route's behaviour. |
@@ -204,7 +204,7 @@ forms are generated from the domain, not written per aggregate.
 | field | what it is | default |
 |---|---|---|
 | `domain` | the domain's directory under the project, holding `bluebook/` | required |
-| `bluebook` | the bluebook whose aggregates the editor edits, or several, comma separated (`Press, Library`); with several, the navigation groups them, addresses carry the bluebook (`<base_path>/<Bluebook>/<Aggregate>`) and verbs are sent as `Bluebook::Aggregate.Verb`. The retired field `chapter` is still read, saying on standard error that `bluebook` replaces it | required |
+| `bluebook` | the bluebook whose aggregates the editor edits, or several, comma separated (`Press, Library`); with several, the navigation groups them, addresses carry the bluebook (`<base_path>/<Bluebook>/<Aggregate>`) and verbs are sent as `Bluebook::Aggregate.Verb` | required |
 | `host_env` | the environment variable that holds the domain host's address | required |
 | `login` | the site's login page, a public route: where a visitor with no session is sent | required |
 | `base_path` | where the editor is served; it is the path the edge routes to the editor | `/editor` |
@@ -217,8 +217,8 @@ forms are generated from the domain, not written per aggregate.
 | `brand` | the product name the header and the navigation show, one line of at most 60 characters | the bluebook's domain name |
 | `accent` | a six-digit hex colour (`#1f7a6d`) the theme is derived from; refused when it is anything else | a deep verdigris, `#1f7a6d` |
 | `logo` | a picture the header shows beside the brand: a relative path from the server's working directory to a `png`, `jpg`, `webp`, `gif`, `avif` or `svg` file, with no `..`, leading slash or hidden part; served to signed-in editors at `<base_path>/assets/logo` | none |
-| `skip` | aggregates to leave out, comma separated; `Name`, or `Chapter::Name` for one bluebook's | none |
-| `bluebook_roles` | roles a bluebook is limited to, `Bluebook=Role,Role;Bluebook=Role` (the retired `chapter_roles` is still read); its aggregates and its pictures are hidden from and refused to any other role (403) | none |
+| `skip` | aggregates to leave out, comma separated; `Name`, or `Bluebook::Name` for one bluebook's | none |
+| `bluebook_roles` | roles a bluebook is limited to, `Bluebook=Role,Role;Bluebook=Role`; its aggregates and its pictures are hidden from and refused to any other role (403) | none |
 | `page_size` | how many instances a list shows to a page (1 to 1000); a page, a search (`_q`) and a state (`_status`) are in the address | `25` |
 | `preview` | where a record is shown on the site, a URL template the editor frames in a side drawer: an `http(s)://` address or a path with one slash, with `{key}`, `{kind}`, `{slug}` and `{id}` filled from the record (a `<kind>:<slug>` identity is split; any other identity is the slug of `<snake-case aggregate>:<id>`). Refused when it is another scheme, names credentials, starts `//`, holds whitespace, an unknown placeholder or a placeholder in the scheme, host or port. Its origin (or `'self'` for a path) is the only `frame-src` the editor's content security policy gets | none |
 | `media` | another bluebook of the domain whose picture aggregate the pictures use, when this bluebook has none (a body here uses the pictures of that bluebook) | none |

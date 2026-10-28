@@ -1,5 +1,5 @@
-# A small publisher's site whose editor spans two chapters: the neutral fixture the editor generator
-# reads for what one editor does with several bounded contexts. Its `Editor` row names the chapters
+# A small publisher's site whose editor spans two bluebooks: the neutral fixture the editor generator
+# reads for what one editor does with several bounded contexts. Its `Editor` row names the bluebooks
 # in order, limits the second to one role, and shows two instances to a page.
 Hecks.bluebook "PressSite" do
   vision "The routes of a small publisher's website, with an editor for its writing and its pictures."

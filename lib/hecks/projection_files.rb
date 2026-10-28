@@ -105,7 +105,7 @@ module Hecks
     # @return [Result] the model's holding half, one file for each thing the bluebook holds
     def model(root)
       require "hecks"
-      files = Projector.call(:model, bluebook: chapter)
+      files = Projector.call(:model, bluebook: declaration)
       out = File.join(root, "lib/hecks/bluebook")
       Result.new(files.to_h { |relative, text| [File.join(out, relative), text] }, [])
     end
@@ -123,7 +123,7 @@ module Hecks
     def rust_vocabulary(root)
       require "hecks"
       kernel = File.join(root, "rust/src/kernel")
-      files = Projector.call(:rust_vocabulary, bluebook: chapter)
+      files = Projector.call(:rust_vocabulary, bluebook: declaration)
       content = files.to_h { |relative, text| [File.join(kernel, relative), text] }
       Result.new(content, Dir.glob(File.join(kernel, "vocab", "*.rs")) - content.keys)
     end
@@ -171,7 +171,7 @@ module Hecks
     #   from
     def field_hints(root)
       require "hecks"
-      vocabulary = chapter.aggregates.find { |aggregate| aggregate.hecks_name == "Vocabulary" }
+      vocabulary = declaration.aggregates.find { |aggregate| aggregate.hecks_name == "Vocabulary" }
       field_hint = vocabulary.value_objects.find { |value_object| value_object.hecks_name == "FieldHint" }
       hints = field_hint.members.map(&:to_h)
       Result.new({ File.join(root, "rust/host/core/src/field_hints.rs") => field_hints_text(hints) }, [])
@@ -184,7 +184,7 @@ module Hecks
     def reference(root)
       require "hecks"
       directory = File.join(root, "docs/implemented/reference")
-      pages = Projector.call(:reference, bluebook: chapter, options: { from: directory })
+      pages = Projector.call(:reference, bluebook: declaration, options: { from: directory })
       content = pages.to_h { |relative, text| [File.join(directory, relative), text] }
       readme = File.join(root, "README.md")
       content[readme] = Doc::Reference.render_readme(root, File.read(readme))
@@ -194,12 +194,12 @@ module Hecks
     # @param projection [Symbol] a projection registered with the projector
     # @return [String] what it projects from the Bluebook bluebook, as the text a file holds
     def artifact_text(projection)
-      artifact = Projector.call(projection, bluebook: chapter)
+      artifact = Projector.call(projection, bluebook: declaration)
       artifact.is_a?(String) ? artifact : "#{JSON.pretty_generate(artifact)}\n"
     end
 
     # @return [Bluebook::Aggregate] the Bluebook bluebook, which every projection reads
-    def chapter
+    def declaration
       Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
     end
   end

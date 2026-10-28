@@ -735,7 +735,7 @@
   editor.on("change", (cm, change) => { if (change.origin !== "setValue") changed(); });
   editor.on("inputRead", (cm, change) => { if (/\w/.test(change.text.join("")) && state.diagnostic && state.diagnostic.expected.length) complete(); });
 
-  // The board: the chapter as event-storming notes, one lane per aggregate, read from the check's
+  // The board: the bluebook as event-storming notes, one lane per aggregate, read from the check's
   // `board`. Every action on a note is one edit of the text (see BoardEdit), applied to the editor
   // like typing, so the board never holds anything the text does not.
   const NOTE = { w: 140, h: 46, pillW: 130, pillH: 26 };

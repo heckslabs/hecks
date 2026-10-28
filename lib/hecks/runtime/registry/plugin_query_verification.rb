@@ -14,7 +14,7 @@ module Hecks
         # the runtime will not choose between them; a hecksagon binding still overrides either.
         #
         # @param query [Bluebook::Query] the declared query
-        # @param where [String] the qualified query, `"Chapter::Aggregate.Query"`
+        # @param where [String] the qualified query, `"Bluebook::Aggregate.Query"`
         # @return [Bluebook::Adapter, nil] the claiming plugin, or nil when none claims it
         # @raise [WiringError] if more than one plugin claims the query
         def plugin_for(query, where)

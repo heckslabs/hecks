@@ -8,7 +8,7 @@ require "json"
 RSpec.describe "the operator domain" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
   LEDGER   = JSON.parse(File.read(File.join(ROOT_DIR, "lib/hecks/grammar/expression_operators.json"))).freeze
-  CHAPTER  = File.join(ROOT_DIR, "lib/hecks/grammar/expression.bluebook")
+  EXPRESSION_BLUEBOOK = File.join(ROOT_DIR, "lib/hecks/grammar/expression.bluebook")
 
   Evaluator     = Hecks::Bluebook::Expression::Evaluator
   Resolver      = Hecks::Bluebook::Expression::Resolver
@@ -19,7 +19,7 @@ RSpec.describe "the operator domain" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      Kernel.load(CHAPTER)
+      Kernel.load(EXPRESSION_BLUEBOOK)
     end
     Hecks::Runtime::Dispatcher.new(registry)
   end
@@ -118,7 +118,7 @@ RSpec.describe "the operator domain" do
 
     expect(leaked).to be_empty,
                       "#{leaked.inspect} run in a live table while the " \
-                      "chapter holds them proposed or retired — admit them in the " \
+                      "bluebook holds them proposed or retired — admit them in the " \
                       "ledger or take them out of the machinery"
   end
 
@@ -264,7 +264,7 @@ RSpec.describe "the operator domain" do
     expect(admitted_rules.map { |rule| rule_row(rule) }).to eq(CanonicalForm.table)
   end
 
-  it "keeps the chapter's own Rule set equal to the live rules — no third copy" do
+  it "keeps the bluebook's own Rule set equal to the live rules — no third copy" do
     # A member's values are read back unmarked, so a whole-number replacement (the seconds a
     # duration unit is worth) arrives as an Integer; the live rule holds it as the text it is.
     declared = DISPATCHER.registry.bluebook("Expression").aggregate("Normalisation")

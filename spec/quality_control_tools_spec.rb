@@ -9,14 +9,14 @@ RSpec.describe "the QualityControl tool queries" do
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
-    @chapter = @hecks.registry.bluebook("QualityControl")
+    @declaration = @hecks.registry.bluebook("QualityControl")
   end
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
   # Every query the bluebook answers by a port, with the port's name and its aggregate.
   def tool_queries
-    @chapter.aggregates.flat_map do |aggregate|
+    @declaration.aggregates.flat_map do |aggregate|
       aggregate.queries.filter_map do |query|
         port = aggregate.query_binding(query.name)
         [aggregate, query, port.name] if port

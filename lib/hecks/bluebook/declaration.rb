@@ -1,15 +1,14 @@
-require_relative "behaviour/chapter"
+require_relative "behaviour/declaration"
 require_relative "capabilities"
 require_relative "keyword_fields"
 require_relative "../ir"
 
 module Hecks
   module Bluebook
-    # The bluebook, distinct from the `Bluebook` namespace it lives in. Hecks::Bluebook::Chapter was
-    # its name until ADR 0134 and still answers, saying so once per use.
+    # The bluebook, distinct from the `Bluebook` namespace it lives in.
     class Declaration
       include Construct
-      include Behaviour::Chapter
+      include Behaviour::Declaration
       include Hecks::IR
 
       # The IR shape's own version — bump only when `to_h`'s shape changes,
@@ -40,8 +39,8 @@ module Hecks
         canonical_form:    -> { Expression::CanonicalForm.table }
       )
 
-      # One row of a declared capability — `verb` is chapter-local;
-      # `Behaviour::Chapter#provided_verb` qualifies it with the bluebook's own name.
+      # One row of a declared capability — `verb` is bluebook-local;
+      # `Behaviour::Bluebook#provided_verb` qualifies it with the bluebook's own name.
       Provision = Struct.new(:capability, :key, :verb, keyword_init: true) do
         # Coerces one declared or reconstructed `provides` row into a `Provision`.
         #

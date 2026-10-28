@@ -4,10 +4,10 @@ module ParserDifferential
     module_function
 
     # Compares `text` as a one-off file and answers the result.
-    def compare_text(dir, name, text, chapter = ParserDifferential.chapter_of(text))
+    def compare_text(dir, name, text, declaration = ParserDifferential.bluebook_of(text))
       path = File.join(dir, "#{name}.bluebook")
       File.binwrite(path, text)
-      ParserDifferential.compare(path, chapter)
+      ParserDifferential.compare(path, declaration)
     end
 
     # Generated bluebooks, bare and then after benign edits, must print identical ir.json from both

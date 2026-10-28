@@ -4,15 +4,15 @@ require "hecks/fuzzing/value_generator"
 # A type-position `one_of` on an entity attribute synthesizes a closed-set value object,
 # which must reach the aggregate or the attribute is typed at a name nothing resolves.
 RSpec.describe "an entity attribute's own one_of" do
-  def build_chapter(&block)
+  def build_bluebook(&block)
     registry = Hecks::Runtime::Registry.new
     built = nil
     Hecks.with_registry(registry) { built = Hecks.bluebook("EntityOneOf", &block) }
     built
   end
 
-  let(:chapter_with_flagged_pieces) do
-    build_chapter do
+  let(:bluebook_with_flagged_pieces) do
+    build_bluebook do
       vision "Pieces carrying their own closed-set flag, synthesized from a type-position one_of."
       supporting
 
@@ -47,11 +47,11 @@ RSpec.describe "an entity attribute's own one_of" do
     end
   end
 
-  let(:board) { chapter_with_flagged_pieces.aggregate("Board") }
+  let(:board) { bluebook_with_flagged_pieces.aggregate("Board") }
 
   let(:building_colliding_pieces) do
     lambda do
-      build_chapter do
+      build_bluebook do
         vision "Two pieces disagreeing about what Flag admits."
         supporting
 

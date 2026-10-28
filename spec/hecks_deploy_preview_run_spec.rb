@@ -7,7 +7,7 @@ require "fileutils"
 # DeployToolchain port, the Hecks domain binds its adapter, and a stand-in `preview.sh` (a script
 # with the verbs and refusals a project's preview script has) runs against a stand-in `aws`. Nothing
 # reaches AWS, a registry or a database.
-RSpec.describe "the Deploy chapter's PreviewRun", :io do
+RSpec.describe "the Deploy bluebook's PreviewRun", :io do
   AWS_PREVIEW_STUB = <<~BASH.freeze
     #!/usr/bin/env bash
     echo "aws $*" >> "$STUB_DIR/calls.log"

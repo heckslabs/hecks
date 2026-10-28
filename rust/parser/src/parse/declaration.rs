@@ -12,7 +12,10 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
 
 /// Parses one bluebook across one or more `.bluebook` files plus any `.hecksagon` files.
 /// Stops at the first diagnostic, whichever file it comes from.
-pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseResult<ir::Bluebook> {
+pub fn parse_bluebook(
+    declaration_name: &str,
+    files: &[(String, String)],
+) -> ParseResult<ir::Bluebook> {
     if files.is_empty() {
         return Err(Diagnostic::new(
             "<none>",
@@ -34,7 +37,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             return Err(Diagnostic::new(
                 path,
                 1,
-                "this chapter is written as sentences elsewhere, so every .bluebook file of it must be; \
+                "this bluebook is written as sentences elsewhere, so every .bluebook file of it must be; \
                  this one is written in the Ruby form",
             ));
         }
@@ -46,21 +49,21 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             ));
         }
         let owned: Vec<(String, String)> = sentence_files.into_iter().cloned().collect();
-        return crate::sentence::parse_chapter(chapter_name, &owned);
+        return crate::sentence::parse_bluebook(declaration_name, &owned);
     }
 
     let mut bluebook: Option<ir::Bluebook> = None;
     let mut aggregate_policies: Vec<ir::Policy> = Vec::new();
-    let mut chapter_policies: Vec<ir::Policy> = Vec::new();
-    let mut chapter_named_givens: Vec<(String, ir::Given)> = Vec::new();
-    // Bare chapter-givens deferred until every file has loaded.
-    let mut pending_chapter_givens: Vec<(usize, aggregate::PendingChapterGiven)> = Vec::new();
-    // A command's bare reference to a deferred chapter-given, resolved after the aggregate pass.
+    let mut bluebook_policies: Vec<ir::Policy> = Vec::new();
+    let mut bluebook_named_givens: Vec<(String, ir::Given)> = Vec::new();
+    // Bare bluebook-givens deferred until every file has loaded.
+    let mut pending_bluebook_givens: Vec<(usize, aggregate::PendingBluebookGiven)> = Vec::new();
+    // A command's bare reference to a deferred bluebook-given, resolved after the aggregate pass.
     let mut pending_command_givens: Vec<(usize, usize, command::PendingCommandGiven)> = Vec::new();
-    // Chapter-wide pool of entity-scoped givens.
-    let mut chapter_entity_named_givens: Vec<(String, ir::Given)> = Vec::new();
+    // Bluebook-wide pool of entity-scoped givens.
+    let mut bluebook_entity_named_givens: Vec<(String, ir::Given)> = Vec::new();
     // Bare entity-given references deferred until every file has loaded.
-    let mut pending_chapter_entity_givens: Vec<(usize, entity::PendingChapterEntityGiven)> =
+    let mut pending_bluebook_entity_givens: Vec<(usize, entity::PendingBluebookEntityGiven)> =
         Vec::new();
     // Entity-owned commands referencing a deferred entity-given; resolved after the entity pass.
     let mut pending_entity_command_givens: Vec<(usize, entity::PendingEntityCommandGiven)> =
@@ -74,11 +77,11 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         let (row, call, header_line) = super::file::parse_header(path, &lines, &mut pos)?;
 
         if let Some(declared_name) = super::file::header_name(&call) {
-            if row.inner == "Bluebook" && declared_name != chapter_name {
+            if row.inner == "Bluebook" && declared_name != declaration_name {
                 return Err(Diagnostic::new(
                     path,
                     header_line,
-                    format!("--bluebook {chapter_name} was requested, but this file declares '{declared_name}'"),
+                    format!("--bluebook {declaration_name} was requested, but this file declares '{declared_name}'"),
                 ));
             }
         }
@@ -87,7 +90,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             "Bluebook" => {
                 let declared_version = super::file::header_version(&call);
                 let target = bluebook.get_or_insert_with(|| ir::Bluebook {
-                    name: chapter_name.to_string(),
+                    name: declaration_name.to_string(),
                     version: declared_version.clone(),
                     ..Default::default()
                 });
@@ -97,7 +100,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                             return Err(Diagnostic::new(
                                 path,
                                 header_line,
-                                format!("{chapter_name} declares both version {existing:?} and {version:?}"),
+                                format!("{declaration_name} declares both version {existing:?} and {version:?}"),
                             ));
                         }
                         None => target.version = Some(version),
@@ -110,12 +113,12 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     &mut pos,
                     target,
                     &mut aggregate_policies,
-                    &mut chapter_policies,
-                    &mut chapter_named_givens,
-                    &mut pending_chapter_givens,
+                    &mut bluebook_policies,
+                    &mut bluebook_named_givens,
+                    &mut pending_bluebook_givens,
                     &mut pending_command_givens,
-                    &mut chapter_entity_named_givens,
-                    &mut pending_chapter_entity_givens,
+                    &mut bluebook_entity_named_givens,
+                    &mut pending_bluebook_entity_givens,
                     &mut pending_entity_command_givens,
                 )?;
             }
@@ -135,21 +138,21 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
         Diagnostic::new(
             "<none>",
             0,
-            format!("no .bluebook file given for bluebook '{chapter_name}'"),
+            format!("no .bluebook file given for bluebook '{declaration_name}'"),
         )
     })?;
 
-    // Aggregate policies first, then chapter-level ones, as `BluebookBuilder#build` orders them.
+    // Aggregate policies first, then bluebook-level ones, as `BluebookBuilder#build` orders them.
     bluebook.policies = aggregate_policies;
-    bluebook.policies.extend(chapter_policies);
+    bluebook.policies.extend(bluebook_policies);
 
     // Reference-hop query tails resolve only once the whole aggregate graph exists.
     crate::build::query_inference::apply(&files[0].0, &mut bluebook)?;
 
-    // Resolves deferred chapter-given references now that every file's declarations are known.
+    // Resolves deferred bluebook-given references now that every file's declarations are known.
     // Patches by index; a command's own copy is resolved in the next pass.
-    for (aggregate_index, pending) in pending_chapter_givens {
-        let candidates: Vec<&(String, ir::Given)> = chapter_named_givens
+    for (aggregate_index, pending) in pending_bluebook_givens {
+        let candidates: Vec<&(String, ir::Given)> = bluebook_named_givens
             .iter()
             .filter(|(_, given)| given.description.as_deref() == Some(pending.description.as_str()))
             .collect();
@@ -164,7 +167,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                         &pending.file,
                         pending.line,
                         format!(
-                            "'{}' names no precondition {owner} declares in this chapter — {owner} \
+                            "'{}' names no precondition {owner} declares in this bluebook — {owner} \
                              either hasn't declared '{}', or declared_by: named the wrong aggregate",
                             pending.description, pending.description
                         ),
@@ -177,7 +180,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                         &pending.file,
                         pending.line,
                         format!(
-                        "'{}' names no precondition any aggregate in this chapter ever declares \
+                        "'{}' names no precondition any aggregate in this bluebook ever declares \
                              — declare it once with a block",
                         pending.description
                     ),
@@ -191,7 +194,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                         &pending.file,
                         pending.line,
                         format!(
-                            "'{}' is ambiguous in this chapter — {} each declare a DIFFERENT \
+                            "'{}' is ambiguous in this bluebook — {} each declare a DIFFERENT \
                              predicate under this same description; name which one with declared_by:",
                             pending.description,
                             owners.join(", ")
@@ -213,8 +216,8 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
     }
 
     // Entity-scoped analogue of the pass above; `entity_at_path_mut` finds the nested entity.
-    for (aggregate_index, pending) in pending_chapter_entity_givens {
-        let candidates: Vec<&(String, ir::Given)> = chapter_entity_named_givens
+    for (aggregate_index, pending) in pending_bluebook_entity_givens {
+        let candidates: Vec<&(String, ir::Given)> = bluebook_entity_named_givens
             .iter()
             .filter(|(_, given)| given.description.as_deref() == Some(pending.description.as_str()))
             .collect();
@@ -229,7 +232,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                         &pending.file,
                         pending.line,
                         format!(
-                            "'{}' names no precondition {owner} declares in this chapter — {owner} \
+                            "'{}' names no precondition {owner} declares in this bluebook — {owner} \
                              either hasn't declared '{}', or declared_by: named the wrong piece",
                             pending.description, pending.description
                         ),
@@ -242,7 +245,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                         &pending.file,
                         pending.line,
                         format!(
-                            "'{}' names no precondition any piece in this chapter ever declares \
+                            "'{}' names no precondition any piece in this bluebook ever declares \
                              — declare it once with a block",
                             pending.description
                         ),
@@ -256,7 +259,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                         &pending.file,
                         pending.line,
                         format!(
-                            "'{}' is ambiguous across the chapter's own pieces — {} each declare \
+                            "'{}' is ambiguous across the bluebook's own pieces — {} each declare \
                              a DIFFERENT predicate under this same description; name which one \
                              with declared_by:",
                             pending.description,
@@ -301,7 +304,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
             }
 
             let declared_name = super::file::header_name(&call);
-            if declared_name.as_deref() == Some(chapter_name) {
+            if declared_name.as_deref() == Some(declaration_name) {
                 super::hecksagon::apply(
                     path,
                     &lines,
@@ -312,7 +315,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
                     true,
                 )?;
             } else {
-                // Sibling block for another chapter: gated so syntax errors refuse; then dropped.
+                // Sibling block for another bluebook: gated so syntax errors refuse; then dropped.
                 let mut discarded = ir::Bluebook::default();
                 super::hecksagon::apply(
                     path,
@@ -333,7 +336,7 @@ pub fn parse_chapter(chapter_name: &str, files: &[(String, String)]) -> ParseRes
 /// Lists the bluebooks `<Name>`'s block pulls in via `attaches` (or its deprecated spellings).
 /// Every block is still gated; the IR accumulator is a throwaway.
 pub fn resolve_hecksagon_dependencies(
-    chapter_name: &str,
+    declaration_name: &str,
     path: &str,
     source: &str,
 ) -> ParseResult<(Vec<String>, Vec<String>)> {
@@ -358,7 +361,7 @@ pub fn resolve_hecksagon_dependencies(
         }
 
         let declared_name = super::file::header_name(&call);
-        if declared_name.as_deref() == Some(chapter_name) {
+        if declared_name.as_deref() == Some(declaration_name) {
             found = true;
             let mut discarded = ir::Bluebook::default();
             super::hecksagon::apply(
@@ -388,7 +391,7 @@ pub fn resolve_hecksagon_dependencies(
         return Err(Diagnostic::new(
             path,
             0,
-            format!("no 'Hecks.hecksagon \"{chapter_name}\"' block found in {path}"),
+            format!("no 'Hecks.hecksagon \"{declaration_name}\"' block found in {path}"),
         ));
     }
 
@@ -396,7 +399,7 @@ pub fn resolve_hecksagon_dependencies(
 }
 
 /// Parses a `Hecks.bluebook "Name" do ... end` body into an existing accumulator.
-/// Policies bubble as in `BluebookBuilder#build`: aggregate policies first, then chapter-level.
+/// Policies bubble as in `BluebookBuilder#build`: aggregate policies first, then bluebook-level.
 #[allow(clippy::too_many_arguments)] // established signature
 fn parse_body_into(
     file: &str,
@@ -404,12 +407,12 @@ fn parse_body_into(
     pos: &mut usize,
     bluebook: &mut ir::Bluebook,
     aggregate_policies: &mut Vec<ir::Policy>,
-    chapter_policies: &mut Vec<ir::Policy>,
-    chapter_named_givens: &mut Vec<(String, ir::Given)>,
-    pending_chapter_givens: &mut Vec<(usize, aggregate::PendingChapterGiven)>,
+    bluebook_policies: &mut Vec<ir::Policy>,
+    bluebook_named_givens: &mut Vec<(String, ir::Given)>,
+    pending_bluebook_givens: &mut Vec<(usize, aggregate::PendingBluebookGiven)>,
     pending_command_givens: &mut Vec<(usize, usize, command::PendingCommandGiven)>,
-    chapter_entity_named_givens: &mut Vec<(String, ir::Given)>,
-    pending_chapter_entity_givens: &mut Vec<(usize, entity::PendingChapterEntityGiven)>,
+    bluebook_entity_named_givens: &mut Vec<(String, ir::Given)>,
+    pending_bluebook_entity_givens: &mut Vec<(usize, entity::PendingBluebookEntityGiven)>,
     pending_entity_command_givens: &mut Vec<(usize, entity::PendingEntityCommandGiven)>,
 ) -> ParseResult<()> {
     // The given pool spans the whole bluebook, not one file: a later concept file may reference
@@ -487,20 +490,20 @@ fn parse_body_into(
                     lines,
                     pos,
                     &agg_name,
-                    chapter_named_givens,
-                    chapter_entity_named_givens,
+                    bluebook_named_givens,
+                    bluebook_entity_named_givens,
                 )?;
                 let aggregate_index = bluebook.aggregates.len();
                 bluebook.aggregates.push(built);
                 aggregate_policies.extend(policies);
-                pending_chapter_givens
+                pending_bluebook_givens
                     .extend(pending.into_iter().map(|entry| (aggregate_index, entry)));
                 pending_command_givens.extend(
                     command_pending
                         .into_iter()
                         .map(|(command_index, entry)| (aggregate_index, command_index, entry)),
                 );
-                pending_chapter_entity_givens.extend(
+                pending_bluebook_entity_givens.extend(
                     entity_given_pending
                         .into_iter()
                         .map(|entry| (aggregate_index, entry)),
@@ -513,7 +516,7 @@ fn parse_body_into(
             }
             "policy" => {
                 let pol_name = super::positional_text(file, line, "policy", &gated.args, 1)?;
-                chapter_policies.push(policy::parse_body(file, lines, pos, &pol_name)?);
+                bluebook_policies.push(policy::parse_body(file, lines, pos, &pol_name)?);
             }
             "read_model" => {
                 let rm_name = super::positional_text(file, line, "read_model", &gated.args, 1)?;

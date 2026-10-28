@@ -17,7 +17,7 @@ module Hecks
       def query(runtime:, question:, summary:, args: {}, **options)
         check_options!(options, %i[source role actor_id])
         request = Request.new(runtime: runtime, name: question, summary: summary, args: args, **options)
-        request.bluebook, request.name = chapter_and_name(runtime, question)
+        request.bluebook, request.name = bluebook_and_name(runtime, question)
         audited(request, "query") { perform_query(request) }
       end
 

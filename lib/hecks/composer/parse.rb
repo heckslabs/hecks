@@ -34,8 +34,8 @@ module Hecks
       #   expected:}` for the first refusal, with `file` relative to the stage
       # @raise [ParserMissing] if `hecks-parse` is not built
       def call(stage)
-        bluebooks(stage).each do |chapter, files|
-          refusal = refusal_for(stage, chapter, files)
+        bluebooks(stage).each do |declaration, files|
+          refusal = refusal_for(stage, declaration, files)
           return refusal if refusal
         end
         nil
@@ -45,7 +45,7 @@ module Hecks
       # @return [Hash{String => Array<String>}] relative bluebook paths by the bluebook their
       #   header names
       def bluebooks(stage)
-        bluebook_files(stage).group_by { |relative| chapter_name(File.join(stage, relative)) }
+        bluebook_files(stage).group_by { |relative| declaration_name(File.join(stage, relative)) }
                              .reject { |name, _| name.nil? }
       end
 
@@ -54,12 +54,12 @@ module Hecks
 
       # @param path [String] a bluebook file
       # @return [String, nil] the name its `Hecks.bluebook "Name"` or `Domain: name` header declares
-      def chapter_name(path) = SentenceForm.chapter_name(path)
+      def declaration_name(path) = SentenceForm.declaration_name(path)
 
       # @api private
-      def refusal_for(stage, chapter, files)
+      def refusal_for(stage, declaration, files)
         paths = files.map { |relative| File.join(stage, relative) }
-        _out, err, status = Open3.capture3(binary, "bluebook", "--bluebook", chapter, *paths)
+        _out, err, status = Open3.capture3(binary, "bluebook", "--bluebook", declaration, *paths)
         return nil if status.success?
 
         first_line = err.lines.first

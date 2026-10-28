@@ -103,7 +103,7 @@ module Hecks
         # `Interview::Session#offer`'s call.
         #
         # @param row [Hash{String => Object}] one proposal row of the adapter's answer
-        # @return [String] the row's `"verb"`, shaped `Chapter::Aggregate.Command`
+        # @return [String] the row's `"verb"`, shaped `Bluebook::Aggregate.Command`
         # @raise [Ports::Agent::ValidationError] if the verb is missing or does not match
         #   `VERB_PATTERN`
         def verb!(row)

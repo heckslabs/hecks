@@ -31,7 +31,7 @@ module Hecks
         # Gives every bluebook with no hecksagon block (so no bind) a world of its own that
         # falls back to Memory, since the worlds `write_worlds!` wrote require a database
         # a bluebook with no bind can't provide.
-        def write_unbound_chapter_worlds!(copy)
+        def write_unbound_bluebook_worlds!(copy)
           named = Dir.glob(File.join(copy, "**", "*.hecksagon")).flat_map { |path| hecksagon_names_in(path) }
           bluebooks = Dir.glob(File.join(copy, "**", "*.bluebook")).group_by { |path| File.dirname(path) }
           bluebooks.each do |dir, files|

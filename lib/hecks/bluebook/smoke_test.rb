@@ -13,7 +13,7 @@ module Hecks
 
       # One smoke run: what is being dispatched through, which ids earlier commands minted, and
       # the failures collected so far.
-      Run = Struct.new(:dispatcher, :domain, :chapter, :created, :failures)
+      Run = Struct.new(:dispatcher, :domain, :declaration, :created, :failures)
 
       module_function
 
@@ -60,12 +60,12 @@ module Hecks
       #   declaration order; empty when `domain` names no loaded bluebook or
       #   nothing failed
       def smoke_domain(dispatcher, domain)
-        chapter = dispatcher.registry.bluebook(domain)
-        return [] unless chapter
+        declaration = dispatcher.registry.bluebook(domain)
+        return [] unless declaration
 
-        run = Run.new(dispatcher, domain, chapter, {}, [])
-        chapter.aggregates.each { |aggregate| smoke_aggregate(run, aggregate) }
-        chapter.read_models.each { |model| smoke_read_model(run, model) }
+        run = Run.new(dispatcher, domain, declaration, {}, [])
+        declaration.aggregates.each { |aggregate| smoke_aggregate(run, aggregate) }
+        declaration.read_models.each { |model| smoke_read_model(run, model) }
         run.failures
       end
 
@@ -74,7 +74,7 @@ module Hecks
         creating, noncreating = aggregate.commands.partition(&:creates?)
 
         creating.each do |command|
-          args = Synthesizer.args_for(run.chapter, aggregate, command, run.created)
+          args = Synthesizer.args_for(run.declaration, aggregate, command, run.created)
           next unless smoke_created?(run, aggregate, command, args)
 
           noncreating.each { |other| smoke_other(run, aggregate, other) }
@@ -94,7 +94,7 @@ module Hecks
 
       # Dispatches a command against the instance the creating command made; a refusal is recorded.
       def smoke_other(run, aggregate, command)
-        args = Synthesizer.args_for(run.chapter, aggregate, command, run.created).merge(id: run.created[aggregate.name])
+        args = Synthesizer.args_for(run.declaration, aggregate, command, run.created).merge(id: run.created[aggregate.name])
         run.dispatcher.dispatch_flat("#{run.domain}::#{aggregate.name}.#{command.hecks_name}", args)
       rescue StandardError => e
         record_failure(run, aggregate.name, command.hecks_name, e)

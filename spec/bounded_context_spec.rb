@@ -156,7 +156,7 @@ RSpec.describe "bounded contexts" do
 
   def expect_merged_hexagon(hecksagon)
     expect(hecksagon.bounded?).to be true
-    expect(hecksagon.member_chapters).to eq(["Governance"])
+    expect(hecksagon.member_bluebooks).to eq(["Governance"])
     expect(hecksagon.translates).to eq(["EchoOnThingFired"])
   end
 

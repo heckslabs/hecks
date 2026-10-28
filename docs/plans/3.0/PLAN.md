@@ -14,7 +14,7 @@ The design was settled in review on 2026-09-28/29, and every decision is in the 
 
 - **Parts.** Custodian is for clients and Codebase is for maintainers.
 - **Packaging.** Everything ships, including the Rust workspace.
-- **FrameworkBluebooks.** The framework's own chapters are attached.
+- **FrameworkBluebooks.** The framework's own bluebooks are attached.
 - **Commands.** The section 7 command table, and section 12's argument conventions.
 - **Production era work.** Section 13: decisions are committed files the host applies at boot.
 
@@ -64,7 +64,7 @@ This plan builds it. **Out of scope:** ADR 0081 (outside facts, 3.x), ADR 0082 (
   - 1/11 guard spec `5e4f8c47`
   - 2a argument forms and bare queries `69e2ffc3`
   - 2c `attaches` word `38312c0f`
-  - 2d routing to attached chapters `32085a07`
+  - 2d routing to attached bluebooks `32085a07`
   - 2e `namespace` word, and the `::Hecks` refusal `fea89025` (commit 2 of the plan is done)
 - **Next:** commit 3 (Hecks root). In it:
   - `lib/hecks/hecks/hecks.bluebook` declares `namespace "Hecks::Domain"`.
@@ -72,10 +72,10 @@ This plan builds it. **Out of scope:** ADR 0081 (outside facts, 3.x), ADR 0082 (
   - Add `lib/hecks/hecks/*` to word_coverage `CORPUS_GLOBS`.
   - Still to do: record the `Hecks::Domain` decision in ADR 0080 on the `worktree-adr-0080-bins-as-adapters` branch.
 - **Next, 2e/2f (in progress):**
-  - **Decision (user):** the Hecks chapter's constants nest under `Hecks::Domain`, through a new chapter word `namespace "Hecks::Domain"`. This avoids Release, Codemod, Corpus, Fuzzing and Kernel colliding with the gem's own `Hecks` module.
-  - **Ruby:** mirror `formerly_known_as` in grammar rows, `BluebookBuilder`, `Chapter` IR, Rust `ir.rs`/`emit.rs`/`parse/chapter.rs`, and the goldens (`GOLDEN=rewrite`).
-  - **Install paths:** `Doors.install` / `ruby_door/chapter.rb`, and `router/namespace_installer.rb#namespace_for`.
-  - **Refusal (2e):** refuse any chapter whose module would be `::Hecks` itself.
+  - **Decision (user):** the Hecks bluebook's constants nest under `Hecks::Domain`, through a new bluebook word `namespace "Hecks::Domain"`. This avoids Release, Codemod, Corpus, Fuzzing and Kernel colliding with the gem's own `Hecks` module.
+  - **Ruby:** mirror `formerly_known_as` in grammar rows, `BluebookBuilder`, `Bluebook` IR, Rust `ir.rs`/`emit.rs`/`parse/bluebook.rs`, and the goldens (`GOLDEN=rewrite`).
+  - **Install paths:** `Doors.install` / `ruby_door/bluebook.rb`, and `router/namespace_installer.rb#namespace_for`.
+  - **Refusal (2e):** refuse any bluebook whose module would be `::Hecks` itself.
 - **Working notes:**
   - Commit with `SKIP_POST_COMMIT_FUZZING=1`, since the post-commit hook runs the whole fuzz suite synchronously.
   - Run `parallel_rspec` before each commit.
@@ -98,19 +98,19 @@ Each commit runs the full pre-push gate green. `bin/` scripts keep working until
 - New file `spec/hecks_domain_boundary_spec.rb` (ADR section 10).
 - **After `require "hecks"`:** nothing under `lib/hecks/hecks/` is in `$LOADED_FEATURES`.
 - **After a client boot:** a boot plus a dispatch through `Hecks::Doors::CliRunner` loads nothing there either.
-- **Registry:** the client's registry has no `Hecks` chapter unless its hecksagon attaches it.
+- **Registry:** the client's registry has no `Hecks` bluebook unless its hecksagon attaches it.
 - It passes trivially now, and guards every later commit.
 
-### 2. Launcher changes, plus routing to attached chapters
+### 2. Launcher changes, plus routing to attached bluebooks
 Four changes in `lib/hecks/doors/cli_runner.rb` and `lib/hecks/doors/cli_door.rb` (`CliDoor.arguments`):
 - **Positional identity.** The first identifying argument may be positional.
 - **Booleans.** `--name` sets a boolean.
 - **Bare queries.** A bare name resolves to a query; `ask` is needed only when a command and a query share the name.
-- **Routing.** A first argument naming an attached chapter routes to that chapter. Today `bluebooks.values.first` serves one chapter only.
+- **Routing.** A first argument naming an attached bluebook routes to that bluebook. Today `bluebooks.values.first` serves one bluebook only.
 
 Supporting changes:
-- **Attaching.** A new hecksagon word `attaches` in `lib/hecks/bluebook/dsl/hecksagon_builder.rb`, modeled on `uses_framework`. It resolves by chapter name through a chapter index, generalized from `Hecks::Framework.members` (`lib/hecks/framework.rb`) to every chapter the gem carries.
-- **Reserved name.** `Hecks` becomes a reserved chapter name through the reserved-names mechanism behind `bin/project_reserved_names`.
+- **Attaching.** A new hecksagon word `attaches` in `lib/hecks/bluebook/dsl/hecksagon_builder.rb`, modeled on `uses_framework`. It resolves by bluebook name through a bluebook index, generalized from `Hecks::Framework.members` (`lib/hecks/framework.rb`) to every bluebook the gem carries.
+- **Reserved name.** `Hecks` becomes a reserved bluebook name through the reserved-names mechanism behind `bin/project_reserved_names`.
 - **Specs.** Existing launcher behavior must not change, since these are additive forms.
 
 ### 3. The Hecks root, with DomainRuntime and Workspace
@@ -149,8 +149,8 @@ Order: Language, Kernel, Conformance, Regeneration, Style, Codemod, TestSuite, C
 - Mode flags become separate commands: `evolve`'s ten, the comment standardizers, `corpus`, `query_ir`.
 - `RubyChild` calls between hecks tools become in-process dispatches, except where isolation is the point.
 
-### 6. Attach the language chapters, Tenancy and Deploy
-- `hecks.hecksagon` attaches Bluebook (Paging comes with it), Hecksagon, World, Adapter, Port, Translation (the language's chapter only), Expression, Tenancy and Deploy.
+### 6. Attach the language bluebooks, Tenancy and Deploy
+- `hecks.hecksagon` attaches Bluebook (Paging comes with it), Hecksagon, World, Adapter, Port, Translation (the language's bluebook only), Expression, Tenancy and Deploy.
 - **Deploy gains** `Project`, `Lint`, `Diff`, `ProjectOidc` and `Tenant.Provision`, keeping its `TenantProvisioning` port.
 
 ### 7. Move QualityControl into `lib/hecks/quality_control/`
@@ -159,7 +159,7 @@ Order: Language, Kernel, Conformance, Regeneration, Style, Codemod, TestSuite, C
 - **Rules as givens:** the `qa_open_pr` branch prefix, bug fixed and angle investigating.
 - **Still in the adapter:** the per-day cap and ancestry stay in the new `GitPr` adapter (ADR 0081, 3.x).
 - **Bind** the `IssueTracker` port and add the `Agent` adapter.
-- The QA ledger's era and tables keep their chapter name, so no data moves.
+- The QA ledger's era and tables keep their bluebook name, so no data moves.
 
 ### 8. Package the Rust workspace, and the gemspec
 - **`hecks.gemspec`:** drop the `dev_tooling` filter; add `rust/` without `target/`, `rust/tests/`, or `rust/src/generated/<corpus domain>`, and with a clean `Cargo.toml` feature list.
@@ -204,4 +204,4 @@ Order: Language, Kernel, Conformance, Regeneration, Style, Codemod, TestSuite, C
 - **PR size.** Mitigated by ordered, individually green commits (ADR section 9). Review goes commit by commit.
 - **Launcher changes reach every client.** They're additive only, and commit 2 pins today's forms with specs.
 - **Host approval change.** It must keep today's tip-bound journal approvals working (ADR section 13: either source satisfies the check).
-- **Moving QualityControl** touches the live QA loop. Run a tick against the moved chapter before merging.
+- **Moving QualityControl** touches the live QA loop. Run a tick against the moved bluebook before merging.

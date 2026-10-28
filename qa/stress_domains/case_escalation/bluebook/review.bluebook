@@ -1,7 +1,7 @@
 # Second bluebook of the CaseEscalation stress domain, reached only through its `across` policy.
 # Loaded into the same registry for in-process fuzzing; Ruby-only, not compiled to Rust.
 Hecks.bluebook "VendorCompliance" do
-  vision "One compliance review opened per vendor once one of its invoices is amended, with notes a compliance officer attaches — and a read model gathering a review together with its own notes, over a chapter reached only by another domain's cross-domain policy."
+  vision "One compliance review opened per vendor once one of its invoices is amended, with notes a compliance officer attaches — and a read model gathering a review together with its own notes, over a bluebook reached only by another domain's cross-domain policy."
 
   core
 
@@ -92,7 +92,7 @@ Hecks.bluebook "VendorCompliance" do
   end
 
   read_model "ReviewBoard" do
-    description "One review and every note attached to it — the working set a compliance officer opens, gathered over a chapter reached only by another domain's cross-domain policy."
+    description "One review and every note attached to it — the working set a compliance officer opens, gathered over a bluebook reached only by another domain's cross-domain policy."
     reference_to Review
     include Review
     include Note

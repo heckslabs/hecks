@@ -125,7 +125,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(adapter.shape(domain: { value: File.join(@dir, "bluebook") }).fetch(:text)).to match(/\AShelf \S+\z/)
   end
 
-  it "answers a chapter's statements, one sentence a line" do
+  it "answers a bluebook's statements, one sentence a line" do
     expect(adapter.statements(domain: domain, bluebook: { value: "Shelf" }).fetch(:text)).to include("A book is titled.")
   end
 

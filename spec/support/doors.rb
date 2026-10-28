@@ -119,7 +119,7 @@ module Doors
   end
 
   # The bluebook the MCP door serves: the runtime's first, never an attached framework bluebook.
-  def mcp_chapter(runtime) = runtime.registry.bluebooks.keys.first
+  def mcp_bluebook(runtime) = runtime.registry.bluebooks.keys.first
 
   # Binds the step's role as the ambient caller for the Ruby door, or dispatches bare.
   def caller_of(step, &)

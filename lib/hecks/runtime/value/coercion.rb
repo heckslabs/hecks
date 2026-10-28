@@ -64,10 +64,10 @@ module Hecks
           local = aggregate.value_object(type)
           return local if local
 
-          chapter = aggregate.respond_to?(:hecks_owner) ? aggregate.hecks_owner : nil
-          return nil unless chapter.respond_to?(:aggregates)
+          declaration = aggregate.respond_to?(:hecks_owner) ? aggregate.hecks_owner : nil
+          return nil unless declaration.respond_to?(:aggregates)
 
-          agreed_value_object(chapter, type)
+          agreed_value_object(declaration, type)
         end
 
         # Normalizes an offered value into `value_object`'s own field Hash, before
@@ -165,8 +165,8 @@ module Hecks
         end
 
         # The one value object every aggregate of the bluebook that declares `type` agrees on.
-        def agreed_value_object(chapter, type)
-          matches = chapter.aggregates.filter_map { |candidate| candidate.value_object(type) }
+        def agreed_value_object(declaration, type)
+          matches = declaration.aggregates.filter_map { |candidate| candidate.value_object(type) }
           shapes = matches.group_by do |shape|
             shape.attributes.map { |field| [field.name, field.type.to_s, field.list?, field.optional?] }
           end

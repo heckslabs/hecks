@@ -19,19 +19,19 @@ use crate::render_ruby::string as ruby_string;
 
 /// Compiles an examples file to `.behaviors` text.
 ///
-/// `chapter` is the parsed domain the examples are about; `chapter_files` are the absolute paths
+/// `bluebook` is the parsed domain the examples are about; `bluebook_files` are the absolute paths
 /// of its files, which the suite boots.
 pub fn compile(
-    chapter: &ir::Bluebook,
-    chapter_files: &[String],
+    declaration: &ir::Bluebook,
+    bluebook_files: &[String],
     path: &str,
     source: &str,
 ) -> ParseResult<String> {
     let grammar = Grammar::load()?;
     let lines = read_lines(path, source)?;
     let mut parser = Parser::new(path, &grammar, lines);
-    let tests = parser.examples(chapter)?;
-    Ok(behaviors_text(chapter, chapter_files, path, &tests))
+    let tests = parser.examples(declaration)?;
+    Ok(behaviors_text(declaration, bluebook_files, path, &tests))
 }
 
 /// A person introduced under `Background:`.
@@ -115,23 +115,23 @@ struct SetupOut {
 
 impl Parser<'_> {
     /// Reads the whole examples file.
-    fn examples(&mut self, chapter: &ir::Bluebook) -> ParseResult<Vec<TestOut>> {
+    fn examples(&mut self, declaration: &ir::Bluebook) -> ParseResult<Vec<TestOut>> {
         let mut top = Scope::top();
         let Some(Step::Phrase(header)) = self.step(&mut top, "ExamplesFile", false)? else {
             return Err(self.error(
                 1,
                 1,
-                "this file is empty; it starts with `Examples for: <chapter>`",
+                "this file is empty; it starts with `Examples for: <bluebook>`",
             ));
         };
         let named = camel(&header.text_of("name"));
-        if named != chapter.name {
+        if named != declaration.name {
             return Err(self.error(
                 header.line,
                 header.col_of("name"),
                 format!(
                     "these examples are about '{named}', but the bluebook is '{}'",
-                    chapter.name
+                    declaration.name
                 ),
             ));
         }
@@ -143,7 +143,7 @@ impl Parser<'_> {
             let Step::Phrase(m) = step else { continue };
             match m.id {
                 "background" => self.background(&m, &mut people)?,
-                "example" => tests.extend(self.example(&m, chapter, &people)?),
+                "example" => tests.extend(self.example(&m, declaration, &people)?),
                 _ => return Err(self.unmeant(&m)),
             }
         }
@@ -177,7 +177,7 @@ impl Parser<'_> {
     fn example(
         &mut self,
         header: &Matched,
-        chapter: &ir::Bluebook,
+        declaration: &ir::Bluebook,
         people: &[Person],
     ) -> ParseResult<Vec<TestOut>> {
         let title = header.text_of("title");
@@ -234,7 +234,7 @@ impl Parser<'_> {
                     col: raw.col,
                 })
                 .collect();
-            tests.push(self.interpret(chapter, people, &named, header, &filled)?);
+            tests.push(self.interpret(declaration, people, &named, header, &filled)?);
         }
         Ok(tests)
     }
@@ -296,7 +296,7 @@ impl Parser<'_> {
     /// Turns one example's lines into a test.
     fn interpret<'c>(
         &self,
-        chapter: &'c ir::Bluebook,
+        declaration: &'c ir::Bluebook,
         people: &[Person],
         title: &str,
         header: &Matched,
@@ -316,7 +316,7 @@ impl Parser<'_> {
             section = current;
             match current {
                 Keyword::Given | Keyword::And => {
-                    let step = self.dispatch(chapter, people, raw, &mut created)?;
+                    let step = self.dispatch(declaration, people, raw, &mut created)?;
                     if step.tries {
                         return Err(self.error(
                             raw.line,
@@ -334,7 +334,7 @@ impl Parser<'_> {
                             "an example proves one action; this is a second When",
                         ));
                     }
-                    tested = Some(self.dispatch(chapter, people, raw, &mut created)?);
+                    tested = Some(self.dispatch(declaration, people, raw, &mut created)?);
                 }
                 Keyword::Then => outcomes.push(raw),
             }
@@ -348,7 +348,7 @@ impl Parser<'_> {
         };
         let mut expect = Expect::default();
         for raw in outcomes {
-            self.outcome(chapter, raw, &tested, &mut expect)?;
+            self.outcome(declaration, raw, &tested, &mut expect)?;
         }
         self.consistent(&tested, &expect)?;
         let input: Vec<(String, String)> = tested
@@ -367,7 +367,7 @@ impl Parser<'_> {
                 .map(|step| SetupOut {
                     verb: format!(
                         "{}::{}.{}",
-                        chapter.name, step.aggregate.name, step.command.name
+                        declaration.name, step.aggregate.name, step.command.name
                     ),
                     role: step.role,
                     args: step.identity.into_iter().chain(step.args).collect(),
@@ -381,7 +381,7 @@ impl Parser<'_> {
     /// Reads one step: who does what, to what, with which values.
     fn dispatch<'c>(
         &self,
-        chapter: &'c ir::Bluebook,
+        declaration: &'c ir::Bluebook,
         people: &[Person],
         raw: &Raw,
         created: &mut Vec<Created>,
@@ -403,7 +403,7 @@ impl Parser<'_> {
         let who = slot("who").value;
         let role = self.role_of(people, &who, raw.line, at("who"))?;
         let (aggregate, command) =
-            self.find_command(chapter, &slot("verb").value, raw.line, at("verb"))?;
+            self.find_command(declaration, &slot("verb").value, raw.line, at("verb"))?;
 
         let acts_on_it = id.contains("acts");
         if acts_on_it {
@@ -529,7 +529,7 @@ impl Parser<'_> {
     /// The command a verb names, in the form a step uses it: `drafts` is `Draft`.
     fn find_command<'c>(
         &self,
-        chapter: &'c ir::Bluebook,
+        declaration: &'c ir::Bluebook,
         verb: &str,
         line: usize,
         col: usize,
@@ -545,7 +545,7 @@ impl Parser<'_> {
         if let Some(stem) = lowered.strip_suffix('s') {
             forms.push(stem.to_string());
         }
-        let all: Vec<(&ir::Aggregate, &ir::Command)> = chapter
+        let all: Vec<(&ir::Aggregate, &ir::Command)> = declaration
             .aggregates
             .iter()
             .flat_map(|aggregate| {
@@ -741,7 +741,7 @@ impl Parser<'_> {
     /// Reads one `Then` or `And` line after the tested step.
     fn outcome(
         &self,
-        chapter: &ir::Bluebook,
+        declaration: &ir::Bluebook,
         raw: &Raw,
         tested: &Dispatch<'_>,
         expect: &mut Expect,
@@ -796,7 +796,7 @@ impl Parser<'_> {
             }
             "outcome_announced" => {
                 let event = slot("event").value;
-                let announced = announced_by(chapter, tested.command);
+                let announced = announced_by(declaration, tested.command);
                 if !announced.contains(&event) {
                     return Err(self.error(
                         raw.line,
@@ -913,12 +913,12 @@ impl Parser<'_> {
 
 /// Every event a command announces, including those announced by commands that policies run in
 /// answer to its events, and so on until nothing new follows.
-fn announced_by(chapter: &ir::Bluebook, command: &ir::Command) -> Vec<String> {
+fn announced_by(declaration: &ir::Bluebook, command: &ir::Command) -> Vec<String> {
     let mut events: Vec<String> = command.emits.clone();
     let mut grew = true;
     while grew {
         grew = false;
-        for policy in &chapter.policies {
+        for policy in &declaration.policies {
             let Some(on) = policy.on_event.as_deref() else {
                 continue;
             };
@@ -929,7 +929,7 @@ fn announced_by(chapter: &ir::Bluebook, command: &ir::Command) -> Vec<String> {
             if !events.iter().any(|known| known == event) {
                 continue;
             }
-            for aggregate in &chapter.aggregates {
+            for aggregate in &declaration.aggregates {
                 for next in aggregate
                     .commands
                     .iter()
@@ -1029,7 +1029,7 @@ fn substitute(text: &str, row: &[(String, String)]) -> String {
 
 /// The `.behaviors` text that runs the compiled tests.
 fn behaviors_text(
-    chapter: &ir::Bluebook,
+    declaration: &ir::Bluebook,
     files: &[String],
     path: &str,
     tests: &[TestOut],
@@ -1037,7 +1037,7 @@ fn behaviors_text(
     let file = path.rsplit('/').next().unwrap_or(path);
     let mut out = format!(
         "Hecks.behaviors {} do\n",
-        ruby_string(&format!("{} examples", chapter.name))
+        ruby_string(&format!("{} examples", declaration.name))
     );
     out.push_str(&format!(
         "  vision {}\n",
@@ -1120,7 +1120,7 @@ mod tests {
 
     #[test]
     fn announced_events_follow_the_policies_that_run_other_commands() {
-        let chapter = ir::Bluebook {
+        let declaration = ir::Bluebook {
             aggregates: vec![ir::Aggregate {
                 name: "Order".to_string(),
                 commands: vec![
@@ -1144,13 +1144,13 @@ mod tests {
             ],
             ..Default::default()
         };
-        let place = chapter.aggregates[0].commands[0].clone();
+        let place = declaration.aggregates[0].commands[0].clone();
         assert_eq!(
-            announced_by(&chapter, &place),
+            announced_by(&declaration, &place),
             ["OrderPlaced", "OrderPacked", "OrderShipped"]
         );
-        let ship = chapter.aggregates[0].commands[2].clone();
-        assert_eq!(announced_by(&chapter, &ship), ["OrderShipped"]);
+        let ship = declaration.aggregates[0].commands[2].clone();
+        assert_eq!(announced_by(&declaration, &ship), ["OrderShipped"]);
     }
 
     #[test]

@@ -185,13 +185,13 @@ RSpec.describe "a construct's identity" do
 
   describe "the bluebook, and why one table survives" do
     it "is a root, so it is the one construct with no owner to name", :aggregate_failures do
-      chapter = banking.registry.bluebook("Banking")
+      declaration = banking.registry.bluebook("Banking")
 
-      expect(chapter.hecks_root?).to be(true)
-      expect(chapter.hecks_fqn).to eq("Banking")
+      expect(declaration.hecks_root?).to be(true)
+      expect(declaration.hecks_fqn).to eq("Banking")
     end
 
-    def chapter_constructs(bank)
+    def bluebook_constructs(bank)
       [bank, bank.read_models.first, bank.policies.first, bank.process_managers.first]
     end
 
@@ -204,13 +204,13 @@ RSpec.describe "a construct's identity" do
       # If one stops answering, consumers that cannot tell a class from an IR object read nil.
       bank = banking.registry.bluebook("Banking")
 
-      (chapter_constructs(bank) + account_constructs(bank.aggregate("Account"))).each do |construct|
+      (bluebook_constructs(bank) + account_constructs(bank.aggregate("Account"))).each do |construct|
         expect(construct.hecks_name).to be_a(String), "#{construct.inspect} answers no hecks_name"
         expect(construct.hecks_name).not_to be_empty
       end
     end
 
-    def set_chapter
+    def set_bluebook
       proc do
         vision "a domain whose name Ruby already uses"
         supporting
@@ -223,11 +223,11 @@ RSpec.describe "a construct's identity" do
       end
     end
 
-    def load_and_bind(registry, chapter)
+    def load_and_bind(registry, declaration)
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Hecks.bluebook("Set", &chapter)
+        Hecks.bluebook("Set", &declaration)
       end
       # Installation happens at bind, not at load.
       Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
@@ -238,7 +238,7 @@ RSpec.describe "a construct's identity" do
     it "cannot be indexed by Ruby's constants, because top-level names are not ours", :aggregate_failures do
       registry = Hecks::Runtime::Registry.new
 
-      expect { load_and_bind(registry, set_chapter) }.to output(/Set is already defined — leaving it alone/).to_stderr
+      expect { load_and_bind(registry, set_bluebook) }.to output(/Set is already defined — leaving it alone/).to_stderr
       expect(registry.bluebook("Set").hecks_fqn).to eq("Set")
       expect(Object.const_get(:Set)).not_to be(registry.bluebook("Set"))
     end

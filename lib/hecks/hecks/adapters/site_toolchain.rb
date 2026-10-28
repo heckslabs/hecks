@@ -131,9 +131,9 @@ module Hecks
 
       # The project's checked edge, read the way `project_site` reads it.
       def edge_of(root, template = nil)
-        registry, chapter, table = read_table(root)
+        registry, declaration, table = read_table(root)
         site = Projections::Site
-        site::Edge.read(chapter, table: table, template: template, vocabulary: site::Table.vocabulary(registry)) ||
+        site::Edge.read(declaration, table: table, template: template, vocabulary: site::Table.vocabulary(registry)) ||
           raise(ConsoleCapture::Failure, "#{root} declares no Edge rows")
       end
 
@@ -152,8 +152,8 @@ module Hecks
       # The registry, bluebook and checked table of the project at `root`.
       def read_table(root)
         registry = registry_of(root)
-        chapter = Projections::Site::Table.chapter(registry)
-        [registry, chapter, Projections::Site::Table.read(chapter, registry: registry)]
+        declaration = Projections::Site::Table.declaration(registry)
+        [registry, declaration, Projections::Site::Table.read(declaration, registry: registry)]
       rescue Projections::Site::Table::Invalid => e
         raise ConsoleCapture::Failure, e.message
       end

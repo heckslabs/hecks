@@ -30,8 +30,8 @@ Gem::Specification.new do |spec|
   # lists a feature per corpus domain, so `RustWorkspace` writes the copy's list clean.
   # spec/gemspec_packaging_spec.rb holds each of these.
   # `prebuilt/` ships when the release workflow has built it: the syntax-boot and verdict caches for
-  # this exact `lib/`, so a first run after `gem install` reads them instead of judging every chapter.
-  # `qa/settings.yml` ships too: `Fuzzing::QaSettings` reads its dials when the Hecks chapter boots.
+  # this exact `lib/`, so a first run after `gem install` reads them instead of judging every bluebook.
+  # `qa/settings.yml` ships too: `Fuzzing::QaSettings` reads its dials when the Hecks bluebook boots.
   # `examples/pizzas` ships, without its glossary, because it is the domain `hecks console` opens when
   # given none, so the quickstart works from a plain `gem install`.
   # Each crate's own `rust/<crate>/tests/` (fixtures, corpus tests) stays out with `rust/tests/`.
@@ -62,6 +62,7 @@ Gem::Specification.new do |spec|
   spec.metadata["source_code_uri"]   = spec.homepage
   spec.metadata["changelog_uri"]     = "#{spec.homepage}/blob/main/CHANGELOG.md"
   spec.metadata["documentation_uri"] = "https://rubydoc.info/gems/hecks"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   # Unlike Postgres/Sqlite (adapters, loaded only if a domain's .hecksagon
   # wires one), prism is a genuinely unconditional dependency:

@@ -78,9 +78,9 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   end
 
   def write_local_worlds(directory)
-    %w[Hecks Governance].each do |chapter|
-      File.write(File.join(directory, "#{chapter.downcase}.local.world"), <<~WORLD)
-        Hecks.world "#{chapter}" do
+    %w[Hecks Governance].each do |declaration|
+      File.write(File.join(directory, "#{declaration.downcase}.local.world"), <<~WORLD)
+        Hecks.world "#{declaration}" do
           default_database "#{FencedOwner.url(JOURNAL_DB)}"
         end
       WORLD

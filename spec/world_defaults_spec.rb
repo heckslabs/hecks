@@ -1,11 +1,11 @@
 require "spec_helper"
 
 # `default_database`/`default_adapter` — a world's project-wide fallback for
-# per-chapter binds; a bluebook's own declaration still wins over the default.
+# per-bluebook binds; a bluebook's own declaration still wins over the default.
 RSpec.describe "a world's project-wide defaults" do
   def url = "postgres://localhost/defaults_spec"
 
-  def chapters = { "Alpha" => %w[Order Invoice], "Beta" => %w[Ticket], "Gamma" => %w[Note] }
+  def declarations = { "Alpha" => %w[Order Invoice], "Beta" => %w[Ticket], "Gamma" => %w[Note] }
 
   # The body of an aggregate named `name`: a label identity and an Open command.
   def opening_aggregate(name)
@@ -20,10 +20,10 @@ RSpec.describe "a world's project-wide defaults" do
     end
   end
 
-  def declare_chapters
-    chapters.each do |chapter, aggregates|
+  def declare_bluebooks
+    declarations.each do |declaration, aggregates|
       bodies = aggregates.map { |name| [name, opening_aggregate(name)] }
-      Hecks.bluebook(chapter) do
+      Hecks.bluebook(declaration) do
         supporting
         bodies.each { |name, body| aggregate(name, &body) }
       end
@@ -34,14 +34,14 @@ RSpec.describe "a world's project-wide defaults" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       Hecks::Adapters::Folder.new.load_library
-      declare_chapters
+      declare_bluebooks
       yield
     end
     registry
   end
 
   def aggregates_of(registry)
-    registry.bluebooks.flat_map { |name, chapter| chapter.aggregates.map { |aggregate| [name, aggregate] } }
+    registry.bluebooks.flat_map { |name, declaration| declaration.aggregates.map { |aggregate| [name, aggregate] } }
   end
 
   def resolved(registry)
@@ -54,9 +54,9 @@ RSpec.describe "a world's project-wide defaults" do
   def expanded
     connection = url
     build do
-      %w[Alpha Beta Gamma].each do |chapter|
-        Hecks.hecksagon(chapter) { persisted_by "PostgresEra" }
-        Hecks.world(chapter) do
+      %w[Alpha Beta Gamma].each do |declaration|
+        Hecks.hecksagon(declaration) { persisted_by "PostgresEra" }
+        Hecks.world(declaration) do
           realm "Spec"
           persisted_by("PostgresEra") { database connection }
         end
@@ -76,7 +76,7 @@ RSpec.describe "a world's project-wide defaults" do
     end
   end
 
-  it "resolves every chapter's aggregates exactly as the per-chapter form does" do
+  it "resolves every bluebook's aggregates exactly as the per-bluebook form does" do
     expect(resolved(defaulted)).to eq(resolved(expanded))
   end
 
@@ -102,7 +102,7 @@ RSpec.describe "a world's project-wide defaults" do
       .to eq(registry.world("Alpha").for_binding("persisted_by", "PostgresEra"))
   end
 
-  describe "the chapter's own declarations win" do
+  describe "the bluebook's own declarations win" do
     it "over the default adapter, aggregate by aggregate" do
       registry = defaulted { Hecks.hecksagon("Alpha") { Alpha::Order.persisted_by("Memory") } }
       adapters = resolved(registry).to_h { |row| ["#{row[0]}::#{row[1]}", row[3]] }
@@ -116,7 +116,7 @@ RSpec.describe "a world's project-wide defaults" do
       expect(resolved(registry).select { |row| row[0] == "Beta" }.map { |row| row[3] }).to eq(["Memory"])
     end
 
-    it "over the project's default, through the chapter's own world default" do
+    it "over the project's default, through the bluebook's own world default" do
       registry = defaulted { Hecks.world("Gamma") { default_adapter "Memory" } }
 
       expect(resolved(registry).select { |row| row[0] == "Gamma" }.map { |row| row[3] }).to eq(["Memory"])

@@ -35,7 +35,7 @@ module Hecks
 
         # Binds this model to an aggregate and defines a method per command.
         #
-        # @param name [String] `"Chapter.Aggregate"` or `"Chapter::Aggregate"`
+        # @param name [String] `"Bluebook.Aggregate"` or `"Bluebook::Aggregate"`
         # @return [void]
         def aggregate(name)
           @door = Booted.door(*name.to_s.split(/\.|::/, 2))
@@ -70,8 +70,8 @@ module Hecks
         def bind_by_name
           return unless name && Booted.booted?
 
-          chapter = Booted.app_chapters.find { |candidate| candidate.aggregates.any? { |a| a.hecks_name == name } }
-          aggregate("#{chapter.name}.#{name}") if chapter
+          declaration = Booted.app_bluebooks.find { |candidate| candidate.aggregates.any? { |a| a.hecks_name == name } }
+          aggregate("#{declaration.name}.#{name}") if declaration
         end
 
         def define_command(command)

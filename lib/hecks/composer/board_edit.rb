@@ -41,7 +41,7 @@ module Hecks
       def add_aggregate(source, name:)
         named!(name, "an aggregate")
         refuse!("#{name} is already an aggregate") if source.places.of("aggregate", name)
-        header = source.chapter
+        header = source.declaration
         source.insert(header[:file], source.block_end(header), aggregate_lines(name))
       end
 
@@ -81,7 +81,7 @@ module Hecks
         event = dotted!(on, "the event")
         target = dotted!(trigger, "the command")
         command_at(source, target[1], target[2])
-        header = source.chapter
+        header = source.declaration
         source.insert(header[:file], source.block_end(header), policy_lines(name, event, target))
       end
 

@@ -118,8 +118,8 @@ instances, journal".
 - **The unbundled launcher and json 3.** `exe/hecks` runs without Bundler and loads json 3, which
   refuses `quirks_mode:`; the translation string parser passed it, so a domain whose edges hold a
   string literal could not load through the launcher. Fixed by dropping the keyword.
-- **A fuzz boot rebinds only bound chapters.** `IsolatedBoot` with `adapter: :sqlite` leaves a
-  chapter with no hecksagon on Memory, so a parity run on it compares Memory with Memory. The
+- **A fuzz boot rebinds only bound bluebooks.** `IsolatedBoot` with `adapter: :sqlite` leaves a
+  bluebook with no hecksagon on Memory, so a parity run on it compares Memory with Memory. The
   every-domain spec checks the binding before it trusts a parity result.
 - **A store with no eras reshapes a breaking bump silently.** That is by design
   (`spec/runtime/era_check_spec.rb`); only an era-holding store refuses it.

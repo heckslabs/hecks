@@ -1,6 +1,6 @@
 Hecks.hecksagon "CheckoutFixture" do
   attaches "Governance"
-  # Carries ConsoleSettings' chapter into this fixture's wasm, since
+  # Carries ConsoleSettings' bluebook into this fixture's wasm, since
   # api.rs's PUT /api/presentation route tests need a kernel with it
   # compiled in; the only in-repo domain that attaches ConsoleSettings.
   attaches "ConsoleSettings"
@@ -15,7 +15,7 @@ Hecks.hecksagon "Payments" do
 
   Payments::Payment.persisted_by("PostgresEra")
 
-  # The processor's webhook, translated into this chapter's vocabulary —
+  # The processor's webhook, translated into this bluebook's vocabulary —
   # web.rs `webhook_route` dispatches these two operations.
   Payments::Payment.port "PaymentGateway" do
     operation "Succeeded" do

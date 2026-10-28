@@ -22,7 +22,7 @@ pub struct Options {
     pub out_dir: Option<PathBuf>,
 }
 
-struct Chapter {
+struct Declaration {
     mod_name: String,
     source_label: String,
     ir_text: String,
@@ -64,17 +64,20 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     let world_candidate = bluebook_directory.join(format!("{target_mod_name}.world"));
     let world_path = world_candidate.is_file().then_some(world_candidate);
 
-    let target_chapter_name = resolve::header_chapter_name(first_bluebook)?;
+    let target_bluebook_name = resolve::header_bluebook_name(first_bluebook)?;
     let mut target_files = Vec::new();
     // Bluebooks declared beside the target but not attached to it: the registry still loads them, so
     // one may provide a capability (payments) the target uses.
     let mut sibling_files: Vec<(String, Vec<PathBuf>)> = Vec::new();
     for path in bluebook_paths {
-        let chapter = resolve::header_chapter_name(&path)?;
-        if chapter != target_chapter_name {
-            match sibling_files.iter_mut().find(|(name, _)| *name == chapter) {
+        let declaration = resolve::header_bluebook_name(&path)?;
+        if declaration != target_bluebook_name {
+            match sibling_files
+                .iter_mut()
+                .find(|(name, _)| *name == declaration)
+            {
                 Some((_, files)) => files.push(path),
-                None => sibling_files.push((chapter, vec![path])),
+                None => sibling_files.push((declaration, vec![path])),
             }
             continue;
         }
@@ -83,13 +86,13 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
 
     // What the target attaches, read from every hecksagon beside its bluebooks, as the registry
     // loads every one of them: a second file may attach a bluebook (banking's `bulk.hecksagon`).
-    let mut gem_chapter_names: Vec<String> = Vec::new();
+    let mut gem_bluebook_names: Vec<String> = Vec::new();
     let mut vendored_package_names: Vec<String> = Vec::new();
     for path in resolve::hecksagon_files(&bluebook_directory)? {
-        let gem = resolve::resolve_gem_chapters(&parser_bin, &target_chapter_name, &path)?;
+        let gem = resolve::resolve_gem_bluebooks(&parser_bin, &target_bluebook_name, &path)?;
         let vendored =
-            resolve::resolve_vendored_packages(&parser_bin, &target_chapter_name, &path)?;
-        push_new(&mut gem_chapter_names, gem);
+            resolve::resolve_vendored_packages(&parser_bin, &target_bluebook_name, &path)?;
+        push_new(&mut gem_bluebook_names, gem);
         push_new(&mut vendored_package_names, vendored);
     }
 
@@ -97,18 +100,18 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     if let Some(p) = &hecksagon_path {
         target_files.push(p.clone());
     }
-    let target_ir_text = parse_chapter(&parser_bin, &target_chapter_name, &target_files)?;
+    let target_ir_text = parse_bluebook(&parser_bin, &target_bluebook_name, &target_files)?;
     // Only the target bluebook gets a `lineage` key — a framework bluebook or
     // `meta` never does, matching `derive_lineage` (Ruby) re-`JSON.parse`ing
     // rather than chaining a live object through both passes.
     let mut target_ir = Json::parse(&target_ir_text)
         .map_err(|e| format!("re-parsing target ir.json for lineage: {e}"))?;
-    let chapter_name = target_ir
+    let declaration_name = target_ir
         .get("name")
         .and_then(Json::as_str)
         .unwrap_or_default()
         .to_string();
-    let world = world_pass::read(&chapter_name, &parser_bin, world_path.as_deref())?;
+    let world = world_pass::read(&declaration_name, &parser_bin, world_path.as_deref())?;
     let world_default = world_pass::default_adapter(&world);
     lineage_pass::run(
         &mut target_ir,
@@ -134,17 +137,17 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // pipeline itself calls. A gem bluebook that is not a framework member (Bulk, Tenancy, Deploy)
     // is found by its files' headers, and is a bluebook of the build as the registry loads it.
     let framework_members = resolve::framework_members(root)?;
-    let other_gem_chapters = resolve::other_gem_chapter_names(root)?;
-    let mut chapters: Vec<Chapter> = Vec::new();
-    for fw_name in &gem_chapter_names {
-        if other_gem_chapters.contains(fw_name)
+    let other_gem_bluebooks = resolve::other_gem_bluebook_names(root)?;
+    let mut declarations: Vec<Declaration> = Vec::new();
+    for fw_name in &gem_bluebook_names {
+        if other_gem_bluebooks.contains(fw_name)
             && !framework_members.iter().any(|(name, _)| name == fw_name)
         {
-            let files = resolve::other_gem_chapter_files(root, fw_name)?;
-            chapters.push(Chapter {
+            let files = resolve::other_gem_bluebook_files(root, fw_name)?;
+            declarations.push(Declaration {
                 mod_name: fw_name.to_lowercase(),
                 source_label: format!("{domain} (attaches {fw_name:?})"),
-                ir_text: parse_chapter(&parser_bin, fw_name, &files)?,
+                ir_text: parse_bluebook(&parser_bin, fw_name, &files)?,
             });
             continue;
         }
@@ -154,23 +157,23 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
             .map(|(_, path)| path.clone())
             .ok_or_else(|| {
                 let mut known: Vec<&str> = framework_members.iter().map(|(n, _)| n.as_str()).collect();
-                known.extend(other_gem_chapters.iter().map(String::as_str));
+                known.extend(other_gem_bluebooks.iter().map(String::as_str));
                 known.sort_unstable();
                 format!("hecks-build: attaches {fw_name:?} names no bluebook the gem carries — known: {}", known.join(", "))
             })?;
-        let fw_chapter_name = resolve::header_chapter_name(&fw_path)?;
-        if &fw_chapter_name != fw_name {
+        let fw_bluebook_name = resolve::header_bluebook_name(&fw_path)?;
+        if &fw_bluebook_name != fw_name {
             return Err(format!(
-                "hecks-build: {} declares bluebook {fw_chapter_name:?}, but attaches named {fw_name:?}",
+                "hecks-build: {} declares bluebook {fw_bluebook_name:?}, but attaches named {fw_name:?}",
                 fw_path.display()
             ));
         }
-        let fw_ir_text = parse_chapter(
+        let fw_ir_text = parse_bluebook(
             &parser_bin,
-            &fw_chapter_name,
+            &fw_bluebook_name,
             std::slice::from_ref(&fw_path),
         )?;
-        chapters.push(Chapter {
+        declarations.push(Declaration {
             mod_name: fw_name.to_lowercase(),
             source_label: format!("{domain} (attaches {fw_name:?})"),
             ir_text: fw_ir_text,
@@ -182,27 +185,27 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // a vendored bluebook would silently drop from the output.
     for pkg_name in &vendored_package_names {
         let pkg_files = resolve::vendored_bluebook_files(&domain_path, pkg_name)?;
-        let pkg_chapter_name = resolve::header_chapter_name(&pkg_files[0])?;
-        let expected_chapter_name = crate::hecks_naming::pascal(pkg_name);
-        if pkg_chapter_name != expected_chapter_name {
+        let pkg_bluebook_name = resolve::header_bluebook_name(&pkg_files[0])?;
+        let expected_bluebook_name = crate::hecks_naming::pascal(pkg_name);
+        if pkg_bluebook_name != expected_bluebook_name {
             return Err(format!(
-                "hecks-build: {} declares bluebook {pkg_chapter_name:?}, but attaches {pkg_name:?}, from: :vendor \
-                 expects {expected_chapter_name:?}",
+                "hecks-build: {} declares bluebook {pkg_bluebook_name:?}, but attaches {pkg_name:?}, from: :vendor \
+                 expects {expected_bluebook_name:?}",
                 pkg_files[0].display()
             ));
         }
         let mut pkg_bluebooks = Vec::new();
         for path in &pkg_files {
-            if resolve::header_chapter_name(path)? == pkg_chapter_name {
+            if resolve::header_bluebook_name(path)? == pkg_bluebook_name {
                 pkg_bluebooks.push(path.clone());
             }
         }
-        let pkg_ir_text = parse_chapter(&parser_bin, &pkg_chapter_name, &pkg_bluebooks)?;
-        chapters.push(Chapter {
+        let pkg_ir_text = parse_bluebook(&parser_bin, &pkg_bluebook_name, &pkg_bluebooks)?;
+        declarations.push(Declaration {
             // Derived from the declared bluebook name (asserted equal to
-            // `expected_chapter_name` above), not the raw `pkg_name` — that
+            // `expected_bluebook_name` above), not the raw `pkg_name` — that
             // would diverge the moment a package name has an underscore.
-            mod_name: expected_chapter_name.to_lowercase(),
+            mod_name: expected_bluebook_name.to_lowercase(),
             source_label: format!("{domain} (attaches {pkg_name:?}, from: :vendor)"),
             ir_text: pkg_ir_text,
         });
@@ -216,25 +219,25 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     for (name, files) in &sibling_files {
         let mut sources = files.clone();
         sources.extend(hecksagon_path.iter().cloned());
-        siblings.push(Chapter {
+        siblings.push(Declaration {
             mod_name: name.to_lowercase(),
             source_label: format!("{domain} (attaches {name:?})"),
-            ir_text: parse_chapter(&parser_bin, name, &sources)?,
+            ir_text: parse_bluebook(&parser_bin, name, &sources)?,
         });
     }
-    chapters.splice(0..0, siblings);
+    declarations.splice(0..0, siblings);
 
-    // Guards against a gem-chapter and a vendored-package
+    // Guards against a gem-bluebook and a vendored-package
     // entry sharing a `mod_name`, which would silently overwrite one
     // bluebook's sidecars with another's.
     {
         let mut seen: Vec<&str> = Vec::new();
-        for c in &chapters {
+        for c in &declarations {
             if seen.contains(&c.mod_name.as_str()) {
                 return Err(format!(
-                    "hecks-build: two chapters both resolve to the same generated module {:?} — attach {} to at \
+                    "hecks-build: two bluebooks both resolve to the same generated module {:?} — attach {} to at \
                      most one of them",
-                    c.mod_name, target_chapter_name
+                    c.mod_name, target_bluebook_name
                 ));
             }
             seen.push(&c.mod_name);
@@ -244,7 +247,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // The capability seams read the attached bluebooks' own `provides`, so they are decided only
     // once every bluebook is loaded; `translations` and `source_text` close the binding facts.
     let mut member_irs = Vec::new();
-    for c in &chapters {
+    for c in &declarations {
         member_irs.push(
             Json::parse(&c.ir_text)
                 .map_err(|e| format!("re-parsing {} ir.json for its seams: {e}", c.mod_name))?,
@@ -257,7 +260,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     // The self-hosted language, compiled in too, under the same "Bluebook"
     // bluebook name.
     let grammar_files = resolve::grammar_files(root)?;
-    let meta_ir_text = parse_chapter(&parser_bin, "Bluebook", &grammar_files)?;
+    let meta_ir_text = parse_bluebook(&parser_bin, "Bluebook", &grammar_files)?;
 
     let out_root = opts
         .out_dir
@@ -272,7 +275,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
     remove_dir_if_exists(&out_root.join("meta"))?;
     remove_dir_if_exists(&out_root.join("active"))?;
     remove_dir_if_exists(&out_root.join(&target_mod_name))?;
-    for c in &chapters {
+    for c in &declarations {
         remove_dir_if_exists(&out_root.join(&c.mod_name))?;
     }
 
@@ -301,8 +304,8 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         domain.to_string(),
         target_ir_path.to_string_lossy().to_string(),
     ];
-    for (idx, c) in chapters.iter().enumerate() {
-        let ir_path = tmp.path().join(format!("chapter_{idx}_ir.json"));
+    for (idx, c) in declarations.iter().enumerate() {
+        let ir_path = tmp.path().join(format!("bluebook_{idx}_ir.json"));
         std::fs::write(&ir_path, &c.ir_text)
             .map_err(|e| format!("writing {}: {e}", ir_path.display()))?;
         codegen_args.push(c.mod_name.clone());
@@ -324,7 +327,7 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         "active".to_string(),
         target_mod_name.clone(),
     ];
-    generated_dirs.extend(chapters.iter().map(|c| c.mod_name.clone()));
+    generated_dirs.extend(declarations.iter().map(|c| c.mod_name.clone()));
     rustfmt::format_generated(&out_root, &generated_dirs)?;
 
     let rust_dir = root.join("rust");
@@ -349,16 +352,16 @@ fn push_new(into: &mut Vec<String>, names: Vec<String>) {
 
 // Parses via `hecks-parse bluebook`. `hecks-codegen` marks the IR and writes its `ir.json` and
 // `metadata.rs` itself, so the text goes through as `hecks-parse` printed it.
-fn parse_chapter(
+fn parse_bluebook(
     parser_bin: &Path,
-    chapter_name: &str,
+    declaration_name: &str,
     files: &[PathBuf],
 ) -> Result<String, String> {
     let parser_bin_str = parser_bin.to_string_lossy().to_string();
     let mut args: Vec<String> = vec![
         "bluebook".to_string(),
         "--bluebook".to_string(),
-        chapter_name.to_string(),
+        declaration_name.to_string(),
     ];
     args.extend(files.iter().map(|p| p.to_string_lossy().to_string()));
     let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();

@@ -168,9 +168,9 @@ RSpec.describe "the Site row of the ADR command table" do
     let(:edge) do
       site = Hecks::Projections::Site
       registry = Hecks::Tools::SiteRoutes.registry_for(PROJECT)
-      chapter = site::Table.chapter(registry)
-      site::Edge.read(chapter, table:      site::Table.read(chapter, registry: registry),
-                               vocabulary: site::Table.vocabulary(registry))
+      declaration = site::Table.declaration(registry)
+      site::Edge.read(declaration, table:      site::Table.read(declaration, registry: registry),
+                                   vocabulary: site::Table.vocabulary(registry))
     end
     let(:refs) { LiveDistribution.refs_for(edge) }
     let(:words) { refs.map { |name, id| "#{name}=#{id}" }.join(",") }
@@ -191,8 +191,8 @@ RSpec.describe "the Site row of the ADR command table" do
     # Copies the project into `dir` with its Edge row naming no template.
     def copy_project_naming_no_template(dir)
       FileUtils.cp_r(Dir.children(PROJECT).map { |name| File.join(PROJECT, name) }, dir)
-      chapter = Dir.glob(File.join(dir, "bluebook", "*.bluebook")).find { |file| File.read(file).include?("template:") }
-      File.write(chapter, File.read(chapter).gsub(/template: "[^"]*",\s*/, ""))
+      declaration = Dir.glob(File.join(dir, "bluebook", "*.bluebook")).find { |file| File.read(file).include?("template:") }
+      File.write(declaration, File.read(declaration).gsub(/template: "[^"]*",\s*/, ""))
     end
 
     # The check_live arguments for such a copy, a saved live configuration included.

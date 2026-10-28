@@ -124,7 +124,7 @@ pub struct AggregateEntry {
     pub entity_commands: Vec<EntityCommandEntry>,
     pub nested_entity_commands: Vec<NestedEntityCommandEntry>,
     pub ports: Vec<PortEntry>,
-    pub chapter_mod: String,
+    pub bluebook_mod: String,
     pub domain_name: String,
     /// Reference-typed attributes; this aggregate's row in `REFERENCE_TABLE`.
     pub reference_specs: Vec<ReferenceSpec>,
@@ -353,8 +353,8 @@ pub fn emit_reference_check(exemplar: &Exemplar, check: &ReferenceCheck) -> Stri
     }
 }
 
-fn chapter_path(a: &AggregateEntry) -> String {
-    format!("crate::generated::{}::{}", a.chapter_mod, a.module_name)
+fn bluebook_path(a: &AggregateEntry) -> String {
+    format!("crate::generated::{}::{}", a.bluebook_mod, a.module_name)
 }
 
 /// One `"verb" => { .. }` arm of the registry's dispatch match, its body lines indented.
@@ -376,7 +376,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
             format!(
                 "    pub {}: crate::kernel::InMemoryRepository<{}::{}>,",
                 a.module_name,
-                chapter_path(a),
+                bluebook_path(a),
                 a.record
             )
         })
@@ -406,7 +406,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
     let seed_arms: Vec<String> = aggregates
         .iter()
         .map(|a| {
-            let mod_path = chapter_path(a);
+            let mod_path = bluebook_path(a);
             let prefix = format!("{}::{}#", a.domain_name, a.name);
             format!(
                 "if let Some(id) = key.strip_prefix({}) {{\n    store.{}.save(id, {mod_path}::{}::from_json(value)?);\n    continue;\n}}",
@@ -443,7 +443,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
 
     let mut aggregate_arms: Vec<String> = Vec::new();
     for a in aggregates {
-        let mod_path = chapter_path(a);
+        let mod_path = bluebook_path(a);
         for c in &a.commands {
             let extra_names = &c.identity_extra_params;
             let extra_idents: Vec<String> = extra_names
@@ -581,7 +581,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
 
     let mut entity_arms: Vec<String> = Vec::new();
     for a in aggregates {
-        let mod_path = chapter_path(a);
+        let mod_path = bluebook_path(a);
         for c in &a.entity_commands {
             // The argument gates; `kernel::decode_entity_arguments` walks `EntityStep::ORDER`.
             let gates_line = format!(
@@ -664,7 +664,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
     // that accepts a route or flat args; otherwise the command is routed-only.
     let mut nested_entity_arms: Vec<String> = Vec::new();
     for a in aggregates {
-        let mod_path = chapter_path(a);
+        let mod_path = bluebook_path(a);
         for c in &a.nested_entity_commands {
             // The argument gates; see the entity arm's `gates_line`.
             let gates_line = format!(
@@ -757,7 +757,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
 
     let mut port_arms: Vec<String> = Vec::new();
     for a in aggregates {
-        let mod_path = chapter_path(a);
+        let mod_path = bluebook_path(a);
         for p in &a.ports {
             let reference_lines: Vec<String> = p
                 .reference_checks
@@ -962,7 +962,7 @@ mod tests {
                 legacy_receiver_field: None,
                 to_receiver_field: None,
             }],
-            chapter_mod: "banking".to_string(),
+            bluebook_mod: "banking".to_string(),
             domain_name: "Banking".to_string(),
             reference_specs: Vec::new(),
             identified_by: vec!["branch_code".to_string(), "box_number".to_string()],
@@ -1027,7 +1027,7 @@ mod tests {
             entity_commands: Vec::new(),
             nested_entity_commands: Vec::new(),
             ports: Vec::new(),
-            chapter_mod: "fixture".to_string(),
+            bluebook_mod: "fixture".to_string(),
             domain_name: "Fixture".to_string(),
             reference_specs: Vec::new(),
             identified_by: vec!["code".to_string()],
@@ -1067,7 +1067,7 @@ mod tests {
             entity_commands: Vec::new(),
             nested_entity_commands: Vec::new(),
             ports: Vec::new(),
-            chapter_mod: "banking".to_string(),
+            bluebook_mod: "banking".to_string(),
             domain_name: "Banking".to_string(),
             reference_specs: Vec::new(),
             identified_by: vec![

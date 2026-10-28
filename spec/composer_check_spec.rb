@@ -26,7 +26,6 @@ RSpec.describe Hecks::Composer::Check, :io do
 
     expect(result[:diagnostic]).to be_nil
     expect(result[:bluebook]).to eq("Ledger")
-    expect(result[:chapter]).to eq("Ledger")
     expect(result[:elapsed_ms]).to be_a(Integer)
   end
 

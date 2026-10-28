@@ -12,9 +12,9 @@ removed the declaration-order limit both of those carried, `EntityBuilder
 #given`, `ValueObjectBuilder#invariant`'s own sibling-reference form,
 cross-entity given sharing (one piece's own `given`, shared with any
 sibling piece under the same aggregate —
-`docs/resolution-rules/cross-entity-given.md`), chapter-wide given sharing
+`docs/resolution-rules/cross-entity-given.md`), bluebook-wide given sharing
 (one aggregate's own `given`, shared with any other aggregate in the same
-chapter — `docs/resolution-rules/chapter-given.md`), a reusable "hoist
+bluebook — `docs/resolution-rules/bluebook-given.md`), a reusable "hoist
 un-shared local declarations" codemod (`hecks hoist_local_givens`,
 generalizing the exact fix LedgerEntry got by hand in round 4), and
 `EntityBuilder#invariant` (a genuinely new IR field + real, additive
@@ -291,7 +291,7 @@ not discovery.
   same mechanism on a new construct, like this skill's own rounds 4–5 —
   only for a new ALGORITHM, like rounds 1–2's order-preservation logic).
 - **Widening a sharing scope (aggregate → its own entity tree → the whole
-  chapter) makes description-only text matching dangerous, in two
+  bluebook) makes description-only text matching dangerous, in two
   DIFFERENT ways — both bit real corpus, not hypothetically.** (1) A
   wider TEXT WINDOW can accidentally include a NESTED construct's own
   unrelated declaration under the identical description — a codemod
@@ -299,7 +299,7 @@ not discovery.
   caught its nested `Withdrawal` entity's own, differently-scoped
   declaration too, and silently rewired it wrong; fix: carve nested
   `entity ... end` blocks out of any text-window scan before matching by
-  description alone. (2) At CHAPTER width specifically, the SAME
+  description alone. (2) At BLUEBOOK width specifically, the SAME
   description can legitimately mean two DIFFERENT canonicals (`Account`'s
   own `customer.status == "active"` vs. `ATMCard`'s own
   `account.customer.status == "active"` — same words, a genuinely
@@ -309,7 +309,7 @@ not discovery.
   declaration it would resolve to — a bare reference is deliberately
   trusting, not re-validating, so that verification has to happen BEFORE
   the edit, by you or a codemod's own `find_candidates`, never skipped.
-  See `docs/resolution-rules/chapter-given.md`'s own "Known limitations"
+  See `docs/resolution-rules/bluebook-given.md`'s own "Known limitations"
   for the full real-corpus case this scoped around rather than got wrong.
 - **A "hoist un-shared local declarations to one shared point" codemod's
   own safety net needs a DIFFERENT invariant than `Hecks::Codemod`'s
@@ -335,10 +335,10 @@ not discovery.
   object identity carries no signal: `MetaValidator.call`'s
   `Assembly.call` rebuilds the whole graph fresh from flat rows, so a
   referenced rule and a locally-declared one are structurally
-  indistinguishable by the time anything reads `chapter.aggregates`).
+  indistinguishable by the time anything reads `bluebook.aggregates`).
   Cross-entity sharing needed teaching it "covered by ANY `(declared)`
   entry sharing the same root aggregate," not just an exact-owner match.
-  Chapter-wide sharing could NOT be taught at all — a chapter-referenced
+  Bluebook-wide sharing could NOT be taught at all — a bluebook-referenced
   given write-throughs into its own aggregate's `@named_givens` exactly
   like a local declaration would, so the exported IR is genuinely
   identical either way; that gap is now a documented, permanent,

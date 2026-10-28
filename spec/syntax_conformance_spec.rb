@@ -76,13 +76,13 @@ RSpec.describe "the declared syntax" do
   # with reasons, so an unexplained allowlist can't quietly cover a retired word.
   NOT_A_WORD = {
     "Bluebook"  => {
-      classification:                         "an attr_reader BluebookBuilder.build reads when merging one bluebook across files",
-      resolve_pending_chapter_givens!:        "called by MetaValidator.judge_deferred! once a bluebook split " \
-                                              "across files has fully loaded, to resolve any bare chapter-given " \
-                                              "reference an earlier file left pending",
-      resolve_pending_chapter_entity_givens!: "the entity-scoped analogue, one level down — called by " \
-                                              "MetaValidator.judge_deferred! the same way, to resolve any " \
-                                              "bare entity-level given reference an earlier file left pending"
+      classification:                          "an attr_reader BluebookBuilder.build reads to merge one bluebook across files",
+      resolve_pending_bluebook_givens!:        "called by MetaValidator.judge_deferred! once a bluebook split " \
+                                               "across files has fully loaded, to resolve any bare bluebook-given " \
+                                               "reference an earlier file left pending",
+      resolve_pending_bluebook_entity_givens!: "the entity-scoped analogue, one level down — called by " \
+                                               "MetaValidator.judge_deferred! the same way, to resolve any " \
+                                               "bare entity-level given reference an earlier file left pending"
     },
     "File"      => {
       boot:             "the runtime facade, not a declaration",
@@ -545,8 +545,8 @@ RSpec.describe "the declared syntax" do
 
   def self.all_meta_aggregates
     registry     = Hecks::Bluebook::MetaValidator.grammar_registry
-    aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation ContextMap].flat_map do |chapter|
-      registry.bluebook(chapter).aggregates
+    aggregates   = %w[Bluebook Hecksagon World Port Adapter Translation ContextMap].flat_map do |declaration|
+      registry.bluebook(declaration).aggregates
     end
     aggregates + aggregates.flat_map { |a| a.entities.flat_map { |entity| all_entities(entity) } }
   end

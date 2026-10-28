@@ -335,7 +335,7 @@ RSpec.describe "Hecks::Bluebook::DSL::RuleReference" do
     end
   end
 
-  # Primitive 2 — AggregateBuilder#given's own chapter-wide, owner-keyed
+  # Primitive 2 — AggregateBuilder#given's own bluebook-wide, owner-keyed
   # pool: unambiguous when exactly one candidate is registered,
   # `declared_by:` required once a second, genuinely different
   # candidate registers under the same description.

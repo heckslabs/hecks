@@ -620,12 +620,12 @@ refusal message, everywhere it's read:
 account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:canonical)  # => ["customer_status != \"closed\""]
 ```
 
-`given` also SHARES chapter-wide — a bare `given(description)` with no
+`given` also SHARES bluebook-wide — a bare `given(description)` with no
 block, written directly inside a DIFFERENT aggregate's own `do...end`,
 resolves against whichever aggregate in the same bluebook already
 declared that description, the identical move a command's own bare
 `given` already makes one level down (`docs/resolution-rules/
-chapter-given.md`). `SafeDepositBox` names `Account`'s own "customer is
+bluebook-given.md`). `SafeDepositBox` names `Account`'s own "customer is
 active" back rather than retyping `customer_status == "active"` a
 second time:
 

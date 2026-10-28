@@ -9,7 +9,7 @@ module Hecks
 
       # Projects `bluebook` as Markdown usage documentation.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook to document
+      # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook to document
       # @param options [Hash] optional inputs
       # @option options [Integer, String] :heading the top heading level; defaults to 1
       # @option options [String, Symbol, nil] :aggregate narrows the document to one
@@ -21,7 +21,7 @@ module Hecks
         only  = options[:aggregate]
 
         out = []
-        out << chapter_header(bluebook, depth) unless only
+        out << bluebook_header(bluebook, depth) unless only
         out.concat(aggregate_sections(bluebook, only, depth))
         out << Closing.call(bluebook, depth + 1) unless only
         "#{out.compact.join("\n").rstrip}\n"
@@ -49,7 +49,7 @@ module Hecks
 
       def h(depth, text) = "#{"#" * depth} #{text}"
 
-      def chapter_header(bluebook, depth)
+      def bluebook_header(bluebook, depth)
         out = [h(depth, bluebook.name), ""]
         out += ["> #{bluebook.vision}", ""] if bluebook.vision
         out.concat(classification_lines(bluebook))

@@ -1,6 +1,6 @@
 {
   "name": "expression-parity",
-  "note": "The chapter that DEFINES the sublanguage, walked as a corpus member so it can never sit outside the walk again — it once stopped parsing entirely while the suite stayed green, because nothing in spec/ booted it. Every step walks a declared gate: rendering before admission, admitting twice, retiring, answering after retirement.",
+  "note": "The bluebook that DEFINES the sublanguage, walked as a corpus member so it can never sit outside the walk again — it once stopped parsing entirely while the suite stayed green, because nothing in spec/ booted it. Every step walks a declared gate: rendering before admission, admitting twice, retiring, answering after retirement.",
   "expectations": {
     "events": 26
   },

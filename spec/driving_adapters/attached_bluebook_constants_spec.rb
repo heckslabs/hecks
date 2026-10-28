@@ -21,7 +21,7 @@ RSpec.describe "Facade install of attached bluebooks" do
                     chdir: File.expand_path("../..", __dir__))
   end
 
-  let(:chapter_names) do
+  let(:bluebook_names) do
     %w[Query Command Policy Port Adapter Aggregate Entity ValueObject Syntax
        Vocabulary Target Ticket Bug Patch Improvement Angle Sweep Clearance
        Operator Tenant Recipe World Wiring Translation Deploy Tenancy
@@ -32,6 +32,6 @@ RSpec.describe "Facade install of attached bluebooks" do
     added = booted.first.lines.map(&:strip).grep(/\A[A-Z]\w*\z/)
 
     expect(booted.last).to be_success
-    expect(added & chapter_names).to eq([])
+    expect(added & bluebook_names).to eq([])
   end
 end

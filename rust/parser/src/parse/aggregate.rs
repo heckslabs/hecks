@@ -13,11 +13,11 @@ pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Aggregate.{word}"))
 }
 
-/// Outcome of a bare chapter-wide `given(desc)` reference.
+/// Outcome of a bare bluebook-wide `given(desc)` reference.
 ///
 /// A bluebook may span files, so an undeclared target is `Pending`, settled by
-/// `parse::chapter::parse_chapter` once every file has loaded. Ambiguity is refused at once.
-pub enum ChapterGivenLookup {
+/// `parse::bluebook::parse_bluebook` once every file has loaded. Ambiguity is refused at once.
+pub enum BluebookGivenLookup {
     Resolved(ir::Given),
     Pending {
         description: String,
@@ -27,12 +27,12 @@ pub enum ChapterGivenLookup {
     },
 }
 
-fn try_reference_named_chapter_given(
+fn try_reference_named_bluebook_given(
     file: &str,
     lines: &[SourceLine],
     pos: &mut usize,
-    chapter_named_givens: &[(String, ir::Given)],
-) -> ParseResult<Option<ChapterGivenLookup>> {
+    bluebook_named_givens: &[(String, ir::Given)],
+) -> ParseResult<Option<BluebookGivenLookup>> {
     let Some(&line) = lines.get(*pos) else {
         return Ok(None);
     };
@@ -50,7 +50,7 @@ fn try_reference_named_chapter_given(
     let declared_by =
         super::named_raw(&args, "declared_by").map(|raw| naming::demodulise(raw.trim()));
 
-    let candidates: Vec<&(String, ir::Given)> = chapter_named_givens
+    let candidates: Vec<&(String, ir::Given)> = bluebook_named_givens
         .iter()
         .filter(|(_, given)| given.description.as_deref() == Some(description.as_str()))
         .collect();
@@ -60,8 +60,8 @@ fn try_reference_named_chapter_given(
             .iter()
             .find(|(candidate_owner, _)| candidate_owner == &owner)
         {
-            Some((_, given)) => ChapterGivenLookup::Resolved(given.clone()),
-            None => ChapterGivenLookup::Pending {
+            Some((_, given)) => BluebookGivenLookup::Resolved(given.clone()),
+            None => BluebookGivenLookup::Pending {
                 description,
                 declared_by: Some(owner),
                 file: file.to_string(),
@@ -70,13 +70,13 @@ fn try_reference_named_chapter_given(
         }
     } else {
         match candidates.as_slice() {
-            [] => ChapterGivenLookup::Pending {
+            [] => BluebookGivenLookup::Pending {
                 description,
                 declared_by: None,
                 file: file.to_string(),
                 line: line.number,
             },
-            [(_, given)] => ChapterGivenLookup::Resolved(given.clone()),
+            [(_, given)] => BluebookGivenLookup::Resolved(given.clone()),
             _ => {
                 let owners: Vec<&str> =
                     candidates.iter().map(|(owner, _)| owner.as_str()).collect();
@@ -84,7 +84,7 @@ fn try_reference_named_chapter_given(
                     file,
                     line.number,
                     format!(
-                        "'{description}' is ambiguous in this chapter — {} each declare a \
+                        "'{description}' is ambiguous in this bluebook — {} each declare a \
                          DIFFERENT predicate under this same description; name which one with \
                          declared_by:",
                         owners.join(", ")
@@ -98,9 +98,9 @@ fn try_reference_named_chapter_given(
     Ok(Some(resolved))
 }
 
-/// A bare chapter-given left unresolved; `parse::chapter::parse_chapter` patches the real
+/// A bare bluebook-given left unresolved; `parse::bluebook::parse_bluebook` patches the real
 /// `Given` into `preconditions[precondition_index]`.
-pub struct PendingChapterGiven {
+pub struct PendingBluebookGiven {
     pub precondition_index: usize,
     pub description: String,
     pub declared_by: Option<String>,
@@ -111,9 +111,9 @@ pub struct PendingChapterGiven {
 pub type ParsedAggregate = (
     ir::Aggregate,
     Vec<ir::Policy>,
-    Vec<PendingChapterGiven>,
+    Vec<PendingBluebookGiven>,
     Vec<(usize, command::PendingCommandGiven)>,
-    Vec<entity::PendingChapterEntityGiven>,
+    Vec<entity::PendingBluebookEntityGiven>,
     Vec<entity::PendingEntityCommandGiven>,
 );
 
@@ -123,9 +123,9 @@ pub fn parse_body(
     lines: &[SourceLine],
     pos: &mut usize,
     name: &str,
-    chapter_named_givens: &mut Vec<(String, ir::Given)>,
-    // Chapter-wide entity-scoped pool, passed unchanged to every top-level entity.
-    chapter_entity_named_givens: &mut Vec<(String, ir::Given)>,
+    bluebook_named_givens: &mut Vec<(String, ir::Given)>,
+    // Bluebook-wide entity-scoped pool, passed unchanged to every top-level entity.
+    bluebook_entity_named_givens: &mut Vec<(String, ir::Given)>,
 ) -> ParseResult<ParsedAggregate> {
     let mut aggregate = ir::Aggregate {
         name: name.to_string(),
@@ -134,9 +134,9 @@ pub fn parse_body(
     let mut pending_identity: Option<super::PendingIdentity> = None;
     let mut closed_sets: Vec<ir::ValueObject> = Vec::new();
     let mut policies: Vec<ir::Policy> = Vec::new();
-    let mut pending_chapter_givens: Vec<PendingChapterGiven> = Vec::new();
+    let mut pending_bluebook_givens: Vec<PendingBluebookGiven> = Vec::new();
     // `entity_path` is relative to `aggregate.entities`; the entity drain loop stamps it.
-    let mut pending_chapter_entity_givens: Vec<entity::PendingChapterEntityGiven> = Vec::new();
+    let mut pending_bluebook_entity_givens: Vec<entity::PendingBluebookEntityGiven> = Vec::new();
     let mut pending_entity_command_givens: Vec<entity::PendingEntityCommandGiven> = Vec::new();
     // Entities, commands and queries are queued, then built after the loop once
     // `value_objects`, `entities`, `preconditions` and `attributes` are final.
@@ -151,23 +151,23 @@ pub fn parse_body(
         // Bare `given(desc)` is peeked before `next_line`: the grammar row for `given` requires
         // a block, so a bare reference must be consumed here.
         if let Some(outcome) =
-            try_reference_named_chapter_given(file, lines, pos, chapter_named_givens)?
+            try_reference_named_bluebook_given(file, lines, pos, bluebook_named_givens)?
         {
             match outcome {
-                ChapterGivenLookup::Resolved(given) => aggregate.preconditions.push(given),
-                ChapterGivenLookup::Pending {
+                BluebookGivenLookup::Resolved(given) => aggregate.preconditions.push(given),
+                BluebookGivenLookup::Pending {
                     description,
                     declared_by,
                     file,
                     line,
                 } => {
                     let precondition_index = aggregate.preconditions.len();
-                    // Placeholder; `parse_chapter` overwrites this slot after every file loads.
+                    // Placeholder; `parse_bluebook` overwrites this slot after every file loads.
                     aggregate.preconditions.push(ir::Given {
                         description: Some(description.clone()),
                         canonical: String::new(),
                     });
-                    pending_chapter_givens.push(PendingChapterGiven {
+                    pending_bluebook_givens.push(PendingBluebookGiven {
                         precondition_index,
                         description,
                         declared_by,
@@ -360,10 +360,10 @@ pub fn parse_body(
                 };
                 aggregate.preconditions.push(built.clone());
                 // First declaration wins per (owner, description); other owners add own.
-                if !chapter_named_givens.iter().any(|(owner, g)| {
+                if !bluebook_named_givens.iter().any(|(owner, g)| {
                     owner == name && g.description.as_deref() == Some(description.as_str())
                 }) {
-                    chapter_named_givens.push((name.to_string(), built));
+                    bluebook_named_givens.push((name.to_string(), built));
                 }
             }
             // `from:` is a dotted path split on the last `.`. Resolving the remote field needs the
@@ -527,12 +527,12 @@ pub fn parse_body(
                     &mut identity_value_object_insert_at,
                     &mut entity_named_givens,
                     name,
-                    chapter_entity_named_givens,
+                    bluebook_entity_named_givens,
                 )
             })?;
         entities.push(built);
         // Prepend this entity's index; `entity_path` is built bottom-up.
-        pending_chapter_entity_givens.extend(child_pending_given.into_iter().map(|mut entry| {
+        pending_bluebook_entity_givens.extend(child_pending_given.into_iter().map(|mut entry| {
             entry.entity_path.insert(0, entity_index);
             entry
         }));
@@ -634,9 +634,9 @@ pub fn parse_body(
     Ok((
         aggregate,
         policies,
-        pending_chapter_givens,
+        pending_bluebook_givens,
         pending_command_givens,
-        pending_chapter_entity_givens,
+        pending_bluebook_entity_givens,
         pending_entity_command_givens,
     ))
 }

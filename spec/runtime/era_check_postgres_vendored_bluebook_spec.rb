@@ -91,9 +91,9 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
 
   def owner_url = FencedOwner.url(VENDORED_BLUEBOOK_DB)
 
-  def world_for(chapter)
+  def world_for(declaration)
     <<~WORLD
-      Hecks.world "#{chapter}" do
+      Hecks.world "#{declaration}" do
         persisted_by("PostgresEra") do
           database "#{owner_url}"
         end
@@ -101,7 +101,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     WORLD
   end
 
-  def world_text = %w[Target Notes Governance].map { |chapter| world_for(chapter) }.join("\n")
+  def world_text = %w[Target Notes Governance].map { |declaration| world_for(declaration) }.join("\n")
 
   def write(path, content)
     FileUtils.mkdir_p(File.dirname(path))

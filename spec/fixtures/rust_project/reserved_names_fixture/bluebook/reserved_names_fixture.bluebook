@@ -1,5 +1,5 @@
 # Smallest domain whose aggregates are named for files the Rust generator writes itself:
-# `Metadata`, `Registry` and `Merged` each become a module beside the chapter's own
+# `Metadata`, `Registry` and `Merged` each become a module beside the bluebook's own
 # `metadata`, `registry` and `merged` modules. Round-tripped by spec/rust_generated/reserved_names_spec.rb.
 Hecks.bluebook "ReservedNamesFixture" do
   vision "The smallest domain whose aggregate names collide with the modules the Rust generator owns."

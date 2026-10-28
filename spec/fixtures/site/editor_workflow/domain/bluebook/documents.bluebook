@@ -1,6 +1,6 @@
 # The text of a post or a page, as its own bounded context: a document keyed `<kind>:<slug>` that holds
 # a body and a draft of it, with the commands that save, publish and discard the draft. It knows
-# nothing of the chapter that holds the post; the key is the only link.
+# nothing of the bluebook that holds the post; the key is the only link.
 Hecks.bluebook "Documents" do
   vision "The text a small newsroom writes."
   core

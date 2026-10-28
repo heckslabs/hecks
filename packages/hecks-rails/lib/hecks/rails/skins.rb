@@ -18,7 +18,7 @@ module Hecks
         #
         # @return [void]
         def discard_facades!
-          each_aggregate do |_chapter, aggregate|
+          each_aggregate do |_bluebook, aggregate|
             name = aggregate.hecks_name
             facade = Hecks::Namespace::GENERATED[[Object, name]]
             Object.send(:remove_const, name) if facade && installed?(name, facade)
@@ -31,7 +31,7 @@ module Hecks
         def generate!
           discard_generated!
           define_base
-          each_aggregate { |chapter, aggregate| define(chapter, aggregate.hecks_name) }
+          each_aggregate { |declaration, aggregate| define(declaration, aggregate.hecks_name) }
           generated.keys
         end
 
@@ -47,16 +47,16 @@ module Hecks
           generated["ApplicationRecord"] = nil
         end
 
-        def define(chapter, name)
-          return warn_duplicate(chapter, name) if generated.key?(name) && generated[name] != chapter.name
+        def define(declaration, name)
+          return warn_duplicate(declaration, name) if generated.key?(name) && generated[name] != declaration.name
           return if Object.const_defined?(name, false)
 
-          Object.const_set(name, Class.new(ApplicationRecord) { aggregate "#{chapter.name}.#{name}" })
-          generated[name] = chapter.name
+          Object.const_set(name, Class.new(ApplicationRecord) { aggregate "#{declaration.name}.#{name}" })
+          generated[name] = declaration.name
         end
 
-        def warn_duplicate(chapter, name)
-          warn "[hecks-rails] #{name} is declared by #{generated[name]} and #{chapter.name}; " \
+        def warn_duplicate(declaration, name)
+          warn "[hecks-rails] #{name} is declared by #{generated[name]} and #{declaration.name}; " \
                "the skin binds #{generated[name]}. Write app/models/#{name.downcase}.rb to choose."
         end
 
@@ -68,8 +68,8 @@ module Hecks
         end
 
         def each_aggregate
-          Booted.app_chapters.each do |chapter|
-            chapter.aggregates.each { |aggregate| yield chapter, aggregate }
+          Booted.app_bluebooks.each do |declaration|
+            declaration.aggregates.each { |aggregate| yield declaration, aggregate }
           end
         end
       end

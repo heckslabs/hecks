@@ -7,7 +7,7 @@ RSpec.describe "SyntaxBoot's memo" do
   MetaValidatorUnderTest = Hecks::Bluebook::MetaValidator
 
   # A throwaway bluebook, added only to prove the syntax table's own memo notices a new bluebook.
-  SYNTAX_BOOT_PROBE_CHAPTER = proc do
+  SYNTAX_BOOT_PROBE_BLUEBOOK = proc do
     vision "a throwaway bluebook, added only to prove the syntax table's own memo notices a new bluebook"
     supporting
 
@@ -43,9 +43,9 @@ RSpec.describe "SyntaxBoot's memo" do
 
   # One global registry mutated twice (a bluebook joins, then leaves) to prove both edges re-boot.
   # The bluebook is gone again when the block returns.
-  def with_probe_chapter(registry)
+  def with_probe_bluebook(registry)
     before = registry.bluebooks.keys
-    Hecks.with_registry(registry) { Hecks.bluebook("SyntaxBootMemoProbe", &SYNTAX_BOOT_PROBE_CHAPTER) }
+    Hecks.with_registry(registry) { Hecks.bluebook("SyntaxBootMemoProbe", &SYNTAX_BOOT_PROBE_BLUEBOOK) }
     expect(registry.bluebooks.keys - before).to eq(["SyntaxBootMemoProbe"])
     yield
   ensure
@@ -60,7 +60,7 @@ RSpec.describe "SyntaxBoot's memo" do
   it "boots again the moment a bluebook joins the registry, and again once it leaves" do
     registry = warmed_grammar_registry
     allow(SyntaxBootUnderTest).to receive(:boot).and_call_original
-    with_probe_chapter(registry) { SyntaxBootUnderTest.call }
+    with_probe_bluebook(registry) { SyntaxBootUnderTest.call }
     SyntaxBootUnderTest.call
 
     expect(SyntaxBootUnderTest).to have_received(:boot).twice
@@ -88,16 +88,16 @@ RSpec.describe "SyntaxBoot's memo" do
     MetaValidatorUnderTest.instance_variable_set(:@grammar_ready_for, original_ready_for)
   end
 
-  def distinct_chapter_sets(registry)
-    attached = registry.bluebooks.values.count { |chapter| chapter.attaches_to.any? }
-    1 + MetaValidatorUnderTest::LANGUAGE_CHAPTERS.size + attached
+  def distinct_bluebook_sets(registry)
+    attached = registry.bluebooks.values.count { |declaration| declaration.attaches_to.any? }
+    1 + MetaValidatorUnderTest::LANGUAGE_BLUEBOOKS.size + attached
   end
 
   # Regression pin: a cold registry build asks for the syntax table once per distinct bluebook set
   # (raw load, one swap per language bluebook, Paging attaching); one boot each suffices.
   it "boots at most once per distinct bluebook set while the grammar registry builds itself from cold", :aggregate_failures do
     counter = boot_counter
-    distinct = with_cold_grammar_registry { |registry| distinct_chapter_sets(registry) }
+    distinct = with_cold_grammar_registry { |registry| distinct_bluebook_sets(registry) }
 
     expect(counter[:boots]).to be <= distinct
     expect(counter[:boots]).to be < 42

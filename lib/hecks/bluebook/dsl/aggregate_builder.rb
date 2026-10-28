@@ -20,26 +20,27 @@ module Hecks
         include OneOfReference
 
         # @param name [String] the aggregate's name, as written after `aggregate`
-        # @param chapter_named_givens [Hash{String => Hash{String => Bluebook::Given}}] the
-        #   chapter-wide given pool, shared and written through by `given_impl`
-        # @param chapter_pending_givens [Array<Hash>] unresolved chapter-wide bare given
+        # @param bluebook_named_givens [Hash{String => Hash{String => Bluebook::Given}}] the
+        #   bluebook-wide given pool, shared and written through by `given_impl`
+        # @param bluebook_pending_givens [Array<Hash>] unresolved bluebook-wide bare given
         #   references, appended to when this aggregate's own reference cannot resolve yet
-        # @param chapter_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
-        #   the chapter-wide, entity-scoped given pool, threaded unchanged to every entity
-        # @param chapter_entity_pending_givens [Array<Hash>] unresolved chapter-wide,
+        # @param bluebook_entity_named_givens [Hash{String => Hash{String => Bluebook::Given}}]
+        #   the bluebook-wide, entity-scoped given pool, threaded unchanged to every entity
+        # @param bluebook_entity_pending_givens [Array<Hash>] unresolved bluebook-wide,
         #   entity-scoped bare given references, threaded unchanged to every entity
-        def initialize(name, chapter_named_givens: {}, chapter_pending_givens: [],
-                       chapter_entity_named_givens: {}, chapter_entity_pending_givens: [])
+        def initialize(name, bluebook_named_givens: {}, bluebook_pending_givens: [],
+                       bluebook_entity_named_givens: {}, bluebook_entity_pending_givens: [])
           @name = name
           start_declarations
-          # Threaded in from `BluebookBuilder#aggregate`; shared chapter-wide across aggregates.
-          @chapter_named_givens = chapter_named_givens
-          # Threaded chapter-wide; a bluebook may span multiple files (see `#pending_chapter_given`)
-          @chapter_pending_givens = chapter_pending_givens
-          # One level wider than `@chapter_named_givens`: the bluebook's entity-scoped pool,
+          # Threaded in from `BluebookBuilder#aggregate`; shared bluebook-wide across aggregates.
+          @bluebook_named_givens = bluebook_named_givens
+          # Threaded bluebook-wide; a bluebook may span multiple files (see
+          # `#pending_bluebook_given`)
+          @bluebook_pending_givens = bluebook_pending_givens
+          # One level wider than `@bluebook_named_givens`: the bluebook's entity-scoped pool,
           # passed through unchanged to every entity this aggregate builds.
-          @chapter_entity_named_givens   = chapter_entity_named_givens
-          @chapter_entity_pending_givens = chapter_entity_pending_givens
+          @bluebook_entity_named_givens   = bluebook_entity_named_givens
+          @bluebook_entity_pending_givens = bluebook_entity_pending_givens
         end
 
         # Sets the human-readable description shown for this aggregate.
@@ -121,16 +122,16 @@ module Hecks
         end
 
         # Evaluates an `aggregate` block against a fresh builder and returns the built aggregate.
-        # The `chapter_*` params thread the chapter-wide and entity-scoped given pools through.
+        # The `bluebook_*` params thread the bluebook-wide and entity-scoped given pools through.
         #
         # @yield the aggregate body, evaluated with the builder as `self`; may be omitted
         # @return [Bluebook::Aggregate] the built aggregate
         # @raise [Bluebook::DSL::Malformed] if the body fails any check `#build` raises
-        def self.build(name, chapter_named_givens: {}, chapter_pending_givens: [],
-                       chapter_entity_named_givens: {}, chapter_entity_pending_givens: [], &block)
-          builder = new(name, chapter_named_givens: chapter_named_givens, chapter_pending_givens: chapter_pending_givens,
-                              chapter_entity_named_givens: chapter_entity_named_givens,
-                              chapter_entity_pending_givens: chapter_entity_pending_givens)
+        def self.build(name, bluebook_named_givens: {}, bluebook_pending_givens: [],
+                       bluebook_entity_named_givens: {}, bluebook_entity_pending_givens: [], &block)
+          builder = new(name, bluebook_named_givens: bluebook_named_givens, bluebook_pending_givens: bluebook_pending_givens,
+                              bluebook_entity_named_givens: bluebook_entity_named_givens,
+                              bluebook_entity_pending_givens: bluebook_entity_pending_givens)
           builder.instance_eval(&block) if block
           builder.build
         end

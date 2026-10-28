@@ -63,13 +63,13 @@ module Hecks
         loading = Hecks::Ports::Loading.bootstrap
         directory = loading.bluebook_directory(domain_path)
         registry = Hecks::Runtime::Registry.new(root: File.dirname(directory))
-        load_chapters(loading, registry, directory)
+        load_declarations(loading, registry, directory)
         bluebook = registry.first_bluebook or abort "no bluebook in #{directory}"
         [registry, bluebook]
       end
 
       # Loads the library, the project and the domain into `registry`.
-      def load_chapters(loading, registry, directory)
+      def load_declarations(loading, registry, directory)
         Hecks.with_registry(registry) do
           loading.load_library
           loading.load_project(loading.shared_root(nil, directory))

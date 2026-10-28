@@ -10,7 +10,7 @@ module Hecks
 
       # Projects `bluebook` as prose; `options[:heading]` sets the top heading level.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook to narrate
+      # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook to narrate
       # @param options [Hash] `:heading` (Integer, default 1) and `:aggregate` (narrows to one
       #   aggregate, omitting the bluebook intro and reactions)
       # @return [String] Markdown prose ending in a newline
@@ -20,7 +20,7 @@ module Hecks
         only  = options[:aggregate]
 
         sections = []
-        sections << chapter_intro(bluebook, depth) unless only
+        sections << bluebook_intro(bluebook, depth) unless only
         sections.concat(aggregate_narratives(bluebook, only, only ? depth : depth + 1))
         sections << Reactions.narrative(bluebook, depth + 1) unless only
         "#{sections.compact.join("\n\n").rstrip}\n"
@@ -31,16 +31,16 @@ module Hecks
         Array(DocsProjector.aggregates(bluebook, only)).map { |aggregate| aggregate_narrative(aggregate, depth) }
       end
 
-      def chapter_intro(bluebook, depth)
+      def bluebook_intro(bluebook, depth)
         names = bluebook.aggregates.map(&:hecks_name)
-        parts = [DocsProjector.h(depth, bluebook.name), bluebook.vision, chapter_meta(bluebook)]
+        parts = [DocsProjector.h(depth, bluebook.name), bluebook.vision, bluebook_meta(bluebook)]
         parts << "It's told through #{to_sentence_list(names)}." unless names.empty?
         parts.compact.join("\n\n")
       end
 
       # The bluebook's classification and former name as one paragraph, or `nil` when it has
       # neither.
-      def chapter_meta(bluebook)
+      def bluebook_meta(bluebook)
         meta = []
         meta << "This is a #{bluebook.classification} domain." if bluebook.classification
         meta << "It was formerly known as `#{bluebook.formerly_known_as}`." if bluebook.formerly_known_as

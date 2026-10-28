@@ -19,7 +19,7 @@ module Hecks
 
         # @return [Array<Hecks::Bluebook::Declaration>] the booted bluebooks the app declared, without
         #   the ones a hecksagon attached, such as Governance
-        def app_chapters = registry.bluebooks.values.reject { |chapter| registry.bounded?(chapter.name) }
+        def app_bluebooks = registry.bluebooks.values.reject { |declaration| registry.bounded?(declaration.name) }
 
         # @return [Boolean] whether a domain has been booted
         def booted? = !@dispatcher.nil?
@@ -32,19 +32,21 @@ module Hecks
         # @param name [String, Symbol] the bluebook's name in any case
         # @return [Hecks::Bluebook::Declaration] the bluebook
         # @raise [KeyError] if no booted bluebook has that name
-        def chapter(name)
-          registry.bluebooks.each { |chapter_name, chapter| return chapter if chapter_name.to_s.casecmp?(name.to_s) }
-          raise KeyError, "no booted chapter named #{name}"
+        def declaration(name)
+          registry.bluebooks.each do |declaration_name, declaration|
+            return declaration if declaration_name.to_s.casecmp?(name.to_s)
+          end
+          raise KeyError, "no booted bluebook named #{name}"
         end
 
         # The aggregate's module in the booted domain. A bluebook with a `namespace` keeps its
         # aggregates out of the top level, leaving a Rails model free to take their names.
         #
-        # @param chapter_name [String] a booted bluebook's name
+        # @param declaration_name [String] a booted bluebook's name
         # @param aggregate_name [String] one of its aggregates
         # @return [Module] the module the Ruby driving adapter installed for the aggregate
-        def door(chapter_name, aggregate_name)
-          booted = chapter(chapter_name)
+        def door(declaration_name, aggregate_name)
+          booted = declaration(declaration_name)
           Object.const_get("#{booted.namespace || booted.name}::#{aggregate_name}")
         end
 

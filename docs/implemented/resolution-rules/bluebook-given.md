@@ -1,4 +1,4 @@
-# Chapter-wide `given` sharing
+# Bluebook-wide `given` sharing
 
 ## Motivation
 
@@ -32,20 +32,20 @@ given("customer is active") { account.customer.status == "active" }
 The SAME description as the first group — "customer is active" — but a
 GENUINELY DIFFERENT canonical (reached through `account`, an `Account`
 reference, rather than a direct `Customer` reference). Naively sharing this
-group under the same chapter-pool slot as the first would have silently
+group under the same bluebook-pool slot as the first would have silently
 resolved to the wrong predicate; the `declared_by:` disambiguator (below)
 is what let this second group hoist safely without either group's wording
 having to change.
 
 ## Algorithm
 
-1. A Bluebook (`BluebookBuilder`) holds one mutable "chapter-named-givens"
-   pool (`@chapter_named_givens`), created once, empty, at the bluebook's own
+1. A Bluebook (`BluebookBuilder`) holds one mutable "bluebook-named-givens"
+   pool (`@bluebook_named_givens`), created once, empty, at the bluebook's own
    build start. Keyed by DESCRIPTION, then by DECLARING AGGREGATE'S OWN
    NAME — `pool[description][owner_name] = given` — not by description
    alone; see step 3 for why.
 2. That SAME pool object is threaded into every aggregate the bluebook
-   builds (`AggregateBuilder.build(..., chapter_named_givens: pool)`) — NOT
+   builds (`AggregateBuilder.build(..., bluebook_named_givens: pool)`) — NOT
    further, into that aggregate's own entities; an entity-level `given`
    (`parent.`-relative) is a structurally different predicate shape and has
    its own, separate cross-entity pool (`cross-entity-given.md`).
@@ -116,20 +116,20 @@ having to change.
   sharing (two DIFFERENT aggregates' own nested pieces independently
   declaring the identical `parent.`-relative predicate — real, live,
   still open: `Account.LedgerEntry` and `SafeDepositBox.Visit`'s own
-  "customer is active").~~ **Resolved** — closed by chapter-wide,
+  "customer is active").~~ **Resolved** — closed by bluebook-wide,
   entity-scoped given sharing (#433), its own separate widening one
   level down from this one. See
-  [`chapter-entity-given.md`](chapter-entity-given.md).
+  [`bluebook-entity-given.md`](bluebook-entity-given.md).
 
 ## Reference implementation
 
-- `lib/hecks/bluebook/dsl/bluebook_builder.rb` — `@chapter_named_givens`
+- `lib/hecks/bluebook/dsl/bluebook_builder.rb` — `@bluebook_named_givens`
   (init), `#aggregate` (threads the pool into every `AggregateBuilder.build`
   call).
 - `lib/hecks/bluebook/dsl/aggregate_builder.rb` — `#initialize`
-  (`chapter_named_givens:`), `#given` (`declared_by:` kwarg, write-through
+  (`bluebook_named_givens:`), `#given` (`declared_by:` kwarg, write-through
   keyed by `[description][owner name]`, bare-reference dispatch),
-  `#reference_named_chapter_given` (the disambiguation logic — exact-owner
+  `#reference_named_bluebook_given` (the disambiguation logic — exact-owner
   lookup, single-candidate resolve, or ambiguity refusal).
 - `lib/hecks/language/bluebook/syntax.bluebook` — new Argument row,
   `given`/`Aggregate` context, `named: "declared_by"`, `kind: "constant"` —
@@ -143,12 +143,12 @@ having to change.
 
 ## Reference mirror
 
-`rust/parser/src/parse/chapter.rs` (`chapter_named_givens: Vec<(String,
+`rust/parser/src/parse/bluebook.rs` (`bluebook_named_givens: Vec<(String,
 ir::Given)>`, owner name paired with each `Given` — one Rust `Vec` of
 pairs standing in for Ruby's nested `pool[description][owner] `Hash`) and
 `rust/parser/src/parse/aggregate.rs` (`parse_body`'s own write-through,
 keyed by `[owner == this aggregate's name, description]` before pushing;
-`try_reference_named_chapter_given`'s own four-branch resolution —
+`try_reference_named_bluebook_given`'s own four-branch resolution —
 `declared_by:` parsed via `super::named_raw(&args, "declared_by")` +
 `naming::demodulise`, mirroring `reference_to`'s own bare-constant
 handling one call-site over). Verified: `cargo test` 69/69,

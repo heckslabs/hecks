@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe "The corpus" do
   # Example domains load by folder; grammar bluebooks and framework members are flat files.
   EXAMPLE_ROOTS = Hecks::Corpus.members(:example).map(&:path).freeze
-  GRAMMAR_CHAPTERS = Hecks::Corpus.members(:grammar).map(&:path).freeze
+  GRAMMAR_BLUEBOOKS = Hecks::Corpus.members(:grammar).map(&:path).freeze
   FRAMEWORK_MEMBERS = Hecks::Corpus.members(:framework).map(&:path).freeze
 
   # [corpus-script stem, bluebook path]
@@ -14,7 +14,7 @@ RSpec.describe "The corpus" do
 
   it "finds every domain the corpus declares", :aggregate_failures do
     expect(EXAMPLE_ROOTS).not_to be_empty
-    expect(GRAMMAR_CHAPTERS).not_to be_empty
+    expect(GRAMMAR_BLUEBOOKS).not_to be_empty
     expect(FRAMEWORK_MEMBERS).not_to be_empty
     expect(CORPUS_MEMBERS.map(&:last)).to all(be_truthy)
   end

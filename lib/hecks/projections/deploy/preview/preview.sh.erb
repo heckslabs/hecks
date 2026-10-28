@@ -281,7 +281,7 @@ cmd_deploy() {
 # preview's own database. The credential is a purpose-bound token minted from the
 # preview's session secret, so only someone with AWS access to the account can
 # sign anyone up. It needs a domain image whose host serves the signup route and
-# a domain that attaches the signups chapter; the warnings below say which is missing.
+# a domain that attaches the signups bluebook; the warnings below say which is missing.
 
 # Who becomes the preview's first admin: the person deploying it. PREVIEW_ADMIN_EMAIL
 # and PREVIEW_ADMIN_NAME override; the default is your git identity.
@@ -342,7 +342,7 @@ signup_admin() {
           echo "    already signed up"
         else
           warn "the domain refused the signup: $(cat "$response")"
-          warn "does this domain attach the signups chapter?"
+          warn "does this domain attach the signups bluebook?"
         fi
         rm -f "$response"; return 0 ;;
       302|404)

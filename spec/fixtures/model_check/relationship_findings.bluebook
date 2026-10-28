@@ -33,7 +33,7 @@ Hecks.bluebook "RelationshipFindings" do
     across  "Governance"
   end
 
-  # Contradictory too: Tenancy is a chapter the gem carries rather than a framework member, and
+  # Contradictory too: Tenancy is a bluebook the gem carries rather than a framework member, and
   # `attaches` covers it the same way.
   policy "OnTenancy" do
     on      "ThingDone"

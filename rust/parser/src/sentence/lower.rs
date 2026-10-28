@@ -136,7 +136,7 @@ impl Parser<'_> {
         let Some(Step::Phrase(header)) = self.step(&mut scope, "File", false)? else {
             return Err(self.error(1, 1, "this file is empty; it starts with `Domain: <name>`"));
         };
-        let mut chapter = ir::Bluebook {
+        let mut declaration = ir::Bluebook {
             name: camel(&header.text_of("name")),
             ..Default::default()
         };
@@ -144,7 +144,7 @@ impl Parser<'_> {
         let mut vision = Scope::inside(header.indent);
         while let Some(step) = self.step(&mut vision, "Vision", true)? {
             match step {
-                Step::Prose { text } => chapter.vision = Some(text),
+                Step::Prose { text } => declaration.vision = Some(text),
                 Step::Phrase(m) if m.id == "classification" => {
                     let kind = m.text_of("kind").to_lowercase();
                     if !matches!(kind.as_str(), "core" | "supporting" | "generic") {
@@ -154,16 +154,16 @@ impl Parser<'_> {
                             format!("'{kind}' is not a kind of domain; it is core, supporting or generic"),
                         ));
                     }
-                    chapter.classification = Some(kind);
+                    declaration.classification = Some(kind);
                 }
                 Step::Phrase(m) if m.id == "namespace" => {
-                    chapter.namespace = Some(m.text_of("name"));
+                    declaration.namespace = Some(m.text_of("name"));
                 }
                 Step::Phrase(m) if m.id == "version" => {
-                    chapter.version = Some(m.text_of("version"));
+                    declaration.version = Some(m.text_of("version"));
                 }
                 Step::Phrase(m) if m.id == "attaches" => {
-                    chapter.attaches_to = m
+                    declaration.attaches_to = m
                         .capture("contexts")
                         .items
                         .iter()
@@ -174,7 +174,7 @@ impl Parser<'_> {
                     let capability = m.text_of("capability");
                     let mut rows = Scope::inside(m.indent);
                     while let Some(Step::Phrase(row)) = self.step(&mut rows, "Provides", false)? {
-                        chapter.provisions_push(&capability, &row);
+                        declaration.provisions_push(&capability, &row);
                     }
                 }
                 Step::Phrase(m) => return Err(self.unmeant(&m)),
@@ -188,22 +188,22 @@ impl Parser<'_> {
             match step {
                 Step::Phrase(m) if m.id == "aggregate" => {
                     let aggregate = self.aggregate(&m)?;
-                    chapter.aggregates.push(aggregate);
+                    declaration.aggregates.push(aggregate);
                 }
                 Step::Phrase(m) if m.id == "policy" => policies.push(self.policy(&m)?),
                 Step::Phrase(m) if m.id == "process" => {
                     let pm = self.process(&m)?;
-                    chapter.process_managers.push(pm);
+                    declaration.process_managers.push(pm);
                 }
                 Step::Phrase(m) if m.id == "report" => {
                     let model = self.report(&m)?;
-                    chapter.read_models.push(model);
+                    declaration.read_models.push(model);
                 }
                 Step::Phrase(m) => return Err(self.unmeant(&m)),
                 Step::Prose { .. } => {}
             }
         }
-        chapter.policies = self.policies_of(&chapter, policies)?;
+        declaration.policies = self.policies_of(&declaration, policies)?;
         if let Some(line) = self.lines.get(self.pos) {
             return Err(self.error(
                 line.number,
@@ -211,7 +211,7 @@ impl Parser<'_> {
                 "a file holds one domain; this line is outside it. Start another file for another domain",
             ));
         }
-        Ok(chapter)
+        Ok(declaration)
     }
 
     /// Reads one `Policy:` block: the event it waits for and what it does then.
@@ -307,7 +307,7 @@ impl Parser<'_> {
     /// Looks up the events and commands the policies name, now that every aggregate is read.
     fn policies_of(
         &self,
-        chapter: &ir::Bluebook,
+        declaration: &ir::Bluebook,
         specs: Vec<PolicySpec>,
     ) -> ParseResult<Vec<ir::Policy>> {
         let mut policies = Vec::new();
@@ -332,7 +332,13 @@ impl Parser<'_> {
             } else {
                 format!(
                     "{}.{event}",
-                    self.event_source(chapter, &event, owner.as_deref(), event_line, event_col)?
+                    self.event_source(
+                        declaration,
+                        &event,
+                        owner.as_deref(),
+                        event_line,
+                        event_col
+                    )?
                 )
             };
             let mut policy = ir::Policy {
@@ -350,7 +356,7 @@ impl Parser<'_> {
             match reaction {
                 Reaction::Ask(need) => policy.ask = Some(need),
                 Reaction::Tell(command) => {
-                    let local = chapter.aggregates.iter().any(|a| {
+                    let local = declaration.aggregates.iter().any(|a| {
                         command.split_once('.').is_some_and(|(owner, name)| {
                             a.name == owner && a.commands.iter().any(|c| c.name == name)
                         })
@@ -366,14 +372,14 @@ impl Parser<'_> {
                     policy.target_domain.clone_from(&spec.across);
                 }
                 Reaction::Run(command) => {
-                    let found: Vec<(&ir::Aggregate, &ir::Command)> = chapter
+                    let found: Vec<(&ir::Aggregate, &ir::Command)> = declaration
                         .aggregates
                         .iter()
                         .flat_map(|a| a.commands.iter().map(move |c| (a, c)))
                         .filter(|(_, c)| c.name == command)
                         .collect();
                     let [(aggregate, target)] = found.as_slice() else {
-                        let all: Vec<String> = chapter
+                        let all: Vec<String> = declaration
                             .aggregates
                             .iter()
                             .flat_map(|a| a.commands.iter().map(|c| spoken(&c.name)))
@@ -421,21 +427,24 @@ impl Parser<'_> {
     /// one named outright for an event the outside announces.
     fn event_source(
         &self,
-        chapter: &ir::Bluebook,
+        declaration: &ir::Bluebook,
         event: &str,
         owner: Option<&str>,
         line: usize,
         col: usize,
     ) -> ParseResult<String> {
         if let Some(noun) = owner {
-            return chapter
+            return declaration
                 .aggregates
                 .iter()
                 .find(|a| spoken(&a.name) == noun.to_lowercase())
                 .map(|a| a.name.clone())
                 .ok_or_else(|| {
-                    let known: Vec<String> =
-                        chapter.aggregates.iter().map(|a| spoken(&a.name)).collect();
+                    let known: Vec<String> = declaration
+                        .aggregates
+                        .iter()
+                        .map(|a| spoken(&a.name))
+                        .collect();
                     self.error(
                         line,
                         col,
@@ -446,7 +455,7 @@ impl Parser<'_> {
                     )
                 });
         }
-        let sources: Vec<&ir::Aggregate> = chapter
+        let sources: Vec<&ir::Aggregate> = declaration
             .aggregates
             .iter()
             .filter(|a| {
@@ -458,7 +467,7 @@ impl Parser<'_> {
         match sources.as_slice() {
             [one] => Ok(one.name.clone()),
             [] => {
-                let announced: Vec<String> = chapter
+                let announced: Vec<String> = declaration
                     .aggregates
                     .iter()
                     .flat_map(|a| a.commands.iter().flat_map(|c| c.emits.iter().cloned()))
