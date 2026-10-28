@@ -138,7 +138,15 @@ module Hecks
       end
 
       def check(body)
-        json(200, Check.call(dir: workspace, buffers: buffers(body), chapter_name: body["chapter_name"]))
+        json(200, Check.call(dir: workspace, buffers: buffers(body), chapter_name: named_bluebook(body)))
+      end
+
+      # @param body [Hash] a request body
+      # @return [String, nil] the bluebook it names: `bluebook_name`, or the retired `chapter_name`,
+      #   which says on standard error that the new key replaces it (ADR 0134)
+      def named_bluebook(body)
+        warn "hecks: the composer request key chapter_name is deprecated, use bluebook_name" if body.key?("chapter_name")
+        body["bluebook_name"] || body["chapter_name"]
       end
 
       def buffers(body) = body.fetch("buffers", {})

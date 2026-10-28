@@ -19,7 +19,7 @@ module Hecks
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
-      # - **maintainer**, **bluebooks**, **maintainer_chapters** shape the help for its audience.
+      # - **maintainer**, **bluebooks**, **maintainer_bluebooks** shape the help for its audience.
       module LauncherOptions
         SETTING = "launcher".freeze
         WAIT    = "--wait".freeze
@@ -79,8 +79,9 @@ module Hecks
 
         # The help options one audience gets: the aggregates left out of the lists (`maintainer`,
         # shown only in a hecks checkout or to `--maintainer`) and the bluebooks pointed at
-        # (`chapters`, plus `maintainer_chapters` in a checkout). A bluebook that did not opt in
-        # gets neither.
+        # (`bluebooks`, plus `maintainer_bluebooks` in a checkout). A bluebook that did not opt in
+        # gets neither. The retired keys `chapters` and `maintainer_chapters` are still read, each
+        # use saying on standard error that the new key replaces it (ADR 0134).
         #
         # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout
@@ -88,14 +89,24 @@ module Hecks
         def audience(settings, maintainer)
           return {} unless settings
 
-          chapters = Array(settings[:chapters]) + (maintainer ? Array(settings[:maintainer_chapters]) : [])
-          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: chapters.map(&:to_s) }
+          named = names_under(settings, :bluebooks, :chapters)
+          named += names_under(settings, :maintainer_bluebooks, :maintainer_chapters) if maintainer
+          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), chapters: named.map(&:to_s) }
+        end
+
+        # @param settings [Hash] the bluebook's `launcher` setting
+        # @param key [Symbol] the key that names bluebooks
+        # @param retired [Symbol] its retired spelling, still read
+        # @return [Array<String>] the names under both keys
+        def names_under(settings, key, retired)
+          warn "hecks: the launcher setting #{retired} is deprecated, use #{key}" if settings.key?(retired)
+          Array(settings[key]) + Array(settings[retired])
         end
 
         # Runs the block with standard error held back, so the wiring notes hecks prints about its
-        # own
-        # bluebooks (a Memory journal loses sagas on restart) do not open a console session. They are
-        # for an operator running a stored journal. A raised error still surfaces, unchanged.
+        # own bluebooks (a Memory journal loses sagas on restart) do not open a console session.
+        # They are for an operator running a stored journal. A raised error still surfaces,
+        # unchanged.
         #
         # @param hold [Boolean] whether to hold standard error back; false runs the block as it is
         # @yield the boot
