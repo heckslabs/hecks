@@ -179,6 +179,7 @@ impl Writer<'_> {
                 )
                 .await?;
             }
+            self.declare_collection_parts(&agg, entry, existing).await?;
 
             for (field, command) in [
                 ("label", "SetLabel"),
@@ -197,39 +198,7 @@ impl Writer<'_> {
             if let Some(identity) = entry.get("identity").filter(|v| v.is_object()) {
                 self.write_identity(agg, identity).await?;
             }
-
-            // Always dispatched, even for an absent list: an empty `Replace*` is the meaningful
-            // "none configured", and is how a column removed from the config goes away.
-            self.route(
-                "ConsoleSettings::Collection.ReplaceColumns",
-                agg,
-                json!({ "columns": columns_for_dispatch(entry.get("columns")) }),
-            )
-            .await?;
-            self.route(
-                "ConsoleSettings::Collection.ReplaceDetailFields",
-                agg,
-                json!({ "detail_fields": detail_fields_for_dispatch(entry.get("detail_fields")) }),
-            )
-            .await?;
-            self.route(
-                "ConsoleSettings::Collection.ReplaceDetailFieldColumns",
-                agg,
-                json!({ "detail_field_columns": detail_field_columns_for_dispatch(entry.get("detail_fields")) }),
-            )
-            .await?;
-            self.route(
-                "ConsoleSettings::Collection.ReplacePreconditions",
-                agg,
-                json!({ "preconditions": preconditions_for_dispatch(entry.get("preconditions")) }),
-            )
-            .await?;
-            self.route(
-                "ConsoleSettings::Collection.ReplaceFieldFormats",
-                agg,
-                json!({ "field_formats": field_formats_for_dispatch(entry.get("field_formats")) }),
-            )
-            .await?;
+            self.write_collection_lists(agg, entry).await?;
 
             let extra = extra_fields(entry, KNOWN_COLLECTION_KEYS);
             if !extra.is_empty() {
@@ -241,6 +210,69 @@ impl Writer<'_> {
                 .await?;
             }
         }
+        Ok(())
+    }
+
+    /// The `Declare` of each collection part this entry will write to and the console has no row
+    /// for yet: layout and rules are always written (an empty list is a meaningful "none"),
+    /// identity only when the entry carries one.
+    async fn declare_collection_parts(
+        &self,
+        agg: &str,
+        entry: &Value,
+        existing: &KernelRows,
+    ) -> Result<(), SaveRefusal> {
+        let wanted = [
+            ("CollectionLayout", existing.layout_ids(), true),
+            ("CollectionRules", existing.rules_ids(), true),
+            (
+                "CollectionIdentity",
+                existing.identity_ids(),
+                entry.get("identity").is_some_and(Value::is_object),
+            ),
+        ];
+        for (aggregate, known, needed) in wanted {
+            if needed && !known.contains(agg) {
+                let verb = format!("ConsoleSettings::{aggregate}.Declare");
+                self.declare(&verb, json!({"agg": {"value": agg}})).await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn write_collection_lists(&self, agg: &str, entry: &Value) -> Result<(), SaveRefusal> {
+        // Always dispatched, even for an absent list: an empty `Replace*` is the meaningful
+        // "none configured", and is how a column removed from the config goes away.
+        self.route(
+            "ConsoleSettings::CollectionLayout.ReplaceColumns",
+            agg,
+            json!({ "columns": columns_for_dispatch(entry.get("columns")) }),
+        )
+        .await?;
+        self.route(
+            "ConsoleSettings::CollectionLayout.ReplaceDetailFields",
+            agg,
+            json!({ "detail_fields": detail_fields_for_dispatch(entry.get("detail_fields")) }),
+        )
+        .await?;
+        self.route(
+            "ConsoleSettings::CollectionLayout.ReplaceDetailFieldColumns",
+            agg,
+            json!({ "detail_field_columns": detail_field_columns_for_dispatch(entry.get("detail_fields")) }),
+        )
+        .await?;
+        self.route(
+            "ConsoleSettings::CollectionRules.ReplacePreconditions",
+            agg,
+            json!({ "preconditions": preconditions_for_dispatch(entry.get("preconditions")) }),
+        )
+        .await?;
+        self.route(
+            "ConsoleSettings::CollectionRules.ReplaceFieldFormats",
+            agg,
+            json!({ "field_formats": field_formats_for_dispatch(entry.get("field_formats")) }),
+        )
+        .await?;
         Ok(())
     }
 
@@ -268,7 +300,7 @@ impl Writer<'_> {
             );
         }
         self.route(
-            "ConsoleSettings::Collection.SetIdentity",
+            "ConsoleSettings::CollectionIdentity.SetIdentity",
             agg,
             Value::Object(facts),
         )

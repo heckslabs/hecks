@@ -5,7 +5,7 @@ use crate::dispatch;
 use crate::journal::LineageConfig;
 use crate::store::Store;
 use serde_json::{json, Map, Value};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 /// The bluebook the console's config lives in, matching
@@ -16,6 +16,9 @@ pub const CONFIG_DOMAIN: &str = "ConsoleSettings";
 /// `storage_name` Ruby derives its relation names from.
 const STATE_STYLE: &str = "state_style";
 const COLLECTION: &str = "collection";
+const COLLECTION_IDENTITY: &str = "collection_identity";
+const COLLECTION_LAYOUT: &str = "collection_layout";
+const COLLECTION_RULES: &str = "collection_rules";
 const OVERVIEW: &str = "overview";
 
 /// The whole config, as `PresentationConfig.load` returns it. A domain
@@ -36,7 +39,10 @@ pub async fn load(
 /// as the one decision it is, and so tests can drive this half directly.
 pub async fn load_from_relations(store: &Store, config: &LineageConfig) -> anyhow::Result<Value> {
     let states = read_head_states(store, &config.domain, STATE_STYLE).await?;
-    let collections = read_head_states(store, &config.domain, COLLECTION).await?;
+    let mut collections = Vec::new();
+    for storage_name in [COLLECTION, COLLECTION_IDENTITY, COLLECTION_LAYOUT, COLLECTION_RULES] {
+        collections.extend(read_head_states(store, &config.domain, storage_name).await?);
+    }
     let overview = read_head_states(store, &config.domain, OVERVIEW).await?;
     Ok(reshape(&states, &collections, &overview))
 }
@@ -98,6 +104,18 @@ fn bucket(instances: Option<&Value>) -> KernelRows {
                 rows.collection_ids.insert(id.to_string());
                 rows.collections.push(state.clone());
             }
+            _ if qualified == format!("{CONFIG_DOMAIN}::CollectionIdentity") => {
+                rows.identity_ids.insert(id.to_string());
+                rows.collections.push(state.clone());
+            }
+            _ if qualified == format!("{CONFIG_DOMAIN}::CollectionLayout") => {
+                rows.layout_ids.insert(id.to_string());
+                rows.collections.push(state.clone());
+            }
+            _ if qualified == format!("{CONFIG_DOMAIN}::CollectionRules") => {
+                rows.rules_ids.insert(id.to_string());
+                rows.collections.push(state.clone());
+            }
             _ if qualified == format!("{CONFIG_DOMAIN}::Overview") => {
                 rows.overview.push(state.clone());
             }
@@ -117,6 +135,9 @@ pub struct KernelRows {
     pub overview: Vec<Value>,
     state_ids: BTreeSet<String>,
     collection_ids: BTreeSet<String>,
+    identity_ids: BTreeSet<String>,
+    layout_ids: BTreeSet<String>,
+    rules_ids: BTreeSet<String>,
 }
 
 impl KernelRows {
@@ -132,6 +153,18 @@ impl KernelRows {
 
     pub fn collection_ids(&self) -> BTreeSet<&str> {
         self.collection_ids.iter().map(String::as_str).collect()
+    }
+
+    pub fn identity_ids(&self) -> BTreeSet<&str> {
+        self.identity_ids.iter().map(String::as_str).collect()
+    }
+
+    pub fn layout_ids(&self) -> BTreeSet<&str> {
+        self.layout_ids.iter().map(String::as_str).collect()
+    }
+
+    pub fn rules_ids(&self) -> BTreeSet<&str> {
+        self.rules_ids.iter().map(String::as_str).collect()
     }
 }
 
@@ -223,10 +256,19 @@ pub fn reshape_states(rows: &[Value]) -> Value {
     Value::Object(memo)
 }
 
+/// One collection is four aggregates' rows (`Collection`, `CollectionIdentity`, `CollectionLayout`,
+/// `CollectionRules`) keyed by the same `agg`; their fields are disjoint, so a merge by `agg`
+/// gives the one row `reshape_collection_row` reads.
 pub fn reshape_collections(rows: &[Value]) -> Value {
-    let mut memo = Map::new();
+    let mut merged: BTreeMap<String, Map<String, Value>> = BTreeMap::new();
     for row in rows {
-        memo.insert(unwrap_str(row.get("agg")), reshape_collection_row(row));
+        let Some(fields) = row.as_object() else { continue };
+        let entry = merged.entry(unwrap_str(row.get("agg"))).or_default();
+        entry.extend(fields.iter().map(|(k, v)| (k.clone(), v.clone())));
+    }
+    let mut memo = Map::new();
+    for (agg, fields) in merged {
+        memo.insert(agg, reshape_collection_row(&Value::Object(fields)));
     }
     Value::Object(memo)
 }
