@@ -7,7 +7,7 @@ Hecks.bluebook "ConsoleSettings" do
   # plus a `Hecks.hecksagon "ConsoleSettings" do ... end` persistence binding.
 
   # Named ConsoleSettings, not "Forms" — Hecks::Forms (lib/hecks/forms/) names a
-  # different thing, a raw form/query renderer straight off any IR. This chapter
+  # different thing, a raw form/query renderer straight off any IR. This bluebook
   # is a curated, hand-authored dashboard's own settings.
 
   # Scopes everything presentation.yml carries except a collection's own

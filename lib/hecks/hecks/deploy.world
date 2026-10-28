@@ -1,6 +1,6 @@
-# The Deploy chapter's launcher when the Hecks domain attaches it: `hecks deploy <verb>` reads the
-# world named for the chapter, as `hecks.world` does for the Hecks chapter's own verbs. Its store
-# is not set here: the chapter takes the one the Hecks domain gives the chapters it attaches.
+# The Deploy bluebook's launcher when the Hecks domain attaches it: `hecks deploy <verb>` reads the
+# world named for the bluebook, as `hecks.world` does for the Hecks bluebook's own verbs. Its store
+# is not set here: the bluebook takes the one the Hecks domain gives the bluebooks it attaches.
 #
 # `run_keys` mints the `run` key of a recipe, a lint, a comparison or a manifest projection, and
 # `--wait` reports a faulted, flagged, drifted or refused run as exit 1.

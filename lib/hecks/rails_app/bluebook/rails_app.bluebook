@@ -2,13 +2,13 @@
 #
 # Every page is derived from the domain: a list and a form for each creating command, a record
 # page that offers the commands the signed-in person may run. A project declares only what the
-# domain cannot say, as `member` rows of a `value_object "App"` or `"Listing"` in its own chapter;
+# domain cannot say, as `member` rows of a `value_object "App"` or `"Listing"` in its own bluebook;
 # the aggregates below name every field a row may carry. A project with no rows has pages that
 # work, titled after its Rails application, with a list for each aggregate in the order declared.
 #
 # `hecks-rails` reads the rows when the app boots. Nothing here names a database, a template or a
 # route: the pages are the same code for every domain, and these rows are the only place a project
-# changes them. No command declares a role: the chapter boots standing alone.
+# changes them. No command declares a role: the bluebook boots standing alone.
 Hecks.bluebook "RailsApp" do
   vision "Name a Rails app and shape its lists; every page else is derived from the domain."
 

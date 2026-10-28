@@ -1288,7 +1288,7 @@ section.searching > p { display: none; }
 </section>
 <section id="sweep">
 <h2>Sweep</h2>
-<p class="about">One agent&#39;s pass over one chapter — every check it made, what each expected, and what actually came back.</p>
+<p class="about">One agent&#39;s pass over one bluebook — every check it made, what each expected, and what actually came back.</p>
 <p>Starts out sweeping. Can be sweeping, concluded, or abandoned.</p>
 <figure>
 <figcaption>How it fits</figcaption>
@@ -1340,14 +1340,14 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="held">
 <h4>Held</h4>
-<p>Record that the system did what the chapter promised. Done by the qa engineer.</p>
+<p>Record that the system did what the bluebook promised. Done by the qa engineer.</p>
 <p>Needs a sequence (<a href="#check-sequence">Check sequence</a>) and an observation (<a href="#observation">Observation</a>).</p>
 <p>Sets the observation and moves the check from made to held.</p>
 <p>Records <a href="#check-held">Check held</a>.</p>
 </article>
 <article class="term" id="open-4">
 <h4>Open</h4>
-<p>Begin a pass over one chapter. Done by the qa engineer.</p>
+<p>Begin a pass over one bluebook. Done by the qa engineer.</p>
 <p>Needs a target (<a href="#target">Target</a>), a reference (<a href="#sweep-reference">Sweep reference</a>), and an engineer (<a href="#engineer-1">Engineer</a>).</p>
 <p>Records <a href="#sweep-opened">Sweep opened</a>.</p>
 </article>
@@ -1605,7 +1605,7 @@ section.searching > p { display: none; }
 </section>
 <section id="target">
 <h2>Target</h2>
-<p class="about">A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice.</p>
+<p class="about">A bluebook that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice.</p>
 <p>Starts out waiting. Can be waiting, held, suspended, or shelved.</p>
 <figure>
 <figcaption>How it fits</figcaption>
@@ -1635,7 +1635,7 @@ section.searching > p { display: none; }
 <div class="terms">
 <article class="term" id="claim-1">
 <h4>Claim</h4>
-<p>Take the next chapter in the rotation, or one whose holder has gone quiet. Done by the qa engineer.</p>
+<p>Take the next bluebook in the rotation, or one whose holder has gone quiet. Done by the qa engineer.</p>
 <p>Needs a held by (<a href="#engineer-2">Engineer</a>) and a now (<a href="#instant-4">Instant</a>).</p>
 <p class="rule">Allowed only when: a live claim is not taken from the agent holding it.</p>
 <p>Sets the held by and the claimed at and moves the target from waiting or held to held.</p>
@@ -1643,41 +1643,41 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="identify">
 <h4>Identify</h4>
-<p>Write down that a chapter exists which nobody has swept. Done by the qa engineer.</p>
+<p>Write down that a bluebook exists which nobody has swept. Done by the qa engineer.</p>
 <p>Needs a reference (<a href="#target-reference">Target reference</a>) and a path (<a href="#target-path">Target path</a>).</p>
 <p>Records <a href="#target-identified">Target identified</a>.</p>
 </article>
 <article class="term" id="release">
 <h4>Release</h4>
-<p>Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.</p>
+<p>Hand a bluebook back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.</p>
 <p>Needs a now (<a href="#instant-4">Instant</a>), a next streak (<a href="#clean-streak">Clean streak</a>), a capabilities (<a href="#capabilities">Capabilities</a>), and a yield score (<a href="#yield-score">Yield score</a>).</p>
 <p>Sets the last swept, the yield score, the clean streak, and the capabilities and moves the target from held or suspended to waiting.</p>
 <p>Records <a href="#target-released">Target released</a>.</p>
 </article>
 <article class="term" id="relocate">
 <h4>Relocate</h4>
-<p>Correct where a chapter&#39;s own domain actually lives, once its recorded path stops resolving. Done by the qa engineer.</p>
+<p>Correct where a bluebook&#39;s own domain actually lives, once its recorded path stops resolving. Done by the qa engineer.</p>
 <p>Needs a path (<a href="#target-path">Target path</a>).</p>
 <p>Sets the path.</p>
 <p>Records <a href="#target-relocated">Target relocated</a>.</p>
 </article>
 <article class="term" id="restore">
 <h4>Restore</h4>
-<p>Put a shelved chapter back in the rotation, and say what changed. Done by the qa engineer.</p>
+<p>Put a shelved bluebook back in the rotation, and say what changed. Done by the qa engineer.</p>
 <p>Needs a reason (<a href="#target-reason">Target reason</a>).</p>
 <p>Sets the reason and moves the target from shelved to waiting.</p>
 <p>Records <a href="#target-restored">Target restored</a>.</p>
 </article>
 <article class="term" id="shelve">
 <h4>Shelve</h4>
-<p>Decide a chapter is not worth the practice&#39;s time, and say why. Done by the qa engineer.</p>
+<p>Decide a bluebook is not worth the practice&#39;s time, and say why. Done by the qa engineer.</p>
 <p>Needs a reason (<a href="#target-reason">Target reason</a>).</p>
 <p>Sets the reason and moves the target from waiting or held to shelved.</p>
 <p>Records <a href="#target-shelved">Target shelved</a>.</p>
 </article>
 <article class="term" id="suspend">
 <h4>Suspend</h4>
-<p>Take a chapter out of the rotation because a check surprised, until a person releases it. Done by the system.</p>
+<p>Take a bluebook out of the rotation because a check surprised, until a person releases it. Done by the system.</p>
 <p>Needs a reason (<a href="#target-reason">Target reason</a>).</p>
 <p>Sets the reason and moves the target from held to suspended.</p>
 <p>Records <a href="#target-suspended">Target suspended</a>.</p>
@@ -1718,7 +1718,7 @@ section.searching > p { display: none; }
 <div class="terms">
 <article class="term" id="all-6">
 <h4>All</h4>
-<p>Every chapter ever written down — the inventory a runner walking the repository checks its findings against.</p>
+<p>Every bluebook ever written down — the inventory a runner walking the repository checks its findings against.</p>
 <p>All targets, sorted by target reference, A to Z.</p>
 </article>
 <article class="term" id="check-generated-domains">
@@ -1733,7 +1733,7 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="eligible-for">
 <h4>Eligible for</h4>
-<p>Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger&#39;s own answer to which chapters a mode can reach; inference at sweep time is still what decides.</p>
+<p>Waiting bluebooks whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger&#39;s own answer to which bluebooks a mode can reach; inference at sweep time is still what decides.</p>
 <p>Targets whose capabilities includes the mode you give and that are waiting, sorted by swept in, lowest first.</p>
 </article>
 <article class="term" id="held-1">
@@ -1758,7 +1758,7 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="rotation">
 <h4>Rotation</h4>
-<p>Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.</p>
+<p>Whose turn it is — waiting bluebooks, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.</p>
 <p>Targets that are waiting, sorted by swept in, lowest first.</p>
 </article>
 <article class="term" id="seed-1">
@@ -1773,12 +1773,12 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="suspended">
 <h4>Suspended</h4>
-<p>Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run &lt;target&gt; --release --notes is how one comes back.</p>
+<p>Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run &lt;target&gt; --release --notes is how one comes back.</p>
 <p>Targets that are suspended, sorted by target reference, A to Z.</p>
 </article>
 <article class="term" id="untouched">
 <h4>Untouched</h4>
-<p>Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere.</p>
+<p>Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept bluebook leaves no rows anywhere.</p>
 <p>Targets that are waiting and whose swept in is 0, sorted by target reference, A to Z.</p>
 </article>
 </div>

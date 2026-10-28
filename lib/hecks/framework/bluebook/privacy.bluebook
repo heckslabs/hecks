@@ -2,7 +2,7 @@ Hecks.bluebook "Privacy" do
   vision "Which fields of a domain's own aggregates are sensitive is a fact about that domain, declared apart from it — the domain itself never spells out that one of its own attributes is PII or PHI."
   supporting
 
-  # What this chapter answers for every attaching domain: the boot that seeds `mark_sensitive`
+  # What this bluebook answers for every attaching domain: the boot that seeds `mark_sensitive`
   # facts, the masking of a read and the cryptoshred read these verbs from here rather than
   # recognising "Privacy" by name.
   provides "privacy",

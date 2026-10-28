@@ -69,7 +69,7 @@ module Hecks
 
         def ambiguous_given_message(entry, candidates)
           "#{entry[:aggregate]}'s given #{entry[:description].inspect} is ambiguous in this " \
-            "chapter — #{candidates.keys.join(", ")} each declare a DIFFERENT predicate " \
+            "bluebook — #{candidates.keys.join(", ")} each declare a DIFFERENT predicate " \
             "under this same description; name which one with declared_by: (e.g. " \
             "given(#{entry[:description].inspect}, declared_by: #{candidates.keys.first}))"
         end

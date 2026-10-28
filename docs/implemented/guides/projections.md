@@ -49,7 +49,7 @@ interpreted at runtime by one small, hand-written kernel
 means extending one interpreter twice, not maintaining a second
 hand-written implementation that silently drifts. The parser is
 generated too (`hecks language_run.project_parser_table`, from the language's own
-`Syntax` chapter), not hand-written a second time either.
+`Syntax` bluebook), not hand-written a second time either.
 
 Ruby is the reference implementation; Rust is checked against it
 continuously, not just at release time: `hecks regeneration_run.regenerate_corpus --check`

@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 `on`, `trigger` and `across` run against `examples/banking` and
 `examples/compliance`, which wire a real cross-domain reaction between
 them. `where` and `for_each` appear nowhere in the corpus, so they get a
-chapter of their own here — a card that is blocked whenever its holder
+bluebook of their own here — a card that is blocked whenever its holder
 draws a severe enough alert:
 
 ```ruby bluebook
@@ -219,7 +219,7 @@ names a field on the triggering event, anything else is a literal the
 policy supplies itself.
 
 Left off, the whole payload forwards — which is a real constraint on the
-target, not a detail. `FreezeAccountsOnSuspension`, in the same chapter,
+target, not a detail. `FreezeAccountsOnSuspension`, in the same bluebook,
 reacts to `CustomerSuspended` and triggers `Account::FreezeAccount`;
 without a projection, `FreezeAccount` would have to be able to TAKE the
 `standing` that event carries, a field a freeze never reads, and Account

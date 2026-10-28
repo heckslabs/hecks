@@ -1,5 +1,5 @@
 Hecks.bluebook "Paging" do
-  vision "The four words a page of results is read through — limit, offset, cursor, nulls — held as their own sub-language rather than as four more rows in the core's own grammar table. ADR 0026's own worked example: the core grammar does not name its extension points, so this chapter names ITSELF onto them, with `attaches_to`."
+  vision "The four words a page of results is read through — limit, offset, cursor, nulls — held as their own sub-language rather than as four more rows in the core's own grammar table. ADR 0026's own worked example: the core grammar does not name its extension points, so this bluebook names ITSELF onto them, with `attaches_to`."
   generic
   attaches_to "Query", "ReadModel"
 

@@ -67,7 +67,7 @@ RSpec.describe Hecks::CLI::ProjectCli do
 
     it "refuses a name, path, executable or legacy command that could end its string", :aggregate_failures do
       expect { source('x"; system("id"); "', "Shelf") }.to raise_error(ArgumentError, /domain path/)
-      expect { source("shelf", "Sh\"elf") }.to raise_error(ArgumentError, /chapter name/)
+      expect { source("shelf", "Sh\"elf") }.to raise_error(ArgumentError, /bluebook name/)
       expect { source("shelf", "Shelf", executable: "../out") }.to raise_error(ArgumentError, /launcher executable/)
       expect { source("shelf", "Shelf", executable: "bin/x", legacy: ["run]; exit"]) }
         .to raise_error(ArgumentError, /legacy command/)

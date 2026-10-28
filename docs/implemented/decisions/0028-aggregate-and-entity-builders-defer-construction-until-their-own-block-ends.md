@@ -48,7 +48,7 @@ command's own `append:` resolution needs a list's element entity already
 built (`.attributes` populated), not just named.
 
 This is the SAME move `BluebookBuilder` already made one level up: build
-every aggregate in the chapter first, then run cross-referential
+every aggregate in the bluebook first, then run cross-referential
 validation (`validate_query_hops!`, `validate_projected_fields!`,
 `validate_no_bidirectional_references!`) once `@aggregates` is fully
 populated. Extended one level down rather than invented fresh.

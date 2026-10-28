@@ -2,7 +2,7 @@ Hecks.bluebook "Governance" do
   vision "Organizational authority is explicit, reviewable, and historically explainable."
   supporting
 
-  # What this chapter answers for every attaching domain: the role check at dispatch, boot's
+  # What this bluebook answers for every attaching domain: the role check at dispatch, boot's
   # refusal of an ungoverned `role`, the authorization adapter and the fuzzer's grant
   # steering read these three verbs from here rather than recognising "Governance" by name.
   provides "authorization",

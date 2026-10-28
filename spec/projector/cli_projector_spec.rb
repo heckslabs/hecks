@@ -334,7 +334,7 @@ RSpec.describe Hecks::Projector::CliProjector do
         chapters = [["deploy", "Ship it."], ["tenancy", "word " * 40]]
         usage = described_class.call(bluebook: banking_bluebook, options: { program: "hecks", chapters: chapters })[:usage]
 
-        expect(usage).to include("chapters (`hecks <chapter>` lists a chapter's own commands and queries):")
+        expect(usage).to include("bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):")
         expect(usage).to match(/^  deploy   Ship it\.$/)
         expect(usage).to match(/^  tenancy  word word.*word…$/)
       end

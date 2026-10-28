@@ -8,7 +8,7 @@ Hecks.bluebook "Hecks" do
     attribute :version,    Version
     attribute :ir_version, Version
     attribute :ships_from, Checkout, optional: true
-    # The findings the version settled, by the key the Tickets chapter gives them.
+    # The findings the version settled, by the key the Tickets bluebook gives them.
     attribute :closes,     list_of(FindingKey), optional: true
 
     identified_by :version
@@ -87,7 +87,7 @@ Hecks.bluebook "Hecks" do
   end
 
   aggregate "SyntaxBootCache" do
-    description "The grammar chapters' on-disk boot cache, keyed by a digest of the chapters it was built from."
+    description "The grammar bluebooks' on-disk boot cache, keyed by a digest of the bluebooks it was built from."
 
     attribute :digest, Digest
 
@@ -106,7 +106,7 @@ Hecks.bluebook "Hecks" do
 
     command "Record" do
       role "Maintainer"
-      goal "Record a boot cache as built from the grammar chapters that hash to this digest"
+      goal "Record a boot cache as built from the grammar bluebooks that hash to this digest"
 
       attribute :digest, Digest
 

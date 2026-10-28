@@ -382,7 +382,7 @@ Banking::Account.open.map { |row| row[:number][:value] }                  # => [
 Declares a reaction owned by this aggregate. See the Policy context page.
 
 `Account` owns one. Where a policy is written is a readability decision
-— it still lands on the chapter alongside the top-level ones:
+— it still lands on the bluebook alongside the top-level ones:
 
 ```ruby
 runtime.registry.bluebook("Banking").policies.map(&:name).first  # => "ReviewOnFreeze"
@@ -622,7 +622,7 @@ account_ir.commands.find { |c| c.hecks_name == "FreezeAccount" }.givens.map(&:ca
 
 `given` also SHARES chapter-wide — a bare `given(description)` with no
 block, written directly inside a DIFFERENT aggregate's own `do...end`,
-resolves against whichever aggregate in the same chapter already
+resolves against whichever aggregate in the same bluebook already
 declared that description, the identical move a command's own bare
 `given` already makes one level down (`docs/resolution-rules/
 chapter-given.md`). `SafeDepositBox` names `Account`'s own "customer is
@@ -635,7 +635,7 @@ banking.aggregate("SafeDepositBox").preconditions.map { |g| [g.description, g.ca
 ```
 
 `declared_by:` is only needed once the SAME description means a
-GENUINELY DIFFERENT predicate somewhere else in the chapter — real,
+GENUINELY DIFFERENT predicate somewhere else in the bluebook — real,
 live: `ATMCard`'s own "customer is active" reads its own
 `account_customer_status`, not bare `customer_status` (it reaches the
 customer THROUGH an account reference, not directly — `account_
@@ -651,7 +651,7 @@ banking.aggregate("CardPayment").preconditions.last.canonical  # => "account_cus
 ```
 
 Omitting `declared_by:` here would refuse — `CardPayment`'s own
-"customer is active" is AMBIGUOUS in this chapter (`Account` and
+"customer is active" is AMBIGUOUS in this bluebook (`Account` and
 `ATMCard` each declare a different predicate under it), and the
 language never silently guesses which one a bare reference meant.
 
@@ -684,7 +684,7 @@ object or a plain attribute:
 Hecks.bluebook("Bad") { aggregate("Widget") { identified_by :id; projects :owner_status, from: :status } }  # ~> Malformed: reference.field
 ```
 
-The TARGET half resolves once every aggregate in the chapter is real
+The TARGET half resolves once every aggregate in the bluebook is real
 — `remote_field` must land on a real scalar there, never a reference,
 a value object, or a list (`BluebookBuilder#validate_projected_fields!`,
 checked alongside `validate_query_hops!`). `Account` and

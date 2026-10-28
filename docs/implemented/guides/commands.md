@@ -317,7 +317,7 @@ second run of. `ScheduledPayment.Retry` declares `given("a retry is
 still allowed") { attempts.value < max_attempts.value }` on a command
 that `reference_to ScheduledPayment` — its own aggregate — and whose
 own `emits "ScheduledPaymentFailed"` is the SAME event a policy in this
-chapter answers by triggering `Retry` again. One failed presentment
+bluebook answers by triggering `Retry` again. One failed presentment
 already re-enters itself, live, up to its own limit, before your code
 ever gets control back:
 
@@ -433,7 +433,7 @@ an argument-sourced field. Hand `append:` a value object with more than
 one member for a slot the target entity declares as a bare scalar and
 it has no single field to flatten to — that refusal is `TypeMismatch: …
 cannot stand in for a scalar`, not shown here because no entity field
-in this chapter is declared that way, but worth knowing before you
+in this bluebook is declared that way, but worth knowing before you
 design one that is.
 
 **`increment:` / `decrement:`** do arithmetic on a numeric field —
@@ -516,7 +516,7 @@ another aggregate, by contrast, arrives as a bare id — the string
 Banking::Account.open!(customer: { reference: customer.id }, number: { value: "AC-4" }, kind: { name: "current" }, daily_limit: { cents: 0 })  # ~> TypeMismatch: a reference is an id, and customer arrived as an object
 ```
 
-`CardPayment.Dispute` is the one command in this chapter carrying BOTH
+`CardPayment.Dispute` is the one command in this bluebook carrying BOTH
 a self reference and a cross-aggregate one at once — `reference_to
 CardPayment` makes it act on the payment in hand, and `reference_to
 Customer, as: :disputed_by` names who is challenging the charge, since
@@ -560,7 +560,7 @@ Banking::Account.find(account.id).balance.to_h  # => { cents: 300, currency: "US
 There is no update that skips the domain. To change many records at
 once, send the command to every row a query answers, and each row goes
 through the command as if you had sent it by hand: its `from:`, its
-`given`s, its role, its events. Attach the `Bulk` chapter (`attaches
+`given`s, its role, its events. Attach the `Bulk` bluebook (`attaches
 "Bulk"`, done in the wiring above) and every acting command gets a bulk
 form on the aggregate module. `over:` takes what a query method
 answered, which remembers the query and its arguments; the answer is
@@ -591,6 +591,6 @@ the outcomes, the records and the events are the same: a row the
 statement skipped is sent by hand, so its refusal reads as it would
 have, and the fuzzer compares the two paths on both stores.
 
-The CLI and MCP request the same run through the chapter's own
+The CLI and MCP request the same run through the bluebook's own
 command: `banking bulk bulk_run.request! run.value=r1
 verb.value=Banking::Account.FreezeAccount over.value=Banking::Account.Open`, then `banking bulk query outcome run.value=r1`.

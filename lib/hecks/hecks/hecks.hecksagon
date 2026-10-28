@@ -1,12 +1,12 @@
 Hecks.hecksagon "Hecks" do
   attaches "Governance"
 
-  # The chapters the gem carries: the language declared in itself (Paging comes with Bluebook),
+  # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring their own ports).
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl]
     .each { |chapter| attaches chapter }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
-  # hecks.local.hecksagon whose `persisted_by` the attached chapters inherit (ADR 0136).
+  # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
   # The outside a journaled Custodian command reaches: each port names what its adapter does,
   # and every ask is answered with the record's own arguments or refused with a reason.
@@ -651,8 +651,8 @@ Hecks.hecksagon "Hecks" do
 end
 
 # The one seam where Deploy's "Tenant" (a validated request) becomes Tenancy's "Tenant" (a fact),
-# as tenancy.hecksagon declares it for the chapters booted on their own: `hecks deploy tenant.provision`
-# registers the tenant it provisioned. It sits here, after `attaches` has loaded both chapters.
+# as tenancy.hecksagon declares it for the bluebooks booted on their own: `hecks deploy tenant.provision`
+# registers the tenant it provisioned. It sits here, after `attaches` has loaded both bluebooks.
 Hecks.hecksagon "Tenancy" do
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned

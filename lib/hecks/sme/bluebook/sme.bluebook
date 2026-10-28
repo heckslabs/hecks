@@ -2,7 +2,7 @@
 #
 # An interview is the record of one conversation with a subject matter expert about a domain: what
 # was asked, what was said, and what a developer then accepted as established. It is development
-# time work, so this chapter ships in the gem but is not attached to the Hecks domain: nothing
+# time work, so this bluebook ships in the gem but is not attached to the Hecks domain: nothing
 # boots it except the command that runs an interview.
 Hecks.bluebook "SME" do
   vision "Learn a business from the people who know it: an interview with a subject matter expert, kept as a record of what was asked, what was said, and what was accepted as established."

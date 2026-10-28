@@ -1,4 +1,4 @@
-# Second chapter of the CaseEscalation stress domain, reached only through its `across` policy.
+# Second bluebook of the CaseEscalation stress domain, reached only through its `across` policy.
 # Loaded into the same registry for in-process fuzzing; Ruby-only, not compiled to Rust.
 Hecks.bluebook "VendorCompliance" do
   vision "One compliance review opened per vendor once one of its invoices is amended, with notes a compliance officer attaches — and a read model gathering a review together with its own notes, over a chapter reached only by another domain's cross-domain policy."
@@ -18,7 +18,7 @@ Hecks.bluebook "VendorCompliance" do
       invariant("a handle is not blank") { !value.to_s.empty? }
     end
 
-    # Redeclared locally: this chapter only sees the plain string from the event payload.
+    # Redeclared locally: this bluebook only sees the plain string from the event payload.
     value_object "InvoiceReference" do
       attribute :value, String, matches: :present
       invariant("an invoice reference is not blank") { !value.to_s.empty? }

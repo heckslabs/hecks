@@ -1218,7 +1218,7 @@ Always true: a patch says where it lives.
 
 ## Sweep
 
-> One agent's pass over one chapter — every check it made, what each expected, and what actually came back.
+> One agent's pass over one bluebook — every check it made, what each expected, and what actually came back.
 
 Starts out sweeping. Can be sweeping, concluded, or abandoned.
 
@@ -1311,7 +1311,7 @@ Records [Sweep concluded](#sweep-concluded).
 
 #### Held
 
-Record that the system did what the chapter promised. Done by the qa engineer.
+Record that the system did what the bluebook promised. Done by the qa engineer.
 
 Needs a sequence ([Check sequence](#check-sequence)) and an observation ([Observation](#observation)).
 
@@ -1321,7 +1321,7 @@ Records [Check held](#check-held).
 
 #### Open
 
-Begin a pass over one chapter. Done by the qa engineer.
+Begin a pass over one bluebook. Done by the qa engineer.
 
 Needs a target ([Target](#target)), a reference ([Sweep reference](#sweep-reference)), and an engineer ([Engineer](#engineer-1)).
 
@@ -1617,7 +1617,7 @@ Text that must be one line.
 
 ## Target
 
-> A chapter that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice.
+> A bluebook that can be pressure-tested, and whose turn it is — the rotation, and the claim that stops two agents doing the same work twice.
 
 Starts out waiting. Can be waiting, held, suspended, or shelved.
 
@@ -1669,7 +1669,7 @@ stateDiagram-v2
 
 #### Claim
 
-Take the next chapter in the rotation, or one whose holder has gone quiet. Done by the qa engineer.
+Take the next bluebook in the rotation, or one whose holder has gone quiet. Done by the qa engineer.
 
 Needs a held by ([Engineer](#engineer-2)) and a now ([Instant](#instant-4)).
 
@@ -1681,7 +1681,7 @@ Records [Target claimed](#target-claimed).
 
 #### Identify
 
-Write down that a chapter exists which nobody has swept. Done by the qa engineer.
+Write down that a bluebook exists which nobody has swept. Done by the qa engineer.
 
 Needs a reference ([Target reference](#target-reference)) and a path ([Target path](#target-path)).
 
@@ -1689,7 +1689,7 @@ Records [Target identified](#target-identified).
 
 #### Release
 
-Hand a chapter back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.
+Hand a bluebook back to the rotation, stamped with when, what this pass was worth, and how the clean streak moves. Done by the qa engineer.
 
 Needs a now ([Instant](#instant-4)), a next streak ([Clean streak](#clean-streak)), a capabilities ([Capabilities](#capabilities)), and a yield score ([Yield score](#yield-score)).
 
@@ -1699,7 +1699,7 @@ Records [Target released](#target-released).
 
 #### Relocate
 
-Correct where a chapter's own domain actually lives, once its recorded path stops resolving. Done by the qa engineer.
+Correct where a bluebook's own domain actually lives, once its recorded path stops resolving. Done by the qa engineer.
 
 Needs a path ([Target path](#target-path)).
 
@@ -1709,7 +1709,7 @@ Records [Target relocated](#target-relocated).
 
 #### Restore
 
-Put a shelved chapter back in the rotation, and say what changed. Done by the qa engineer.
+Put a shelved bluebook back in the rotation, and say what changed. Done by the qa engineer.
 
 Needs a reason ([Target reason](#target-reason)).
 
@@ -1719,7 +1719,7 @@ Records [Target restored](#target-restored).
 
 #### Shelve
 
-Decide a chapter is not worth the practice's time, and say why. Done by the qa engineer.
+Decide a bluebook is not worth the practice's time, and say why. Done by the qa engineer.
 
 Needs a reason ([Target reason](#target-reason)).
 
@@ -1729,7 +1729,7 @@ Records [Target shelved](#target-shelved).
 
 #### Suspend
 
-Take a chapter out of the rotation because a check surprised, until a person releases it. Done by the system.
+Take a bluebook out of the rotation because a check surprised, until a person releases it. Done by the system.
 
 Needs a reason ([Target reason](#target-reason)).
 
@@ -1771,7 +1771,7 @@ Recorded after [Suspend](#suspend).
 
 #### All
 
-Every chapter ever written down — the inventory a runner walking the repository checks its findings against.
+Every bluebook ever written down — the inventory a runner walking the repository checks its findings against.
 
 All targets, sorted by target reference, A to Z.
 
@@ -1789,7 +1789,7 @@ All targets.
 
 #### Eligible for
 
-Waiting chapters whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which chapters a mode can reach; inference at sweep time is still what decides.
+Waiting bluebooks whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which bluebooks a mode can reach; inference at sweep time is still what decides.
 
 Targets whose capabilities includes the mode you give and that are waiting, sorted by swept in, lowest first.
 
@@ -1819,7 +1819,7 @@ All targets.
 
 #### Rotation
 
-Whose turn it is — waiting chapters, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.
+Whose turn it is — waiting bluebooks, least recently swept first. The one reason this aggregate exists. Raw ordering only — see Hecks::Fuzzing::RotationPriority for the yield-weighted pick built on top of these same rows.
 
 Targets that are waiting, sorted by swept in, lowest first.
 
@@ -1837,13 +1837,13 @@ Targets that are shelved, sorted by target reference, A to Z.
 
 #### Suspended
 
-Chapters a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back.
+Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back.
 
 Targets that are suspended, sorted by target reference, A to Z.
 
 #### Untouched
 
-Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept chapter leaves no rows anywhere.
+Never swept at all — zero is the epoch and means nobody has looked. The gap no count of checks can show you, because an unswept bluebook leaves no rows anywhere.
 
 Targets that are waiting and whose swept in is 0, sorted by target reference, A to Z.
 

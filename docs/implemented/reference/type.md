@@ -89,7 +89,7 @@ sibling `value_object` instead when it needs to live inside another
 value object. Full story in aggregates-and-value-objects.md.
 
 `SafeDepositBox` uses the shorthand for its size — no hand-written
-`value_object "Size"` anywhere in the chapter, the type synthesises one:
+`value_object "Size"` anywhere in the bluebook, the type synthesises one:
 
 ```ruby
 box = Banking::SafeDepositBox.rent!(customer: "ty-1", branch_code: "DT",

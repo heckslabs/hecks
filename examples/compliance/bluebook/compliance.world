@@ -2,7 +2,7 @@ Hecks.world "Compliance" do
   realm "Examples"
   # Project-wide defaults: `default_adapter` binds each aggregate
   # compliance.hecksagon leaves out; `default_database` supplies `database`
-  # for every bound adapter that takes one. A chapter's own binds still win.
+  # for every bound adapter that takes one. A bluebook's own binds still win.
   default_adapter "PostgresEra"
   default_database "postgres://localhost/hecks_compliance"
 

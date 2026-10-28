@@ -39,19 +39,19 @@ having to change.
 
 ## Algorithm
 
-1. A CHAPTER (`BluebookBuilder`) holds one mutable "chapter-named-givens"
-   pool (`@chapter_named_givens`), created once, empty, at the chapter's own
+1. A Bluebook (`BluebookBuilder`) holds one mutable "chapter-named-givens"
+   pool (`@chapter_named_givens`), created once, empty, at the bluebook's own
    build start. Keyed by DESCRIPTION, then by DECLARING AGGREGATE'S OWN
    NAME — `pool[description][owner_name] = given` — not by description
    alone; see step 3 for why.
-2. That SAME pool object is threaded into every aggregate the chapter
+2. That SAME pool object is threaded into every aggregate the bluebook
    builds (`AggregateBuilder.build(..., chapter_named_givens: pool)`) — NOT
    further, into that aggregate's own entities; an entity-level `given`
    (`parent.`-relative) is a structurally different predicate shape and has
    its own, separate cross-entity pool (`cross-entity-given.md`).
 3. An aggregate's own `given(description) { predicate }` (block form,
    unchanged from before this rule existed) now ALSO writes the same
-   `Given` object into the chapter pool, under `[description][this
+   `Given` object into the bluebook pool, under `[description][this
    aggregate's own name]`, ONLY if that exact `[description, owner]` pair
    is not already present — first declaration under a description BY A
    GIVEN OWNER wins; a DIFFERENT owner independently declaring the
@@ -85,7 +85,7 @@ having to change.
 | `CardPayment` bare-references `"customer is active"` with `declared_by: ATMCard`; both `Account` and `ATMCard` have declared DIFFERENT canonicals under that description | Resolves to `ATMCard`'s own `Given` specifically — qualifies, disambiguated |
 | `CardPayment` bare-references `"customer is active"` with NO `declared_by:`, and both `Account` and `ATMCard` have declared different canonicals | `Malformed`, AMBIGUOUS — refuses rather than guessing which one was meant |
 | Two aggregates each independently write `given("x") { same predicate }` with their OWN block, and NEITHER ever references the other bare | Both keep their own local declaration; the pool holds both, one per owner. Not an error, but not maximally deduped — a real, still-open hoisting opportunity, same as any un-hoisted local declaration |
-| An aggregate bare-references a description no aggregate anywhere in the chapter has declared | `Malformed` |
+| An aggregate bare-references a description no aggregate anywhere in the bluebook has declared | `Malformed` |
 | An aggregate bare-references `declared_by: SomeAggregate`, but `SomeAggregate` never declared that description at all | `Malformed`, naming the aggregate that doesn't have it |
 
 ## Known limitations
@@ -111,7 +111,7 @@ having to change.
   the SAME root cause as object identity not surviving a bluebook's own
   self-hosting build, one level wider, and is not fixable from the
   exported IR alone.
-- ~~**`declared_by:` only disambiguates AGGREGATE-level chapter
+- ~~**`declared_by:` only disambiguates AGGREGATE-level bluebook
   sharing** — it does not reach into entity-level cross-aggregate
   sharing (two DIFFERENT aggregates' own nested pieces independently
   declaring the identical `parent.`-relative predicate — real, live,
