@@ -4,10 +4,10 @@
 use crate::arg_limits;
 use crate::dispatch;
 use crate::host::Host;
-use crate::store::journal_sql::LineageConfig;
 use crate::lambda_client::LambdaInvoker;
 use crate::log;
 use crate::rate_limit::{self, RateLimits, Verdict};
+use crate::store::journal_sql::LineageConfig;
 use crate::store::Store;
 use crate::validation;
 use crate::wasm_runner;
@@ -562,6 +562,8 @@ fn value_to_response(value: Value) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
 
     #[test]
     fn a_function_url_shaped_body_is_recognized_as_internal_dispatch() {
@@ -1159,8 +1161,8 @@ mod tests {
     // The real service on an ephemeral port, over a scratch Postgres and a cold copy of the
     // checkout fixture's wasm, so the first request is a real compile.
     async fn fixture_host(database: &str, copy_name: &str) -> (SocketAddr, Arc<PathBuf>) {
-        let client = crate::dispatch::tests::scratch_db(database).await;
-        crate::dispatch::tests::provision_lineage(
+        let client = crate::dispatch_tests::tests::scratch_db(database).await;
+        crate::dispatch_tests::tests::provision_lineage(
             &*client.lock().await,
             "CheckoutFixture",
             1,
@@ -1248,7 +1250,7 @@ mod tests {
     // `price` one `cents` field, so each answers as a bare scalar when asked to.
     #[tokio::test]
     async fn a_bare_body_answers_single_field_value_objects_bare_and_the_default_stays_wrapped() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = LineageConfig {
             domain: "CheckoutFixture".to_string(),
             era: None,

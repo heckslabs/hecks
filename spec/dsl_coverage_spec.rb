@@ -28,7 +28,7 @@ RSpec.describe "the DSL surface is fully covered" do
     "AggregateBuilder"            => [
       Hecks::Bluebook::DSL::AggregateBuilder,
       # These DSL words are covered by their `_impl` dispatch targets, not the bare names.
-      %i[description provenance_impl identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl
+      %i[description provenance_impl acknowledges_impl identified_by reference_to_impl has_many_impl has_one_impl belongs_to_impl
          value_object command_impl lifecycle_impl entity_impl query_impl policy_impl attribute list_of attributes
          invariant_impl given_impl projects_impl]
     ],

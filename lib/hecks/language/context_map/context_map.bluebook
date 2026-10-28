@@ -70,6 +70,7 @@ Hecks.bluebook "ContextMap" do
       member keyword: "relate",        context: "ContextMap", at: "", named: "as", kind: "symbol", required: "true", fills: "relationships"
       member keyword: "relate",        context: "ContextMap", at: "", named: "published", kind: "list", required: "false", fills: "relationships"
       member keyword: "relate",        context: "ContextMap", at: "", named: "of", kind: "list", required: "false", fills: "relationships"
+      member keyword: "relate",        context: "ContextMap", at: "", named: "acknowledges", kind: "literal", required: "false", fills: "relationships"
       member keyword: "separate_ways", context: "ContextMap", at: "1", named: "", kind: "text", required: "true", fills: "separate_ways"
       member keyword: "separate_ways", context: "ContextMap", at: "2", named: "", kind: "text", required: "true", fills: "separate_ways"
     end

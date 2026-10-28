@@ -525,7 +525,7 @@ fn hop_column(
 
 /// `Lifecycle#states` — the default state, then every state some
 /// transition targets, deduplicated in that order.
-pub(crate) fn lifecycle_states(aggregate: &Value) -> Vec<String> {
+pub fn lifecycle_states(aggregate: &Value) -> Vec<String> {
     let Some(lifecycle) = lifecycle(aggregate) else {
         return Vec::new();
     };
@@ -911,15 +911,15 @@ pub fn agg_name(aggregate: &Value) -> &str {
     aggregate.get("name").and_then(|v| v.as_str()).unwrap_or("")
 }
 
-pub(crate) fn attr_name(attribute: &Value) -> &str {
+pub fn attr_name(attribute: &Value) -> &str {
     attribute.get("name").and_then(|v| v.as_str()).unwrap_or("")
 }
 
-pub(crate) fn type_of(attribute: &Value) -> &str {
+pub fn type_of(attribute: &Value) -> &str {
     attribute.get("type").and_then(|v| v.as_str()).unwrap_or("")
 }
 
-pub(crate) fn array<'a>(value: &'a Value, field: &str) -> &'a [Value] {
+pub fn array<'a>(value: &'a Value, field: &str) -> &'a [Value] {
     value
         .get(field)
         .and_then(|v| v.as_array())
@@ -948,13 +948,13 @@ pub fn find_attribute<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value>
         .find(|a| attr_name(a) == name)
 }
 
-pub(crate) fn find_value_object<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
+pub fn find_value_object<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
     array(aggregate, "value_objects")
         .iter()
         .find(|v| v.get("name").and_then(|n| n.as_str()) == Some(name))
 }
 
-pub(crate) fn find_entity<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
+pub fn find_entity<'a>(aggregate: &'a Value, name: &str) -> Option<&'a Value> {
     array(aggregate, "entities")
         .iter()
         .find(|e| e.get("name").and_then(|n| n.as_str()) == Some(name))
@@ -974,11 +974,11 @@ pub fn reference_target(ty: &str) -> Option<String> {
         .map(String::from)
 }
 
-pub(crate) fn is_reference(attribute: &Value) -> bool {
+pub fn is_reference(attribute: &Value) -> bool {
     reference_target(type_of(attribute)).is_some()
 }
 
-pub(crate) fn is_list(attribute: &Value) -> bool {
+pub fn is_list(attribute: &Value) -> bool {
     attribute
         .get("list")
         .and_then(serde_json::Value::as_bool)

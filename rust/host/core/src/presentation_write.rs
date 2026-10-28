@@ -17,7 +17,7 @@ const VALID_SORTS: &[&str] = &["asc", "desc"];
 
 // What a save can answer with other than "saved". `api.rs` maps each variant to a status code,
 // so this module never mentions one.
-pub(crate) enum SaveRefusal {
+pub enum SaveRefusal {
     // This host's kernel carries no ConsoleSettings bluebook.
     NoKernel,
     // `PresentationConfig::Malformed` — `app.rb`'s own 422.
@@ -28,7 +28,7 @@ pub(crate) enum SaveRefusal {
 }
 
 // Returns the reloaded config, never the submitted one, so a caller sees what was stored.
-pub(crate) async fn save(
+pub async fn save(
     domain_ir: &Value,
     submitted: &Value,
     host: Host<'_>,
@@ -499,7 +499,7 @@ type Refusal = Result<(), String>;
 
 // Checks in the order Ruby does: states, the both-directions completeness check, collections,
 // the overview, then the one deliberate scope boundary.
-pub(crate) fn validate(config: &Value, domain_ir: &Value) -> Refusal {
+pub fn validate(config: &Value, domain_ir: &Value) -> Refusal {
     let aggregates = ui_schema::aggregates(domain_ir);
     let states = section(config, "states");
     let collections = section(config, "collections");

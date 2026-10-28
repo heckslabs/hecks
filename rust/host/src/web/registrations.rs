@@ -4,8 +4,8 @@ use crate::clock::unix_now;
 use crate::commerce_ir::{payments_provider, PaymentsProvider};
 use crate::dispatch;
 use crate::host::Host;
-use crate::store::journal_sql::LineageConfig;
 use crate::payments;
+use crate::store::journal_sql::LineageConfig;
 use crate::store::Store;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -1350,6 +1350,8 @@ pub(crate) async fn webhook_route(
 mod tests {
     use super::*;
     use crate::lambda_client;
+    #[allow(unused_imports)]
+    use crate::store::StoreFixtures;
     use crate::web::tests::{provision_lineage, scratch_db};
 
     fn checkout_config(era: i32) -> LineageConfig {
@@ -1362,7 +1364,7 @@ mod tests {
     }
 
     fn checkout_memory_config() -> LineageConfig {
-        crate::dispatch::tests::memory_config("CheckoutFixture")
+        crate::dispatch_tests::tests::memory_config("CheckoutFixture")
     }
 
     // A request with no Stripe signature and no cookies.
@@ -1884,7 +1886,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_seat_routes_answer_from_a_real_read_and_404_an_unknown_event() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
         schedule_event(&client, &wasm_path, &config, "yoga", 4200).await;
@@ -2016,7 +2018,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_refuses_a_body_missing_any_required_field() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
 
         let response = registrations_route(
             r#"{"event_slug":"yoga-aug"}"#,
@@ -2040,7 +2042,7 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_forwards_a_new_shaped_attendee_verbatim_even_against_an_old_shaped_fixture(
     ) {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2089,7 +2091,7 @@ mod tests {
     // (the fixture's own IR) shows the same call is answered when it does.
     #[tokio::test]
     async fn payments_routes_serve_nothing_without_a_payments_capability() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let wasm_path = checkout_wasm_path();
         let config = checkout_memory_config();
         let no_payments = json!({"name": "Studio"});
@@ -2138,7 +2140,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_refuses_invalid_json_outright() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
 
         let response = registrations_route(
             "not json",
@@ -2363,7 +2365,7 @@ mod tests {
     // whoever holds it may read the registration back, but never the attendee's contact details.
     #[tokio::test]
     async fn the_registration_read_back_by_id_carries_no_email_or_phone() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let (config, wasm_path) = (checkout_memory_config(), checkout_wasm_path());
         schedule_event(&client, &wasm_path, &config, "show-event", 4200).await;
         let body =
@@ -2410,7 +2412,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_404s_an_unknown_event_slug() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
 
         let body =
             json!({"event_slug": "nope", "name": "Ada", "email": "ada@example.com"}).to_string();
@@ -2431,7 +2433,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_refuses_a_closed_event() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2499,7 +2501,7 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_refuses_a_session_inside_its_registration_cutoff_and_writes_nothing(
     ) {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2544,7 +2546,7 @@ mod tests {
 
     #[tokio::test]
     async fn registrations_route_accepts_a_session_with_no_cutoff_even_when_it_has_a_start() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2653,7 +2655,7 @@ mod tests {
         // A zero-price event: PositiveMoney's invariant refuses
         // Payment.Initiate before Registration.Request is ever reached,
         // proving the refusal is the real domain rule.
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2687,7 +2689,7 @@ mod tests {
     #[tokio::test]
     async fn registrations_route_runs_the_whole_dispatch_chain_and_returns_a_real_mock_checkout_url(
     ) {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2756,7 +2758,7 @@ mod tests {
     // 404ing every guest right after a successful, already-charged registration.
     #[tokio::test]
     async fn registrations_route_redirects_to_the_caller_s_own_return_to_not_the_event_slug() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2791,7 +2793,7 @@ mod tests {
     // redirect; falls back to "/" exactly as if none had been sent.
     #[tokio::test]
     async fn registrations_route_refuses_an_absolute_or_protocol_relative_return_to() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2836,7 +2838,7 @@ mod tests {
         // The full loop, mock both ends: registrations_route's own
         // checkout_url, then a webhook signed against the same mock secret
         // webhook_route falls back to while STRIPE_WEBHOOK_SECRET is unset.
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -2887,7 +2889,7 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_rejects_a_bad_signature_before_touching_the_domain_at_all() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
 
         let payload =
             json!({"type": "checkout.session.completed", "data": {"object": {}}}).to_string();
@@ -2911,7 +2913,7 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_settles_a_payment_on_checkout_session_completed() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -3076,7 +3078,7 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_declines_a_payment_on_checkout_session_expired() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
         let config = checkout_memory_config();
         let wasm_path = checkout_wasm_path();
 
@@ -3124,7 +3126,7 @@ mod tests {
 
     #[tokio::test]
     async fn webhook_route_ignores_an_event_type_it_does_not_handle_and_still_answers_200() {
-        let client = crate::dispatch::tests::memory_store();
+        let client = crate::dispatch_tests::tests::memory_store();
 
         let secret = "whsec_test_unhandled";
         let payload = json!({"type": "charge.refunded", "data": {"object": {"metadata": {"registration_id": "whatever"}}}}).to_string();

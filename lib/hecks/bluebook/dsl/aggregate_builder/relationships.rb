@@ -22,6 +22,18 @@ module Hecks
                                  as || default_reference_name(target), optional: optional)
         end
 
+        # Allows a finding `model_check` would report about this aggregate, saying why.
+        #
+        # @param finding [Symbol, String] the kind of finding, such as `:large_aggregate`
+        # @param reason [String] why the aggregate means what it says; required text
+        # @return [Array<Bluebook::Acknowledgement>] every acknowledgement so far, this one last
+        # @raise [Bluebook::DSL::Malformed] if the kind is not acknowledgeable or the reason is
+        #   blank
+        def acknowledges_impl(finding, reason)
+          kind = Acknowledgements.kind!(@name.to_s, finding, reason)
+          @acknowledgements << Acknowledgement.new(finding: kind, reason: reason)
+        end
+
         # Declares that this aggregate holds its own kept-fresh copy of a field reached through
         # a reference, so a rule can read it locally instead of reaching across the boundary.
         #

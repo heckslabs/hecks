@@ -188,10 +188,10 @@ pub async fn deliver_with_retry<L: LambdaInvoker + ?Sized>(
 
 // Panics if invoked — asserts that same-domain-only test suites never
 // trigger a cross-domain delivery.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 pub struct NeverInvoker;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 #[async_trait::async_trait]
 impl LambdaInvoker for NeverInvoker {
     async fn invoke(&self, function_name: &str, _payload: &str) -> anyhow::Result<InvokeOutcome> {
@@ -217,7 +217,7 @@ mod tests {
     // all four Ruby copies of the formula, so a drift in any of them fails a test.
     fn stack_name_vectors() -> Value {
         serde_json::from_str(include_str!(
-            "../../../spec/fixtures/stack_name_vectors.json"
+            "../../../../spec/fixtures/stack_name_vectors.json"
         ))
         .unwrap()
     }

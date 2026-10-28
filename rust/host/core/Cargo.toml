@@ -1,0 +1,63 @@
+[package]
+name = "rust_host_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rust_host_core"
+path = "src/lib.rs"
+
+# The host's runtime: dispatch, the journal's data, the Store and its Backend trait, the IR, the
+# expression engine and the presentation code. It depends on no driver: no Postgres, HTTP server or
+# client, or AWS SDK is in this table, so the compiler refuses to let one in. The wasm sandbox
+# (wasmtime) is how it runs a domain, not a transport.
+[features]
+# Test doubles the adapters' tests use: a lambda invoker that must never be called.
+test-support = []
+
+[dependencies]
+wasmtime = "49.0.4"
+wasmtime-wasi = "49.0.4"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
+anyhow = "1"
+regex = "1"
+sha2 = "0.10"
+base64 = "0.22"
+async-trait = "0.1.92"
+
+# Clippy beyond its defaults: pedantic and nursery, plus the restriction lints that keep a panic
+# out of library code. `hecks gate_run.gate stage=ci only=rust_clippy` makes each of these an error.
+# The same table is in every crate's Cargo.toml; change them together.
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+dbg_macro = "warn"
+todo = "warn"
+unimplemented = "warn"
+# Lints that ask for prose or an attribute on every item rather than for better code.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+return_self_not_must_use = "allow"
+module_name_repetitions = "allow"
+too_many_lines = "allow"
+too_long_first_doc_paragraph = "allow"
+doc_markdown = "allow"
+# Numeric conversions here are deliberate: JSON numbers are f64 and ids are small.
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+# Naming heuristics that fire on ordinary short names.
+similar_names = "allow"
+many_single_char_names = "allow"
+struct_field_names = "allow"
+# Heuristics that cost more clarity than they buy here.
+redundant_pub_crate = "allow"
+future_not_send = "allow"
+significant_drop_tightening = "allow"
+match_same_arms = "allow"
