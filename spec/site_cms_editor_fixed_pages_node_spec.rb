@@ -101,7 +101,7 @@ FIXED_PAGES_NODE_SCENARIO = <<~JS.freeze
     ambiguous: refused("Part invariant violated — a part has a heading", base([{ parts: [{ heading: "", body: { blocks: [] } }] }, { parts: [{ heading: "", body: { blocks: [] } }] }])),
     chapterSaysNothing: refused(`Chapter invariant violated — a chapter says something (given ${given({ verse: null, band: null, heading: null, body: null, parts: [] })})`, base([{ heading: "One" }, { parts: [] }])),
     partOfAChapter: refused(`Part invariant violated — a part has writing (given ${given({ heading: "B", body: { blocks: [] } })})`, base([{ heading: "One", parts: [{ heading: "A", body: words("a") }, { heading: "B", body: { blocks: [] } }] }])),
-    contentRule: refused("ChaptersContent invariant violated — a page has at least one bluebook", { draft_content: { chapters: [] } }),
+    contentRule: refused("ChaptersContent invariant violated — a page has at least one chapter", { draft_content: { chapters: [] } }),
     heroPicture: refused(`Picture invariant violated — a picture is described (given ${given({ media_ref: "aa.png", alt: "", caption: null })})`, { draft_content: { hero: { heading: "H", picture: { media_ref: "aa.png", alt: "" } }, chapters: [{ heading: "One" }] } }),
     notAboutAValue: refused("Governance refused — not allowed", base([{ heading: "One" }])),
   };
@@ -201,10 +201,10 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       expect(html).not_to include("&quot;blocks&quot;")
     end
 
-    it "offers the creating command the same form, with the first bluebook to add", :aggregate_failures, :process do
+    it "offers the creating command the same form, with the first chapter to add", :aggregate_failures, :process do
       html = result("newStory")
 
-      expect(html).to include("data-block-list", "No bluebooks yet.", 'name="content.chapters.ZZI0ZZ.heading"')
+      expect(html).to include("data-block-list", "No chapters yet.", 'name="content.chapters.ZZI0ZZ.heading"')
     end
   end
 
@@ -229,7 +229,7 @@ RSpec.describe "the generated fixed-structure page editor, run by node" do
       first = card(html, "draft-content-chapters", 0)
 
       expect(first).to include('data-action="up"', 'data-action="down"', 'data-action="remove"',
-                               'aria-label="Move up bluebook 1, Bluebook 1"')
+                               'aria-label="Move up chapter 1, Chapter 1"')
       expect(html).to include('role="status" aria-live="polite" data-block-say', "data-remove-dialog")
     end
 
