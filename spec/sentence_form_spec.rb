@@ -95,14 +95,14 @@ RSpec.describe "a bluebook written as sentences", :io do
       end
 
       it "lowers to the byte-identical ir.json Ruby builds from the Ruby form", :aggregate_failures do
-        out, err, status = parse("chapter", "--chapter", chapter_of(sentence_file), sentence_file)
+        out, err, status = parse("bluebook", "--bluebook", chapter_of(sentence_file), sentence_file)
 
         expect(status).to be_success, err
         expect(out).to eq(ruby_ir(twin_of(sentence_file), chapter_of(sentence_file)))
       end
 
       it "is exactly what the formatter writes for the Ruby form", :aggregate_failures do
-        out, err, status = parse("format", "--chapter", chapter_of(twin_of(sentence_file)), twin_of(sentence_file))
+        out, err, status = parse("format", "--bluebook", chapter_of(twin_of(sentence_file)), twin_of(sentence_file))
 
         expect(status).to be_success, err
         expect(out).to eq(File.read(sentence_file))
@@ -127,7 +127,7 @@ RSpec.describe "a bluebook written as sentences", :io do
       end
 
       it "renders Ruby text that builds that same IR when Ruby loads it" do
-        text, err, status = parse("render", "--chapter", chapter_of(sentence_file), sentence_file)
+        text, err, status = parse("render", "--bluebook", chapter_of(sentence_file), sentence_file)
         raise err unless status.success?
 
         rendered = write_file("bluebook/rendered.bluebook", text)

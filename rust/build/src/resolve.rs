@@ -83,7 +83,7 @@ pub fn resolve_gem_chapters(
     chapter_name: &str,
     hecksagon_path: &Path,
 ) -> Result<Vec<String>, String> {
-    resolve_json(parser_bin, chapter_name, hecksagon_path, "gem_chapters")
+    resolve_json(parser_bin, chapter_name, hecksagon_path, "gem_bluebooks")
 }
 
 // The names `attaches "name", from: :vendor` gave, for a vendored package.
@@ -202,7 +202,7 @@ fn resolve_json(
     let hecksagon_str = hecksagon_path.to_string_lossy().to_string();
     let out = subprocess::run_capture(
         &parser_bin_str,
-        &["resolve", "--chapter", chapter_name, &hecksagon_str],
+        &["resolve", "--bluebook", chapter_name, &hecksagon_str],
     )?;
     let json = Json::parse(&out)
         .map_err(|e| format!("parsing 'hecks-parse resolve' output: {e}\n{out}"))?;

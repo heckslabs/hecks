@@ -59,7 +59,7 @@ module Hecks
       # @api private
       def refusal_for(stage, chapter, files)
         paths = files.map { |relative| File.join(stage, relative) }
-        _out, err, status = Open3.capture3(binary, "chapter", "--chapter", chapter, *paths)
+        _out, err, status = Open3.capture3(binary, "bluebook", "--bluebook", chapter, *paths)
         return nil if status.success?
 
         first_line = err.lines.first

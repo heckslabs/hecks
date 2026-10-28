@@ -114,13 +114,13 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
       [stem, [chapter_name, [bluebook]]]
     end
   ).merge(
-    # The self-hosted grammar: all concept files go to one `hecks-parse chapter` call, in
+    # The self-hosted grammar: all concept files go to one `hecks-parse bluebook` call, in
     # `MetaValidator.load_grammar_into` order. See `ruby_ir_json` for its oracle.
     { "bluebook_language" => [chapter_name_of(PARITY_LANGUAGE_GRAMMAR_FILES.first), PARITY_LANGUAGE_GRAMMAR_FILES] }
   ).freeze
 
   def self.run_chapter(chapter_name, *paths)
-    Open3.capture3(PARITY_BINARY_PATH, "chapter", "--chapter", chapter_name, *paths)
+    Open3.capture3(PARITY_BINARY_PATH, "bluebook", "--bluebook", chapter_name, *paths)
   end
 
   # Ruby oracle: loads a domain as hecks project_rust does and exports it with `Exporter.call`.

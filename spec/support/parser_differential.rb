@@ -51,7 +51,7 @@ module ParserDifferential
 
   def rust(path, chapter)
     stdout, stderr, status = Timeout.timeout(20) do
-      Open3.capture3(BINARY, "chapter", "--chapter", chapter, path)
+      Open3.capture3(BINARY, "bluebook", "--bluebook", chapter, path)
     end
     case status.exitstatus
     when 0 then Verdict.new(kind: :ok, ir: stdout)

@@ -12,7 +12,7 @@ is setup + roadmap.
 - `initialize` / `initialized` / `shutdown` / `exit`
 - `textDocument/didOpen` / `didChange` (full sync) / `didSave` / `didClose`
 - On every one of those, stages the buffer to a scratch file and runs
-  `hecks-parse chapter --chapter <Name> <scratch file>`, where `<Name>`
+  `hecks-parse bluebook --bluebook <Name> <scratch file>`, where `<Name>`
   is scraped from the buffer's own `Hecks.bluebook "Name"` /
   `Hecks.hecksagon "Name"` line. A clean parse publishes an empty
   diagnostics list; a failure publishes exactly one `Diagnostic`
