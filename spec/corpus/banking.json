@@ -1009,6 +1009,28 @@
       }
     },
     {
+      "verb": "Banking::ATMCard.Withdrawal.Reimburse",
+      "args": {
+        "serial": {
+          "value": "CARD-1"
+        },
+        "sequence": {
+          "value": 2
+        }
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.RejectDispute",
+      "args": {
+        "serial": {
+          "value": "CARD-1"
+        },
+        "sequence": {
+          "value": 2
+        }
+      }
+    },
+    {
       "query": "Banking::ATMCard.Active",
       "args": {
       }
@@ -3470,6 +3492,16 @@
       },
       {
         "verb": "Banking::ATMCard.Withdrawal.Dispute",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Reimburse",
+        "error": "no ATMCard with serial.value \"CARD-1\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.RejectDispute",
         "error": "no ATMCard with serial.value \"CARD-1\"",
         "kind": "NotFound"
       },

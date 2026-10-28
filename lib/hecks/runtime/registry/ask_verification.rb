@@ -21,6 +21,8 @@ module Hecks
         # @raise [WiringError] naming the policy, the ask and what the hecksagon would need
         def refuse_unresolved_asks!
           @declared.bluebooks.each_value do |declaration|
+            next if awaiting_sibling?(declaration)
+
             declaration.policies.select(&:asks?).each do |policy|
               outcome = Bluebook::AskResolution.call(declaration, policy)
               raise WiringError, outcome.detail unless outcome.resolved?
@@ -28,6 +30,15 @@ module Hecks
               policy.resolve_ask!(outcome.verb)
             end
           end
+        end
+
+        # A bounded context whose sibling hecksagon was never declared. Its asks have nowhere to
+        # resolve, and the missing sibling is the refusal that names the cause.
+        #
+        # @param declaration [Bluebook] a loaded bluebook
+        # @return [Boolean]
+        def awaiting_sibling?(declaration)
+          bounded?(declaration.hecks_name) && hecksagon(declaration.hecks_name).nil?
         end
       end
     end
