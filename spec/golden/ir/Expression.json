@@ -505,6 +505,11 @@
       "lifecycle": {
         "default": "proposed",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "retired"
+          ]
+        },
         "transitions": [
           {
             "command": "Admit",
@@ -1399,6 +1404,11 @@
       "lifecycle": {
         "default": "proposed",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "retired"
+          ]
+        },
         "transitions": [
           {
             "command": "Admit",
@@ -2223,6 +2233,12 @@
       "lifecycle": {
         "default": "extracted",
         "field": "status",
+        "marks": {
+          "terminal": [
+            "admitted",
+            "rejected"
+          ]
+        },
         "transitions": [
           {
             "command": "Admit",

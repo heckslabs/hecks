@@ -30,6 +30,8 @@ flowchart LR
     cmd_ATMCard_Activate(["ATMCard.Activate"]) -->|emits| evt_ATMCardActivated{{"ATMCardActivated"}}
     cmd_ATMCard_Retire(["ATMCard.Retire"]) -->|emits| evt_ATMCardRetired{{"ATMCardRetired"}}
     cmd_Withdrawal_Dispute(["Withdrawal.Dispute"]) -->|emits| evt_WithdrawalDisputed{{"WithdrawalDisputed"}}
+    cmd_Withdrawal_Reimburse(["Withdrawal.Reimburse"]) -->|emits| evt_WithdrawalReimbursed{{"WithdrawalReimbursed"}}
+    cmd_Withdrawal_RejectDispute(["Withdrawal.RejectDispute"]) -->|emits| evt_WithdrawalDisputeRejected{{"WithdrawalDisputeRejected"}}
     cmd_CardPayment_Authorize(["CardPayment.Authorize"]) -->|emits| evt_CardAuthorized{{"CardAuthorized"}}
     cmd_CardPayment_Capture(["CardPayment.Capture"]) -->|emits| evt_CardCaptured{{"CardCaptured"}}
     cmd_CardPayment_Void(["CardPayment.Void"]) -->|emits| evt_CardVoided{{"CardVoided"}}
