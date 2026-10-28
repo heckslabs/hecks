@@ -243,7 +243,7 @@ negation ordering), each carrying:
 (`spec/grammar_corpus_spec.rb`'s non-`io` half) so a fixture can never
 silently drift from what the Ruby engine actually answers today. The
 `io`-tagged half wraps each `canonical` string in one scratch
-bluebook's own `given`, runs it through `hecks-parse chapter`, and
+bluebook's own `given`, runs it through `hecks-parse bluebook`, and
 compares hecks-parse's own emitted `ast` against the SAME frozen
 `expect_ast` directly — agreement on structure, not merely "didn't
 crash." **The contract this corpus enforces**: `hecks-parse` is

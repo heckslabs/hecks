@@ -7,7 +7,7 @@ require "fileutils"
 # and CopyVerification ask the DeployToolchain port, the Hecks domain binds its adapter, and the
 # generated `restore-to-rds.sh` and `verify-copy.sh` (the migration golden files) run against
 # stand-in `aws`, `psql`, `pg_dump` and `pg_restore` programs. Nothing reaches AWS or a database.
-RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
+RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
   let(:golden) { File.join(__dir__, "fixtures", "deploy_box_golden", "migration") }
 
   AWS_STUB = <<~BASH.freeze
@@ -147,11 +147,11 @@ RSpec.describe "the Deploy chapter's DataCopy and CopyVerification", :io do
   def refusal_of(json) = json.dig("state", "refusal")
 
   it "declares both aggregates in the Deploy bluebook, joined by policies", :aggregate_failures do
-    chapter = @hecks.registry.bluebook("Deploy")
+    declaration = @hecks.registry.bluebook("Deploy")
 
-    expect(chapter.aggregate("DataCopy").commands.map(&:hecks_name))
+    expect(declaration.aggregate("DataCopy").commands.map(&:hecks_name))
       .to eq(%w[Restore Verify Complete Plan Flag Confirm Drift FlagVerification])
-    expect(chapter.aggregate("CopyVerification").commands.map(&:hecks_name)).to eq(%w[Run Match Differ Flag])
+    expect(declaration.aggregate("CopyVerification").commands.map(&:hecks_name)).to eq(%w[Run Match Differ Flag])
   end
 
   describe "data_copy.restore" do

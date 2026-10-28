@@ -1,7 +1,7 @@
 # A small newsroom's site whose editor works on a post or a page as one thing: the neutral fixture the
 # editor generator reads for the records that go with a record (a document, pictures, search wording),
 # the actions scheduled for it, its live preview and the draft its body is written as. Its `Editor` row
-# names five separate chapters; they refer to each other only by plain `<kind>:<slug>` keys.
+# names five separate bluebooks; they refer to each other only by plain `<kind>:<slug>` keys.
 Hecks.bluebook "NewsroomSite" do
   vision "The routes of a small newsroom's website, with an editor for its posts and pages."
 

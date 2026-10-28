@@ -12,11 +12,9 @@ end
 require_relative "construct"
 require_relative "literal"
 require_relative "query_specification"
-require_relative "retired_names"
 
 require_relative "bluebook/expression"
 require_relative "bluebook/declaration"
-Hecks::RetiredNames.constant(Hecks::Bluebook, :Chapter, :Declaration)
 require_relative "bluebook/reference"
 require_relative "bluebook/one_of_union"
 require_relative "bluebook/attribute"

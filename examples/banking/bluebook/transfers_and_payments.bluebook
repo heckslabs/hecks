@@ -140,7 +140,7 @@ Hecks.bluebook "Banking" do
     # Declared by ATMCard; see `CardPayment`.
     given("account is open", declared_by: ATMCard)
     given("customer is active", declared_by: ATMCard)
-    # Unambiguous chapter-wide, so no `declared_by:` is needed.
+    # Unambiguous bluebook-wide, so no `declared_by:` is needed.
     given("transfer is requested")
     description "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome."
 

@@ -12,7 +12,7 @@ RSpec.describe "a bluebook loaded by dispatching its own declarations" do
     "Wire"     => "spec/fixtures/settlement.bluebook"
   }.freeze
 
-  def load_chapter(file)
+  def load_bluebook(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
@@ -52,8 +52,8 @@ RSpec.describe "a bluebook loaded by dispatching its own declarations" do
 
   DISPATCH_CORPUS.each do |name, file|
     it "#{name} comes out as the builder made it", :aggregate_failures do
-      built = Hecks::Bluebook::MetaValidator.while_disabled { load_chapter(file).bluebook(name) }
-      product = load_chapter(file).bluebook(name)
+      built = Hecks::Bluebook::MetaValidator.while_disabled { load_bluebook(file).bluebook(name) }
+      product = load_bluebook(file).bluebook(name)
       found = differences(plain(built.to_h), plain(product.to_h))
 
       expect(found).to be_empty, report(found)

@@ -31,7 +31,7 @@ export interface Instance {
 }
 
 export interface Spec<S extends Instance, I extends { slug: string }> {
-  /** The aggregate as the host names it, chapter first: "Club::Event". */
+  /** The aggregate as the host names it, bluebook first: "Club::Event". */
   aggregate: string;
   /** Its instances in an answer, keyed by slug. */
   read: (answer: Answer) => S[];

@@ -96,7 +96,7 @@ spec/query_answers_from_outside_spec.rb
 spec/referral_chain_spec.rb
 spec/runtime/boot_loads_bound_plugins_spec.rb
 spec/runtime/era_check_postgres_vendored_bluebook_spec.rb
-spec/runtime/era_check_postgres_vendored_chapter_name_spec.rb
+spec/runtime/era_check_postgres_vendored_bluebook_name_spec.rb
 spec/runtime/outbox_postgres_spec.rb
 spec/runtime/postgres_era_shared_connection_spec.rb
 spec/runtime/postgres_era_storage_name_collision_spec.rb

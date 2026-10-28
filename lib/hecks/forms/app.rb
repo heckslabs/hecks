@@ -65,26 +65,26 @@ module Hecks
         segments = request.path_info.split("/").reject(&:empty?)
         return home(request) if segments.empty?
 
-        chapter = chapter_for(segments[0])
+        declaration = bluebook_for(segments[0])
         case segments.size
-        when 2 then aggregate_route(request, chapter, *split_format(segments[1]))
-        when 3 then verb_or_record_route(request, chapter, segments[1], *split_format(segments[2]))
-        else unrouted(request, chapter, segments)
+        when 2 then aggregate_route(request, declaration, *split_format(segments[1]))
+        when 3 then verb_or_record_route(request, declaration, segments[1], *split_format(segments[2]))
+        else unrouted(request, declaration, segments)
         end
       end
 
-      def unrouted(request, chapter, segments)
-        refuse_entity_command if segments.size == 4 && entity_command?(chapter, segments)
+      def unrouted(request, declaration, segments)
+        refuse_entity_command if segments.size == 4 && entity_command?(declaration, segments)
         respond(404, "text/plain", "no route for #{request.path_info}")
       end
 
-      def chapter_for(domain)
+      def bluebook_for(domain)
         refuse_unexposed(domain)
         @registry.bluebook(domain) || raise(RouteNotFound, "no domain #{domain.inspect} loaded")
       end
 
-      def entity_command?(chapter, segments)
-        entity = chapter.aggregate(segments[1])&.entities&.find { |candidate| candidate.hecks_name == segments[2] }
+      def entity_command?(declaration, segments)
+        entity = declaration.aggregate(segments[1])&.entities&.find { |candidate| candidate.hecks_name == segments[2] }
         !entity&.command(split_format(segments[3]).first).nil?
       end
 
@@ -111,10 +111,10 @@ module Hecks
 
       def home(request)
         format = request.params["format"] || "html"
-        chapters = @exposed.to_h { |name| [name, @registry.bluebook(name)] }.compact
-        return json(200, chapters.transform_values { |c| { aggregates: c.aggregates.map(&:hecks_name) } }) if format != "html"
+        declarations = @exposed.to_h { |name| [name, @registry.bluebook(name)] }.compact
+        return json(200, declarations.transform_values { |c| { aggregates: c.aggregates.map(&:hecks_name) } }) if format != "html"
 
-        html("Exposed domains", IndexRenderer.render(chapters))
+        html("Exposed domains", IndexRenderer.render(declarations))
       end
     end
   end

@@ -3,8 +3,8 @@
 
 pub mod adapter;
 pub mod aggregate;
-pub mod chapter;
 pub mod command;
+pub mod declaration;
 pub mod domain_port;
 pub mod entity;
 pub mod file;
@@ -633,7 +633,7 @@ pub(crate) fn dispatch_stub(
     word: &str,
 ) -> Diagnostic {
     match inner_context {
-        "Bluebook" => chapter::not_implemented(file, line, word),
+        "Bluebook" => declaration::not_implemented(file, line, word),
         "Hecksagon" => hecksagon::not_implemented(file, line, word),
         "Aggregate" => aggregate::not_implemented(file, line, word),
         "Entity" => entity::not_implemented(file, line, word),

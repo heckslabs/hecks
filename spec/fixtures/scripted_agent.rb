@@ -43,7 +43,7 @@ module Hecks
 
       # Returns the next scripted answer for the `critique` operation.
       #
-      # @param declared [Hash] the chapter as declared so far; passed through unused
+      # @param declared [Hash] the bluebook as declared so far; passed through unused
       # @param refusals [Array<Object>] refusals the language already raised; passed through unused
       # @param findings [Array<Object>] mechanical findings already found; passed through unused
       # @return [Hash] the next raw answer Hash queued for `:critique`

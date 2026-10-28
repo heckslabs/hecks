@@ -8,8 +8,8 @@ module Hecks
 
         # Finds a construct by name — an aggregate, or an entity nested anywhere
         # under one (recursively, since an entity like Dispatch nests two deep).
-        def construct_for(chapter, name)
-          chapter.aggregate(name) || chapter.aggregates.filter_map { |a| find_entity(a, name) }.first
+        def construct_for(declaration, name)
+          declaration.aggregate(name) || declaration.aggregates.filter_map { |a| find_entity(a, name) }.first
         end
 
         # Searches a construct's own entities, recursively, for one by name.

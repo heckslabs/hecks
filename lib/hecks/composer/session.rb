@@ -9,11 +9,11 @@ module Hecks
     # keeps the text last seen, the conversation about it, and what its last check said, so the
     # page can show a history and an agent's turns survive a refresh.
     class Session
-      CHAPTER_DIR = File.expand_path("bluebook", __dir__).freeze
+      BLUEBOOK_DIR = File.expand_path("bluebook", __dir__).freeze
       VERB = "Composer::Draft".freeze
 
       # A `Hecks.<construct> "Name"` header, capturing the bluebook's name.
-      CHAPTER_DECLARATION = /Hecks\.\w+\s+"([A-Z][A-Za-z0-9]*)"/
+      BLUEBOOK_DECLARATION = /Hecks\.\w+\s+"([A-Z][A-Za-z0-9]*)"/
 
       # @return [Runtime::Dispatcher] the booted Composer bluebook
       attr_reader :runtime
@@ -22,7 +22,7 @@ module Hecks
       #
       # @raise [Adapters::Driving::Admission::Refused] if the hecksagon does not admit `Web`
       def initialize
-        @runtime = Hecks.boot(CHAPTER_DIR, install_driving: false, environment: "memory")
+        @runtime = Hecks.boot(BLUEBOOK_DIR, install_driving: false, environment: "memory")
         Adapters::Driving::Admission.admit!(@runtime.registry, "Web")
         @sequence = Hash.new(0)
       end
@@ -56,7 +56,7 @@ module Hecks
       def record(path:, text:)
         return revise(slug: path, text: text) if draft(path)
 
-        self.open(slug: path, bluebook_name: chapter_name_in(text), text: text)
+        self.open(slug: path, bluebook_name: bluebook_name_in(text), text: text)
       end
 
       # The text a file has held, from the bluebook's own events.
@@ -119,7 +119,7 @@ module Hecks
       private
 
       # @api private
-      def chapter_name_in(text) = text[CHAPTER_DECLARATION, 1] || "Workspace"
+      def bluebook_name_in(text) = text[BLUEBOOK_DECLARATION, 1] || "Workspace"
 
       # @api private
       def revision(event, path)

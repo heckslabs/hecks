@@ -13,9 +13,9 @@ module Hecks
           aggregate_emits = bluebook.aggregates.flat_map do |aggregate|
             command_emits(aggregate) + port_operation_events(aggregate.ports)
           end
-          chapter_emits = port_operation_events(bluebook.ports)
+          bluebook_emits = port_operation_events(bluebook.ports)
 
-          (aggregate_emits + chapter_emits).flatten.compact.uniq
+          (aggregate_emits + bluebook_emits).flatten.compact.uniq
         end
 
         # @return [Array] what each command of the aggregate and of its entities emits
@@ -44,7 +44,7 @@ module Hecks
 
         # Every aggregate-owned port operation's own fully-qualified verb — only an
         # aggregate's own ports are in scope; a policy trigger never names a
-        # chapter-level port directly.
+        # bluebook-level port directly.
         def port_verbs_of(bluebook)
           bluebook.aggregates.flat_map do |aggregate|
             aggregate.ports.flat_map do |port|

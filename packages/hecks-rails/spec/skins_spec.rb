@@ -19,11 +19,11 @@ RSpec.describe Hecks::Rails::Skins do
     expect(post_note("n1", "hello").headline).to eq("HELLO")
   end
 
-  it "generates the base model and none for a framework chapter such as Governance" do
+  it "generates the base model and none for a framework bluebook such as Governance" do
     expect(described_class.generated.keys).to contain_exactly("ApplicationRecord", "Account", "Desk", "Transfer")
   end
 
-  it "reaches the aggregate through its chapter, not a top-level module" do
+  it "reaches the aggregate through its bluebook, not a top-level module" do
     expect(Ledger::Account.ir.hecks_name).to eq("Account")
   end
 end

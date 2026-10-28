@@ -8,11 +8,11 @@ require "hecks/tools/site_routes"
 require_relative "support/editor_node"
 require_relative "support/editor_fixture_project"
 
-# The multi-chapter editor, run under node against a fake host: its navigation, its roles, the
+# The multi-bluebook editor, run under node against a fake host: its navigation, its roles, the
 # pickers and the checks on what they name, the lists a page at a time, the moments, and the forms.
 # The fake host answers `/members` and the body-shaped `/dispatch`, keeping the instances of both
 # bluebooks; each request it is sent is recorded in `sent`.
-EDITOR_CHAPTERS_SCENARIO = <<~JS.freeze
+EDITOR_BLUEBOOKS_SCENARIO = <<~JS.freeze
   import { accountToken } from "@hecks/client";
   import { mkdirSync, writeFileSync } from "node:fs";
   import { createApp } from "./editor/src/app.ts";
@@ -90,7 +90,7 @@ EDITOR_CHAPTERS_SCENARIO = <<~JS.freeze
   out.ownerHome = await text("/editor", owner);
   out.pressCategories = await text("/editor/Press/Category", admin);
   out.libraryCategories = await text("/editor/Library/Category", admin);
-  out.noChapterPath = await admin("/editor/Article").then((r) => r.status);
+  out.noBluebookPath = await admin("/editor/Article").then((r) => r.status);
   out.ownerGallery = await owner("/editor/Library/Gallery").then((r) => r.status);
   out.ownerPicture = await owner("/editor/media").then((r) => r.status);
   out.adminGallery = await admin("/editor/Library/Gallery").then((r) => r.status);
@@ -179,15 +179,15 @@ EDITOR_ZONES = {
   "Pacific/Auckland"    => ["2026-09-22T02:13", "UTC+12:00", 1_789_992_000]
 }.freeze
 
-RSpec.describe "the generated multi-chapter editor, run by node" do
-  let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_chapters") }
+RSpec.describe "the generated multi-bluebook editor, run by node" do
+  let(:project) { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/editor_bluebooks") }
 
   include_context "with an editor fixture project"
 
   def run
     skip "node cannot strip TypeScript types here" unless EditorNode.available?
 
-    @run ||= EditorNode.run(editor_files, EDITOR_CHAPTERS_SCENARIO)
+    @run ||= EditorNode.run(editor_files, EDITOR_BLUEBOOKS_SCENARIO)
   end
 
   def result(key) = run.fetch(key)
@@ -206,7 +206,7 @@ RSpec.describe "the generated multi-chapter editor, run by node" do
     it "addresses each aggregate by its bluebook and its name", :aggregate_failures, :process do
       expect(result("home")).to include('href="/editor/Press/Article"', 'href="/editor/Library/Gallery"',
                                         'href="/editor/Library/Category"')
-      expect(result("noChapterPath")).to eq(404)
+      expect(result("noBluebookPath")).to eq(404)
     end
 
     it "shows the overview in groups as well, with the counts of each aggregate", :aggregate_failures, :process do

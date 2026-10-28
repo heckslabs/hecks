@@ -87,7 +87,7 @@ module Hecks
       # @return [Hash] `text:` the bluebook's declared facts, one sentence a line
       # @raise [Runtime::NotFound] if the domain or bluebook cannot be found
       def statements(domain:, bluebook:)
-        report(Projector.call(:statements, bluebook: chapter_of(domain, bluebook)).join("\n"))
+        report(Projector.call(:statements, bluebook: bluebook_of(domain, bluebook)).join("\n"))
       end
 
       # @param domain [Hash, String, nil] a domain directory; the nearest enclosing one when absent
@@ -139,7 +139,7 @@ module Hecks
         name    = plain(bluebook)
         options = { hecksagon: runtime.hecksagon(name) }
 
-        projected_files(Projector.call(:diagrams, bluebook: chapter_in(runtime, name), options: options))
+        projected_files(Projector.call(:diagrams, bluebook: bluebook_in(runtime, name), options: options))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -153,7 +153,7 @@ module Hecks
           marking[:domain].to_s.start_with?("#{name}::")
         end
 
-        projected_files(Projector.call(:glossary, bluebook: chapter_in(runtime, name),
+        projected_files(Projector.call(:glossary, bluebook: bluebook_in(runtime, name),
                                                   options:  { markings: markings }))
       end
 
@@ -203,11 +203,11 @@ module Hecks
         Hecks.boot(File.expand_path(path), install_driving: false)
       end
 
-      def chapter_of(domain, chapter)
-        chapter_in(boot(domain), plain(chapter))
+      def bluebook_of(domain, declaration)
+        bluebook_in(boot(domain), plain(declaration))
       end
 
-      def chapter_in(runtime, name)
+      def bluebook_in(runtime, name)
         runtime.bluebook(name) or raise Runtime::NotFound, "no bluebook named #{name}"
       end
 

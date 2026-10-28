@@ -2,7 +2,7 @@ require "spec_helper"
 
 # S16, ADR 0026: the core language's own description must declare at least one instance of
 # each construct kind, or name the gap with a reason. Scoped to the core bluebooks
-# (`LANGUAGE_CHAPTERS`), not every attached sub-language.
+# (`LANGUAGE_BLUEBOOKS`), not every attached sub-language.
 #
 # Constants are prefixed `SELF_USE_`: a describe block does not open a lexical scope, so bare
 # names land on `Object` and collide with other spec files.
@@ -104,7 +104,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
 
   SELF_USE_UNNAMED_WHY = <<~WHY.freeze
     These constructs are declared by the core grammar and never
-    DECLARED FOR REAL anywhere in the language's own chapters — only
+    DECLARED FOR REAL anywhere in the language's own bluebooks — only
     grammar rows describing what they look like, never an instance of
     one:
 

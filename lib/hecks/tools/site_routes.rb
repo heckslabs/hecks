@@ -54,7 +54,7 @@ module Hecks
       Settings = Struct.new(:out, :template, :extension, :cms, :root_dir, :editor, keyword_init: true)
 
       # A project's route-table bluebook with its checked table and the registry it booted into.
-      Site = Struct.new(:chapter, :table, :registry)
+      Site = Struct.new(:declaration, :table, :registry)
 
       extend Cli
       extend Templates
@@ -102,8 +102,8 @@ module Hecks
         refuse_extension(settings.extension)
         dir = output_dir(root, settings)
         registry = registry_for(root)
-        chapter = Projections::Site::Table.chapter(registry)
-        site = Site.new(chapter, Projections::Site::Table.read(chapter, registry: registry), registry)
+        declaration = Projections::Site::Table.declaration(registry)
+        site = Site.new(declaration, Projections::Site::Table.read(declaration, registry: registry), registry)
         assemble(root, dir, site, settings)
       rescue Projections::Site::Table::Invalid => e
         abort "project_site: #{e.message}"
@@ -112,15 +112,15 @@ module Hecks
       # @return [Hash{String => String}] every file the project's rows write, by absolute path
       def assemble(root, dir, site, settings)
         written = route_files(dir, site, settings.extension)
-        admin = Projections::Site::Admin.read(site.chapter, table: site.table)
-        written.merge!(admin_files(dir, site.chapter, admin, settings.extension))
+        admin = Projections::Site::Admin.read(site.declaration, table: site.table)
+        written.merge!(admin_files(dir, site.declaration, admin, settings.extension))
         written.merge!(optional_files(settings, site, admin, root))
         written.merge(template_files(root, settings.out, site, template: settings.template))
       end
 
       # @return [Hash{String => String}] the route table module, by absolute path
       def route_files(dir, site, extension)
-        files = Projector.call(:site_routes_ts, bluebook: site.chapter, options: { table: site.table })
+        files = Projector.call(:site_routes_ts, bluebook: site.declaration, options: { table: site.table })
         renamed(dir, files, extension)
       end
 
@@ -128,8 +128,8 @@ module Hecks
       # given.
       def optional_files(settings, site, admin, project)
         files = {}
-        files.merge!(cms_files(settings.cms, site.chapter, admin)) if settings.cms
-        files.merge!(root_files(settings.root_dir, site.chapter)) if settings.root_dir
+        files.merge!(cms_files(settings.cms, site.declaration, admin)) if settings.cms
+        files.merge!(root_files(settings.root_dir, site.declaration)) if settings.root_dir
         files.merge!(editor_files(settings.editor, project, site)) if settings.editor
         files
       end
@@ -163,8 +163,8 @@ module Hecks
       # @param admin [Projections::Site::Admin, nil] the checked admin row
       # @param extension [String] the extension the modules are written with
       # @return [Hash{String => String}] the module's path to its text; empty with no admin row
-      def admin_files(dir, chapter, admin, extension)
-        files = Projector.call(:site_admin, bluebook: chapter, options: { admin: admin, extension: extension })
+      def admin_files(dir, declaration, admin, extension)
+        files = Projector.call(:site_admin, bluebook: declaration, options: { admin: admin, extension: extension })
         renamed(dir, files, extension)
       end
 

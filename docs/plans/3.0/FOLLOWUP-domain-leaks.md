@@ -29,7 +29,7 @@ bins-as-adapters build first, and these items change the language, so they are b
 
 - The `--wait` failure-state list (flagged, faulted, halted and so on) sits in `hecks.world`, but which
   states mean failure is domain knowledge and belongs on the lifecycle.
-- The runtime special-cases the Hecks chapter's constants, and the launcher special-cases string
+- The runtime special-cases the Hecks bluebook's constants, and the launcher special-cases string
   answers.
 
 ## Clean
@@ -44,14 +44,14 @@ Done:
   with failing states says `mark :failure, ...`, the launcher reads the mark, and `failure_states` is
   gone from `hecks.world`, `deploy.world` and `site.world`. A spec asserts any state named like a
   failure is marked.
-- The runtime no longer recognises the Privacy chapter by name. `provides "privacy"` and
+- The runtime no longer recognises the Privacy bluebook by name. `provides "privacy"` and
   `provides "subject_keys"` (added to `Bluebook::Capabilities`) name the verbs that boot, the masking of
   a read and the cryptoshred call.
 
-Left as is, on purpose: the literal `"Hecks"` in `HecksagonBuilder`, its chapter scope and the
-chapter-name validation. They guard the gem's own Ruby module `Hecks`, which the chapter's aggregates
+Left as is, on purpose: the literal `"Hecks"` in `HecksagonBuilder`, its bluebook scope and the
+bluebook-name validation. They guard the gem's own Ruby module `Hecks`, which the bluebook's aggregates
 would collide with; that is a fact about the Ruby host, not a domain fact, and no capability fits it.
-Removing it means the chapter stops being named `Hecks` or the constants stop living in that module
+Removing it means the bluebook stops being named `Hecks` or the constants stop living in that module
 (item 5).
 
 Audit, re-counted on this date over every `.bluebook` under `lib/hecks`:
@@ -60,11 +60,11 @@ Audit, re-counted on this date over every `.bluebook` under `lib/hecks`:
   `codebase` 63, `deploy` 21, `tooling` 18, `custodian` 17, `tickets` 8, `site` 4, `quality_control` 2.
 - Lifecycles that start in `requested`: 36, up from 17 (`deploy` 15, `codebase` 11, `tooling` 6,
   `custodian` 3, `site` 1).
-- `Report` value objects: 34, up from 15. The numbers grew because new chapters follow the same
+- `Report` value objects: 34, up from 15. The numbers grew because new bluebooks follow the same
   run-protocol shape; nothing has reduced it.
 - Not re-counted: the companion commands and the attribute lines named run, refusal, report or output.
 
-The leak is growing with each chapter, so the order below holds and item 1 is now the cost-reducing step.
+The leak is growing with each bluebook, so the order below holds and item 1 is now the cost-reducing step.
 
 Next step taken: [ADR 0100](../../decisions/0100-policies-ask-and-the-hecksagon-maps-the-port.md) (Accepted) writes the item 1 decision up, and its decisions 1 to 5 are built (below). Its brief was:
 
@@ -72,7 +72,7 @@ Write the ADR for item 1 before any code. The decision it must make is the
 hecksagon vocabulary that maps a policy's ask to a port operation (for example a policy says
 `ask :check`, and the hecksagon binds `check` to `ModelCheckRun::DomainRuntime::Check`), with the
 Ruby and Rust parsers and the conformance corpus moving together. Start with the 18 triggers in
-`tooling.bluebook`, one chapter, to prove the shape before the rest follow.
+`tooling.bluebook`, one bluebook, to prove the shape before the rest follow.
 
 ### Item 1, wave 1 done
 

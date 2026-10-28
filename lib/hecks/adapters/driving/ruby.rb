@@ -1,5 +1,5 @@
 require_relative "../../framework_bluebooks"
-require_relative "ruby/chapter"
+require_relative "ruby/declaration"
 require_relative "ruby/aggregate_module"
 
 module Hecks
@@ -14,7 +14,7 @@ module Hecks
         # Names that would shadow the machinery a Handle runs on; a field with one gets no reader.
         RESERVED = %i[id state events reload inspect to_h hash class].freeze
 
-        extend Chapter
+        extend Declaration
         extend AggregateModule
 
         module_function
@@ -35,15 +35,15 @@ module Hecks
           registry = dispatcher.registry
           Admission.admit!(registry, "Ruby")
           registry.bluebooks.each_value do |bluebook|
-            install_chapter(dispatcher, bluebook) unless attached_chapter?(registry, bluebook)
+            install_bluebook(dispatcher, bluebook) unless attached_bluebook?(registry, bluebook)
           end
           dispatcher
         end
 
         # Installs one bluebook's module, and the top-level shortcut of each of its aggregates.
-        def install_chapter(dispatcher, bluebook)
-          chapter = chapter_module(dispatcher, bluebook)
-          Namespace.install(*placement(bluebook), chapter)
+        def install_bluebook(dispatcher, bluebook)
+          declaration = bluebook_module(dispatcher, bluebook)
+          Namespace.install(*placement(bluebook), declaration)
           # A namespaced bluebook keeps its aggregates inside its namespace: top-level
           # shortcuts would bring back the collisions the namespace exists to avoid.
           return if bluebook.namespace
@@ -51,7 +51,7 @@ module Hecks
           bluebook.aggregates.each do |aggregate|
             next if aggregate.hecks_name == bluebook.name
 
-            Namespace.install(Object, aggregate.hecks_name, chapter.const_get(aggregate.hecks_name, false))
+            Namespace.install(Object, aggregate.hecks_name, declaration.const_get(aggregate.hecks_name, false))
           end
         end
 
@@ -60,7 +60,7 @@ module Hecks
         # @param registry [Runtime::Registry] the booted registry
         # @param bluebook [Bluebook::Declaration] the bluebook under test
         # @return [Boolean]
-        def attached_chapter?(registry, bluebook)
+        def attached_bluebook?(registry, bluebook)
           registry.bounded?(bluebook.name) && Hecks::FrameworkBluebooks.index.key?(bluebook.name)
         end
 

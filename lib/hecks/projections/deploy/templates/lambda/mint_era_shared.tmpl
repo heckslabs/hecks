@@ -12,7 +12,7 @@
 # for a domain with its own dedicated instance.
 #
 # IF THIS DOMAIN VENDORS/ATTACHES ANOTHER BLUEBOOK (attaches,
-# attaches ... from: :vendor), `check!` alone leaves THAT chapter's own
+# attaches ... from: :vendor), `check!` alone leaves THAT bluebook's own
 # aggregates with no snapshot table at all -- it only provisions the
 # ONE bluebook it's called with (era_resolver.rb's own `bluebook.
 # aggregates.each`), never the whole registry. Found live minting
@@ -21,7 +21,7 @@
 # time this domain's own checkout route ran for real. The automated
 # (non-Shared) recipe below now does this correctly for every OTHER
 # loaded bluebook, using ONE `Lineage` keyed by THIS domain's own
-# name (never each chapter's own -- a vendored chapter's aggregates
+# name (never each bluebook's own -- a vendored bluebook's aggregates
 # share THIS domain's single `hecks_journal_@@infra_name@@` and
 # snapshot tables, they do not get a separate journal of their own).
 # Reproduce the same shape manually here: after `LineageManager.

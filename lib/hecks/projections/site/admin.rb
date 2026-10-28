@@ -51,8 +51,8 @@ module Hecks
         # @param table [Table] the checked route table
         # @return [Admin, nil] the checked setting, or nil when the bluebook declares none
         # @raise [Table::Invalid] when the row is refused or contradicts the routes
-        def self.read(chapter, table:)
-          members = Table.rows_of(chapter, OBJECT)
+        def self.read(declaration, table:)
+          members = Table.rows_of(declaration, OBJECT)
           return nil if members.empty?
 
           new(members, table: table)

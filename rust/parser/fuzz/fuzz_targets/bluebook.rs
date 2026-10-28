@@ -1,9 +1,9 @@
-//! Coverage-guided target for `parse::chapter::parse_chapter`.
+//! Coverage-guided target for `parse::bluebook::parse_bluebook`.
 //!
 //! The parser is a binary crate, so this target includes its modules by path and declares them at
 //! its own crate root, which is where their `crate::` references resolve.
 //!
-//! Run from `rust/parser` with a nightly toolchain: `cargo +nightly fuzz run chapter`.
+//! Run from `rust/parser` with a nightly toolchain: `cargo +nightly fuzz run bluebook`.
 #![no_main]
 #![allow(dead_code)]
 
@@ -37,9 +37,9 @@ fuzz_target!(|data: &[u8]| {
     };
     let files = [("fuzz.bluebook".to_string(), source.to_string())];
     // A refusal is a normal answer; only a panic or a hang is a finding.
-    if let Ok(bluebook) = parse::chapter::parse_chapter("Fuzzed", &files) {
+    if let Ok(bluebook) = parse::declaration::parse_bluebook("Fuzzed", &files) {
         let first = emit::write(&emit::bluebook_json(&bluebook));
-        let again = parse::chapter::parse_chapter("Fuzzed", &files)
+        let again = parse::declaration::parse_bluebook("Fuzzed", &files)
             .map(|b| emit::write(&emit::bluebook_json(&b)));
         assert_eq!(
             Ok(first),

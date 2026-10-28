@@ -22,24 +22,24 @@ module Hecks
         #   and `:arguments`, each an array of plain, string-valued row
         #   hashes (`status` included)
         def call
-          chapters = grammar_chapters.to_a
-          return @call if @call && same_chapters?(@call_chapters, chapters)
+          declarations = grammar_bluebooks.to_a
+          return @call if @call && same_bluebooks?(@call_bluebooks, declarations)
 
-          result = read_disk_cache(chapters) || begin
+          result = read_disk_cache(declarations) || begin
             fresh = boot
-            write_disk_cache(chapters, fresh)
+            write_disk_cache(declarations, fresh)
             fresh
           end
 
           @call = result
-          @call_chapters = chapters
+          @call_bluebooks = declarations
           result
         end
 
         # The bluebooks the grammar registry holds, in insertion order.
         #
         # @return [Hash{String => Bluebook::Declaration}] each bluebook by name
-        def grammar_chapters
+        def grammar_bluebooks
           registry = MetaValidator.grammar_registry
           registry.bluebooks
         end
@@ -139,13 +139,13 @@ module Hecks
         # Concatenated into one sequence because `position` is minted from
         # the walk index and must not collide across concepts.
         def all_rows(bluebook, name)
-          seed_chapters(bluebook).flat_map { |chapter| rows(chapter, name) }
+          seed_bluebooks(bluebook).flat_map { |declaration| rows(declaration, name) }
         end
 
         # `bluebook` first, then registry insertion order, so the core
         # bluebook is never read twice.
-        def seed_chapters(bluebook)
-          [bluebook] + grammar_chapters.values.reject { |chapter| chapter.name == bluebook.name }
+        def seed_bluebooks(bluebook)
+          [bluebook] + grammar_bluebooks.values.reject { |declaration| declaration.name == bluebook.name }
         end
 
         def rows(bluebook, name)

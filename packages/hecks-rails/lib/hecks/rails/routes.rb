@@ -23,7 +23,7 @@ module Hecks
         return unless Booted.booted?
 
         singular = name.to_s.singularize
-        Booted.app_chapters.flat_map(&:aggregates).find { |a| Naming.snake(a.hecks_name).to_s == singular }
+        Booted.app_bluebooks.flat_map(&:aggregates).find { |a| Naming.snake(a.hecks_name).to_s == singular }
       end
 
       def domain_resource(name, aggregate, options, block)

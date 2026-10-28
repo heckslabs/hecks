@@ -13,17 +13,17 @@ module Hecks
         include Heads
 
         # Reads one judged bluebook back out of `runtime` and assembles it.
-        def self.of(runtime, chapter) = new(runtime, chapter).to_h
+        def self.of(runtime, declaration) = new(runtime, declaration).to_h
 
-        def initialize(runtime, chapter)
+        def initialize(runtime, declaration)
           @runtime = runtime
           @plan    = Plan.for(MetaValidator.grammar_registry)
-          @chapter = runtime.query("Bluebook::Bluebook.Called", name: { value: chapter }).first or
-            raise Runtime::NotFound, "the meta-domain holds no bluebook called #{chapter.inspect}"
+          @declaration = runtime.query("Bluebook::Bluebook.Called", name: { value: declaration }).first or
+            raise Runtime::NotFound, "the meta-domain holds no bluebook called #{declaration.inspect}"
         end
 
         def to_h
-          chapter_fields.merge(
+          bluebook_fields.merge(
             aggregates:       declared_as("Aggregate", :aggregate),
             read_models:      declared_as("ReadModel", :read_model),
             policies:         declared_as("Policy", :policy),
@@ -33,7 +33,7 @@ module Hecks
 
         private
 
-        def chapter_id = @chapter[:id].to_s
+        def bluebook_id = @declaration[:id].to_s
 
         def closed_set?(row) = !text(row[:rows]).nil?
 
@@ -54,20 +54,20 @@ module Hecks
 
         # Everything of `category` declared in the bluebook, each row read back by `builder`.
         def declared_as(category, builder)
-          declared(category, chapter_id).map { |row| send(builder, row) }
+          declared(category, bluebook_id).map { |row| send(builder, row) }
         end
 
         # What the bluebook itself holds, apart from what is declared in it.
-        def chapter_fields
+        def bluebook_fields
           {
-            name:              text(@chapter[:name]),
-            version:           text(@chapter[:version]),
-            vision:            text(@chapter[:vision]),
-            classification:    text(@chapter[:classification]),
-            formerly_known_as: text(@chapter[:formerly_known_as]),
-            namespace:         text(@chapter[:namespace]),
-            attaches_to:       attached_contexts(@chapter),
-            provides:          provisions(@chapter)
+            name:              text(@declaration[:name]),
+            version:           text(@declaration[:version]),
+            vision:            text(@declaration[:vision]),
+            classification:    text(@declaration[:classification]),
+            formerly_known_as: text(@declaration[:formerly_known_as]),
+            namespace:         text(@declaration[:namespace]),
+            attaches_to:       attached_contexts(@declaration),
+            provides:          provisions(@declaration)
           }
         end
 

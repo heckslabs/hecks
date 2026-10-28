@@ -9,6 +9,6 @@ end
 # The attached bluebooks (hecks.hecksagon `attaches`): each is a bounded context whose store is the
 # one the Hecks domain's own `persisted_by` gives it, so a copy that opts the Hecks bluebook in
 # opts them all in.
-%w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl].each do |chapter|
-  Hecks.hecksagon(chapter) { attaches "Governance" }
+%w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl].each do |bluebook|
+  Hecks.hecksagon(bluebook) { attaches "Governance" }
 end

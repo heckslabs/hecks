@@ -47,11 +47,11 @@ module ParserDifferential
   end
 
   # The name in the header; a nul cannot ride in an argument, so a mutated name loses it.
-  def chapter_of(text) = (text[/Hecks\.bluebook\s+"([^"]+)"/, 1] || "Fuzzed").delete("\0")
+  def bluebook_of(text) = (text[/Hecks\.bluebook\s+"([^"]+)"/, 1] || "Fuzzed").delete("\0")
 
-  def rust(path, chapter)
+  def rust(path, declaration)
     stdout, stderr, status = Timeout.timeout(20) do
-      Open3.capture3(BINARY, "bluebook", "--bluebook", chapter, path)
+      Open3.capture3(BINARY, "bluebook", "--bluebook", declaration, path)
     end
     case status.exitstatus
     when 0 then Verdict.new(kind: :ok, ir: stdout)
@@ -61,10 +61,10 @@ module ParserDifferential
   end
 
   # The Ruby loader's verdict, exporting as `hecks project_rust` does.
-  def ruby(path, chapter)
+  def ruby(path, declaration)
     registry = Hecks::Runtime::Registry.new(root: File.dirname(path))
     load_into(registry, path)
-    ir = Hecks::Projector::Exporter.call(registry).fetch(chapter)
+    ir = Hecks::Projector::Exporter.call(registry).fetch(declaration)
     Verdict.new(kind: :ok, ir: "#{JSON.pretty_generate(ir)}\n")
   rescue StandardError, ScriptError => e
     Verdict.new(kind: :refused, detail: "#{e.class}: #{e.message.lines.first&.strip}")
@@ -79,9 +79,9 @@ module ParserDifferential
   end
 
   # :both_ok_same, :both_ok_differ, :rust_only, :ruby_only, :both_refuse, or :rust_error.
-  def compare(path, chapter)
-    left  = rust(path, chapter)
-    right = ruby(path, chapter)
+  def compare(path, declaration)
+    left  = rust(path, declaration)
+    right = ruby(path, declaration)
     Result.new(relation: relate(left, right), rust: left, ruby: right)
   end
 

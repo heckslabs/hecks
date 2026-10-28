@@ -24,7 +24,7 @@ RSpec.describe "every list the language declares, filled more than once" do
     "attaches_to" =>
                      "Paging attaches to two real contexts, \"Query\" and \"ReadModel\" — " \
                      "no golden IR fixture reaches it because Paging is a grammar " \
-                     "chapter, not a frozen corpus member.",
+                     "bluebook, not a frozen corpus member.",
     # Filled with three in lib/hecks/framework/bluebook/governance.bluebook (`provides
     # "authorization"`), a framework member with no golden IR fixture.
     "provides"    =>

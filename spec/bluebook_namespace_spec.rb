@@ -2,7 +2,7 @@ require "spec_helper"
 
 # `namespace` names the module a bluebook's constants install under (ADR 0080): the Hecks
 # domain nests under `Hecks::Domain`, since its aggregates share names with the gem's modules.
-RSpec.describe "a chapter's namespace" do
+RSpec.describe "a bluebook's namespace" do
   def registry_with(&)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do

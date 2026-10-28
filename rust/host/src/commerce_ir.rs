@@ -1002,7 +1002,7 @@ mod tests {
     }
 
     #[test]
-    fn a_declared_registrations_binding_names_whatever_the_chapter_calls_things() {
+    fn a_declared_registrations_binding_names_whatever_the_bluebook_calls_things() {
         let ir = serde_json::json!({"provides": {"registrations": {
             "provider": "Bookings",
             "schedule": "Bookings::Session.Plan",
@@ -1061,7 +1061,7 @@ mod tests {
     }
 
     #[test]
-    fn a_declared_payment_connection_binding_names_whatever_the_chapter_calls_things() {
+    fn a_declared_payment_connection_binding_names_whatever_the_bluebook_calls_things() {
         let ir = serde_json::json!({"provides": {"payment_connection": {
             "provider": "Billing",
             "connect": "Billing::Link.Open", "reconnect": "Billing::Link.Reopen",

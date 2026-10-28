@@ -296,7 +296,7 @@ mod tests {
     // kernel, since a fixture can't fake "does this wasm know this read model".
 
     #[tokio::test]
-    async fn a_kernel_that_carries_the_chapter_but_holds_no_rows_answers_some_empty() {
+    async fn a_kernel_that_carries_the_bluebook_but_holds_no_rows_answers_some_empty() {
         let client = crate::dispatch_tests::tests::memory_store();
         let wasm = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../dist/checkout_fixture.wasm");
@@ -304,7 +304,7 @@ mod tests {
         let rows = kernel_rows(&client, &wasm)
             .await
             .expect("a read")
-            .expect("the chapter is compiled in");
+            .expect("the bluebook is compiled in");
 
         assert!(rows.states.is_empty());
         assert!(rows.collections.is_empty());
@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_kernel_without_the_chapter_answers_none_so_the_relations_are_read_instead() {
+    async fn a_kernel_without_the_bluebook_answers_none_so_the_relations_are_read_instead() {
         let client = crate::dispatch_tests::tests::memory_store();
         let wasm = crate::dispatch_tests::tests::wasm_path();
 

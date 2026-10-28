@@ -13,7 +13,7 @@ module Hecks
         BLUEBOOK_FILE = /\.bluebook\z/
 
         # The `Hecks.bluebook "Name"` line that declares a bluebook.
-        CHAPTER_HEADER = /\A\s*Hecks\.bluebook\s+"/
+        BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"/
 
         # The spaces a line starts with.
         LEADING_SPACES = /\A */
@@ -46,11 +46,11 @@ module Hecks
         # The file and `end` of the bluebook's own block, where new aggregates and policies go.
         # @return [Hash] `{file:, line:}` of the bluebook header
         # @raise [Refused] if no file declares the bluebook
-        def chapter
-          file = @lines.keys.sort.find { |path| @lines[path].any? { |line| line.match?(CHAPTER_HEADER) } }
+        def declaration
+          file = @lines.keys.sort.find { |path| @lines[path].any? { |line| line.match?(BLUEBOOK_HEADER) } }
           raise Refused, "no file declares the bluebook" unless file
 
-          { file: file, line: @lines[file].index { |line| line.match?(CHAPTER_HEADER) } + 1 }
+          { file: file, line: @lines[file].index { |line| line.match?(BLUEBOOK_HEADER) } + 1 }
         end
 
         # @param file [String] a bluebook path

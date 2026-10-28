@@ -11,7 +11,7 @@ lib/hecks/
   projector/    IR serialization — the translation-edge digest reads it.
 
   adapters/driving/   the driving adapters (Ruby, CLI, MCP, JSON, webhook).  Class-free, per boot.
-  router/               project-wide dispatch; installs each chapter's namespace at boot.
+  router/               project-wide dispatch; installs each bluebook's namespace at boot.
   ports/                domain ports — auth, identity, persistence, query.
   query_specification/  a query's shape, held apart from any engine that answers it.
   projections/          IR as a capability — emits_ir and its consumers (OIDC, reference, parser table).
@@ -41,7 +41,7 @@ rust/
   lsp/            the language server.
   build/          the Rust build tooling the build commands call.
   src/generated/  typed structs and enums per domain, written by hecks build.project_rust — never hand-edited.
-  parser/         a generated Rust parser, built from the language's own Syntax chapter (hecks language_run.project_parser_table).
+  parser/         a generated Rust parser, built from the language's own Syntax bluebook (hecks language_run.project_parser_table).
   codegen/        the Rust code generator itself, driven from canonical IR; hecks build.project_rust builds the IR from the live registry and runs it.
   web/            the wasm-bindgen crate hecks build.build_browser_wasm builds — a separate cdylib from the WASI binary.
 ```

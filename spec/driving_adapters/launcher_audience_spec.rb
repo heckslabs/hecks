@@ -47,25 +47,11 @@ RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
     let(:setting) { { maintainer: %w[LanguageRun], bluebooks: %w[Deploy], maintainer_bluebooks: %w[Bluebook] } }
 
     it "hides the maintainer's aggregates from anyone else and points at the bluebooks" do
-      expect(described_class.audience(setting, false)).to eq(hide: %w[LanguageRun], chapters: %w[Deploy])
+      expect(described_class.audience(setting, false)).to eq(hide: %w[LanguageRun], declarations: %w[Deploy])
     end
 
     it "hides nothing from a maintainer, and adds the language's own bluebooks" do
-      expect(described_class.audience(setting, true)).to eq(hide: [], chapters: %w[Deploy Bluebook])
-    end
-
-    it "still reads the retired keys, each use naming the key that replaces it", :aggregate_failures do
-      retired = { maintainer: %w[LanguageRun], chapters: %w[Deploy], maintainer_chapters: %w[Bluebook] }
-
-      said = ["setting chapters is deprecated, use bluebooks",
-              "setting maintainer_chapters is deprecated, use maintainer_bluebooks"]
-
-      expect { expect(described_class.audience(retired, true)).to eq(hide: [], chapters: %w[Deploy Bluebook]) }
-        .to output(a_string_including(*said)).to_stderr
-    end
-
-    it "says nothing for the new keys", :aggregate_failures do
-      expect { described_class.audience(setting, true) }.not_to output.to_stderr
+      expect(described_class.audience(setting, true)).to eq(hide: [], declarations: %w[Deploy Bluebook])
     end
 
     it "leaves a bluebook that did not opt in whole" do
@@ -73,7 +59,7 @@ RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
     end
   end
 
-  describe "the Hecks chapter's own setting" do
+  describe "the Hecks bluebook's own setting" do
     let(:codebase) do
       File.read(File.expand_path("../../lib/hecks/hecks/codebase.bluebook", __dir__)).scan(/^  aggregate "(\w+)"/).flatten
     end

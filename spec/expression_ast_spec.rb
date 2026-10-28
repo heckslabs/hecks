@@ -9,7 +9,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
   ExprAstEvaluator = Hecks::Bluebook::Expression::Evaluator
   ExprAstGenerator = Hecks::Fuzzing::BoundedExhaustiveExpressions
 
-  CHAPTERS = {
+  BLUEBOOKS = {
     "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
     "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
     # The only example whose policies carry a `where`.
@@ -20,7 +20,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
     "Reflex"     => "spec/fixtures/reflex.bluebook"
   }.freeze
 
-  def load_chapter(file)
+  def load_bluebook(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
@@ -64,7 +64,7 @@ RSpec.describe "the structured expression AST every rule row carries" do
 
   # Read-only in every example, so built once per file for speed.
   before(:context) do
-    loaded    = CHAPTERS.to_h { |name, file| [name, load_chapter(file).bluebook(name).to_h] }
+    loaded    = BLUEBOOKS.to_h { |name, file| [name, load_bluebook(file).bluebook(name).to_h] }
     languages = %w[Bluebook World Hecksagon].to_h do |name|
       [name, Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name).to_h]
     end

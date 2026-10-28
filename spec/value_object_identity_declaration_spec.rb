@@ -81,7 +81,7 @@ RSpec.describe "value-object identity declarations" do
     end
   end
 
-  def identity_chapter
+  def identity_bluebook
     Hecks::Bluebook::DSL::BluebookBuilder.build("IdentityFixture") do
       vision "identity declarations read as domain value concepts"
 
@@ -178,9 +178,9 @@ RSpec.describe "value-object identity declarations" do
   end
 
   it "round-trips the resolved identity paths and synthesized value objects through assembly" do
-    chapter = identity_chapter
+    declaration = identity_bluebook
 
-    expect(Hecks::Bluebook::Assembly.call(chapter.to_h).to_h).to eq(chapter.to_h)
+    expect(Hecks::Bluebook::Assembly.call(declaration.to_h).to_h).to eq(declaration.to_h)
   end
 
   it "refuses optional and list-valued identity members at declaration time", :aggregate_failures do

@@ -4,7 +4,7 @@ require_relative "hecksagon_rules"
 require_relative "ask_verification"
 require_relative "query_verification"
 require_relative "plugin_query_verification"
-require_relative "chapter_verification"
+require_relative "bluebook_verification"
 require_relative "durability_warnings"
 
 module Hecks
@@ -17,7 +17,7 @@ module Hecks
         include AskVerification
         include QueryVerification
         include PluginQueryVerification
-        include ChapterVerification
+        include BluebookVerification
         include DurabilityWarnings
 
         # Runs every wiring check against this registry's loaded bluebooks, hecksagons, ports
@@ -27,7 +27,7 @@ module Hecks
           verify_world_defaults!
           verify_singleton_port_answers!
           refuse_cross_package_bluebook_merge!
-          refuse_reserved_chapter_names!
+          refuse_reserved_bluebook_names!
           refuse_membership_without_identity!
           refuse_unresolved_ports!
           refuse_unanswerable_queries!

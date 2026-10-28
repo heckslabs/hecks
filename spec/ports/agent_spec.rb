@@ -60,7 +60,7 @@ RSpec.describe Hecks::Ports::Agent do
     it "ask returns Question structs" do
       script(:ask, { "questions" => [{ "text" => "what identifies a Loyalty Member?", "because" => "no identity yet" }] })
 
-      expect(described_class.ask(registry, state: { chapter: "Loyalty" }, asked: []))
+      expect(described_class.ask(registry, state: { bluebook: "Loyalty" }, asked: []))
         .to eq([described_class::Question.new(text: "what identifies a Loyalty Member?", because: "no identity yet")])
     end
 

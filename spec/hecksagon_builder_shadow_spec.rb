@@ -7,11 +7,11 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   let(:builder) { described_class }
   let(:registry) do
     aggregate = Struct.new(:hecks_name).new("Release")
-    chapter   = Struct.new(:aggregates).new([aggregate])
-    Struct.new(:chapter) do
-      def bluebook(_name) = chapter
+    declaration = Struct.new(:aggregates).new([aggregate])
+    Struct.new(:declaration) do
+      def bluebook(_name) = declaration
       def mark_bounded(_name) = nil
-    end.new(chapter)
+    end.new(declaration)
   end
 
   before do
@@ -27,7 +27,7 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   end
 
   # Stubs the bluebook load to record what a bluebook loaded by `attaches` sees; answers the record.
-  def record_chapter_load
+  def record_bluebook_load
     seen = {}
     allow(Hecks::FrameworkBluebooks).to receive(:load!) do |_name|
       seen[:defined] = Hecks.const_defined?(:Release, false)
@@ -49,7 +49,7 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   end
 
   it "shows a bluebook loaded by `attaches` the real module", :aggregate_failures do
-    seen = record_chapter_load
+    seen = record_bluebook_load
     release_visible_after_attach
 
     expect(seen[:defined]).to be(true)
@@ -58,7 +58,7 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   end
 
   it "shadows the real module again once the attach is done", :aggregate_failures do
-    record_chapter_load
+    record_bluebook_load
 
     expect(release_visible_after_attach).to be(false)
     expect(Hecks::Release).to equal(@real)

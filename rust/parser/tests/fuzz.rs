@@ -272,8 +272,8 @@ const TYPES: &[&str] = &[
 
 /// A syntactically plausible bluebook built from the grammar words, so mutation starts from
 /// shapes the fixtures do not carry.
-fn generate_bluebook(rng: &mut Rng, chapter: &str) -> Vec<u8> {
-    let mut out = format!("Hecks.bluebook \"{chapter}\" do\n");
+fn generate_bluebook(rng: &mut Rng, declaration: &str) -> Vec<u8> {
+    let mut out = format!("Hecks.bluebook \"{declaration}\" do\n");
     for a in 0..=rng.below(3) {
         let _ = writeln!(out, "  aggregate \"Agg{a}\" do");
         let attrs = 1 + rng.below(4);
@@ -418,15 +418,15 @@ fn fuzz_inputs(label: &str, extension: &str, subcommand: &str, generate: bool) -
 
     for iteration in 0..iterations {
         let (name, base) = rng.pick(&corpus).clone();
-        let chapter = header_name(&base);
+        let declaration = header_name(&base);
         let seed_bytes = if generate && rng.below(3) == 0 {
-            generate_bluebook(&mut rng, &chapter)
+            generate_bluebook(&mut rng, &declaration)
         } else {
             base
         };
         let input = mutate(&mut rng, &seed_bytes);
         let path = scratch.write(&format!("input.{extension}"), &input);
-        let args: Vec<&std::ffi::OsStr> = [subcommand, "--bluebook", &chapter]
+        let args: Vec<&std::ffi::OsStr> = [subcommand, "--bluebook", &declaration]
             .iter()
             .map(|s| std::ffi::OsStr::new(*s))
             .chain(std::iter::once(path.as_os_str()))
@@ -491,11 +491,11 @@ fn every_fixture_parses_the_same_twice() {
     for (name, bytes) in fixtures_with("bluebook") {
         let scratch = Scratch::new("determinism");
         let path = scratch.write(&name, &bytes);
-        let chapter = header_name(&bytes);
+        let declaration = header_name(&bytes);
         let args = [
             std::ffi::OsStr::new("bluebook"),
             std::ffi::OsStr::new("--bluebook"),
-            std::ffi::OsStr::new(&chapter),
+            std::ffi::OsStr::new(&declaration),
             path.as_os_str(),
         ];
         let first = run_parser(&args).expect("first run");

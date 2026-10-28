@@ -66,9 +66,9 @@ module ParserDifferential
     end
 
     # A plausible bluebook built from the grammar, so mutation starts from shapes the fixtures lack.
-    def generate(random, chapter)
+    def generate(random, declaration)
       aggregates = Array.new(1 + random.rand(3)) { |index| aggregate(random, index) }
-      "Hecks.bluebook \"#{chapter}\" do\n#{aggregates.join}end\n"
+      "Hecks.bluebook \"#{declaration}\" do\n#{aggregates.join}end\n"
     end
 
     def aggregate(random, index)

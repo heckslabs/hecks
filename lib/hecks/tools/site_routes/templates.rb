@@ -20,11 +20,11 @@ module Hecks
         #   template is missing or lacks a region it needs, or holds a region an edge without a load
         #   balancer does not use
         def template_files(root, out, site, template: nil)
-          edge = Projections::Site::Edge.read(site.chapter, table: site.table, template: template,
+          edge = Projections::Site::Edge.read(site.declaration, table: site.table, template: template,
                                                             vocabulary: Projections::Site::Table.vocabulary(site.registry))
           return missing_edge(template) unless edge
 
-          regions = Projector.call(:site_cdn, bluebook: site.chapter, options: { table: site.table, edge: edge })
+          regions = Projector.call(:site_cdn, bluebook: site.declaration, options: { table: site.table, edge: edge })
           setting = edge.setting
           relative = template || setting.template
           source = template_source(root, template, relative)

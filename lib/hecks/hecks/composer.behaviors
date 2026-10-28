@@ -3,7 +3,7 @@ Hecks.behaviors "Composer" do
 
   loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "rehearsal.bluebook", "agents.bluebook", "codebase.bluebook", "ledger.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
 
-  test "Begin opens a chapter for editing" do
+  test "Begin opens a bluebook for editing" do
     tests "Begin", on: "Draft"
     input slug: { value: "account" }, bluebook_name: { value: "Account" }, text: { value: "" }
     expect status:"drafting"

@@ -19,11 +19,11 @@ module Hecks
       # @return [void]
       # @raise [SystemExit] with the usage line when an argument is missing
       def call(argv, program: "hecks glossary")
-        usage = "usage: #{program} <domain-path> <ChapterName>"
-        domain_path  = argv[0] or abort usage
-        chapter_name = argv[1] or abort usage
+        usage = "usage: #{program} <domain-path> <BluebookName>"
+        domain_path = argv[0] or abort usage
+        declaration_name = argv[1] or abort usage
 
-        written = write_glossary(File.expand_path(domain_path, Dir.pwd), chapter_name)
+        written = write_glossary(File.expand_path(domain_path, Dir.pwd), declaration_name)
 
         puts "wrote #{written.size} file(s):"
         written.each { |path| puts "  #{path}" }
@@ -31,12 +31,12 @@ module Hecks
 
       # @api private
       # @return [Array<String>] the files written under the domain's `glossary/` folder
-      def write_glossary(domain, chapter_name)
+      def write_glossary(domain, declaration_name)
         runtime = Hecks.boot(domain)
-        chapter = runtime.bluebook(chapter_name)
+        declaration = runtime.bluebook(declaration_name)
 
         Projector.write(
-          Projector.call(:glossary, bluebook: chapter, options: { markings: markings_for(runtime, chapter_name) }),
+          Projector.call(:glossary, bluebook: declaration, options: { markings: markings_for(runtime, declaration_name) }),
           File.join(domain, "glossary"), as: :files
         )
       end
@@ -44,9 +44,9 @@ module Hecks
       # The privacy markings the deployment declared for fields of one bluebook.
       #
       # @api private
-      def markings_for(runtime, chapter_name)
+      def markings_for(runtime, declaration_name)
         runtime.pending_privacy_markings.select do |marking|
-          marking[:domain].to_s.start_with?("#{chapter_name}::")
+          marking[:domain].to_s.start_with?("#{declaration_name}::")
         end
       end
     end

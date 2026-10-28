@@ -20,7 +20,7 @@ module Hecks
       # Renders one reference page per DSL keyword context, carrying prose
       # over from whatever is already committed under `options[:from]`.
       #
-      # @param bluebook [Bluebook::Behaviour::Chapter] the bluebook declaring the
+      # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook declaring the
       #   Syntax aggregate to render pages from; unused beyond admission, since the
       #   keyword table this reads comes from the global `Syntax` grammar
       # @param options [Hash] must include `:from`

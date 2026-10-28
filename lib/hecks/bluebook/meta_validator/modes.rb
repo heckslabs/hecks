@@ -21,7 +21,7 @@ module Hecks
         def deferring? = @deferring
 
         # Queues every bluebook `call` sees while the block runs, instead of
-        # judging them immediately (see `deferred_chapters`).
+        # judging them immediately (see `deferred_bluebooks`).
         #
         # @yield the caller's own load of every file in one bluebook window
         # @return [Object] the block's own return value
@@ -38,7 +38,7 @@ module Hecks
         #
         # @return [Array<String>] each deferred bluebook's own `hecks_name`,
         #   queued during the current or most recent `defer` window
-        def deferred_chapters = @deferred_chapters ||= []
+        def deferred_bluebooks = @deferred_bluebooks ||= []
 
         # Judges every bluebook queued by `defer`, once each, then clears the
         # queue.
@@ -46,15 +46,15 @@ module Hecks
         # @param registry [Runtime::Registry, nil] the registry to judge
         #   against; a no-op if `nil`
         # @return [void]
-        # @raise [DSL::Malformed] if a bluebook's own whole-chapter battery
+        # @raise [DSL::Malformed] if a bluebook's own whole-bluebook battery
         #   (`BluebookBuilder.validate_assembled!`) or the meta-domain itself
         #   (`call`) refuses it
         def judge_deferred!(registry)
-          pending = deferred_chapters.uniq
-          @deferred_chapters = []
+          pending = deferred_bluebooks.uniq
+          @deferred_bluebooks = []
           return unless registry
 
-          pending.each { |name| judge_chapter!(registry, name) }
+          pending.each { |name| judge_bluebook!(registry, name) }
         end
 
         # Judges one deferred bluebook once its own files are all merged.
@@ -62,23 +62,23 @@ module Hecks
         # @param registry [Runtime::Registry] the registry holding the bluebook
         # @param name [String] the bluebook's `hecks_name`
         # @return [void]
-        def judge_chapter!(registry, name)
-          chapter = registry.bluebook(name)
-          return unless chapter
+        def judge_bluebook!(registry, name)
+          declaration = registry.bluebook(name)
+          return unless declaration
 
-          # Bare chapter-level givens must resolve before anything below
+          # Bare bluebook-level givens must resolve before anything below
           # reads a `Given`'s fields. The `raise` block never runs — this
-          # bluebook's builder is always already open by the time `chapter` exists.
+          # bluebook's builder is always already open by the time `bluebook` exists.
           builder = registry.bluebook_builder(name) { raise Error, "internal: no open builder for #{name}" }
-          builder.resolve_pending_chapter_givens!
+          builder.resolve_pending_bluebook_givens!
           # Same, one level down: entity-scoped pending givens.
-          builder.resolve_pending_chapter_entity_givens!
+          builder.resolve_pending_bluebook_entity_givens!
 
-          # Whole-chapter checks (hops, projected fields, event shapes) were
-          # skipped per file while deferring; `chapter` now holds every
+          # Whole-bluebook checks (hops, projected fields, event shapes) were
+          # skipped per file while deferring; `bluebook` now holds every
           # file's declarations, so they run once here instead of per file.
-          DSL::BluebookBuilder.validate_assembled!(chapter)
-          registry.add_bluebook(call(chapter))
+          DSL::BluebookBuilder.validate_assembled!(declaration)
+          registry.add_bluebook(call(declaration))
         end
 
         # Whether meta-domain judging is off (ignored while a fixpoint build

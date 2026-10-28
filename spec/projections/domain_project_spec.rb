@@ -76,7 +76,7 @@ RSpec.describe "Domain.project" do
     expect(domain).not_to respond_to(:to_ir)
   end
 
-  # Handing a chapter-scoped projector an aggregate must raise: `StorageShape.project` would
+  # Handing a bluebook-scoped projector an aggregate must raise: `StorageShape.project` would
   # otherwise read a missing `aggregates` key and answer a well-formed, wrong result.
   describe "an aggregate module" do
     let(:order) do
@@ -84,14 +84,14 @@ RSpec.describe "Domain.project" do
       Object.const_get("Pizzas::Order")
     end
 
-    it "projects its OWN IR, not its chapter's", :aggregate_failures do
+    it "projects its OWN IR, not its bluebook's", :aggregate_failures do
       expect(order.project(Hecks::Projections::IR)).to eq(order.ir.to_h)
       expect(order.project(Hecks::Projections::IR)).not_to eq(domain.project(Hecks::Projections::IR))
     end
 
     it "refuses a target whose capability it lacks, instead of answering emptily" do
       expect { order.project(Hecks::Projections::Shape) }
-        .to raise_error(Hecks::Projector::WrongConstruct, /Behaviour::Chapter/)
+        .to raise_error(Hecks::Projector::WrongConstruct, /Behaviour::Declaration/)
     end
 
     it "names the construct it was actually handed, so the refusal is actionable" do
@@ -144,7 +144,7 @@ RSpec.describe "Domain.project" do
       legacy
     end
 
-    # `requires:` names a capability module (Hecks::IR, Behaviour::Chapter), not a shape word.
+    # `requires:` names a capability module (Hecks::IR, Behaviour::Bluebook), not a shape word.
     it "lets a target requiring only the IR capability run on any construct that emits", :aggregate_failures do
       expect(Hecks::Projections::IR.projection_requires).to eq([Hecks::IR])
       expect { Object.const_get("Pizzas::Order").project(Hecks::Projections::IR) }.not_to raise_error
@@ -164,7 +164,7 @@ RSpec.describe "Domain.project" do
     it "defaults an undeclared target to the bluebook capability", :aggregate_failures do
       legacy = register_legacy_target
 
-      expect(legacy.projection_requires).to eq([Hecks::Bluebook::Behaviour::Chapter])
+      expect(legacy.projection_requires).to eq([Hecks::Bluebook::Behaviour::Declaration])
       expect { Hecks::Projector.call(:legacy_capability_stub, bluebook: Object.const_get("Pizzas::Order").ir) }
         .to raise_error(Hecks::Projector::WrongConstruct)
     end

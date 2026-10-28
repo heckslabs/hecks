@@ -31,12 +31,12 @@ RSpec.describe "the sentence form against the whole corpus", :io do
 
   # A bluebook is the files of one directory that declare the same name, read together as the
   # loader reads them.
-  def self.chapters
+  def self.declarations
     grouped = SENTENCE_FILES.group_by { |path| [File.dirname(path), name_of(path)] }
     grouped.reject { |(_, name), _| name.nil? }.freeze
   end
 
-  SENTENCE_CHAPTERS = chapters
+  SENTENCE_BLUEBOOKS = declarations
 
   def parse(*args)
     Open3.capture3(SENTENCE_BINARY, *args)
@@ -60,7 +60,7 @@ RSpec.describe "the sentence form against the whole corpus", :io do
   end
 
   def outcomes
-    @outcomes ||= SENTENCE_CHAPTERS.filter_map do |(dir, name), paths|
+    @outcomes ||= SENTENCE_BLUEBOOKS.filter_map do |(dir, name), paths|
       found = sentences_of(name, paths)
       ["#{dir}/#{name}", found] if found
     end

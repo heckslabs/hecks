@@ -10,14 +10,14 @@ RSpec.describe Hecks::Tools::ToolsDoc do
     expect(forms.reject { |_, form| form.start_with?("hecks ") }.keys).to eq([])
   end
 
-  it "spells the QualityControl scripts as the chapter's own verbs", :aggregate_failures do
+  it "spells the QualityControl scripts as the bluebook's own verbs", :aggregate_failures do
     expect(forms.fetch("qa_open_pr")).to include("hecks quality_control patch.open ", "hecks quality_control improvement.open ")
     expect(forms.fetch("qa_log_bug")).to start_with("hecks quality_control bug.log ")
     expect(forms.fetch("qa_sweep")).to start_with("hecks quality_control sweep.run ")
       .and include("hecks quality_control target.release ")
   end
 
-  it "spells the QualityControl seeds and the ledger migration as the chapter's own verbs", :aggregate_failures do
+  it "spells the QualityControl seeds and the ledger migration as the bluebook's own verbs", :aggregate_failures do
     expect(forms.fetch("qa_seed_angles")).to eq("hecks quality_control angle.seed")
     expect(forms.fetch("qa_seed_targets")).to eq("hecks quality_control target.seed")
     expect(forms.fetch("qa_postgres_migrate")).to include("migrate_ledger_from_heki")

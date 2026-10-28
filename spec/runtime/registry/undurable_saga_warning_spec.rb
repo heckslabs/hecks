@@ -50,7 +50,7 @@ RSpec.describe "verify! warning for an undurable process_manager" do
     registry
   end
 
-  def plain_chapter
+  def plain_bluebook
     Hecks.bluebook("Plain") do
       vision "Nothing to correlate."
       supporting
@@ -62,7 +62,7 @@ RSpec.describe "verify! warning for an undurable process_manager" do
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      plain_chapter
+      plain_bluebook
       Hecks.hecksagon("Plain") { Plain::Thing.persisted_by("Memory") }
     end
     registry

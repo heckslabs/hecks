@@ -1,5 +1,5 @@
 require_relative "word_gate"
-require_relative "hecksagon_builder/chapter_scope"
+require_relative "hecksagon_builder/bluebook_scope"
 module Hecks
   module Bluebook
     module DSL
@@ -9,7 +9,7 @@ module Hecks
         GRAMMAR_CONTEXT = "Hecksagon".freeze
 
         include WordGate
-        extend ChapterScope
+        extend BluebookScope
 
         # Lets the Hecks bluebook's own hecksagon spell its aggregates `Hecks::Operation`.
         #
@@ -20,7 +20,7 @@ module Hecks
         # `HecksagonBuilder.build` takes each off `Hecks` while the block runs (see `shadowed`).
         # `attaches` loads whole bluebooks inside the block; the shadow lifts around each load
         # (see `with_real_modules`), so loaded code sees the real modules.
-        module ChapterConstants
+        module BluebookConstants
           # @param name [Symbol] the missing constant
           # @return [Bluebook::DSL::BindingProxy] a proxy for that aggregate while building
           def const_missing(name)
@@ -139,9 +139,9 @@ module Hecks
         # Loads a vendored package and records it as attached from `vendor/`, under the bluebook
         # its bluebook declares: `"document"` attaches `Documents`.
         def attach_vendored(name)
-          chapter = Hecks::EmbryonautBluebook.load!(name)
-          @attachments << Attachment.new(name: name.to_s, source: :vendor, chapter: chapter)
-          Hecks.current_registry&.mark_bounded(chapter)
+          declaration = Hecks::EmbryonautBluebook.load!(name)
+          @attachments << Attachment.new(name: name.to_s, source: :vendor, declaration: declaration)
+          Hecks.current_registry&.mark_bounded(declaration)
         end
         private :attach_vendored
 
@@ -194,4 +194,4 @@ module Hecks
   end
 end
 
-Hecks.singleton_class.prepend(Hecks::Bluebook::DSL::HecksagonBuilder::ChapterConstants)
+Hecks.singleton_class.prepend(Hecks::Bluebook::DSL::HecksagonBuilder::BluebookConstants)

@@ -766,7 +766,7 @@ mod tests {
     }
 
     #[test]
-    fn an_admits_naming_a_set_the_chapter_does_not_declare_refuses_every_value() {
+    fn an_admits_naming_a_set_the_bluebook_does_not_declare_refuses_every_value() {
         let mut ir = order_ir();
         ir["value_objects"][0]["attributes"][1]["admits"] = json!("Order::Missing");
         let state = json!({ "pizza": { "cents": 1200, "size": "small" }, "toppings": [], "status": "available" });
@@ -1205,7 +1205,7 @@ mod tests {
     }
 
     #[test]
-    fn a_value_object_another_aggregate_of_the_chapter_declares_is_held_to_its_constraints() {
+    fn a_value_object_another_aggregate_of_the_bluebook_declares_is_held_to_its_constraints() {
         let shelf = json!({"name": "Shelf", "attributes": [{"name": "band", "type": "Band", "list": false, "optional": false}],
                            "entities": [], "value_objects": []});
         let vocabulary = json!({"name": "Vocabulary", "attributes": [], "entities": [], "value_objects": [

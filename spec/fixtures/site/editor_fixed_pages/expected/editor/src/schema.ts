@@ -573,9 +573,9 @@ export const SCHEMA: Schema = {
       }
     },
     {
-      "name": "ChaptersPage",
+      "name": "EpisodesPage",
       "bluebook": "Leaflets",
-      "description": "A page that opens with a hero and tells a sequence of chapters, and an edit saved aside until it is put live.",
+      "description": "A page that opens with a hero and tells a sequence of episodes, and an edit saved aside until it is put live.",
       "identity": "key",
       "lifecycle": null,
       "attributes": [
@@ -595,14 +595,14 @@ export const SCHEMA: Schema = {
         },
         {
           "name": "content",
-          "type": "ChaptersContent",
+          "type": "EpisodesContent",
           "kind": "object",
           "optional": false,
           "list": false
         },
         {
           "name": "draft_content",
-          "type": "ChaptersContent",
+          "type": "EpisodesContent",
           "kind": "object",
           "optional": true,
           "list": false
@@ -618,7 +618,7 @@ export const SCHEMA: Schema = {
             "list": false
           }
         ],
-        "ChaptersContent": [
+        "EpisodesContent": [
           {
             "name": "hero",
             "type": "Hero",
@@ -627,8 +627,8 @@ export const SCHEMA: Schema = {
             "list": false
           },
           {
-            "name": "chapters",
-            "type": "Chapter",
+            "name": "episodes",
+            "type": "Episode",
             "kind": "object",
             "optional": false,
             "list": true,
@@ -665,7 +665,7 @@ export const SCHEMA: Schema = {
             }
           }
         ],
-        "Chapter": [
+        "Episode": [
           {
             "name": "verse",
             "type": "Verse",
@@ -953,7 +953,7 @@ export const SCHEMA: Schema = {
       "commands": [
         {
           "name": "Write",
-          "goal": "Start a chapters page",
+          "goal": "Start a episodes page",
           "role": "Editor",
           "creates": true,
           "on": null,
@@ -975,7 +975,7 @@ export const SCHEMA: Schema = {
             },
             {
               "name": "content",
-              "type": "ChaptersContent",
+              "type": "EpisodesContent",
               "kind": "object",
               "optional": false,
               "list": false
@@ -987,12 +987,12 @@ export const SCHEMA: Schema = {
           "goal": "Replace the content readers see",
           "role": "Editor",
           "creates": false,
-          "on": "ChaptersPage",
+          "on": "EpisodesPage",
           "destructive": false,
           "attributes": [
             {
               "name": "content",
-              "type": "ChaptersContent",
+              "type": "EpisodesContent",
               "kind": "object",
               "optional": false,
               "list": false
@@ -1004,12 +1004,12 @@ export const SCHEMA: Schema = {
           "goal": "Keep an edit aside without changing what readers see",
           "role": "Editor",
           "creates": false,
-          "on": "ChaptersPage",
+          "on": "EpisodesPage",
           "destructive": false,
           "attributes": [
             {
               "name": "draft_content",
-              "type": "ChaptersContent",
+              "type": "EpisodesContent",
               "kind": "object",
               "optional": false,
               "list": false
@@ -1021,7 +1021,7 @@ export const SCHEMA: Schema = {
           "goal": "Make the saved edit what readers see, and clear it",
           "role": "Editor",
           "creates": false,
-          "on": "ChaptersPage",
+          "on": "EpisodesPage",
           "destructive": false,
           "attributes": []
         },
@@ -1030,7 +1030,7 @@ export const SCHEMA: Schema = {
           "goal": "Drop the saved edit and keep what readers see",
           "role": "Editor",
           "creates": false,
-          "on": "ChaptersPage",
+          "on": "EpisodesPage",
           "destructive": true,
           "attributes": []
         }
@@ -1038,7 +1038,7 @@ export const SCHEMA: Schema = {
       "queries": [
         {
           "name": "Listing",
-          "description": "Every chapters page.",
+          "description": "Every episodes page.",
           "attributes": []
         }
       ],

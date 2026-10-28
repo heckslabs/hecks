@@ -12,7 +12,7 @@ module Hecks
     # staged copy of the files lives until `close`.
     class Live
       # @return [String] the bluebook the workspace booted
-      attr_reader :chapter_name
+      attr_reader :declaration_name
 
       # Stages the workspace and boots it in memory.
       #
@@ -25,7 +25,7 @@ module Hecks
         stage = Workspace.materialize(dir: dir, buffers: buffers)
         begin
           runtime = Hecks.boot(stage, install_driving: false, environment: "memory")
-          new(stage: stage, runtime: runtime, chapter_name: Parse.bluebooks(stage).keys.first)
+          new(stage: stage, runtime: runtime, declaration_name: Parse.bluebooks(stage).keys.first)
         rescue StandardError, ScriptError
           FileUtils.rm_rf(stage)
           raise
@@ -34,11 +34,11 @@ module Hecks
 
       # @param stage [String] the staged directory this domain booted from
       # @param runtime [Runtime::Dispatcher] the booted domain
-      # @param chapter_name [String] the bluebook's name
-      def initialize(stage:, runtime:, chapter_name:)
+      # @param declaration_name [String] the bluebook's name
+      def initialize(stage:, runtime:, declaration_name:)
         @stage = stage
         @runtime = runtime
-        @chapter_name = chapter_name
+        @declaration_name = declaration_name
       end
 
       # The aggregate commands the bluebook declares, each with a starter value for every argument.
@@ -67,7 +67,7 @@ module Hecks
       # @return [Hash{String => Array<Hash>}] each aggregate's name to its records as plain rows
       def records
         aggregates.to_h do |aggregate|
-          rows = @runtime.repository(@chapter_name, aggregate).all
+          rows = @runtime.repository(@declaration_name, aggregate).all
           [aggregate.hecks_name, Plain.call(rows.to_a)]
         end
       end
@@ -88,7 +88,7 @@ module Hecks
       end
 
       # @api private
-      def aggregates = @runtime.bluebook(@chapter_name).aggregates
+      def aggregates = @runtime.bluebook(@declaration_name).aggregates
 
       # @api private
       def accepted(result)
@@ -110,7 +110,7 @@ module Hecks
       # @api private
       def describe(aggregate, command)
         args = arguments(command)
-        { verb: "#{@chapter_name}::#{aggregate.hecks_name}.#{command.hecks_name}",
+        { verb: "#{@declaration_name}::#{aggregate.hecks_name}.#{command.hecks_name}",
           aggregate: aggregate.hecks_name, command: command.hecks_name, goal: command.goal.to_s,
           creates: command.references.nil?, args: args, template: template(aggregate, args) }
       end

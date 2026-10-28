@@ -4,7 +4,7 @@ require "tmpdir"
 # ADR 0080, section 9: `Hecks` is the gem's own bluebook name, so `verify!` refuses a client
 # bluebook that takes it and leaves the gem's bluebook and every other name alone.
 RSpec.describe "the reserved bluebook name Hecks, checked at verify!" do
-  GEM_CHAPTER_ROOT = File.expand_path("../../../lib/hecks/hecks", __dir__)
+  GEM_BLUEBOOK_ROOT = File.expand_path("../../../lib/hecks/hecks", __dir__)
 
   CLIENT_BLUEBOOK_TEMPLATE = <<~RUBY.freeze
     Hecks.bluebook "%<name>s" do
@@ -44,14 +44,14 @@ RSpec.describe "the reserved bluebook name Hecks, checked at verify!" do
   end
 
   it "refuses a Hecks bluebook that no file declared" do
-    registry = boot(GEM_CHAPTER_ROOT).registry
+    registry = boot(GEM_BLUEBOOK_ROOT).registry
     registry.bluebook_sources.clear
 
     expect { registry.verify! }.to raise_error(Hecks::Runtime::WiringError, /reserved/)
   end
 
   it "boots the gem's own Hecks bluebook" do
-    expect(boot(GEM_CHAPTER_ROOT).registry.bluebooks.keys).to include("Hecks")
+    expect(boot(GEM_BLUEBOOK_ROOT).registry.bluebooks.keys).to include("Hecks")
   end
 
   it "boots a differently named client bluebook" do

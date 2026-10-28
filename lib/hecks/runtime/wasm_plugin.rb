@@ -6,7 +6,7 @@ module Hecks
     # Runs a plugin adapter's wasm module: one question in, one answer out.
     #
     # A plugin is a WASI command, the same contract the Rust host runs its kernel by. It reads
-    # `{"question": "Chapter::Aggregate.Query", "args": {...}}` as JSON on stdin and writes
+    # `{"question": "Bluebook::Aggregate.Query", "args": {...}}` as JSON on stdin and writes
     # `{"rows": [...]}` or `{"refused": "why"}` as JSON on stdout. It is given no files, network,
     # environment or arguments, so it answers from its question alone; here its clock and
     # randomness are fixed too. Both hosts run the same module, so there is one implementation to

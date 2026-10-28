@@ -12,7 +12,7 @@ module Hecks
       # @raise [Runtime::WiringError] if the bluebook's own domain rules refuse a ledger step
       def translation
         registry = Runtime::Registry.new
-        load_chapter(registry, File.join(DIR, "translation.bluebook"))
+        load_bluebook(registry, File.join(DIR, "translation.bluebook"))
         dispatcher = Runtime::Dispatcher.new(registry)
         JSON.parse(File.read(TRANSLATION_LEDGER)).fetch("steps").each { |step| replay_step(dispatcher, step) }
         dispatcher

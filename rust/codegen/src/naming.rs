@@ -79,14 +79,14 @@ pub use crate::reserved_names::{CARGO_RESERVED_DOMAIN_NAMES, RUST_KEYWORDS};
 /// The modules every generated bluebook declares itself, beside its aggregates' modules: the
 /// sidecar `metadata`, the `registry` table, and the `merged` router. An aggregate whose
 /// downcased name is one of these would declare the module twice and overwrite the file.
-pub const CHAPTER_OWNED_MODULES: &[&str] = &["metadata", "registry", "merged"];
+pub const BLUEBOOK_OWNED_MODULES: &[&str] = &["metadata", "registry", "merged"];
 
 /// The module (and file stem) one aggregate's generated Rust lives in: its downcased name, or
 /// `<name>_aggregate` when that name is one the bluebook declares itself. A downcased name never
 /// holds an underscore, so the suffixed form cannot meet another aggregate's module.
 pub fn aggregate_module(name: &str) -> String {
     let module = name.to_lowercase();
-    if CHAPTER_OWNED_MODULES.contains(&module.as_str()) {
+    if BLUEBOOK_OWNED_MODULES.contains(&module.as_str()) {
         format!("{module}_aggregate")
     } else {
         module
@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn an_aggregate_named_for_a_chapter_module_gets_a_suffixed_module() {
+    fn an_aggregate_named_for_a_bluebook_module_gets_a_suffixed_module() {
         assert_eq!(aggregate_module("Metadata"), "metadata_aggregate");
         assert_eq!(aggregate_module("Registry"), "registry_aggregate");
         assert_eq!(aggregate_module("Merged"), "merged_aggregate");

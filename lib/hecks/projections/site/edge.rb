@@ -88,8 +88,8 @@ module Hecks
         # @return [Edge, nil] the checked edge, or nil when the bluebook declares none and no route
         #   names an edge function
         # @raise [Table::Invalid] when a row is refused or the edge contradicts the routes
-        def self.read(chapter, table:, vocabulary:, template: nil)
-          declared = OBJECTS.transform_values { |name| Table.rows_of(chapter, name) }
+        def self.read(declaration, table:, vocabulary:, template: nil)
+          declared = OBJECTS.transform_values { |name| Table.rows_of(declaration, name) }
           return nil if declared.values.all?(&:empty?) && table.rows.none?(&:edge)
 
           problems = []

@@ -225,10 +225,10 @@ Sibling method `declared_value_object` (`:385`) already includes
 
 The held-declaration cache is keyed on `SHA256(JSON(bluebook.to_h))`, but the
 language deliberately holds more than `to_h` carries — `ReadModel#to_h` omits
-`wheres`/`order_by`/`limit`. Verified: boot chapter A with
+`wheres`/`order_by`/`limit`. Verified: boot bluebook A with
 `where price_cents.cents == 100`, then in the same process boot an otherwise
-identical chapter with `== 999`; the second boot is handed the **first**
-chapter's assembled read model (filter still 100). Any same-process reload
+identical bluebook with `== 999`; the second boot is handed the **first**
+bluebook's assembled read model (filter still 100). Any same-process reload
 after editing only a read-model filter (test suites, consoles, hecks_studio)
 runs the stale filter. Policy→head attribution shares the same key hole.
 
@@ -395,9 +395,9 @@ an invalid Rust escape via `.inspect` and breaks the build.
   wearing a refusal's clothes." _confirmed_
 
 **IR round-trip losses (`bluebook/ir/`)** — set as ivars, absent from
-`to_h`, so a chapter reassembled from exported IR loses them silently:
+`to_h`, so a bluebook reassembled from exported IR loses them silently:
 - `bluebook.rb:69` — `formerly_known_as` (drives the real Postgres schema
-  rename via `era_resolver.rb:15`) and chapter-level `@ports`. _confirmed /
+  rename via `era_resolver.rb:15`) and bluebook-level `@ports`. _confirmed /
   likely_
 - `process_manager.rb:113` — `correlates_by` maps `nil → ""` on the wire.
   _confirmed_
@@ -415,7 +415,7 @@ an invalid Rust escape via `.inspect` and breaks the build.
   spelling, so under Ruby ≥3.4 every object-literal default/binding decodes
   to `{}`. _confirmed / likely_
 - `naming.rb:61` + `aggregate_builder.rb:88` — `plural`/`singularize` are not
-  inverses for `-es`; `has_many Boxes` refuses the chapter naming a phantom
+  inverses for `-es`; `has_many Boxes` refuses the bluebook naming a phantom
   aggregate `Boxe`. _confirmed_
 
 **Runtime (`runtime/`)**

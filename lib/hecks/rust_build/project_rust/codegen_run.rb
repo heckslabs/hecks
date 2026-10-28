@@ -15,7 +15,7 @@ module Hecks
         META_LABEL = "the self-hosted language (lib/hecks/language/bluebook)"
 
         # One bluebook's IR, generated into its own module.
-        Chapter = Struct.new(:mod_name, :label, :ir)
+        Declaration = Struct.new(:mod_name, :label, :ir)
 
         # The `hecks-codegen` crate: the workspace's own copy when it carries one (a packaged
         # workspace does), otherwise the checkout's, so a scratch crate holding only the generated
@@ -44,11 +44,11 @@ module Hecks
         # @param target [Bluebook] the domain being projected
         # @param bluebooks [Array<Bluebook>] every other bluebook the target attached
         # @param meta [Hash] the self-hosted language's IR
-        def initialize(rust_dir:, out_root:, target:, chapters:, meta:)
+        def initialize(rust_dir:, out_root:, target:, declarations:, meta:)
           @rust_dir = rust_dir
           @out_root = out_root
           @target = target
-          @chapters = chapters
+          @declarations = declarations
           @meta = meta
         end
 
@@ -81,8 +81,8 @@ module Hecks
 
         def generate_target(stage, tmp)
           args = [stage, @target.mod_name, @target.label, write_ir(tmp, @target.mod_name, @target.ir)]
-          @chapters.each do |chapter|
-            args.push(chapter.mod_name, chapter.label, write_ir(tmp, chapter.mod_name, chapter.ir))
+          @declarations.each do |declaration|
+            args.push(declaration.mod_name, declaration.label, write_ir(tmp, declaration.mod_name, declaration.ir))
           end
           run("full", *args)
         end

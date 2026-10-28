@@ -60,7 +60,7 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
     registry = attach("Deploy")
 
     expect(registry.bluebook("Deploy")).not_to be_nil
-    expect(registry.hecksagon("Console").member_chapters).to eq(["Deploy"])
+    expect(registry.hecksagon("Console").member_bluebooks).to eq(["Deploy"])
     expect(registry.hecksagon("Console").to_h[:attachments]).to eq([{ name: "Deploy", source: "gem" }])
   end
 
@@ -95,7 +95,7 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
   describe "a bluebook that ships its ports and adapters" do
     let(:registry) { attach("QualityControl") }
 
-    it "declares the chapter's ports on its aggregates", :aggregate_failures do
+    it "declares the bluebook's ports on its aggregates", :aggregate_failures do
       quality_control = registry.bluebook("QualityControl")
 
       expect(quality_control.aggregate("Ticket").port("IssueTracker")).not_to be_nil
@@ -180,7 +180,7 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
         Hecks.hecksagon("Hexed") { attaches "Governance" }
       end
 
-      expect(registry.hecksagon("Hexed").member_chapters).to eq(["Governance"])
+      expect(registry.hecksagon("Hexed").member_bluebooks).to eq(["Governance"])
     end
   end
 end

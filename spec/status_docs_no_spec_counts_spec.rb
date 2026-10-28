@@ -15,7 +15,8 @@ RSpec.describe "status documents" do
 
   let(:thing_totals) do
     number = /(?:\d[\d,]*|(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b)/i
-    thing = /(?:generated\s+)?(?:actions|aggregates|chapters|commands|contexts|cops|gates|kinds|properties|adapters|bluebooks)/i
+    nouns = %w[actions aggregates declarations commands contexts cops gates kinds properties adapters bluebooks].join("|")
+    thing = /(?:generated\s+)?(?:#{nouns})/i
     /\b#{number.source}\s+#{thing.source}\b/i
   end
 

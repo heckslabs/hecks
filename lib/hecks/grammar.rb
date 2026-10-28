@@ -19,9 +19,9 @@ module Hecks
 
     # The ports and adapters a bluebook needs loaded before its own bluebook, relative to the
     # repository root.
-    CHAPTER_PREREQUISITES = %w[lib/hecks/ports/persistence.port lib/hecks/ports/extraction.port
-                               lib/hecks/adapters/driven/memory.adapter
-                               lib/hecks/adapters/driven/prism.adapter].freeze
+    BLUEBOOK_PREREQUISITES = %w[lib/hecks/ports/persistence.port lib/hecks/ports/extraction.port
+                                lib/hecks/adapters/driven/memory.adapter
+                                lib/hecks/adapters/driven/prism.adapter].freeze
 
     extend Operators
     extend Dialects
@@ -38,7 +38,7 @@ module Hecks
     #   own domain rules
     def expression
       registry = Runtime::Registry.new
-      load_chapter(registry, File.join(DIR, "expression.bluebook"))
+      load_bluebook(registry, File.join(DIR, "expression.bluebook"))
       dispatcher = Runtime::Dispatcher.new(registry)
       JSON.parse(File.read(LEDGER)).fetch("steps").each { |step| replay_step(dispatcher, step) }
       dispatcher
@@ -49,11 +49,11 @@ module Hecks
     # @param registry [Runtime::Registry] the registry the bluebook loads into
     # @param bluebook [String] the path of the bluebook's `.bluebook`
     # @return [void]
-    def load_chapter(registry, chapter)
+    def load_bluebook(registry, declaration)
       root = File.expand_path("../..", __dir__)
       Hecks.with_registry(registry) do
-        CHAPTER_PREREQUISITES.each { |file| Kernel.load(File.join(root, file)) }
-        Kernel.load(chapter)
+        BLUEBOOK_PREREQUISITES.each { |file| Kernel.load(File.join(root, file)) }
+        Kernel.load(declaration)
       end
     end
 

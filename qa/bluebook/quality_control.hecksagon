@@ -2,7 +2,7 @@
 # The bluebook, its ports and its adapters ship in lib/hecks/quality_control/; this directory holds
 # what belongs to this repository's QA practice: the wiring below, the sibling quality_control.world
 # (the database name), the era's translations/ and the Governance binds in context_map.hecksagon.
-Hecks::Chapters.load!("QualityControl")
+Hecks::FrameworkBluebooks.load!("QualityControl")
 
 Hecks.hecksagon "QualityControl" do
   attaches "Governance"

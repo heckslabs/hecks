@@ -22,7 +22,7 @@ RSpec.describe "every role-gated command, at every door that takes a role", :agg
     Hecks::Fuzzing::IsolatedBoot.call(dir) do |copy|
       runtime = Hecks.boot(copy, environment: nil)
       Doors.intruder_steps(runtime).map do |step|
-        mcp = step["verb"].start_with?("#{Doors.mcp_chapter(runtime)}::") ? Doors.call(:mcp, runtime, step) : nil
+        mcp = step["verb"].start_with?("#{Doors.mcp_bluebook(runtime)}::") ? Doors.call(:mcp, runtime, step) : nil
         [step["verb"], Doors.call(:ruby, runtime, step), mcp]
       end
     end

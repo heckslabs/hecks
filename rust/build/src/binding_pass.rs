@@ -17,12 +17,12 @@ pub fn run(
     world_default: Option<&str>,
     adapter_declarations: impl FnOnce(&Json) -> Result<Json, String>,
 ) -> Result<(), String> {
-    let chapter_name = ir
+    let declaration_name = ir
         .get("name")
         .and_then(Json::as_str)
         .unwrap_or_default()
         .to_string();
-    let persistence = persistence(ir, &chapter_name, hecksagon_path, world_default)?;
+    let persistence = persistence(ir, &declaration_name, hecksagon_path, world_default)?;
     ir.set("persistence", persistence);
     let adapters = adapter_declarations(ir)?;
     ir.set("adapters", adapters);
@@ -68,7 +68,7 @@ fn declares_translation(line: &str) -> bool {
 
 fn persistence(
     ir: &Json,
-    chapter: &str,
+    declaration: &str,
     hecksagon: Option<&Path>,
     world_default: Option<&str>,
 ) -> Result<Json, String> {
@@ -77,7 +77,7 @@ fn persistence(
             let text = read(path)?;
             (
                 lineage_pass::persistence_binds(&text),
-                domain_default(&text, chapter),
+                domain_default(&text, declaration),
             )
         }
         None => (HashMap::new(), None),
@@ -95,7 +95,7 @@ fn persistence(
             (None, Some(adapter), _) => adapter.clone(),
             (None, None, false) => "Memory".to_string(),
             (None, None, true) => {
-                return Err(format!("{chapter}::{name} has no persisted_by bind, and its hecksagon names no default adapter"));
+                return Err(format!("{declaration}::{name} has no persisted_by bind, and its hecksagon names no default adapter"));
             }
         };
         aggregates.push(Json::Object(vec![
@@ -115,18 +115,18 @@ fn persistence(
 
 // The bare `persisted_by "X"` line of the bluebook's own `Hecks.hecksagon` block: every aggregate
 // without a bind of its own inherits it. The last one in the block wins.
-fn domain_default(text: &str, chapter: &str) -> Option<String> {
-    let mut in_chapter = false;
+fn domain_default(text: &str, declaration: &str) -> Option<String> {
+    let mut in_bluebook = false;
     let mut found = None;
     for line in text.lines() {
         if let Some(rest) = line.strip_prefix("Hecks.hecksagon") {
-            in_chapter = rest.contains(&format!("\"{chapter}\""));
+            in_bluebook = rest.contains(&format!("\"{declaration}\""));
             continue;
         }
         let Some(rest) = line.trim_start().strip_prefix("persisted_by ") else {
             continue;
         };
-        let Some(open) = rest.find('"').filter(|_| in_chapter) else {
+        let Some(open) = rest.find('"').filter(|_| in_bluebook) else {
             continue;
         };
         let quoted = &rest[open + 1..];

@@ -32,7 +32,7 @@ module Hecks
       # Loads the Sentence bluebook on its own, in a registry of its own.
       #
       # @return [Bluebook::Declaration] the bluebook declared by `SENTENCE_FILE`
-      def chapter
+      def declaration
         registry = Hecks::Runtime::Registry.new
         Hecks.with_registry(registry) { (SUPPORT_FILES + [SENTENCE_FILE]).each { |file| Kernel.load(file) } }
         registry.bluebook("Sentence")

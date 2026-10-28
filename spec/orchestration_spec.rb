@@ -17,7 +17,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   # carry less. Adding an entry claims the language cannot hold something.
   KNOWN_GAPS = [].freeze
 
-  def load_chapter(file)
+  def load_bluebook(file)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
@@ -52,9 +52,9 @@ RSpec.describe "the distance between the builder's graph and the language's" do
 
   def ivars(node) = node.instance_variables - SKIP
 
-  def snapshot(chapter)
+  def snapshot(declaration)
     out = {}
-    state(chapter, "", out)
+    state(declaration, "", out)
     out
   end
 
@@ -79,11 +79,11 @@ RSpec.describe "the distance between the builder's graph and the language's" do
       "does carry, so the language is losing something it holds:\n  #{detail.join("\n  ")}"
   end
 
-  def pizzas_chapter = load_chapter(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
+  def pizzas_bluebook = load_bluebook(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
 
   ORCHESTRATION_CORPUS.each do |name, file|
     it "differs on #{name} only where the IR cannot carry it" do
-      built     = load_chapter(file).bluebook(name)
+      built     = load_bluebook(file).bluebook(name)
       before    = snapshot(built)
       assembled = snapshot(assembled_from_the_language(built))
       surprising = surprising_paths(before, assembled)
@@ -93,7 +93,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   end
 
   it "assembles a working runtime graph from what the language holds", :aggregate_failures do
-    pizza = assembled_from_the_language(pizzas_chapter).aggregate("Order")
+    pizza = assembled_from_the_language(pizzas_bluebook).aggregate("Order")
 
     expect(pizza.command("CreatePizza").creates?).to be(true)
     expect(pizza.command("AddTopping").acts_on).to be(pizza)
@@ -104,7 +104,7 @@ RSpec.describe "the distance between the builder's graph and the language's" do
   it "registers the language's graph, not the one the builder made" do
     # The entry point `Hecks.bluebook` registers through returns an object assembled from
     # records, not the one handed in.
-    built = load_chapter(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
+    built = load_bluebook(ORCHESTRATION_CORPUS.fetch("Pizzas")).bluebook("Pizzas")
 
     expect(Hecks::Bluebook::MetaValidator.call(built)).not_to be(built)
   end

@@ -69,11 +69,10 @@ module Hecks
 
         # Renders the editor's files for a project that declares an `Editor` row.
         #
-        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and the
-        #   row
-        # @param options [Hash{Symbol => Object}] `:domain_chapters` the bluebooks to edit, in the
-        #   order the row names them (`:domain_chapter` for one); `:media_chapter` the bluebook the
-        #   row's `media` names, whose picture aggregate the pictures use; `:table` the checked
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table and row
+        # @param options [Hash{Symbol => Object}] `:domain_bluebooks` the bluebooks to edit, in the
+        #   order the row names them (`:domain_bluebook` for one); `:media_bluebook` the bluebook
+        #   the row's `media` names, whose picture aggregate the pictures use; `:table` the checked
         #   route table, when the login page is to be checked against it
         # @return [Hash{String => String}] each file's path relative to the editor's directory to
         #   its text; empty when the project declares no `Editor` row
@@ -83,8 +82,9 @@ module Hecks
           setting = Setting.read(bluebook, table: options[:table])
           return {} unless setting
 
-          chapters = options[:domain_chapters] || options.fetch(:domain_chapter)
-          schema = Schema.read(chapters, skip: setting.skip, pictures: options[:media_chapter], roles: setting.bluebook_roles)
+          declarations = options[:domain_bluebooks] || options.fetch(:domain_bluebook)
+          schema = Schema.read(declarations, skip: setting.skip, pictures: options[:media_bluebook],
+roles: setting.bluebook_roles)
           media = schema.key?("media")
           tokens = tokens(setting, schema, media)
           [*FILES, *(MEDIA_FILES if media)].to_h { |path| [path, fill(File.read(File.join(TEMPLATES, "#{path}.tmpl")), tokens)] }

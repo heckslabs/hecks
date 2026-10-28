@@ -93,7 +93,7 @@ module Hecks
           end
 
           # A `command:` or `query:` source leaves the path to the forms scheme,
-          # `/Chapter/Aggregate/Verb`.
+          # `/Bluebook/Aggregate/Verb`.
           def derived_path(source)
             match = DERIVED_SOURCE.match(source) or return nil
             "/#{match[2]}/#{match[3]}/#{match[4]}"
@@ -137,7 +137,7 @@ module Hecks
             match = DERIVED_SOURCE.match(source)
             unless match || source == "none" || source.match?(NAMED_SOURCE)
               problem(label, "has source #{source.inspect}; use none, global:<slug>, collection:<name>, " \
-                             "command:<Chapter>.<Aggregate>.<Command> or query:<Chapter>.<Aggregate>.<Query>")
+                             "command:<Bluebook>.<Aggregate>.<Command> or query:<Bluebook>.<Aggregate>.<Query>")
             end
             return unless match && @registry
             return if verb_exists?(*match.captures)
@@ -145,8 +145,8 @@ module Hecks
             problem(label, "names #{source}, which no attached bluebook declares")
           end
 
-          def verb_exists?(word, chapter, aggregate, name)
-            found = @registry.bluebook(chapter)&.aggregate(aggregate) or return false
+          def verb_exists?(word, declaration, aggregate, name)
+            found = @registry.bluebook(declaration)&.aggregate(aggregate) or return false
             (word == "command" ? found.commands : found.queries).any? { |verb| verb.hecks_name == name }
           end
 

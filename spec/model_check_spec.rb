@@ -214,7 +214,7 @@ RSpec.describe "the model checker" do
     let(:key_finding) { findings.find { |f| f.kind == :key_by_value && f.subject == "Ledger.account_number" } }
 
     # Aggregates the DSL would not build (a bare String attribute), to prove the guard directly.
-    def primitive_chapter
+    def primitive_bluebook
       primitive = Struct.new(:type, :name) do
         def reference? = false
         def list? = false
@@ -258,7 +258,7 @@ RSpec.describe "the model checker" do
     end
 
     it "never treats a primitive type as an identity match" do
-      expect(Hecks::Bluebook::ModelCheck.key_by_value_findings(primitive_chapter)).to be_empty
+      expect(Hecks::Bluebook::ModelCheck.key_by_value_findings(primitive_bluebook)).to be_empty
     end
   end
 
@@ -269,7 +269,7 @@ RSpec.describe "the model checker" do
     let(:orphans) { findings.select { |f| f.kind == :orphaned_reference } }
 
     # A one-aggregate bluebook whose only ending command emits nothing.
-    def silent_ending_chapter
+    def silent_ending_bluebook
       transition = Struct.new(:target, :from) { def constrained? = true }.new("gone", ["here"])
       lifecycle = Struct.new(:default, :transitions).new("here", [["Vanish", transition]])
       command = Struct.new(:hecks_name, :emits).new("Vanish", [])
@@ -297,7 +297,7 @@ RSpec.describe "the model checker" do
     end
 
     it "says when the ending command emits no event a policy could hear" do
-      expect(Hecks::Bluebook::ModelCheck.life_endings(silent_ending_chapter).first.events).to be_empty
+      expect(Hecks::Bluebook::ModelCheck.life_endings(silent_ending_bluebook).first.events).to be_empty
     end
   end
 
@@ -484,10 +484,10 @@ RSpec.describe "the model checker" do
 
     # The errors the model checker finds in the named bluebook of the language itself.
     def language_errors(name)
-      chapter = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name)
-      return [] unless chapter
+      declaration = Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name)
+      return [] unless declaration
 
-      Hecks::Bluebook::ModelCheck.call(chapter).select { |f| f.severity == :error }
+      Hecks::Bluebook::ModelCheck.call(declaration).select { |f| f.severity == :error }
     end
 
     it "the language itself is clean" do

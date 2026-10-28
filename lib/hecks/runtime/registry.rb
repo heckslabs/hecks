@@ -143,7 +143,7 @@ module Hecks
       # @param name [String, Symbol] the bluebook name to mark bounded
       # @return [void]
       def mark_bounded(name)
-        @declared.bounded_chapters[name.to_s] = true
+        @declared.bounded_bluebooks[name.to_s] = true
       end
 
       # Says whether `name` is a bounded context — attached via `attaches`, or a consumer
@@ -151,7 +151,7 @@ module Hecks
       #
       # @param name [String, Symbol] the bluebook name to check
       # @return [Boolean] whether that bluebook is bounded
-      def bounded?(name) = @declared.bounded_chapters[name.to_s] ? true : false
+      def bounded?(name) = @declared.bounded_bluebooks[name.to_s] ? true : false
 
       # Registers a loaded port, keyed by its own declared name.
       #
@@ -250,8 +250,8 @@ module Hecks
       #
       # @return [Array<String>] every declared verb, across every loaded bluebook
       def verbs
-        chapters = @declared.bluebooks.values
-        chapters.flat_map(&:verbs).sort
+        declarations = @declared.bluebooks.values
+        declarations.flat_map(&:verbs).sort
       end
 
       # Resolves and memoizes `aggregate`'s authoritative repository.
@@ -331,7 +331,3 @@ module Hecks
     end
   end
 end
-
-# Registry#forget_chapter was the name until ADR 0134 and still works, saying so once per use.
-require_relative "../retired_names"
-Hecks::RetiredNames.method_name(Hecks::Runtime::Registry, :forget_chapter, :forget_bluebook)

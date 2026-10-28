@@ -3,7 +3,7 @@
 # box outside a block list, and for repeated groups that hold groups of their own. The key is a plain
 # `page:<slug>` value; a picture is named by a plain media key.
 Hecks.bluebook "Leaflets" do
-  vision "Pages of a fixed structure: a note, chapters, a gallery and a roster, each with its slots, and an edit kept aside until it is put live."
+  vision "Pages of a fixed structure: a note, episodes, a gallery and a roster, each with its slots, and an edit kept aside until it is put live."
   core
 
   aggregate "NotePage" do
@@ -183,29 +183,29 @@ Hecks.bluebook "Leaflets" do
     end
   end
 
-  aggregate "ChaptersPage" do
-    description "A page that opens with a hero and tells a sequence of chapters, and an edit saved aside until it is put live."
+  aggregate "EpisodesPage" do
+    description "A page that opens with a hero and tells a sequence of episodes, and an edit saved aside until it is put live."
 
-    # **Slots** -- `hero` (optional: a heading, writing and a picture), `chapters` (required, 1 to 60).
-    # A chapter is ONE kind of group with a fixed order: a verse, a picture band, a heading and writing,
-    # then up to 12 titled parts. Every part is optional and a chapter must say something.
+    # **Slots** -- `hero` (optional: a heading, writing and a picture), `episodes` (required, 1 to 60).
+    # A episode is ONE kind of group with a fixed order: a verse, a picture band, a heading and writing,
+    # then up to 12 titled parts. Every part is optional and a episode must say something.
     identified_by :key
 
     attribute :key,           LeafletKey
-    attribute :content,       ChaptersContent
-    attribute :draft_content, ChaptersContent, optional: true
+    attribute :content,       EpisodesContent
+    attribute :draft_content, EpisodesContent, optional: true
 
     # **A page is named by a plain key** -- `page:<slug>`.
     value_object "LeafletKey" do
       attribute :value, String, pattern: '^page:[a-z0-9-]+$'
     end
 
-    value_object "ChaptersContent" do
+    value_object "EpisodesContent" do
       attribute :hero,     Hero, optional: true
-      attribute :chapters, list_of(Chapter)
+      attribute :episodes, list_of(Episode)
 
-      invariant("a page has at least one chapter") { chapters.size >= 1 }
-      invariant("a page has at most 60 chapters") { chapters.size <= 60 }
+      invariant("a page has at least one episode") { episodes.size >= 1 }
+      invariant("a page has at most 60 episodes") { episodes.size <= 60 }
     end
 
     value_object "Hero" do
@@ -216,17 +216,17 @@ Hecks.bluebook "Leaflets" do
       invariant("a hero has a heading") { !heading.to_s.empty? }
     end
 
-    value_object "Chapter" do
+    value_object "Episode" do
       attribute :verse,   Verse, optional: true
       attribute :band,    Band, optional: true
       attribute :heading, String, optional: true
       attribute :body,    Body, optional: true
       attribute :parts,   list_of(Part)
 
-      invariant("a chapter says something") do
+      invariant("a episode says something") do
         verse.set? || band.set? || !heading.to_s.empty? || (body.set? && !body.blocks.empty?) || !parts.empty?
       end
-      invariant("a chapter has at most 12 parts") { parts.size <= 12 }
+      invariant("a episode has at most 12 parts") { parts.size <= 12 }
     end
 
     value_object "Verse" do
@@ -327,15 +327,15 @@ Hecks.bluebook "Leaflets" do
 
     command "Write" do
       role "Editor"
-      goal "Start a chapters page"
+      goal "Start a episodes page"
 
       attribute :key,     LeafletKey
-      attribute :content, ChaptersContent
+      attribute :content, EpisodesContent
 
       sets :key
       sets :content
 
-      emits "ChaptersPageWritten"
+      emits "EpisodesPageWritten"
     end
 
     # **Straight to readers** -- replaces the live content at once.
@@ -343,24 +343,24 @@ Hecks.bluebook "Leaflets" do
       role "Editor"
       goal "Replace the content readers see"
 
-      reference_to ChaptersPage
-      attribute :content, ChaptersContent
+      reference_to EpisodesPage
+      attribute :content, EpisodesContent
 
       sets :content
 
-      emits "ChaptersPageRevised"
+      emits "EpisodesPageRevised"
     end
 
     command "SaveDraft" do
       role "Editor"
       goal "Keep an edit aside without changing what readers see"
 
-      reference_to ChaptersPage
-      attribute :draft_content, ChaptersContent
+      reference_to EpisodesPage
+      attribute :draft_content, EpisodesContent
 
       sets :draft_content
 
-      emits "ChaptersPageDraftSaved"
+      emits "EpisodesPageDraftSaved"
     end
 
     # **Clearing is leaving out** -- these two take an optional `nothing` that is never sent, and set
@@ -369,31 +369,31 @@ Hecks.bluebook "Leaflets" do
       role "Editor"
       goal "Make the saved edit what readers see, and clear it"
 
-      reference_to ChaptersPage
-      attribute :nothing, ChaptersContent, optional: true
+      reference_to EpisodesPage
+      attribute :nothing, EpisodesContent, optional: true
 
       given("an edit is saved") { draft_content.set? }
       sets :content, to: state(:draft_content)
       sets :draft_content, to: :nothing
 
-      emits "ChaptersPageDraftPublished"
+      emits "EpisodesPageDraftPublished"
     end
 
     command "DiscardDraft" do
       role "Editor"
       goal "Drop the saved edit and keep what readers see"
 
-      reference_to ChaptersPage
-      attribute :nothing, ChaptersContent, optional: true
+      reference_to EpisodesPage
+      attribute :nothing, EpisodesContent, optional: true
 
       given("an edit is saved") { draft_content.set? }
       sets :draft_content, to: :nothing
 
-      emits "ChaptersPageDraftDiscarded"
+      emits "EpisodesPageDraftDiscarded"
     end
 
     query "Listing" do
-      description "Every chapters page."
+      description "Every episodes page."
     end
   end
 

@@ -16,7 +16,7 @@ module Hecks
         #     Account.freeze_account!(over: Account.open_for_customer(reference: "C-1"))
         module BulkVerbs
           # The bluebook whose `BulkRun` records every run.
-          CHAPTER = "Bulk".freeze
+          BLUEBOOK = "Bulk".freeze
 
           module_function
 
@@ -69,7 +69,7 @@ module Hecks
             refuse_unnamed_query!(over)
             bulk = bulk_aggregate(dispatcher.registry, verb)
             run = SecureRandom.uuid
-            dispatcher.dispatch_flat("#{CHAPTER}::BulkRun.Request", **request(run, verb, over))
+            dispatcher.dispatch_flat("#{BLUEBOOK}::BulkRun.Request", **request(run, verb, over))
             declined!(record(dispatcher, bulk, run))
           end
 
@@ -103,14 +103,14 @@ module Hecks
           end
 
           def bulk_aggregate(registry, verb)
-            registry.bluebook(CHAPTER)&.aggregate("BulkRun") or
+            registry.bluebook(BLUEBOOK)&.aggregate("BulkRun") or
               raise Runtime::WiringError, "#{verb} over a query needs the Bulk bluebook: " \
                                           "add `attaches \"Bulk\"` to the domain's hecksagon"
           end
 
           def record(dispatcher, bulk, run)
-            instance = dispatcher.registry.repository(CHAPTER, bulk).find(run)
-            Handle.new(dispatcher: dispatcher, domain: CHAPTER, aggregate: bulk, instance: instance)
+            instance = dispatcher.registry.repository(BLUEBOOK, bulk).find(run)
+            Handle.new(dispatcher: dispatcher, domain: BLUEBOOK, aggregate: bulk, instance: instance)
           end
 
           # The run, unless it was declined before any row was sent: that is wiring, not a

@@ -32,12 +32,12 @@ RSpec.describe Hecks::Adapters::Driving::Newcomer do
 
   describe ".audience" do
     it "lists only the newcomer commands, and points at no bluebooks" do
-      expect(described_class.audience(newcomer: %w[launch.init], chapters: %w[Deploy]))
-        .to eq(only: %w[launch.init], chapters: [])
+      expect(described_class.audience(newcomer: %w[launch.init], declarations: %w[Deploy]))
+        .to eq(only: %w[launch.init], declarations: [])
     end
 
     it "gives none when the setting names no newcomer commands, or there is no setting", :aggregate_failures do
-      expect(described_class.audience(chapters: %w[Deploy])).to be_nil
+      expect(described_class.audience(declarations: %w[Deploy])).to be_nil
       expect(described_class.audience(nil)).to be_nil
     end
   end

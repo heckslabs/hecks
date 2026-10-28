@@ -7,7 +7,7 @@ module Hecks
     # The command behind `hecks statements`: prints a booted domain's declared facts as plain
     # English sentences, through `Projections::Statements`.
     module Statements
-      USAGE = "usage: hecks statements <domain-path> <ChapterName>"
+      USAGE = "usage: hecks statements <domain-path> <BluebookName>"
 
       module_function
 
@@ -19,12 +19,12 @@ module Hecks
       # @return [Integer] the exit status, 0 once printed
       # @raise [SystemExit] with the usage line when an argument is missing
       def call(argv, cwd: Dir.pwd, out: $stdout)
-        domain_path, chapter_name = argv
-        abort USAGE unless domain_path && chapter_name
+        domain_path, declaration_name = argv
+        abort USAGE unless domain_path && declaration_name
 
         runtime = Hecks.boot(File.expand_path(domain_path, cwd))
-        chapter = runtime.bluebook(chapter_name)
-        Hecks::Projector.call(:statements, bluebook: chapter).each { |statement| out.puts statement }
+        declaration = runtime.bluebook(declaration_name)
+        Hecks::Projector.call(:statements, bluebook: declaration).each { |statement| out.puts statement }
         0
       end
     end

@@ -29,12 +29,12 @@ module Hecks
         # bluebooks.
         #
         # @param settings [Hash, nil] the bluebook's `launcher` setting
-        # @return [Hash{Symbol => Object}, nil] `:only` and `:chapters`, or nil when the bluebook
+        # @return [Hash{Symbol => Object}, nil] `:only` and `:bluebooks`, or nil when the bluebook
         #   names no newcomer commands
         def audience(settings)
           return unless settings && settings[:newcomer]
 
-          { only: Array(settings[:newcomer]).map(&:to_s), chapters: [] }
+          { only: Array(settings[:newcomer]).map(&:to_s), declarations: [] }
         end
 
         # Whether `pattern` finds a bluebook under `dir`; a folder the person may not read holds

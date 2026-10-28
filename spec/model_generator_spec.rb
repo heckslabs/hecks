@@ -6,8 +6,8 @@ require "spec_helper"
 # fails the ordinary suite rather than surviving until the next
 # regeneration silently discards it.
 RSpec.describe "the generated model" do
-  let(:chapter) { Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook") }
-  let(:projected) { Hecks::Projector.call(:model, bluebook: chapter) }
+  let(:declaration) { Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook") }
+  let(:projected) { Hecks::Projector.call(:model, bluebook: declaration) }
 
   Hecks::Projections::Model::HOST.each_value do |host|
     it "#{host.fetch(:file)} is exactly what hecks project_model would render" do

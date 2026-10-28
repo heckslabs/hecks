@@ -7,7 +7,7 @@ require "fileutils"
 # DeployToolchain port, the Hecks domain binds its adapter, and the comparison runs in Ruby on two
 # files, or by a stand-in `bluebooks-diff.sh` that prints what the project's script prints. Nothing
 # reaches a registry, a docker daemon or AWS.
-RSpec.describe "the Deploy chapter's BluebookDiff", :io do
+RSpec.describe "the Deploy bluebook's BluebookDiff", :io do
   # Prints the report a project's script prints for the scenario in STUB_DIFF, and always ends 0.
   DIFF_SCRIPT_STUB = <<~BASH.freeze
     #!/usr/bin/env bash

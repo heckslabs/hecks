@@ -5,10 +5,10 @@ require "hecks/rust_format"
 # regenerates the file in memory and compares it with the committed one.
 RSpec.describe "the generated sentence table" do
   let(:committed_path) { File.expand_path("../rust/parser/src/phrases.rs", __dir__) }
-  let(:chapter) { Hecks::Projections::PhraseTable.chapter }
+  let(:declaration) { Hecks::Projections::PhraseTable.declaration }
 
   def regenerated_table
-    Hecks::RustFormat.call(Hecks::Projector.call(:phrase_table, bluebook: chapter))
+    Hecks::RustFormat.call(Hecks::Projector.call(:phrase_table, bluebook: declaration))
   end
 
   it "is exactly what the phrase rows project right now", :aggregate_failures do
@@ -18,7 +18,7 @@ RSpec.describe "the generated sentence table" do
   end
 
   describe "the rows" do
-    let(:rows) { Hecks::Projections::PhraseTable.rows(chapter) }
+    let(:rows) { Hecks::Projections::PhraseTable.rows(declaration) }
     let(:contexts) do
       %w[File Domain Aggregate Has ValueObject Lifecycle Command Query Condition Policy ExamplesFile Examples Background
          Example Table Step Outcome Vision Fields Provides Report Process Handler]
@@ -39,7 +39,7 @@ RSpec.describe "the generated sentence table" do
 
   it "gives every slot a kind the matcher reads", :aggregate_failures do
     kinds = %w[words word text int list rest path event]
-    slots = Hecks::Projections::PhraseTable.rows(chapter)
+    slots = Hecks::Projections::PhraseTable.rows(declaration)
                                            .flat_map { |row| row[:pattern].scan(/\{(\w+):(\w+)\}/) }
 
     expect(slots).not_to be_empty

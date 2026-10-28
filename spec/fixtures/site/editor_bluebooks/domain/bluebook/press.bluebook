@@ -1,8 +1,8 @@
-# A small publisher's writing, as the first chapter of the multi-chapter editor fixture. Its
+# A small publisher's writing, as the first bluebook of the multi-bluebook editor fixture. Its
 # relationships are the plain-key kind a bluebook declares without a reference: an article names its
 # categories by slug (a list of `CategorySlugRef`) and its cover by a picture key (`ImageRef`), and
 # its date is whole seconds in a value object named for a date (`PublishedOn`). A note's
-# integer is a moment by its attribute's name (`remind_at`), not by its value object's. The chapter
+# integer is a moment by its attribute's name (`remind_at`), not by its value object's. The bluebook
 # has a `Category`, as the second does.
 Hecks.bluebook "Press" do
   vision "The writing a small publisher keeps."

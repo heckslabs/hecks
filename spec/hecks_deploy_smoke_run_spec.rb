@@ -7,7 +7,7 @@ require_relative "support/box_hosting_stubs"
 # `hecks deploy smoke_run.run` end to end: the Deploy bluebook's SmokeRun asks the DeployToolchain
 # port, the Hecks domain binds its adapter, and the generated `smoke-after-deploy.sh` (the golden
 # file) runs against stand-in `aws`, `docker` and `gh` programs. Nothing reaches AWS or GitHub.
-RSpec.describe "the Deploy chapter's SmokeRun", :io do
+RSpec.describe "the Deploy bluebook's SmokeRun", :io do
   let(:golden)   { File.join(__dir__, "fixtures", "deploy_box_golden", "hosting_taskdef") }
   let(:registry) { BoxHostingStubs::REGISTRY }
   let(:images) do

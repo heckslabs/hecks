@@ -23,8 +23,8 @@ module Hecks
               "--schema=NAME --database=NAME [--adapter=PostgresEra]"
 
       # The bluebooks that must boot together for a tenant to be declared and registered.
-      CHAPTER_FILES = %w[deploy/bluebook/deploy.bluebook deploy/bluebook/deploy.hecksagon
-                         tenancy/bluebook/tenancy.bluebook tenancy/bluebook/tenancy.hecksagon].freeze
+      BLUEBOOK_FILES = %w[deploy/bluebook/deploy.bluebook deploy/bluebook/deploy.hecksagon
+                          tenancy/bluebook/tenancy.bluebook tenancy/bluebook/tenancy.hecksagon].freeze
 
       module_function
 
@@ -80,7 +80,7 @@ module Hecks
       # @raise [SystemExit] when the declared shape is refused, or provisioning is refused
       def provision(slug, options, domain_directory)
         lib_hecks  = File.expand_path("..", __dir__)
-        dispatcher = Hecks.boot_files(CHAPTER_FILES.map { |file| File.join(lib_hecks, file) }, install_driving: false)
+        dispatcher = Hecks.boot_files(BLUEBOOK_FILES.map { |file| File.join(lib_hecks, file) }, install_driving: false)
         provision_tenant(dispatcher, slug, tenant_facts(slug, options, domain_directory))
         refuse_if_refused(dispatcher, slug)
 

@@ -34,7 +34,7 @@ module Hecks
       # What the generator resolved about a domain: its directory, the flags, the `.world` file and
       # its declaration, the `deployed_to` settings, the stack's name, the registry and the
       # bluebook.
-      Deployment = Struct.new(:domain, :options, :world_file, :world, :settings, :infra_name, :registry, :chapter) do
+      Deployment = Struct.new(:domain, :options, :world_file, :world, :settings, :infra_name, :registry, :declaration) do
         # @return [Hash{Symbol => String}] the `--tenant` and `--schema` flags
         def tenant = options.tenant
 
@@ -110,12 +110,12 @@ module Hecks
         settings = tenant_settings(world.for_verb("deployed_to"), options, File.basename(domain))
         registry = cross_domain_registry(domain, basename)
         Deployment.new(domain, options, world_file, world, settings, settings[:stack_name] || File.basename(domain),
-                       registry, chapter_for(registry, world, world_file, basename))
+                       registry, bluebook_for(registry, world, world_file, basename))
       end
 
       # @return [Object] the bluebook the world names
       # @raise [SystemExit] when the registry holds none
-      def chapter_for(registry, world, world_file, bluebook_basename)
+      def bluebook_for(registry, world, world_file, bluebook_basename)
         registry.bluebook(world.domain) or
           abort "#{world_file} declares no #{world.domain} bluebook — #{bluebook_basename}.bluebook's own " \
                 "Hecks.bluebook name has to match world.domain."
@@ -130,7 +130,7 @@ module Hecks
       # @return [Hash{String => String}] the files to write
       # @raise [SystemExit] when the domain's own settings conflict
       def project(target, deployment, root)
-        artifact = Hecks::Projector.call(target, bluebook: deployment.chapter,
+        artifact = Hecks::Projector.call(target, bluebook: deployment.declaration,
                                                  options: projector_options(deployment, root), world: deployment.world)
         # Only when the domain declared `smoke true`; otherwise nothing is added.
         artifact.merge(Hecks::Projections::Deploy::Smoke.files(deployment.settings, stack_name: deployment.infra_name))

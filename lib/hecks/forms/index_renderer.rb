@@ -10,9 +10,9 @@ module Hecks
       #
       # @param bluebooks [Hash{String => Bluebook::Declaration}] the loaded bluebooks by domain
       #   name, in `expose` order
-      # @return [String] the HTML page body; only the heading when `chapters` is empty
-      def self.render(chapters)
-        sections = chapters.map { |name, chapter| chapter_section(name, chapter) }
+      # @return [String] the HTML page body; only the heading when `bluebooks` is empty
+      def self.render(declarations)
+        sections = declarations.map { |name, declaration| bluebook_section(name, declaration) }
         <<~HTML
           <h1>Exposed domains</h1>
           #{sections.join}
@@ -25,10 +25,10 @@ module Hecks
       # @param name [String] the domain name, used as the heading and the first path segment
       # @param bluebook [Bluebook::Declaration] the loaded bluebook
       # @return [String] HTML for the section's heading and aggregate list
-      def self.chapter_section(name, chapter)
-        items = chapter.aggregates.map { |aggregate| aggregate_item(name, aggregate) }
+      def self.bluebook_section(name, declaration)
+        items = declaration.aggregates.map { |aggregate| aggregate_item(name, aggregate) }
         <<~HTML
-          <h2>#{Escape.html(name)}#{%( <span class="badge">#{Escape.html(chapter.vision)}</span>) if chapter.vision}</h2>
+          <h2>#{Escape.html(name)}#{%( <span class="badge">#{Escape.html(declaration.vision)}</span>) if declaration.vision}</h2>
           <ul class="verb-list">#{items.join}</ul>
         HTML
       end

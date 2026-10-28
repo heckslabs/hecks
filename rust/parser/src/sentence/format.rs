@@ -19,19 +19,19 @@ use super::report;
 use crate::ir;
 use crate::ruby_value;
 
-/// The sentence-form text of `chapter`, or the name of the construct it has no phrase for.
-pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
-    let mut out = format!("Domain: {}\n", spoken_title(&chapter.name));
-    if let Some(vision) = &chapter.vision {
+/// The sentence-form text of `bluebook`, or the name of the construct it has no phrase for.
+pub fn sentences(declaration: &ir::Bluebook) -> Result<String, String> {
+    let mut out = format!("Domain: {}\n", spoken_title(&declaration.name));
+    if let Some(vision) = &declaration.vision {
         out.push_str(&format!("  {vision}\n"));
     }
-    if let Some(kind) = &chapter.classification {
+    if let Some(kind) = &declaration.classification {
         out.push_str(&format!("  This is a {kind} domain\n"));
     }
-    if let Some(namespace) = &chapter.namespace {
+    if let Some(namespace) = &declaration.namespace {
         out.push_str(&format!("  Its module is {namespace}\n"));
     }
-    if let Some(version) = &chapter.version {
+    if let Some(version) = &declaration.version {
         if !is_word(version) {
             return Err(format!(
                 "the sentence form cannot say the version {version}"
@@ -39,26 +39,26 @@ pub fn sentences(chapter: &ir::Bluebook) -> Result<String, String> {
         }
         out.push_str(&format!("  Its version is {version}\n"));
     }
-    if !chapter.attaches_to.is_empty() {
-        let contexts: Vec<String> = chapter
+    if !declaration.attaches_to.is_empty() {
+        let contexts: Vec<String> = declaration
             .attaches_to
             .iter()
             .map(|name| spoken(name))
             .collect();
         out.push_str(&format!("  It attaches to {}\n", join_and(&contexts)));
     }
-    provides_text(&mut out, &chapter.provides)?;
-    for aggregate in &chapter.aggregates {
+    provides_text(&mut out, &declaration.provides)?;
+    for aggregate in &declaration.aggregates {
         out.push('\n');
         aggregate_text(&mut out, aggregate)?;
     }
-    for policy in &chapter.policies {
-        policy_text(&mut out, policy, chapter)?;
+    for policy in &declaration.policies {
+        policy_text(&mut out, policy, declaration)?;
     }
-    for model in &chapter.read_models {
+    for model in &declaration.read_models {
         out.push_str(&report::said(model)?);
     }
-    for pm in &chapter.process_managers {
+    for pm in &declaration.process_managers {
         out.push_str(&process::said(pm)?);
     }
     Ok(out)
@@ -129,7 +129,7 @@ fn passed_said(policy: &ir::Policy) -> Result<(String, Vec<String>), String> {
 fn policy_text(
     out: &mut String,
     policy: &ir::Policy,
-    chapter: &ir::Bluebook,
+    declaration: &ir::Bluebook,
 ) -> Result<(), String> {
     let on_event = policy
         .on_event
@@ -139,7 +139,7 @@ fn policy_text(
     match on_event.split_once('.') {
         None => out.push_str(&format!("  Whenever the outside announces {on_event}\n")),
         Some((owner, event)) => {
-            let announced_by_a_command = chapter
+            let announced_by_a_command = declaration
                 .aggregates
                 .iter()
                 .filter(|a| {
@@ -200,7 +200,7 @@ fn policy_text(
             ));
         }
         (Some(command), None) => {
-            let declared = chapter.aggregates.iter().any(|aggregate| {
+            let declared = declaration.aggregates.iter().any(|aggregate| {
                 command.split_once('.').is_some_and(|(owner, name)| {
                     aggregate.name == owner && aggregate.commands.iter().any(|c| c.name == name)
                 })

@@ -108,9 +108,9 @@ RSpec.describe "a bluebook dispatched in and read back out" do
 
   # The language's own bluebooks come from the bootstrap registry, as in spec/ir_golden_spec.rb:
   # judging one while loading it from a file would recurse.
-  LANGUAGE_CHAPTERS = %w[Bluebook World Hecksagon].freeze
+  LANGUAGE_BLUEBOOKS = %w[Bluebook World Hecksagon].freeze
 
-  LANGUAGE_CHAPTERS.each do |name|
+  LANGUAGE_BLUEBOOKS.each do |name|
     context name do
       let(:bluebook) { Hecks::Bluebook::MetaValidator.grammar_registry.bluebook(name) }
 
@@ -135,13 +135,13 @@ RSpec.describe "a bluebook dispatched in and read back out" do
   # `:ports` is the known exception (see `strip_ports`).
   RECONSTRUCTION_KNOWN_GAPS = %i[ports].freeze
 
-  def expect_rows_complete(rows, construct, chapter)
+  def expect_rows_complete(rows, construct, declaration)
     rows.each do |row|
       missing = construct.ir_spec.keys - row.keys - RECONSTRUCTION_KNOWN_GAPS
       expect(missing).to be_empty,
-                         "#{chapter}: Reconstruction never asks #{construct} for #{missing.join(", ")} " \
+                         "#{declaration}: Reconstruction never asks #{construct} for #{missing.join(", ")} " \
                          "(row #{row[:name].inspect})"
-      expect_rows_complete(row[:entities] || [], Hecks::Bluebook::Entity, chapter)
+      expect_rows_complete(row[:entities] || [], Hecks::Bluebook::Entity, declaration)
     end
   end
 
@@ -152,7 +152,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     end
   end
 
-  it "carries a chapter's version, which banking pins for real", :aggregate_failures do
+  it "carries a bluebook's version, which banking pins for real", :aggregate_failures do
     back, refusals = read_back(load_corpus(ROUND_TRIP_CORPUS["Banking"]).bluebook("Banking"))
 
     expect(refusals).to be_empty

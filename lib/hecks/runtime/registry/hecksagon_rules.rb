@@ -43,18 +43,18 @@ module Hecks
         # on that sibling too, or cross-context field mapping has nowhere to be written.
         def refuse_unwired_attachments!(hecksagon)
           hecksagon.attachments.each do |attachment|
-            next if hecksagon(attachment.chapter_name)
+            next if hecksagon(attachment.declaration_name)
 
             raise WiringError, unwired_attachment_message(hecksagon, attachment)
           end
         end
 
         def unwired_attachment_message(hecksagon, attachment)
-          chapter_name = attachment.chapter_name
-          what = attachment.vendor? ? "vendored bluebook #{attachment.name.inspect}" : chapter_name.inspect
+          declaration_name = attachment.declaration_name
+          what = attachment.vendor? ? "vendored bluebook #{attachment.name.inspect}" : declaration_name.inspect
           "#{hecksagon.domain} attaches #{what} " \
-            "(bounded context #{chapter_name}) but never declared " \
-            "Hecks.hecksagon #{chapter_name.inspect} — put that sibling " \
+            "(bounded context #{declaration_name}) but never declared " \
+            "Hecks.hecksagon #{declaration_name.inspect} — put that sibling " \
             "(and any `translates` ACL) in context_map.hecksagon; " \
             "same-name blocks merge, order-independent."
         end
@@ -66,8 +66,10 @@ module Hecks
         # rust/host Google sign-in reads ir.json's membership/identity keys, never a deploy-time
         # env var; Membership without Identity means provision cannot Register/Link an identity.
         def refuse_membership_without_identity!
-          return unless @declared.bluebooks.values.any? { |chapter| chapter.provides?(Bluebook::Capabilities::MEMBERSHIP) }
-          return if @declared.bluebooks.values.any? { |chapter| chapter.provides?(Bluebook::Capabilities::IDENTITY) }
+          unless @declared.bluebooks.values.any? { |declaration| declaration.provides?(Bluebook::Capabilities::MEMBERSHIP) }
+            return
+          end
+          return if @declared.bluebooks.values.any? { |declaration| declaration.provides?(Bluebook::Capabilities::IDENTITY) }
 
           raise WiringError,
                 "a bluebook that provides \"membership\" is loaded, but none provides " \
@@ -80,25 +82,25 @@ module Hecks
         # A hecksagon attaches after its bluebook builds, so this is the first point a
         # `provides` key that names a port operation can be checked against it.
         def refuse_unresolved_port_operations!
-          @declared.bluebooks.each_value do |chapter|
-            chapter.provides.each { |row| refuse_unresolved_port_operation!(chapter, row) }
+          @declared.bluebooks.each_value do |declaration|
+            declaration.provides.each { |row| refuse_unresolved_port_operation!(declaration, row) }
           end
         end
 
-        def refuse_unresolved_port_operation!(chapter, row)
+        def refuse_unresolved_port_operation!(declaration, row)
           return if Bluebook::Capabilities.language_defined?(row.capability)
-          return unless Bluebook::Capabilities.kinds_of(chapter, row.verb) == [:port_operation]
-          return if port_operation_declared?(chapter, row.verb)
+          return unless Bluebook::Capabilities.kinds_of(declaration, row.verb) == [:port_operation]
+          return if port_operation_declared?(declaration, row.verb)
 
           raise WiringError,
-                "#{chapter.name} provides #{row.capability.inspect} #{row.key}: #{row.verb.inspect}, " \
+                "#{declaration.name} provides #{row.capability.inspect} #{row.key}: #{row.verb.inspect}, " \
                 "but its hecksagon declares no such port operation — declare it with " \
-                "`#{chapter.name}::Aggregate.port \"Port\" do operation \"Operation\" ... end`."
+                "`#{declaration.name}::Aggregate.port \"Port\" do operation \"Operation\" ... end`."
         end
 
-        def port_operation_declared?(chapter, verb)
+        def port_operation_declared?(declaration, verb)
           aggregate_name, port_name, operation_name = verb.split(".", 3)
-          ports = chapter.aggregate(aggregate_name)&.ports || []
+          ports = declaration.aggregate(aggregate_name)&.ports || []
           ports.any? { |port| port.name == port_name && port.operations.any? { |op| op.hecks_name == operation_name } }
         end
 

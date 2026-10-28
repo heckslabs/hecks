@@ -48,7 +48,7 @@ RSpec.describe "glossary sensitivity tagging" do
     InMemoryDomain.load_bluebook_files(dir)
   end
 
-  def chapter
+  def declaration
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, "clinic.bluebook"), BLUEBOOK)
       registry = Hecks::Runtime::Registry.new
@@ -59,7 +59,7 @@ RSpec.describe "glossary sensitivity tagging" do
 
   def glossary(markings = nil)
     options = markings ? { markings: markings } : {}
-    Hecks::Projector.call(:glossary, bluebook: chapter, options: options)
+    Hecks::Projector.call(:glossary, bluebook: declaration, options: options)
   end
 
   it "tags the marked field beside its type, and only that field" do

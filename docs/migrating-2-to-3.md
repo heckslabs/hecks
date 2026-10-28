@@ -31,11 +31,11 @@ exits 1 on a failure state (`flagged`, `failed`, `drifted`, `unreachable`, `refu
 `Hecks::Facade`, `Hecks::Adapters::Driving::Surface` and `install_facade:` now raise `NameError` and
 `ArgumentError`. Regenerate launchers with `hecks project_cli`.
 
-## 3. Reach Hecks-chapter constants through `Hecks::Domain`
+## 3. Reach Hecks-bluebook constants through `Hecks::Domain`
 
 `hecks.bluebook` declares `namespace "Hecks::Domain"`, so `Release`, `Codemod`, `Corpus`, `Fuzzing`
 and `Kernel` no longer collide with the gem's own `Hecks` module. Code that used `Hecks::<Name>` for
-a Hecks-chapter constant uses `Hecks::Domain::<Name>`.
+a Hecks-bluebook constant uses `Hecks::Domain::<Name>`.
 
 ## 4. Move `answered_by` into the hecksagon
 
@@ -77,7 +77,7 @@ loads the package vendored into the project, and is never a fallback for a missp
 The two old words worked in 3.0 to 3.3 with a one-line warning, and were removed in 3.4.0. A
 hecksagon that still writes one now fails to load with ``uses_framework was removed in 3.4.0; use
 `attaches "Name"` `` (the Rust parser refuses it the same way). Two things read differently: a hecksagon's `framework_members`,
-`vendored_bluebooks` and `attached_chapters` are one list, `attachments` (each with its source,
+`vendored_bluebooks` and `attached_bluebooks` are one list, `attachments` (each with its source,
 `:gem` or `:vendor`), and `hecks project_rust` now stamps its generated files with the `attaches`
 spelling, so regenerate them.
 

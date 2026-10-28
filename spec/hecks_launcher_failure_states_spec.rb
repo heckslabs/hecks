@@ -12,17 +12,17 @@ RSpec.describe "the lifecycle failure marks" do
   end
 
   def declared
-    @runtime.registry.bluebooks.flat_map do |name, chapter|
-      chapter.aggregates.filter_map do |aggregate|
+    @runtime.registry.bluebooks.flat_map do |name, declaration|
+      declaration.aggregates.filter_map do |aggregate|
         [name, aggregate.hecks_name, aggregate.lifecycle] if aggregate.lifecycle
       end
     end
   end
 
-  def unmarked_failures(chapter, aggregate, lifecycle)
+  def unmarked_failures(declaration, aggregate, lifecycle)
     marked = Array(lifecycle.marked(Hecks::Adapters::Driving::LauncherOptions::FAILURE_MARK))
     lifecycle.states.map(&:to_s).grep(FAILURE_NAMED).reject { |state| marked.include?(state) }
-             .map { |state| "#{chapter}::#{aggregate} #{state}" }
+             .map { |state| "#{declaration}::#{aggregate} #{state}" }
   end
 
   it "marks every lifecycle state named like a failure, in every bluebook" do
@@ -36,9 +36,9 @@ RSpec.describe "the lifecycle failure marks" do
     expect(ends.reject { |aggregate, state| marked[aggregate].include?(state) }).to eq({})
   end
 
-  it "keeps the failure list off every chapter's launcher setting" do
-    %w[Hecks Deploy Site].each do |chapter|
-      expect(Hecks::Adapters::Driving::LauncherOptions.settings(@runtime, chapter)&.key?(:failure_states)).not_to be(true)
+  it "keeps the failure list off every bluebook's launcher setting" do
+    %w[Hecks Deploy Site].each do |declaration|
+      expect(Hecks::Adapters::Driving::LauncherOptions.settings(@runtime, declaration)&.key?(:failure_states)).not_to be(true)
     end
   end
 end

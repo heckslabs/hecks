@@ -33,7 +33,7 @@ module Hecks
                         host_default: "http://127.0.0.1:4322", roles: "Admin,Owner", title: "Editor", brand: "",
                         accent: "", logo: "", skip: "", media: "", media_dir: "media", media_max_bytes: "5242880",
                         bluebook_roles: "", page_size: "25", preview: "" }
-          ).renaming(chapter: :bluebook, chapter_roles: :bluebook_roles)
+          )
 
           # @return [Hash{Symbol => String}] the checked row, defaults filled
           attr_reader :row
@@ -44,8 +44,8 @@ module Hecks
           # @param table [Table, nil] the checked route table, to check the login page against
           # @return [Setting, nil] the checked setting, or nil when the bluebook declares no row
           # @raise [Table::Invalid] when the row is refused
-          def self.read(chapter, table: nil)
-            row = ROW.read(chapter).first
+          def self.read(declaration, table: nil)
+            row = ROW.read(declaration).first
             row && new(row, table: table)
           end
 
@@ -73,7 +73,8 @@ module Hecks
 
           # @return [Hash{String => Array<String>}] the roles a bluebook's aggregates are limited
           #   to,
-          #   from `Chapter=Role,Role;Chapter=Role`; a bluebook not named is open to every role the
+          #   from `Bluebook=Role,Role;Bluebook=Role`; a bluebook not named is open to every role
+          #   the
           #   editor admits
           def bluebook_roles
             entries = row.fetch(:bluebook_roles).split(";")
@@ -91,7 +92,7 @@ module Hecks
 
           # @return [String, nil] the other bluebook whose picture aggregate the editor's pictures
           #   use, or nil when the pictures (if any) are in the editor's own bluebook
-          def media_chapter = row.fetch(:media).strip.then { |name| name.empty? ? nil : name }
+          def media_bluebook = row.fetch(:media).strip.then { |name| name.empty? ? nil : name }
 
           # @return [String, nil] the product name the header shows, or nil for the domain's name
           def brand = row.fetch(:brand).strip.then { |name| name.empty? ? nil : name }
@@ -99,7 +100,7 @@ module Hecks
           # @return [String, nil] the accent colour as hex, or nil for the default theme
           def accent = row.fetch(:accent).strip.then { |hex| hex.empty? ? nil : hex }
 
-          # @return [Array<String>] the aggregates left out: `Name`, or `Chapter::Name`
+          # @return [Array<String>] the aggregates left out: `Name`, or `Bluebook::Name`
           def skip = Hecks::Text.comma_list(row.fetch(:skip))
 
           # @return [Array<String>] the roles that count as an editor

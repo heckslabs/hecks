@@ -66,7 +66,7 @@ module Hecks
       def database_source(directory) = local_world(directory) || "world"
 
       # The copy's own world that can supply the database: `environments/local.world`, else a
-      # `<chapter>.local.world` beside the domain or in the working directory.
+      # `<bluebook>.local.world` beside the domain or in the working directory.
       def local_world(directory)
         return "environments/local.world" if File.exist?(File.join(directory, "environments", "local.world"))
 

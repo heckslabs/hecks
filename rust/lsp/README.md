@@ -34,8 +34,8 @@ is setup + roadmap.
   cursor (a `reference_to Customer` / `belongs_to Account` usage) to
   wherever that aggregate/entity/value_object is actually declared,
   first in the same file, then across sibling `.bluebook`/`.hecksagon`
-  files in the same directory (a chapter routinely spans several files —
-  `parse::chapter`'s own header — and the declaration is often in one of
+  files in the same directory (a bluebook routinely spans several files —
+  `parse::bluebook`'s own header — and the declaration is often in one of
   them, not the file doing the referencing).
 
 - **Files written as sentences** (a first line of `Domain: <name>`; see ADR 0131) get two
@@ -67,17 +67,17 @@ is setup + roadmap.
 - **Completion offers sentences, not names.** It does not yet suggest the fields, types or
   states in scope for a fill-in; the parser's refusal lists them after the fact.
 - **Only one diagnostic per document.** Inherited from `rust/parser`'s
-  own fail-fast design (`parse::chapter`'s doc comment: "Stops at the
+  own fail-fast design (`parse::bluebook`'s doc comment: "Stops at the
   FIRST diagnostic"). If that ever becomes a `Vec<Diagnostic>`, this
   crate's `diagnostics::run` only needs to return `Vec<FileDiagnostic>`
   instead of `Option<FileDiagnostic>` — `main.rs` already publishes
   whatever list it's handed.
-- **Single-file chapters only.** A chapter split across multiple
+- **Single-file bluebooks only.** A bluebook split across multiple
   `.bluebook` files, or paired with a `.hecksagon` file
-  (`parse::chapter`'s own header describes both), is only ever checked
+  (`parse::bluebook`'s own header describes both), is only ever checked
   one file at a time here. Fine for every example under `examples/*/`
   today; would need this crate to also track a project's file layout
-  (which files share a chapter name) to do better.
+  (which files share a bluebook name) to do better.
 
 ## Building it
 
@@ -125,7 +125,7 @@ under the extension's scope name (see its README), plus the language client wiri
 
 ## Testing it without an editor
 
-`cargo test` covers the pure functions (`chapter_name` extraction,
+`cargo test` covers the pure functions (`declaration_name` extraction,
 `Diagnostic` line parsing, JSON round-tripping). For a full stdio
 round-trip, speak Content-Length-framed JSON-RPC to the process
 directly — `initialize` → `initialized` → `textDocument/didOpen` with a

@@ -7,7 +7,7 @@ module Hecks
       # record to. `.gitignore` keeps it out of the repository, so no other copy ever reads it.
       LOCAL_OVERLAY = "local".freeze
 
-      # A bluebook's local files, `<chapter>.local.hecksagon` and `<chapter>.local.world`: where a
+      # A bluebook's local files, `<bluebook>.local.hecksagon` and `<bluebook>.local.world`: where a
       # copy, or a client's working directory, opts a bluebook into persistence, the hecksagon with
       # `persisted_by` and the world with the values. The base names no persistence, so Memory is
       # the default.

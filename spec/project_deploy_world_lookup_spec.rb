@@ -27,13 +27,11 @@ RSpec.describe "hecks deploy project world lookup", :io do
     Dir.mktmpdir { |dir| yield write_domain(dir, **options) }
   end
 
-  %w[FrameworkBluebooks Chapters].each do |module_name|
-    it "picks the world named after the bluebook the hecksagon attaches with #{module_name}.load!" do
-      loading = %(Hecks::#{module_name}.load!("QualityControl")\n)
+  it "picks the world named after the bluebook the hecksagon attaches among several" do
+    loading = %(Hecks::FrameworkBluebooks.load!("QualityControl")\n)
 
-      with_domain(worlds: %w[governance quality_control], hecksagon: loading) do |domain|
-        expect(recipe.world_file_for(domain)).to eq(File.join(domain, "bluebook", "quality_control.world"))
-      end
+    with_domain(worlds: %w[governance quality_control], hecksagon: loading) do |domain|
+      expect(recipe.world_file_for(domain)).to eq(File.join(domain, "bluebook", "quality_control.world"))
     end
   end
 
