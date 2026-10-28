@@ -17,8 +17,8 @@ module Hecks
           # held aggregate claimed; the refusal is EraGuard's own, byte for byte.
           #
           # @param registry [Runtime::Registry] where translations may claim a held aggregate
-          # @param bluebook [Bluebook::Chapter] the domain as currently declared
-          # @param held_bluebook [Bluebook::Chapter] the domain as the latest held era declares it
+          # @param bluebook [Bluebook::Declaration] the domain as currently declared
+          # @param held_bluebook [Bluebook::Declaration] the domain as the latest held era declares it
           # @param edge [Bluebook::Translation] the one edge leaving the latest held era
           # @raise [Runtime::WiringError] on an unruled identity change or an uncovered path
           def check_coverage!(registry, bluebook, held_bluebook, edge)
@@ -30,9 +30,9 @@ module Hecks
 
           # Refuses an identity change, an uncovered path or an unsafe addition in one aggregate.
           #
-          # @param bluebook [Bluebook::Chapter] the domain as currently declared
+          # @param bluebook [Bluebook::Declaration] the domain as currently declared
           # @param aggregate [Bluebook::Aggregate] the aggregate as currently declared
-          # @param held_bluebook [Bluebook::Chapter] the domain as the latest held era declares it
+          # @param held_bluebook [Bluebook::Declaration] the domain as the latest held era declares it
           # @param edge [Bluebook::Translation] the one edge leaving the latest held era
           # @raise [Runtime::WiringError] on an unruled identity change or an uncovered path
           def check_aggregate_coverage!(bluebook, aggregate, held_bluebook, edge)
@@ -53,7 +53,7 @@ module Hecks
           # Stored ids were fixed under the prior key, so the edge must declare a `rekey` for it;
           # `rules.rekey?` is the one source of truth for that fact.
           #
-          # @param bluebook [Bluebook::Chapter] the domain, named in the refusal
+          # @param bluebook [Bluebook::Declaration] the domain, named in the refusal
           # @param aggregate [Bluebook::Aggregate] the aggregate as currently declared
           # @param held_aggregate [Bluebook::Aggregate] the same aggregate in the held era
           # @param rules [Ports::Persistence::Lineage, nil] the edge's rules; nil excuses nothing
@@ -77,7 +77,7 @@ module Hecks
           # Previews each aggregate's translated head through the pending chain and audits it.
           # Runs before anything is minted, so a refusal leaves no half-born era.
           #
-          # @param bluebook [Bluebook::Chapter] the domain as currently declared
+          # @param bluebook [Bluebook::Declaration] the domain as currently declared
           # @param lineage [Adapters::PostgresEra::Lineage] the domain's lineage, on an open db
           # @param chain [Array<Hash>] the full edge chain ending in `edge`, per `edge_chain`
           # @param ordinal [Integer] the ordinal of the era about to be minted

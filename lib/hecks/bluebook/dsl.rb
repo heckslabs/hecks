@@ -17,7 +17,7 @@ require_relative "../query_specification"
 # The model the builders construct — `bluebook.rb` requires the whole
 # set; this names the one file that declares the bluebook class itself,
 # which every builder returns into.
-require_relative "chapter"
+require_relative "declaration"
 
 require_relative "dsl/malformed"
 require_relative "dsl/const_shim"

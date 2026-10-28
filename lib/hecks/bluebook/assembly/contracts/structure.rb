@@ -5,7 +5,7 @@ module Hecks
       # `CONTRACTS` merges every group.
       STRUCTURE = {
         "Bluebook"    => Contract.new(
-          holder: Chapter, make: :new,
+          holder: Declaration, make: :new,
           fields: {
             name:              [:name,           :plain],
             version:           [:version,        :plain],

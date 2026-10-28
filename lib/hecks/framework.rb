@@ -32,7 +32,7 @@ module Hecks
     # One member's bluebook, built in isolation.
     #
     # @param name [String, Symbol] the member's name, such as `"Governance"`
-    # @return [Bluebook::Chapter] the member's bluebook, loaded into a scratch registry
+    # @return [Bluebook::Declaration] the member's bluebook, loaded into a scratch registry
     # @raise [Runtime::WiringError] if no framework member has that name
     def self.chapter(name)
       path = members.fetch(name.to_s) do

@@ -24,7 +24,7 @@ module Hecks
         # Each mint required its own edge, so a gap in the chain means a deleted file.
         #
         # @param registry [Runtime::Registry] the registry whose loaded `translations` are searched
-        # @param bluebook [Bluebook::Chapter] the domain; only edges for its name count
+        # @param bluebook [Bluebook::Declaration] the domain; only edges for its name count
         # @param eras [Array<Hash>] the ancestor eras in order, as `Lineage#eras` returns them
         # @param current_label [String] the shape label the last step must lead to
         # @return [Array<Hash>] one `{ translation: edge }` per step, in mint order
@@ -41,7 +41,7 @@ module Hecks
         # Finds the loaded translation that leads one shape label to the next.
         #
         # @param registry [Runtime::Registry] the registry whose `translations` are searched
-        # @param bluebook [Bluebook::Chapter] the domain; only edges for its name count
+        # @param bluebook [Bluebook::Declaration] the domain; only edges for its name count
         # @param from [String] the shape label the edge leaves
         # @param to [String] the shape label the edge reaches
         # @return [Bluebook::Translation, nil] the edge, or nil when none is loaded
@@ -51,7 +51,7 @@ module Hecks
 
         # Refuses a boot whose edge chain has a gap.
         #
-        # @param bluebook [Bluebook::Chapter] the domain, named in the message
+        # @param bluebook [Bluebook::Declaration] the domain, named in the message
         # @param index [Integer] the zero-based step with no translation
         # @param from [String] the shape label the missing edge would leave
         # @param to [String] the shape label the missing edge would reach
@@ -67,7 +67,7 @@ module Hecks
         # The predicate extractor reads source from disk, so the text goes through a scratch file.
         #
         # @param source [String] bluebook source text from `hecks_eras.held_text`
-        # @return [Bluebook::Chapter, nil] the first bluebook the text declares
+        # @return [Bluebook::Declaration, nil] the first bluebook the text declares
         # @raise [Bluebook::DSL::Malformed] if the text parses under neither grammar
         def shadow(source)
           file = Tempfile.new(["hecks-era-", ".bluebook"])

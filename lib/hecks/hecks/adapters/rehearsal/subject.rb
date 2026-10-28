@@ -77,7 +77,7 @@ module Hecks
           @environment = environment
         end
 
-        # @return [Bluebook::Chapter] the domain's bluebook as it stands
+        # @return [Bluebook::Declaration] the domain's bluebook as it stands
         def bluebook = held.bluebook
 
         # @return [String] the name of the domain's bluebook

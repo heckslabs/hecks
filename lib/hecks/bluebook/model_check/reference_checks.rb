@@ -10,7 +10,7 @@ module Hecks
         # Every check over how aggregates relate: a link copied by value, a reference that outlives
         # the record it names (OrphanChecks), and a branch on a tagged reference (OneOfChecks).
         #
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @return [Array<Finding>] the three checks' findings, in that order
         def reference_findings(bluebook)
           [*key_by_value_findings(bluebook), *orphan_findings(bluebook), *one_of_branch_findings(bluebook)]
@@ -19,7 +19,7 @@ module Hecks
         # Flags each scalar attribute whose type is the identity type of another aggregate in
         # this domain and that is not itself a reference: the link exists only by convention.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @return [Array<Finding>] one :key_by_value warning per such attribute
         def key_by_value_findings(bluebook)
           owners = identity_type_owners(bluebook)

@@ -159,7 +159,7 @@ module Hecks
       # The admin sign-in module, when the project declares an `Admin` row.
       #
       # @param dir [String] the directory the route table module is written to
-      # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+      # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
       # @param admin [Projections::Site::Admin, nil] the checked admin row
       # @param extension [String] the extension the modules are written with
       # @return [Hash{String => String}] the module's path to its text; empty with no admin row

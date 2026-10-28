@@ -15,7 +15,7 @@ module Hecks
           #
           # @param dispatcher [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted
           #   dispatcher each aggregate module closes over
-          # @param bluebook [Bluebook::Chapter] the bluebook to project into a module
+          # @param bluebook [Bluebook::Declaration] the bluebook to project into a module
           # @return [Module] a fresh, unnamed module; `Ruby.install` gives it its
           #   top-level name
           # @raise [NameError] if an aggregate's name is not a valid constant name

@@ -96,8 +96,8 @@ module Hecks
       # rubocop:disable Hecks/ThreadSharedIvarMutation
       # Registers a loaded bluebook, keyed by its own declared name.
       #
-      # @param item [Bluebook::Chapter] the loaded, judged bluebook
-      # @return [Bluebook::Chapter] `item`, unchanged
+      # @param item [Bluebook::Declaration] the loaded, judged bluebook
+      # @return [Bluebook::Declaration] `item`, unchanged
       def add_bluebook(item) = @declared.bluebooks[item.name] = item
 
       # Drops a bluebook and the open builder and source record that accumulated it, so the
@@ -105,7 +105,7 @@ module Hecks
       #
       # @param name [String, Symbol] the bluebook name to forget
       # @return [void]
-      def forget_chapter(name)
+      def forget_bluebook(name)
         @declared.bluebooks.delete(name.to_s)
         @declared.bluebook_builders.delete(name.to_s)
         @declared.bluebook_sources.delete(name.to_s)
@@ -216,7 +216,7 @@ module Hecks
       # Finds a loaded bluebook by name.
       #
       # @param name [String, Symbol] the bluebook's declared name
-      # @return [Bluebook::Chapter, nil] the bluebook, or nil if none is registered
+      # @return [Bluebook::Declaration, nil] the bluebook, or nil if none is registered
       #   under `name`
       def bluebook(name)  = @declared.bluebooks[name.to_s]
 
@@ -236,7 +236,7 @@ module Hecks
 
       # The first bluebook loaded: a one-domain boot's own bluebook.
       #
-      # @return [Bluebook::Chapter, nil] the first loaded bluebook, or nil when none loaded
+      # @return [Bluebook::Declaration, nil] the first loaded bluebook, or nil when none loaded
       def first_bluebook = @declared.bluebooks.values.first
 
       # The name of the first bluebook loaded: a one-domain boot's own domain.
@@ -329,3 +329,7 @@ module Hecks
     end
   end
 end
+
+# Registry#forget_chapter was the name until ADR 0134 and still works, saying so once per use.
+require_relative "../retired_names"
+Hecks::RetiredNames.method_name(Hecks::Runtime::Registry, :forget_chapter, :forget_bluebook)

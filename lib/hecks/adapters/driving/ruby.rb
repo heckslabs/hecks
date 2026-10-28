@@ -1,4 +1,4 @@
-require_relative "../../chapters"
+require_relative "../../framework_bluebooks"
 require_relative "ruby/chapter"
 require_relative "ruby/aggregate_module"
 
@@ -58,16 +58,16 @@ module Hecks
         # Whether `bluebook` is a gem bluebook that a hecksagon attached rather than a domain's own.
         #
         # @param registry [Runtime::Registry] the booted registry
-        # @param bluebook [Bluebook::Chapter] the bluebook under test
+        # @param bluebook [Bluebook::Declaration] the bluebook under test
         # @return [Boolean]
         def attached_chapter?(registry, bluebook)
-          registry.bounded?(bluebook.name) && Hecks::Chapters.index.key?(bluebook.name)
+          registry.bounded?(bluebook.name) && Hecks::FrameworkBluebooks.index.key?(bluebook.name)
         end
 
         # Where a bluebook's module installs: `Object::<name>`, or the constant path its
         # `namespace` names, creating any missing parent modules along the way.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook being installed
+        # @param bluebook [Bluebook::Declaration] the bluebook being installed
         # @return [Array(Module, String)] the parent module and the constant name within it
         def placement(bluebook)
           return [Object, bluebook.name] unless bluebook.namespace

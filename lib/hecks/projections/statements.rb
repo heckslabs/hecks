@@ -19,7 +19,7 @@ module Hecks
 
       # Projects every reachable fact in the bluebook into its flat sentence list.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook being projected
+      # @param bluebook [Bluebook::Declaration] the bluebook being projected
       # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
       #   `Projector::Target` calling convention
       # @return [Array<String>] each holder's relationships, invariants, moves and command

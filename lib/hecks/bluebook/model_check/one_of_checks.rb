@@ -12,7 +12,7 @@ module Hecks
         # Flags each tagged reference whose branches leave a variant unhandled, or name a type
         # the union does not hold.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @return [Array<Finding>] one :one_of_branch_unhandled error per such reference
         def one_of_branch_findings(bluebook)
           bluebook.aggregates.flat_map do |aggregate|

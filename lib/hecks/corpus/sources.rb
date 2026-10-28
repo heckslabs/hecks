@@ -1,8 +1,8 @@
 module Hecks
   module Corpus
     # How a domain's hecksagon names a bluebook the gem carries and loads by name, as the QA
-    # ledger's does (`Hecks::Chapters.load!("QualityControl")`).
-    ATTACHED_CHAPTER = /Chapters\.load!\(\s*"([^"]+)"\s*\)/
+    # ledger's does (`Hecks::FrameworkBluebooks.load!("QualityControl")`).
+    ATTACHED_CHAPTER = /(?:FrameworkBluebooks|Chapters)\.load!\(\s*"([^"]+)"\s*\)/
 
     # Where a domain path keeps its bluebooks, and what a member boots. Extended onto `Corpus`.
     module Sources
@@ -28,7 +28,7 @@ module Hecks
       def attached_chapter_files(domain_path)
         names = Dir[File.join(domain_path, "{bluebook/,}*.hecksagon")]
                 .flat_map { |path| File.read(path).scan(ATTACHED_CHAPTER).flatten }.uniq
-        files = names.flat_map { |name| Chapters.index.fetch(name, []) }
+        files = names.flat_map { |name| FrameworkBluebooks.index.fetch(name, []) }
         files.empty? ? nil : files
       end
 

@@ -5,8 +5,9 @@ require_relative "../ir"
 
 module Hecks
   module Bluebook
-    # The bluebook, distinct from the `Bluebook` namespace it lives in.
-    class Chapter
+    # The bluebook, distinct from the `Bluebook` namespace it lives in. Hecks::Bluebook::Chapter was
+    # its name until ADR 0134 and still answers, saying so once per use.
+    class Declaration
       include Construct
       include Behaviour::Chapter
       include Hecks::IR
@@ -44,9 +45,9 @@ module Hecks
       Provision = Struct.new(:capability, :key, :verb, keyword_init: true) do
         # Coerces one declared or reconstructed `provides` row into a `Provision`.
         #
-        # @param row [Bluebook::Chapter::Provision, #to_h] a `Provision` already, or
+        # @param row [Bluebook::Declaration::Provision, #to_h] a `Provision` already, or
         #   anything answering `to_h` with `capability`/`key`/`verb` entries
-        # @return [Bluebook::Chapter::Provision] `row` itself if it already is one, else
+        # @return [Bluebook::Declaration::Provision] `row` itself if it already is one, else
         #   a new `Provision` built from its fields
         def self.from(row)
           return row if row.is_a?(self)

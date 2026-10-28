@@ -11,8 +11,8 @@ module Hecks
 
         # Diffs two bluebook IRs into the edge's declarations.
         #
-        # @param held_bluebook [Bluebook::Chapter] the era being translated from
-        # @param current_bluebook [Bluebook::Chapter] the era being translated to
+        # @param held_bluebook [Bluebook::Declaration] the era being translated from
+        # @param current_bluebook [Bluebook::Declaration] the era being translated to
         # @return [Hash{Symbol => Object}] `:aggregates` (Array<Scaffold::ScaffoldedAggregate>),
         #   `:retired` (Array<String>, vanished names with no successor), `:unclaimed`
         #   (Array<String>, vanished names left ambiguous)

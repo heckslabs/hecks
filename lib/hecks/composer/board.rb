@@ -7,7 +7,7 @@ module Hecks
     module Board
       module_function
 
-      # @param bluebook [Bluebook::Chapter] the booted bluebook
+      # @param bluebook [Bluebook::Declaration] the booted bluebook
       # @param outline [Array<Hash>] the text outline (see {Outline}), which says where each note
       #   is declared
       # @return [Hash] `aggregates` (each with `name`, `at` and its `commands`, each command with

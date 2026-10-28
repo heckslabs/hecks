@@ -18,7 +18,7 @@ module Hecks
 
     # Mirrors the conformance spec's MODEL_CONSTRUCTS; kept here because a spec is not a library.
     CONSTRUCTS = {
-      "Bluebook"       => Hecks::Bluebook::Chapter,
+      "Bluebook"       => Hecks::Bluebook::Declaration,
       "Aggregate"      => Hecks::Bluebook::Aggregate,
       "Command"        => Hecks::Bluebook::Command,
       "Entity"         => Hecks::Bluebook::Entity,

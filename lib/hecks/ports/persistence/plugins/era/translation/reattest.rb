@@ -78,7 +78,7 @@ module Hecks
       # removed afterwards, without touching the live registry.
       #
       # @param source [String] bluebook source text
-      # @return [Bluebook::Chapter, nil] the first bluebook the source declares; nil when it
+      # @return [Bluebook::Declaration, nil] the first bluebook the source declares; nil when it
       #   declares none or fails to parse or load for any reason
       def shadow(source)
         file = Tempfile.new(["hecks-reattest-", ".bluebook"])

@@ -24,7 +24,7 @@ module Hecks
 
       module_function
 
-      # @param bluebook [Bluebook::Chapter] the bluebook being projected
+      # @param bluebook [Bluebook::Declaration] the bluebook being projected
       # @param options [Hash] unused
       # @return [Hash{String => String}] each command's schema file by path, entity commands too
       def call(bluebook:, options: {})
@@ -40,7 +40,7 @@ module Hecks
 
       # One command's schema.
       #
-      # @param bluebook [Bluebook::Chapter] the owning bluebook
+      # @param bluebook [Bluebook::Declaration] the owning bluebook
       # @param aggregate [Bluebook::Aggregate] the aggregate that owns the command
       # @param path [String] `Aggregate/Command` or `Aggregate/Entity.Command`
       # @param command [Bluebook::Command] the command

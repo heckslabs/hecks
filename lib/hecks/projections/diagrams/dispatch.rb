@@ -6,7 +6,7 @@ module Hecks
       module Dispatch
         module_function
 
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook
         # @return [String, nil] commands, the events they emit and the policies those trigger,
         #   or nil when there are none
         def dispatch_diagram(bluebook)
@@ -52,7 +52,7 @@ module Hecks
         # @return [String] its Mermaid node
         def event_node(event_name) = %(evt_#{event_name}{{"#{event_name}"}})
 
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook
         # @param holder [Object] an aggregate or entity with commands or queries
         # @return [String] what the holder does, writes and answers
         def surface_diagram(bluebook, holder)

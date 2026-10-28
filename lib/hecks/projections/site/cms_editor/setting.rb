@@ -40,7 +40,7 @@ module Hecks
 
           # Reads and checks the row a bluebook declares.
           #
-          # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+          # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
           # @param table [Table, nil] the checked route table, to check the login page against
           # @return [Setting, nil] the checked setting, or nil when the bluebook declares no row
           # @raise [Table::Invalid] when the row is refused

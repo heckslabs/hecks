@@ -14,7 +14,7 @@ The design was settled in review on 2026-09-28/29, and every decision is in the 
 
 - **Parts.** Custodian is for clients and Codebase is for maintainers.
 - **Packaging.** Everything ships, including the Rust workspace.
-- **Chapters.** The framework's own chapters are attached.
+- **FrameworkBluebooks.** The framework's own chapters are attached.
 - **Commands.** The section 7 command table, and section 12's argument conventions.
 - **Production era work.** Section 13: decisions are committed files the host applies at boot.
 

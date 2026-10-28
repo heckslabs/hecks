@@ -37,7 +37,7 @@ module Hecks
         # Finds the one bluebook of a project that declares the route table.
         #
         # @param registry [Runtime::Registry] the registry the project booted into
-        # @return [Bluebook::Chapter] the bluebook holding the `Route` value object with member rows
+        # @return [Bluebook::Declaration] the bluebook holding the `Route` value object with member rows
         # @raise [Invalid] when no bluebook, or more than one, declares one
         def self.chapter(registry)
           chapters = registry.bluebooks.values
@@ -51,7 +51,7 @@ module Hecks
 
         # Reads and checks one bluebook's route table.
         #
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the rows
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the rows
         # @param registry [Runtime::Registry] the registry the project booted into: it holds the
         #   Site bluebook and, for a `command:` or `query:` source, the command or query
         # @return [Table] the checked table
@@ -78,7 +78,7 @@ module Hecks
           closed.merge(http_method: members.call("HttpMethod"), edge_function_kind: members.call("EdgeFunctionKind"))
         end
 
-        # @param bluebook [Bluebook::Chapter] a bluebook to search
+        # @param bluebook [Bluebook::Declaration] a bluebook to search
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
         def self.rows_of(chapter, object = ROW_OBJECT)

@@ -126,7 +126,7 @@ RSpec.describe "a bluebook dispatched in and read back out" do
     expect(back.keys).to eq(%i[name version vision classification formerly_known_as namespace attaches_to provides aggregates
                                read_models policies
                                process_managers])
-    expect(Hecks::Bluebook::Chapter.instance_method(:to_h).owner).to be_truthy
+    expect(Hecks::Bluebook::Declaration.instance_method(:to_h).owner).to be_truthy
   end
 
   # The round-trip comparison cannot see a key that `Reconstruction#aggregate`/`#entity`

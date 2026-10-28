@@ -146,7 +146,7 @@ Names the Ruby module the constants of a bluebook install under, instead of its 
 The bluebook keeps its own name; only where Ruby installs it changes:
 
 ```ruby
-Hecks::Bluebook::Chapter.new(name: "Workbench", namespace: "Tools::Workbench").namespace  # => "Tools::Workbench"
+Hecks::Bluebook::Declaration.new(name: "Workbench", namespace: "Tools::Workbench").namespace  # => "Tools::Workbench"
 ```
 
 ## attaches_to

@@ -15,7 +15,7 @@ module Hecks
 
       module_function
 
-      # @param bluebook [Hecks::Bluebook::Chapter] a booted bluebook
+      # @param bluebook [Hecks::Bluebook::Declaration] a booted bluebook
       # @return [Array<Route>] every route its aggregates imply, aggregate by aggregate
       def for_chapter(chapter) = chapter.aggregates.flat_map { |aggregate| for_aggregate(aggregate) }
 

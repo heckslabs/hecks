@@ -25,7 +25,7 @@ module Hecks
           @many = many
         end
 
-        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the route table
         # @return [Array<Hash{Symbol => Object}>] each checked row, defaults filled; empty when the
         #   bluebook declares none
         # @raise [Table::Invalid] when a row is refused

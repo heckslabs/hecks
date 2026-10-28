@@ -20,7 +20,7 @@ module Hecks
         # Flags each pair of a holder that can end and an aggregate it references, for each of
         # the referenced aggregate's endings no policy acts on the holder's rows for.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @return [Array<Finding>] one :orphaned_reference warning per unhandled ending
         def orphan_findings(bluebook)
           endings = bluebook.aggregates.to_h { |aggregate| [aggregate.hecks_name, life_endings(aggregate)] }

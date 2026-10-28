@@ -10,7 +10,7 @@ module Hecks
 
       # Reduces a bluebook to the parts of its IR that decide what stored data looks like.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook whose `to_h` dump is projected
+      # @param bluebook [Bluebook::Declaration] the bluebook whose `to_h` dump is projected
       # @return [Hash{String => Object}] `"name"` (the bluebook's name) and `"aggregates"`, an
       #   Array of the Hashes `project_aggregate` builds, sorted by aggregate name
       def project(bluebook)
@@ -25,19 +25,19 @@ module Hecks
 
       # Compares two bluebooks by storage shape alone, ignoring every behavioral difference.
       #
-      # @param held [Bluebook::Chapter] the bluebook a held era was minted from
-      # @param current [Bluebook::Chapter] the bluebook booting now
+      # @param held [Bluebook::Declaration] the bluebook a held era was minted from
+      # @param current [Bluebook::Declaration] the bluebook booting now
       # @return [Boolean] true when both project to an equal structure
       def same?(held, current) = project(held) == project(current)
 
       # The canonical serialization hashed at mint time; stored era names are never recomputed.
-      # @param bluebook [Bluebook::Chapter] the bluebook to serialize
+      # @param bluebook [Bluebook::Declaration] the bluebook to serialize
       # @return [String] compact JSON text of `project(bluebook)`
       def canonical(bluebook) = JSON.generate(project(bluebook))
 
       # Computes the era identity of a bluebook's storage shape.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook being minted
+      # @param bluebook [Bluebook::Declaration] the bluebook being minted
       # @return [String] 64 lowercase hex characters, the SHA-256 of `canonical(bluebook)`
       def mint_hash(bluebook) = Digest::SHA256.hexdigest(canonical(bluebook))
 
@@ -45,7 +45,7 @@ module Hecks
 
       # Shortens the era identity to the label translation edges and refusals use.
       #
-      # @param bluebook [Bluebook::Chapter] the bluebook being minted
+      # @param bluebook [Bluebook::Declaration] the bluebook being minted
       # @return [String] the first `LABEL_LENGTH` hex characters of `mint_hash(bluebook)`
       def mint_label(bluebook) = mint_hash(bluebook)[0, LABEL_LENGTH]
 

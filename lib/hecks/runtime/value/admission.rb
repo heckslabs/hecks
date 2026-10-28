@@ -73,8 +73,8 @@ module Hecks
         # Walks `hecks_owner` links upward until it reaches the bluebook.
         #
         # @param construct [Bluebook::ValueObject, Bluebook::Entity, Bluebook::Aggregate,
-        #   Bluebook::Chapter, nil] the construct to start from; the bluebook answers itself
-        # @return [Bluebook::Chapter, nil] the first construct on the way up that responds to
+        #   Bluebook::Declaration, nil] the construct to start from; the bluebook answers itself
+        # @return [Bluebook::Declaration, nil] the first construct on the way up that responds to
         #   `aggregate`; nil when the chain ends without one
         def chapter_of(construct)
           node = construct

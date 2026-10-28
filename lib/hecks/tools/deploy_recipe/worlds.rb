@@ -7,8 +7,8 @@ module Hecks
     module DeployRecipe
       # Finds and loads the `.world` file a domain deploys from, and the registry it boots into.
       module Worlds
-        # A hecksagon's `Chapters.load!("Name")`, capturing the bluebook's name.
-        CHAPTER_LOAD = /Chapters\.load!\(\s*"([^"]+)"\s*\)/
+        # A hecksagon's `FrameworkBluebooks.load!("Name")`, capturing the bluebook's name.
+        CHAPTER_LOAD = /(?:FrameworkBluebooks|Chapters)\.load!\(\s*"([^"]+)"\s*\)/
 
         # The `.world` file named after the directory; failing that, the sole `*.world` file under
         # `<domain>/bluebook/`; failing that, the one named after the bluebook the domain's hecksagon
@@ -30,7 +30,7 @@ module Hecks
         end
 
         # The snake-cased names of the bluebooks a domain's hecksagons attach by name
-        # (`Hecks::Chapters.load!("QualityControl")`), which its `.world` and `.hecksagon` files
+        # (`Hecks::FrameworkBluebooks.load!("QualityControl")`), which its `.world` and `.hecksagon` files
         # are named after.
         #
         # @param domain [String] the domain directory
@@ -73,7 +73,7 @@ module Hecks
 
         # Loads the whole registry a domain boots with, not just its own `.bluebook`, because a
         # cross-domain invoke grant can live in any attached bluebook. A domain with no bluebook of
-        # its own (the QA ledger) gets its bluebook from the hecksagon's `Chapters.load!`. `root:` is
+        # its own (the QA ledger) gets its bluebook from the hecksagon's `FrameworkBluebooks.load!`. `root:` is
         # required or `attaches ... from: :vendor` refuses with "needs a registry with a root to
         # vendor from".
         #
