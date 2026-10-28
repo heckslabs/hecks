@@ -210,7 +210,8 @@ impl Store {
         }
     }
 
-    /// The era, head-view and member-lookup surface, on a backend that has one.
+    /// The Postgres adapter's own connection handle, for minting, seals and operator tools; code that
+    /// runs a domain uses the head methods and never this.
     #[must_use]
     pub const fn lineage(&self) -> Option<&LineageStore> {
         match self {
@@ -247,6 +248,19 @@ impl Store {
                 Ok(journal_sql::read_lineage_head_all(&*guard, domain, storage_name).await?)
             }
             Self::Memory(store) => Ok(store.head_all(domain, storage_name)),
+        }
+    }
+
+    /// Every head state of one aggregate, from the first of `domains` that keeps it; empty when
+    /// none does.
+    pub async fn head_states(
+        &self,
+        domains: &[&str],
+        storage_name: &str,
+    ) -> Result<Vec<serde_json::Value>, StoreError> {
+        match self {
+            Self::Postgres(store) => Ok(store.lineage().head_states(domains, storage_name).await?),
+            Self::Memory(store) => Ok(store.head_states(domains, storage_name)),
         }
     }
 
@@ -303,15 +317,6 @@ impl Store {
             Self::Postgres(store) => Ok(store.lineage().put_head(config, mutation).await?),
             Self::Memory(store) => store.put_heads(config, std::slice::from_ref(mutation)),
         }
-    }
-
-    /// [`Store::lineage`] for a caller that cannot proceed without it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StoreError::Unsupported`] on a backend without lineage.
-    pub fn require_lineage(&self) -> Result<&LineageStore, StoreError> {
-        self.lineage().ok_or(StoreError::Unsupported("lineage"))
     }
 
     /// Every journaled step in order, whichever backend holds them.
