@@ -1443,13 +1443,18 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   # The same rows from a from-scratch build over the whole edge chain, not the layered one.
   def full_build_rows(source, edges, label)
     with_db do |db|
-      lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
-      chain = Hecks::Adapters::PostgresEra::LineageManager.edge_chain(
-        load_registry(source, translation_source: edges), load_registry(source).bluebooks.values.first, lineage.eras[0..-2], label
-      )
-      db.exec("SELECT aggregate_id, operation, state FROM (#{lineage.chain_sql(era_two_account, 3, chain)}) full_build " \
+      db.exec("SELECT aggregate_id, operation, state FROM (#{full_build_sql(db, source, edges, label)}) full_build " \
               "ORDER BY aggregate_id").values
     end
+  end
+
+  # The SQL of a from-scratch build over the whole edge chain.
+  def full_build_sql(db, source, edges, label)
+    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    chain = Hecks::Adapters::PostgresEra::LineageManager.edge_chain(
+      load_registry(source, translation_source: edges), load_registry(source).bluebooks.values.first, lineage.eras[0..-2], label
+    )
+    lineage.chain_sql(era_two_account, 3, chain)
   end
 
   # The layered build (reading era 2's matview) and a from-scratch full build must agree row
@@ -1474,6 +1479,15 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
       expect(layered).to eq(full_build_rows(V3_SOURCE, @edges, @l3))
       expect(layered).not_to be_empty
+    end
+
+    # Each link's `CASE` names `state` twice, so inlined links double: a long chain overflows one
+    # statement's range table.
+    it "materializes every link of the full chain", :aggregate_failures do
+      sql = with_db { |db| full_build_sql(db, V3_SOURCE, @edges, @l3) }
+
+      expect(sql).to include("edge_1 AS MATERIALIZED (")
+      expect(sql).not_to match(/edge_\d+ AS \(/)
     end
   end
 

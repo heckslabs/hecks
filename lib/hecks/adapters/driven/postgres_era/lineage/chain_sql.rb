@@ -139,11 +139,14 @@ module Hecks
             " AND ordinal <= #{cut}" if cut
           end
 
-          # One link of the chain: its edge's rules over the previous link.
+          # One link of the chain: its edge's rules over the previous link. A link is `MATERIALIZED`
+          # because its `CASE` names `state` twice: left to Postgres to inline, each link doubles the
+          # expression of the one before, and a chain of eighteen links overflows the 65,535
+          # range-table entries one statement may hold.
           def edge_step_sql(edge, index, names)
             declared = edge[:translation].for_aggregate(names[:current][index + 1])
             guard = "era <= #{index + 1} AND operation = 'save'"
-            "edge_#{index + 1} AS (SELECT ordinal, era, #{id_column_for(declared, guard)}, operation, " \
+            "edge_#{index + 1} AS MATERIALIZED (SELECT ordinal, era, #{id_column_for(declared, guard)}, operation, " \
               "CASE WHEN #{guard} THEN #{rules_expression(declared)} ELSE state END AS state " \
               "FROM #{index.zero? ? "tail" : "edge_#{index}"})"
           end

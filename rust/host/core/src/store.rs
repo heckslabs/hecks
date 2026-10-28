@@ -14,7 +14,7 @@
 
 mod memory;
 
-use crate::journal::{LineageConfig, Mutation, SagaRow, Snapshot};
+use crate::journal::{HeldEra, LineageConfig, Mutation, SagaRow, Snapshot};
 pub use memory::{DeadLetterRecord, Fault as MemoryFault, MemoryStore, MemoryUnit};
 
 /// Why a store call failed.
@@ -178,7 +178,8 @@ pub trait Backend: Send + Sync {
         storage_name: &str,
     ) -> Result<Vec<serde_json::Value>, StoreError>;
 
-    /// The head row whose `matches` fields all hold; the first of `domains` that keeps heads decides.
+    /// The head row whose `matches` fields all hold; the first of `domains` that keeps heads
+    /// decides.
     async fn head_find(
         &self,
         domains: &[&str],
@@ -206,6 +207,12 @@ pub trait Backend: Send + Sync {
         ) -> Option<(String, serde_json::Value)>
                   + Send),
     ) -> Result<(), StoreError>;
+
+    /// The eras held for `domain`, oldest first: each names a shape this store has held.
+    async fn held_eras(&self, domain: &str) -> Result<Vec<HeldEra>, StoreError>;
+
+    /// The highest era held for `domain`; `None` when none is held.
+    async fn current_era(&self, domain: &str) -> Result<Option<i32>, StoreError>;
 
     /// The concrete backend, for the adapters' own tools and for test fixtures.
     fn as_any(&self) -> &dyn std::any::Any;
@@ -286,6 +293,16 @@ impl Store {
     #[must_use]
     pub fn backend(&self) -> &dyn Backend {
         &*self.backend
+    }
+
+    /// The eras held for `domain`, oldest first.
+    pub async fn held_eras(&self, domain: &str) -> Result<Vec<HeldEra>, StoreError> {
+        self.backend.held_eras(domain).await
+    }
+
+    /// The highest era held for `domain`; `None` when none is held.
+    pub async fn current_era(&self, domain: &str) -> Result<Option<i32>, StoreError> {
+        self.backend.current_era(domain).await
     }
 
     /// One aggregate's head row `id`, translated to its current shape; `None` when there is none.

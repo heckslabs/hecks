@@ -95,6 +95,8 @@ trait Backend: Sized + Sync {
     async fn forget_saga_backfill(&self);
     async fn inject(&self, fault: Fault);
     async fn clear_faults(&self);
+    /// Holds the next era of the Banking domain under `label` and answers its ordinal.
+    async fn hold_era(&self, label: &str) -> i32;
     async fn hold_domain_lock(&self) -> Self::Held;
     async fn release_domain_lock(&self, held: Self::Held);
 }
@@ -712,6 +714,35 @@ mod cases {
         );
     }
 
+    pub(super) async fn held_eras_come_back_oldest_first_with_the_highest_as_current<B: Backend>(
+        db: &str,
+    ) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+        let before = store.held_eras(DOMAIN).await.unwrap();
+
+        let first = backend.hold_era("shape-x").await;
+        let second = backend.hold_era("shape-y").await;
+
+        assert_eq!(second, first + 1, "each era takes the next ordinal");
+        let held = store.held_eras(DOMAIN).await.unwrap();
+        assert_eq!(held.len(), before.len() + 2);
+        let ordinals: Vec<i32> = held.iter().map(|era| era.ordinal).collect();
+        let mut sorted = ordinals.clone();
+        sorted.sort_unstable();
+        assert_eq!(ordinals, sorted, "oldest first");
+        assert_eq!(held.last().unwrap().label.as_deref(), Some("shape-y"));
+        assert_eq!(store.current_era(DOMAIN).await.unwrap(), Some(second));
+    }
+
+    pub(super) async fn a_domain_with_no_era_holds_none<B: Backend>(db: &str) {
+        let backend = B::fresh(db).await;
+        let store = backend.store();
+
+        assert!(store.held_eras("Nowhere").await.unwrap().is_empty());
+        assert_eq!(store.current_era("Nowhere").await.unwrap(), None);
+    }
+
     pub(super) async fn a_head_write_without_an_era_is_refused_and_leaves_nothing<B: Backend>(
         db: &str,
     ) {
@@ -856,6 +887,17 @@ impl Backend for PostgresBackend {
             &["Customer", "Account", "Transfer"],
         )
         .await;
+        // The columns a minted `hecks_eras` carries beyond what the fixture creates.
+        client
+            .lock()
+            .await
+            .batch_execute(
+                "ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS label text, \
+                 ADD COLUMN IF NOT EXISTS watermark bigint, \
+                 ADD COLUMN IF NOT EXISTS held_digest text",
+            )
+            .await
+            .unwrap();
         // The head view a minted era leaves over each aggregate's era-1 snapshot table.
         for storage in ["customer", "account", "transfer"] {
             let snapshot = journal::qualified_name(DOMAIN, &format!("{storage}_head_snapshot_1"));
@@ -1003,6 +1045,22 @@ impl Backend for PostgresBackend {
 
     /// A second connection takes the same advisory lock a dispatch takes and keeps its
     /// transaction open.
+    async fn hold_era(&self, label: &str) -> i32 {
+        let row = self
+            .client
+            .lock()
+            .await
+            .query_one(
+                "INSERT INTO hecks_eras (domain, ordinal, held_text, label) \
+                 SELECT $1::text, COALESCE(MAX(ordinal), 0) + 1, 'test', $2::text \
+                 FROM hecks_eras WHERE domain = $1::text RETURNING ordinal",
+                &[&DOMAIN, &label],
+            )
+            .await
+            .unwrap();
+        row.get(0)
+    }
+
     async fn hold_domain_lock(&self) -> Client {
         let competitor = connect(&self.db).await;
         competitor.batch_execute("BEGIN").await.unwrap();
@@ -1041,6 +1099,8 @@ mod postgres {
         a_head_is_found_by_the_fields_it_holds,
         an_amended_head_is_read_and_written_as_one_step,
         the_first_domain_that_keeps_heads_answers_every_state,
+        held_eras_come_back_oldest_first_with_the_highest_as_current,
+        a_domain_with_no_era_holds_none,
         a_head_write_without_an_era_is_refused_and_leaves_nothing,
         a_unit_commits_a_saga_and_then_its_deletion,
     );
@@ -1159,6 +1219,10 @@ impl Backend for MemoryBackend {
         self.memory.clear_fault();
     }
 
+    async fn hold_era(&self, label: &str) -> i32 {
+        self.memory.hold_era(DOMAIN, label)
+    }
+
     async fn hold_domain_lock(&self) -> Self::Held {
         self.memory.hold_lock().await
     }
@@ -1193,6 +1257,8 @@ mod memory {
         a_head_is_found_by_the_fields_it_holds,
         an_amended_head_is_read_and_written_as_one_step,
         the_first_domain_that_keeps_heads_answers_every_state,
+        held_eras_come_back_oldest_first_with_the_highest_as_current,
+        a_domain_with_no_era_holds_none,
         a_head_write_without_an_era_is_refused_and_leaves_nothing,
         a_unit_commits_a_saga_and_then_its_deletion,
     );

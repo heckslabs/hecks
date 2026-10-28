@@ -1,0 +1,6 @@
+Hecks.data_translation "Composer", from: "6f042b", to: "ffdf12" do
+  aggregate "Draft" do
+    rename "chapter_name", to: "bluebook_name"
+    retype "ChapterName", to: "BluebookName"
+  end
+end

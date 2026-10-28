@@ -44,6 +44,7 @@ module Hecks
           def command_line(spec, rest, launcher)
             text = launcher ? rest.include?(TEXT) : false
             rest, wait = LauncherOptions.take_wait(spec, rest - [TEXT]) if launcher
+            rest = LauncherRenamedArguments.apply(spec, rest, launcher)
             [Cli.arguments(spec, rest), text || wait || LauncherOptions.settled?(launcher, spec), text]
           end
 

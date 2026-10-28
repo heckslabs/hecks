@@ -7,7 +7,7 @@
 //! leaves the committed data as it was.
 
 use super::{Accepted, DeadLetter, State, StoreError};
-use crate::journal::{storage_name, LineageConfig, Mutation, SagaRow, Snapshot};
+use crate::journal::{storage_name, HeldEra, LineageConfig, Mutation, SagaRow, Snapshot};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError, RwLock};
 use tokio::sync::{Mutex, OwnedMutexGuard};
@@ -40,6 +40,8 @@ pub(super) struct Data {
     /// The era-shaped head rows, `(domain, storage name)` to id to state: what the Postgres head
     /// views answer, written by the lineage mutations of each committed step.
     pub(super) heads: BTreeMap<(String, String), BTreeMap<String, serde_json::Value>>,
+    /// The eras held per domain, oldest first.
+    pub(super) eras: BTreeMap<String, Vec<HeldEra>>,
 }
 
 /// Where a commit is made to fail, so a test can assert that nothing became visible.
@@ -117,6 +119,27 @@ impl MemoryStore {
             steps,
             sagas: Vec::new(),
         }
+    }
+
+    /// Holds a new era of `domain` named `label` and answers its ordinal: one more than the
+    /// highest held. A Memory store keeps no translation edges, so it only ever holds the shape a
+    /// process boots with; the caller decides whether a second shape is welcome.
+    pub fn hold_era(&self, domain: &str, label: &str) -> i32 {
+        let mut data = self.write();
+        let held = data.eras.entry(domain.to_string()).or_default();
+        let ordinal = held.last().map_or(1, |era| era.ordinal + 1);
+        held.push(HeldEra {
+            ordinal,
+            label: Some(label.to_string()),
+            watermark: None,
+        });
+        ordinal
+    }
+
+    /// The eras held for `domain`, oldest first.
+    #[must_use]
+    pub fn eras_of(&self, domain: &str) -> Vec<HeldEra> {
+        self.read().eras.get(domain).cloned().unwrap_or_default()
     }
 
     /// The head row `id` of one aggregate's head, or `None`.
@@ -518,6 +541,14 @@ impl super::Backend for MemoryStore {
             |rows: &[(String, serde_json::Value)]| ((), decide(rows)),
         )
         .await
+    }
+
+    async fn held_eras(&self, domain: &str) -> Result<Vec<HeldEra>, StoreError> {
+        Ok(self.eras_of(domain))
+    }
+
+    async fn current_era(&self, domain: &str) -> Result<Option<i32>, StoreError> {
+        Ok(self.eras_of(domain).last().map(|era| era.ordinal))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

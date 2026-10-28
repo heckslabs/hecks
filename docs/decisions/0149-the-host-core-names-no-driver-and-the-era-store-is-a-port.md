@@ -3,7 +3,7 @@
 **Status:** Accepted. Built: the Postgres journal and era SQL under `store/`, the
 `tokio_postgres` entry in the boundary scan, `dispatch.port`, the era store's heads, `Store` as a
 handle over a `Backend` trait, and the split of `rust/host` into a core crate and the adapters.
-Not built: eras on Memory (undecided) and the evaluator merge. Date: 2026-10-28.
+and eras on Memory. Not built: the evaluator merge. Date: 2026-10-28.
 
 ## Context
 
@@ -65,15 +65,20 @@ An outside review of the ports and adapters found the hexagon held in the Ruby r
    - `plugins.rs` and `wasm_runner.rs` call `std::env::temp_dir`, which is not a transport but is the
      process environment. They are in the core on purpose; the scan covers neither.
 
+6. **Host: Memory holds eras.** `Backend` gains `held_eras` and `current_era`, which Postgres
+   answers from `hecks_eras` and Memory from its own table. A Memory store boots the way Postgres
+   does when the domain needs lineage (a lineage-capable aggregate, or Google sign-in): the pure
+   `decide_boot_action` picks `UseExisting` (a held era names this shape) or `HoldFirst`, and
+   `MemoryStore::hold_era` records it. A Memory store keeps no translation edges, so a process
+   that boots a second shape against the same store is refused with a message that says so.
+   With an era active, a committed step's lineage mutations land in Memory's heads, so member
+   sign-in and the lineage-capable aggregates work on Memory. `select_backend` no longer refuses
+   them (`has_lineage` and the `google_auth` parameter are gone), and `boot_memory_era` takes the
+   Google flag as an argument so tests do not read the process environment. Minting later eras,
+   the ledger seals and `store/mint.rs` stay Postgres provisioning.
+
 ## Not yet decided, in order
 
-- **The rest of the era store.** Heads are done for `auth.rs` and `presentation`, and no domain-side
-  code takes a raw Postgres connection any more. What remains is Postgres provisioning that belongs
-  to the adapter: boot's era decision (`held_eras`, `current_era`) and minting (`store/mint.rs`),
-  and the ledger seals, which the Postgres commit and the operator tools run. Whether Memory should
-  hold eras at all is open: it mints nothing today and `has_lineage` is false for it. If it should,
-  eras move onto `Store` with a conformance case each; if not, `Store::lineage()` stays as the
-  adapter's own handle and the port is complete.
 - **Done: `Store` is a handle over a `Backend` trait.** `Store` is a struct holding a
   `Box<dyn Backend>`, and `Unit` holds a `Box<dyn UnitBackend>`; the Postgres and Memory backends
   implement them, and no call site changed. `amend_head` crosses the trait as a `&mut dyn FnMut`

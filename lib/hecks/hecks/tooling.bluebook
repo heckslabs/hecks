@@ -15,10 +15,10 @@ Hecks.bluebook "Hecks" do
       invariant("a domain is named by its path") { !value.to_s.empty? }
     end
 
-    value_object "ChapterName" do
+    value_object "BluebookName" do
       attribute :value, String, matches: :present
 
-      invariant("a chapter is named") { !value.to_s.empty? }
+      invariant("a bluebook is named") { !value.to_s.empty? }
     end
 
     value_object "AggregateName" do
@@ -49,9 +49,21 @@ Hecks.bluebook "Hecks" do
       returns Document
     end
 
+    # The identity one stored record answers to, as the store's `id` column holds it.
+    value_object "RecordId" do
+      attribute :value, String, matches: :present
+
+      invariant("a record is named by its id") { !value.to_s.empty? }
+    end
+
+    # `aggregate` is the storage name the full document keys by (`reflection`, not `Reflection`); with
+    # `record` as well it narrows to that one record, so one row can be read without dumping the rest.
     query "Stores" do
-      description "Every aggregate's current records: the head, not the journal."
-      attribute :domain, DomainPath
+      description "Every aggregate's current records, or one aggregate's, or one record: the head, not the journal."
+      attribute :domain,    DomainPath
+      attribute :aggregate, AggregateName, optional: true
+      attribute :record,    RecordId,      optional: true
+      attribute :flat,      Boolean,       optional: true
       returns Document
     end
 
@@ -64,7 +76,7 @@ Hecks.bluebook "Hecks" do
     query "Statements" do
       description "A bluebook's declared facts, as plain English sentences."
       attribute :domain,  DomainPath
-      attribute :chapter, ChapterName
+      attribute :bluebook, BluebookName
       returns Document
     end
 
@@ -109,14 +121,14 @@ Hecks.bluebook "Hecks" do
     query "ProjectDiagrams" do
       description "A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
-      attribute :chapter, ChapterName
+      attribute :bluebook, BluebookName
       returns list_of(ProjectedFile)
     end
 
     query "Glossary" do
       description "A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
       attribute :domain,  DomainPath
-      attribute :chapter, ChapterName
+      attribute :bluebook, BluebookName
       returns list_of(ProjectedFile)
     end
   end
