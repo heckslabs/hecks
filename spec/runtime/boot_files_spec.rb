@@ -44,4 +44,40 @@ RSpec.describe "Hecks.boot_files" do
       Hecks.boot_files([File.join(root, "nope.bluebook")], install_driving: false)
     end.to raise_error(LoadError)
   end
+
+  describe "an .adapter among the files" do
+    let(:directory) { Dir.mktmpdir("boot-files-adapters") }
+
+    after { FileUtils.remove_entry(directory) }
+
+    def write(path, text)
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, text)
+      path
+    end
+
+    def adapter_names(*extra)
+      files = [File.join(root, "pizzas.bluebook"), memory_hecksagon, *extra]
+      Hecks.boot_files(files, shared: directory, install_driving: false).registry.adapters.keys
+    end
+
+    it "loads the adapter named" do
+      stand_in = write(File.join(directory, "stand_in.adapter"), "Hecks.adapter(\"StandIn\") { port \"Stand\" }\n")
+
+      expect(adapter_names(stand_in)).to include("StandIn")
+    end
+
+    it "leaves the shared root's own adapters unloaded" do
+      write(File.join(directory, "adapters", "real.adapter"), "Hecks.adapter(\"Real\") { port \"Stand\" }\n")
+      stand_in = write(File.join(directory, "stand_in.adapter"), "Hecks.adapter(\"StandIn\") { port \"Stand\" }\n")
+
+      expect(adapter_names(stand_in)).not_to include("Real")
+    end
+
+    it "still loads the shared root's adapters when none is named" do
+      write(File.join(directory, "adapters", "real.adapter"), "Hecks.adapter(\"Real\") { port \"Stand\" }\n")
+
+      expect(adapter_names).to include("Real")
+    end
+  end
 end

@@ -30,13 +30,13 @@ module Hecks
       # Opens a draft for a bluebook, or leaves an open one as it is.
       #
       # @param slug [String] the draft's name
-      # @param chapter_name [String] the bluebook's name
+      # @param bluebook_name [String] the bluebook's name
       # @param text [String] the text it starts from
       # @return [void]
-      def open(slug:, chapter_name:, text:)
+      def open(slug:, bluebook_name:, text:)
         return if draft(slug)
 
-        dispatch("Begin", slug: wrap(slug), chapter_name: wrap(chapter_name), text: wrap(text))
+        dispatch("Begin", slug: wrap(slug), bluebook_name: wrap(bluebook_name), text: wrap(text))
       end
 
       # Records the text now on screen.
@@ -56,7 +56,7 @@ module Hecks
       def record(path:, text:)
         return revise(slug: path, text: text) if draft(path)
 
-        self.open(slug: path, chapter_name: chapter_name_in(text), text: text)
+        self.open(slug: path, bluebook_name: chapter_name_in(text), text: text)
       end
 
       # The text a file has held, from the bluebook's own events.

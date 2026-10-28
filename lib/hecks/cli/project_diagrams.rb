@@ -5,7 +5,7 @@ module Hecks
     # The command behind `hecks project_diagrams`: boots a
     # domain, finds the bluebook it names, and writes its Mermaid diagrams
     # (`Projections::Diagrams`) under `docs/generated/diagrams/<chapter>/` below the
-    # root. Only this positional form writes; the launcher's `domain=… chapter=…` question
+    # root. Only this positional form writes; the launcher's `domain=… bluebook=…` question
     # prints the same files' text and writes nothing.
     module ProjectDiagrams
       module_function
