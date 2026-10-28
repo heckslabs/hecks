@@ -5,7 +5,8 @@ module Hecks
     # A context map drawn as a Mermaid flowchart in the standard notation (ADR 0135): each edge
     # runs from the upstream context to the downstream one, with the end marks of Evans's context
     # map. The declared relationships and the wiring's derived edges are drawn together: a coupling
-    # the map does not declare is dashed and red, and a relationship the wiring never uses is grey.
+    # the map does not declare is dashed and red, a relationship the wiring never uses is grey, and
+    # an attach the map leaves implied (ADR 0155) is dotted and labelled `attaches`.
     module ContextMapDiagram
       # The edge label each declared kind is drawn with.
       LABELS = {
@@ -22,6 +23,7 @@ module Hecks
 
       UNDECLARED_STYLE = "stroke:#c00,stroke-width:2px,stroke-dasharray:5".freeze
       UNUSED_STYLE     = "stroke:#999,color:#999".freeze
+      IMPLIED_STYLE    = "stroke:#678,stroke-dasharray:2".freeze
 
       module_function
 
@@ -29,6 +31,7 @@ module Hecks
       # @param edges [Array<Hash>] `Projections::ContextRelationships.call`
       # @return [String] the Mermaid source
       def call(map:, edges:)
+        map &&= map.implying(edges)
         links = declared_links(map, edges) + undeclared_links(map, edges)
         lines = ["flowchart LR", *node_lines(map, edges), *links.map { |link| link[:line] }]
         lines.concat(style_lines(links))
@@ -62,8 +65,15 @@ module Hecks
 
         map.relationships.map do |relationship|
           used = edges.any? { |edge| Bluebook::ModelCheck.edge_uses?(edge, relationship) }
-          { line: declared_line(relationship), style: (used ? nil : UNUSED_STYLE) }
+          { line: declared_line(relationship), style: link_style(relationship, used) }
         end
+      end
+
+      # @api private
+      def link_style(relationship, used)
+        return IMPLIED_STYLE if relationship.implied
+
+        used ? nil : UNUSED_STYLE
       end
 
       # @api private
@@ -83,6 +93,8 @@ module Hecks
         from = id(relationship.upstream)
         to   = id(relationship.downstream)
         label = LABELS.fetch(relationship.kind)
+        return "  #{from} -. \"attaches · #{label}\" .-> #{to}" if relationship.implied
+
         case relationship.kind
         when :shared_kernel then "  #{from} -- \"#{label}\" --- #{to}"
         when :partnership   then "  #{from} <-- \"#{label}\" --> #{to}"
