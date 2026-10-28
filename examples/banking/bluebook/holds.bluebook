@@ -22,7 +22,7 @@ Hecks.bluebook "Banking" do
     end
 
     lifecycle :status, default: "placed" do
-      transition "Lift" => "lifted", from: "placed"
+      transition "Lift" => "lifted", from: ["placed", "escalated"]
       transition "EscalateAccountHold" => "escalated", from: "placed"
       transition "EscalateCardHold" => "escalated", from: "placed"
       mark :terminal, "lifted"
@@ -41,7 +41,7 @@ Hecks.bluebook "Banking" do
       emits "HoldPlaced"
     end
 
-    command "Lift", from: "placed" do
+    command "Lift", from: ["placed", "escalated"] do
       role "Teller"
       goal "Take a hold off once the matter is settled"
 

@@ -38,7 +38,7 @@ Hecks.bluebook "Compliance" do
     lifecycle :status, default: "open" do
       transition "Clear"    => "cleared",   from: "open"
       transition "Escalate" => "escalated", from: "open"
-      mark :terminal, "cleared"
+      mark :terminal, "cleared", "escalated"
     end
 
     # System-triggered. A refused field is refused at the JSON boundary rather than dropped.
