@@ -1,0 +1,176 @@
+Hecks.bluebook "Hecks" do
+  # Agents: handing one brief to a background Claude session (ADR 0140). A dispatch is a run like
+  # the Custodian `*Run`s: it is requested, the outside is asked, and what came back is judged by
+  # the givens and reactions below.
+  #
+  # The bluebook decides everything: a brief must say something, an agent name cannot be mistaken
+  # for a flag, the directory must be one the `Agents` port finds, and a session that reports
+  # `done` or `stopped` has finished while `busy` and `idle` have not. The port only looks and
+  # starts: it finds a directory, starts the session, and reports the state the session is in.
+
+  aggregate "AgentRun" do
+    description "One brief handed to a background Claude session: started and tracked, or refused with the reason."
+
+    attribute :run,       RunKey
+    attribute :repo,      Path
+    attribute :brief,     Brief
+    attribute :agent,     AgentName, optional: true
+    attribute :session,   SessionId, optional: true
+    attribute :condition, Condition, optional: true
+    attribute :refusal,   Report,    optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The directory the session works in.
+    value_object "Path" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    # What the session is asked to do. It may span lines; the dispatch refuses one that is blank.
+    value_object "Brief" do
+      attribute :value, String
+    end
+
+    # A custom agent's name. It starts with a letter or digit, so it cannot be taken for a flag.
+    value_object "AgentName" do
+      attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+    end
+
+    value_object "SessionId" do
+      attribute :value, String, matches: :present
+    end
+
+    # What a session reported about itself the last time it was asked.
+    value_object "Condition" do
+      attribute :value, String
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Begin"   => "started",  from: "requested"
+      transition "Decline" => "refused",  from: "requested"
+      transition "Finish"  => "finished", from: "started"
+    end
+
+    command "Dispatch" do
+      role "Operator"
+      goal "Hand one brief to a background Claude session working in a directory"
+
+      attribute :run,   RunKey
+      attribute :repo,  Path
+      attribute :brief, Brief
+      attribute :agent, AgentName, optional: true
+
+      given("a brief says something") { !brief.value.to_s.strip.empty? }
+
+      sets :run
+      sets :repo
+      sets :brief
+      sets :agent
+
+      emits AgentRunRequested
+    end
+
+    command "Begin" do
+      role "System"
+      goal "Record the session the directory's agent started"
+
+      reference_to AgentRun
+      attribute :session, SessionId
+
+      sets :session
+
+      emits AgentRunStarted
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why no session was started"
+
+      reference_to AgentRun
+      attribute :refusal, Report
+
+      sets :refusal
+
+      emits AgentRunDeclined
+    end
+
+    command "Check", from: "started" do
+      role "Operator"
+      goal "Ask whether a started session is still working"
+
+      reference_to AgentRun
+
+      emits AgentCheckRequested
+    end
+
+    command "Finish" do
+      role "System"
+      goal "Record that the session has ended, and how it ended"
+
+      reference_to AgentRun
+      attribute :condition, Condition
+
+      sets :condition
+
+      emits AgentRunFinished
+    end
+
+    query "Running" do
+      description "Every run whose session was started and is not known to have ended, oldest key first."
+      where(status: "started")
+      order_by :run
+    end
+
+    query "Declined" do
+      description "Every run that no session was started for, with the reason."
+      where(status: "refused")
+      order_by :run
+    end
+  end
+
+  # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.
+  policy "LocateTheRepo" do
+    on      "AgentRun.AgentRunRequested"
+    trigger AgentRun::Agents::Locate, with: { run: :run }
+  end
+
+  policy "StartWhenTheRepoIsThere" do
+    on      "AgentRun.RepoLocated"
+    trigger AgentRun::Agents::Start, with: { run: :run }
+  end
+
+  policy "RecordTheSession" do
+    on      "AgentRun.AgentStarted"
+    trigger AgentRun::Begin, with: { session: :session }
+  end
+
+  policy "RecordTheMissingRepo" do
+    on      "AgentRun.RepoMissing"
+    trigger AgentRun::Decline, with: { refusal: :refusal }
+  end
+
+  policy "RecordTheRefusedStart" do
+    on      "AgentRun.StartRefused"
+    trigger AgentRun::Decline, with: { refusal: :refusal }
+  end
+
+  policy "AskTheSession" do
+    on      "AgentRun.AgentCheckRequested"
+    trigger AgentRun::Agents::Examine, with: { run: :run }
+  end
+
+  # `done` and `stopped` are a session's two ways of ending; `busy` and `idle` are not.
+  policy "FinishWhenTheSessionEnded" do
+    on      "AgentRun.SessionChecked"
+    where   { condition == "done" || condition == "stopped" }
+    trigger AgentRun::Finish, with: { condition: :condition }
+  end
+end
