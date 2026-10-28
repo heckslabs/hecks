@@ -1,7 +1,0 @@
-# Binds the `Keys` port to `KeyDestroyer`, which has the key vault destroy a subject's key.
-# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
-require "hecks/adapters/driven/key_destroyer"
-
-Hecks.adapter "KeyDestroyer" do
-  port "Keys"
-end
