@@ -58,4 +58,22 @@ the fuzzer) takes its verbs from there.
 - The Rust host decides liveness for itself and still reads Governance by its literal names
   (ADR 0025, update 2026-09-14). It is unchanged by this, so the two runtimes now take their
   rule from different places until the host reads the capability.
+
+  The host can run a declared query, so the obstacle is not the host. It runs the provider's
+  `assignments` query through `named_query::run` (`holds_role_via` in the kernel) and then keeps
+  the rows with no `ends_at` itself, and `auth.rs` repeats that test when it scans the assignment
+  store for a session's role. The live queries cannot replace it yet because they cannot be
+  compiled: a query condition's value is `Literal(&str)`, `NumericLiteral(f64)` or `Arg(name)`,
+  none of which is null, so the generator skips `ends_at: nil` (`where_literal`). Moving the rule
+  into the bluebook on the Rust side takes, in order:
+  1. a `QueryConditionValue::Null` that `named_query` resolves to `Json::Null` (an absent field
+     already reads as null, and `Eq` against null matches it);
+  2. the generator emitting it for an `eq` or `ne` comparison with nil, in place of the skip;
+  3. the exporter and the build's `authorization` seam carrying `live_assignments` into `ir.json`,
+     and `provided_assignments` reading that key;
+  4. `holds_role_via` and the host's `auth.rs` scan taking the live query's rows as live, with
+     their own `ends_at` filters removed, and their fixtures moving to the live query;
+  5. a conformance fixture holding Ruby and Rust to the same answer for a revoked grant.
+  That is a cross-cutting change to the IR the host reads, so it is left for its own ADR rather
+  than made here.
 - The fuzzer's grant steering and role check are unchanged: they read `grant` and `assignments`.
