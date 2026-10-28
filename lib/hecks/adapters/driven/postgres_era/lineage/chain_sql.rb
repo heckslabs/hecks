@@ -143,7 +143,7 @@ module Hecks
           def edge_step_sql(edge, index, names)
             declared = edge[:translation].for_aggregate(names[:current][index + 1])
             guard = "era <= #{index + 1} AND operation = 'save'"
-            "edge_#{index + 1} AS (SELECT ordinal, era, #{id_column_for(declared, guard)}, operation, " \
+            "edge_#{index + 1} AS MATERIALIZED (SELECT ordinal, era, #{id_column_for(declared, guard)}, operation, " \
               "CASE WHEN #{guard} THEN #{rules_expression(declared)} ELSE state END AS state " \
               "FROM #{index.zero? ? "tail" : "edge_#{index}"})"
           end
