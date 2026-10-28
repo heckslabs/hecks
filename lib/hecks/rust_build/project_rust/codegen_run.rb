@@ -113,9 +113,11 @@ module Hecks
         end
 
         def copy_changed(source, dest)
-          Dir.children(source).sort.each do |file|
-            path = File.join(dest, file)
-            wrote = WriteIfChanged.call(path, File.read(File.join(source, file), encoding: "UTF-8"))
+          texts = Dir.children(source).sort.to_h do |file|
+            [File.join(dest, file), File.read(File.join(source, file), encoding: "UTF-8")]
+          end
+          RustFormat.files(texts).each do |path, text|
+            wrote = WriteIfChanged.call(path, text, formatted: true)
             puts(wrote ? "wrote #{path}" : "#{path} unchanged")
           end
         end

@@ -45,10 +45,10 @@ module Hecks
       private_class_method :record_touch
 
       # Writes `content` to `path` unless it already holds identical bytes.
-      # Returns whether it wrote.
-      def call(path, content)
+      # Returns whether it wrote. `formatted` says the caller already ran `content` through rustfmt.
+      def call(path, content, formatted: false)
         record_touch(path)
-        content = RustFormat.call(content) if RustFormat.rust?(path)
+        content = RustFormat.call(content) if RustFormat.rust?(path) && !formatted
         # `.b` on both sides: String#== is encoding-aware, so UTF-8 vs ASCII-8BIT
         # content can compare unequal even when the bytes are identical.
         return false if File.exist?(path) && File.binread(path) == content.b
