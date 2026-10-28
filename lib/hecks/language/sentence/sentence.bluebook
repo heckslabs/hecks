@@ -205,6 +205,11 @@ Hecks.bluebook "Sentence" do
       member id: "outcome_announced", context: "Outcome",   pattern: "{event:event} is announced",                                            opens: ""
       member id: "outcome_refused_role", context: "Outcome", pattern: "it is refused because only (a|an) {role:words} may do it",             opens: ""
       member id: "outcome_refused",   context: "Outcome",   pattern: "it is refused because {reason:rest}",                                   opens: ""
+      member id: "step_runs_query",   context: "Step",      pattern: "{who:words} runs the {query:words} query",                               opens: ""
+      member id: "step_runs_query_with", context: "Step",   pattern: "{who:words} runs the {query:words} query with {args:rest}",              opens: ""
+      member id: "outcome_found",     context: "Outcome",   pattern: "{count:int} {noun:words} (is|are) found",                               opens: ""
+      member id: "outcome_none_found", context: "Outcome",  pattern: "no {noun:words} are found",                                             opens: ""
+      member id: "outcome_its",       context: "Outcome",   pattern: "its {field:words} is {value:rest}",                                     opens: ""
     end
   end
 end

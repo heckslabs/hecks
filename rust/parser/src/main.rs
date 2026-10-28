@@ -157,7 +157,19 @@ fn run_examples(args: &[String]) -> Result<(), RunError> {
     let (declaration_name, loaded) = read_bluebook_args("examples", &rest)?;
     let source = fs::read_to_string(&examples_path)
         .map_err(|e| RunError::Usage(format!("could not read '{examples_path}': {e}")))?;
-    let bluebook = parse::declaration::parse_bluebook(&declaration_name, &loaded)?;
+    let mut bluebook = parse::declaration::parse_bluebook(&declaration_name, &loaded)?;
+    // A hecksagon among the `--also` files gives the bluebook its ports, which a step may name.
+    let wiring: Vec<(String, String)> = also
+        .iter()
+        .filter(|path| path.ends_with(".hecksagon"))
+        .map(|path| {
+            fs::read_to_string(path)
+                .map(|source| (path.clone(), source))
+                .map_err(|e| RunError::Usage(format!("could not read '{path}': {e}")))
+        })
+        .collect::<Result<_, RunError>>()?;
+    let wiring: Vec<&(String, String)> = wiring.iter().collect();
+    parse::declaration::apply_hecksagons(&declaration_name, &mut bluebook, &wiring)?;
     // The suite boots the bluebook's files and then any `--also` files (the Memory-bound
     // hecksagon that answers the bluebook's asks), each by its absolute path.
     let absolute: Vec<String> = loaded

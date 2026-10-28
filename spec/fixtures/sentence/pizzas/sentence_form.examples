@@ -7,6 +7,7 @@ Background:
 Example: A new pizza is on the menu, available for sale
   When Remy creates a pizza with name "Margherita", price 1200 cents and size "large"
   Then the order is available
+  And its customer name is not set
 
 Example: A pizza takes no more than ten toppings
   Given Remy creates a pizza with name "Loaded", price 1500 cents and size "large"
@@ -40,3 +41,41 @@ Example: A payment that does not cover the price is refused
   And Remy adds a topping to it with topping "Basil" and amount 1
   When Chris tries to purchase it with amount 500 cents and customer name "Chris"
   Then it is refused because the payment covers the price
+
+Example: A payment received through the gateway sells the pizza
+  Given Remy creates a pizza with name "Paid For", price 1200 cents and size "large"
+  And Remy adds a topping to it with topping "Basil" and amount 1
+  When the payment gateway receives it with customer name "Chris" and amount 1200 cents
+  Then PizzaPaymentReceived is announced
+  And PizzaPurchased is announced
+
+Example: A payment through the gateway that does not cover the price sells nothing
+  Given Remy creates a pizza with name "Short", price 1200 cents and size "large"
+  And Remy adds a topping to it with topping "Basil" and amount 1
+  When the payment gateway receives it with customer name "Chris" and amount 500 cents
+  Then PizzaPaymentReceived is announced
+
+Example: A payment through the gateway for a pizza with no toppings sells nothing
+  Given Remy creates a pizza with name "Plain", price 900 cents and size "small"
+  When the payment gateway receives it with customer name "Chris" and amount 900 cents
+  Then PizzaPaymentReceived is announced
+
+Example: A sold pizza is no longer available
+  Given Remy creates a pizza with name "Fresh", price 1000 cents and size "small"
+  And Remy creates a pizza with name "Also Sold", price 1100 cents and size "small"
+  And Remy adds a topping to it with topping "Basil" and amount 1
+  And Chris purchases it with amount 1100 cents and customer name "Chris"
+  When Chris runs the available query
+  Then 1 order is found
+
+Example: Orders costing less than a ceiling are found
+  Given Remy creates a pizza with name "Bargain", price 800 cents and size "small"
+  And Remy creates a pizza with name "Splurge", price 1800 cents and size "large"
+  When Chris runs the costing less than query with ceiling 1000 cents
+  Then 1 order is found
+
+Example: An available order can be read field by field
+  Given Remy creates a pizza with name "Only One", price 950 cents and size "small"
+  When Chris runs the available query
+  Then the order is available
+  And its name is "Only One"

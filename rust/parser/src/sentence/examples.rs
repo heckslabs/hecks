@@ -12,8 +12,9 @@
 
 use super::command_step;
 use super::names::{camel, spoken};
-use super::values;
-use super::{column, read_lines, Grammar, Matched, Parser, Scope, Step};
+use super::outside::{self, Action};
+use super::values::{self, Target};
+use super::{column, read_lines, Grammar, Match, Matched, Parser, Scope, Step};
 use crate::diag::ParseResult;
 use crate::ir;
 use crate::render_ruby::string as ruby_string;
@@ -67,7 +68,7 @@ struct Table {
 struct Dispatch<'c> {
     role: Option<String>,
     aggregate: &'c ir::Aggregate,
-    command: &'c ir::Command,
+    action: Action<'c>,
     /// The fields that name the record the command acts on, for a step that acts on `it`.
     identity: Vec<(String, String)>,
     args: Vec<(String, String)>,
@@ -96,8 +97,23 @@ struct Created {
 #[derive(Default)]
 struct Expect {
     state: Option<(String, String)>,
+    /// Fields of the record the step leaves, or of the one row a query finds, and the Ruby text
+    /// of each value.
+    fields: Vec<(String, String)>,
+    /// How many rows a query finds.
+    count: Option<usize>,
     emits: Vec<String>,
     refused: Option<String>,
+}
+
+/// What a compiled test exercises, and how the behaviors file names it.
+enum Subject {
+    /// `tests "Purchase", on: "Order"`.
+    Command,
+    /// `tests "Pizzas::Order.PaymentGateway.Receive"`, the fact going to the record `to`.
+    Arrival { to: String },
+    /// `tests "Available", on: "Order", kind: :query`.
+    Query,
 }
 
 /// One compiled test.
@@ -105,6 +121,7 @@ struct TestOut {
     title: String,
     aggregate: String,
     command: String,
+    subject: Subject,
     role: Option<String>,
     setups: Vec<SetupOut>,
     input: Vec<(String, String)>,
@@ -328,6 +345,13 @@ impl Parser<'_> {
                             "a Given step has to succeed; put the step that is refused under When",
                         ));
                     }
+                    if step.action.command().is_none() {
+                        return Err(self.error(
+                            raw.line,
+                            raw.col,
+                            "a Given step is a command a person runs; a port announcing a fact, or a query, goes under When",
+                        ));
+                    }
                     setups.push(step);
                 }
                 Keyword::When => {
@@ -355,23 +379,23 @@ impl Parser<'_> {
             self.outcome(declaration, raw, &tested, &mut expect)?;
         }
         self.consistent(&tested, &expect)?;
-        let input: Vec<(String, String)> = tested
-            .identity
-            .iter()
-            .chain(tested.args.iter())
-            .cloned()
-            .collect();
+        let (command, subject, input) = tested_parts(declaration, &tested);
         Ok(TestOut {
             title: title.to_string(),
             aggregate: tested.aggregate.name.clone(),
-            command: tested.command.name.clone(),
+            command,
+            subject,
             role: tested.role,
             setups: setups
                 .into_iter()
                 .map(|step| SetupOut {
                     verb: format!(
                         "{}::{}.{}",
-                        declaration.name, step.aggregate.name, step.command.name
+                        declaration.name,
+                        step.aggregate.name,
+                        step.action
+                            .command()
+                            .map_or_else(String::new, |c| c.name.clone())
                     ),
                     role: step.role,
                     args: step.identity.into_iter().chain(step.args).collect(),
@@ -405,6 +429,12 @@ impl Parser<'_> {
         let at = |name: &str| column(raw.col, &raw.text, slot(name).offset);
 
         let who = slot("who").value;
+        if id.starts_with("step_runs") {
+            return self.query_step(declaration, people, raw, &found, id);
+        }
+        if let Some(resolved) = outside::arrival(declaration, &who, &slot("verb").value) {
+            return self.arrival_step(raw, &found, id, resolved, created);
+        }
         let role = self.role_of(people, &who, raw.line, at("who"))?;
         let verb = slot("verb").value;
         let object = command_step::Object::of(&slot("noun").value);
@@ -424,31 +454,11 @@ impl Parser<'_> {
         let args = if id.ends_with("bare") {
             Vec::new()
         } else {
-            values::read(
-                self,
-                aggregate,
-                command,
-                &slot("args").value,
-                raw.line,
-                at("args"),
-            )?
+            let target = Target::of_command(aggregate, command);
+            values::read(self, &target, &slot("args").value, raw.line, at("args"))?
         };
         let identity = if acts_on_it {
-            created
-                .iter()
-                .rev()
-                .find(|record| record.aggregate == aggregate.name)
-                .map(|record| record.identity.clone())
-                .ok_or_else(|| {
-                    self.error(
-                        raw.line,
-                        raw.col,
-                        format!(
-                            "there is no {} yet for `it` to mean; create one in an earlier step",
-                            spoken(&aggregate.name)
-                        ),
-                    )
-                })?
+            self.record_it(created, aggregate, raw)?
         } else {
             let identity = identity_of(aggregate, &args, self, raw)?;
             created.push(Created {
@@ -460,10 +470,147 @@ impl Parser<'_> {
         Ok(Dispatch {
             role: Some(role),
             aggregate,
-            command,
+            action: Action::Command(command),
             identity,
             args,
             tries: id.starts_with("step_tries"),
+            line: raw.line,
+            col: raw.col,
+        })
+    }
+
+    /// The fields that identify the record `it` means: the last one made of this aggregate.
+    fn record_it(
+        &self,
+        created: &[Created],
+        aggregate: &ir::Aggregate,
+        raw: &Raw,
+    ) -> ParseResult<Vec<(String, String)>> {
+        created
+            .iter()
+            .rev()
+            .find(|record| record.aggregate == aggregate.name)
+            .map(|record| record.identity.clone())
+            .ok_or_else(|| {
+                self.error(
+                    raw.line,
+                    raw.col,
+                    format!(
+                        "there is no {} yet for `it` to mean; create one in an earlier step",
+                        spoken(&aggregate.name)
+                    ),
+                )
+            })
+    }
+
+    /// A step in which a port announces a fact about the record made earlier: `the payment
+    /// gateway receives it with customer name "Chris" and amount 1200 cents`.
+    fn arrival_step<'c>(
+        &self,
+        raw: &Raw,
+        found: &Match,
+        id: &str,
+        resolved: Result<outside::Arrival<'c>, Vec<String>>,
+        created: &[Created],
+    ) -> ParseResult<Dispatch<'c>> {
+        let slot = |name: &str| found.get(name).cloned().unwrap_or_default();
+        let at = |name: &str| column(raw.col, &raw.text, slot(name).offset);
+        let (who, verb) = (slot("who").value, slot("verb").value);
+        let (aggregate, port, operation) = resolved.map_err(|wordings| {
+            self.error(
+                raw.line,
+                at("verb"),
+                format!(
+                    "{who} does not '{verb}'. A step can say: {}",
+                    wordings.join(", ")
+                ),
+            )
+        })?;
+        let right = format!(
+            "{who} {} it",
+            super::command_step::third_person(&spoken(&operation.name))
+        );
+        if id.starts_with("step_tries") {
+            return Err(self.error(
+                raw.line,
+                at("who"),
+                "a port only announces a fact, so it is never refused; what the bluebook does with it is decided by the rules of the command a policy runs",
+            ));
+        }
+        if !id.contains("acts") {
+            return Err(self.error(
+                raw.line,
+                at("verb"),
+                format!("a port announces a fact about a record that exists; write `{right}`"),
+            ));
+        }
+        let target = Target {
+            aggregate,
+            subject: format!("{} {}", spoken(&port.name), spoken(&operation.name)),
+            attributes: &operation.attributes,
+            partial: false,
+        };
+        let text = if id.ends_with("bare") {
+            String::new()
+        } else {
+            slot("args").value
+        };
+        let args = values::read(self, &target, &text, raw.line, at("args"))?;
+        Ok(Dispatch {
+            role: None,
+            aggregate,
+            action: Action::Arrival { port, operation },
+            identity: self.record_it(created, aggregate, raw)?,
+            args,
+            tries: false,
+            line: raw.line,
+            col: raw.col,
+        })
+    }
+
+    /// A step that runs a query: `Chris runs the costing less than query with ceiling 1000 cents`.
+    fn query_step<'c>(
+        &self,
+        declaration: &'c ir::Bluebook,
+        people: &[Person],
+        raw: &Raw,
+        found: &Match,
+        id: &str,
+    ) -> ParseResult<Dispatch<'c>> {
+        let slot = |name: &str| found.get(name).cloned().unwrap_or_default();
+        let at = |name: &str| column(raw.col, &raw.text, slot(name).offset);
+        self.role_of(people, &slot("who").value, raw.line, at("who"))?;
+        let (aggregate, query) =
+            outside::query_named(declaration, &slot("query").value).map_err(|wordings| {
+                self.error(
+                    raw.line,
+                    at("query"),
+                    format!(
+                        "'{}' is not a query here. A step can say: {}",
+                        slot("query").value,
+                        wordings.join(", ")
+                    ),
+                )
+            })?;
+        let target = Target {
+            aggregate,
+            subject: spoken(&query.name),
+            attributes: &query.attributes,
+            partial: false,
+        };
+        let text = if id.ends_with("with") {
+            slot("args").value
+        } else {
+            String::new()
+        };
+        let args = values::read(self, &target, &text, raw.line, at("args"))?;
+        Ok(Dispatch {
+            role: None,
+            aggregate,
+            action: Action::Query(query),
+            identity: Vec::new(),
+            args,
+            tries: false,
             line: raw.line,
             col: raw.col,
         })
@@ -662,26 +809,49 @@ impl Parser<'_> {
             }
             "outcome_announced" => {
                 let event = slot("event").value;
-                let announced = announced_by(declaration, tested.command);
+                let announced = announced_by(declaration, &tested.action);
                 if !announced.contains(&event) {
                     return Err(self.error(
                         raw.line,
                         at("event"),
                         format!(
                             "{} announces {}, not {event}",
-                            spoken(&tested.command.name),
-                            announced.join(", ")
+                            tested.action.spoken(),
+                            if announced.is_empty() {
+                                "nothing".to_string()
+                            } else {
+                                announced.join(", ")
+                            }
                         ),
                     ));
                 }
                 expect.emits.push(event);
             }
+            "outcome_found" | "outcome_none_found" => {
+                let number = found.get("count").map_or(Ok(0), |c| {
+                    c.value
+                        .parse::<usize>()
+                        .map_err(|_| self.error(raw.line, at("count"), "a count is a whole number"))
+                })?;
+                self.outcome_count(raw, at("noun"), &slot("noun").value, number, tested, expect)?;
+            }
+            "outcome_its" => {
+                self.outcome_field(
+                    raw,
+                    &slot("field").value,
+                    &slot("value").value,
+                    at("field"),
+                    tested,
+                    expect,
+                )?;
+            }
             "outcome_refused_role" => {
+                let command = self.refusable(raw, tested)?;
                 let named = slot("role").value;
-                let declared: Vec<String> = if tested.command.roles.is_empty() {
-                    tested.command.role.iter().cloned().collect()
+                let declared: Vec<String> = if command.roles.is_empty() {
+                    command.role.iter().cloned().collect()
                 } else {
-                    tested.command.roles.clone()
+                    command.roles.clone()
                 };
                 let mut said: Vec<&str> = named.split(" or ").map(str::trim).collect();
                 let mut held: Vec<&str> = declared.iter().map(String::as_str).collect();
@@ -693,7 +863,7 @@ impl Parser<'_> {
                         at("role"),
                         format!(
                             "{} is run by {}, not by {named}",
-                            spoken(&tested.command.name),
+                            spoken(&command.name),
                             if declared.is_empty() {
                                 "anyone".to_string()
                             } else {
@@ -709,16 +879,17 @@ impl Parser<'_> {
                 ));
             }
             "outcome_refused" => {
+                let command = self.refusable(raw, tested)?;
                 let reason = slot("reason").value;
                 let reason = reason.strip_suffix('.').unwrap_or(&reason).to_string();
-                let rules = rules_of(tested);
+                let rules = rules_of(tested.aggregate, command);
                 if !rules.contains(&reason) {
                     return Err(self.error(
                         raw.line,
                         at("reason"),
                         format!(
                             "no rule of {} says \"{reason}\". The rules are: {}",
-                            spoken(&tested.command.name),
+                            spoken(&command.name),
                             if rules.is_empty() {
                                 "none".to_string()
                             } else {
@@ -759,28 +930,123 @@ impl Parser<'_> {
                 "this example expects a refusal, so the step should read `… tries to …`",
             ));
         }
-        if expect.refused.is_some() && (expect.state.is_some() || !expect.emits.is_empty()) {
+        if expect.refused.is_some() && expect.has_outcomes() {
             return Err(self.error(
                 tested.line,
                 tested.col,
                 "a refused command changes nothing; an example is either refused or has outcomes",
             ));
         }
-        if expect.refused.is_none() && expect.state.is_none() && expect.emits.is_empty() {
+        if expect.refused.is_none() && !expect.has_outcomes() {
             return Err(self.error(
                 tested.line,
                 tested.col,
                 "this example proves nothing; add a `Then`",
             ));
         }
+        self.fits_action(tested, expect)
+    }
+
+    /// An outcome has to be one the step can have: a query finds rows and announces nothing, and
+    /// a command or a port leaves a record and announces events.
+    fn fits_action(&self, tested: &Dispatch<'_>, expect: &Expect) -> ParseResult<()> {
+        let fault = match tested.action {
+            Action::Query(_) if !expect.emits.is_empty() => {
+                Some("a query announces nothing; say what it finds")
+            }
+            Action::Command(_) | Action::Arrival { .. } if expect.count.is_some() => {
+                Some("only a query finds rows; count them after `runs the … query`")
+            }
+            Action::Arrival { .. } if expect.state.is_some() || !expect.fields.is_empty() => {
+                Some("a port announces a fact; say what is announced, and read the record in an example that runs a command")
+            }
+            _ => None,
+        };
+        fault.map_or(Ok(()), |fault| {
+            Err(self.error(tested.line, tested.col, fault))
+        })
+    }
+
+    /// The command of a step that can be refused; a port or a query never is.
+    fn refusable<'c>(&self, raw: &Raw, tested: &Dispatch<'c>) -> ParseResult<&'c ir::Command> {
+        tested.action.command().ok_or_else(|| {
+            self.error(
+                raw.line,
+                raw.col,
+                format!(
+                    "{} is never refused; only a command run by a person is",
+                    tested.action.spoken()
+                ),
+            )
+        })
+    }
+
+    /// `Then 2 orders are found`: how many rows the query finds.
+    fn outcome_count(
+        &self,
+        raw: &Raw,
+        col: usize,
+        noun: &str,
+        number: usize,
+        tested: &Dispatch<'_>,
+        expect: &mut Expect,
+    ) -> ParseResult<()> {
+        if !matches!(tested.action, Action::Query(_)) {
+            return Err(self.error(raw.line, raw.col, "only a query finds rows"));
+        }
+        if !outside::names_records(noun, tested.aggregate) {
+            return Err(self.error(
+                raw.line,
+                col,
+                format!(
+                    "the query finds {}, not {noun}",
+                    command_step::with_article(&spoken(&tested.aggregate.name))
+                ),
+            ));
+        }
+        expect.count = Some(number);
+        Ok(())
+    }
+
+    /// `Then its name is "Only One"`, `Then its customer name is not set`: a field of the record a
+    /// command leaves, or of the one row a query finds.
+    fn outcome_field(
+        &self,
+        raw: &Raw,
+        field: &str,
+        value: &str,
+        col: usize,
+        tested: &Dispatch<'_>,
+        expect: &mut Expect,
+    ) -> ParseResult<()> {
+        let target = Target {
+            aggregate: tested.aggregate,
+            subject: spoken(&tested.aggregate.name),
+            attributes: &tested.aggregate.attributes,
+            partial: true,
+        };
+        let name = values::field_named(&target, field).map_err(|fields| {
+            self.error(
+                raw.line,
+                col,
+                format!(
+                    "{} has no '{field}'. Its fields are: {}",
+                    command_step::with_article(&spoken(&tested.aggregate.name)),
+                    fields.join(", ")
+                ),
+            )
+        })?;
+        let literal = outside::field_value(value)
+            .map_err(|why| self.error(raw.line, col + field.len() + 4, why))?;
+        expect.fields.push((name, literal));
         Ok(())
     }
 }
 
-/// Every event a command announces, including those announced by commands that policies run in
+/// Every event an action announces, including those announced by commands that policies run in
 /// answer to its events, and so on until nothing new follows.
-fn announced_by(declaration: &ir::Bluebook, command: &ir::Command) -> Vec<String> {
-    let mut events: Vec<String> = command.emits.clone();
+fn announced_by(declaration: &ir::Bluebook, action: &Action<'_>) -> Vec<String> {
+    let mut events: Vec<String> = action.first_events();
     let mut grew = true;
     while grew {
         grew = false;
@@ -814,15 +1080,49 @@ fn announced_by(declaration: &ir::Bluebook, command: &ir::Command) -> Vec<String
     events
 }
 
+/// What the behaviors file calls the tested step, how it exercises the domain, and the input it
+/// is given.
+fn tested_parts(
+    declaration: &ir::Bluebook,
+    tested: &Dispatch<'_>,
+) -> (String, Subject, Vec<(String, String)>) {
+    match tested.action {
+        Action::Command(command) => {
+            let input = tested.identity.iter().chain(tested.args.iter()).cloned();
+            (command.name.clone(), Subject::Command, input.collect())
+        }
+        Action::Query(query) => (query.name.clone(), Subject::Query, tested.args.clone()),
+        Action::Arrival { port, operation } => {
+            let verb = format!(
+                "{}::{}.{}.{}",
+                declaration.name, tested.aggregate.name, port.name, operation.name
+            );
+            let to = bare_identity(&tested.identity);
+            (verb, Subject::Arrival { to }, tested.args.clone())
+        }
+    }
+}
+
+/// The identity a port is addressed with: the bare value when one field identifies the record,
+/// else the fields as a hash.
+fn bare_identity(identity: &[(String, String)]) -> String {
+    match identity {
+        [(_, value)] => value
+            .strip_prefix("{ value: ")
+            .and_then(|rest| rest.strip_suffix(" }"))
+            .map_or_else(|| value.clone(), str::to_string),
+        _ => format!("{{ {} }}", hash_args(identity).trim_start_matches(", ")),
+    }
+}
+
 /// Every sentence a refusal of this step may give: the command's rules and the value objects'.
-fn rules_of(step: &Dispatch<'_>) -> Vec<String> {
-    let mut rules: Vec<String> = step
-        .command
+fn rules_of(aggregate: &ir::Aggregate, command: &ir::Command) -> Vec<String> {
+    let mut rules: Vec<String> = command
         .givens
         .iter()
         .filter_map(|given| given.description.clone())
         .collect();
-    for object in &step.aggregate.value_objects {
+    for object in &aggregate.value_objects {
         rules.extend(
             object
                 .invariants
@@ -904,36 +1204,52 @@ fn behaviors_text(
     out.push_str(&format!("  loads {}\n", loads.join(", ")));
     for test in tests {
         out.push_str(&format!("\n  test {} do\n", ruby_string(&test.title)));
-        out.push_str(&format!(
-            "    tests {}, on: {}\n",
-            ruby_string(&test.command),
-            ruby_string(&test.aggregate)
-        ));
-        if let Some(role) = &test.role {
-            out.push_str(&format!("    as {}\n", ruby_string(role)));
-        }
-        for setup in &test.setups {
-            let role = setup
-                .role
-                .as_ref()
-                .map_or_else(String::new, |r| format!(", as: {}", ruby_string(r)));
-            out.push_str(&format!(
-                "    setup {}{role}{}\n",
-                ruby_string(&setup.verb),
-                hash_args(&setup.args)
-            ));
-        }
-        if !test.input.is_empty() {
-            out.push_str(&format!(
-                "    input {}\n",
-                hash_args(&test.input).trim_start_matches(", ")
-            ));
-        }
-        out.push_str(&format!("    expect {}\n", expect_text(&test.expect)));
+        out.push_str(&test_text(test));
         out.push_str("  end\n");
     }
     out.push_str("end\n");
     out
+}
+
+/// The body of one test: what it exercises, who runs it, what it sets up, gives and expects.
+fn test_text(test: &TestOut) -> String {
+    let mut out = String::new();
+    let command = ruby_string(&test.command);
+    let aggregate = ruby_string(&test.aggregate);
+    out.push_str(&match &test.subject {
+        Subject::Command => format!("    tests {command}, on: {aggregate}\n"),
+        Subject::Query => format!("    tests {command}, on: {aggregate}, kind: :query\n"),
+        Subject::Arrival { .. } => format!("    tests {command}\n"),
+    });
+    if let Some(role) = &test.role {
+        out.push_str(&format!("    as {}\n", ruby_string(role)));
+    }
+    for setup in &test.setups {
+        let role = setup
+            .role
+            .as_ref()
+            .map_or_else(String::new, |r| format!(", as: {}", ruby_string(r)));
+        out.push_str(&format!(
+            "    setup {}{role}{}\n",
+            ruby_string(&setup.verb),
+            hash_args(&setup.args)
+        ));
+    }
+    if let Some(input) = input_text(test) {
+        out.push_str(&format!("    input {input}\n"));
+    }
+    out.push_str(&format!("    expect {}\n", expect_text(&test.expect)));
+    out
+}
+
+/// The arguments a test gives, if it gives any; a port is addressed to a record.
+fn input_text(test: &TestOut) -> Option<String> {
+    if let Subject::Arrival { to } = &test.subject {
+        let with = hash_args(&test.input);
+        let with = with.trim_start_matches(", ");
+        return Some(format!("to: {to}, with: {{ {with} }}"));
+    }
+    (!test.input.is_empty()).then(|| hash_args(&test.input).trim_start_matches(", ").to_string())
 }
 
 /// `, slug: { value: "about" }, title: …`, each preceded by a comma and a space.
@@ -948,10 +1264,26 @@ fn hash_args(args: &[(String, String)]) -> String {
     out
 }
 
+impl Expect {
+    /// Whether the example expects anything of the record, the rows or the events.
+    const fn has_outcomes(&self) -> bool {
+        self.state.is_some()
+            || !self.fields.is_empty()
+            || self.count.is_some()
+            || !self.emits.is_empty()
+    }
+}
+
 fn expect_text(expect: &Expect) -> String {
     let mut parts: Vec<String> = Vec::new();
     if let Some((field, state)) = &expect.state {
         parts.push(format!("{field}: {}", ruby_string(state)));
+    }
+    for (field, value) in &expect.fields {
+        parts.push(format!("{field}: {value}"));
+    }
+    if let Some(count) = expect.count {
+        parts.push(format!("count: {count}"));
     }
     if !expect.emits.is_empty() {
         let events: Vec<String> = expect.emits.iter().map(|e| ruby_string(e)).collect();
@@ -1003,10 +1335,13 @@ mod tests {
         };
         let place = declaration.aggregates[0].commands[0].clone();
         assert_eq!(
-            announced_by(&declaration, &place),
+            announced_by(&declaration, &Action::Command(&place)),
             ["OrderPlaced", "OrderPacked", "OrderShipped"]
         );
         let ship = declaration.aggregates[0].commands[2].clone();
-        assert_eq!(announced_by(&declaration, &ship), ["OrderShipped"]);
+        assert_eq!(
+            announced_by(&declaration, &Action::Command(&ship)),
+            ["OrderShipped"]
+        );
     }
 }

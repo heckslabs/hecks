@@ -272,6 +272,28 @@ Example: Only an editor may take a page down
     whole names that tell them apart, never guessed. A name that starts several parts (`pizza`)
     is refused with the parts to name instead. A name no part has lists the parts there are, and
     a part left out says which.
+- A port announcing a fact reads like a person who acts. The port is named with `the` and its
+  words, and its operation is the verb: `the payment gateway receives it with customer name "Chris"
+  and amount 1200 cents`. `it` is the record made earlier, which the fact is addressed to, and the
+  values are named as for a command. The port is read from the Memory-bound hecksagon beside the
+  examples. Only operations the outside calls in are steps. A port is never refused, so it has no
+  `tries to` form, and it goes under `When`, never `Given`. What follows is what is announced,
+  including the events the policies go on to cause: `Then PizzaPaymentReceived is announced` and
+  `And PizzaPurchased is announced`. The list has to be exactly what was announced, in order.
+- A query is run by its name with `runs the … query`: `Chris runs the available query`, or
+  `Chris runs the costing less than query with ceiling 1000 cents`. The values it takes are named
+  as for a command, and a step that leaves one out is refused. A query is run by a person who is
+  introduced under `Background`, but it needs no role. It goes under `When`.
+- What a query finds is counted, `Then 1 order is found`, `Then 3 orders are found` or `Then no
+  orders are found`, either number of the noun being accepted. When the query finds one row, its
+  fields are read with `its`: `Then the order is available` and `And its name is "Only One"`.
+  When the query finds none or several, a run that reads a field fails and says how many rows it
+  found.
+- `its` reads a field of the record a command leaves, or of the row a query finds: `its name is
+  "Only One"` or `its customer name is not set`. The value is a quoted text, a number, or
+  `not set`. The field is named by its declared name, and a name no field has is refused
+  with the fields there are. Only a command or a query has a record to read; a port announces a
+  fact and leaves nothing to read.
 - `tries to` is how a step that should be refused reads, and the example then has to say why. The
   reason is the rule's own sentence, copied from the `Rule` or `Given`.
 - An example has one `When`. A `Where:` table runs it once per row.
@@ -310,8 +332,9 @@ A `.hecksagon` beside a bluebook written as sentences is refused by name. So are
 - the facts a command or query asks the runtime to supply (`needs`), a query's `cursor`, a command
   argument whose type or default differs from the field it names, and a quote inside a quoted
   value;
-- in an example, a step that calls a port operation (`PaymentGateway.Receive`) or reads a query,
-  because a step is a command run as a role.
+- in an example, a port operation the domain asks through (an `asks`), a port operation named by
+  several words, a field made of several parts compared whole (`its pizza is …`), a list of the
+  rows a query finds (only how many, or the one row), and a port arrival under `Given`.
 
 Anything the formatter cannot write is refused with the name of what it could not say, never
 dropped, so a bluebook that formats always reads back as the same thing. Comments are the one

@@ -287,6 +287,18 @@ pub fn parse_bluebook(
         target_entity.commands[pending.command_index].givens[pending.inner.given_index] = resolved;
     }
 
+    apply_hecksagons(declaration_name, &mut bluebook, &hecksagon_files)?;
+    Ok(bluebook)
+}
+
+/// Applies the `Hecks.hecksagon` block named for the bluebook in each `.hecksagon` file onto it,
+/// attaching the ports to the aggregates they belong to. A block for another bluebook is checked
+/// for syntax and then dropped.
+pub fn apply_hecksagons(
+    declaration_name: &str,
+    bluebook: &mut ir::Bluebook,
+    hecksagon_files: &[&(String, String)],
+) -> ParseResult<()> {
     for (path, source) in hecksagon_files {
         let joined = lex::join_continuations(source);
         let lines = lex::lines(&joined);
@@ -309,7 +321,7 @@ pub fn parse_bluebook(
                     path,
                     &lines,
                     &mut pos,
-                    &mut bluebook,
+                    bluebook,
                     &mut Vec::new(),
                     &mut Vec::new(),
                     true,
@@ -330,7 +342,7 @@ pub fn parse_bluebook(
         }
     }
 
-    Ok(bluebook)
+    Ok(())
 }
 
 /// Lists the bluebooks `<Name>`'s block pulls in via `attaches` (or its deprecated spellings).

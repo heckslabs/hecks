@@ -100,10 +100,10 @@ enum Unresolved {
     Group(Vec<String>),
 }
 
-/// The values the command takes, as the leaves a step can name, in declaration order.
-fn parts_of(aggregate: &ir::Aggregate, command: &ir::Command) -> Vec<Part> {
+/// The values a step can give, as the leaves it can name, in declaration order.
+fn parts_of(aggregate: &ir::Aggregate, attributes: &[ir::Attribute]) -> Vec<Part> {
     let mut parts = Vec::new();
-    for (top, attribute) in command.attributes.iter().enumerate() {
+    for (top, attribute) in attributes.iter().enumerate() {
         let walk = Walk {
             aggregate,
             top,
@@ -226,12 +226,35 @@ fn display(parts: &[Part], index: usize) -> String {
         .unwrap_or_else(|| parts[index].whole())
 }
 
+/// What a step gives values to, and how its values are checked.
+pub(super) struct Target<'a> {
+    /// The aggregate whose value objects the attributes are made of.
+    pub(super) aggregate: &'a ir::Aggregate,
+    /// What the values go to, spoken for a refusal to name: `add topping`, `available`.
+    pub(super) subject: String,
+    /// The fields a step can give values for.
+    pub(super) attributes: &'a [ir::Attribute],
+    /// Whether required fields may be left out, as a check on a few fields of a record does.
+    pub(super) partial: bool,
+}
+
+impl<'a> Target<'a> {
+    /// The values a command takes.
+    pub(super) fn of_command(aggregate: &'a ir::Aggregate, command: &'a ir::Command) -> Self {
+        Self {
+            aggregate,
+            subject: spoken(&command.name),
+            attributes: &command.attributes,
+            partial: false,
+        }
+    }
+}
+
 /// Reads `slug "about" and title "About us"`, or `price 1200 cents and size "large"`, into the
-/// argument values of `command`, each as the Ruby text the behaviors file passes.
+/// values of `target`, each as the Ruby text the behaviors file passes.
 pub(super) fn read(
     parser: &Parser<'_>,
-    aggregate: &ir::Aggregate,
-    command: &ir::Command,
+    target: &Target<'_>,
     text: &str,
     line: usize,
     base_col: usize,
@@ -241,20 +264,45 @@ pub(super) fn read(
     };
     let reader = Reader {
         parser,
-        command,
-        parts: parts_of(aggregate, command),
+        subject: &target.subject,
+        parts: parts_of(target.aggregate, target.attributes),
         text,
         line,
         base_col,
     };
     let given = reader.given(&tokens)?;
-    reader.complete(&given)?;
+    if !target.partial {
+        reader.complete(&given)?;
+    }
     Ok(render(&reader.parts, &given))
+}
+
+/// The field of `target` that `words` name, as it is declared, or the fields there are. A name
+/// that fits a part of a field picks the field it belongs to.
+pub(super) fn field_named(target: &Target<'_>, words: &str) -> Result<String, Vec<String>> {
+    let wanted = words.trim().to_lowercase();
+    if let Some(attribute) = target
+        .attributes
+        .iter()
+        .find(|attribute| spoken(&attribute.name) == wanted)
+    {
+        return Ok(attribute.name.clone());
+    }
+    let parts = parts_of(target.aggregate, target.attributes);
+    resolve(&parts, &wanted)
+        .map(|index| parts[index].path[0].clone())
+        .map_err(|_| {
+            target
+                .attributes
+                .iter()
+                .map(|attribute| spoken(&attribute.name))
+                .collect()
+        })
 }
 
 struct Reader<'a, 'p> {
     parser: &'a Parser<'p>,
-    command: &'a ir::Command,
+    subject: &'a str,
     parts: Vec<Part>,
     text: &'a str,
     line: usize,
@@ -333,7 +381,7 @@ impl Reader<'_, '_> {
 
     fn pick(&self, name: &str, col: usize) -> ParseResult<usize> {
         resolve(&self.parts, name).map_err(|miss| {
-            let command = spoken(&self.command.name);
+            let command = self.subject;
             match miss {
                 Unresolved::Unknown => self.fault(
                     col,
@@ -400,11 +448,7 @@ impl Reader<'_, '_> {
             part.required && !supplied && (engaged || !part.group_optional)
         });
         missing.map_or(Ok(()), |i| {
-            let needs = format!(
-                "{} needs a {}",
-                spoken(&self.command.name),
-                display(&self.parts, i)
-            );
+            let needs = format!("{} needs a {}", self.subject, display(&self.parts, i));
             Err(self.fault(self.base_col, needs))
         })
     }

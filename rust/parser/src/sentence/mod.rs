@@ -17,6 +17,7 @@ pub mod format;
 mod lower;
 mod names;
 mod options;
+mod outside;
 mod pattern;
 mod process;
 mod queries;
