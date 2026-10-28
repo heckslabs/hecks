@@ -44,14 +44,11 @@ module Hecks
       attr_reader :aggregate, :path
 
       # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
-      # `:rollback`: a raise inside `transaction` undoes every write the block made, joined ones
-      # included, which a compiled bulk statement relies on (ADR 0129).
-      #
       # `:dispatch_claims`: `dispatch_claim` joins the save's transaction, so a claim and the
       # write it guards commit or roll back together.
       #
-      # @return [Array<Symbol>] `[:atomic_put, :rollback, :dispatch_claims]`
-      def persistence_capabilities = %i[atomic_put rollback dispatch_claims]
+      # @return [Array<Symbol>] `[:atomic_put, :dispatch_claims]`
+      def persistence_capabilities = %i[atomic_put dispatch_claims]
 
       # Opens (creating if absent) the database file and its aggregate, journal, event, saga
       # and outbox tables.
