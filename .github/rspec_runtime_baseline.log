@@ -102,6 +102,7 @@ spec/bluebooks_load_spec.rb:2.29
 spec/check_engine_agreement_spec.rb:4.46
 spec/ci_hecks_verbs_spec.rb:0.59
 spec/ci_skip_backstop_spec.rb:0.02
+spec/ci_speed_local_runner_spec.rb:100.00
 spec/ci_summary_jobs_spec.rb:0.15
 spec/cli/behaviors_cli_spec.rb:0.00
 spec/cli/project_cli_spec.rb:0.03
