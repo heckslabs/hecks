@@ -78,6 +78,11 @@ module Hecks
       #   `:with_spec` and `:args`
       def policy_dispatches = @registry.policy_dispatch_log
 
+      # Exposes what each cross-domain (`across`) policy was about to deliver (Ruby-only).
+      #
+      # @return [Array<Hash{Symbol => Object}>] entries keyed `:policy`, `:target_verb` and `:payload`
+      def cross_domain_deliveries = @registry.cross_domain_log
+
       # Lists every verb the loaded bluebooks declare.
       #
       # @return [Array<String>] sorted
