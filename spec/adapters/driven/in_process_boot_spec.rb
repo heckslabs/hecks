@@ -92,6 +92,28 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
     expect(JSON.parse(adapter.stores(domain: domain).fetch(:text))).to eq("book" => { "authoritative" => [] })
   end
 
+  it "answers one aggregate's records when it is named" do
+    answer = adapter.stores(domain: domain, aggregate: { value: "book" })
+
+    expect(JSON.parse(answer.fetch(:text))).to eq("book" => { "authoritative" => [] })
+  end
+
+  it "takes the flat switch without changing an empty dump" do
+    answer = adapter.stores(domain: domain, aggregate: { value: "book" }, flat: { value: true })
+
+    expect(JSON.parse(answer.fetch(:text))).to eq("book" => { "authoritative" => [] })
+  end
+
+  it "refuses an aggregate that is not stored, naming the ones that are" do
+    expect { adapter.stores(domain: domain, aggregate: { value: "bok" }) }
+      .to raise_error(Hecks::Runtime::NotFound, /stored: book/)
+  end
+
+  it "refuses a record that is not there" do
+    expect { adapter.stores(domain: domain, aggregate: { value: "book" }, record: { value: "dune" }) }
+      .to raise_error(Hecks::Runtime::NotFound, /no book record with id "dune"/)
+  end
+
   it "answers the journal, and none is there yet" do
     expect(JSON.parse(adapter.history(domain: domain).fetch(:text))).to eq("book" => [])
   end
@@ -104,7 +126,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   it "answers a chapter's statements, one sentence a line" do
-    expect(adapter.statements(domain: domain, chapter: { value: "Shelf" }).fetch(:text)).to include("A book is titled.")
+    expect(adapter.statements(domain: domain, bluebook: { value: "Shelf" }).fetch(:text)).to include("A book is titled.")
   end
 
   it "answers the domain narrated and documented, whole or for one aggregate", :aggregate_failures do
@@ -129,8 +151,8 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   context "with the diagrams and the glossary" do
-    let(:diagrams) { adapter.project_diagrams(domain: domain, chapter: { value: "Shelf" }) }
-    let(:glossary) { adapter.glossary(domain: domain, chapter: { value: "Shelf" }) }
+    let(:diagrams) { adapter.project_diagrams(domain: domain, bluebook: { value: "Shelf" }) }
+    let(:glossary) { adapter.glossary(domain: domain, bluebook: { value: "Shelf" }) }
 
     it "answers diagrams as files", :aggregate_failures do
       expect(diagrams).not_to be_empty
@@ -181,7 +203,7 @@ RSpec.describe Hecks::Adapters::InProcessBoot do
   end
 
   it "refuses a bluebook that cannot be found" do
-    expect { adapter.statements(domain: domain, chapter: { value: "Nope" }) }
+    expect { adapter.statements(domain: domain, bluebook: { value: "Nope" }) }
       .to raise_error(Hecks::Runtime::NotFound, /no bluebook named Nope/)
   end
 end

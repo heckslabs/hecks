@@ -432,6 +432,16 @@ impl super::Backend for PostgresStore {
         Ok(())
     }
 
+    async fn held_eras(&self, domain: &str) -> Result<Vec<journal::HeldEra>, StoreError> {
+        let guard = self.lineage.lock().await;
+        Ok(journal::held_eras(&*guard, domain).await?)
+    }
+
+    async fn current_era(&self, domain: &str) -> Result<Option<i32>, StoreError> {
+        let guard = self.lineage.lock().await;
+        Ok(journal::current_era(&guard, domain).await?)
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

@@ -66,9 +66,11 @@ module Hecks
             FROM layered
           SQL
 
-          # Every edge chained over the reduced ancestor tail.
+          # Every edge chained over the reduced ancestor tail. Each link is MATERIALIZED: a rule reads
+          # `state` more than once, so Postgres inlining a link into the next copies its whole
+          # expression per read, and a long chain outgrows the planner ("too many range table entries").
           CHAIN_SQL = <<~SQL.freeze
-            WITH tail AS (%<tail>s),
+            WITH tail AS MATERIALIZED (%<tail>s),
             %<chain>s
             SELECT ordinal, aggregate_id, operation, state FROM edge_%<last>s
           SQL

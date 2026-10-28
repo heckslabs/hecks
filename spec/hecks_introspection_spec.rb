@@ -52,11 +52,19 @@ RSpec.describe "hecks introspection through the launcher" do
   end
 
   it "answers a document as its own text, not as a JSON string inside JSON", :aggregate_failures do
-    out, status = run_verb("introspection.statements", @dir, "chapter=Shelf")
+    out, status = run_verb("introspection.statements", @dir, "bluebook=Shelf")
 
     expect(status).to eq(0)
     expect(out).to include("A book is titled.")
     expect(out).not_to start_with("[")
+  end
+
+  it "still reads the retired chapter= argument as bluebook=, saying so", :aggregate_failures do
+    said = nil
+    expect { said = run_verb("introspection.statements", @dir, "chapter=Shelf") }
+      .to output(/argument chapter is deprecated, use bluebook/).to_stderr
+
+    expect(said).to eq([run_verb("introspection.statements", @dir, "bluebook=Shelf").first, 0])
   end
 
   it "answers a JSON document as that JSON, byte for byte what the adapter returns", :aggregate_failures do
@@ -68,7 +76,7 @@ RSpec.describe "hecks introspection through the launcher" do
 
   it "answers files as rows of name and text, and writes none", :aggregate_failures do
     before = Dir.glob(File.join(@dir, "**/*"))
-    out, status = run_verb("introspection.glossary", @dir, "chapter=Shelf")
+    out, status = run_verb("introspection.glossary", @dir, "bluebook=Shelf")
 
     expect(status).to eq(0)
     expect(JSON.parse(out)).to all(include("name", "text"))
