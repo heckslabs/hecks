@@ -28,9 +28,9 @@ module Hecks
           end
         end
 
-        # Gives every chapter with no hecksagon block (so no bind) a world of its own that
+        # Gives every bluebook with no hecksagon block (so no bind) a world of its own that
         # falls back to Memory, since the worlds `write_worlds!` wrote require a database
-        # a chapter with no bind can't provide.
+        # a bluebook with no bind can't provide.
         def write_unbound_chapter_worlds!(copy)
           named = Dir.glob(File.join(copy, "**", "*.hecksagon")).flat_map { |path| hecksagon_names_in(path) }
           bluebooks = Dir.glob(File.join(copy, "**", "*.bluebook")).group_by { |path| File.dirname(path) }
@@ -46,7 +46,7 @@ module Hecks
           files.flat_map { |path| File.read(path).scan(BLUEBOOK_NAME).flatten }.uniq - named
         end
 
-        # Writes `dir`'s one world file falling every `unbound` chapter back to Memory.
+        # Writes `dir`'s one world file falling every `unbound` bluebook back to Memory.
         def write_unbound_world(dir, unbound)
           worlds = unbound.map { |name| %(Hecks.world "#{name}" do\n  default_adapter "Memory"\nend\n) }
           File.write(File.join(dir, "hecks_fuzz_unbound.world"), worlds.join("\n"))

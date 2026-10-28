@@ -212,11 +212,23 @@ module Hecks
 
       def result_of(verb, settled, reactions)
         instance, announced, execution_plan, persistence_outcome, = settled
+        warn_blocked(reactions)
         Result.new(verb: verb, instance: instance, events: announced,
                    execution_plan: execution_plan, persistence_outcome: persistence_outcome,
                    refused_reactions: refused_from(reactions),
                    blocking_reactions: ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)),
                    reaction_defects: ReactionOutcome.defects(reactions))
+      end
+
+      # Says on stderr which reactions the domain refused and nothing excused, so a policy that
+      # did not take is seen by the caller, not only found later in the reaction log. Only the
+      # outermost dispatch speaks: a nested reaction's refusal is reported once, by its root.
+      def warn_blocked(reactions)
+        return unless Thread.current[:hecks_reaction_depth].to_i.zero?
+
+        ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)).each do |row|
+          warn "[hecks] reaction #{row[:policy]} was refused (#{row[:trigger]}): #{row[:reason]}"
+        end
       end
 
       # The reactions among `logged` that the domain refused, as plain facts.

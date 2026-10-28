@@ -87,9 +87,9 @@ module Hecks
       def shortcut_key(fqn) = [fqn.aggregate, fqn.verb]
 
       def install_shortcut(aggregate, verb, candidates)
-        # Bounded chapters wrap in their own module (`Domain::Aggregate`) so two
+        # Bounded bluebooks wrap in their own module (`Domain::Aggregate`) so two
         # BCs can both declare `Person` without colliding on `Object::Person`.
-        # Folder-spread files of the same chapter aren't BCs, so they still get it.
+        # Folder-spread files of the same bluebook aren't BCs, so they still get it.
         return if bounded_chapter?(candidates)
 
         installer = self

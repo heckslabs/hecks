@@ -30,7 +30,7 @@ module Hecks
 
         # Renders the four files for a project that declares an admin row.
         #
-        # @param bluebook [Bluebook::Chapter] the chapter that declares the route table
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table
         # @param options [Hash{Symbol => Object}] `:admin` (Admin) the checked admin row, or nil
         # @return [Hash{String => String}] each file's relative path to its text; empty with no row
         def call(bluebook:, options: {})

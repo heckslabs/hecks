@@ -7,7 +7,7 @@ module Hecks
   module CLI
     # The command behind `hecks language_run.project_reference`: regenerates
     # `docs/implemented/reference/` from
-    # the language's Syntax chapter. Tables come from the declaration; prose is kept from the
+    # the language's Syntax bluebook. Tables come from the declaration; prose is kept from the
     # committed pages.
     module Reference
       module_function

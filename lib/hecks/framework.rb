@@ -1,4 +1,5 @@
 require_relative "runtime/registry"
+require_relative "sentence_form"
 
 module Hecks
   # Registry of framework bluebooks (Governance, Identity, ...) in `lib/hecks/framework/bluebook/`.
@@ -28,10 +29,10 @@ module Hecks
       members.keys.select { |name| chapter(name).provides?(capability) }.sort
     end
 
-    # One member's chapter, built in isolation.
+    # One member's bluebook, built in isolation.
     #
     # @param name [String, Symbol] the member's name, such as `"Governance"`
-    # @return [Bluebook::Chapter] the member's chapter, loaded into a scratch registry
+    # @return [Bluebook::Chapter] the member's bluebook, loaded into a scratch registry
     # @raise [Runtime::WiringError] if no framework member has that name
     def self.chapter(name)
       path = members.fetch(name.to_s) do
@@ -43,17 +44,17 @@ module Hecks
     end
 
     # @param path [String] a member's bluebook file
-    # @return [Runtime::Registry] a fresh registry holding only that member's chapter
+    # @return [Runtime::Registry] a fresh registry holding only that member's bluebook
     def self.scratch_registry(path)
       lib = File.expand_path("..", __dir__)
       registry = Runtime::Registry.new
       Hecks.with_registry(registry) do
-        # A chapter needs these four to build (predicate source is recovered via extraction).
+        # A bluebook needs these four to build (predicate source is recovered via extraction).
         Kernel.load(File.join(lib, "hecks/ports/persistence.port"))
         Kernel.load(File.join(lib, "hecks/ports/extraction.port"))
         Kernel.load(File.join(lib, "hecks/adapters/driven/memory.adapter"))
         Kernel.load(File.join(lib, "hecks/adapters/driven/prism.adapter"))
-        Kernel.load(path)
+        SentenceForm.load_file(path)
       end
       registry
     end
@@ -76,7 +77,7 @@ module Hecks
 
       return if Hecks.current_registry.bluebook(name.to_s)
 
-      Kernel.load(path)
+      SentenceForm.load_file(path)
     end
   end
 end

@@ -24,10 +24,10 @@ module Hecks
 
         module_function
 
-        # @param bluebook [Bluebook::Chapter] the chapter that declares the route table and the edge
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the route table and the edge
         # @param options [Hash{Symbol => Object}] `:registry` (Runtime::Registry) the project booted
         #   into; or `:table` (Table) and `:edge` (Edge), already read
-        # @return [Hash{String => String}] each region's name to its text; empty when the chapter
+        # @return [Hash{String => String}] each region's name to its text; empty when the bluebook
         #   declares no edge, and without `"listener_rules"` when the edge has no load balancer
         # @raise [Table::Invalid] when the table or the edge is refused
         def call(bluebook:, options: {})

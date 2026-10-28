@@ -100,7 +100,7 @@ module Hecks
 
       # Picks the files to read for a bluebook no file in the domain directory declares.
       #
-      # Tries, in order: a chapter the gem carries (the QA ledger's QualityControl), the domain's
+      # Tries, in order: a bluebook the gem carries (the QA ledger's QualityControl), the domain's
       # own single remaining file, a framework member, then a vendored embryonaut bluebook.
       #
       # @param bluebook [Bluebook::Chapter] the bluebook whose source is wanted
@@ -124,7 +124,7 @@ module Hecks
       # Recovers the vendored package name behind a bluebook, if some hecksagon vendored it.
       #
       # Matched first by Pascal-casing (the package name Pascal-cases to the bluebook's declared
-      # name), then by the package's own files: a package whose chapter is named otherwise (the
+      # name), then by the package's own files: a package whose bluebook is named otherwise (the
       # package `gallery` declaring `Galleries`) is the one whose files declare that name.
       #
       # @param registry [Runtime::Registry] the registry whose hecksagons are searched

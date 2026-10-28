@@ -67,7 +67,7 @@ module Hecks
       # @param held [Hash] the `Launch` record: optionally `dir`, the app's directory (the current
       #   one when absent)
       # @return [Hash{Symbol => Hash}] `output:` one line per file, written or kept
-      # @raise [ConsoleCapture::Failure] when the app has no `bluebook/` or it declares no chapter
+      # @raise [ConsoleCapture::Failure] when the app has no `bluebook/` or it declares no bluebook
       def write_rails(**held)
         report = RailsAppFiles.new(File.expand_path(plain(held[:dir]) || ".", Dir.pwd)).call
         puts report

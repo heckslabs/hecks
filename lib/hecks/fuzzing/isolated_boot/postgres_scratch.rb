@@ -73,7 +73,7 @@ module Hecks
                 "There is no shared default, unlike :postgres, so the caller cannot forget to own the lifecycle."
         end
 
-        # The world text for one chapter on `PostgresEra`.
+        # The world text for one bluebook on `PostgresEra`.
         #
         # `schema:` isolates one ephemeral boot from the next, the same job
         # `ScratchSchema#scratch_schema` does for `:postgres` (`connect_for` idempotently

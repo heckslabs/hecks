@@ -5,7 +5,7 @@ module Hecks
   module Projector
     module Exporter
       # The wasm plugins a registry loaded, for the IR's `plugins` key: everything a host needs to
-      # answer a plugin's queries without the bluebook of the chapter that declares them. The
+      # answer a plugin's queries without the bluebook of the bluebook that declares them. The
       # module itself rides in the IR, so every deploy that ships the IR ships the plugin too.
       module Plugins
         # Every plugin adapter in a registry, by name.
@@ -31,7 +31,7 @@ module Hecks
           }
         end
 
-        # One answered question and its reference arguments; a question no loaded chapter declares
+        # One answered question and its reference arguments; a question no loaded bluebook declares
         # carries none, and the host refuses it the way the runtime would.
         def plugin_query(registry, question)
           chapter_name, rest = question.split("::", 2)

@@ -4,10 +4,10 @@ require_relative "../../adapters/driving/json"
 
 module Hecks
   module Adapters
-    # Gives a booted domain its first administrator through the chapter that provides
+    # Gives a booted domain its first administrator through the bluebook that provides
     # `"membership"`, the way a project's hand-written bootstrap script does.
     #
-    # The chapter names its own verbs (`provides "membership", admit:, grant:, people:`), so no
+    # The bluebook names its own verbs (`provides "membership", admit:, grant:, people:`), so no
     # aggregate is recognised by name. Both dispatches run as a caller that asserts the role the
     # command is gated to and binds no `actor_id`: Governance checks an identified caller against
     # its role assignments, which a domain with no administrator cannot have yet, and checks an
@@ -23,7 +23,7 @@ module Hecks
       # The part of an email address before its `@`.
       LOCAL_PART = /\A[^@]+/
 
-      # What the refusal says when no chapter provides membership: the line to add to one.
+      # What the refusal says when no bluebook provides membership: the line to add to one.
       NO_MEMBERSHIP = "this domain attaches no chapter that provides \"membership\". Add a line like " \
                       "`provides \"membership\", admit: \"Person.Admit\", grant: \"Person.GrantAccess\", " \
                       "people: \"Person.All\"` to the chapter that keeps who may sign in: admit and grant " \
@@ -55,7 +55,7 @@ module Hecks
       # @param name [String, nil] their name; the part of the email before the `@` when nil
       # @param role [String, nil] the role to grant; the one the grant command is gated to when nil
       # @return [Result] what was done
-      # @raise [Runtime::NotFound] when the domain has no membership chapter, the email is not an
+      # @raise [Runtime::NotFound] when the domain has no membership bluebook, the email is not an
       #   email, or an administrator already exists
       def call(email:, name: nil, role: nil)
         raise Runtime::NotFound, "#{email.inspect} is not an email address" unless email?(email)

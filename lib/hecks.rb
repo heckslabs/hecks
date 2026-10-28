@@ -44,7 +44,7 @@ require_relative "hecks/embryonaut_bluebook"
 # has, so it loads on first use.
 Hecks.autoload(:Corpus, File.expand_path("hecks/corpus", __dir__))
 
-# The chapters a hecksagon can `attaches` by name (ADR 0080); loads on first use.
+# The bluebooks a hecksagon can `attaches` by name (ADR 0080); loads on first use.
 Hecks.autoload(:Chapters, File.expand_path("hecks/chapters", __dir__))
 
 # The Composer's staging, parse stage and check; loads on first use.
@@ -134,14 +134,14 @@ module Hecks
       Runtime.as_caller(role: role, actor_id: actor_id, as_of: as_of, scope: scope, &)
     end
 
-    # Declares a chapter — a `.bluebook` file's top-level word.
+    # Declares a bluebook — a `.bluebook` file's top-level word.
     #
-    # @param name [String] the chapter's declared name
-    # @param version [String, nil] the chapter's pinned version, or nil for unversioned
-    # @yield the chapter's body, evaluated against a `Bluebook::DSL::BluebookBuilder`
-    # @return [Bluebook::Chapter] the built, judged chapter
+    # @param name [String] the bluebook's declared name
+    # @param version [String, nil] the bluebook's pinned version, or nil for unversioned
+    # @yield the bluebook's body, evaluated against a `Bluebook::DSL::BluebookBuilder`
+    # @return [Bluebook::Chapter] the built, judged bluebook
     # @raise [LoadOutsideBoot] if called outside `Hecks.boot`/`.boot_files`
-    # @raise [Bluebook::DSL::Malformed] if the chapter fails the language's own judgment
+    # @raise [Bluebook::DSL::Malformed] if the bluebook fails the language's own judgment
     def bluebook(name, version: nil, &)
       collect(:add_bluebook, Bluebook::DSL::BluebookBuilder.build(name, version: version, &))
     end

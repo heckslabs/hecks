@@ -32,7 +32,7 @@ module Hecks
       Options = Struct.new(:tenant, :out, :environment, :target)
 
       # What the generator resolved about a domain: its directory, the flags, the `.world` file and
-      # its declaration, the `deployed_to` settings, the stack's name, the registry and the chapter.
+      # its declaration, the `deployed_to` settings, the stack's name, the registry and the bluebook.
       Deployment = Struct.new(:domain, :options, :world_file, :world, :settings, :infra_name, :registry, :chapter) do
         # @return [Hash{Symbol => String}] the `--tenant` and `--schema` flags
         def tenant = options.tenant
@@ -100,7 +100,7 @@ module Hecks
 
       # @param domain [String] the domain directory
       # @param options [Options] the flags
-      # @return [Deployment] the world, settings, registry and chapter the recipe is projected from
+      # @return [Deployment] the world, settings, registry and bluebook the recipe is projected from
       # @raise [SystemExit] when the domain or its `.world` cannot generate
       def resolve(domain, options)
         world_file = world_file_for(domain)
@@ -112,7 +112,7 @@ module Hecks
                        registry, chapter_for(registry, world, world_file, basename))
       end
 
-      # @return [Object] the chapter the world names
+      # @return [Object] the bluebook the world names
       # @raise [SystemExit] when the registry holds none
       def chapter_for(registry, world, world_file, bluebook_basename)
         registry.bluebook(world.domain) or

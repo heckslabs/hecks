@@ -43,7 +43,7 @@ module Hecks
           end
 
           # A value object's type may be declared on a different aggregate
-          # in the same chapter; the local aggregate is tried first, then
+          # in the same bluebook; the local aggregate is tried first, then
           # the first (declaration-order) other aggregate that declares it.
           def owning_aggregate_id(id, value)
             local = @bluebook.aggregates.find { |aggregate| Naming.identity([@bluebook.name, aggregate.name]) == id }

@@ -109,7 +109,7 @@ module Hecks
           "Ask #{port.name} — answers #{operation.answers}, refuses #{operation.refuses}"
         end
 
-        # The conditions that refuse the command when they hold, in the chapter's own words: a
+        # The conditions that refuse the command when they hold, in the bluebook's own words: a
         # lifecycle state mismatch and a missing referenced record per `reference_to`.
         def refusals(command, holder)
           lifecycle_refusals(command, holder) +

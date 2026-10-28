@@ -6,7 +6,7 @@ module Hecks
     # Loads and validates `qa/settings.yml`, the hecks_qa dials.
     #
     # Fails loud: a missing key, unknown key or wrong-typed value raises at load time.
-    # What each dial is and takes is declared as a `QaDial` row in the Vocabulary chapter.
+    # What each dial is and takes is declared as a `QaDial` row in the Vocabulary bluebook.
     class QaSettings
       # The classes a value of each `type` of a `QaDial` row must be an instance of. Booleans list
       # both TrueClass and FalseClass; Numeric admits `0` as well as `0.0`.
@@ -16,7 +16,7 @@ module Hecks
       }.freeze
 
       # Accessor name to the classes a valid value must be an instance of, one entry per `QaDial`
-      # row of the Vocabulary chapter, where each dial is declared with its type and its meaning.
+      # row of the Vocabulary bluebook, where each dial is declared with its type and its meaning.
       EXPECTED_TYPES = Hecks::Vocabulary.rows("QaDial").to_h do |dial|
         [dial.fetch("name").to_sym, TYPE_CLASSES.fetch(dial.fetch("type"))]
       end.freeze
@@ -24,7 +24,7 @@ module Hecks
       attr_reader(*EXPECTED_TYPES.keys)
 
       # The one real file, resolved from this file's `__dir__` rather than the bluebook's: the
-      # chapter ships in `lib/hecks/quality_control/`, the settings stay in `qa/`, and IsolatedBoot
+      # bluebook ships in `lib/hecks/quality_control/`, the settings stay in `qa/`, and IsolatedBoot
       # copies only `qa/bluebook`, so a bluebook-relative path would miss it.
       DEFAULT_PATH = File.expand_path("../../../qa/settings.yml", __dir__)
 

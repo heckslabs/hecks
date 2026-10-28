@@ -9,7 +9,7 @@ module Hecks
     # forms and views, backed by the in-memory adapter
     # (docs/command-form-and-query-form-bluebook.md).
     #
-    # Then, for example, `http://localhost:4567/` lists every exposed chapter,
+    # Then, for example, `http://localhost:4567/` lists every exposed bluebook,
     # `/Banking/Customer.html` every Customer plus Register, `/Banking/Account/Overdrawn.html` a
     # query view, and `/Banking/Account/Debit` answers the command's shape as JSON.
     module Present

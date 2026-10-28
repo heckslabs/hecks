@@ -25,7 +25,7 @@ module Hecks
         def answered_from_outside(aggregate, declared, args, port)
           asked = "#{aggregate.hecks_name}.#{declared.name}"
           refuse_offered_arguments!(declared, args, asked)
-          adapter = AdapterLookup.call(@registry, port.name, asked: asked)
+          adapter = AdapterLookup.call(@registry, port.name, asked: asked, aggregate: aggregate)
           method  = Naming.snake(declared.name)
           # The real adapter's class is what must answer; a fuzz replay's stand-in refuses instead.
           klass   = AdapterLookup.adapter_class(@registry, port.name, asked: asked)

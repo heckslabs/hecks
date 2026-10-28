@@ -24,9 +24,9 @@ module Hecks
 
       module_function
 
-      # Resolves one ask policy against a chapter's aggregates and their declared ports.
+      # Resolves one ask policy against a bluebook's aggregates and their declared ports.
       #
-      # @param chapter [Bluebook::Chapter] the chapter the policy is declared in
+      # @param bluebook [Bluebook::Chapter] the bluebook the policy is declared in
       # @param policy [Bluebook::Policy] a policy that `asks?`
       # @return [Outcome] the verb, or the problem
       def call(chapter, policy)
@@ -50,10 +50,10 @@ module Hecks
         found.size > 1 && !chosen.empty? ? chosen : found
       end
 
-      # Binds every ask policy of a chapter that resolves, leaving the rest for the boot gate and
+      # Binds every ask policy of a bluebook that resolves, leaving the rest for the boot gate and
       # `model_check` to name.
       #
-      # @param chapter [Bluebook::Chapter] the chapter whose policies to resolve
+      # @param bluebook [Bluebook::Chapter] the bluebook whose policies to resolve
       # @return [void]
       def bind_resolved(chapter)
         chapter.policies.select(&:asks?).each do |policy|
@@ -65,7 +65,7 @@ module Hecks
       # Marks the named ask on the named port as the one policies reach, for `ask_via`, and
       # re-binds every ask the pick settles.
       #
-      # @param chapter [Bluebook::Chapter, nil] the chapter the aggregate belongs to
+      # @param bluebook [Bluebook::Chapter, nil] the bluebook the aggregate belongs to
       # @param aggregate_name [String] the aggregate declaring the port
       # @param name [String, Symbol] the ask's declared name
       # @param port [String, Symbol] the port whose ask is picked

@@ -2,7 +2,7 @@ require_relative "../../hecks"
 
 module Hecks
   module CLI
-    # The command behind `hecks glossary`: boots a domain and projects one chapter into its
+    # The command behind `hecks glossary`: boots a domain and projects one bluebook into its
     # Ubiquitous Language glossary, `glossary.md` plus `html/index.html` rendered from it, in the
     # domain's own `glossary/` folder.
     #
@@ -12,9 +12,9 @@ module Hecks
     module ProjectGlossary
       module_function
 
-      # Writes the chapter's glossary and prints each file written.
+      # Writes the bluebook's glossary and prints each file written.
       #
-      # @param argv [Array<String>] the domain path, then the chapter's name
+      # @param argv [Array<String>] the domain path, then the bluebook's name
       # @param program [String] the name the usage line shows
       # @return [void]
       # @raise [SystemExit] with the usage line when an argument is missing
@@ -41,7 +41,7 @@ module Hecks
         )
       end
 
-      # The privacy markings the deployment declared for fields of one chapter.
+      # The privacy markings the deployment declared for fields of one bluebook.
       #
       # @api private
       def markings_for(runtime, chapter_name)

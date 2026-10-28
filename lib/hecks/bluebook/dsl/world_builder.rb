@@ -64,7 +64,7 @@ module Hecks
           @latest = required(value, "latest version")
         end
 
-        # A chapter's own `persisted_by("Adapter") { database ... }` still wins for that adapter.
+        # A bluebook's own `persisted_by("Adapter") { database ... }` still wins for that adapter.
         def default_database_impl(value)
           @default_database = required(value, "default database")
         end
@@ -112,7 +112,7 @@ module Hecks
         # Wraps `instance_eval` in `ConstShim`'s resolver: without it, an aggregate-qualified
         # verb call raises `NameError`, since the bare constant has nothing to resolve to.
         # A bare name resolves to a namespace whose `::` reaches the proxy; a qualified path
-        # (`Pizzas::Order`, handed over by an installed facade chapter's `const_missing`)
+        # (`Pizzas::Order`, handed over by an installed facade bluebook's `const_missing`)
         # is already the aggregate, so it resolves to the proxy itself.
         #
         # @param domain [String] the domain the world belongs to

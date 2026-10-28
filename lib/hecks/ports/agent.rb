@@ -73,7 +73,7 @@ module Hecks
       # Asks the adapter to judge a declared model on taste.
       #
       # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
-      # @param declared [Hash] the chapter as declared so far
+      # @param declared [Hash] the bluebook as declared so far
       # @param refusals [Array<Object>] refusals the language already raised
       # @param findings [Array<Object>] `Session#gaps` findings; both are passed so the
       #   adapter spends its judgement on what neither can see

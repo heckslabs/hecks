@@ -17,7 +17,7 @@ module Hecks
 
         # The seconds a `:duration` verb ("Aggregate.attribute") resolves to in `chapter`.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the aggregate
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [Integer, nil] the positive whole seconds, or `nil` when the verb names no such
         #   attribute or its default is not whole seconds
@@ -27,7 +27,7 @@ module Hecks
 
         # The `default:` of the attribute a verb ("Aggregate.attribute") names in `chapter`.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the aggregate
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [Object, nil] that attribute's `default:`, or `nil` when there is none
         def attribute_default(chapter, verb)
@@ -48,7 +48,7 @@ module Hecks
         # attribute's `default:`, bare or as the `{ value: "..." }` fill of a one-field value
         # object (ADR 0099).
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the aggregate
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [String, nil] the non-empty text, or `nil` when the verb names no such attribute
         #   or its default is not text
@@ -59,7 +59,7 @@ module Hecks
 
         # The attribute name an `:attribute` verb ("Aggregate.attribute") resolves to in `chapter`.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the aggregate
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the aggregate
         # @param verb [String] the entry, spelled "Aggregate.attribute"
         # @return [String, nil] the attribute's name, or `nil` when the aggregate lacks it
         def attribute_of(chapter, verb)

@@ -6,7 +6,7 @@ require_relative "interview_session"
 
 module Hecks
   module CLI
-    # The command behind `hecks interview <Name>` (ADR 0088): boots the SME chapter on demand, holds
+    # The command behind `hecks interview <Name>` (ADR 0088): boots the SME bluebook on demand, holds
     # the interview at the terminal, then writes the first domain, or the next interview's proposed
     # additions, and says what to type next. Nothing is written unless the interview concludes.
     module InterviewRun
@@ -22,7 +22,7 @@ module Hecks
       # @param input [#gets] where the developer types
       # @param output [#puts, #print] where the session speaks
       # @param agent [#question, #proposals, nil] an interviewer to use instead of the real one
-      # @param runtime [Runtime, nil] a booted SME chapter to use instead of booting one
+      # @param runtime [Runtime, nil] a booted SME bluebook to use instead of booting one
       # @return [String] the report that was printed, or "" when nothing was written
       # @raise [ArgumentError] when the name or adapter is refused, or a file would be replaced
       def call(name:, adapter: nil, dir: nil, expert: nil, use_ai: true, input: $stdin, output: $stdout, agent: nil, # rubocop:disable Metrics/ParameterLists -- one keyword per setting the command takes

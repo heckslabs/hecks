@@ -7,11 +7,11 @@ require_relative "table/checks"
 module Hecks
   module Projections
     module Site
-      # A client's route table, read from its chapter and checked against the Site chapter's
+      # A client's route table, read from its bluebook and checked against the Site bluebook's
       # vocabulary.
       #
-      # The rows are the `member` lines of a `value_object "Route"` in any chapter of the project
-      # (the Site chapter's own `Route` aggregate names the fields and the closed sets). This class
+      # The rows are the `member` lines of a `value_object "Route"` in any bluebook of the project
+      # (the Site bluebook's own `Route` aggregate names the fields and the closed sets). This class
       # reads them, fills each row's defaults (the cache class from the auth and kind, the render
       # from the kind, the path from a `command:` or `query:` source), and refuses a table that
       # contradicts itself, naming every problem at once.
@@ -34,11 +34,11 @@ module Hecks
         # @return [Array<Link>] the extra navigation entries, in the order the client declared them
         attr_reader :links
 
-        # Finds the one chapter of a project that declares the route table.
+        # Finds the one bluebook of a project that declares the route table.
         #
         # @param registry [Runtime::Registry] the registry the project booted into
-        # @return [Bluebook::Chapter] the chapter holding the `Route` value object with member rows
-        # @raise [Invalid] when no chapter, or more than one, declares one
+        # @return [Bluebook::Chapter] the bluebook holding the `Route` value object with member rows
+        # @raise [Invalid] when no bluebook, or more than one, declares one
         def self.chapter(registry)
           chapters = registry.bluebooks.values
           holders = chapters.reject { |chapter| chapter.name == "Site" }.select { |chapter| rows_of(chapter).any? }
@@ -49,23 +49,23 @@ module Hecks
                          "#{holders.map(&:name).join(", ")}; a project has one route table"
         end
 
-        # Reads and checks one chapter's route table.
+        # Reads and checks one bluebook's route table.
         #
-        # @param chapter [Bluebook::Chapter] the chapter that declares the rows
+        # @param bluebook [Bluebook::Chapter] the bluebook that declares the rows
         # @param registry [Runtime::Registry] the registry the project booted into: it holds the
-        #   Site chapter and, for a `command:` or `query:` source, the command or query
+        #   Site bluebook and, for a `command:` or `query:` source, the command or query
         # @return [Table] the checked table
-        # @raise [Invalid] when the Site chapter is not attached or a row is refused
+        # @raise [Invalid] when the Site bluebook is not attached or a row is refused
         def self.read(chapter, registry:)
           new(rows_of(chapter), vocabulary: vocabulary(registry), registry: registry,
                                 links: rows_of(chapter, LINK_OBJECT))
         end
 
-        # @param registry [Runtime::Registry] a registry holding the Site chapter
+        # @param registry [Runtime::Registry] a registry holding the Site bluebook
         # @return [Hash{Symbol => Array<String>}] each constrained field to its allowed values, and
         #   `:http_method` to the verbs a route may answer and `:edge_function_kind` to the kinds of
         #   `EdgeFunction` row
-        # @raise [Invalid] when the registry does not hold the Site chapter
+        # @raise [Invalid] when the registry does not hold the Site bluebook
         def self.vocabulary(registry)
           site = registry.bluebook("Site") or
             raise Invalid, "the project does not attach the Site chapter (attaches \"Site\")"
@@ -78,7 +78,7 @@ module Hecks
           closed.merge(http_method: members.call("HttpMethod"), edge_function_kind: members.call("EdgeFunctionKind"))
         end
 
-        # @param chapter [Bluebook::Chapter] a chapter to search
+        # @param bluebook [Bluebook::Chapter] a bluebook to search
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
         def self.rows_of(chapter, object = ROW_OBJECT)

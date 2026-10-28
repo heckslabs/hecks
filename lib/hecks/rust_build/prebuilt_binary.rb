@@ -10,7 +10,7 @@ module Hecks
   module RustBuild
     # A binary hecks has already compiled and published, named by what went into it (ADR 0110).
     #
-    # The `PrebuiltBinary` rows of the Vocabulary chapter say which binaries are published: the
+    # The `PrebuiltBinary` rows of the Vocabulary bluebook say which binaries are published: the
     # crate to key, the Cargo binary, the target it is built for. A release tagged `<name>-<key>`
     # holds the binary and its `.sha256`; the key is a hash of the crate's build inputs, so the
     # same bytes are the same release, whichever commit they come from. `fetch` downloads it and

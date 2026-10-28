@@ -115,7 +115,7 @@ module Hecks
           census.head_rows == census.journal_rows ? "." : ": they differ, and only the journal's are audited."
         end
 
-        # The chapters loaded beside the domain's own (a vendored package): the host holds eras
+        # The bluebooks loaded beside the domain's own (a vendored package): the host holds eras
         # for the domain's own aggregates only, so theirs can neither mint nor be refused.
         def attached_limits
           names = @subject.bluebook_names - [@subject.bluebook_name]

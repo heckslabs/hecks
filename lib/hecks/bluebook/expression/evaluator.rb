@@ -12,7 +12,7 @@ module Hecks
         Operator = Struct.new(:symbol, :compares_less_than, :compares_equal, :negated, keyword_init: true)
 
         # Six comparison operators reduced to two primitives (less_than, equal).
-        # Read from the checked-in projection because the evaluator runs while the chapter boots.
+        # Read from the checked-in projection because the evaluator runs while the bluebook boots.
         # Freshness: spec/operators_export_spec.rb; conformance: spec/operator_conformance_spec.rb.
         PROJECTION = JSON.parse(
           File.read(File.join(__dir__, "projection.json")), symbolize_names: true

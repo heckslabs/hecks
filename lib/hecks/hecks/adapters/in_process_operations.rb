@@ -22,7 +22,7 @@ module Hecks
     module InProcessOperations
       include Tailing
 
-      # The chapters `hecks model_check` sweep when no domain is named need a
+      # The bluebooks `hecks model_check` sweep when no domain is named need a
       # checkout; an installed gem has none.
       CHECKOUT_MARKER = "hecks.gemspec"
 

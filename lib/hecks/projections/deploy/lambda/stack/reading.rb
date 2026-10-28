@@ -121,7 +121,7 @@ module Hecks
               read_cross_domain_targets
             end
 
-            # Scans every loaded chapter, not just this domain's own: an `attaches`-attached chapter
+            # Scans every loaded bluebook, not just this domain's own: an `attaches`-attached bluebook
             # can itself declare a cross-domain policy, including one nested inside
             # `aggregate "X" do ... end`.
             def read_cross_domain_targets

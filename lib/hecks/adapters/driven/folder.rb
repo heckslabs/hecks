@@ -1,12 +1,15 @@
 require_relative "../../vocabulary"
 require_relative "../../ports/loading"
 require_relative "../../sentence_form"
+require_relative "folder_overlay"
 
 module Hecks
   module Adapters
     # Loads a domain's files off disk in `Vocabulary.fetch("LoadOrder")` order and finds
     # a domain's root directory. Used by `Hecks.boot(path)` when given a directory.
     class Folder
+      include FolderOverlay
+
       DOMAIN_ORDER = Hecks::Vocabulary.fetch("LoadOrder")
       PORTS        = "ports".freeze
       ADAPTERS     = "adapters".freeze
@@ -38,8 +41,8 @@ module Hecks
         load_each(File.join(root, ADAPTERS), %w[*.adapter */*.adapter */*/*.adapter])
       end
 
-      # Loads bluebook chapters first, judged once as a deferred group, then everything
-      # else in `DOMAIN_ORDER`. Deferring keeps a chapter split across files from being
+      # Loads bluebooks first, judged once as a deferred group, then everything
+      # else in `DOMAIN_ORDER`. Deferring keeps a bluebook split across files from being
       # judged before its later files exist (see MetaValidator.defer).
       #
       # Then the overlays merge into the base hecksagon/world: the copy's own, then the named
@@ -62,29 +65,12 @@ module Hecks
         load_overlay(directory, environment)
       end
 
-      # The overlay one copy of a domain keeps for itself, such as the database its own runs
-      # record to. `.gitignore` keeps it out of the repository, so no other copy ever reads it.
-      LOCAL_OVERLAY = "local".freeze
-
-      # Loads the copy's own overlay, then an environment's, each `.hecksagon` then `.world`,
-      # when present. The environment loads last, so `memory` still wins over a local database.
-      #
-      # @param directory [String] the directory holding the `environments/` folder
-      # @param environment [String, nil] the environment name; nil loads only the local overlay
-      # @return [void]
-      def load_overlay(directory, environment)
-        [LOCAL_OVERLAY, environment].compact.uniq.each do |name|
-          load_each(directory, [File.join("environments", "#{name}.hecksagon")])
-          load_each(directory, [File.join("environments", "#{name}.world")])
-        end
-      end
-
       # Loads every bluebook in a folder as one declaration set, judged after all are loaded
-      # so cross-file references never meet a partial chapter.
+      # so cross-file references never meet a partial bluebook.
       #
-      # @param directory [String] the directory to glob for bluebook chapter files
+      # @param directory [String] the directory to glob for bluebook files
       # @param patterns [Array<String>] glob patterns, relative to `directory`, selecting the
-      #   chapter files to load
+      #   bluebook files to load
       # @return [void]
       def load_bluebooks(directory, patterns = ["*.bluebook"])
         Bluebook::MetaValidator.defer { load_each(directory, patterns) }
@@ -120,14 +106,12 @@ module Hecks
         Bluebook::MetaValidator.judge_deferred!(Hecks.current_registry)
       end
 
-      # Loads one file. A `.bluebook` written as sentences is declared through the Ruby text the
-      # Rust parser renders from it; every other file is loaded as Ruby.
+      # Loads one file in whichever form it is written (see {SentenceForm.load_file}).
       #
       # @param file [String] the file to load
       # @return [void]
       def load_file(file)
-        sentences = file.end_with?(".bluebook") && File.file?(file) && SentenceForm.sentences?(file)
-        sentences ? SentenceForm.load(file) : Kernel.load(file)
+        SentenceForm.load_file(file)
       end
 
       # Loads every file under `directory` matching any of `patterns`, in pattern order.
@@ -142,14 +126,14 @@ module Hecks
         return unless File.directory?(directory)
 
         patterns.each do |pattern|
-          Dir[File.join(directory, pattern)].each { |file| load_file(file) }
+          Dir[File.join(directory, pattern)].reject { |file| left_to_overlay?(file, pattern) }.each { |file| load_file(file) }
         end
       end
 
       # Resolves a domain path to the directory that actually holds its bluebook files.
       #
       # @param path [String] a domain directory, holding either a `bluebook/` subdirectory or
-      #   its chapter files directly
+      #   its bluebook files directly
       # @return [String] the `bluebook/` subdirectory's absolute path, if one exists; `path`'s
       #   own absolute path otherwise
       # @raise [Errno::ENOENT] if neither directory exists
@@ -166,7 +150,7 @@ module Hecks
       # Finds the nearest domain directory at or above `from`, or nil if there is not one.
       #
       # Walks up from `from`, like git finding `.git`. A domain is marked by a `.hecksagon`,
-      # not a `.bluebook`, since chapters also appear in translations and fixtures.
+      # not a `.bluebook`, since bluebooks also appear in translations and fixtures.
       #
       # A `bluebook/` subdirectory result is normalised to its parent, the directory
       # a `.world`'s `dir "data"` is relative to.

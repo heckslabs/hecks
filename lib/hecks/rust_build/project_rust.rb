@@ -95,7 +95,7 @@ module Hecks
         end
       end
 
-      # How the target attached a chapter, across every hecksagon the registry loaded: a chapter a
+      # How the target attached a bluebook, across every hecksagon the registry loaded: a bluebook a
       # sibling hecksagon vendors in is labelled as vendored.
       def attachment(chapter_name, vendored)
         name = vendored.find { |candidate| Hecks::Naming.pascal(candidate.to_s) == chapter_name }
@@ -103,7 +103,7 @@ module Hecks
       end
 
       # `src/generated/mod.rs`: every domain ever generated, scanned off disk. A directory is a
-      # selectable domain exactly when it carries its own `merged.rs`; a framework chapter has
+      # selectable domain exactly when it carries its own `merged.rs`; a framework bluebook has
       # none and is always compiled in.
       def write_root_mod
         all_dirs = Dir.children(@out_root).select { |name| File.directory?(File.join(@out_root, name)) }.sort

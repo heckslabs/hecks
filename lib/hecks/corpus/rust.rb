@@ -31,7 +31,7 @@ module Hecks
       's\ own\ canonical\ IR,
     /x
 
-    # The Rust-facing lists: which domains and chapters `rust/` carries, read off Cargo's
+    # The Rust-facing lists: which domains and bluebooks `rust/` carries, read off Cargo's
     # `[features]` and the generated modules rather than typed out by hand. Extended onto
     # `Corpus`.
     module Rust
@@ -41,13 +41,13 @@ module Hecks
       # Cargo's `default = ["name"]` line, capturing the default feature's name.
       DEFAULT_FEATURE = /^default\s*=\s*\["(\w+)"\]/
 
-      # A hecksagon's `attaches "Name"` line for a gem chapter (no `from:`), capturing the name.
+      # A hecksagon's `attaches "Name"` line for a gem bluebook (no `from:`), capturing the name.
       ATTACHED_BY_NAME = /^\s*attaches\s+"(\w+)"\s*$/
 
-      # A bluebook file's `Hecks.bluebook "Name"` header, capturing the chapter's name.
+      # A bluebook file's `Hecks.bluebook "Name"` header, capturing the bluebook's name.
       BLUEBOOK_NAME = /^\s*Hecks\.bluebook\s+"([^"]+)"/
 
-      # The corpus kinds holding chapters the gem carries and a hecksagon attaches by name.
+      # The corpus kinds holding bluebooks the gem carries and a hecksagon attaches by name.
       GEM_CHAPTER_KINDS = %i[qa deploy site tickets composer tenancy sme bulk].freeze
 
       # Every place a Rust-facing domain's own `attaches` attachment could be declared.
@@ -139,7 +139,7 @@ module Hecks
         File.file?(File.join(root, GENERATED_DIR, feature, "merged.rs"))
       end
 
-      # Chapters attached via `kind` that get a generated module as a side
+      # Bluebooks attached via `kind` that get a generated module as a side
       # effect of the attaching domain's regen, with no merged.rs of their own.
       #
       # @param kind [Symbol] :framework or :vendored
@@ -164,7 +164,7 @@ module Hecks
         Naming.pascal(stem).downcase
       end
 
-      # Names the framework chapters Rust carries as modules, beside its domains' own bluebooks.
+      # Names the framework bluebooks Rust carries as modules, beside its domains' own bluebooks.
       #
       # @param root [String] repository root to search under
       # @return [Array<String>] generated module names for the `:framework` corpus members
@@ -172,7 +172,7 @@ module Hecks
         rust_side_chapters(:framework, root: root)
       end
 
-      # Names the vendored chapters Rust carries as modules, beside its domains' own bluebooks.
+      # Names the vendored bluebooks Rust carries as modules, beside its domains' own bluebooks.
       #
       # @param root [String] repository root to search under
       # @return [Array<String>] generated module names for the `:vendored` corpus members
@@ -180,7 +180,7 @@ module Hecks
         rust_side_chapters(:vendored, root: root)
       end
 
-      # Chapters an in-repo Rust domain carries beside its own bluebook,
+      # Bluebooks an in-repo Rust domain carries beside its own bluebook,
       # written as a module by `hecks project_rust` with no merged.rs of its own.
       #
       # @param root [String] repository root to search under
@@ -193,12 +193,12 @@ module Hecks
         names.uniq.select { |name| modules.include?(name) && !generated?(name, root: root) }
       end
 
-      # Gem chapters outside the framework (`Chapters.index`, such as Bulk) that an in-repo Rust
+      # Gem bluebooks outside the framework (`Chapters.index`, such as Bulk) that an in-repo Rust
       # domain's hecksagon attaches by name, written as a module by `hecks project_rust` with no
       # merged.rs of their own.
       #
       # @param root [String] repository root to search under
-      # @return [Array<String>] generated module names for the attached gem chapters
+      # @return [Array<String>] generated module names for the attached gem bluebooks
       def rust_attached_chapters(root: ROOT)
         modules = generated_modules(root: root)
         names = rust_attachment_hecksagon_text(root: root).scan(ATTACHED_BY_NAME).flatten & gem_chapter_names(root: root)
@@ -206,10 +206,10 @@ module Hecks
              .select { |name| modules.include?(name) && !generated?(name, root: root) }
       end
 
-      # The names the gem's own attachable chapters declare in their `Hecks.bluebook` headers.
+      # The names the gem's own attachable bluebooks declare in their `Hecks.bluebook` headers.
       #
       # @param root [String] repository root to search under
-      # @return [Array<String>] chapter names, from the files `GEM_CHAPTER_KINDS` hold
+      # @return [Array<String>] bluebook names, from the files `GEM_CHAPTER_KINDS` hold
       def gem_chapter_names(root: ROOT)
         members(*GEM_CHAPTER_KINDS, root: root).filter_map { |member| File.read(member.path)[BLUEBOOK_NAME, 1] }.uniq
       end

@@ -5,7 +5,7 @@ require_relative "command_schema/shape"
 
 module Hecks
   module Projections
-    # A JSON Schema (draft 2020-12) for every command's payload, projected from the chapter's IR:
+    # A JSON Schema (draft 2020-12) for every command's payload, projected from the bluebook's IR:
     # the facts a caller passes in `with:`. It is the cheap local check a client runs before it
     # asks the server, and the portable description of what a command takes.
     #
@@ -13,7 +13,7 @@ module Hecks
     # lifecycle `from:` ride along as `x-` annotations (their text, for display), and `x-role` names
     # who may run it. `Dispatcher#validate` stays the authority on those.
     #
-    #     Projector.call(:command_schema, bluebook: chapter)
+    #     Projector.call(:command_schema, bluebook: bluebook)
     #     # => { "Banking/Account/Open.schema.json" => "{...}", ... }
     module CommandSchema
       extend Projector::Target
@@ -24,7 +24,7 @@ module Hecks
 
       module_function
 
-      # @param bluebook [Bluebook::Chapter] the chapter being projected
+      # @param bluebook [Bluebook::Chapter] the bluebook being projected
       # @param options [Hash] unused
       # @return [Hash{String => String}] each command's schema file by path, entity commands too
       def call(bluebook:, options: {})
@@ -40,7 +40,7 @@ module Hecks
 
       # One command's schema.
       #
-      # @param bluebook [Bluebook::Chapter] the owning chapter
+      # @param bluebook [Bluebook::Chapter] the owning bluebook
       # @param aggregate [Bluebook::Aggregate] the aggregate that owns the command
       # @param path [String] `Aggregate/Command` or `Aggregate/Entity.Command`
       # @param command [Bluebook::Command] the command

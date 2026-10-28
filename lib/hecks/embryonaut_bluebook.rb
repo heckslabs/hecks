@@ -20,7 +20,7 @@ module Hecks
     #   as `"payments"`
     # @param registry [Runtime::Registry, nil] the registry to vendor into and
     #   check for an existing load; defaults to the current boot registry
-    # @return [String] the chapter the package's bluebook declares (`"Documents"` for the
+    # @return [String] the bluebook the package's bluebook declares (`"Documents"` for the
     #   `document` package), its directory name in Pascal case when no file declares one
     # @raise [Runtime::WiringError] if `registry` has no root, or no vendored
     #   package named `name` is checked out

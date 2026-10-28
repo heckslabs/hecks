@@ -17,7 +17,7 @@ module Hecks
       # Projects one domain's whole shape into every diagram kind it has data
       # for, one Mermaid file per entry.
       #
-      # @param bluebook [Bluebook::Chapter] the assembled chapter to project
+      # @param bluebook [Bluebook::Chapter] the assembled bluebook to project
       # @param options [Hash{Symbol => Object}] projection options; only `:hecksagon`
       #   (a `Bluebook::Hecksagon`, or `nil`) is read, and only by `frameworks_diagram`
       # @return [Hash{String => String}] each diagram's filename (such as
@@ -37,7 +37,7 @@ module Hecks
 
       def holders_with_lifecycle(bluebook) = holders(bluebook).select(&:lifecycle)
 
-      # `chapter_name` drives the re-run hint: `hecks project_diagrams` takes a chapter
+      # `chapter_name` drives the re-run hint: `hecks project_diagrams` takes a bluebook
       # name, not the subject's.
       def header(chapter_name, subject)
         <<~HEADER

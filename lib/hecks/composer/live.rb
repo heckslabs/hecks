@@ -11,7 +11,7 @@ module Hecks
     # hecksagon: the editor drives the domain, the domain keeps its records in memory, and the
     # staged copy of the files lives until `close`.
     class Live
-      # @return [String] the chapter the workspace booted
+      # @return [String] the bluebook the workspace booted
       attr_reader :chapter_name
 
       # Stages the workspace and boots it in memory.
@@ -34,14 +34,14 @@ module Hecks
 
       # @param stage [String] the staged directory this domain booted from
       # @param runtime [Runtime::Dispatcher] the booted domain
-      # @param chapter_name [String] the chapter's name
+      # @param chapter_name [String] the bluebook's name
       def initialize(stage:, runtime:, chapter_name:)
         @stage = stage
         @runtime = runtime
         @chapter_name = chapter_name
       end
 
-      # The aggregate commands the chapter declares, each with a starter value for every argument.
+      # The aggregate commands the bluebook declares, each with a starter value for every argument.
       #
       # @return [Array<Hash>] per command: `verb`, `aggregate`, `command`, `goal`, `creates`,
       #   `args` (`{name:, type:, optional:}` each) and `template` (argument name to starter value)

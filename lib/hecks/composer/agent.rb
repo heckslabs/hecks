@@ -40,7 +40,7 @@ module Hecks
         note(adapter(registry).draft(prompt: prompt, dir: dir))
       end
 
-      # Asks the agent to change how a workspace's chapter is wired, never what it declares.
+      # Asks the agent to change how a workspace's bluebook is wired, never what it declares.
       #
       # @param registry [Runtime::Registry] a registry holding the port and one adapter for it
       # @param prompt [String] what the author asked for

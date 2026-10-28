@@ -8,7 +8,7 @@ module Hecks
       # Object identity carries no signal: `MetaValidator.call` rebuilds the graph from flat rows,
       # so a bare `given("x")` reference and its block declaration are distinct objects by then.
       # @param registry [Runtime::Registry] the booted registry to walk
-      # @param chapter_name [String, nil] one chapter to walk, every booted chapter when nil
+      # @param chapter_name [String, nil] one bluebook to walk, every booted bluebook when nil
       # @return [Array<Rule>]
       def collect_rules(registry, chapter_name = nil)
         chapters = chapter_name ? [registry.bluebook(chapter_name)] : registry.bluebooks.values

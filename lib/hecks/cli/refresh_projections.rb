@@ -22,7 +22,7 @@ module Hecks
         0
       end
 
-      # Refreshes every projection of every chapter in a booted runtime.
+      # Refreshes every projection of every bluebook in a booted runtime.
       #
       # @param runtime [Runtime] a booted domain
       # @return [Integer] how many projections were caught up

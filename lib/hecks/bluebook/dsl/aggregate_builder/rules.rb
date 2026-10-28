@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     module DSL
-      # The rule words of an aggregate: `given` preconditions, shared across the chapter by
+      # The rule words of an aggregate: `given` preconditions, shared across the bluebook by
       # description, and whole-aggregate `invariant`s.
       class AggregateBuilder
         # Declares a rule this aggregate's own commands must satisfy, or references a sibling's.
@@ -13,7 +13,7 @@ module Hecks
         # @yield the predicate body; evaluated for its extracted source, never called directly
         # @return [void]
         # @raise [Bluebook::DSL::Malformed] if the source can't be extracted, or a bare reference
-        #   resolves to none or more than one candidate once the chapter has loaded
+        #   resolves to none or more than one candidate once the bluebook has loaded
         def given_impl(description, declared_by: nil, &predicate)
           return reference_named_chapter_given(description, declared_by: declared_by) unless predicate
 
@@ -40,7 +40,7 @@ module Hecks
 
         private
 
-        # Unresolved (no candidate yet) doesn't raise here — a chapter split across files
+        # Unresolved (no candidate yet) doesn't raise here — a bluebook split across files
         # may still declare this precondition in a later file (see `#pending_chapter_given`).
         def reference_named_chapter_given(description, declared_by:)
           verify_resolves_via!("given", "Aggregate", "owner_keyed")
@@ -71,7 +71,7 @@ module Hecks
 
         # Returns a placeholder `Given`, embedded by reference in this aggregate's IR;
         # `BluebookBuilder#resolve_pending_chapter_givens!` mutates it in place once the
-        # whole chapter loads, so every existing reference sees the resolved fields together.
+        # whole bluebook loads, so every existing reference sees the resolved fields together.
         def pending_chapter_given(description, declared_by:)
           placeholder = Given.new(description: description, canonical: nil, predicate: nil)
           @chapter_pending_givens << { aggregate: @name, description: description,

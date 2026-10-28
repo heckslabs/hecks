@@ -6,7 +6,7 @@ require_relative "../hecks/adapters/github_rulesets"
 
 module Hecks
   module Tools
-    # Projects the `Lane` rows of the Vocabulary chapter into what GitHub is told about them: a
+    # Projects the `Lane` rows of the Vocabulary bluebook into what GitHub is told about them: a
     # ruleset for each guarded lane (`.github/rulesets/<lane>.json`), one for the tag such a lane
     # feeds (`.github/rulesets/tag-<tag>.json`), and the workflow that promotes
     # each lane that follows another (`.github/workflows/promote.yml`). The workflow only runs

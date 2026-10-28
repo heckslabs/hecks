@@ -4,21 +4,21 @@ require_relative "plain"
 
 module Hecks
   module Composer
-    # The editor's own bookkeeping, held in memory: one Composer chapter booted for the life of the
-    # server, with a `Draft` per chapter being edited. The files on disk stay the truth; the draft
+    # The editor's own bookkeeping, held in memory: one Composer bluebook booted for the life of the
+    # server, with a `Draft` per bluebook being edited. The files on disk stay the truth; the draft
     # keeps the text last seen, the conversation about it, and what its last check said, so the
     # page can show a history and an agent's turns survive a refresh.
     class Session
       CHAPTER_DIR = File.expand_path("bluebook", __dir__).freeze
       VERB = "Composer::Draft".freeze
 
-      # A `Hecks.<construct> "Name"` header, capturing the chapter's name.
+      # A `Hecks.<construct> "Name"` header, capturing the bluebook's name.
       CHAPTER_DECLARATION = /Hecks\.\w+\s+"([A-Z][A-Za-z0-9]*)"/
 
-      # @return [Runtime::Dispatcher] the booted Composer chapter
+      # @return [Runtime::Dispatcher] the booted Composer bluebook
       attr_reader :runtime
 
-      # Boots the Composer chapter, which admits only the `Web` driving adapter.
+      # Boots the Composer bluebook, which admits only the `Web` driving adapter.
       #
       # @raise [Adapters::Driving::Admission::Refused] if the hecksagon does not admit `Web`
       def initialize
@@ -27,10 +27,10 @@ module Hecks
         @sequence = Hash.new(0)
       end
 
-      # Opens a draft for a chapter, or leaves an open one as it is.
+      # Opens a draft for a bluebook, or leaves an open one as it is.
       #
       # @param slug [String] the draft's name
-      # @param chapter_name [String] the chapter's name
+      # @param chapter_name [String] the bluebook's name
       # @param text [String] the text it starts from
       # @return [void]
       def open(slug:, chapter_name:, text:)
@@ -59,7 +59,7 @@ module Hecks
         self.open(slug: path, chapter_name: chapter_name_in(text), text: text)
       end
 
-      # The text a file has held, from the chapter's own events.
+      # The text a file has held, from the bluebook's own events.
       #
       # @param path [String] the file's path relative to the workspace
       # @return [Array<Hash>] `name`, `at` and `text` per recorded revision, newest first; empty
@@ -100,7 +100,7 @@ module Hecks
       end
 
       # @param slug [String] the draft's name
-      # @return [Hash, nil] the draft as the chapter holds it, or nil when none is open
+      # @return [Hash, nil] the draft as the bluebook holds it, or nil when none is open
       def draft(slug)
         drafts.find(slug)&.then { |row| plain(row) }
       rescue StandardError

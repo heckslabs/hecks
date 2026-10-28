@@ -1,7 +1,7 @@
 module Hecks
   module Bluebook
     class Assembly
-      # The contracts for the chapter, aggregate, command and value object;
+      # The contracts for the bluebook, aggregate, command and value object;
       # `CONTRACTS` merges every group.
       STRUCTURE = {
         "Bluebook"    => Contract.new(

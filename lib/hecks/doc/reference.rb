@@ -8,7 +8,7 @@ require_relative "reference/rendering"
 
 module Hecks
   module Doc
-    # The DSL reference, projected from the language's own Syntax chapter so
+    # The DSL reference, projected from the language's own Syntax bluebook so
     # its tables can never drift from the live builders. Regenerate with
     # `hecks language_run.project_reference`.
     #
@@ -19,7 +19,7 @@ module Hecks
       TODO_SENTINEL = "<!-- TODO: document this word -->".freeze
 
       # A page's hand-written opening, keyed under a Symbol so it can never
-      # collide with a word (words are always Strings off the Syntax chapter).
+      # collide with a word (words are always Strings off the Syntax bluebook).
       PREAMBLE = :preamble
 
       extend Readme
@@ -35,7 +35,7 @@ module Hecks
       # parts of a page not about one word (a lede, README's indexes).
       def region_begin(id) = "<!-- generated:begin id=#{id} -->"
 
-      # The language's own Syntax aggregate, read off the judged grammar chapter.
+      # The language's own Syntax aggregate, read off the judged grammar bluebook.
       def syntax
         meta = Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook")
         meta.aggregates.find { |aggregate| aggregate.hecks_name == "Syntax" }

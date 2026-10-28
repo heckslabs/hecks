@@ -31,7 +31,7 @@ module Hecks
             entities:          Array(@row[:entities]).map { |piece| entity(piece) },
             queries:           build_all("Query", @row[:queries]),
             lifecycle:         lifecycle_of(@row),
-            # Policies live on the chapter, which is what `PolicyInterpreter` reads.
+            # Policies live on the bluebook, which is what `PolicyInterpreter` reads.
             policies:          [],
             reference_targets: reference_targets(Array(@row[:attributes]).map { |field| Marks.attribute(field) })
           }

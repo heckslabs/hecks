@@ -12,7 +12,7 @@ module Hecks
   module Bluebook
     module DSL
       class BluebookBuilder
-        # Whole-chapter, cross-aggregate checks that `#build` runs once a chapter is assembled.
+        # Whole-chapter, cross-aggregate checks that `#build` runs once a bluebook is assembled.
         # Extended onto BluebookBuilder: pure functions of their arguments, no builder state.
         # Each family of checks lives in its own module under `validation/`.
         module Validation
@@ -26,10 +26,10 @@ module Hecks
           include ComputedSources
           include CorrelationKeys
 
-          # Runs every whole-chapter check against one assembled chapter.
+          # Runs every whole-chapter check against one assembled bluebook.
           # Public so `MetaValidator.judge_deferred!` can call it with no builder instance.
           #
-          # @param bluebook [Bluebook::Chapter] the assembled chapter to validate
+          # @param bluebook [Bluebook::Chapter] the assembled bluebook to validate
           # @return [void]
           # @raise [Bluebook::DSL::Malformed] if any check finds a violation
           # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a

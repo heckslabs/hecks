@@ -12,7 +12,7 @@ module Hecks
         # Flags each tagged reference whose branches leave a variant unhandled, or name a type
         # the union does not hold.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled chapter to check
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
         # @return [Array<Finding>] one :one_of_branch_unhandled error per such reference
         def one_of_branch_findings(bluebook)
           bluebook.aggregates.flat_map do |aggregate|
@@ -54,7 +54,7 @@ module Hecks
           rules.flat_map { |rule| compared_types(rule_ast(rule), name) }
         end
 
-        # A registry chapter is a round-trip product that keeps a rule's canonical text, not its
+        # A registry bluebook is a round-trip product that keeps a rule's canonical text, not its
         # tree, so the tree is read again from the text.
         def rule_ast(rule)
           return rule.ast if rule.ast

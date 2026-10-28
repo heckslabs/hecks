@@ -18,7 +18,7 @@ module Hecks
       # @param as_of [Integer, nil] Unix epoch seconds; a later (or unparseable) `starts_at` fails
       # @param scope [String, nil] the scope the caller acts in; nil skips the scope check
       # @return [Boolean] true if a live grant of `role` to `actor_id` passes both checks
-      # @raise [Runtime::WiringError] unless exactly one chapter provides `"authorization"`
+      # @raise [Runtime::WiringError] unless exactly one bluebook provides `"authorization"`
       def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
         rows = Runtime::Dispatcher.new(registry).query(
           provided_verb(registry, :assignments),
@@ -67,7 +67,7 @@ module Hecks
       # @param from_role [String, Symbol] the role the caller holds, compared as a String
       # @param to_role [String, Symbol] the role the caller wants to act as, compared as a String
       # @return [Boolean] true if a live allowance lets `from_role` act as `to_role`
-      # @raise [Runtime::WiringError] unless exactly one chapter provides `"authorization"`
+      # @raise [Runtime::WiringError] unless exactly one bluebook provides `"authorization"`
       def authorized_as?(registry, from_role:, to_role:)
         rows = Runtime::Dispatcher.new(registry).query(
           provided_verb(registry, :transitions),
@@ -84,7 +84,7 @@ module Hecks
       # @param actor_id [String] the actor to look up, compared as a String
       # @return [String, nil] the role name of the actor's first live (not ended) grant, or
       #   nil if it has none
-      # @raise [Runtime::WiringError] if the loaded chapters providing `"authorization"` are
+      # @raise [Runtime::WiringError] if the loaded bluebooks providing `"authorization"` are
       #   not exactly one (see `provided_verb`)
       def live_role_for(registry, actor_id:)
         rows = Runtime::Dispatcher.new(registry).query(
@@ -96,15 +96,15 @@ module Hecks
         live && live[:role_name][:value]
       end
 
-      # Reads a verb from the one chapter that `provides "authorization"`; the runtime will
+      # Reads a verb from the one bluebook that `provides "authorization"`; the runtime will
       # not choose between several (as in `Ports::Authorization.adapter`).
       #
       # @param registry [Runtime::Registry] the booted registry to search for the
       #   `"authorization"` provider
       # @param key [Symbol] which declared verb to read — `:assignments`, `:grant`, or
       #   `:transitions`
-      # @return [String] the fully-qualified verb the loaded chapter provides for `key`
-      # @raise [Runtime::WiringError] if the loaded chapters providing `"authorization"` are
+      # @return [String] the fully-qualified verb the loaded bluebook provides for `key`
+      # @raise [Runtime::WiringError] if the loaded bluebooks providing `"authorization"` are
       #   not exactly one
       def provided_verb(registry, key)
         providers = registry.authorization_providers

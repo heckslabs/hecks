@@ -45,7 +45,7 @@ module Hecks
 
       def queries = entries.values.select(&:query?)
 
-      # Registers every aggregate command/query and read model query of each chapter, under
+      # Registers every aggregate command/query and read model query of each bluebook, under
       # its versioned and (if current) unversioned FQNs.
       #
       # @return [Bluebook::ProjectRegister] self

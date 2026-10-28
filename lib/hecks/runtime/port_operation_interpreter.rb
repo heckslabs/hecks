@@ -134,7 +134,7 @@ module Hecks
       end
 
       def adapter_for(ctx)
-        AdapterLookup.call(@registry, port_name_for(ctx), asked: ctx.operation_hecks_name)
+        AdapterLookup.call(@registry, port_name_for(ctx), asked: ctx.operation_hecks_name, aggregate: ctx.aggregate)
       end
 
       # Adapters are handed plain data, never a Value.

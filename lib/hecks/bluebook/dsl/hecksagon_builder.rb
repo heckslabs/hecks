@@ -11,14 +11,14 @@ module Hecks
         include WordGate
         extend ChapterScope
 
-        # Lets the Hecks chapter's own hecksagon spell its aggregates `Hecks::Operation`.
+        # Lets the Hecks bluebook's own hecksagon spell its aggregates `Hecks::Operation`.
         #
-        # While the chapter named Hecks builds its hecksagon, a missing constant on `Hecks` is
-        # one of that chapter's aggregates; at any other time it is the ordinary `NameError`.
+        # While the bluebook named Hecks builds its hecksagon, a missing constant on `Hecks` is
+        # one of that bluebook's aggregates; at any other time it is the ordinary `NameError`.
         #
         # A real module of the same name (`Hecks::Release`) would answer first, so
         # `HecksagonBuilder.build` takes each off `Hecks` while the block runs (see `shadowed`).
-        # `attaches` loads whole chapters inside the block; the shadow lifts around each load
+        # `attaches` loads whole bluebooks inside the block; the shadow lifts around each load
         # (see `with_real_modules`), so loaded code sees the real modules.
         module ChapterConstants
           # @param name [Symbol] the missing constant
@@ -53,7 +53,7 @@ module Hecks
           @translates         = []
         end
 
-        # Marks this chapter as a bounded context; an attachment marks its chapter bounded too.
+        # Marks this bluebook as a bounded context; an attachment marks its bluebook bounded too.
         # Must declare at least one `translates` ACL or boot refuses.
         def bounded
           @bounded = true
@@ -69,15 +69,15 @@ module Hecks
         # @return [void]
         def driven_by(adapter) = @driving << adapter.to_s
 
-        # Attaches a chapter by name and loads it into the current registry, marked bounded.
+        # Attaches a bluebook by name and loads it into the current registry, marked bounded.
         #
-        # Without `from:` the name is a chapter the gem carries (a framework member such as
-        # Governance, or a language chapter such as Deploy) with the ports and adapters it
+        # Without `from:` the name is a bluebook the gem carries (a framework member such as
+        # Governance, or a language bluebook such as Deploy) with the ports and adapters it
         # ships. `from: :vendor` loads `vendor/embryonaut_bluebooks/<name>/bluebook` instead,
         # and is never a fallback for a misspelt gem name.
         #
-        # @param name [String, Symbol] a gem chapter's name or a vendored package's directory name
-        # @param from [Symbol, nil] `:vendor` for a vendored package, nil for a gem chapter
+        # @param name [String, Symbol] a gem bluebook's name or a vendored package's directory name
+        # @param from [Symbol, nil] `:vendor` for a vendored package, nil for a gem bluebook
         # @raise [Runtime::WiringError] if the name is unknown, or `from:` names another source
         def attaches(name, from: nil)
           unless [nil, :vendor].include?(from)
@@ -88,7 +88,7 @@ module Hecks
           from == :vendor ? attach_vendored(name) : attach_gem(name)
         end
 
-        # Declares a port at the hecksagon's root — the chapter as a whole, not one aggregate.
+        # Declares a port at the hecksagon's root — the bluebook as a whole, not one aggregate.
         def port_impl(name, &block)
           bluebook_ir = Hecks.current_registry.bluebook(@domain) or
             raise Malformed, "#{@domain} declares no such bluebook — a port needs one to belong to"
@@ -127,7 +127,7 @@ module Hecks
                         driving: @driving)
         end
 
-        # Loads a chapter the gem carries and records it as attached from the gem.
+        # Loads a bluebook the gem carries and records it as attached from the gem.
         def attach_gem(name)
           require_relative "../../chapters"
           @attachments << Attachment.new(name: name.to_s, source: :gem)
@@ -136,7 +136,7 @@ module Hecks
         end
         private :attach_gem
 
-        # Loads a vendored package and records it as attached from `vendor/`, under the chapter
+        # Loads a vendored package and records it as attached from `vendor/`, under the bluebook
         # its bluebook declares: `"document"` attaches `Documents`.
         def attach_vendored(name)
           chapter = Hecks::EmbryonautBluebook.load!(name)

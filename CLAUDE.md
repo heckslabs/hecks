@@ -62,14 +62,14 @@ Run a spec file through the launcher, which is the sanctioned path (see "Use the
 hecks binary" below):
 
 ```sh
-HECKS_ENVIRONMENT=memory exe/hecks test_suite_run.run_spec_example! \
+exe/hecks test_suite_run.run_spec_example! \
   file.value=spec/doc_banners_spec.rb "example.value= " --wait
 ```
 
 `example.value` filters on the full example description; a single space matches
-every example. The report ends with the example and failure counts. Without
-`HECKS_ENVIRONMENT=memory` it needs a local Postgres `hecks` database. The memory
-environment changes some behavior: two guide examples that retry a payment
+every example. The report ends with the example and failure counts. Hecks runs in Memory
+unless a local hecksagon opts it into PostgresEra (ADR 0136), so the run needs no database and no
+environment variable. Memory changes some behavior: two guide examples that retry a payment
 (`commands.md`, `policies-and-process-managers.md`) fail under it.
 
 A session isolated in a git worktree has had `bundle exec` with the spec runner
@@ -119,25 +119,28 @@ current list of what this repo can do.
 ## The push train records to its own database
 
 The push train (`~/.claude/hecks-train`, a detached checkout) writes its runs to a database its
-own gitignored `environments/local.world` names (`hecks_train`). The older `hecks_records` is an
-archive: do not boot a checkout against it.
+own gitignored local files (`hecks.local.hecksagon` and `hecks.local.world`, or the older
+`environments/local.*`) name (`hecks_train`). The older `hecks_records` is an archive: do not boot a
+checkout against it.
 
-- Dev work runs on `HECKS_ENVIRONMENT=memory`. Never export `HECKS_DATABASE` in a shell or a
-  profile: a checkout that boots a newer shape against a records database mints an era the
-  train's launcher then refuses, and the pushes stop. `exe/hecks config domain.value=<dir>`
-  prints each setting, its value and which source supplied it.
+- Dev work needs no environment variable: Hecks is in Memory unless a local hecksagon's root
+  `persisted_by "PostgresEra"` opts it in (the attached chapters inherit it), and only the train's
+  copy does. Do not add local files to a development checkout or point them at the train's
+  database: a checkout that boots a newer shape against a records database mints an era the
+  train's launcher then refuses, and the pushes stop.
+  `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
 - A change to the shape of a persisted chapter needs a translation edge under that chapter's
   `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
   `exe/hecks conformance_run.check_shape_ledger --wait` (a gate check, no database) fails with the
   edge to commit; `--confirm --additive` writes that empty edge and moves the ledger for a change
   that only adds, and `--confirm` alone moves it once an edge covers the move. Data that is
-  renamed or reshaped needs rules: `HECKS_DATABASE=<records url> exe/hecks query
-  era.scaffold_translation domain.value=<dir>` writes them from the database that holds the eras
-  (a read, for that one command), and `era.audit_translation` checks them.
+  renamed or reshaped needs rules: `exe/hecks query era.scaffold_translation domain.value=<dir>`
+  writes them from the database the domain's own world names (a client domain names it in its
+  world, the Hecks domain in a `hecks.local.world`), and `era.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
   (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
-  reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`); the
-  launcher's overlay declares `mint_eras true`.
+  reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`); the train
+  copy's local world declares `mint_eras true`.
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 

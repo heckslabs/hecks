@@ -4,7 +4,7 @@ require "hecks/composer/parse"
 module Hecks
   module Composer
     # Runs Hecks's own commands and queries in-process for a command palette and an Eras panel.
-    # It is on the hecksagon side like the other composer files: it boots the Hecks chapter once,
+    # It is on the hecksagon side like the other composer files: it boots the Hecks bluebook once,
     # on first use, and sends argv to the CLI runner one call at a time. A command that is not on
     # the safe list is guarded: it runs only when the caller echoes back a confirmation phrase.
     class Toolbox
@@ -24,7 +24,7 @@ module Hecks
         audit_translation: "era.audit_translation", compaction: "era.compaction"
       }.freeze
 
-      # @return [Toolbox] a toolbox that boots the Hecks chapter on first use
+      # @return [Toolbox] a toolbox that boots the Hecks bluebook on first use
       def initialize
         @lock = Mutex.new
         @runtime = nil

@@ -78,7 +78,7 @@ module Hecks
           end
 
           # What the help leaves out and points at for whoever typed the line: the maintainer's
-          # aggregates only in a hecks checkout, and the chapters the chapter's launcher names, each
+          # aggregates only in a hecks checkout, and the bluebooks the bluebook's launcher names, each
           # with the first sentence of what it is for.
           #
           # @return [Hash{Symbol => Object}] `:hide` and `:chapters` (pairs of word and summary)
@@ -90,7 +90,7 @@ module Hecks
             shown.merge(chapters: chapter_summaries(runtime, shown[:chapters]))
           end
 
-          # Each named chapter the domain attaches, as its word and the first sentence of its
+          # Each named bluebook the domain attaches, as its word and the first sentence of its
           # vision.
           def chapter_summaries(runtime, names)
             known = attached_chapters(runtime)
@@ -111,7 +111,7 @@ module Hecks
           # Reads the entry words of a line: whether it asks a query, the bare name, and the words
           # from the name on.
           #
-          # `query` gives queries their own namespace (`ask` is its older spelling); a chapter may
+          # `query` gives queries their own namespace (`ask` is its older spelling); a bluebook may
           # declare a command and a query of one name. A trailing `!` says the word is a command and
           # is not part of the name. A query answers to its bare name too; `query` is needed only
           # when a command shares it. The name may be written in the bluebook's verb form
@@ -135,9 +135,9 @@ module Hecks
             !cli[:names][:command].key?(name) && cli[:names][:question].key?(name)
           end
 
-          # The chapter a command line speaks to: the booted domain's own, or, when the first word
-          # names a chapter its hecksagon attaches or uses as a framework member (`deploy`,
-          # `governance`), that chapter, with the word dropped and added to the program name.
+          # The bluebook a command line speaks to: the booted domain's own, or, when the first word
+          # names a bluebook its hecksagon attaches or uses as a framework member (`deploy`,
+          # `governance`), that bluebook, with the word dropped and added to the program name.
           def chapter_for(runtime, argv, program)
             own    = runtime.first_bluebook
             target = attached_chapters(runtime).find { |name| Naming.snake(name) == argv.first }
@@ -146,7 +146,7 @@ module Hecks
             [runtime.bluebook(target), argv[1..], "#{program} #{argv.first}"]
           end
 
-          # The chapters the booted domain's hecksagon attaches or uses as framework members.
+          # The bluebooks the booted domain's hecksagon attaches or uses as framework members.
           def attached_chapters(runtime)
             own = runtime.first_bluebook
             Array(runtime.hecksagon(own.name)&.member_chapters)

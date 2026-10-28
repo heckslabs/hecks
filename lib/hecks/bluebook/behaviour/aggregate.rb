@@ -11,7 +11,7 @@ module Hecks
         include Owns
         include Stateful
 
-        # An aggregate joins its chapter's namespace with "::" ("Pizzas::Pizza");
+        # An aggregate joins its bluebook's namespace with "::" ("Pizzas::Pizza");
         # everything else joins its owner with ".".
         #
         # @return [String] the literal string `"::"`

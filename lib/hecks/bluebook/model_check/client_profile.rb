@@ -14,10 +14,10 @@ module Hecks
 
         module_function
 
-        # Runs every client-profile rule over one chapter.
+        # Runs every client-profile rule over one bluebook.
         #
-        # @param bluebook [Bluebook::Chapter] the assembled chapter to check
-        # @param hecksagon [Bluebook::Hecksagon, nil] the chapter's sibling wiring file
+        # @param bluebook [Bluebook::Chapter] the assembled bluebook to check
+        # @param hecksagon [Bluebook::Hecksagon, nil] the bluebook's sibling wiring file
         # @return [Array<ModelCheck::Finding>] one error-severity finding per construct refused
         def call(bluebook, hecksagon: nil)
           RULES.flat_map { |rule| public_send(rule, bluebook, hecksagon) }

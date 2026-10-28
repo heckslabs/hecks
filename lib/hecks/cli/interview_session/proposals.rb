@@ -2,7 +2,7 @@ module Hecks
   module CLI
     class InterviewSession
       # Putting an agent's proposed finding to the developer: reading its fields, proposing it to
-      # the SME chapter, describing it, and recording the decision.
+      # the SME bluebook, describing it, and recording the decision.
       module Proposals
         # The `Something refused — ` a refusal message opens with.
         REFUSAL_LEAD = /\A[A-Z]\w* refused\s+[—-]\s+/

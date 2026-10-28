@@ -17,9 +17,9 @@ module Hecks
 
       module_function
 
-      # Projects every reachable fact in the chapter into its flat sentence list.
+      # Projects every reachable fact in the bluebook into its flat sentence list.
       #
-      # @param bluebook [Bluebook::Chapter] the chapter being projected
+      # @param bluebook [Bluebook::Chapter] the bluebook being projected
       # @param options [Hash{Symbol => Object}] ignored; present to satisfy the
       #   `Projector::Target` calling convention
       # @return [Array<String>] each holder's relationships, invariants, moves and command
