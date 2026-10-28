@@ -11,6 +11,9 @@ module Hecks
       KINDS = %i[customer_supplier conformist anticorruption_layer shared_kernel open_host
                  partnership].freeze
 
+      # The kind of the derived edge that an `attaches` makes.
+      ATTACH = "shared_kernel".freeze
+
       # One context: its name and the team that owns it.
       Context = Struct.new(:name, :team, keyword_init: true)
 
@@ -19,7 +22,8 @@ module Hecks
       # `upstream` supplies and `downstream` consumes. `published` lists the upstream events a
       # downstream may depend on; `shared` the names two contexts hold in common (shared kernel).
       # `acknowledged` maps a finding kind about the relationship to the reason it is allowed.
-      Relationship = Struct.new(:upstream, :downstream, :kind, :published, :shared, :acknowledged,
+      # `implied` marks one the wiring states and no one wrote down (an `attaches`, ADR 0155).
+      Relationship = Struct.new(:upstream, :downstream, :kind, :published, :shared, :acknowledged, :implied,
                                 keyword_init: true) do
         # @return [Array(String, String)] the two contexts, sorted, whichever way the arrow runs
         def pair = [upstream, downstream].sort
@@ -59,7 +63,26 @@ module Hecks
       # @return [Boolean] whether the map declares the two contexts apart
       def separate?(left, right) = separate_ways.include?([left.to_s, right.to_s].sort)
 
+      # The map with each attach the wiring makes read as a `conformist` relationship, unless the
+      # map already says something about that pair or declares it apart (ADR 0155).
+      #
+      # @param edges [Array<Hash>] `Projections::ContextRelationships.call`
+      # @return [ContextMap] this map plus its implied relationships, or itself when none apply
+      def implying(edges)
+        implied = edges.select { |edge| edge[:kind] == ATTACH }.filter_map { |edge| implied_from(edge) }
+        return self if implied.empty?
+
+        self.class.new(name: name, contexts: contexts, relationships: relationships + implied.uniq,
+                       separate_ways: separate_ways)
+      end
+
       private
+
+      def implied_from(edge)
+        return if separate?(edge[:from], edge[:to]) || relationships_between(edge[:from], edge[:to]).any?
+
+        Relationship.new(upstream: edge[:to], downstream: edge[:from], kind: :conformist, implied: true)
+      end
 
       def refuse_unknown_kinds!
         unknown = relationships.map(&:kind).uniq - KINDS
