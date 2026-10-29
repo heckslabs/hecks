@@ -966,21 +966,13 @@ policy "RecordTheEra" do
     correlates_by :"run.value"
     starts_on Landing::ShipRequested
 
-    transition StyleRun::StyleCompleted => "checking", from: "fixing" do
-      dispatch ConformanceRun::CheckShapeLedger, with: { run: :run }
-    end
-
-    transition ConformanceRun::ConformanceAccepted => "gated", from: %w[checking needs_human] do
-      dispatch GateRun::Gate, with: { run: :run, stage: "quick" }
-    end
-
-    transition GateRun::GateCompleted => "landing", from: "gated" do
-      dispatch Landing::Land, with: { run: :run, checkout: :checkout, branch: :branch, onto: "main" }
-    end
-
-    transition Landing::BranchLanded => "boarding", from: "landing" do
-      dispatch PushTrain::Board, with: { run: :run, checkout: :checkout, branch: "main" }
-    end
+    # Each step records itself and waits. The caller dispatches the next command at top level:
+    # ConformanceRun.CheckShapeLedger, then GateRun.Gate, then Landing.Land, then PushTrain.Board.
+    # A dispatch made from inside this saga would run past the reaction depth bound.
+    transition StyleRun::StyleCompleted => "checking", from: "fixing"
+    transition ConformanceRun::ConformanceAccepted => "gated", from: %w[checking needs_human]
+    transition GateRun::GateCompleted => "landing", from: "gated"
+    transition Landing::BranchLanded => "boarding", from: "landing"
 
     transition PushTrain::BranchPushed => "boarded", from: "boarding"
     transition PushTrain::CarriedByEarlierPush => "boarded", from: "boarding"
