@@ -54,25 +54,34 @@ module Hecks
         correlates_by: -> { correlates_by&.to_s },
         starts_on:     :starts_on,
         ends_on:       :ends_on,
+        endings:       :endings,
         states:        :states,
         handlers:      many(:handlers)
       )
 
-      attr_reader :name, :correlates_by, :starts_on, :ends_on, :states, :handlers
+      attr_reader :name, :correlates_by, :starts_on, :ends_on, :endings, :states, :handlers
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        correlates_by: nil, starts_on: nil, ends_on: nil, states: [], handlers: []
+        correlates_by: nil, starts_on: nil, ends_on: nil, endings: [], states: [], handlers: []
       }.freeze
 
       # @param correlates_by [Symbol, nil] the payload field that correlates a triggering
       #   event to an instance
       # @param starts_on [String, nil] the event that starts a new instance
-      # @param ends_on [String, nil] the event that ends an instance
+      # @param ends_on [String, nil] the first event that ends an instance
+      # @param endings [Array<String>] every event that ends an instance, in declaration order;
+      #   empty when the declaration names only `ends_on`
       def initialize(name:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @name = name.to_s
       end
+
+      # Every event that ends an instance. A process manager that declares one `ends_on` has
+      # that event alone; one that declares several ends on any of them.
+      #
+      # @return [Array<String>] the ending events, never empty when `ends_on` is set
+      def ending_events = endings.empty? ? [ends_on].compact : endings
     end
   end
 end

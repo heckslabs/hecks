@@ -1,15 +1,15 @@
-# The ports CiSpeed declares, for every hecksagon that attaches the chapter. The chapter names the
+# The ports CiSpeed declares, for every hecksagon that attaches the bluebook. The bluebook names the
 # question it asks of GitHub and the one it asks of this machine, and never says how either is
 # answered; an adapter binds each.
 Hecks.hecksagon "CiSpeed" do
   # Answers with one run's record as GitHub reports it. The adapter runs the `gh` commands; the
-  # chapter takes back the document and records it through `Run::Observe`.
+  # bluebook takes back the document and records it through `Run::Observe`.
   CiSpeed::Run.port "CiReader" do
     answers_query "Reading"
   end
 
   # Runs an experiment's steps in two checkouts, interleaved, and answers with the numbers. The
-  # adapter makes the checkouts, times the steps and removes the checkouts; the chapter takes back
+  # adapter makes the checkouts, times the steps and removes the checkouts; the bluebook takes back
   # the answer and records it through `Experiment::Complete`, or the refusal through `Fault`.
   CiSpeed::Experiment.port "LocalRunner" do
     asks "Measure", to: Experiment do

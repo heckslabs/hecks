@@ -1233,6 +1233,20 @@ RSpec.describe "the DSL surface" do
       end
     end
 
+    # The checkout saga declared with two `ends_on` lines, so it ends on either.
+    def several_endings_process_manager
+      transition = checkout_transition
+      build_bluebook("Converse") do
+        process_manager "Checkout" do
+          correlates_by :"order.id"
+          starts_on "OrderPlaced"
+          ends_on   "OrderCompleted"
+          ends_on   "OrderCancelled"
+          instance_eval(&transition)
+        end
+      end.process_managers.first
+    end
+
     def checkout_process_manager
       transition = checkout_transition
       build_bluebook("Converse") do
@@ -1260,6 +1274,18 @@ RSpec.describe "the DSL surface" do
       # order — the same reading `Behaviour::Lifecycle#states` gives an
       # aggregate's own field.
       expect(checkout_process_manager.states).to eq(["awaiting_payment", "paid"])
+    end
+
+    it "process_manager with one ends_on ends on that event alone" do
+      expect(checkout_process_manager.ending_events).to eq(["OrderCompleted"])
+    end
+
+    it "process_manager with several ends_on ends on any of them, in declaration order" do
+      expect(several_endings_process_manager.ending_events).to eq(["OrderCompleted", "OrderCancelled"])
+    end
+
+    it "process_manager with several ends_on keeps the first as ends_on" do
+      expect(several_endings_process_manager.ends_on).to eq("OrderCompleted")
     end
 
     it "process_manager keeps what a transition dispatches", :aggregate_failures do

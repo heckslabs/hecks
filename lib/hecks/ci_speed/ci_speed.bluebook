@@ -8,7 +8,7 @@
 #
 # A proposed change is measured on this machine before a CI run is spent on it. An `Experiment`
 # times the same steps in a checkout of the pipeline as it is and a checkout with the change, the
-# two interleaved (see the aggregate below). The chapter is booted from its own directory, since
+# two interleaved (see the aggregate below). The bluebook is booted from its own directory, since
 # it is not attached to the launcher: each command is a separate process on Memory, so what an
 # experiment is to re-estimate has to be proposed in the same run, and the process has to stay up
 # until the port has answered. A step list does both and prints the settled experiment, its
@@ -215,9 +215,9 @@ Hecks.bluebook "CiSpeed" do
       emits "MissRunOverBudget"
     end
 
-    # The adapter answers what GitHub reports for one run. This chapter only names the question.
+    # The adapter answers what GitHub reports for one run. This bluebook only names the question.
     query "Reading" do
-      description "One run's record as GitHub reports it: wall time, cache state, conclusion, and each job's time. An adapter answers it; this chapter never fetches."
+      description "One run's record as GitHub reports it: wall time, cache state, conclusion, and each job's time. An adapter answers it; this bluebook never fetches."
       attribute :run_id, RunId
       returns Document
     end
@@ -540,7 +540,7 @@ Hecks.bluebook "CiSpeed" do
     end
 
     # A lever already learned from history, with the commit that shows it. It skips the attempt,
-    # because the runs that measured it are older than the chapter.
+    # because the runs that measured it are older than the bluebook.
     command "Recall" do
       role "CI engineer"
       goal "Record a lever that history already settled, with the commit that settled it"
@@ -613,9 +613,9 @@ Hecks.bluebook "CiSpeed" do
   # What an experiment can time is a row of `ExperimentDefinition`, and each row's steps are rows of
   # `ExperimentStep`, joined by the definition's name and read in the order written. A step is a
   # call of a hecks verb, never a shell line: a verb ending in `!` is a command, any other a query,
-  # and `arguments` are its `name=value` words, separated by spaces. The rows live in this chapter,
-  # as the language's own tables do (`CiGate`, `ReleaseFile`): the chapter is not attachable yet,
-  # so no client chapter can hold them, and `hecks run lib/hecks/ci_speed` boots them with it.
+  # and `arguments` are its `name=value` words, separated by spaces. The rows live in this bluebook,
+  # as the language's own tables do (`CiGate`, `ReleaseFile`): the bluebook is not attachable yet,
+  # so no client bluebook can hold them, and `hecks run lib/hecks/ci_speed` boots them with it.
   #
   # `needs_generated_tree` says what each sample starts from. `no` is a checkout with no generated
   # Rust, as a cache miss has it; `yes` is a copy of the generated tree of the checkout that asked.

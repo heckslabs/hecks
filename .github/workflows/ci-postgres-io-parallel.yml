@@ -134,7 +134,7 @@ jobs:
 
       # The io specs that build the main crate in place are self_consistency_rust_spec (pizzas and
       # banking), referral_chain_spec, has_many_spec and bench_spec (pizzas, committed). The crate
-      # declares every chapter outright, so banking, checkout_fixture and embryonaut_vendoring_demo
+      # declares every bluebook outright, so banking, checkout_fixture and embryonaut_vendoring_demo
       # supply the six it needs; the other domains are not read.
       - uses: ./.github/actions/generated-rust
         with:

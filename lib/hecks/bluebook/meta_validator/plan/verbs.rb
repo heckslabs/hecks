@@ -15,6 +15,15 @@ module Hecks
             end
           end
 
+          # Which arguments of which verbs are lists, read straight off the IR, so a list
+          # argument's items are each wrapped as a value rather than the list as one.
+          def lists_in(commands)
+            commands.each_with_object({}) do |command, found|
+              named = command.attributes.select(&:list?).map { |attribute| attribute.name.to_s }
+              found[command.hecks_name] = named unless named.empty?
+            end
+          end
+
           # Every reference argument is dropped, not just the parent link:
           # a reference is not a field.
           def declared_fields(declare)

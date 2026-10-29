@@ -1,6 +1,6 @@
-# The ports CiPipeline declares, for every hecksagon that attaches the chapter. The chapter
+# The ports CiPipeline declares, for every hecksagon that attaches the bluebook. The bluebook
 # names the questions it asks of its runner and its cache, and never says how they are
-# answered; an adapter binds each port. Declared only: no adapter lives in this chapter yet.
+# answered; an adapter binds each port. Declared only: no adapter lives in this bluebook yet.
 Hecks.hecksagon "CiPipeline" do
   # The runner answers what happened in a build, and the critical path through it. GitHub
   # Actions and a local run are each an adapter behind this port.

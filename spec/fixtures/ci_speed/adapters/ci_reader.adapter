@@ -1,5 +1,5 @@
-# Binds the `CiReader` port for `ci_speed.behaviors`, as the chapter's own adapter does: the
-# behaviors boot looks for adapters beside its first file, so the chapter's own directory is not
+# Binds the `CiReader` port for `ci_speed.behaviors`, as the bluebook's own adapter does: the
+# behaviors boot looks for adapters beside its first file, so the bluebook's own directory is not
 # searched and its real `LocalRunner` is never bound beside the replayed one.
 require "hecks/ci_speed/adapters/ci_reader"
 

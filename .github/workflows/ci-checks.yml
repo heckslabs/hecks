@@ -310,7 +310,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # The main crate's default build compiles the chapters mod.rs declares outright: banking brings
+      # The main crate's default build compiles the bluebooks mod.rs declares outright: banking brings
       # bulk and identity, checkout_fixture consolesettings and payments, embryonaut_vendoring_demo
       # widgets, and reserved_names_fixture is Cargo's default feature. rust/host's tests include
       # lease_clock's ir.json. Nothing else is linted, so the other domains are not regenerated.
@@ -393,7 +393,7 @@ jobs:
       - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_gates --wait
 
-      # The workflow files whose rows the CiWorkflows chapter declares (ci-rspec.yml so far) are
+      # The workflow files whose rows the CiWorkflows bluebook declares (ci-rspec.yml so far) are
       # written whole from those rows. Without --confirm the verb only compares, so a row edited
       # with no matching projection, or a projected file edited by hand, fails here.
       - name: "ci pipeline: project the workflow rows into their files, fail on drift"

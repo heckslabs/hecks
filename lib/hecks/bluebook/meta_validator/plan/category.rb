@@ -12,7 +12,7 @@ module Hecks
         Setter = Struct.new(:verb, :targets, keyword_init: true)
 
         Category = Struct.new(:name, :declare, :parent, :parent_key, :fields,
-                              :appends, :alternates, :setters, :sealers, :references,
+                              :appends, :alternates, :setters, :sealers, :references, :lists,
                               :identity_paths, :entity_owned,
                               keyword_init: true) do
           # Every verb this category declares, in declaration order; a verb missing
@@ -33,6 +33,15 @@ module Hecks
           # @return [Boolean] whether `argument` on `verb` is a reference
           def references?(verb, argument)
             Array(references[verb.to_s]).include?(argument.to_s)
+          end
+
+          # Whether `argument` on `verb` is a list, so each of its items is one value.
+          #
+          # @param verb [String] the command name declaring `argument`
+          # @param argument [String] the argument name to check
+          # @return [Boolean] whether `argument` on `verb` is declared as a list
+          def list?(verb, argument)
+            Array(lists&.dig(verb.to_s)).include?(argument.to_s)
           end
 
           # Whether this category has no parent — the root of the containment tree.
