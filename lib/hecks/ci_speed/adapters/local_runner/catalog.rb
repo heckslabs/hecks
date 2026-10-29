@@ -5,7 +5,7 @@ require "hecks/ci_speed/adapters/local_runner/refused"
 module Hecks
   module Adapters
     class LocalRunner
-      # The experiments the chapter knows how to run: its `ExperimentDefinition` rows, each with
+      # The experiments the bluebook knows how to run: its `ExperimentDefinition` rows, each with
       # the `ExperimentStep` rows that name it, in the order they are written.
       class Catalog
         # One step: a hecks verb and the `name=value` words it is called with.
@@ -28,24 +28,24 @@ module Hecks
           def generated_tree? = needs_generated_tree == "yes"
         end
 
-        # Reads the rows a chapter declares.
+        # Reads the rows a bluebook declares.
         #
-        # @param chapter [Bluebook::Chapter] the CiSpeed chapter
+        # @param bluebook [Bluebook::Declaration] the CiSpeed bluebook
         # @return [Catalog] its definitions
-        def self.from_chapter(chapter)
-          new(definitions_of(rows_of(chapter, "ExperimentDefinition"), rows_of(chapter, "ExperimentStep")))
+        def self.from_bluebook(bluebook)
+          new(definitions_of(rows_of(bluebook, "ExperimentDefinition"), rows_of(bluebook, "ExperimentStep")))
         end
 
-        # @param chapter [Bluebook::Chapter] a chapter to search
+        # @param bluebook [Bluebook::Declaration] a bluebook to search
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => String}>] its member rows
-        def self.rows_of(chapter, object)
-          value_objects_of(chapter).select { |candidate| candidate.hecks_name == object }.flat_map(&:members)
+        def self.rows_of(bluebook, object)
+          value_objects_of(bluebook).select { |candidate| candidate.hecks_name == object }.flat_map(&:members)
         end
 
-        # @param chapter [Bluebook::Chapter] a chapter to search
+        # @param bluebook [Bluebook::Declaration] a bluebook to search
         # @return [Array<Bluebook::ValueObject>] every value object of every aggregate
-        def self.value_objects_of(chapter) = chapter.aggregates.flat_map(&:value_objects)
+        def self.value_objects_of(bluebook) = bluebook.aggregates.flat_map(&:value_objects)
         private_class_method :value_objects_of
 
         # @param definitions [Array<Definition>] the experiments, by their own names

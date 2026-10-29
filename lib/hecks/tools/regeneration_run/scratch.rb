@@ -32,7 +32,7 @@ module Hecks
         end
 
         # Puts back, in the scratch crate, every module the named domains do not own, as the tree
-        # has it: a run of some domains rewrites the shared chapters and the grammar as its own last
+        # has it: a run of some domains rewrites the shared bluebooks and the grammar as its own last
         # writer would, which is not what the whole corpus's last writer left in the tree.
         #
         # @param scratch [String] the scratch crate

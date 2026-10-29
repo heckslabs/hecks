@@ -1,4 +1,4 @@
-# The CiPipeline chapter, bound so it boots standing alone (a behaviors or model_check boot of
+# The CiPipeline bluebook, bound so it boots standing alone (a behaviors or model_check boot of
 # this directory). The ports it shares with every attaching hecksagon are in
 # ci_pipeline.ports.hecksagon.
 Hecks.hecksagon "CiPipeline" do
@@ -6,7 +6,7 @@ Hecks.hecksagon "CiPipeline" do
   persisted_by "Memory"
 end
 
-# The anti-corruption layer for Governance, which the chapter's roles are checked against.
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
 Hecks.hecksagon "Governance" do
   persisted_by "Memory"
 end

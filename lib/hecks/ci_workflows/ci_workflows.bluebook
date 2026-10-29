@@ -1,4 +1,4 @@
-# Hecks's own workflows as rows: the client of the CiPipeline chapter. Each workflow file listed
+# Hecks's own workflows as rows: the client of the CiPipeline bluebook. Each workflow file listed
 # here is written by `hecks regeneration_run.project_ci_pipeline` from these rows and is never
 # edited by hand; the other files under .github/workflows are still hand-written and move here one
 # at a time.
@@ -8,7 +8,7 @@
 # `Job` row is one job, a `Need` row one job it waits for, an `Output` row one value it hands on
 # and an `Env` row one variable its steps see. A `Step` row is one step, in the order written, and
 # a `StepInput` row one `with:` input of the step whose handle it names. The fields a row may carry
-# and the closed sets their values come from are the CiPipeline chapter's Workflow, JobSpec and
+# and the closed sets their values come from are the CiPipeline bluebook's Workflow, JobSpec and
 # Step aggregates (lib/hecks/ci_pipeline/ci_pipeline.bluebook).
 #
 # A value is a YAML scalar as written: `14` is the number, `false` the boolean, and anything else

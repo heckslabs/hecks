@@ -17,7 +17,7 @@ module Hecks
           include Lookup
           include Refusals
 
-          # The chapter value objects whose pattern a field's text must match, by name.
+          # The bluebook value objects whose pattern a field's text must match, by name.
           PATTERNS = { workflow: %w[Workflow WorkflowName], secret: %w[Workflow SecretName],
                        env: %w[JobSpec EnvName], output: %w[JobSpec OutputKey], step_id: %w[JobSpec StepId],
                        shard_axis: %w[JobSpec ShardAxis] }.freeze

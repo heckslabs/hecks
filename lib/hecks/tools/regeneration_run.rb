@@ -78,7 +78,7 @@ module Hecks
       end
 
       # Regenerates the domains, then judges the scratch crate when there is one. A check of some
-      # domains judges only the modules those domains own: the rest, shared chapters and the
+      # domains judges only the modules those domains own: the rest, shared bluebooks and the
       # grammar, are what the corpus's last writer left, so they are put back as the tree has them.
       #
       # @param domains [Array<String>] the domains, in run order

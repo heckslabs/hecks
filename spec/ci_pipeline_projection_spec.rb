@@ -6,7 +6,7 @@ require "fileutils"
 require "hecks/tools"
 require "hecks/tools/ci_workflows"
 
-# The CiPipeline chapter projects GitHub Actions workflows: the CiWorkflows chapter declares
+# The CiPipeline bluebook projects GitHub Actions workflows: the CiWorkflows bluebook declares
 # ci-rspec.yml as flat rows, `hecks regeneration_run.project_ci_pipeline` writes the file from them,
 # and a check compares the file with the rows. This spec holds the projection to the workflow it
 # replaced: spec/fixtures/ci_pipeline/ci-rspec.original.yml is that workflow as it was committed
@@ -197,7 +197,7 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
 
     def rows
       @rows ||= Hecks::Projections::CiPipeline::Table::Typing::SHAPES.keys.to_h do |object|
-        [object, table.rows_of(table.chapter(@registry), object).map(&:dup)]
+        [object, table.rows_of(table.bluebook(@registry), object).map(&:dup)]
       end
     end
 
