@@ -133,7 +133,7 @@ jobs:
 
       - uses: ./.github/actions/cargo-cache
         with:
-          name: hosttest
+          name: hosttest2
           crate-root: rust/host
           target-dir: target-test
 
