@@ -11,6 +11,8 @@ Hecks.bluebook "Bluebook" do
     attribute :correlates_by, ProcessManagerText
     attribute :starts_on,     ProcessManagerText
     attribute :ends_on,       ProcessManagerText
+    # Every event that ends an instance, in declaration order; empty when only `ends_on` is declared.
+    attribute :endings,       list_of(ProcessManagerText), optional: true
     attribute :states,    list_of(SagaState)
     # Handler is a nested entity (below); list_of forward-references it.
     attribute :handlers,  list_of(Handler)
@@ -73,6 +75,7 @@ Hecks.bluebook "Bluebook" do
       attribute :starts_on,     ProcessManagerText
       # A procedure need not declare an ending; ProcessManagerBuilder defaults @ends_on to nil.
       attribute :ends_on,       ProcessManagerText, optional: true
+      attribute :endings,       list_of(ProcessManagerText), optional: true
 
       attribute :position, Position, optional: true
       sets :bluebook
@@ -80,6 +83,7 @@ Hecks.bluebook "Bluebook" do
       sets :correlates_by
       sets :starts_on
       sets :ends_on
+      sets :endings
       sets :position
       emits SagaDeclared
     end

@@ -13,6 +13,7 @@ module Hecks
             correlates_by: [:correlates_by, :identity],
             starts_on:     [:starts_on,     :plain],
             ends_on:       [:ends_on,       :plain],
+            endings:       [:endings,       :plain],
             states:        [:states,        :plain]
           },
           reads: { states: :names },

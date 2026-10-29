@@ -748,6 +748,9 @@
   "process_managers": [
     {
       "correlates_by": "reference.value",
+      "endings": [
+        "WireLanded"
+      ],
       "ends_on": "WireLanded",
       "handlers": [
         {

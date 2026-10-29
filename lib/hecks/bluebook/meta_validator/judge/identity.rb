@@ -17,13 +17,18 @@ module Hecks
             { value: text.to_s }
           end
 
-          # A reference argument is passed as the bare id it names; every
-          # other field is wrapped as a one-field value object instead.
+          # A reference argument is passed as the bare id it names; a list argument is passed
+          # as one value per item; every other field is wrapped as a one-field value object.
           def carried(plan, verb, argument, value)
-            return v(value) unless plan && verb && plan.references?(verb, argument)
+            return value if reference?(plan, verb, argument)
+            return value.map { |item| v(item) } if list?(plan, verb, argument, value)
 
-            value
+            v(value)
           end
+
+          def reference?(plan, verb, argument) = !!(plan && verb && plan.references?(verb, argument))
+
+          def list?(plan, verb, argument, value) = value.is_a?(Array) && !!(plan && verb && plan.list?(verb, argument))
 
           # A record's id is its declared identity, joined the same way the
           # runtime joins it, so there is exactly one way to name a thing.

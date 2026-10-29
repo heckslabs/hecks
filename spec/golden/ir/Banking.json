@@ -10516,6 +10516,9 @@
   "process_managers": [
     {
       "correlates_by": "reference.value",
+      "endings": [
+        "AccountOpened"
+      ],
       "ends_on": "AccountOpened",
       "handlers": [
         {
@@ -10566,6 +10569,9 @@
     },
     {
       "correlates_by": "reference.value",
+      "endings": [
+        "TransferSettled"
+      ],
       "ends_on": "TransferSettled",
       "handlers": [
         {
@@ -10716,6 +10722,9 @@
     },
     {
       "correlates_by": "end_to_end.value",
+      "endings": [
+        "ExternalTransferSent"
+      ],
       "ends_on": "ExternalTransferSent",
       "handlers": [
         {
