@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "open3"
 require_relative "tree"
 require_relative "test_runner"
+require_relative "changed_specs"
 require_relative "sqlite_fixture"
 require_relative "cargo_tests"
 require_relative "cache_clearing"
@@ -20,8 +22,16 @@ module Hecks
       # list change tracked files, so unconfirmed they report what they would do and write nothing.
       module TestSuite
         # Every operation this family carries out.
-        OPERATIONS = %w[refresh_runtime_baseline run_spec_example stress_concurrency run_cargo_tests clear_caches
-                        regenerate_legacy_fixtures seed_semantics_corpus write_io_parallel_spec_list].freeze
+        OPERATIONS = %w[refresh_runtime_baseline run_spec_example run_suite run_changed stress_concurrency
+                        run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
+                        write_io_parallel_spec_list].freeze
+
+        # The operations that run specs in a folder of their own: they need that folder to hold specs,
+        # not to be this checkout, so any project's suite runs through them.
+        FOLDER_OPERATIONS = %w[run_spec_example run_suite run_changed].freeze
+
+        # The spec directory a folder's whole suite lives in.
+        SPEC_DIRECTORY = "spec"
 
         # The tag filter the postgres job lists its specs by when none is named.
         DEFAULT_TAGS = "--tag io --tag ~fuzzing"
@@ -53,6 +63,8 @@ module Hecks
           args = plain(held)
           case operation
           when "run_spec_example" then spec_example(args, tree)
+          when "run_suite" then suite(args, tree)
+          when "run_changed" then changed(args, tree)
           when "run_cargo_tests" then CargoTests.run(args, tree, shell)
           when "clear_caches" then CacheClearing.clear
           else tooling(operation, args, tree, shell)
@@ -78,6 +90,46 @@ module Hecks
         # @return [String] what the runner printed
         def spec_example(args, tree)
           TestRunner.new(tree).run(file: args[:file], example: args[:example], env: spec_env(args), tags: args[:tags])
+        end
+
+        # Runs every spec of the folder's spec directory in one process.
+        #
+        # @param args [Hash] `tags`, `strict`, `seeds` and `environment`, each perhaps absent
+        # @param tree [Tree] the folder whose specs run
+        # @return [String] what the runner printed
+        def suite(args, tree)
+          TestRunner.new(tree).run_paths(paths: [SPEC_DIRECTORY], env: spec_env(args), tags: args[:tags])
+        end
+
+        # Runs the specs the files changed since a git ref map to, by name. Says so and runs nothing
+        # when no spec maps to a change, so an unmapped change never falls back to the whole suite.
+        #
+        # @param args [Hash] `base` (the ref, `origin/main` when absent), and the run's variables
+        # @param tree [Tree] the folder whose changes are read
+        # @return [String] what the runner printed, or that no spec maps to the changes
+        # @raise [ConsoleCapture::Failure] when git cannot read the changes
+        def changed(args, tree)
+          base = args[:base] || "origin/main"
+          files = changed_files(tree, base)
+          specs = Dir.glob("#{SPEC_DIRECTORY}/**/*_spec.rb", base: tree.root).sort
+          mapped = ChangedSpecs.call(files, specs)
+          return "no spec maps to the #{files.size} changed file(s) since #{base}; nothing run" if mapped.empty?
+
+          TestRunner.new(tree).run_paths(paths: mapped, env: spec_env(args), tags: args[:tags])
+        end
+
+        # The files that differ from the ref, tracked and untracked, relative to the folder.
+        #
+        # @param tree [Tree] the folder under git
+        # @param base [String] the ref to compare against
+        # @return [Array<String>] the changed files
+        # @raise [ConsoleCapture::Failure] when git refuses, with what it said
+        def changed_files(tree, base)
+          diff, status = Open3.capture2e("git", "-C", tree.root, "diff", "--name-only", base, "--")
+          raise ConsoleCapture::Failure, diff.strip unless status.success?
+
+          untracked, = Open3.capture2("git", "-C", tree.root, "ls-files", "--others", "--exclude-standard")
+          (diff.lines + untracked.lines).map(&:strip).reject(&:empty?).uniq
         end
 
         # The variables the specs read, set for one example only: the arguments of the run, so a

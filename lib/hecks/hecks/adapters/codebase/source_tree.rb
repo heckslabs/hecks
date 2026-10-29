@@ -52,8 +52,10 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `checkout:` whether hecks.gemspec stands beside lib/, and for
       #   a release the facts to judge
       def examine(**held)
-        answer = { checkout: { value: tree.checkout? } }
         operation = plain(held[:operation])
+        return { checkout: { value: folder_specs?(held) } } if Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation)
+
+        answer = { checkout: { value: tree.checkout? } }
         return answer.merge(promotion_facts(held)) if Codebase::Promotion::OPERATIONS.include?(operation)
         return answer unless Codebase::Publishing::OPERATIONS.include?(operation)
 
@@ -69,13 +71,13 @@ module Hecks
       # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
       # @raise [ConsoleCapture::Failure] when no family carries the operation out, or it refuses
       def perform(**held)
-        tree.require_checkout!
         operation = plain(held[:operation])
         family = FAMILIES.find { |candidate| candidate::OPERATIONS.include?(operation) }
         raise ConsoleCapture::Failure, "no task carries out #{operation.inspect}" unless family
 
+        working = Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation) ? folder_tree(held) : checkout_tree
         args = held.except(:operation)
-        done = family.call(operation, args, tree, shell: self.class.shell || Shell.new)
+        done = family.call(operation, args, working, shell: self.class.shell || Shell.new)
         done.is_a?(Hash) ? done : { report: { value: done } }
       end
 
@@ -241,6 +243,20 @@ module Hecks
       end
 
       def tree = Codebase::Tree.new
+
+      # The checkout this repository's own tooling works on, which must be a hecks checkout.
+      def checkout_tree
+        tree.require_checkout!
+        tree
+      end
+
+      # The folder a spec run works in: the one the request names, this checkout when none is.
+      def folder_tree(held) = Codebase::Tree.new(root: plain(held[:root]))
+
+      # Whether the folder a spec run names holds a spec directory, so any project's suite can run.
+      def folder_specs?(held)
+        File.directory?(File.join(folder_tree(held).root, Codebase::TestSuite::SPEC_DIRECTORY))
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
