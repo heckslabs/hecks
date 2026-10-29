@@ -7,7 +7,7 @@ require_relative "support/hecks_parse_binary"
 # `attribute :x, T, sets: true` in a command says what `attribute :x, T` followed by `sets :x`
 # says: the argument, and the plain write of the owner's field of the same name.
 RSpec.describe "attribute sets: true" do
-  CHAPTER = <<~BLUEBOOK.freeze
+  SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Shelf" do
       aggregate "Book" do
         identified_by :code
@@ -24,27 +24,27 @@ RSpec.describe "attribute sets: true" do
     end
   BLUEBOOK
 
-  # Yields the path of a file holding the chapter with `body` in its command.
-  def chapter_file(body)
+  # Yields the path of a file holding the bluebook with `body` in its command.
+  def bluebook_file(body)
     Dir.mktmpdir("sets-flag") do |dir|
       path = File.join(dir, "shelf.bluebook")
-      File.write(path, format(CHAPTER, body: body))
+      File.write(path, format(SOURCE, body: body))
       yield path
     end
   end
 
-  # The chapter as Ruby builds it.
+  # The bluebook as Ruby builds it.
   def exported(body)
-    chapter_file(body) do |path|
+    bluebook_file(body) do |path|
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) { load_bluebook_files(path) }
       Hecks::Projector::Exporter.call(registry).fetch("Shelf")
     end
   end
 
-  # What `hecks-parse` answers for the chapter: its output, its error and its status.
+  # What `hecks-parse` answers for the bluebook: its output, its error and its status.
   def parsed(body)
-    chapter_file(body) do |path|
+    bluebook_file(body) do |path|
       Open3.capture3(Hecks::Composer::Parse.binary, "bluebook", "--bluebook", "Shelf", path)
     end
   end

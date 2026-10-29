@@ -4,7 +4,7 @@ module Hecks
   module Projections
     module CiPipeline
       class Table
-        # The refusals a row earns from the chapter's closed sets and from what its job declares,
+        # The refusals a row earns from the bluebook's closed sets and from what its job declares,
         # each naming the row and listing what is valid. Mixed into `Rows`, which holds the
         # vocabulary in `@vocabulary` and the problems in `@problems`.
         module Refusals
@@ -25,7 +25,7 @@ module Hecks
                          "its jobs are #{names.join(", ")}")
           end
 
-          # A step uses an action or runs a command, and an action is one the chapter admits.
+          # A step uses an action or runs a command, and an action is one the bluebook admits.
           def refuse_uses(row)
             uses = row[:uses]
             refuse_both(row) unless uses.empty? || row[:run].empty?

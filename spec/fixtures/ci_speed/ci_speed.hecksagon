@@ -1,7 +1,7 @@
-# The CiSpeed chapter bound as `ci_speed.hecksagon` binds it, for `ci_speed.behaviors`. It stands
+# The CiSpeed bluebook bound as `ci_speed.hecksagon` binds it, for `ci_speed.behaviors`. It stands
 # beside `adapters/`, which holds the adapters that behaviors boot runs with: a boot looks for
 # adapters beside its first file, and this is that file. The ports it shares with every attaching
-# hecksagon are in the chapter's own `ci_speed.ports.hecksagon`.
+# hecksagon are in the bluebook's own `ci_speed.ports.hecksagon`.
 Hecks.hecksagon "CiSpeed" do
   attaches "Governance"
   persisted_by "Memory"

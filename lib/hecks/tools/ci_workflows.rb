@@ -7,7 +7,7 @@ require_relative "../projections/ci_pipeline/workflows"
 
 module Hecks
   module Tools
-    # Projects the workflow rows of the CiWorkflows chapter into the workflow files under
+    # Projects the workflow rows of the CiWorkflows bluebook into the workflow files under
     # `.github/workflows`: each `Workflow` row becomes one file, written whole from its rows
     # (`Projections::CiPipeline::Workflows`, the `:ci_workflows` projection).
     #
@@ -16,8 +16,8 @@ module Hecks
     # A workflow with no row is hand-written and left alone. With `--check` nothing is written: the
     # tool answers 1 and names each file that differs from its rows.
     module CiWorkflows
-      # The directory of the chapter that declares the rows, which attaches the CiPipeline chapter.
-      CHAPTER_DIRECTORY = File.expand_path("../ci_workflows", __dir__)
+      # The directory of the bluebook that declares the rows, which attaches the CiPipeline bluebook.
+      BLUEBOOK_DIRECTORY = File.expand_path("../ci_workflows", __dir__)
 
       # The directory `ports/` and `adapters/` live under, loaded before the rows are.
       LIB_HECKS = File.expand_path("..", __dir__)
@@ -48,24 +48,24 @@ module Hecks
       # @raise [SystemExit] when the rows are refused
       def projection(root)
         registry = registry_for
-        chapter = Projections::CiPipeline::Table.chapter(registry)
-        table = Projections::CiPipeline::Table.read(chapter, registry: registry)
-        files = Projector.call(:ci_workflows, bluebook: chapter, options: { table: table })
+        bluebook = Projections::CiPipeline::Table.bluebook(registry)
+        table = Projections::CiPipeline::Table.read(bluebook, registry: registry)
+        files = Projector.call(:ci_workflows, bluebook: bluebook, options: { table: table })
         files.transform_keys { |path| File.join(root, path) }
       rescue Projections::CiPipeline::Table::Invalid => e
         abort "project_ci_pipeline: #{e.message}"
       end
 
-      # Loads the chapter that declares the rows the way a deploy loads a project: the bluebooks,
+      # Loads the bluebook that declares the rows the way a deploy loads a project: the bluebooks,
       # then the hecksagons that attach the bluebooks they need.
       #
       # @return [Hecks::Runtime::Registry] the registry
       def registry_for
-        registry = Hecks::Runtime::Registry.new(root: CHAPTER_DIRECTORY)
+        registry = Hecks::Runtime::Registry.new(root: BLUEBOOK_DIRECTORY)
         Hecks.with_registry(registry) do
           WIRING.each { |file| Kernel.load(File.join(LIB_HECKS, file)) }
-          Dir.glob(File.join(CHAPTER_DIRECTORY, "*.bluebook")).each { |file| Kernel.load(file) }
-          Dir.glob(File.join(CHAPTER_DIRECTORY, "*.hecksagon")).each { |file| Kernel.load(file) }
+          Dir.glob(File.join(BLUEBOOK_DIRECTORY, "*.bluebook")).each { |file| Kernel.load(file) }
+          Dir.glob(File.join(BLUEBOOK_DIRECTORY, "*.hecksagon")).each { |file| Kernel.load(file) }
         end
         registry
       end

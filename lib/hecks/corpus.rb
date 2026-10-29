@@ -45,7 +45,7 @@ module Hecks
       tenancy:      "lib/hecks/tenancy/bluebook/*.bluebook",
       bulk:         "lib/hecks/bulk/bluebook/*.bluebook",
       sme:          "lib/hecks/sme/bluebook/*.bluebook",
-      # The CI chapters keep their bluebook beside their hecksagon, not under a `bluebook/` folder.
+      # The CI bluebooks keep their bluebook beside their hecksagon, not under a `bluebook/` folder.
       # CiPipeline is attachable; CiSpeed boots from its own directory; CiWorkflows is the client
       # whose rows project into .github/workflows.
       ci_pipeline:  "lib/hecks/ci_pipeline/*.bluebook",
