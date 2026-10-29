@@ -7,7 +7,7 @@ require_relative "support/hecks_parse_binary"
 # `attribute :x, T, sets: true` in a command says what `attribute :x, T` followed by `sets :x`
 # says: the argument, and the plain write of the owner's field of the same name.
 RSpec.describe "attribute sets: true" do
-  SOURCE = <<~BLUEBOOK.freeze
+  SETS_FLAG_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Shelf" do
       aggregate "Book" do
         identified_by :code
@@ -28,7 +28,7 @@ RSpec.describe "attribute sets: true" do
   def bluebook_file(body)
     Dir.mktmpdir("sets-flag") do |dir|
       path = File.join(dir, "shelf.bluebook")
-      File.write(path, format(SOURCE, body: body))
+      File.write(path, format(SETS_FLAG_BLUEBOOK, body: body))
       yield path
     end
   end
