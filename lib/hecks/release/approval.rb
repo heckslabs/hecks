@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/vocabulary"
+require "hecks/release/version_commit"
 
 module Hecks
   module Release
@@ -57,12 +58,14 @@ module Hecks
 
       # Reads the decision's inputs from the environment `release.yml` gives it.
       #
-      # @param env [#[]] `COMMIT_MESSAGE`, `TAG_EXISTS` (true/false), `APPROVED_BY`
+      # @param env [#[]] `COMMIT_MESSAGE`, or `COMMIT` (the first-parent commit that set the version,
+      #   whose message is read as {VersionCommit} reads it), `TAG_EXISTS` (true/false), `APPROVED_BY`
       # @param out [#puts] where the words go
       # @return [Integer] the exit status: 0 to go ahead, 1 to refuse
       def check(env: ENV, out: $stdout)
-        ok, words = verdict(message: env["COMMIT_MESSAGE"], tag_exists: env["TAG_EXISTS"] == "true",
-                            explicit: env["APPROVED_BY"])
+        ok, words = verdict(message:    env["COMMIT_MESSAGE"] || VersionCommit.message(env["COMMIT"].to_s),
+                            tag_exists: env["TAG_EXISTS"] == "true",
+                            explicit:   env["APPROVED_BY"])
         out.puts(ok ? "release approval: #{words}" : "::error::#{words}")
         ok ? 0 : 1
       end
