@@ -128,6 +128,22 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unlanded"
   end
 
+  Hecks::PullRequest.port "GitHubPullRequests" do
+    asks "Create", to: PullRequest do
+      attribute :run, RunKey
+      answers "OpenAnswered"
+      refuses "OpenRefused"
+    end
+
+    asks "Squash", to: PullRequest do
+      attribute :run, RunKey
+      answers "SquashAnswered"
+      refuses "SquashRefused"
+    end
+
+    answers_query "Status"
+  end
+
   # The outside an agent run reaches: it finds the directory, starts the background session, and
   # reports the state the session is in. The state is judged in the bluebook, not here.
   Hecks::AgentRun.port "Agents" do
