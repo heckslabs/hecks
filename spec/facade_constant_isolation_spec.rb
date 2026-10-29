@@ -6,7 +6,7 @@ RSpec.describe FacadeConstantIsolation do
   after do
     Hecks::Namespace::GENERATED.delete([Object, "IsolationProbe"])
     # The probe is installed on purpose and must not outlive the example.
-    Object.send(:remove_const, :IsolationProbe) if Object.const_defined?(:IsolationProbe, false) # rubocop:disable RSpec/RemoveConst -- the probe must not outlive the example
+    Object.send(:remove_const, :IsolationProbe) if Object.const_defined?(:IsolationProbe, false)
   end
 
   it "removes a facade constant installed after the snapshot", :aggregate_failures do

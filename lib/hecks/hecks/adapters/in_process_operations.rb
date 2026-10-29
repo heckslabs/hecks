@@ -121,8 +121,6 @@ module Hecks
         output(ConsoleCapture.answer { CLI::SmokeTest.call(argv, root: checkout_root || Dir.pwd) })
       end
 
-      # rubocop:disable Metrics/ParameterLists -- the keywords are the `Follow` query's declared arguments
-
       # A domain's event log past a cursor, answered once: what the stream yielded before it
       # ended. Pass the answered `cursor` back as `since` to keep tailing. `wait` bounds the stream
       # and it ends at the first entries, so a call returns as soon as there is something to say.
@@ -136,7 +134,6 @@ module Hecks
       # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil)
-        # rubocop:enable Metrics/ParameterLists
         registry = boot(domain).registry
         entries = []
         cursor = stream(domain: domain, aggregate: aggregate, since: since, from_now: from_now,
@@ -147,8 +144,6 @@ module Hecks
         end
         { cursor: cursor, events: entries, taken_at: Time.at(Ports::Clock.now(registry)).utc.iso8601 }
       end
-
-      # rubocop:disable Metrics/ParameterLists -- the keywords are the caller-facing shape of a tail
 
       # Tails a domain's event log, handing each entry to the block as the log shows it, until
       # the block returns `:stop` (or `:batch`: after this check's entries), `limit` entries were
@@ -164,7 +159,6 @@ module Hecks
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def stream(domain:, aggregate: nil, since: nil, from_now: nil, limit: nil, timeout: nil, interval: nil,
                  registry: nil, &)
-        # rubocop:enable Metrics/ParameterLists
         repository = event_repository(domain, registry)
         tail = Tail.new(plain(since)&.to_i || (plain(from_now) ? repository.events.size : 0), 0, false)
         bounds = Bounds.new(plain(aggregate), plain(limit)&.to_i, deadline_for(timeout), plain(interval))

@@ -3,7 +3,6 @@ require "spec_helper"
 # A fan-out's row id arrives as a bare `chit:` when the trigger acts on the fanned aggregate,
 # and as `chit_id:` when the trigger stores it as a reference.
 RSpec.describe "a for_each policy's row id" do
-  # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
   def boot_keys
     registry = Hecks::Runtime::Registry.new
 

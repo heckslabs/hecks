@@ -204,6 +204,9 @@ Style/FrozenStringLiteralComment:
 # The comment linter (style_run.check_comments) owns comment length at 100 columns,
 # so a full-line comment is exempt here; code itself still holds to 130.
 Layout/LineLength:
+  # characterization tables with one long row per line
+  Exclude:
+    - "spec/runtime/invocation_spec.rb"
   Max: 130
   AllowedPatterns:
     - '\A\s*#'
@@ -214,6 +217,9 @@ Style/StringLiterals:
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
 Layout/HashAlignment:
+  # the multi-line procs overrun LineLength under table alignment
+  Exclude:
+    - "spec/translation/language_spec.rb"
   EnforcedHashRocketStyle: table
   EnforcedColonStyle: table
 
@@ -268,3 +274,160 @@ RSpec/LeakyConstantDeclaration:
 # side effects that examples depend on without naming the value.
 RSpec/InstanceVariable:
   Enabled: false
+
+# Overrides moved from inline `rubocop:disable` comments; each cop states its reason once.
+# `private` does not reach `def self.`; the entry point is public on purpose
+Lint/IneffectiveAccessModifier:
+  Exclude:
+    - "lib/hecks/bluebook/dsl/port_operation_builder.rb"
+
+# deliberately escapes `rescue => e`, which catches StandardError only
+Lint/InheritException:
+  Exclude:
+    - "spec/runtime/saga_crash_recovery_spec.rb"
+
+# rolls back, then re-raises
+Lint/RescueException:
+  Exclude:
+    - "lib/hecks/framework_bluebooks.rb"
+
+# the member shadows a Struct or Enumerable method on purpose; the file says which, and specs assert on it
+Lint/StructNewOverride:
+  Exclude:
+    - "lib/hecks/bluebook/dsl/attribute_collector.rb"
+    - "lib/hecks/bluebook/meta_validator/plan/category.rb"
+    - "lib/hecks/bluebook/translation.rb"
+    - "lib/hecks/runtime/entity_interpreter.rb"
+
+# the block parameter's name is read by reflection
+Lint/UnusedBlockArgument:
+  Exclude:
+    - "spec/dsl_spec.rb"
+
+# spec boot helpers wire a whole runtime; splitting them hides the wiring
+Metrics/AbcSize:
+  Exclude:
+    - "spec/fuzzing/fan_out_spec.rb"
+    - "spec/mutation_arithmetic_absent_current_spec.rb"
+    - "spec/runtime/copy_from_state_spec.rb"
+    - "spec/runtime/ensures_spec.rb"
+    - "spec/runtime/policy_emitter_identity_spec.rb"
+    - "spec/runtime/policy_fan_out_key_spec.rb"
+    - "spec/runtime/policy_projection_spec.rb"
+    - "spec/runtime/policy_spec.rb"
+    - "spec/runtime/query_interpreter_entity_paging_spec.rb"
+
+# spec boot helpers wire a whole runtime; splitting them hides the wiring
+Metrics/MethodLength:
+  Exclude:
+    - "spec/fuzzing/fan_out_spec.rb"
+    - "spec/mutation_arithmetic_absent_current_spec.rb"
+    - "spec/runtime/copy_from_state_spec.rb"
+    - "spec/runtime/ensures_spec.rb"
+    - "spec/runtime/policy_emitter_identity_spec.rb"
+    - "spec/runtime/policy_fan_out_key_spec.rb"
+    - "spec/runtime/policy_projection_spec.rb"
+    - "spec/runtime/policy_spec.rb"
+    - "spec/runtime/query_interpreter_entity_paging_spec.rb"
+
+# keyword and positional signatures every caller spells out; a parameter object would hide the call shape
+Metrics/ParameterLists:
+  Exclude:
+    - "lib/hecks/adapters/driven/tenant_provisioner.rb"
+    - "lib/hecks/adapters/driving/cli_runner/answers.rb"
+    - "lib/hecks/adapters/driving/cli_runner/settling.rb"
+    - "lib/hecks/adapters/driving/cli_runner/streaming.rb"
+    - "lib/hecks/cli/interview_run.rb"
+    - "lib/hecks/cli/interview_session.rb"
+    - "lib/hecks/cli/project_cli/launcher_source.rb"
+    - "lib/hecks/hecks/adapters/in_process_operations.rb"
+    - "lib/hecks/runtime/command_interpreter.rb"
+    - "lib/hecks/runtime/command_rules/admissibility.rb"
+    - "lib/hecks/runtime/command_rules/emission.rb"
+    - "lib/hecks/runtime/dispatcher.rb"
+    - "lib/hecks/runtime/entity_element/location.rb"
+    - "lib/hecks/runtime/entity_element/mutations.rb"
+    - "lib/hecks/runtime/instance.rb"
+    - "lib/hecks/runtime/invocation_builder.rb"
+    - "lib/hecks/runtime/reaction_invocation.rb"
+    - "lib/hecks/runtime/saga_interpreter/delivery.rb"
+
+# returns the operation's outcome (a row, a value, a verdict); the name is the port's verb, not a question
+Naming/PredicateMethod:
+  Exclude:
+    - "lib/hecks/adapters/driven/heki.rb"
+    - "lib/hecks/adapters/driven/in_process_key_vault.rb"
+    - "lib/hecks/adapters/driven/memory/outbox_rows.rb"
+    - "lib/hecks/adapters/driven/postgres/outbox.rb"
+    - "lib/hecks/adapters/driven/postgres/repository.rb"
+    - "lib/hecks/adapters/driven/postgres_era.rb"
+    - "lib/hecks/adapters/driven/sqlite/dispatch_claims.rb"
+    - "lib/hecks/adapters/driven/sqlite/outbox.rb"
+    - "lib/hecks/adapters/driven/sqlite/repository.rb"
+    - "lib/hecks/composer/jobs.rb"
+    - "lib/hecks/ports/key_vault.rb"
+    - "lib/hecks/ports/persistence/append_only.rb"
+    - "lib/hecks/tools/evolve_run.rb"
+    - "lib/hecks/tools/fuzz_sweep/pool.rb"
+
+# the DSL verb is the name a bluebook author writes
+Naming/PredicatePrefix:
+  Exclude:
+    - "lib/hecks/bluebook/dsl/aggregate_builder/relationships.rb"
+    - "lib/hecks/bluebook/dsl/entity_builder.rb"
+
+# a scenario example carries its whole bluebook fixture
+RSpec/ExampleLength:
+  Exclude:
+    - "spec/entity_attribute_type_resolution_spec.rb"
+    - "spec/rust_conformance_fuzz_spec.rb"
+    - "spec/world_binding_settings_spec.rb"
+
+# the spec exercises console output
+RSpec/Output:
+  Exclude:
+    - "spec/adapters/driven/console_capture_spec.rb"
+    - "spec/support/fake_codebase_shell.rb"
+
+# the probe constant must not outlive the example
+RSpec/RemoveConst:
+  Exclude:
+    - "spec/facade_constant_isolation_spec.rb"
+    - "spec/support/facade_constant_isolation.rb"
+    - "spec/support/in_process_launcher.rb"
+
+# reads our own cache or the gem's own file, never external input
+Security/MarshalLoad:
+  Exclude:
+    - "lib/hecks/bluebook/meta_validator/syntax_boot/disk_cache.rb"
+
+# the bluebook expression language refuses between?; the spelling is the case under test
+Style/ComparableBetween:
+  Exclude:
+    - "spec/dsl_spec.rb"
+
+# deliberately without file and line: exercises the untraceable-source refusal
+Style/EvalWithLocation:
+  Exclude:
+    - "spec/dsl_spec.rb"
+
+# the text is curl's own token or table row text, not a Ruby format string
+Style/FormatStringToken:
+  Exclude:
+    - "lib/hecks/projections/ci_pipeline/table/checks.rb"
+    - "lib/hecks/projections/deploy/box/roll_scripts.rb"
+
+# a forked child reopens the standard streams to capture its output
+Style/GlobalStdStream:
+  Exclude:
+    - "lib/hecks/tools/regeneration_run/pool.rb"
+
+# registries and caches are mutable by design (see ThreadSafety/MutableClassInstanceVariable)
+Style/MutableConstant:
+  Exclude:
+    - "lib/hecks/adapters/driven/postgres/shared_connection.rb"
+    - "lib/hecks/adapters/driven/prism.rb"
+    - "lib/hecks/adapters/driving.rb"
+    - "lib/hecks/behaviors/expectations/boot.rb"
+    - "lib/hecks/ports/persistence/codec_boundary.rb"
+    - "lib/hecks/runtime/dependency_planning/expression_reads.rb"

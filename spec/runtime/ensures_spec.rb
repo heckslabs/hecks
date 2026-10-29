@@ -15,8 +15,6 @@ RSpec.describe "a command's ensures" do
 
   # A scratch domain: one command whose postcondition holds and one whose does not.
   # Declared as one bluebook block so the whole domain reads in one place.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def vault
     boot do
       vision "A box that only ever grows, or refuses to have grown wrong."
@@ -131,8 +129,6 @@ RSpec.describe "a command's ensures" do
   # copy in EntityInterpreter#element_of) a refused ensures would leave the record mutated.
   describe "an aliasing bug ensures was the first feature to expose" do
     # Same shape as `vault`: one declarative fixture covering the aggregate and entity paths.
-    # rubocop:disable-next Metrics/AbcSize
-    # rubocop:disable-next Metrics/MethodLength
     def coin
       boot("Coin") do
         vision "One coin, and a purse of coins — the aggregate case and the entity case."

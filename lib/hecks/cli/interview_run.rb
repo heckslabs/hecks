@@ -26,7 +26,7 @@ module Hecks
       # @param runtime [Runtime, nil] a booted SME bluebook to use instead of booting one
       # @return [String] the report that was printed, or "" when nothing was written
       # @raise [ArgumentError] when the name or adapter is refused, or a file would be replaced
-      def call(name:, adapter: nil, dir: nil, expert: nil, use_ai: true, input: $stdin, output: $stdout, agent: nil, # rubocop:disable Metrics/ParameterLists -- one keyword per setting the command takes
+      def call(name:, adapter: nil, dir: nil, expert: nil, use_ai: true, input: $stdin, output: $stdout, agent: nil,
                runtime: nil)
         DomainStub.support_files(name: name, adapter: adapter)
         target = File.expand_path(dir || DomainStub.directory(name), Dir.pwd)

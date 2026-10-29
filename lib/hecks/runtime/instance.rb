@@ -19,7 +19,6 @@ module Hecks
       # `hydrate_with:` replaces the default hydration with a callable that takes the given
       # state and answers the hydrated one (defaults filled), for an adapter that can reuse
       # work across saves.
-      # rubocop:disable-next Metrics/ParameterLists -- the public keyword constructor every caller spells out
       def initialize(aggregate:, id:, state: nil, args: nil, hydrate: true, hydrate_with: nil)
         @aggregate = aggregate
         @id        = id

@@ -37,7 +37,6 @@ module Hecks
         # Applies one declared mutation to an entity element, in place. `pre` is the
         # element as it stood before this command: every read goes through it, every
         # write lands on `element`.
-        # rubocop:disable-next Metrics/ParameterLists -- the positional signature callers (and specs) wrap
         def apply_to_element(rules, aggregate, entity, element, mutation, args, pre = element)
           handler = OP_HANDLERS.fetch(mutation.op) do
             # Backstop: an unhandled op must refuse, not silently apply nothing.

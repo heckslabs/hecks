@@ -4,7 +4,6 @@ module Hecks
       class Plan
         # One append command: the verb, and the value-object-field -> argument map.
         # `:map` shadows Enumerable#map on purpose; spec/plan_spec.rb asserts on it.
-        # rubocop:disable-next Lint/StructNewOverride
         Append = Struct.new(:verb, :map, keyword_init: true)
 
         # One setting command. `targets` is target -> argument ; Lifecycle sets two

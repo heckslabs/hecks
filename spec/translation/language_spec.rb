@@ -11,7 +11,6 @@ RSpec.describe "the translation language" do
   # single hash literal rather than one `it` per row.
   # The repo's `table` HashAlignment style would push every `=>` so far right that the
   # multi-line procs overrun LineLength.
-  # rubocop:disable-next Layout/HashAlignment
   REQUIRED_FIELD_REFUSALS = {
     proc { aggregate("Account") { rename nil, to: :amount } } => "a rename needs a source name",
     proc {
