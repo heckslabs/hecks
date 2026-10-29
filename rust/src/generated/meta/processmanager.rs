@@ -2826,6 +2826,7 @@ pub struct ProcessManager {
     pub correlates_by: Option<ProcessManagerText>,
     pub starts_on: Option<ProcessManagerText>,
     pub ends_on: Option<ProcessManagerText>,
+    pub endings: Option<Vec<ProcessManagerText>>,
     pub states: Vec<SagaState>,
     pub handlers: Vec<Handler>,
     pub position: Option<Position>,
@@ -2860,6 +2861,11 @@ impl crate::kernel::Fielded for ProcessManager {
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
+            "endings" => self
+                .endings
+                .as_ref()
+                .map(|v| Field::Value(Value::List(v.len())))
+                .or(Some(Field::Value(Value::Nil))),
             "states" => Some(Field::Value(Value::List(self.states.len()))),
             "handlers" => Some(Field::Value(Value::List(self.handlers.len()))),
             "position" => self
@@ -2875,6 +2881,10 @@ impl crate::kernel::Fielded for ProcessManager {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
+            "endings" => self
+                .endings
+                .as_ref()
+                .map(|items| items.iter().map(|v| Field::Nested(v)).collect()),
             "states" => Some(self.states.iter().map(|v| Field::Nested(v)).collect()),
             "handlers" => Some(self.handlers.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
@@ -2920,6 +2930,14 @@ impl ProcessManager {
                 self.ends_on
                     .as_ref()
                     .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+            ),
+            (
+                "endings".to_string(),
+                self.endings
+                    .as_ref()
+                    .map_or(crate::kernel::Json::Null, |v| {
+                        crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())
+                    }),
             ),
             (
                 "states".to_string(),
@@ -2980,6 +2998,22 @@ impl ProcessManager {
                 Some(x) => Some(ProcessManagerText::from_json(
                     &x.coerce_single_field("value"),
                 )?),
+            },
+            endings: match v.get("endings") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(
+                    x.as_array()
+                        .ok_or_else(|| {
+                            crate::kernel::Refusal::TypeMismatch(
+                                "ProcessManager.endings: expected an array".to_string(),
+                            )
+                        })?
+                        .iter()
+                        .map(|item| {
+                            ProcessManagerText::from_json(&item.coerce_single_field("value"))
+                        })
+                        .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
+                ),
             },
             states: match v.get("states").and_then(crate::kernel::Json::as_array) {
                 Some(items) => items
@@ -3058,6 +3092,11 @@ impl crate::kernel::Fielded for DeclareArgs {
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
+            "endings" => self
+                .endings
+                .as_ref()
+                .map(|v| Field::Value(Value::List(v.len())))
+                .or(Some(Field::Value(Value::Nil))),
             "position" => self
                 .position
                 .as_ref()
@@ -3071,6 +3110,10 @@ impl crate::kernel::Fielded for DeclareArgs {
         #[allow(unused_imports)]
         use crate::kernel::{Field, Value};
         match name {
+            "endings" => self
+                .endings
+                .as_ref()
+                .map(|items| items.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
     }
@@ -3087,6 +3130,7 @@ pub struct DeclareArgs {
     pub correlates_by: ProcessManagerText,
     pub starts_on: ProcessManagerText,
     pub ends_on: Option<ProcessManagerText>,
+    pub endings: Option<Vec<ProcessManagerText>>,
     pub position: Option<Position>,
 }
 
@@ -3104,6 +3148,11 @@ pub fn dispatch_declare(
     args.starts_on.check_invariants()?;
     if let Some(v) = &args.ends_on {
         v.check_invariants()?;
+    }
+    if let Some(items) = &args.endings {
+        for item in items {
+            item.check_invariants()?;
+        }
     }
     if let Some(v) = &args.position {
         v.check_invariants()?;
@@ -3137,6 +3186,7 @@ pub fn dispatch_declare(
                         correlates_by: Some(args.correlates_by.clone()),
                         starts_on: Some(args.starts_on.clone()),
                         ends_on: args.ends_on.clone(),
+                        endings: args.endings.clone(),
                         states: vec![],
                         handlers: vec![],
                         position: args.position.clone(),
@@ -3154,6 +3204,7 @@ pub fn dispatch_declare(
                         correlates_by: Some(args.correlates_by.clone()),
                         starts_on: Some(args.starts_on.clone()),
                         ends_on: args.ends_on.clone(),
+                        endings: args.endings.clone(),
                         states: vec![],
                         handlers: vec![],
                         position: args.position.clone(),
@@ -3175,6 +3226,7 @@ pub fn dispatch_declare(
             record.correlates_by = Some(args.correlates_by.clone());
             record.starts_on = Some(args.starts_on.clone());
             record.ends_on = args.ends_on.clone();
+            record.endings = args.endings.clone();
             record.position = args.position.clone();
             Ok(())
         },
@@ -3206,6 +3258,14 @@ impl DeclareArgs {
                         .map_or(crate::kernel::Json::Null, |v| v.to_json()),
                 ),
                 (
+                    "endings".to_string(),
+                    self.endings
+                        .as_ref()
+                        .map_or(crate::kernel::Json::Null, |v| {
+                            crate::kernel::Json::Array(v.iter().map(|x| x.to_json()).collect())
+                        }),
+                ),
+                (
                     "position".to_string(),
                     self.position
                         .as_ref()
@@ -3233,6 +3293,7 @@ impl DeclareArgs {
             "correlates_by",
             "starts_on",
             "ends_on",
+            "endings",
             "position",
             "id",
         ]);
@@ -3248,6 +3309,7 @@ impl DeclareArgs {
                         "correlates_by",
                         "starts_on",
                         "ends_on",
+                        "endings",
                         "position",
                     ],
                 }
@@ -3271,6 +3333,7 @@ impl DeclareArgs {
                         "correlates_by",
                         "starts_on",
                         "ends_on",
+                        "endings",
                         "position",
                     ],
                 }
@@ -3335,6 +3398,25 @@ impl DeclareArgs {
         if let Some(v) = &ends_on {
             v.check_invariants()?;
         }
+        let endings = match v.get("endings") {
+            Some(crate::kernel::Json::Null) | None => None,
+            Some(x) => Some(
+                x.as_array()
+                    .ok_or_else(|| {
+                        crate::kernel::Refusal::TypeMismatch(
+                            "Declare.endings: expected an array".to_string(),
+                        )
+                    })?
+                    .iter()
+                    .map(|item| ProcessManagerText::from_json(&item.coerce_single_field("value")))
+                    .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
+            ),
+        };
+        if let Some(items) = &endings {
+            for item in items {
+                item.check_invariants()?;
+            }
+        }
         let position = match v.get("position") {
             Some(crate::kernel::Json::Null) | None => None,
             Some(x) => Some(Position::from_json(&x.coerce_single_field("value"))?),
@@ -3348,6 +3430,7 @@ impl DeclareArgs {
             correlates_by,
             starts_on,
             ends_on,
+            endings,
             position,
         })
     }
@@ -3371,6 +3454,7 @@ impl DeclareArgs {
             "correlates_by",
             "starts_on",
             "ends_on",
+            "endings",
             "position",
             "id",
         ]);
@@ -3387,6 +3471,7 @@ impl DeclareArgs {
                             "correlates_by",
                             "starts_on",
                             "ends_on",
+                            "endings",
                             "position",
                         ],
                     }
@@ -3416,6 +3501,7 @@ impl DeclareArgs {
                             "correlates_by",
                             "starts_on",
                             "ends_on",
+                            "endings",
                             "position",
                         ],
                     }
@@ -3875,5 +3961,5 @@ impl HandlerArgs {
 /// This aggregate's state, or one of its events' payloads, as a caller is answered with
 /// it: each single-field value object as its bare field (the shape a command takes it in).
 pub fn present(state: crate::kernel::Json) -> crate::kernel::Json {
-    match state { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "bluebook" => v, "name" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "correlates_by" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "starts_on" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "ends_on" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "states" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "handlers" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "event_type" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "from_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "to_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "dispatches" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| item).collect()), other => other }, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "position" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "event_type" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "from_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "to_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "command_name" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }
+    match state { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "bluebook" => v, "name" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "correlates_by" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "starts_on" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "ends_on" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "endings" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "states" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "name").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "handlers" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "event_type" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "from_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "to_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "dispatches" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| item).collect()), other => other }, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "position" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "event_type" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "from_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "to_state" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "command_name" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }
 }

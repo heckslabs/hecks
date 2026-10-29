@@ -676,6 +676,9 @@
       "correlates_by": "reference.value",
       "starts_on": "EntryAmended",
       "ends_on": "AuditTrailFlagged",
+      "endings": [
+        "AuditTrailFlagged"
+      ],
       "states": [
         "flagging"
       ],
