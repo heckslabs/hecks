@@ -111,14 +111,21 @@ jobs:
   # Runs the same sweep against real Postgres, reduced to 3 seeds of 20 steps
   # since every dispatch is a real round trip. Single worker only: every
   # ephemeral boot drops and recreates the same scratch schema in the shared
-  # `hecks_fuzz` database, so a second process here would race the first
-  # one's CREATE ROLE (see spec/support/fenced_owner.rb).
+  # `hecks_fuzz` database, so a second process within a leg would race the first
+  # one's CREATE ROLE (see spec/support/fenced_owner.rb). Two legs, each on its own
+  # runner and database, each sweeping half the domains (`shard=I/2`), and reported as
+  # `checks_fuzz` above is.
   checks_fuzz_postgres:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     needs: ci_attestation_checks_heavy
     if: always() && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
 
     env:
       PGHOST: localhost
@@ -135,8 +142,8 @@ jobs:
       # No generated-rust step, as in `checks_fuzz`.
       - uses: ./.github/actions/postgres
 
-      - name: hecks fuzz adapter=postgres
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_postgres --wait
+      - name: hecks fuzz adapter=postgres (shard ${{ matrix.shard }} of 2)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_postgres_${{ matrix.shard }}_of_2 --wait
 
   checks_static:
     runs-on: ubuntu-latest

@@ -34046,19 +34046,45 @@
             [
               [
                 "name",
-                "fuzz_postgres"
+                "fuzz_postgres_1_of_2"
               ],
               [
                 "id",
-                "fuzz_postgres"
+                "fuzz_postgres_1_of_2"
               ],
               [
                 "title",
-                "fuzz on real Postgres, up to four workers (each in its own scratch schema)"
+                "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)"
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=1/2 --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD."
+              ]
+            ],
+            [
+              [
+                "name",
+                "fuzz_postgres_2_of_2"
+              ],
+              [
+                "id",
+                "fuzz_postgres_2_of_2"
+              ],
+              [
+                "title",
+                "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=2/2 --wait"
               ],
               [
                 "script",
@@ -34385,7 +34411,7 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
               ]
             ]
           ],

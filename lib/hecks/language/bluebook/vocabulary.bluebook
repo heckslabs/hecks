@@ -893,9 +893,16 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait",
              script: "",
              blocked: "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log."
-      member name: "fuzz_postgres", id: "fuzz_postgres",
-             title: "fuzz on real Postgres, up to four workers (each in its own scratch schema)",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 --wait",
+      # The Postgres sweep is two legs of its own, a runner and a database apiece: it is the slowest
+      # sweep, since every dispatch is a real round trip.
+      member name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2",
+             title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=1/2 --wait",
+             script: "",
+             blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD."
+      member name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2",
+             title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=2/2 --wait",
              script: "",
              blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD."
       member name: "vocabulary_drift", id: "vocabulary_drift",
@@ -965,7 +972,7 @@ Hecks.bluebook "Bluebook" do
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks"
       member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
-      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
