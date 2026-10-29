@@ -132,6 +132,39 @@ RSpec.describe "Spec runs in a folder of their own" do
         expect(asked[:args]).to eq(["spec"])
       end
     end
+
+    it "runs the minitest files of the spec directory too, and reports each one" do
+      Dir.mktmpdir do |dir|
+        FileUtils.mkdir_p(File.join(dir, "spec"))
+        File.write(File.join(dir, "spec/adds_test.rb"), <<~RUBY)
+          require "minitest/autorun"
+          class AddsTest < Minitest::Test
+            def test_adds = assert_equal(2, 1 + 1)
+          end
+        RUBY
+        runner_noting_its_call
+
+        report = test_suite.call("run_suite", {}, Hecks::Adapters::Codebase::Tree.new(root: dir))
+
+        expect(report).to include("spec/adds_test.rb: 1 runs, 1 assertions, 0 failures, 0 errors, 0 skips")
+      end
+    end
+
+    it "refuses with the minitest output when one of those files fails" do
+      Dir.mktmpdir do |dir|
+        FileUtils.mkdir_p(File.join(dir, "spec"))
+        File.write(File.join(dir, "spec/broken_test.rb"), <<~RUBY)
+          require "minitest/autorun"
+          class BrokenTest < Minitest::Test
+            def test_breaks = assert_equal(3, 1 + 1)
+          end
+        RUBY
+        runner_noting_its_call
+
+        expect { test_suite.call("run_suite", {}, Hecks::Adapters::Codebase::Tree.new(root: dir)) }
+          .to raise_error(failure, /spec\/broken_test.rb failed/)
+      end
+    end
   end
 
   describe "the folder check that lets a run in" do

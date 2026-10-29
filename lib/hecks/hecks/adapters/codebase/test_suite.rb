@@ -98,7 +98,40 @@ module Hecks
         # @param tree [Tree] the folder whose specs run
         # @return [String] what the runner printed
         def suite(args, tree)
-          TestRunner.new(tree).run_paths(paths: [SPEC_DIRECTORY], env: spec_env(args), tags: args[:tags])
+          rspec = TestRunner.new(tree).run_paths(paths: [SPEC_DIRECTORY], env: spec_env(args), tags: args[:tags])
+          minitest = minitest_files(tree)
+          return rspec if minitest.empty?
+
+          ([rspec] + minitest_reports(tree, minitest)).join("\n")
+        end
+
+        # The minitest files of the spec directory: RSpec does not run them, so each runs on its own.
+        #
+        # @param tree [Tree] the folder whose specs are listed
+        # @return [Array<String>] their paths, relative to the folder, sorted
+        def minitest_files(tree)
+          Dir.glob("#{SPEC_DIRECTORY}/**/*_test.rb", base: tree.root).sort
+        end
+
+        # Runs each minitest file in its own Ruby process, from the folder, outside this process's
+        # bundle so the folder's own gems are the ones it loads.
+        #
+        # @param tree [Tree] the folder the files run in
+        # @param files [Array<String>] the minitest files
+        # @return [Array<String>] one line per file: its path and its run summary
+        # @raise [ConsoleCapture::Failure] with the output of the first file that fails
+        def minitest_reports(tree, files)
+          files.map do |file|
+            out, status = unbundled { Open3.capture2e(RbConfig.ruby, file, chdir: tree.root) }
+            raise ConsoleCapture::Failure, "#{file} failed\n#{out.strip}" unless status.success?
+
+            "#{file}: #{out.lines.grep(/\d+ runs?, /).last.to_s.strip}"
+          end
+        end
+
+        # Runs the block without the bundle this process was started under, when Bundler is loaded.
+        def unbundled(&)
+          defined?(Bundler) ? Bundler.with_unbundled_env(&) : yield
         end
 
         # Runs the specs the files changed since a git ref map to, by name. Says so and runs nothing

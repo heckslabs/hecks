@@ -233,7 +233,9 @@ Every script becomes one or more commands or queries, named for the domain actio
 | `rspec_shard_files` | TestSuite · ShardSpecs (query) | `hecks test_suite_run.shard_specs group=1 groups=N [runtime_log=]` |
 | `rspec_io_parallel_files` | TestSuite · ListIoParallelSpecs (query) | `hecks test_suite_run.list_io_parallel_specs exclude=REGEX [tags=] [check=file] [write=file]` |
 | `refresh_rspec_runtime_baseline` | TestSuite · RefreshRuntimeBaseline | `hecks test_suite_run.refresh_runtime_baseline [workers=6] [from_run=ID]` |
-| `spec_example` | TestSuite · RunSpecExample | `hecks test_suite_run.run_spec_example file=path example=text` |
+| `spec_example` | TestSuite · RunSpecExample | `hecks test_suite_run.run_spec_example file=path example=text [root=path]` |
+| (added after this table) | TestSuite · RunSuite | `hecks test_suite_run.run_suite [root=path] [tags=…] [strict=true] [seeds=N] [environment=name]`: every `*_spec.rb` under the folder's `spec/`, then each `*_test.rb` on its own |
+| (added after this table) | TestSuite · RunChanged | `hecks test_suite_run.run_changed [root=path] [base=ref]`: the specs the files changed since the ref map to, by name; nothing runs for an unmapped change |
 | `stress_concurrency_specs` | TestSuite · StressConcurrency | `hecks test_suite_run.stress_concurrency [runs=30] [parallel=] [seed_start=1]` |
 | `regenerate_persistence_legacy_fixtures` | TestSuite · RegenerateLegacyFixtures | `hecks test_suite_run.regenerate_legacy_fixtures --confirm` |
 | `seed_semantics_corpus` | TestSuite · SeedSemanticsCorpus | `hecks test_suite_run.seed_semantics_corpus` |
