@@ -126,7 +126,8 @@ module Hecks
             sealers:    sealers_in(rest),
             # Every command, not `rest` — the creating command carries the parent
             # link, which is the most common reference of all.
-            references: references_in(aggregate.commands)
+            references: references_in(aggregate.commands),
+            lists:      lists_in(aggregate.commands)
           }
         end
 

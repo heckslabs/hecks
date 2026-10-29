@@ -15274,6 +15274,16 @@
           "admits": null,
           "default": null,
           "list": true,
+          "name": "endings",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "ProcessManagerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
           "name": "states",
           "optional": false,
           "pattern": null,
@@ -15357,6 +15367,16 @@
             {
               "admits": null,
               "default": null,
+              "list": true,
+              "name": "endings",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "ProcessManagerText"
+            },
+            {
+              "admits": null,
+              "default": null,
               "list": false,
               "name": "position",
               "optional": true,
@@ -15422,6 +15442,15 @@
                 "name": "ends_on"
               },
               "target": "ends_on"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "endings"
+              },
+              "target": "endings"
             },
             {
               "op": "set",
