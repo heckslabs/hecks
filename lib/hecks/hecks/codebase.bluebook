@@ -2027,6 +2027,10 @@ Hecks.bluebook "Hecks" do
 
     attribute :run,         RunKey
     attribute :operation,   Operation, optional: true
+    # The folder the specs live in; this checkout when none is named.
+    attribute :root,        FilePath, optional: true
+    # The git ref the changed-file run compares against.
+    attribute :base,        FilePath, optional: true
     attribute :confirm,     Switch, optional: true
     attribute :workers,     Count, optional: true
     attribute :from_run,    RunId, optional: true
@@ -2164,10 +2168,47 @@ Hecks.bluebook "Hecks" do
       # Whether specs share the loaded declarations of an unchanged domain directory; false loads each
       # boot afresh.
       attribute :declaration_cache, Switch, default: true, sets: true
+      attribute :root, FilePath, optional: true, sets: true
 
       sets :operation, to: "run_spec_example"
 
       emits RunSpecExampleRequested
+    end
+
+    # Every spec of a folder, in one process: the project's own suite, or this checkout's when no folder is named.
+    command "RunSuite" do
+      role "Maintainer"
+      goal "Run every spec of a folder through the test runner in this process"
+
+      attribute :root,        FilePath, optional: true, sets: true
+      attribute :strict,      Switch, optional: true, sets: true
+      attribute :seeds,       Count, optional: true, sets: true
+      attribute :environment, EnvironmentName, optional: true, sets: true
+      attribute :tags,        TagArguments, optional: true, sets: true
+      attribute :run,         RunKey, sets: true
+
+      sets :operation, to: "run_suite"
+
+      emits RunSuiteRequested
+    end
+
+    # The specs the files changed since a git ref map to, found by name: a changed spec runs itself, and a changed
+    # source file runs the spec of the same name. A change that maps to no spec runs nothing and says so.
+    command "RunChanged" do
+      role "Maintainer"
+      goal "Run the specs that the files changed since a git ref map to, in a folder"
+
+      attribute :root,        FilePath, optional: true, sets: true
+      attribute :base,        FilePath, default: "origin/main", sets: true
+      attribute :strict,      Switch, optional: true, sets: true
+      attribute :seeds,       Count, optional: true, sets: true
+      attribute :environment, EnvironmentName, optional: true, sets: true
+      attribute :tags,        TagArguments, optional: true, sets: true
+      attribute :run,         RunKey, sets: true
+
+      sets :operation, to: "run_changed"
+
+      emits RunChangedRequested
     end
 
     command "StressConcurrency" do
@@ -2335,6 +2376,16 @@ Hecks.bluebook "Hecks" do
 
   policy "ExamineWhenRunSpecExampleRequested" do
     on      "TestSuiteRun.RunSpecExampleRequested"
+    ask     :examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRunSuiteRequested" do
+    on      "TestSuiteRun.RunSuiteRequested"
+    ask     :examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenRunChangedRequested" do
+    on      "TestSuiteRun.RunChangedRequested"
     ask     :examine, with: { run: :run }
   end
 

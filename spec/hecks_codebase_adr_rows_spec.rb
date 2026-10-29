@@ -48,6 +48,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
                note: "the table's write= is its own confirmed command, since a query never writes"),
     AdrRow.new(script: "refresh_rspec_runtime_baseline", verbs: %w[refresh_runtime_baseline]),
     AdrRow.new(script: "spec_example", verbs: %w[run_spec_example]),
+    AdrRow.new(script: "run_suite", verbs: %w[run_suite],
+               note: "added beyond ADR 0080's table: runs a folder's whole spec directory, so any project's suite " \
+                     "runs through hecks, not only this checkout's"),
+    AdrRow.new(script: "run_changed", verbs: %w[run_changed],
+               note: "added beyond ADR 0080's table: runs the specs the files changed since a git ref map to, by name, " \
+                     "and runs nothing for a change no spec is named after"),
     AdrRow.new(script: "stress_concurrency_specs", verbs: %w[stress_concurrency]),
     AdrRow.new(script: "run_cargo_tests", verbs: %w[run_cargo_tests],
                note: "no bin script: it runs cargo test for the host, the parser or the JSON fuzzer with the " \

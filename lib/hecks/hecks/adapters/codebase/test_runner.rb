@@ -58,12 +58,34 @@ module Hecks
           report
         end
 
+        # Runs every spec in the given files or directories, from the checkout's root: a whole suite
+        # is one directory, a changed-file run is the specs those files map to.
+        #
+        # @param paths [Array<String>] spec files or directories, relative to the checkout or absolute
+        # @param env [Hash{String => String}] variables the specs read, set for this run only
+        # @param tags [String, nil] RSpec tag filters as the runner spells them
+        # @return [String] what the runner printed when every spec it ran passed
+        # @raise [ConsoleCapture::Failure] when a path is not there, or a spec failed
+        def run_paths(paths:, env: {}, tags: nil)
+          missing = paths.reject { |path| File.exist?(File.expand_path(path, @tree.root)) }
+          raise ConsoleCapture::Failure, "no such spec #{missing.first}" unless missing.empty?
+
+          report = with_env(env) { run_args([*tags.to_s.split, *paths]) }
+          raise ConsoleCapture::Failure, "the test runner printed nothing for #{paths.join(" ")}" if report.empty?
+
+          report
+        end
+
         private
 
         # What the runner printed for the example, when it passed.
         def run_example(path, example, tags = [])
+          run_args(["--example", example, *tags, path])
+        end
+
+        # What the runner printed for the arguments, when every spec it ran passed.
+        def run_args(args)
           out = StringIO.new
-          args = ["--example", example, *tags, path]
           status = Dir.chdir(@tree.root) { at_reaction_depth_zero { runner.call(args, out, out) } }
           raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
