@@ -9,7 +9,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
     additive agent aggregates alert_key arguments at body budget check closes context crate declaration_cache digest email
     environment era example exclude expert fills format full_gate
     from_run
-    gate inner ir_version iterations kind lane list_shards name named new_name no_ai only opens package
+    gate inner ir_version iterations kind lane list_shards name named new_name no_ai number only opens package
     pairs_shape
     parallel persist_regressions pin profile required role run runs seed_start seeds shard ships_from
     stage stdout steps strict subject tags target targets timeout to top verb version warmup winners word workers

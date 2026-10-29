@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/bluebook/model_check"
 
 # The context map is read off what each context already declares; nothing is written for it.
 RSpec.describe Hecks::Projections::ContextRelationships do
