@@ -44,9 +44,22 @@ module Hecks
         def refuse_unwired_attachments!(hecksagon)
           hecksagon.attachments.each do |attachment|
             next if hecksagon(attachment.declaration_name)
+            next if contextmap_declares?(hecksagon, attachment)
 
             raise WiringError, unwired_attachment_message(hecksagon, attachment)
           end
+        end
+
+        # A gem bluebook that the system's `.contextmap` names as a context needs no sibling
+        # hecksagon: its wiring is the attach itself. A vendored package still needs one, since
+        # its persistence and `translates` ACL can only be written there.
+        #
+        # @return [Boolean] true if the system's context map names the attached gem bluebook
+        def contextmap_declares?(hecksagon, attachment)
+          return false if attachment.vendor?
+
+          map = context_map(hecksagon.domain)
+          !map.nil? && map.context_names.include?(attachment.declaration_name.to_s)
         end
 
         def unwired_attachment_message(hecksagon, attachment)
@@ -55,7 +68,8 @@ module Hecks
           "#{hecksagon.domain} attaches #{what} " \
             "(bounded context #{declaration_name}) but never declared " \
             "Hecks.hecksagon #{declaration_name.inspect} — put that sibling " \
-            "(and any `translates` ACL) in context_map.hecksagon; " \
+            "(and any `translates` ACL) in context_map.hecksagon, or name the context in " \
+            "#{hecksagon.domain}'s `.contextmap` (gem bluebooks only); " \
             "same-name blocks merge, order-independent."
         end
 

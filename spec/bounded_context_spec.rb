@@ -128,6 +128,14 @@ RSpec.describe "bounded contexts" do
     end
   end
 
+  def contextmap_probe_registry
+    registry_with do
+      declare_probe
+      probe_hexagon
+      Hecks.context_map("Probe") { context "Governance" }
+    end
+  end
+
   def translating_registry
     registry_with do
       declare_thing
@@ -166,6 +174,10 @@ RSpec.describe "bounded contexts" do
     expect(registry.bounded?("Governance")).to be true
     expect(registry.bounded?("Probe")).to be false
     expect { registry.verify! }.not_to raise_error
+  end
+
+  it "accepts a gem attachment that the system's .contextmap names, with no sibling hecksagon" do
+    expect { contextmap_probe_registry.verify! }.not_to raise_error
   end
 
   it "refuses boot when an attachment has no sibling hecksagon" do
