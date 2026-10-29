@@ -44,7 +44,8 @@ Rules of thumb:
 ## Session isolation: git worktrees
 
 A session that needs its own checkout uses `git worktree add`, and retires it with
-`git worktree remove`. Plain git is the only version control tool in this repo.
+`git worktree remove`. Any git operation an agent needs is allowed, through plain git or through a
+`hecks` command that performs it; use the command when one exists, since it carries the repo's own checks.
 
 **Always pull `main` before you push.** Fetch and rebase onto `origin/main` right
 before every push, and again if the pre-push gate ran long enough for `main` to
