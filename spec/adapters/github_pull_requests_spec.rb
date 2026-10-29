@@ -61,6 +61,12 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
       expect { pulls.squash(number: nil) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no pull request number/)
     end
 
+    it "refuses a number that gh would read as an option", :aggregate_failures do
+      expect { pulls.squash(number: { value: "--admin" }) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not a number/)
+      expect(calls).to be_empty
+    end
+
     it "refuses with what gh said when GitHub will not merge" do
       replies[["pr", "merge", "42", "--squash"]] = ["", "Pull request #42 is not mergeable", false]
 

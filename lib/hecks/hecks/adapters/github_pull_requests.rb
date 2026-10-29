@@ -13,6 +13,9 @@ module Hecks
     # should be opened or merged; it only asks GitHub and reports what GitHub answered. A merge is
     # always a squash, and `--admin` is never passed, so a branch protection rule is not bypassed.
     class GithubPullRequests
+      # A pull request number: digits only.
+      NUMBER = /\A\d+\z/
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
@@ -45,7 +48,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `outcome:` (`merged`), `number:` and `report:`
       # @raise [ConsoleCapture::Failure] when no number is named, or GitHub refuses
       def squash(**held)
-        number = plain(held[:number]) or raise ConsoleCapture::Failure, "no pull request number to merge"
+        number = pull_request_number(held[:number], "merge")
         gh!("pr", "merge", number, "--squash")
 
         { outcome: { value: "merged" }, number: { value: number },
@@ -58,7 +61,7 @@ module Hecks
       # @return [Hash{Symbol => String}] `text:` one `name: value` line each
       # @raise [ConsoleCapture::Failure] when no number is named, or GitHub refuses
       def status(**held)
-        number = plain(held[:number]) or raise ConsoleCapture::Failure, "no pull request number to read"
+        number = pull_request_number(held[:number], "read")
         view = JSON.parse(gh!("pr", "view", number, "--json", "number,state,url,mergedAt,statusCheckRollup"))
         { text: "#{status_lines(view).join("\n")}\n" }
       end
@@ -66,6 +69,14 @@ module Hecks
       private
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
+
+      # A pull request's number, digits only: gh reads a value that starts with a dash as an option.
+      def pull_request_number(argument, verb)
+        number = plain(argument)
+        return number if number.to_s.match?(NUMBER)
+
+        raise ConsoleCapture::Failure, "no pull request number to #{verb}, or it is not a number: #{number.inspect}"
+      end
 
       # The first line of gh's output that is a URL; `gh pr create` prints the new pull request's.
       def pull_request_url(out) = out.lines.find { |line| line.start_with?("https://") }&.strip
