@@ -1,32 +1,34 @@
 name: Generated Rust
 description: >-
-  Materializes rust/src/generated, which the repository no longer commits (pizzas aside). It
-  restores the output a run on identical inputs wrote, or regenerates the whole corpus with
-  `hecks regeneration_run.regenerate_corpus --confirm` and saves it. Put it before any step that
-  builds, tests or hashes rust/src, and after setup-ruby, which it needs.
+  Checks that rust/src/generated is in the checkout. The repository commits it: it is a pure function
+  of the bluebooks and the generator, and a job that builds, tests or hashes rust/src reads it as
+  checked out, so no job regenerates, restores or caches it. The one job that compares the committed
+  tree with a regeneration, `checks_codegen_drift`, sets `regenerate` and so rewrites the whole tree
+  here before `git diff` judges it. The `domains` input is kept for the jobs that still name it and
+  has no effect.
+inputs:
+  domains:
+    description: Unused; the whole tree is checked out.
+    required: false
+    default: ""
+  regenerate:
+    description: >-
+      "true" rewrites every domain of rust/src/generated and rust/Cargo.toml with
+      `hecks regenerate_corpus --confirm`, for a check that compares them with the committed ones.
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
-    - name: Hash the generator inputs
-      id: inputs
-      uses: ./.github/actions/generated-rust-inputs
+    - name: Check the generated Rust is committed
+      shell: bash
+      run: test -f rust/src/generated/mod.rs && test -d rust/src/generated/banking
 
-    - name: Restore the generated Rust
-      id: cache
-      uses: actions/cache@v4
-      with:
-        # Cargo.toml too: regeneration rewrites its features, and the codegen_drift check compares
-        # the committed one against what a regeneration on these inputs wrote.
-        path: |
-          rust/src/generated
-          rust/Cargo.toml
-        key: generated-rust-${{ runner.os }}-${{ steps.inputs.outputs.hash }}
-
-    - name: Regenerate the generated Rust
-      if: steps.cache.outputs.cache-hit != 'true'
+    # A job that builds into its own target dir (CARGO_TARGET_DIR) must not send hecks-codegen's
+    # build there: project_rust builds and runs it from rust/codegen/target.
+    - name: Regenerate the generated Rust, for a drift check
+      if: inputs.regenerate == 'true'
       shell: bash
       env:
         HECKS_ENVIRONMENT: memory
-      # A job that builds into its own target dir (CARGO_TARGET_DIR) must not send hecks-codegen's
-      # build there: project_rust builds and runs it from rust/codegen/target.
       run: env -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait

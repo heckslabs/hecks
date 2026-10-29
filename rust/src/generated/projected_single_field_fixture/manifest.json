@@ -1,0 +1,36 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "ProjectedSingleFieldFixture::Event",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ProjectedSingleFieldFixture::Event.Schedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ProjectedSingleFieldFixture::Event.Reschedule",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ProjectedSingleFieldFixture::Booking",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ProjectedSingleFieldFixture::Booking.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ProjectedSingleFieldFixture::Booking.Touch",
+    "generated": true,
+    "routed": true
+  }
+]

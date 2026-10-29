@@ -1,0 +1,29 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Identity::Identity",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Identity::Identity.Register",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Identity::ExternalIdentifier",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Identity::ExternalIdentifier.Link",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Identity::ExternalIdentifier.ResolvedBy",
+    "generated": true
+  }
+]

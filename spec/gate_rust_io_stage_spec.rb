@@ -35,6 +35,27 @@ RSpec.describe "the rust_io gate stage" do
     expect(legs.map { |specs| script.index(specs) }).to eq(legs.map { |specs| script.index(specs) }.sort)
   end
 
+  def steps_named(*names)
+    workflow.dig("jobs", "rspec_rust_io", "steps").select do |step|
+      names.any? { |start| step["name"].to_s.start_with?(start) }
+    end
+  end
+
+  # The steps that restore, wait for and fetch the prebuilt feature binaries.
+  def binary_steps
+    steps_named("Remove pinned feature", "Restore the built feature", "Wait for the feature",
+                "Fetch the feature", "Mark the fetched")
+  end
+
+  it "has only the conformance leg wait for or fetch feature binaries", :aggregate_failures do
+    expect(binary_steps).not_to be_empty
+    binary_steps.each { |step| expect(step["if"].to_s).to include("matrix.leg == 'a'"), step["name"] }
+  end
+
+  it "has the regeneration leg skip the banking build the other legs need" do
+    expect(steps_named("Build the Rust conformance").map { |step| step["if"] }).to all(include("matrix.leg != 'c'"))
+  end
+
   it "names no spec file the workflow's matrix does not" do
     expect(script.scan(%r{spec/\S+_spec\.rb}).sort).to eq(legs.flat_map(&:split).sort)
   end

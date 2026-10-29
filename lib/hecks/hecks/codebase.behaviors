@@ -79,8 +79,52 @@ Hecks.behaviors "Codebase" do
     expect refused: "must match"
   end
 
+  test "RegenerateCorpus refuses a list of domains that is not one" do
+    tests "RegenerateCorpus", on: "RegenerationRun"
+    input run: { value: "domains" }, domains: { value: "Lease Clock" }
+    expect refused: "must match"
+  end
+
+  test "RegenerateCorpus refuses a count of zero workers" do
+    tests "RegenerateCorpus", on: "RegenerationRun"
+    input run: { value: "no_workers" }, workers: { value: 0 }
+    expect refused: "a count is positive"
+  end
+
+  test "RegenerateCorpus keeps a domain that is not there as a faulted request" do
+    tests "RegenerateCorpus", on: "RegenerationRun"
+    input run: { value: "unknown_domain" }, domains: { value: "no_such_domain" }
+    expect emits: %w[RegenerateCorpusRequested RegenerationExamined RegenerationAccepted RegenerationRefused
+                     RegenerationFaulted]
+  end
+
+  test "RegenerateCorpus checks only the domains it is named, and keeps the answer" do
+    tests "RegenerateCorpus", on: "RegenerationRun"
+    input run: { value: "some_domains" }, domains: { value: "lease_clock,nested_pieces" }, check: { value: true }
+    expect emits: %w[RegenerateCorpusRequested RegenerationExamined RegenerationAccepted RegenerationAnswered
+                     RegenerationCompleted]
+  end
+
+  test "GeneratedKey refuses a list of domains that is not one" do
+    tests "GeneratedKey", on: "CorpusRun", kind: :query
+    input domains: { value: "lease clock" }
+    expect refused: "must match"
+  end
+
+  test "GeneratedKey answers one document for the named domains" do
+    tests "GeneratedKey", on: "CorpusRun", kind: :query
+    input domains: { value: "lease_clock,nested_pieces" }
+    expect count: 1
+  end
+
   test "ProjectCiGates refuses a run that is not named" do
     tests "ProjectCiGates", on: "RegenerationRun"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
+  test "ProjectCiPipeline refuses a run that is not named" do
+    tests "ProjectCiPipeline", on: "RegenerationRun"
     input run: { value: "" }
     expect refused: "must match"
   end

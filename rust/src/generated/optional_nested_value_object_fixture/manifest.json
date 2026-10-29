@@ -1,0 +1,19 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "OptionalNestedValueObjectFixture::Layout",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "OptionalNestedValueObjectFixture::Layout.Write",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "OptionalNestedValueObjectFixture::Layout.Revise",
+    "generated": true,
+    "routed": true
+  }
+]

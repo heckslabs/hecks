@@ -1,6 +1,6 @@
 name: CI postgres io parallel (reusable)
 
-# Group 2 (part 3 of 3) of the ci.yml split: the skip-gate detector and the 16-way shard
+# Group 2 (part 3 of 3) of the ci.yml split: the skip-gate detector and the sharded
 # matrix behind the `rspec_postgres_io_parallel` required check.
 
 on:
@@ -15,7 +15,7 @@ on:
 # hecks_pizzas files other jobs own. One copy, read by the shards' committed
 # file list check and by hecks write_io_parallel_spec_list.
 env:
-  IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(parser_parity_spec|parser_adapter_parity_spec|parser_world_parity_spec|composer_check_spec|composer_web_spec|composer_panels_spec|composer_agent_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_planted_gaps_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|rust_host_expr_json_conformance_spec|rust_host_query_step_spec|rust_host_reference_validate_conformance_spec|rehearsal_store_spec|parser_coverage_spec|attribute_sets_flag_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec)\.rb$'
+  IO_PARALLEL_EXCLUDE_PATTERN: '(/|^)(parser_parity_spec|parser_adapter_parity_spec|parser_world_parity_spec|composer_check_spec|composer_web_spec|composer_panels_spec|composer_agent_spec|grammar_corpus_spec|project_deploy_parity_gate_spec|hecks_build_pipeline_spec|rust_conformance_spec|rust_conformance_fuzz_spec|semantics_corpus_spec|codegen_planted_gaps_spec|rust_numeric_coercion_spec|rust_host_lineage_conformance_spec|rust_host_expr_json_conformance_spec|rust_host_query_step_spec|rust_host_reference_validate_conformance_spec|rehearsal_store_spec|parser_coverage_spec|attribute_sets_flag_spec|domain_feature_exclusivity_spec|naming_landmines_spec|dsl_spec|guides_spec|domain_refusal_spec|diagrams_spec|storehouse_spec|oidc_manifest_spec|rust_build_regeneration_order_spec|rust_build_regeneration_subset_spec|list_sum_parser_spec|sentence_coverage_spec|sentence_examples_spec|sentence_form_spec|sentence_guide_spec)\.rb$'
 
 jobs:
   # Skip gate for the shard job. A job-level `if:` is the only way to skip Postgres
@@ -41,6 +41,10 @@ jobs:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
       - uses: ./.github/actions/setup-ruby
+        with:
+          # The decision diffs files and calls an API; it formats and builds no Rust.
+          rust-toolchain: "false"
+      - uses: ./.github/actions/hecks-boot-cache
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch anything rspec_postgres_io_parallel covers?'
@@ -85,10 +89,10 @@ jobs:
       - name: .github/postgres_io_spec_files.txt matches a real --tag io dry run
         run: bundle exec exe/hecks query test_suite_run.list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
 
-  # Matrix of 16 one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
+  # Matrix of one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
   # required check name, since matrix legs report as `<job id> (<value>)`.
   #
-  # Every leg computes the identical 16-way split (`-n 16`, same committed baseline) and
+  # Every leg computes the identical split (`-n 20`, same committed baseline) and
   # `--only-group` selects its own slice, so balancing stays parallel_tests' own.
   #
   # One process per leg is load-bearing: hecks quality_control sweep.create_ledger_role creates the cluster-global
@@ -115,9 +119,9 @@ jobs:
       # A regression in one shard should not cancel the others.
       fail-fast: false
       matrix:
-        # Must match the `-n 16` below: both are the group count, and `--only-group` is
+        # Must match the `-n 20` below: both are the group count, and `--only-group` is
         # 1-indexed against it. The slowest single file (~150s) is the floor on shard time.
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
     env:
       PGHOST: localhost
@@ -128,8 +132,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # The io specs that build the main crate in place are self_consistency_rust_spec (pizzas and
+      # banking), referral_chain_spec, has_many_spec and bench_spec (pizzas, committed). The crate
+      # declares every chapter outright, so banking, checkout_fixture and embryonaut_vendoring_demo
+      # supply the six it needs; the other domains are not read.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: banking checkout_fixture embryonaut_vendoring_demo referral_chain has_many_fixture
 
       # Preinstalled and tuned Postgres, not a `services:` container; each leg is its own runner.
       - uses: ./.github/actions/postgres
@@ -150,7 +159,7 @@ jobs:
           IO_FILES=()
           while IFS= read -r line; do IO_FILES+=("$line"); done < .github/postgres_io_spec_files.txt
           bundle exec parallel_rspec "${IO_FILES[@]}" \
-            -n 16 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
+            -n 20 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
             --runtime-log .github/postgres_io_runtime_baseline.log \
             -o "--tag io --tag ~fuzzing --tag ~rust_host --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 

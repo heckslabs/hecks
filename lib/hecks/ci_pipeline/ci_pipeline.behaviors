@@ -1,0 +1,322 @@
+Hecks.behaviors "CiPipeline" do
+  vision "A workflow file is what its rows say, a job runs only after what it needs, and a build passes only when every required job settled."
+
+  # `ci_pipeline.hecksagon` binds every aggregate to Memory and attaches Governance, so a boot of
+  # these files passes the memory-only guard and the role check.
+  loads "ci_pipeline.bluebook", "ci_pipeline.hecksagon", "ci_pipeline.ports.hecksagon"
+
+  # Two different hex SHA-256 digests serve the verdict tests, and one more is a cache key.
+
+  test "Declare writes ci-rspec.yml down as a reusable workflow" do
+    tests "Declare", on: "Workflow"
+    input name: { value: "ci-rspec.yml" }, display_name: { value: "CI rspec (reusable)" },
+          concurrency_group: { value: "" }, cancel_in_progress: { value: false }, reusable: { value: true }
+    expect emits: ["WorkflowDeclared"]
+  end
+
+  test "Trigger names the workflow_call event that starts a reusable workflow" do
+    tests "Trigger", on: "Workflow"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    input workflow: "ci-rspec.yml", event: { value: "workflow_call" }
+    expect emits: ["WorkflowTriggerAdded"]
+  end
+
+  test "Secret names a repository secret the caller must pass in" do
+    tests "Secret", on: "Workflow"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    input workflow: "ci-rspec.yml", secret: { value: "HECKS_CI_ATTEST_KEY" }
+    expect emits: ["WorkflowSecretAdded"]
+  end
+
+  test "Project under check asks for the projection of the workflow" do
+    tests "Project", on: "Workflow"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    input workflow: "ci-rspec.yml", check: { value: true }
+    expect emits: ["WorkflowProjectionRequested"]
+  end
+
+  # A stale projection is reported under check: the committed file differs from the rows.
+  test "ReportStale reports a committed file that differs from its projection, under check" do
+    tests "ReportStale", on: "Workflow"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::Workflow.Project", workflow: "ci-rspec.yml", check: { value: true }
+    input workflow: "ci-rspec.yml",
+          projected: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" },
+          on_disk: { value: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210" }
+    expect emits: ["WorkflowStale"]
+  end
+
+  test "ReportStale refuses a stale verdict that was not asked for under check" do
+    tests "ReportStale", on: "Workflow"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::Workflow.Project", workflow: "ci-rspec.yml", check: { value: false }
+    input workflow: "ci-rspec.yml",
+          projected: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" },
+          on_disk: { value: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210" }
+    expect refused: "a stale projection is reported under check"
+  end
+
+  test "ReportCurrent confirms a committed file matches its projection, under check" do
+    tests "ReportCurrent", on: "Workflow"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::Workflow.Project", workflow: "ci-rspec.yml", check: { value: true }
+    input workflow: "ci-rspec.yml",
+          projected: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" },
+          on_disk: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+    expect emits: ["WorkflowCurrent"]
+  end
+
+  test "JobSpec declares a job with its runner, time limit, and gate" do
+    tests "Declare", on: "JobSpec"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    input name: { value: "ci_attestation_rspec" }, workflow: "ci-rspec.yml",
+          runner: { value: "ubuntu-latest" }, timeout_minutes: { value: 10 },
+          permissions: { value: "contents: read" }, required: { value: false },
+          gate: { value: "attestation" }, condition: { value: "" }, shard_total: { value: 1 }
+    expect emits: ["JobSpecDeclared"]
+  end
+
+  test "AddStep refuses a step that both uses an action and runs a command" do
+    tests "AddStep", on: "JobSpec"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::JobSpec.Declare", name: { value: "rspec_shard" },
+          workflow: "ci-rspec.yml", runner: { value: "ubuntu-latest" },
+          timeout_minutes: { value: 20 }, permissions: { value: "contents: read" },
+          required: { value: true }, gate: { value: "" }, condition: { value: "" },
+          shard_total: { value: 4 }
+    input job_spec: "rspec_shard", step_name: { value: "checkout" },
+          uses: { value: "actions/checkout@v4" }, run: { value: "make" }, condition: { value: "" }
+    expect refused: "a step either uses an action or runs a command, not both"
+  end
+
+  test "AddStep records a step that uses a composite action in this repo" do
+    tests "AddStep", on: "JobSpec"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::JobSpec.Declare", name: { value: "rspec_shard" },
+          workflow: "ci-rspec.yml", runner: { value: "ubuntu-latest" },
+          timeout_minutes: { value: 20 }, permissions: { value: "contents: read" },
+          required: { value: true }, gate: { value: "" }, condition: { value: "" },
+          shard_total: { value: 4 }
+    input job_spec: "rspec_shard", step_name: { value: "setup-ruby" },
+          uses: { value: "./.github/actions/setup-ruby" }, run: { value: "" }, condition: { value: "" }
+    expect emits: ["StepAdded"]
+  end
+
+  test "AddEnv sets an environment variable for every step of a job" do
+    tests "AddEnv", on: "JobSpec"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::JobSpec.Declare", name: { value: "rspec_shard" },
+          workflow: "ci-rspec.yml", runner: { value: "ubuntu-latest" },
+          timeout_minutes: { value: 20 }, permissions: { value: "contents: read" },
+          required: { value: true }, gate: { value: "" }, condition: { value: "" },
+          shard_total: { value: 4 }
+    input job_spec: "rspec_shard", key: { value: "BUNDLE_WITHOUT" },
+          value: { value: "development" }
+    expect emits: ["EnvAdded"]
+  end
+
+  # ci-rspec.yml's attestation job, as far as its rows go: its checkout and attestation steps,
+  # and the input that names the check. Its run commands and conditions are not in the rows yet.
+  test "ci-rspec.yml's attestation job declares its checkout and attestation steps" do
+    tests "AddStepInput", on: "JobSpec"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::JobSpec.Declare", name: { value: "ci_attestation_rspec" },
+          workflow: "ci-rspec.yml", runner: { value: "ubuntu-latest" },
+          timeout_minutes: { value: 10 }, permissions: { value: "contents: read" },
+          required: { value: false }, gate: { value: "attestation" }, condition: { value: "" },
+          shard_total: { value: 1 }
+    setup "CiPipeline::JobSpec.AddStep", job_spec: "ci_attestation_rspec",
+          step_name: { value: "checkout" }, uses: { value: "actions/checkout@v4" },
+          run: { value: "" }, condition: { value: "" }
+    setup "CiPipeline::JobSpec.AddStep", job_spec: "ci_attestation_rspec",
+          step_name: { value: "attest" }, uses: { value: "./.github/actions/check-attestation" },
+          run: { value: "" }, condition: { value: "" }
+    input job_spec: "ci_attestation_rspec", step: { value: "attest" },
+          key: { value: "checks" }, value: { value: "rspec" }
+    expect emits: ["StepInputAdded"]
+  end
+
+  # ci-rspec.yml's rspec_shard: the legs follow the stated total, which is the matrix size.
+  test "A sharded job plans a leg for each index within its shard total" do
+    tests "PlanShard", on: "JobSpec"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::JobSpec.Declare", name: { value: "rspec_shard" },
+          workflow: "ci-rspec.yml", runner: { value: "ubuntu-latest" },
+          timeout_minutes: { value: 20 }, permissions: { value: "contents: read" },
+          required: { value: true }, gate: { value: "" }, condition: { value: "" },
+          shard_total: { value: 4 }
+    input job_spec: "rspec_shard", index: { value: 4 }
+    expect emits: ["ShardPlanned"]
+  end
+
+  test "A sharded job refuses a leg past its shard total" do
+    tests "PlanShard", on: "JobSpec"
+    setup "CiPipeline::Workflow.Declare", name: { value: "ci-rspec.yml" },
+          display_name: { value: "CI rspec (reusable)" }, concurrency_group: { value: "" },
+          cancel_in_progress: { value: false }, reusable: { value: true }
+    setup "CiPipeline::JobSpec.Declare", name: { value: "rspec_shard" },
+          workflow: "ci-rspec.yml", runner: { value: "ubuntu-latest" },
+          timeout_minutes: { value: 20 }, permissions: { value: "contents: read" },
+          required: { value: true }, gate: { value: "" }, condition: { value: "" },
+          shard_total: { value: 4 }
+    input job_spec: "rspec_shard", index: { value: 5 }
+    expect refused: "a shard index is within the shard total"
+  end
+
+  # A job with several needs queues only after all of them are met. One met need is not enough.
+  test "Queue refuses a job until every edge into it is met" do
+    tests "Queue", on: "Job"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
+          required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
+    input job: "rspec_shard", touched: { value: false }
+    expect refused: "every need is settled first"
+  end
+
+  test "Queue admits a job once both of its needs are met" do
+    tests "Queue", on: "Job"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
+          required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
+    setup "CiPipeline::Job.Satisfy", job: "rspec_shard"
+    setup "CiPipeline::Job.Satisfy", job: "rspec_shard"
+    input job: "rspec_shard", touched: { value: false }
+    expect emits: ["Queued"]
+  end
+
+  # A skipped gate counts as met, so its dependents run. The attestation skip and the corpus hit
+  # are the edges into rspec_shard.
+  test "A skipped gate leaves its dependents runnable" do
+    tests "Skip", on: "Job"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "ci_attestation_rspec" },
+          required: { value: false }, gate: { value: "attestation" }, needs_total: { value: 0 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
+          required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
+    setup "CiPipeline::Corpus.Open", build: { value: "b1" },
+          key: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+    setup "CiPipeline::Corpus.Hit", corpus: "b1"
+    input job: "ci_attestation_rspec", of_job: { value: "ci_attestation_rspec" }, was_required: { value: false }, of_build: { value: "b1" }, touched: { value: false }
+    expect emits: ["Skipped", "Satisfied"]
+  end
+
+  test "Queue admits rspec_shard once its skipped gate and its corpus hit both settled it" do
+    tests "Queue", on: "Job"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "ci_attestation_rspec" },
+          required: { value: false }, gate: { value: "attestation" }, needs_total: { value: 0 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
+          required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
+    setup "CiPipeline::Corpus.Open", build: { value: "b1" },
+          key: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+    setup "CiPipeline::Corpus.Hit", corpus: "b1"
+    setup "CiPipeline::Job.Skip", job: "ci_attestation_rspec", of_job: { value: "ci_attestation_rspec" },
+          was_required: { value: false }, of_build: { value: "b1" },
+          touched: { value: false }
+    input job: "rspec_shard", touched: { value: false }
+    expect emits: ["Queued"]
+  end
+
+  test "A gated job is not skipped when the change touches its gate" do
+    tests "Skip", on: "Job"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "ci_attestation_rspec" },
+          required: { value: false }, gate: { value: "attestation" }, needs_total: { value: 0 }
+    input job: "ci_attestation_rspec", of_job: { value: "ci_attestation_rspec" }, was_required: { value: false }, of_build: { value: "b1" }, touched: { value: true }
+    expect refused: "a gate skips its job only when the change does not touch it"
+  end
+
+  # A cache miss regenerates the corpus once, and the job that needs it waits for that.
+  test "A cache miss forces Materialize before a job that needs the corpus can start" do
+    tests "Miss", on: "Corpus"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
+          required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
+    setup "CiPipeline::Corpus.Open", build: { value: "b1" },
+          key: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+    input corpus: "b1"
+    expect emits: ["Miss", "Materialized", "Satisfied"]
+  end
+
+  test "A cache hit does not regenerate the corpus" do
+    tests "Hit", on: "Corpus"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
+          required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
+    setup "CiPipeline::Corpus.Open", build: { value: "b1" },
+          key: { value: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+    input corpus: "b1"
+    expect emits: ["Hit", "Satisfied"]
+  end
+
+  test "Build passes once every required job has passed" do
+    tests "CountPass", on: "Build"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Build.Start", build: "b1"
+    input build: "b1"
+    expect emits: ["PassCounted", "BuildPassed"]
+  end
+
+  test "Build does not pass while a required job is still unsettled" do
+    tests "Pass", on: "Build"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 2 }
+    setup "CiPipeline::Build.Start", build: "b1"
+    input build: "b1"
+    expect refused: "every required job passed or was skipped by its gate"
+  end
+
+  test "Build fails when one required job fails" do
+    tests "CountFailure", on: "Build"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 2 }
+    setup "CiPipeline::Build.Start", build: "b1"
+    input build: "b1"
+    expect emits: ["FailureCounted", "BuildFailed"]
+  end
+
+  test "A required job's pass counts toward its build, which then passes" do
+    tests "Pass", on: "Job"
+    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+          required_total: { value: 1 }
+    setup "CiPipeline::Build.Start", build: "b1"
+    setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
+          required: { value: true }, gate: { value: "" }, needs_total: { value: 0 }
+    setup "CiPipeline::Job.Queue", job: "rspec_shard", touched: { value: false }
+    setup "CiPipeline::Job.Start", job: "rspec_shard"
+    input job: "rspec_shard", of_job: { value: "rspec_shard" }, was_required: { value: true }, of_build: { value: "b1" }, seconds: { value: 200 }
+    expect emits: ["Passed", "PassCounted", "BuildPassed"]
+  end
+end

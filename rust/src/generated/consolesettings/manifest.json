@@ -1,0 +1,189 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::StateStyle",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.SetTone",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.SetAttention",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::StateStyle.SetExtra",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::Collection",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetLabel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetKey",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetNavOrder",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetPrimaryField",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetListQuery",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Collection.SetExtra",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::CollectionIdentity",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionIdentity.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionIdentity.SetIdentity",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::CollectionLayout",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionLayout.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionLayout.ReplaceColumns",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionLayout.ReplaceDetailFields",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionLayout.ReplaceDetailFieldColumns",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::CollectionRules",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionRules.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionRules.ReplacePreconditions",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::CollectionRules.ReplaceFieldFormats",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "ConsoleSettings::Overview",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Overview.Declare",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "ConsoleSettings::Overview.ReplaceStats",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ConsoleSettings::Styles",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ConsoleSettings::Curated",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ConsoleSettings::CuratedIdentities",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ConsoleSettings::CuratedLayouts",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "ConsoleSettings::CuratedRules",
+    "generated": true
+  }
+]

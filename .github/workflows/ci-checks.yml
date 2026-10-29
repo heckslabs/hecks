@@ -46,6 +46,14 @@ jobs:
   # domain's own IR, checking every declared property plus interpreter-crash
   # and determinism. hecks fuzz's own defaults (20 seeds, 30 steps) keep this
   # fast enough for every push while still exercising real depth.
+  #
+  # Three legs, each sweeping its own third of the domains (`shard=I/N`, see
+  # lib/hecks/tools/fuzz_sweep/shards.rb), so the sweep takes about a third of the time. The leg
+  # number picks the gate check `fuzz_<leg>_of_3`; spec/ci_fuzz_shards_spec.rb holds the legs
+  # to 1..N for the N those checks name. The job reports one result for all its legs: any red
+  # or cancelled leg makes it red, so `checks_fuzz` still means every domain was swept clean,
+  # and the `checks` wrapper in ci.yml reads it through `checks_impl`. A leg takes no
+  # `continue-on-error`, and the `if:` below is the job's, so it skips every leg or none.
   checks_fuzz:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -53,6 +61,12 @@ jobs:
     needs: ci_attestation_checks_heavy
     if: always() && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
+    strategy:
+      # A red leg should not hide what the other found.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -60,16 +74,17 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
-
-      - name: hecks fuzz
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz --wait
+      # No generated-rust step: the sweep reads bluebooks and never the generated Rust, so a cache
+      # miss costs this job nothing.
+      - name: hecks fuzz (shard ${{ matrix.shard }} of 3)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_${{ matrix.shard }}_of_3 --wait
 
   # Runs the same corpus sweep through a real on-disk SQLite database instead
   # of the Memory adapter's hand-written Hash, so SqlQueryBuilder's
   # compilation and a real transaction are exercised too. Seeds are 1..N, so
   # the run is deterministic: a red here is a finding, not a flake.
+  #
+  # Three legs, sharded and reported as `checks_fuzz` above is.
   checks_fuzz_sqlite:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -77,6 +92,11 @@ jobs:
     needs: ci_attestation_checks_heavy
     if: always() && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
 
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
@@ -84,23 +104,28 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
-
-      - name: hecks fuzz adapter=sqlite
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite --wait
+      # No generated-rust step, as in `checks_fuzz`.
+      - name: hecks fuzz adapter=sqlite (shard ${{ matrix.shard }} of 3)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite_${{ matrix.shard }}_of_3 --wait
 
   # Runs the same sweep against real Postgres, reduced to 3 seeds of 20 steps
   # since every dispatch is a real round trip. Single worker only: every
   # ephemeral boot drops and recreates the same scratch schema in the shared
-  # `hecks_fuzz` database, so a second process here would race the first
-  # one's CREATE ROLE (see spec/support/fenced_owner.rb).
+  # `hecks_fuzz` database, so a second process within a leg would race the first
+  # one's CREATE ROLE (see spec/support/fenced_owner.rb). Two legs, each on its own
+  # runner and database, each sweeping half the domains (`shard=I/2`), and reported as
+  # `checks_fuzz` above is.
   checks_fuzz_postgres:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     needs: ci_attestation_checks_heavy
     if: always() && (needs.ci_attestation_checks_heavy.result != 'success' || needs.ci_attestation_checks_heavy.outputs.attested != 'true')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
 
     env:
       PGHOST: localhost
@@ -114,12 +139,11 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step, as in `checks_fuzz`.
       - uses: ./.github/actions/postgres
 
-      - name: hecks fuzz adapter=postgres
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_postgres --wait
+      - name: hecks fuzz adapter=postgres (shard ${{ matrix.shard }} of 2)
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_postgres_${{ matrix.shard }}_of_2 --wait
 
   checks_static:
     runs-on: ubuntu-latest
@@ -135,8 +159,8 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: none of the checks below reads rust/src/generated (they read the
+      # bluebooks, the Ruby and the comments), so a cache miss costs this job nothing.
 
       # Only 3 of this job's 5 steps overlap .githooks/pre-push's own checks
       # (lint_deploy_recipes and comment_style run regardless); those 3 gain an `if:` against
@@ -183,6 +207,12 @@ jobs:
       # touched, so this belongs here rather than in `rspec`.
       - name: lint generated deploy recipes
         run: bundle exec exe/hecks gate_run.gate stage=ci only=lint_deploy_recipes --wait
+
+      # The fuzz sweeps run as shards in checks_fuzz and checks_fuzz_sqlite. This lists the split
+      # and refuses one that leaves a domain out or sweeps one twice, so a leg that is missing or
+      # repeated is not read as a whole sweep. Reads the corpus only, never a database.
+      - name: fuzz shards
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_shards --wait
 
       # The comment linter as a gate (ADR 0069, widened by ADR 0075 ticket 01): checks every
       # comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md; the block-length cap
@@ -247,16 +277,23 @@ jobs:
           name: codegen
           crate-root: rust/codegen
 
-      # Materializes rust/src/generated and rust/Cargo.toml: the saved output of a regeneration on
-      # identical generator inputs, or a fresh `regenerate_corpus --confirm` over every domain.
+      # Rewrites rust/src/generated and rust/Cargo.toml with a fresh `regenerate_corpus --confirm`
+      # over every domain, on purpose: this job is the safety net that compares the whole tree.
       - uses: ./.github/actions/generated-rust
+        with:
+          regenerate: "true"
 
-      # Fails when the committed pizzas, mod.rs or Cargo.toml differ from that regeneration, so a
-      # change to them with no matching regen is caught on the push that caused it. The step above
-      # already regenerated (or restored a regeneration of these exact inputs), so this compares
-      # instead of regenerating the corpus a second time.
+      # Fails when the committed tree or Cargo.toml differs from that regeneration, so a change to
+      # a bluebook or the generator with no matching regeneration is caught on the push that caused
+      # it. The step above regenerated, so this compares instead of regenerating a second time.
       - name: "rust codegen: fail on drift between the committed and the regenerated tree"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=codegen_drift --wait
+
+      # The rspec shards hold only the domains they read, so the examples that read the whole
+      # generated tree (tagged `generated_all`) run here, where every domain is held: the action
+      # above names no domains.
+      - name: "rust codegen: specs that read the whole generated tree"
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=generated_tree --wait
 
   # rustfmt and clippy over the seven Rust crates, each its own workspace. The main crate's
   # generated modules are not committed, so they are restored or regenerated first; the checks
@@ -273,7 +310,13 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # The main crate's default build compiles the chapters mod.rs declares outright: banking brings
+      # bulk and identity, checkout_fixture consolesettings and payments, embryonaut_vendoring_demo
+      # widgets, and reserved_names_fixture is Cargo's default feature. rust/host's tests include
+      # lease_clock's ir.json. Nothing else is linted, so the other domains are not regenerated.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: banking checkout_fixture embryonaut_vendoring_demo reserved_names_fixture lease_clock
 
       - uses: ./.github/actions/cargo-cache
         with:
@@ -332,7 +375,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # Every domain, on purpose: `rust coverage: every generated module` walks the whole tree.
       - uses: ./.github/actions/generated-rust
 
       # The reserved-name tables (RustReservedWord/CargoReservedName in
@@ -349,6 +392,12 @@ jobs:
       # edited with no matching projection, or a region edited by hand, fails here.
       - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_gates --wait
+
+      # The workflow files whose rows the CiWorkflows chapter declares (ci-rspec.yml so far) are
+      # written whole from those rows. Without --confirm the verb only compares, so a row edited
+      # with no matching projection, or a projected file edited by hand, fails here.
+      - name: "ci pipeline: project the workflow rows into their files, fail on drift"
+        run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_pipeline --wait
 
       # The launcher forms of docs/tools.md are written from the RetiredScript rows in
       # vocabulary.bluebook and each command's own arguments. Without --confirm the verb only

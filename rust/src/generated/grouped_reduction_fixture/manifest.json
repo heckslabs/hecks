@@ -1,0 +1,63 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "GroupedReductionFixture::Item",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "GroupedReductionFixture::Item.Shelve",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::UnitsByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::LinesByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::MeanUnitsByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::LightestByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::HeaviestByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::MedianUnitsByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::UpperUnitsByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::AnyFragileByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::AllFragileByAisle",
+    "generated": true
+  },
+  {
+    "kind": "read_model",
+    "id": "GroupedReductionFixture::UnitsByAisleAndBay",
+    "generated": true
+  }
+]

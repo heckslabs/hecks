@@ -8,6 +8,7 @@ require_relative "fuzz_sweep/options"
 require_relative "fuzz_sweep/findings"
 require_relative "fuzz_sweep/reporting"
 require_relative "fuzz_sweep/pool"
+require_relative "fuzz_sweep/shards"
 
 module Hecks
   module Tools
@@ -15,11 +16,13 @@ module Hecks
     # properties, then shrinks each distinct finding and saves it under `tmp/fuzz-failures/`.
     #
     #   hecks fuzz [domain] [--seeds N] [--steps N] [--workers N] [--adapter memory|sqlite|postgres]
-    #               [--persist-regressions]
+    #               [--persist-regressions] [--shard I/N | --list-shards N]
     #
     # The sweep is single-runtime on purpose; the cross-runtime differential is
     # `spec/rust_conformance_fuzz_spec.rb`. Without a domain it sweeps every domain
-    # `Hecks::Corpus.fuzzable_domains` finds, one forked child per core.
+    # `Hecks::Corpus.fuzzable_domains` finds, one forked child per core. `--shard I/N` sweeps only
+    # shard I of N (see `Shards`), so N jobs together sweep every domain once; `--list-shards N`
+    # prints which shard each domain falls in and sweeps nothing.
     module FuzzSweep
       # How many seeds are drawn for each seed that must execute.
       DRAW_LIMIT = 5
@@ -57,13 +60,16 @@ module Hecks
       #   argument is refused
       def main(argv, root: Tools::ROOT)
         require "hecks"
-        require "hecks/fuzzing"
         options = parse(argv.dup)
-        return 1 unless options && adapter_ready?(options)
+        return 1 unless options
+        return Shards.print_listing(options[:list_shards], root) if options[:list_shards]
+
+        require "hecks/fuzzing"
+        return 1 unless adapter_ready?(options)
 
         # Every discoverable domain, so one added anywhere is swept without a list. Paths the sweep
         # cannot boot are routed by Hecks::Corpus::ROUTES to the check that owns them.
-        domains = options[:domain] ? [options[:domain]] : Hecks::Corpus.fuzzable_domains(root)
+        domains = options[:domain] ? [options[:domain]] : Shards.domains_for(options, root)
         ok = sweep(domains, worker_count(options), options, root)
 
         puts(ok ? "CLEAN — no generated sequence broke a property or the interpreter." : "FUZZ FOUND SOMETHING.")

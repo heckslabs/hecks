@@ -1,0 +1,41 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "FanOutRowFieldsFixture::Charge",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "FanOutRowFieldsFixture::Charge.Take",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "FanOutRowFieldsFixture::Charge.Refund",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "FanOutRowFieldsFixture::Cancellation",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "FanOutRowFieldsFixture::Cancellation.Cancel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "FanOutRowFieldsFixture::Charge.ForBooking",
+    "generated": true
+  },
+  {
+    "kind": "policy",
+    "id": "FanOutRowFieldsFixture::RefundOnCancel",
+    "generated": true,
+    "routed": true
+  }
+]

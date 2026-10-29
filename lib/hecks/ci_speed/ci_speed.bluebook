@@ -1,0 +1,948 @@
+# CI speed: main CI is measured run by run against a wall-time budget. A change to the pipeline is
+# proposed for the slowest job, and kept only when a following run of the same cache state is
+# measurably faster. The loop stops once the latest warm run and the latest cache-miss run are both
+# under budget.
+#
+# Nothing here reads GitHub. Each run is observed after a push to main through the push train, and
+# an adapter answers the `Reading` query; the loop records what came back.
+#
+# A proposed change is measured on this machine before a CI run is spent on it. An `Experiment`
+# times the same steps in a checkout of the pipeline as it is and a checkout with the change, the
+# two interleaved (see the aggregate below). The chapter is booted from its own directory, since
+# it is not attached to the launcher: each command is a separate process on Memory, so what an
+# experiment is to re-estimate has to be proposed in the same run, and the process has to stay up
+# until the port has answered. A step list does both and prints the settled experiment, its
+# events and the lever's new estimate; `Experiment.request!` as a single verb prints the record
+# as it stood at the request, before the run. Leave `lever` and the Lever.Propose step out for an
+# experiment that is not about a lever.
+#
+#   exe/hecks run lib/hecks/ci_speed '{"steps":[
+#     {"verb":"CiSpeed::Lever.Propose","args":{"name":{"value":"parallel_rustfmt"},
+#       "change":{"value":"rustfmt on one thread per core"},"pole":{"value":"generated_rust"},
+#       "affects":{"value":"miss"},"expected_seconds":{"value":0},"basis":{"value":"unestimated"},
+#       "inputs":{"value":""}}},
+#     {"verb":"CiSpeed::Experiment.Request","args":{"name":{"value":"parallel_rustfmt_cold"},
+#       "lever":{"value":"parallel_rustfmt"},"measures":{"value":"regenerate_corpus_cold"},
+#       "cache_state":{"value":"miss"},"base_ref":{"value":"f95bafef9~1"},
+#       "candidate_ref":{"value":"f95bafef9"},"repeats":{"value":3}}}]}'
+#
+# What can be measured is the `ExperimentDefinition` rows below.
+
+Hecks.bluebook "CiSpeed" do
+  vision "A main CI run is measured as it finished, and a change to the pipeline is kept only when a run of the same cache state proves it faster."
+
+  supporting
+
+  # One observed CI run on main. `hit` is a warm run, a generated-rust cache hit; `miss` is a cold
+  # one that regenerates the corpus.
+  aggregate "Run" do
+    description "One observed CI run on main: its commit, wall time, cache state, conclusion, and each job's time."
+
+    identified_by :run_id
+
+    attribute :run_id,         RunId
+    attribute :commit,         CommitSha
+    attribute :wall_seconds,   WallSeconds
+    attribute :cache_state,    CacheState
+    attribute :conclusion,     Conclusion
+    # The target in force when this run was observed, read from the Budget by the caller.
+    attribute :budget_seconds, WallSeconds
+    attribute :longest_pole,   JobName
+    attribute :jobs,           list_of(JobTiming)
+
+    # Each analysis is its own command, one per cache state and verdict. A policy can only read an
+    # event's name, so the verdict has to be carried by the event's name.
+    lifecycle :status, default: "observed" do
+      transition "AnalyzeWarmUnderBudget" => "analyzed", from: "observed"
+      transition "AnalyzeWarmOverBudget"  => "analyzed", from: "observed"
+      transition "AnalyzeMissUnderBudget" => "analyzed", from: "observed"
+      transition "AnalyzeMissOverBudget"  => "analyzed", from: "observed"
+    end
+
+    value_object "RunId" do
+      # GitHub's numeric run id.
+      attribute :value, String, pattern: '^[0-9]+$'
+      invariant("a run is identified by its GitHub run id") { !value.to_s.empty? }
+    end
+
+    value_object "CommitSha" do
+      # A full or abbreviated git commit hash, lowercase hex.
+      attribute :value, String, pattern: '^[0-9a-f]{7,40}$'
+    end
+
+    value_object "WallSeconds" do
+      attribute :value, Integer
+      invariant("a run or job takes a positive number of seconds") { value.positive? }
+    end
+
+    # `hit` is a warm run: the generated-rust cache restored. `miss` regenerated the corpus.
+    value_object "CacheState" do
+      attribute :value, String, pattern: '^(hit|miss)$'
+    end
+
+    value_object "Conclusion" do
+      attribute :value, String, pattern: '^(success|failure|cancelled)$'
+    end
+
+    value_object "JobName" do
+      attribute :value, String, matches: :present
+      invariant("a job is named") { !value.to_s.empty? }
+    end
+
+    value_object "JobSequence" do
+      attribute :value, Integer
+      invariant("a job timing sequence is positive") { value.positive? }
+    end
+
+    value_object "Critical" do
+      # Whether the job sat on the critical path of the run.
+      attribute :value, String, pattern: '^(yes|no)$'
+    end
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # A job's wall time within one run. An entity: it has no meaning outside the run it timed.
+    entity "JobTiming" do
+      description "One job's wall time within a run, and whether it sat on the critical path."
+
+      identified_by :sequence
+
+      attribute :sequence, JobSequence
+      attribute :job,      JobName
+      attribute :seconds,  WallSeconds
+      attribute :critical, Critical
+    end
+
+    command "Observe" do
+      role "CI engineer"
+      goal "Write down one main CI run as it finished, before anything is said about it"
+
+      attribute :run_id,         RunId
+      attribute :commit,         CommitSha
+      attribute :wall_seconds,   WallSeconds
+      attribute :cache_state,    CacheState
+      attribute :conclusion,     Conclusion
+      attribute :budget_seconds, WallSeconds
+      attribute :longest_pole,   JobName
+
+      emits "RunObserved"
+    end
+
+    command "RecordJob" do
+      role "CI engineer"
+      goal "Add one job's wall time to a run, and say whether it sat on the critical path"
+
+      reference_to Run
+      attribute :job,      JobName
+      attribute :seconds,  WallSeconds
+      attribute :critical, Critical
+
+      given("a run's job times are written before it is analysed") { status == "observed" }
+
+      sets :jobs, append: { job: :job, seconds: :seconds, critical: :critical }
+
+      emits "JobRecorded"
+    end
+
+    # Under budget: `seconds` restates the run's own wall time so the event carries it to the
+    # Budget. The given keeps the restated value honest.
+    command "AnalyzeWarmUnderBudget" do
+      role "CI engineer"
+      goal "Judge a warm run, a cache hit, that finished within budget"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+
+      given("the seconds are the run's own wall time") { seconds.value == wall_seconds.value }
+      given("a warm run is a cache hit that finished within budget") do
+        cache_state.value == "hit" && wall_seconds.value <= budget_seconds.value
+      end
+
+      emits "WarmRunUnderBudget"
+    end
+
+    # Over budget: `pole` restates the longest pole, so the event can propose a lever for it.
+    command "AnalyzeWarmOverBudget" do
+      role "CI engineer"
+      goal "Judge a warm run, a cache hit, that finished over budget, and name its longest pole"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+      attribute :pole,    JobName
+
+      given("the seconds and pole are the run's own") do
+        seconds.value == wall_seconds.value && pole.value == longest_pole.value
+      end
+      given("a warm run is a cache hit that finished over budget") do
+        cache_state.value == "hit" && wall_seconds.value > budget_seconds.value
+      end
+
+      emits "WarmRunOverBudget"
+    end
+
+    command "AnalyzeMissUnderBudget" do
+      role "CI engineer"
+      goal "Judge a cache-miss run that finished within budget"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+
+      given("the seconds are the run's own wall time") { seconds.value == wall_seconds.value }
+      given("a cache-miss run finished within budget") do
+        cache_state.value == "miss" && wall_seconds.value <= budget_seconds.value
+      end
+
+      emits "MissRunUnderBudget"
+    end
+
+    command "AnalyzeMissOverBudget" do
+      role "CI engineer"
+      goal "Judge a cache-miss run that finished over budget, and name its longest pole"
+
+      reference_to Run
+      attribute :seconds, WallSeconds
+      attribute :pole,    JobName
+
+      given("the seconds and pole are the run's own") do
+        seconds.value == wall_seconds.value && pole.value == longest_pole.value
+      end
+      given("a cache-miss run finished over budget") do
+        cache_state.value == "miss" && wall_seconds.value > budget_seconds.value
+      end
+
+      emits "MissRunOverBudget"
+    end
+
+    # The adapter answers what GitHub reports for one run. This chapter only names the question.
+    query "Reading" do
+      description "One run's record as GitHub reports it: wall time, cache state, conclusion, and each job's time. An adapter answers it; this chapter never fetches."
+      attribute :run_id, RunId
+      returns Document
+    end
+
+    query "All" do
+      description "Every observed run, oldest first."
+      order_by :run_id
+    end
+  end
+
+  # The target and the latest warm and cache-miss times. The stop rule lives here.
+  aggregate "Budget" do
+    description "The wall-time target for main CI, and the latest warm and cache-miss runs measured against it."
+
+    identified_by :name
+
+    attribute :name,           BudgetName
+    attribute :target_seconds, TargetSeconds
+    attribute :warm_seconds,   LatestSeconds
+    attribute :miss_seconds,   LatestSeconds
+
+    lifecycle :status, default: "open" do
+      transition "Complete" => "complete", from: "open"
+      transition "Reopen"   => "open",     from: "complete"
+    end
+
+    value_object "BudgetName" do
+      attribute :value, String, matches: :present
+      invariant("a budget is named") { !value.to_s.empty? }
+    end
+
+    value_object "TargetSeconds" do
+      attribute :value, Integer, default: 180
+      invariant("a target is positive") { value.positive? }
+    end
+
+    # Zero means no run of this cache state has been observed yet.
+    value_object "LatestSeconds" do
+      attribute :value, Integer, default: 0
+      invariant("a latest time is not negative") { !value.negative? }
+    end
+
+    command "Open" do
+      role "CI engineer"
+      goal "Set the wall-time target that main CI is measured against"
+
+      attribute :name,           BudgetName
+      attribute :target_seconds, TargetSeconds
+
+      emits "BudgetOpened"
+    end
+
+    # Recorded whatever the verdict: the latest run decides, not the best one. Allowed after the
+    # budget is complete, so a regression still shows.
+    command "WitnessWarm" do
+      role "CI engineer"
+      goal "Record the latest warm run's wall time against the target"
+
+      reference_to Budget
+      attribute :seconds, WallSeconds
+
+      sets :warm_seconds, to: :seconds
+
+      emits "WarmRunWitnessed"
+    end
+
+    command "WitnessMiss" do
+      role "CI engineer"
+      goal "Record the latest cache-miss run's wall time against the target"
+
+      reference_to Budget
+      attribute :seconds, WallSeconds
+
+      sets :miss_seconds, to: :seconds
+
+      emits "MissRunWitnessed"
+    end
+
+    # Refused while either latest run is missing or over target. A refusal here is the answer
+    # "not yet", and the loop keeps going.
+    command "Complete" do
+      role "CI engineer"
+      goal "Mark the target met, once the latest warm run and the latest cache-miss run are both under budget"
+
+      reference_to Budget
+
+      given("both cache states are under budget") do
+        warm_seconds.value > 0 && warm_seconds.value < target_seconds.value &&
+          miss_seconds.value > 0 && miss_seconds.value < target_seconds.value
+      end
+
+      emits "BudgetMet"
+    end
+
+    # Meeting a target is a milestone, not the end: every minute off a cycle is saved on every push,
+    # so the next target is lower and the backlog keeps being worked.
+    command "Reopen" do
+      role "CI engineer"
+      goal "Set a lower target once the last one is met, so the effort goes on taking time out of the cycle"
+
+      reference_to Budget
+      attribute :new_target_seconds, TargetSeconds
+
+      given("a new target is lower than the one met") { new_target_seconds.value < target_seconds.value }
+
+      sets :target_seconds, to: :new_target_seconds
+
+      emits "BudgetReopened"
+    end
+
+    query "Open" do
+      description "The budget in force, and whether the effort has met it."
+      where(status: "open")
+      order_by :name
+    end
+  end
+
+  # One hypothesis for saving CI time. A lever is kept or reverted on a following run of the same
+  # cache state it was measured on, and never retried unless its inputs changed.
+  aggregate "Lever" do
+    description "A hypothesis for saving CI time: what it changes, what it should save, and what the runs after it measured."
+
+    identified_by :name
+
+    attribute :name,             LeverName
+    attribute :change,           LeverChange
+    attribute :pole,             JobName
+    attribute :affects,          Affects
+    attribute :expected_seconds, SecondsSaved
+    # What the estimate rests on, such as the job times of a named run. "unestimated" ranks last in
+    # the backlog until someone replaces it with a basis and a number.
+    attribute :basis,            EstimateBasis
+    # What a following run measured: the baseline less the following time. Set when a lever is
+    # kept, so the estimates can be compared with what the changes really saved.
+    attribute :saved_seconds,    SecondsSaved
+    # A fingerprint of what the change depends on, such as a lockfile digest. Reconsidering a
+    # reverted lever needs it to differ.
+    attribute :inputs,           LeverInputs
+    attribute :evidence,         Evidence
+    attribute :baseline_run,     RunRef
+    attribute :baseline_seconds, MeasuredSeconds
+    attribute :baseline_cache,   CacheState
+    attribute :following_run,    RunRef
+    attribute :following_seconds, MeasuredSeconds
+    attribute :margin_seconds,   MarginSeconds
+
+    lifecycle :status, default: "proposed" do
+      transition "Attempt"     => "attempted", from: "proposed"
+      transition "Keep"        => "kept",      from: "attempted"
+      transition "Revert"      => "reverted",  from: "attempted"
+      transition "Recall"      => "kept",      from: "proposed"
+      transition "Reconsider"  => "proposed",  from: "reverted"
+      transition "Reestimate"  => "proposed",  from: "proposed"
+    end
+
+    # Why an estimate stands where it does. A plain statement of the run or job times it came from.
+    value_object "EstimateBasis" do
+      attribute :value, String, default: "unestimated"
+    end
+
+    value_object "LeverName" do
+      # A lowercase slug, such as `postgres_io` or `fuzz_sqlite`.
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("a lever is named") { !value.to_s.empty? }
+    end
+
+    value_object "LeverChange" do
+      attribute :value, String, matches: :present
+      invariant("a lever says what it changes") { !value.to_s.empty? }
+    end
+
+    value_object "JobName" do
+      attribute :value, String, matches: :present
+      invariant("a lever names the job it targets") { !value.to_s.empty? }
+    end
+
+    # The cache state the lever should move: `hit`, `miss`, or `both`.
+    value_object "Affects" do
+      attribute :value, String, pattern: '^(hit|miss|both)$'
+    end
+
+    value_object "SecondsSaved" do
+      attribute :value, Integer, default: 0
+      invariant("expected savings are not negative") { !value.negative? }
+    end
+
+    value_object "LeverInputs" do
+      attribute :value, String, default: ""
+    end
+
+    # The commit that proves a kept lever. Empty while nothing has proven it.
+    value_object "Evidence" do
+      attribute :value, String, pattern: '^([0-9a-f]{7,40})?$'
+    end
+
+    # A GitHub run id, or empty before a run has been measured.
+    value_object "RunRef" do
+      attribute :value, String, pattern: '^([0-9]+)?$'
+    end
+
+    value_object "MeasuredSeconds" do
+      attribute :value, Integer, default: 0
+      invariant("a measured time is not negative") { !value.negative? }
+    end
+
+    # How much faster a following run must be to keep a lever.
+    value_object "MarginSeconds" do
+      attribute :value, Integer, default: 10
+      invariant("a margin is not negative") { !value.negative? }
+    end
+
+    # A lever's name is its identity, so a second lever under the same name is refused as already on
+    # file. The policies below propose under the pole's name; any further lever is named by the
+    # caller.
+    command "Propose" do
+      role "CI engineer"
+      goal "Write down a lever for a slow job before anybody tries it"
+
+      attribute :name,             LeverName
+      attribute :change,           LeverChange
+      attribute :pole,             JobName
+      attribute :affects,          Affects
+      attribute :expected_seconds, SecondsSaved
+      attribute :basis,            EstimateBasis
+      attribute :inputs,           LeverInputs
+
+      emits "LeverProposed"
+    end
+
+    # The backlog is ordered by this number, so attempts go to the biggest saving first. Revised
+    # whenever a run shows the job times have moved, or a kept lever shows what a change is worth.
+    command "Reestimate" do
+      role "CI engineer"
+      goal "Revise what a proposed lever is expected to save, and say what the new number rests on"
+
+      reference_to Lever
+      attribute :new_expected_seconds, SecondsSaved
+      attribute :new_basis,            EstimateBasis
+
+      given("a revised estimate says what it rests on") { new_basis.value != "unestimated" }
+
+      sets :expected_seconds, to: :new_expected_seconds
+      sets :basis,            to: :new_basis
+
+      emits "LeverReestimated"
+    end
+
+    # Recorded with the run it was measured against. The given keeps it to the cache state the
+    # lever affects, since a lever that moves only warm runs says nothing about a cold one.
+    command "Attempt" do
+      role "CI engineer"
+      goal "Measure a proposed lever against the run it is meant to beat"
+
+      reference_to Lever
+      attribute :baseline_run,     RunRef
+      attribute :baseline_seconds, MeasuredSeconds
+      attribute :baseline_cache,   CacheState
+
+      given("a lever is measured on the cache state it affects") do
+        affects.value == "both" || affects.value == baseline_cache.value
+      end
+
+      sets :baseline_run
+      sets :baseline_seconds
+      sets :baseline_cache
+
+      emits "LeverAttempted"
+    end
+
+    command "Keep" do
+      role "CI engineer"
+      goal "Keep an attempted lever, because a following run of its cache state beat the baseline by the margin"
+
+      reference_to Lever
+      attribute :following_run,     RunRef
+      attribute :following_seconds, MeasuredSeconds
+      attribute :following_cache,   CacheState
+      attribute :evidence,          Evidence
+      attribute :saved_seconds,     SecondsSaved
+
+      given("a following run is of the cache state the lever was measured on") do
+        following_cache.value == baseline_cache.value
+      end
+      given("a kept lever is faster than its baseline by its margin") do
+        following_seconds.value + margin_seconds.value <= baseline_seconds.value
+      end
+      given("a kept lever says what it really saved") do
+        saved_seconds.value == baseline_seconds.value - following_seconds.value
+      end
+      given("a kept lever names the commit that proves it") { evidence.value != "" }
+
+      sets :following_run
+      sets :following_seconds
+      sets :evidence
+      sets :saved_seconds
+
+      emits "LeverKept"
+    end
+
+    command "Revert" do
+      role "CI engineer"
+      goal "Revert an attempted lever, because the following run did not beat the baseline by the margin"
+
+      reference_to Lever
+      attribute :following_run,     RunRef
+      attribute :following_seconds, MeasuredSeconds
+      attribute :following_cache,   CacheState
+
+      given("a following run is of the cache state the lever was measured on") do
+        following_cache.value == baseline_cache.value
+      end
+      given("a reverted lever is no faster than its baseline by its margin") do
+        following_seconds.value + margin_seconds.value > baseline_seconds.value
+      end
+
+      sets :following_run
+      sets :following_seconds
+
+      emits "LeverReverted"
+    end
+
+    # A lever already learned from history, with the commit that shows it. It skips the attempt,
+    # because the runs that measured it are older than the chapter.
+    command "Recall" do
+      role "CI engineer"
+      goal "Record a lever that history already settled, with the commit that settled it"
+
+      reference_to Lever
+      attribute :evidence, Evidence
+
+      given("a learned lever names the commit it was learned from") { evidence.value != "" }
+
+      sets :evidence
+
+      emits "LeverLearned"
+    end
+
+    command "Reconsider" do
+      role "CI engineer"
+      goal "Put a reverted lever back to proposed, because the inputs it depends on have changed"
+
+      reference_to Lever
+      attribute :new_inputs, LeverInputs
+
+      given("a reverted lever is retried only when its inputs have changed") do
+        new_inputs.value != inputs.value
+      end
+
+      sets :inputs, to: :new_inputs
+
+      emits "LeverReconsidered"
+    end
+
+    query "Kept" do
+      description "Levers that a following run proved, or that history settled, each with its evidence."
+      where(status: "kept")
+      order_by :name
+    end
+
+    # What to try next: the proposed levers, the biggest expected saving first. This is the list
+    # that drives the attempts; `Next` is its head.
+    query "Backlog" do
+      description "Levers waiting to be tried, the biggest expected saving first."
+      where(status: "proposed")
+      order_by :expected_seconds, :desc
+    end
+
+    query "Next" do
+      description "The one lever to attempt now: the proposed lever with the biggest expected saving."
+      where(status: "proposed")
+      order_by :expected_seconds, :desc
+      limit 1
+    end
+
+    query "Saved" do
+      description "Kept levers, the biggest measured saving first, to set the estimates against."
+      where(status: "kept")
+      order_by :saved_seconds, :desc
+    end
+
+    query "Reverted" do
+      description "Levers a following run did not beat by the margin. Not retried unless their inputs change."
+      where(status: "reverted")
+      order_by :name
+    end
+  end
+
+  # One local measurement of a change to the pipeline: the same steps run in a checkout of the
+  # pipeline as it is (`base_ref`) and a checkout with the change (`candidate_ref`), interleaved, so
+  # a proposal is measured on this machine before a CI run is spent on it. The `LocalRunner` port
+  # does the running; this aggregate records that it was asked for and what came back.
+  #
+  # What an experiment can time is a row of `ExperimentDefinition`, and each row's steps are rows of
+  # `ExperimentStep`, joined by the definition's name and read in the order written. A step is a
+  # call of a hecks verb, never a shell line: a verb ending in `!` is a command, any other a query,
+  # and `arguments` are its `name=value` words, separated by spaces. The rows live in this chapter,
+  # as the language's own tables do (`CiGate`, `ReleaseFile`): the chapter is not attachable yet,
+  # so no client chapter can hold them, and `hecks run lib/hecks/ci_speed` boots them with it.
+  #
+  # `needs_generated_tree` says what each sample starts from. `no` is a checkout with no generated
+  # Rust, as a cache miss has it; `yes` is a copy of the generated tree of the checkout that asked.
+  # Either way the tree is put back before every sample, so a step that writes it measures the
+  # same work each time.
+  #
+  # A step the local machine cannot stand in for (its `needs` is not `none`, or one of the two
+  # checkouts does not know its verb) is left out of both sides and named in `unmeasured`, never
+  # timed as if it ran. `verdict` is `inconclusive` unless the saving is larger than the spread of
+  # the samples, so noise on this shared machine is never reported as a result.
+  aggregate "Experiment" do
+    description "One local measurement of a proposed change to the pipeline: the base and candidate refs timed on the same steps, interleaved, and what the saving was set against the noise."
+
+    identified_by :name
+
+    attribute :name,              ExperimentName
+    attribute :lever,             LeverRef,       optional: true
+    attribute :measures,          DefinitionName
+    attribute :cache_state,       CacheState
+    attribute :base_ref,          GitRef
+    attribute :candidate_ref,     GitRef
+    attribute :repeats,           Repeats,        optional: true
+    # The result, written once by `Complete`.
+    attribute :base_seconds,      Seconds,        optional: true
+    attribute :candidate_seconds, Seconds,        optional: true
+    attribute :spread_seconds,    Seconds,        optional: true
+    attribute :saved_seconds,     SavedSeconds,   optional: true
+    attribute :load,              LoadAverage,    optional: true
+    attribute :unmeasured,        Note,           optional: true
+    attribute :verdict,           Verdict,        optional: true
+    attribute :basis,             Note,           optional: true
+    attribute :refusal,           Note,           optional: true
+
+    value_object "ExperimentName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      invariant("an experiment is named") { !value.to_s.empty? }
+    end
+
+    # A lever's name, or empty when the experiment is not about one.
+    value_object "LeverRef" do
+      attribute :value, String, pattern: '^([a-z][a-z0-9_]*)?$'
+    end
+
+    # The name of an `ExperimentDefinition` row.
+    value_object "DefinitionName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    # The cache state the measurement stands for, as on a `Run`.
+    value_object "CacheState" do
+      attribute :value, String, pattern: '^(hit|miss)$'
+    end
+
+    # A ref git can resolve, such as `HEAD~1` or a short hash. It cannot start with a dash, so it
+    # is never read as an option.
+    value_object "GitRef" do
+      attribute :value, String, pattern: '^[A-Za-z0-9_][A-Za-z0-9_./~^@{}-]*$'
+    end
+
+    # One sample is a pass over all the steps on each side. A single sample has no spread, so it
+    # could not tell a result from noise.
+    value_object "Repeats" do
+      attribute :value, Integer, default: 3
+      invariant("an experiment is repeated at least twice, or there is no spread to judge it by") { value >= 2 }
+    end
+
+    value_object "Seconds" do
+      attribute :value, Float, default: 0.0
+      invariant("a measured time is not negative") { !value.negative? }
+    end
+
+    # Base less candidate: negative when the candidate was the slower.
+    value_object "SavedSeconds" do
+      attribute :value, Float, default: 0.0
+    end
+
+    # The machine's one-minute load average as the experiment started.
+    value_object "LoadAverage" do
+      attribute :value, Float, default: 0.0
+      invariant("a load average is not negative") { !value.negative? }
+    end
+
+    # What a `Lever` is told it is worth: the saving rounded to whole seconds, and zero for any
+    # result that is not conclusively faster.
+    value_object "EstimateSeconds" do
+      attribute :value, Integer, default: 0
+      invariant("an estimate is not negative") { !value.negative? }
+    end
+
+    value_object "Verdict" do
+      attribute :value, String, pattern: '^(faster|slower|inconclusive)$'
+    end
+
+    value_object "Note" do
+      attribute :value, String, default: ""
+    end
+
+    # One thing an experiment can time. `measures` says what the time is of, `cache_state` which
+    # state of the generated-rust cache it stands for, `needs_generated_tree` what each sample
+    # starts from (`yes` or `no`).
+    value_object "ExperimentDefinition" do
+      attribute :name,                 String
+      attribute :measures,             String
+      attribute :cache_state,          String
+      attribute :needs_generated_tree, String
+
+      member name: "regenerate_corpus_cold",
+             measures: "regenerating every corpus domain's Rust from a checkout with no generated tree, rustfmt included",
+             cache_state: "miss", needs_generated_tree: "no"
+    end
+
+    # One step of a definition, in the order the steps are written. `verb` is a hecks command
+    # (`Aggregate.verb!`) or query (`Aggregate.verb`), `arguments` its `name=value` words. `needs`
+    # is `none` for a step this machine can do, or `postgres` or `network` for one it cannot.
+    value_object "ExperimentStep" do
+      attribute :definition, String
+      attribute :name,       String
+      attribute :verb,       String
+      attribute :arguments,  String
+      attribute :needs,      String
+
+      member definition: "regenerate_corpus_cold", name: "regenerate",
+             verb: "RegenerationRun.regenerate_corpus!", arguments: "confirm.value=true"
+    end
+
+    # Asking the port is the next thing that happens: it runs the steps and answers with the
+    # numbers, or refuses. The command lines that run it are in this file's header.
+    command "Request" do
+      goal "Ask for a change to the pipeline to be timed against the pipeline as it is, on this machine"
+
+      attribute :name,          ExperimentName
+      attribute :lever,         LeverRef,       optional: true
+      attribute :measures,      DefinitionName
+      attribute :cache_state,   CacheState
+      attribute :base_ref,      GitRef
+      attribute :candidate_ref, GitRef
+      attribute :repeats,       Repeats,        optional: true
+
+      given("a candidate is a different ref from its base") { candidate_ref.value != base_ref.value }
+
+      sets :name
+      sets :lever
+      sets :measures
+      sets :cache_state
+      sets :base_ref
+      sets :candidate_ref
+      sets :repeats
+
+      emits "ExperimentRequested"
+    end
+
+    # The answer is written as the adapter computed it. `reestimates` restates the lever and
+    # `expected_seconds` and `basis` are what that lever is to be told, because a policy passes on
+    # only the fields of the event it reacts to. The givens keep the adapter's verdict honest:
+    # a verdict says what the numbers say, and only a conclusive faster result carries an estimate.
+    command "Complete" do
+      goal "Record what the local run measured, and whether the saving stands out from the noise"
+
+      reference_to Experiment
+      attribute :base_seconds,      Seconds
+      attribute :candidate_seconds, Seconds
+      attribute :spread_seconds,    Seconds
+      attribute :saved_seconds,     SavedSeconds
+      attribute :load,              LoadAverage
+      attribute :unmeasured,        Note
+      attribute :verdict,           Verdict
+      attribute :basis,             Note
+      attribute :reestimates,       LeverRef
+      attribute :expected_seconds,  EstimateSeconds
+
+      given("a saving is the base time less the candidate time") do
+        saved_seconds.value < base_seconds.value - candidate_seconds.value + 0.001 &&
+          saved_seconds.value > base_seconds.value - candidate_seconds.value - 0.001
+      end
+      given("a faster verdict needs a saving larger than the spread") do
+        verdict.value != "faster" || saved_seconds.value > spread_seconds.value
+      end
+      given("a slower verdict needs a loss larger than the spread") do
+        verdict.value != "slower" || saved_seconds.value + spread_seconds.value < 0
+      end
+      given("an inconclusive verdict is a saving within the spread") do
+        verdict.value != "inconclusive" ||
+          (saved_seconds.value <= spread_seconds.value && saved_seconds.value + spread_seconds.value >= 0)
+      end
+      given("only a faster verdict carries an estimate") do
+        verdict.value == "faster" || expected_seconds.value == 0
+      end
+      given("the restated lever is the experiment's own") do
+        (lever.unset? && reestimates.value == "") || (lever.set? && reestimates.value == lever.value)
+      end
+
+      sets :base_seconds
+      sets :candidate_seconds
+      sets :spread_seconds
+      sets :saved_seconds
+      sets :load
+      sets :unmeasured
+      sets :verdict
+      sets :basis
+
+      emits "ExperimentMeasured"
+    end
+
+    command "Fault" do
+      goal "Record that the experiment could not be run, and why"
+
+      reference_to Experiment
+      attribute :refusal, Note
+
+      sets :refusal
+
+      emits "ExperimentFaulted"
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
+      transition "Complete" => "measured", from: "requested"
+      transition "Fault"    => "faulted",  from: "requested"
+    end
+
+    query "Outcome" do
+      description "What one experiment did: its status, its numbers and verdict, or why it stopped."
+      attribute :name, ExperimentName
+      where(name: :name)
+      order_by :name
+    end
+
+    query "Measured" do
+      description "Every experiment that was measured, by name."
+      where(status: "measured")
+      order_by :name
+    end
+
+    query "Faulted" do
+      description "Every experiment that could not be run, by name."
+      where(status: "faulted")
+      order_by :name
+    end
+  end
+
+  # An experiment runs as soon as it is asked for: the port runs it and answers with the numbers.
+  policy "MeasureWhenRequested" do
+    on      "Experiment.ExperimentRequested"
+    trigger Experiment::LocalRunner::Measure, with: { name: :name }
+  end
+
+  policy "RecordTheMeasure" do
+    on      "Experiment.ExperimentAnswered"
+    trigger Experiment::Complete, with: {
+      base_seconds: :base_seconds, candidate_seconds: :candidate_seconds, spread_seconds: :spread_seconds,
+      saved_seconds: :saved_seconds, load: :load, unmeasured: :unmeasured, verdict: :verdict,
+      basis: :basis, reestimates: :reestimates, expected_seconds: :expected_seconds
+    }
+  end
+
+  policy "RecordTheFaultedExperiment" do
+    on      "Experiment.ExperimentRefused"
+    trigger Experiment::Fault, with: { refusal: :refusal }
+  end
+
+  # A conclusive faster result that names a lever replaces that lever's estimate with what was
+  # measured. A slower or inconclusive result says nothing to the backlog, so the estimate stands.
+  policy "ReestimateFromAConclusiveExperiment" do
+    on      "Experiment.ExperimentMeasured"
+    where   { verdict.value == "faster" && reestimates.value != "" }
+    trigger Lever::Reestimate, with: { lever: :reestimates, new_expected_seconds: :expected_seconds, new_basis: :basis }
+  end
+
+  # When a run's warm or miss verdict lands, the Budget records it. Over-budget runs are
+  # witnessed too: the latest run decides, not the best one.
+  policy "WitnessWarmUnderBudget" do
+    on      "Run.WarmRunUnderBudget"
+    trigger Budget::WitnessWarm, with: { budget: "main", seconds: :seconds }
+  end
+
+  policy "WitnessWarmOverBudget" do
+    on      "Run.WarmRunOverBudget"
+    trigger Budget::WitnessWarm, with: { budget: "main", seconds: :seconds }
+  end
+
+  policy "WitnessMissUnderBudget" do
+    on      "Run.MissRunUnderBudget"
+    trigger Budget::WitnessMiss, with: { budget: "main", seconds: :seconds }
+  end
+
+  policy "WitnessMissOverBudget" do
+    on      "Run.MissRunOverBudget"
+    trigger Budget::WitnessMiss, with: { budget: "main", seconds: :seconds }
+  end
+
+  # The longest pole of an over-budget run becomes a lever, named for the pole. A pole already on
+  # file is refused as already existing; see `Lever::Propose`.
+  policy "ProposeLeverForWarmPole" do
+    on      "Run.WarmRunOverBudget"
+    trigger Lever::Propose, with: {
+      name: :pole,
+      change: { value: "a change to the slowest job of a warm run" },
+      pole: :pole,
+      affects: { value: "both" },
+      expected_seconds: { value: 0 },
+      basis: { value: "unestimated" },
+      inputs: { value: "" }
+    }
+  end
+
+  policy "ProposeLeverForMissPole" do
+    on      "Run.MissRunOverBudget"
+    trigger Lever::Propose, with: {
+      name: :pole,
+      change: { value: "a change to the slowest job of a cache-miss run" },
+      pole: :pole,
+      affects: { value: "both" },
+      expected_seconds: { value: 0 },
+      basis: { value: "unestimated" },
+      inputs: { value: "" }
+    }
+  end
+
+  # The effort completes when a witness lands and both latest runs are under target. Until then
+  # the Complete given refuses, which is the "not yet" answer.
+  policy "CompleteOnWarmWitness" do
+    on      "Budget.WarmRunWitnessed"
+    trigger Budget::Complete, with: { budget: :name }
+  end
+
+  policy "CompleteOnMissWitness" do
+    on      "Budget.MissRunWitnessed"
+    trigger Budget::Complete, with: { budget: :name }
+  end
+end

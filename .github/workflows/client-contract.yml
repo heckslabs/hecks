@@ -68,8 +68,8 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: `hecks build_wasm` regenerates the checkout fixture itself, and the
+      # host build below compiles no generated module.
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -91,8 +91,12 @@ jobs:
       - name: Build the checkout fixture wasm
         run: bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
 
+      # Built from rust/host, not with --manifest-path from the root: cargo reads .cargo/config.toml
+      # from its working directory, and rust/host's rustflags are part of every crate's hash. A build
+      # from the root writes other hashes into the cache this job shares with the lineage job, and
+      # whichever saves first leaves the other recompiling every crate.
       - name: Build the host
-        run: cargo build --manifest-path rust/host/Cargo.toml --bin bootstrap
+        run: cd rust/host && cargo build --bin bootstrap
 
       - name: Install the client
         run: npm ci

@@ -1,0 +1,13 @@
+Hecks.behaviors "CiWorkflows" do
+  vision "Hecks's own workflows are rows of this chapter, which attaches CiPipeline for the shape of a row."
+
+  # The hecksagon attaches CiPipeline and Governance, so a boot of these files holds the shapes the
+  # rows are read against, and the memory-only guard and the role check pass.
+  loads "ci_workflows.bluebook", "ci_workflows.hecksagon"
+
+  test "Name names the pipeline whose rows these are" do
+    tests "Name", on: "Pipeline"
+    input name: { value: "hecks" }
+    expect emits: ["PipelineNamed"]
+  end
+end

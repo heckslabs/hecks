@@ -1,0 +1,399 @@
+{
+  "ir_version": 1,
+  "name": "Compliance",
+  "version": null,
+  "vision": "Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Review",
+      "description": "The compliance review of one subject another context already acted on, opened the moment it happened.",
+      "identified_by": [
+        "subject_kind.value",
+        "subject_key.value"
+      ],
+      "attributes": [
+        {
+          "name": "subject_kind",
+          "type": "SubjectKind",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "subject_key",
+          "type": "SubjectKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "SubjectKind",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a review names the kind of thing it reviews",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "SubjectKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a review names the subject it reviews",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Open",
+          "role": "System",
+          "goal": "Register that something another context acted on needs compliance review",
+          "references": null,
+          "attributes": [
+            {
+              "name": "subject_kind",
+              "type": "SubjectKind",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "subject_key",
+              "type": "SubjectKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "subject_kind",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "subject_kind"
+              }
+            },
+            {
+              "target": "subject_key",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "subject_key"
+              }
+            }
+          ],
+          "emits": [
+            "ReviewOpened"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Clear",
+          "role": "Compliance officer",
+          "goal": "Confirm the action was warranted, or resolve it, with nothing further to escalate",
+          "references": "Review",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ReviewCleared"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Escalate",
+          "role": "Compliance officer",
+          "goal": "Send a genuine finding on to whatever handles it next — a formal filing, a longer hold, a referral",
+          "references": "Review",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ReviewEscalated"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "open",
+        "transitions": [
+          {
+            "command": "Clear",
+            "to_state": "cleared",
+            "from_state": "open"
+          },
+          {
+            "command": "Escalate",
+            "to_state": "escalated",
+            "from_state": "open"
+          }
+        ],
+        "marks": {
+          "terminal": [
+            "cleared",
+            "escalated"
+          ]
+        }
+      },
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+      {
+        "name": "Review",
+        "storage_name": "review"
+      }
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Review",
+        "storage_name": "review",
+        "adapter": "PostgresEra"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "PostgresEra",
+      "port": "persistence",
+      "fields": [
+        "database",
+        "role",
+        "schema",
+        "allow_superuser",
+        "mint_eras"
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      },
+      "provides": [
+        "set_transform"
+      ]
+    }
+  ],
+  "world": {
+    "default_adapter": "PostgresEra",
+    "default_database": true,
+    "persistence": [
+      {
+        "adapter": "PostgresEra",
+        "settings": [
+          "allow_superuser"
+        ]
+      }
+    ]
+  },
+  "authorization": {
+    "provider": "Governance",
+    "grant": "Governance::RoleAssignment.Assign",
+    "assignments": "Governance::RoleAssignment.AssignmentsForActor",
+    "live_assignments": "Governance::RoleAssignment.LiveAssignmentsForActor",
+    "assignment_aggregate": "Governance::RoleAssignment"
+  },
+  "translations": [
+
+  ],
+  "source_text": "Hecks.bluebook \"Compliance\" do\n  vision \"Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.\"\n  supporting\n\n  # Supports both modes from one source: `attaches \"Compliance\"` merges it in-process,\n  # or a separately deployed service is reached with `across \"Compliance\"` on a policy.\n  # examples/compliance/bluebook/compliance.bluebook symlinks here, since a symlink pointing\n  # outside lib/ does not survive `gem build`.\n  #\n  # Contain first, investigate second: the containing action (a freeze, a box surrender) has\n  # already happened elsewhere. This domain is told the fact and records the review after it.\n  #\n  # It names no consumer. What is reviewed is a subject: a kind the consumer chooses and the\n  # subject's identity as its own context writes it. The consuming context maps its own event to\n  # those two in the `with:` of its policy, which is where that translation belongs (ADR 0143),\n  # reading the event's record as `:id` (ADR 0153).\n\n  aggregate \"Review\" do\n    description \"The compliance review of one subject another context already acted on, opened the moment it happened.\"\n\n    attribute :subject_kind, SubjectKind\n    attribute :subject_key,  SubjectKey\n\n    identified_by :subject_kind, :subject_key\n\n    # What kind of thing is reviewed, in the consumer's own words: `account_freeze`, `box_surrender`.\n    value_object \"SubjectKind\" do\n      attribute :value, String\n      invariant(\"a review names the kind of thing it reviews\") { !value.to_s.empty? }\n    end\n\n    # The subject's identity as its own context writes it; a composite one is joined by a colon.\n    value_object \"SubjectKey\" do\n      attribute :value, String\n      invariant(\"a review names the subject it reviews\") { !value.to_s.empty? }\n    end\n\n    lifecycle :status, default: \"open\" do\n      transition \"Clear\"    => \"cleared\",   from: \"open\"\n      transition \"Escalate\" => \"escalated\", from: \"open\"\n      mark :terminal, \"cleared\", \"escalated\"\n    end\n\n    # System-triggered. A refused field is refused at the JSON boundary rather than dropped.\n    command \"Open\" do\n      role \"System\"\n      goal \"Register that something another context acted on needs compliance review\"\n\n      sets :subject_kind\n      sets :subject_key\n\n      emits ReviewOpened\n    end\n\n    command \"Clear\" do\n      role \"Compliance officer\"\n      goal \"Confirm the action was warranted, or resolve it, with nothing further to escalate\"\n\n      reference_to Review\n\n      emits ReviewCleared\n    end\n\n    command \"Escalate\" do\n      role \"Compliance officer\"\n      goal \"Send a genuine finding on to whatever handles it next — a formal filing, a longer hold, a referral\"\n\n      reference_to Review\n\n      emits ReviewEscalated\n    end\n  end\nend\n"
+}

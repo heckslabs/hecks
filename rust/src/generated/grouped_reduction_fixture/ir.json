@@ -1,0 +1,722 @@
+{
+  "ir_version": 1,
+  "name": "GroupedReductionFixture",
+  "version": null,
+  "vision": "Stock on shelves, added up by aisle and bay, the same in every runtime.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Item",
+      "description": "One stocked line, addressed by its own code, kept in one aisle and bay.",
+      "identified_by": [
+        "sku.value"
+      ],
+      "attributes": [
+        {
+          "name": "sku",
+          "type": "Sku",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "aisle",
+          "type": "Aisle",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "bay",
+          "type": "Bay",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "units",
+          "type": "Units",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "weight",
+          "type": "Weight",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "fragile",
+          "type": "Fragile",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Sku",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Aisle",
+          "attributes": [
+            {
+              "name": "label",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Bay",
+          "attributes": [
+            {
+              "name": "label",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Units",
+          "attributes": [
+            {
+              "name": "count",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Weight",
+          "attributes": [
+            {
+              "name": "kilograms",
+              "type": "Float",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Fragile",
+          "attributes": [
+            {
+              "name": "flag",
+              "type": "TrueClass",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Shelve",
+          "role": "Clerk",
+          "goal": "Put a line of stock on a shelf",
+          "references": null,
+          "attributes": [
+            {
+              "name": "sku",
+              "type": "Sku",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aisle",
+              "type": "Aisle",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "bay",
+              "type": "Bay",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "units",
+              "type": "Units",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "weight",
+              "type": "Weight",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "fragile",
+              "type": "Fragile",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "sku",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "sku"
+              }
+            },
+            {
+              "target": "aisle",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "aisle"
+              }
+            },
+            {
+              "target": "bay",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "bay"
+              }
+            },
+            {
+              "target": "units",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "units"
+              }
+            },
+            {
+              "target": "weight",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "weight"
+              }
+            },
+            {
+              "target": "fragile",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "fragile"
+              }
+            }
+          ],
+          "emits": [
+            "ItemShelved"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+    {
+      "name": "UnitsByAisle",
+      "description": "The units on each aisle, added up.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "units_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "sum_field": "units"
+    },
+    {
+      "name": "LinesByAisle",
+      "description": "How many lines stand on each aisle.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "lines_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "count": true
+    },
+    {
+      "name": "MeanUnitsByAisle",
+      "description": "The mean units of a line on each aisle.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "mean_units_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "avg_field": "units"
+    },
+    {
+      "name": "LightestByAisle",
+      "description": "The lightest line on each aisle.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "lightest_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "min_field": "weight"
+    },
+    {
+      "name": "HeaviestByAisle",
+      "description": "The heaviest line on each aisle.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "heaviest_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "max_field": "weight"
+    },
+    {
+      "name": "MedianUnitsByAisle",
+      "description": "The median units of a line on each aisle.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "median_units_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "median_field": "units"
+    },
+    {
+      "name": "UpperUnitsByAisle",
+      "description": "The units at the 90th percentile of the lines on each aisle.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "upper_units_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "percentile_field": "units",
+      "percentile_at": 0.9
+    },
+    {
+      "name": "AnyFragileByAisle",
+      "description": "Whether any line on each aisle is fragile.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "any_fragile_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "any_field": "fragile"
+    },
+    {
+      "name": "AllFragileByAisle",
+      "description": "Whether every line on each aisle is fragile.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "all_fragile_by_aisle",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        }
+      ],
+      "all_field": "fragile"
+    },
+    {
+      "name": "UnitsByAisleAndBay",
+      "description": "The units in each bay of each aisle, added up.",
+      "reference_name": null,
+      "reference_target": null,
+      "query_name": "units_by_aisle_and_bay",
+      "wheres": [
+
+      ],
+      "order_by": null,
+      "limit": null,
+      "aggregate_heads": [
+        {
+          "aggregate": "Item",
+          "as": "items",
+          "many": true
+        }
+      ],
+      "group_by": [
+        {
+          "field": "aisle"
+        },
+        {
+          "field": "bay"
+        }
+      ],
+      "sum_field": "units"
+    }
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Item",
+        "storage_name": "item",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# The smallest domain whose read models group and reduce (ADR 0126): each reducer once over\n# one aisle-grouped shelf, and a sum nested two levels deep.\nHecks.bluebook \"GroupedReductionFixture\" do\n  vision \"Stock on shelves, added up by aisle and bay, the same in every runtime.\"\n\n  core\n\n  aggregate \"Item\" do\n    description \"One stocked line, addressed by its own code, kept in one aisle and bay.\"\n\n    identified_by :sku\n    attribute :sku, Sku\n    attribute :aisle, Aisle\n    attribute :bay, Bay\n    attribute :units, Units\n    attribute :weight, Weight\n    attribute :fragile, Fragile\n\n    value_object \"Sku\" do\n      attribute :value, String, matches: :present\n    end\n\n    value_object \"Aisle\" do\n      attribute :label, String, matches: :present\n    end\n\n    value_object \"Bay\" do\n      attribute :label, String, matches: :present\n    end\n\n    value_object \"Units\" do\n      attribute :count, Integer\n    end\n\n    value_object \"Weight\" do\n      attribute :kilograms, Float\n    end\n\n    value_object \"Fragile\" do\n      attribute :flag, TrueClass\n    end\n\n    command \"Shelve\" do\n      role \"Clerk\"\n      goal \"Put a line of stock on a shelf\"\n\n      attribute :sku, Sku\n      attribute :aisle, Aisle\n      attribute :bay, Bay\n      attribute :units, Units\n      attribute :weight, Weight\n      attribute :fragile, Fragile\n      sets :sku\n      sets :aisle\n      sets :bay\n      sets :units\n      sets :weight\n      sets :fragile\n\n      emits \"ItemShelved\"\n    end\n  end\n\n  read_model \"UnitsByAisle\" do\n    description \"The units on each aisle, added up.\"\n    include Item\n    group_by :aisle\n    sum :units\n  end\n\n  read_model \"LinesByAisle\" do\n    description \"How many lines stand on each aisle.\"\n    include Item\n    group_by :aisle\n    count\n  end\n\n  read_model \"MeanUnitsByAisle\" do\n    description \"The mean units of a line on each aisle.\"\n    include Item\n    group_by :aisle\n    avg :units\n  end\n\n  read_model \"LightestByAisle\" do\n    description \"The lightest line on each aisle.\"\n    include Item\n    group_by :aisle\n    min :weight\n  end\n\n  read_model \"HeaviestByAisle\" do\n    description \"The heaviest line on each aisle.\"\n    include Item\n    group_by :aisle\n    max :weight\n  end\n\n  read_model \"MedianUnitsByAisle\" do\n    description \"The median units of a line on each aisle.\"\n    include Item\n    group_by :aisle\n    median :units\n  end\n\n  read_model \"UpperUnitsByAisle\" do\n    description \"The units at the 90th percentile of the lines on each aisle.\"\n    include Item\n    group_by :aisle\n    percentile :units, at: 0.9\n  end\n\n  read_model \"AnyFragileByAisle\" do\n    description \"Whether any line on each aisle is fragile.\"\n    include Item\n    group_by :aisle\n    any :fragile\n  end\n\n  read_model \"AllFragileByAisle\" do\n    description \"Whether every line on each aisle is fragile.\"\n    include Item\n    group_by :aisle\n    all :fragile\n  end\n\n  read_model \"UnitsByAisleAndBay\" do\n    description \"The units in each bay of each aisle, added up.\"\n    include Item\n    group_by :aisle, :bay\n    sum :units\n  end\nend\n"
+}

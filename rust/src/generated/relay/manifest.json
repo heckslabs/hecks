@@ -1,0 +1,31 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Relay::Parcel",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Relay::Parcel.Post",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Relay::Parcel.Scan",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Relay::Parcel.Deliver",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Relay::Delivery",
+    "generated": true,
+    "routed": true
+  }
+]

@@ -6,8 +6,8 @@ require_relative "sentence_form"
 
 module Hecks
   # The bluebooks the gem carries that a hecksagon can attach by name (ADR 0080): the language
-  # declared in itself, Expression, Tenancy, Deploy, Site, Tickets, Composer, QualityControl and
-  # Bulk.
+  # declared in itself, Expression, Tenancy, Deploy, Site, Tickets, Composer, QualityControl,
+  # Bulk and CiPipeline.
   # Framework members stay in `Framework`; `table` and `attach!` find a name across both.
   #
   # A bluebook is named by the `Hecks.bluebook "Name"` header of its files, and may span several.
@@ -18,7 +18,8 @@ module Hecks
     # Where attachable bluebooks live, relative to `lib/hecks/`.
     GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook rails_app/bluebook/*.bluebook tickets/bluebook/*.bluebook
-               composer/bluebook/*.bluebook quality_control/*.bluebook bulk/bluebook/*.bluebook].freeze
+               composer/bluebook/*.bluebook quality_control/*.bluebook bulk/bluebook/*.bluebook
+               ci_pipeline/*.bluebook].freeze
 
     # A `Hecks.bluebook "Name"` header line, capturing the bluebook's name.
     BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
@@ -140,12 +141,36 @@ module Hecks
     # @param paths [Array<String>] the bluebook's bluebook files
     # @return [void]
     def self.load_wiring(name, paths)
-      directory = File.dirname(paths.first)
-      ports     = File.join(directory, "#{Naming.snake(name)}.ports.hecksagon")
-      Kernel.load(ports) if File.file?(ports)
-      Dir.glob(File.join(directory, "adapters", "*.adapter")).each { |adapter| Kernel.load(adapter) }
+      wiring_files(name, paths).each { |file| Kernel.load(file) }
     end
     private_class_method :load_wiring
+
+    # The files `load_wiring` loads, in the order it loads them: the ports file, then the adapters.
+    #
+    # @param name [String] the bluebook's name
+    # @param paths [Array<String>] the bluebook's bluebook files
+    # @return [Array<String>] the ports file when there is one, then each adapter file
+    def self.wiring_files(name, paths)
+      directory = File.dirname(paths.first)
+      ports     = File.join(directory, "#{Naming.snake(name)}.ports.hecksagon")
+      [*(ports if File.file?(ports)), *Dir.glob(File.join(directory, "adapters", "*.adapter"))]
+    end
+    private_class_method :wiring_files
+
+    # Every file attaching the named bluebook reads: a framework member's one file, or an
+    # attachable bluebook's files with the ports file and adapters it ships. What a cache of a
+    # generated tree hashes to know when attaching the bluebook would write something else.
+    #
+    # @param name [String, Symbol] the bluebook's name, such as `"Governance"`
+    # @return [Array<String>] the files' absolute paths
+    # @raise [Runtime::WiringError] if the gem carries no bluebook of that name
+    def self.files_of(name)
+      key = name.to_s
+      return [Framework.members.fetch(key)] if Framework.members.key?(key)
+
+      paths = bluebook_paths(key)
+      [*paths, *wiring_files(key, paths)]
+    end
 
     # The name a file's `Hecks.bluebook "Name"` header declares, or nil for a file without one.
     def self.declaration_name(path)

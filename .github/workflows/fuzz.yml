@@ -54,8 +54,8 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed; restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: `hecks build_wasm` regenerates the banking domain in a scratch copy
+      # of rust/, so it needs nothing the checkout holds beyond the committed mod.rs and pizzas.
 
       - uses: ./.github/actions/wasm-toolchain
         with:

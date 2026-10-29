@@ -59,7 +59,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks build.rust_coverage <module_name> [codegen=]`; `hecks build.check_coverage_allowlist` | `bin/rust_coverage` |
 | `hecks build.check_conformance <domain> script= [artifact=]` | `bin/rust_conformance` |
 | `hecks build.fuzz_conformance <domain> artifact= [seeds=] [steps=]` | `bin/rust_conformance_fuzz` |
-| `hecks fuzz_run.fuzz [<domain>] [seeds=] [steps=] [workers=] [adapter=] [--persist-regressions]` | `bin/fuzz` |
+| `hecks fuzz_run.fuzz [<domain>] [seeds=] [steps=] [workers=] [adapter=] [shard=] [list_shards=] [--persist-regressions]` | `bin/fuzz` |
 | `hecks fuzz_run.generate_sequence <domain> [seed=] [steps=] [adversarial=]` | `bin/generate` |
 | `hecks fuzz_run.bench [<domains>] [targets=] [iterations=] [warmup=] [runs=] [rust_binary=] [format=] [output=]` | `bin/bench` |
 | `hecks fuzz_run.mutate <domain> [seeds=] [steps=] [budget=]`; `hecks era.hold_first <domain> --confirm` | (new: no `bin/` script) |
@@ -120,7 +120,7 @@ still need a checkout.
 | `hecks conformance_run.check_engine_agreement` | `bin/check_engine_agreement` |
 | `hecks conformance_run.measure_doc_coverage` | `bin/doc_coverage` |
 | `hecks conformance_run.argument_gate_matrix --confirm` | `bin/argument_gate_matrix` |
-| `hecks regeneration_run.regenerate_corpus [--check] --confirm` | `bin/regen_codegen_domains` |
+| `hecks regeneration_run.regenerate_corpus [domains=] [workers=] [--check] --confirm` | `bin/regen_codegen_domains` |
 | `hecks style_run.report_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_comments <paths> [only=]`; `hecks style_run.fix_comments <paths> [only=] --confirm`; `hecks style_run.write_comment_baseline [<paths>] --confirm`; `hecks style_run.check_comments_unchanged <ref> [paths=]` | `bin/standardize_comments` |
 | `hecks style_run.report_rust_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_rust_comments <paths> [only=]`; `hecks style_run.fix_rust_comments <paths> [only=] --confirm` | `bin/standardize_comments_rust` |
 | `hecks style_run.canonicalise <file>` | `bin/canonicalise` |

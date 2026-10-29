@@ -1,0 +1,13 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Bug28ExistenceFixture::Vault",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bug28ExistenceFixture::Vault.Open",
+    "generated": true,
+    "routed": true
+  }
+]

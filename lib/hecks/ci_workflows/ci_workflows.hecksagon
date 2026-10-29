@@ -1,0 +1,15 @@
+Hecks.hecksagon "CiWorkflows" do
+  attaches "CiPipeline"
+end
+
+# The sibling hecksagons of the attached chapters: they decide where their aggregates are kept, as
+# a project does for every chapter it attaches. CiPipeline's commands name a role, so its hecksagon
+# attaches Governance to check the roles against.
+Hecks.hecksagon "CiPipeline" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

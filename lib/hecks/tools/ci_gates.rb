@@ -91,7 +91,9 @@ module Hecks
         [*job_header(gate, name), *JOB_BODY, *job_footer(gate, name)].join("\n")
       end
 
-      # The job's static middle: its outputs and the steps up to the one that decides.
+      # The job's static middle: its outputs and the steps up to the one that decides. Every job
+      # in the run waits on a detector, so it installs only what it uses (Ruby, no Rust toolchain)
+      # and starts `hecks` warm when an earlier run saved the boot caches for this `lib/`.
       JOB_BODY = [
         "    outputs:",
         "      touched: ${{ steps.diff.outputs.touched }}",
@@ -101,6 +103,10 @@ module Hecks
         "          # Full history: the diff needs both endpoints present as real objects.",
         "          fetch-depth: 0",
         "      - uses: ./.github/actions/setup-ruby",
+        "        with:",
+        "          # The decision diffs files and calls an API; it formats and builds no Rust.",
+        "          rust-toolchain: \"false\"",
+        "      - uses: ./.github/actions/hecks-boot-cache",
         "      - uses: ./.github/actions/hecks-environment",
         "      - id: diff"
       ].freeze

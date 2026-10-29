@@ -1,0 +1,373 @@
+{
+  "ir_version": 1,
+  "name": "Ledgerbook",
+  "version": null,
+  "vision": "A shelf is stocked, and the register notes which shelf it was.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Shelf",
+      "description": null,
+      "identified_by": [
+        "row.value",
+        "slot.value"
+      ],
+      "attributes": [
+        {
+          "name": "row",
+          "type": "Row",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "slot",
+          "type": "Slot",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Row",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Slot",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Stock",
+          "role": null,
+          "goal": "Put a shelf into service",
+          "references": null,
+          "attributes": [
+            {
+              "name": "row",
+              "type": "Row",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "slot",
+              "type": "Slot",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ShelfStocked"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    },
+    {
+      "name": "Register",
+      "description": null,
+      "identified_by": [
+        "shelf.value"
+      ],
+      "attributes": [
+        {
+          "name": "shelf",
+          "type": "Label",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Label",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Note",
+          "role": null,
+          "goal": "Write down which shelf was stocked",
+          "references": null,
+          "attributes": [
+            {
+              "name": "shelf",
+              "type": "Label",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "ShelfNoted"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+    {
+      "name": "NoteOnStock",
+      "on_event": "Shelf.ShelfStocked",
+      "trigger_command": "Register.Note",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "shelf",
+          ":id"
+        ]
+      ],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Shelf",
+        "storage_name": "shelf",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Register",
+        "storage_name": "register",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "Hecks.bluebook \"Ledgerbook\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md).\n  # No example domain has a plain policy (not `across`) that reads the emitting record's whole\n  # identity as `:id` (ADR 0153). A shelf is identified by its row and its slot, so the identity\n  # is composite and the policy hands the Register the two joined by a colon.\n  vision \"A shelf is stocked, and the register notes which shelf it was.\"\n  core\n\n  aggregate \"Shelf\" do\n    identified_by :row, :slot\n\n    attribute :row,  Row\n    attribute :slot, Slot\n\n    value_object \"Row\" do\n      attribute :value, String\n    end\n\n    value_object \"Slot\" do\n      attribute :value, String\n    end\n\n    command \"Stock\" do\n      goal \"Put a shelf into service\"\n      attribute :row,  Row\n      attribute :slot, Slot\n      emits \"ShelfStocked\"\n    end\n  end\n\n  aggregate \"Register\" do\n    identified_by :shelf\n\n    attribute :shelf, Label\n\n    value_object \"Label\" do\n      attribute :value, String\n    end\n\n    command \"Note\" do\n      goal \"Write down which shelf was stocked\"\n      attribute :shelf, Label\n      emits \"ShelfNoted\"\n    end\n  end\n\n  policy \"NoteOnStock\" do\n    on      Shelf::ShelfStocked\n    trigger Register::Note, with: { shelf: :id }\n  end\nend\n"
+}

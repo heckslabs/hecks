@@ -1,0 +1,43 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Outbound::Parcel",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Outbound::Parcel.Send",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Outbound::Parcel.Forward",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Outbound::Parcel.Annotate",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Outbound::FileOnSend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Outbound::FileOnForward",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Outbound::FileOnAnnotate",
+    "generated": true,
+    "routed": true
+  }
+]

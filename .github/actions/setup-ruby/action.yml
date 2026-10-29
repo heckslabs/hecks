@@ -17,6 +17,14 @@ inputs:
     description: Ruby version for ruby/setup-ruby.
     required: false
     default: "3.3"
+  rust-toolchain:
+    description: >-
+      "false" skips installing the pinned Rust toolchain. Only a job that reads no Rust and runs
+      no generator may say so: the CiGate detector jobs, which diff files and answer one line.
+      Restoring the toolchains directory is several seconds, and every job in the run waits on
+      those jobs before it starts.
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
@@ -42,4 +50,5 @@ runs:
 
     # The generators format the Rust they write with rustfmt, and specs call them in any job that
     # sets up Ruby, so the pinned toolchain is installed here, once, before any worker needs it.
-    - uses: ./.github/actions/rust-toolchain
+    - if: inputs.rust-toolchain != 'false'
+      uses: ./.github/actions/rust-toolchain
