@@ -41,20 +41,17 @@ Rules of thumb:
   no command does what you need, that gap is a bluebook change, not a
   one-off script.
 
-## Session isolation: jj workspaces, not git worktrees
+## Session isolation: git worktrees
 
-Root is a colocated jj+git repo. Use `jj workspace add <path>` for a new
-session's checkout instead of `git worktree add`; retire with
-`jj workspace forget <name>` and remove the directory.
+A session that needs its own checkout uses `git worktree add`, and retires it with
+`git worktree remove`. Plain git is the only version control tool in this repo.
 
 **Always pull `main` before you push.** Fetch and rebase onto `origin/main` right
 before every push, and again if the pre-push gate ran long enough for `main` to
 move. Many sessions push to `main`; a stale push is rejected or buries their work.
 
-Push with `git push`, not `jj git push` — jj bypasses git hooks, so
-`.githooks/pre-push` (rspec, fuzzing, model_check, rubocop, CI
-attestation) wouldn't run. Colocation keeps bookmarks synced to git
-branches, so plain `git push` still works.
+Push with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
+model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
 
 ## Running specs
 
