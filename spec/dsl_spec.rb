@@ -637,7 +637,6 @@ RSpec.describe "the DSL surface" do
       def supported_spellings
         proc do
           given("the balance is positive") { balance.positive? }
-          # rubocop:disable-next Style/ComparableBetween -- the expression language refuses `between?`; the spelling is the case under test
           given("the balance is a real one") { balance >= 100 && balance <= 599 }
           given("the tag is named") { !status.to_s.empty? }
           given("the tag is one of these") { ["a", "b"].include?(status) }
@@ -710,7 +709,7 @@ RSpec.describe "the DSL surface" do
     def unreadable_given
       proc do
         aggregate("Thing") do
-          command("Do") { given("unreadable", &eval("proc { 1 < 2 }")) } # rubocop:disable Style/EvalWithLocation -- deliberately WITHOUT file/line: this fixture exercises the "source could not be read" refusal, which needs an untraceable source_location
+          command("Do") { given("unreadable", &eval("proc { 1 < 2 }")) }
         end
       end
     end
@@ -2183,7 +2182,7 @@ RSpec.describe "the DSL surface" do
       # attribute, so each query below keeps a parameter its body never reads.
       def decision_query
         proc do
-          query "ForDecision" do |decision| # rubocop:disable Lint/UnusedBlockArgument -- name read by reflection
+          query "ForDecision" do |decision|
             where decision: :decision
           end
         end
@@ -2191,7 +2190,7 @@ RSpec.describe "the DSL surface" do
 
       def redundant_decision_query
         proc do
-          query "ForDecision" do |decision| # rubocop:disable Lint/UnusedBlockArgument -- name read by reflection
+          query "ForDecision" do |decision|
             attribute :decision, DecisionRef
             where decision: :decision
           end
@@ -2211,7 +2210,7 @@ RSpec.describe "the DSL surface" do
           value_object("Note") { attribute :value, String }
           attribute :note, Note, optional: true
 
-          query "ByNote" do |note| # rubocop:disable Lint/UnusedBlockArgument -- name read by reflection
+          query "ByNote" do |note|
             where note: :note
           end
         end
@@ -2222,7 +2221,7 @@ RSpec.describe "the DSL surface" do
           value_object("Name") { attribute :value, String }
           attribute :name, Name
 
-          query "Broken" do |nonexistent| # rubocop:disable Lint/UnusedBlockArgument -- name read by reflection
+          query "Broken" do |nonexistent|
             where name: "open"
           end
         end
@@ -2243,7 +2242,7 @@ RSpec.describe "the DSL surface" do
             attribute :game_id, GameId
             attribute :winner, WinnerRef
 
-            query "WinsByOption" do |winner| # rubocop:disable Lint/UnusedBlockArgument -- name read by reflection
+            query "WinsByOption" do |winner|
               where winner: :winner
             end
           end

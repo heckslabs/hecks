@@ -28,7 +28,7 @@ module Hecks
       # @param reference [String] the interview's reference, such as `INT-1`
       # @param subject [String] the domain being discovered, as its bluebook will spell it
       # @param expert [String] who is being interviewed
-      def initialize(runtime:, agent:, input:, output:, reference:, subject:, expert:) # rubocop:disable Metrics/ParameterLists -- one keyword per collaborator and setting
+      def initialize(runtime:, agent:, input:, output:, reference:, subject:, expert:)
         @runtime = runtime
         @agent = agent
         @input = input

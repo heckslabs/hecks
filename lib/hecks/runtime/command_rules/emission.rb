@@ -15,7 +15,6 @@ module Hecks
         # @param repository [Ports::Persistence::AppendOnly] asked to `record_event` if it can
         # @param correlation [Hash, nil] saga correlation, set before the event freezes
         # @return [Array<Runtime::Event>] the emitted events in `emits` order
-        # rubocop:disable-next Metrics/ParameterLists -- the positional signature both interpreters call
         def emit(command, domain, aggregate, instance, args, repository, correlation = nil)
           stamp = { aggregate: "#{domain}::#{aggregate.hecks_name}", id: instance.id,
                     payload: args, correlation: correlation }

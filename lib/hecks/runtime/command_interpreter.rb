@@ -68,7 +68,6 @@ module Hecks
       # @param dispatch_key [String, nil] a saga dispatch's identity; an applied one runs no step
       # @return [Array] the settled instance, events, plan, persistence outcome, and outbox rows
       # @raise [StandardError] a domain refusal, a StaleWrite once retries run out, or a WiringError
-      # rubocop:disable-next Metrics/ParameterLists -- the public dispatch signature every entry point calls
       def call(domain, aggregate, command, invocation, correlation = nil, dry_run: false, dispatch_key: nil)
         args     = invocation.to_args
         settings = { invocation:, route: invocation.target, correlation:, dry_run:, dispatch_key: }

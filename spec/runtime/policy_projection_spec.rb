@@ -5,8 +5,6 @@ require "spec_helper"
 # On a `for_each` the row key is merged into the projection's source, so a trigger can name the
 # row and send nothing else.
 RSpec.describe "a policy's trigger projection" do
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def boot_projection
     registry = Hecks::Runtime::Registry.new
 

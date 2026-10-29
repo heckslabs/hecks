@@ -50,7 +50,7 @@ module FacadeConstantIsolation
   # @param name [Symbol] the constant's name
   # @return [void]
   def self.remove_constant(container, name)
-    container.send(:remove_const, name) if container.const_defined?(name, false) # rubocop:disable RSpec/RemoveConst
+    container.send(:remove_const, name) if container.const_defined?(name, false)
   end
   private_class_method :remove_constant
 end

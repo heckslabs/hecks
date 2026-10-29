@@ -29,7 +29,6 @@ module Hecks
         # @return [void]
         # @raise [Runtime::GivenNotMet] a declared `given` does not hold
         # @raise [Runtime::LifecycleRefused] `declaring`'s `from:` guard refuses the state
-        # rubocop:disable-next Metrics/ParameterLists -- the dispatch context every interpreter passes by keyword
         def enforce_givens(subject, command, args, domain:, declaring: nil, parent: nil, correction: {})
           # A rule reads only within its own aggregate boundary (ADR 0025);
           # `dereference` below resolves fresh reference arguments only,
@@ -111,7 +110,6 @@ module Hecks
         # @param correction [Hash{Symbol => Object}] `corrects` event bindings, if any
         # @return [void]
         # @raise [Runtime::EnsuresNotMet] a declared `ensures` does not hold
-        # rubocop:disable-next Metrics/ParameterLists -- the dispatch context every interpreter passes by keyword
         def enforce_ensures(subject, command, args, old:, domain:, parent: nil, correction: {})
           state = GuardState.new(subject)
           # Same aggregate-boundary rule as enforce_givens (ADR 0025) —

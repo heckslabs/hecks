@@ -8,8 +8,6 @@ RSpec.describe "a policy projecting its emitter's identity" do
   # read top to bottom as the fixture, not a sequence of independent
   # steps; splitting it would scatter one readable declaration across
   # several methods that only make sense read back-to-back.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def boot_board(with_spec)
     registry = Hecks::Runtime::Registry.new
 
@@ -147,8 +145,6 @@ RSpec.describe "a policy projecting its emitter's identity" do
 
   # A two-field identity whose event carries neither field by the name `id`: the policy can
   # hand the whole of it to another aggregate only by reading `:id` (ADR 0153).
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def boot_id_reader
     registry = Hecks::Runtime::Registry.new
 

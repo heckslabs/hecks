@@ -22,7 +22,6 @@ module InvocationSpecFixtures
 
   # Characterization table: the args, envelope or refusal each call shape must produce, including
   # the regression shapes mined from earlier routing specs.
-  # rubocop:disable-next Layout/LineLength
   ROWS = [
     ["flat facts only", :aggregate, CREDIT, nil, nil, { account: "a1", amount: 1, narrative: 2 }, 0],
     ["to: + with:", :aggregate, CREDIT, "a1", { amount: 1, narrative: 2 }, {}, 0],
@@ -83,7 +82,6 @@ end
 # The args, target or refusal each characterization row produced before the Invocation value
 # existed.
 module InvocationSpecExpectations
-  # rubocop:disable-next Layout/LineLength
   PRE_I1 = {
     "flat facts only"                                 => { args: [[:account, "a1"], [:amount, 1], [:narrative, 2]], target: nil },
     "to: + with:"                                     => { args: [[:amount, 1], [:narrative, 2]], target: ["a1", []] },

@@ -12,7 +12,6 @@ RSpec.describe "an entity's attribute types" do
   end
 
   # The fixture stays inline: it is the literal source Prism reads.
-  # rubocop:disable-next RSpec/ExampleLength
   it "refuses an entity attribute naming an undeclared value object" do
     source = <<~BLUEBOOK
       Hecks.bluebook "Repro" do
@@ -59,7 +58,6 @@ RSpec.describe "an entity's attribute types" do
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /no ValueObject with aggregate, name .*Bogus/)
   end
 
-  # rubocop:disable-next RSpec/ExampleLength
   it "accepts an entity attribute naming a value object its own aggregate declares" do
     source = <<~BLUEBOOK
       Hecks.bluebook "Repro" do

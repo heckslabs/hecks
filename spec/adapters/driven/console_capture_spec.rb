@@ -5,7 +5,7 @@ require_relative "../../../lib/hecks/hecks/adapters/console_capture"
 RSpec.describe Hecks::Adapters::ConsoleCapture do
   let(:printed) do
     described_class.capture do
-      puts "one" # rubocop:disable RSpec/Output
+      puts "one"
       warn "two"
     end
   end
@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::ConsoleCapture do
   end
 
   it "answers the text of an entry point that succeeded" do
-    expect(described_class.answer { puts "fine" }).to eq("fine\n") # rubocop:disable RSpec/Output
+    expect(described_class.answer { puts "fine" }).to eq("fine\n")
   end
 
   it "refuses with the text of an entry point that did not" do
