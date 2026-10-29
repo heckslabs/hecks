@@ -69,6 +69,7 @@ module Hecks
           # arrives holding Values rather than Strings.
           def text(cell)
             return nil if cell.nil?
+            return cell.map { |held| text(held) } if cell.is_a?(Array)
             return cell.to_h.values.first if cell.respond_to?(:to_h) && !cell.is_a?(String)
 
             cell

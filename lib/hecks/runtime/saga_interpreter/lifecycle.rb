@@ -38,7 +38,7 @@ module Hecks
         end
 
         def end_saga(process_manager, event, domain)
-          return unless event.name == process_manager.ends_on
+          return unless process_manager.ending_events.include?(event.name)
 
           correlation = saga_correlation(process_manager, event)
           return if correlation.to_s.empty?

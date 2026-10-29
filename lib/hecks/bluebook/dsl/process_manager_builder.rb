@@ -35,9 +35,7 @@ module Hecks
         # @param event_ref [Symbol, String, Module] the event, as a bare constant (a
         #   `ScopedConstant` module `ConstShim` resolves) or quoted text
         # @return [void]
-        def ends_on_impl(event_ref)
-          @ends_on = Naming.event_name_ref(event_ref)
-        end
+        def ends_on_impl(event_ref) = (@endings ||= []) << Naming.event_name_ref(event_ref)
 
         # Records one leg of the state machine: the event that takes it, the state(s) it
         # applies from, and the dispatches (with optional compensations) it fires.
@@ -81,7 +79,8 @@ module Hecks
             name:          @name,
             correlates_by: @correlates_by,
             starts_on:     @starts_on,
-            ends_on:       @ends_on,
+            ends_on:       @endings&.first,
+            endings:       @endings || [],
             states:        derived_states,
             handlers:      @handlers
           )
