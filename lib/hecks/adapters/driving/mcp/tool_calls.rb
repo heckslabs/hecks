@@ -48,7 +48,7 @@ module Hecks
 
           # A question, once the scope has admitted its arguments.
           def query_tool(args)
-            Mcp.scope.admit_arguments!(args["args"])
+            Mcp.scope.admit_arguments!(args["args"], args["question"])
             Storehouse.query(runtime: Mcp.boot(args["domain"]), question: args["question"],
                              summary: args["summary"], args: args["args"] || {}, source: args["source"],
                              role: args["role"], actor_id: args["actor_id"])

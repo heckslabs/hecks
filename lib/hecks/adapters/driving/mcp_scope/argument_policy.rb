@@ -13,11 +13,22 @@ module Hecks
           # Checks every argument in `args`, nested or not, and refuses the first one the policy
           # forbids.
           #
+          # Read-only questions whose `path` names one file of the checkout. `path` is denied by name
+          # for every other command, since it can name a place to write; these reads are allowed it,
+          # and admit_path! still confines it to the checkout.
+          READ_PATH_QUESTIONS = %w[inspection_run.read_source inspection_run.outline].freeze
+
           # @param args [Hash, Array, nil] the arguments as the caller gave them
           # @param label [String] how the server describes its mode, for the refusal
+          # @param question [String, nil] the query asked, when the arguments are a question's
           # @raise [Runtime::TypeMismatch] on the first argument refused
-          def admit!(args, label)
+          def admit!(args, label, question = nil)
+            read_path = READ_PATH_QUESTIONS.include?(snake_question(question))
             each_argument(args) do |name, value|
+              if name == "path" && read_path
+                admit_path!(name, value, label)
+                next
+              end
               if DENIED_ARGUMENTS.include?(name)
                 refuse!(name, label, "never passes it on: it names a host, a binary, an output or a change of state")
               end
@@ -45,6 +56,12 @@ module Hecks
             return value unless value.is_a?(Hash)
 
             value.fetch("value") { value.fetch(:value, value) }
+          end
+
+          # The question as `Aggregate.query` or `aggregate_run.query` names it, in the snake form
+          # `READ_PATH_QUESTIONS` uses.
+          def snake_question(question)
+            question.to_s.split(".").map { |part| part.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase }.join(".")
           end
 
           def refuse!(name, label, why)

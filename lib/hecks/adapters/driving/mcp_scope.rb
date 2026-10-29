@@ -155,11 +155,12 @@ module Hecks
         # files should name it in `DENIED_ARGUMENTS` or `PATH_ARGUMENTS` (ADR 0089).
         #
         # @param args [Hash, Array, nil] the arguments as the caller gave them, nested or not
+        # @param question [String, nil] the query asked, when these are a question's arguments
         # @raise [Runtime::TypeMismatch] on the first argument refused
-        def admit_arguments!(args)
+        def admit_arguments!(args, question = nil)
           return unless restricted?
 
-          ArgumentPolicy.admit!(args, mode_label)
+          ArgumentPolicy.admit!(args, mode_label, question)
         end
 
         # The one domain a restricted server serves, when it serves exactly one: a call may leave
