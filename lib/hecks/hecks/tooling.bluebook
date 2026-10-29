@@ -5,6 +5,7 @@ Hecks.bluebook "Hecks" do
 
   aggregate "Introspection" do
     description "A look at a booted domain, answered by the runtime without changing anything."
+    acknowledges :no_command_surface, "a look at a booted domain, answered by the runtime without changing anything"
 
     attribute :domain, DomainPath
     identified_by :domain
