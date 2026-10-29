@@ -7,6 +7,7 @@ require_relative "git_refs"
 require_relative "codebase/publishing"
 require "hecks/vendoring/git_environment"
 require "hecks/embryonaut_bluebook/vendor_cli"
+require "hecks/embryonaut_bluebook/package_cache"
 
 module Hecks
   module Adapters
@@ -54,6 +55,25 @@ module Hecks
         require_repository!(from)
 
         { report: { value: vendored(held[:package], from, root) } }
+      end
+
+      # Fetches one release of a package into the Hecks cache and records the project's pin for it,
+      # so a behaviors suite boots the package from there rather than from a copy in the project.
+      #
+      # @param held [Hash] the `Resolve` request: `package` (`name@X.Y.Z`), `from` (a registry
+      #   checkout or git URL) and `project_lock` (the project's `packages.lock`)
+      # @return [Hash{Symbol => Hash}] `report:`, one `file: <path>` line per file a domain boots
+      # @raise [ConsoleCapture::Failure] when the package names no release, the source is not a git
+      #   repository, or the resolution is refused (see `EmbryonautBluebook::PackageCache`)
+      def retrieve(**held)
+        name, version = EmbryonautBluebook::PackageCache.release_named(held[:package])
+        from = plain(held[:from])
+        require_repository!(from)
+        files = EmbryonautBluebook::PackageCache.resolve(name, version, from:         from,
+                                                                        project_lock: plain(held[:project_lock]))
+        { report: { value: files.map { |file| "file: #{file}" }.join("\n") } }
+      rescue Vendoring::Error => e
+        raise ConsoleCapture::Failure, e.message
       end
 
       # What the vendor command printed, once it ended well.

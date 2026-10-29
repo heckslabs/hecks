@@ -24,6 +24,9 @@ module Hecks
       # A resolved pin that differs from the one the project's `packages.lock` already records.
       class Drifted < Vendoring::Error; end
 
+      # The files a domain boots from a package: its bluebooks, adapters, hecksagons and worlds.
+      BOOT_FILES = %w[.bluebook .adapter .hecksagon .world].freeze
+
       # Remote registries are cloned as mirrors; a local path is read in place.
       REMOTE = %r{\A(?:https?|ssh|git|file)://|\A[\w.-]+@[\w.-]+:}
 
@@ -40,12 +43,13 @@ module Hecks
       # @raise [Drifted] if the project's `packages.lock` pins a different version or commit
       def self.resolve(name, version, from:, project_lock:)
         dir = package_dir(name, version)
-        EmbryonautBluebook.vendor!(name, from: registry_path(from), root: dir_root(name, version), ref: version) unless cached?(
-          dir, version
-        )
+        unless cached?(dir, version)
+          EmbryonautBluebook.vendor!(name, from: registry_path(from), root: dir_root(name, version), ref: version,
+                                     scope: :v2)
+        end
         lock = verified_lock(dir, name, version)
         record!(project_lock, name, lock)
-        Dir.glob(File.join(dir, "bluebook", "*")).select { |path| path.end_with?(".bluebook", ".adapter") }
+        Dir.glob(File.join(dir, "bluebook", "*")).select { |path| path.end_with?(*BOOT_FILES) }
       end
 
       # @param name [String] the package name
@@ -73,7 +77,7 @@ module Hecks
       # @raise [Tampered] if the files' digest differs from the lock's digest
       def self.verified_lock(dir, name, version)
         lock = Lock.read(File.join(dir, "bluebook.lock"))
-        actual = Lock.digest_of(File.join(dir, "bluebook"))
+        actual = Lock.digest_of(File.join(dir, "bluebook"), glob: Lock::PACKAGE_FILES_V2)
         return lock if lock && actual && actual == lock.digest
 
         raise Tampered, "#{name} #{version} in the cache does not match its bluebook.lock digest; " \
@@ -106,6 +110,22 @@ module Hecks
 
         raise Drifted, "#{name} resolved to #{pin["version"]} at #{pin["commit"]}, but #{project_lock} pins " \
                        "#{recorded["version"]} at #{recorded["commit"]}; update the pin deliberately"
+      end
+
+      # A release version a resolution names, `X.Y.Z`.
+      RELEASE = /\A\d+\.\d+\.\d+\z/
+
+      # The package name and release a resolution asks for. A resolution names one release, so a
+      # bare name is refused.
+      #
+      # @param package [Hash, String] the `package` value, `name@X.Y.Z`, plain or as a value object
+      # @return [Array(String, String)] the package name and the release version
+      # @raise [Vendoring::Error] when the package names no `X.Y.Z` release
+      def self.release_named(package)
+        name, _, version = (package.is_a?(Hash) ? package[:value] : package).to_s.partition("@")
+        return [name, version] if version.match?(RELEASE)
+
+        raise Vendoring::Error, "a resolution names one release: name@X.Y.Z"
       end
 
       # @param from [String] a local checkout path, or a remote URL

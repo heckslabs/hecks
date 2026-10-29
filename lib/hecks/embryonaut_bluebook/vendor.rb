@@ -34,7 +34,13 @@ module Hecks
 
       # `ref` accepts `X.Y.Z`, a release tag name, any commit-ish, or nil for
       # the newest release.
-      def initialize(name, from:, root:, ref: nil, allow_downgrade: false)
+      # `scope` picks the lock format: `:v1` (the default) pins the bluebooks and adapters a
+      # registry's `bin/bluebook_digest` checks; `:v2` also pins the hecksagons and worlds.
+      #
+      # @param scope [Symbol] `:v1` or `:v2`, the lock format this pin writes
+      # rubocop:disable Metrics/ParameterLists -- the lock format is one more keyword than a pin takes
+      def initialize(name, from:, root:, ref: nil, allow_downgrade: false, scope: :v1)
+        # rubocop:enable Metrics/ParameterLists
         @name = name.to_s
         raise Vendoring::Error, "#{name.inspect} is not a package name" unless @name.match?(NAME)
 
@@ -42,6 +48,8 @@ module Hecks
         @ref = ref&.to_s
         @root = root
         @allow_downgrade = allow_downgrade
+        @glob = scope == :v2 ? Lock::PACKAGE_FILES_V2 : Lock::PACKAGE_FILES
+        @format = scope == :v2 ? "2" : nil
       end
 
       # Pins the package and reports what changed.
@@ -60,7 +68,7 @@ module Hecks
       def pin_files(tag, version, previous)
         shape = nil
         pin = Vendoring.pin(from: @source.path, ref: tag || @ref, subtree: "#{@name}/bluebook",
-                            into: package_dir, glob: Lock::PACKAGE_FILES) do |staged, commit|
+                            into: package_dir, glob: @glob) do |staged, commit|
           shape = Shape.labels(staged)
           next nil unless tag
 
@@ -125,12 +133,12 @@ module Hecks
 
       def lock(version, tag, commit, staged, shape)
         Lock.new(package: @name, version: version, tag: tag, commit: commit,
-                 digest: Lock.digest_of(staged), shape: shape)
+                 digest: Lock.digest_of(staged, glob: @glob), shape: shape, format: @format)
       end
 
       def build_result(pin, tag, version, shape, previous)
         Result.new(package: @name, commit: pin.commit, version: version, tag: tag,
-                   digest: Lock.digest_of(pin.dir), shape: shape, dir: pin.dir,
+                   digest: Lock.digest_of(pin.dir, glob: @glob), shape: shape, dir: pin.dir,
                    previous_version: previous.version, previous_shape: previous.shape)
       end
     end

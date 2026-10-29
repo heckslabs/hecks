@@ -81,8 +81,10 @@ module Hecks
     # @return [Vendor::Result] the commit, version and storage shape now vendored
     # @raise [Vendoring::Error] if the source, release or files are unusable, or a
     #   version-policy refusal applies (see Vendor)
-    def self.vendor!(name, from:, root:, ref: nil, allow_downgrade: false)
-      Vendor.new(name, from: from, root: root, ref: ref, allow_downgrade: allow_downgrade).call
+    # rubocop:disable Metrics/ParameterLists -- passes the lock format through to Vendor
+    def self.vendor!(name, from:, root:, ref: nil, allow_downgrade: false, scope: :v1)
+      # rubocop:enable Metrics/ParameterLists
+      Vendor.new(name, from: from, root: root, ref: ref, allow_downgrade: allow_downgrade, scope: scope).call
     end
   end
 end

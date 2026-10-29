@@ -265,6 +265,7 @@ Hecks.bluebook "Hecks" do
     attribute :package, PackageRef
     attribute :from,    Location, optional: true
     attribute :root,    Location, optional: true
+    attribute :project_lock, Location, optional: true
     attribute :report,  Report,   optional: true
     attribute :refusal, Report,   optional: true
     identified_by :package
@@ -347,6 +348,20 @@ Hecks.bluebook "Hecks" do
       emits VendoringRefused
     end
 
+    # `package.resolve!` fetches one release of a package into the Hecks cache, and records the pin in
+    # the project's `packages.lock`. The cache is never a project folder, so a behaviors suite that
+    # names a package boots it from there. Its report lists each resolved file as `file: <path>`.
+    command "Resolve" do
+      role "Operator"
+      goal "Resolve one release of a package into the cache, and record its pin in the project's lock"
+
+      attribute :package,      PackageRef, sets: true
+      attribute :from,         Location,   sets: true
+      attribute :project_lock, Location,   sets: true
+
+      emits ResolveRequested
+    end
+
     query "Pinning" do
       description "What vendoring one package did: its status, and the report or the refusal."
       attribute :package, PackageRef
@@ -386,6 +401,21 @@ Hecks.bluebook "Hecks" do
 
   policy "RecordTheRefusedPin" do
     on      "Package.PinRefused"
+    trigger Package::Abandon, with: { refusal: :refusal }
+  end
+
+  policy "ResolveWhenRequested" do
+    on      "Package.ResolveRequested"
+    ask     :retrieve, with: { package: :package, from: :from, project_lock: :project_lock }
+  end
+
+  policy "RecordTheRetrieval" do
+    on      "Package.PackageRetrieved"
+    trigger Package::Complete, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedRetrieval" do
+    on      "Package.RetrieveRefused"
     trigger Package::Abandon, with: { refusal: :refusal }
   end
 

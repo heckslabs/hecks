@@ -213,6 +213,14 @@ Hecks.hecksagon "Hecks" do
       refuses "PinRefused"
     end
 
+    asks "Retrieve", to: Package do
+      attribute :package,      PackageRef
+      attribute :from,         Location
+      attribute :project_lock, Location
+      answers "PackageRetrieved"
+      refuses "RetrieveRefused"
+    end
+
     answers_query "Verify"
   end
 

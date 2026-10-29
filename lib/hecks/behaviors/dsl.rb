@@ -1,5 +1,7 @@
+require "json"
+require "open3"
+require "rbconfig"
 require_relative "ir"
-require_relative "../embryonaut_bluebook/package_cache"
 
 # The authoring surface for `Hecks.behaviors "Name" do ... end`, built with `instance_eval`.
 module Hecks
@@ -10,6 +12,15 @@ module Hecks
     # A released package a `loads` line names. `BehaviorsBuilder#resolved_loads` resolves it at
     # build time.
     PackageRef = Struct.new(:name, :version, :from, keyword_init: true)
+
+    # The library and CLI a package reference runs its `Package.Resolve` command through, so the
+    # command resolves from the same gem that loads the suite.
+    LIB_DIR = File.expand_path("../..", __dir__)
+    HECKS_EXE = File.expand_path("../../../exe/hecks", __dir__)
+
+    # The JSON answer the CLI prints after its log lines, and the prefix of a report's file lines.
+    ANSWER = /^\{.*\z/m
+    FILE_LINE = "file: ".freeze
 
     # The `test "description" do ... end` receiver; builds a `TestCase` (ir.rb).
     class TestCaseBuilder
@@ -200,9 +211,41 @@ module Hecks
                              "or set HECKS_REGISTRY"
           end
 
-          EmbryonautBluebook::PackageCache.resolve(entry.name, entry.version, from:         from,
-                                                                              project_lock: File.join(@source_dir, EmbryonautBluebook::PackageCache::LOCK_FILE))
+          resolve_package(entry, from)
         end
+      end
+
+      # Resolves one package through the `Package.Resolve` command, as the `hecks` CLI runs it, so
+      # the bluebook's own policies do the fetching and record the outcome.
+      #
+      # @param entry [PackageRef] the package and release a `loads` line names
+      # @param from [String] the registry checkout or git URL to resolve from
+      # @return [Array<String>] absolute paths of the files the package boots from
+      # @raise [Malformed] if the command refuses the resolution, or its answer cannot be read
+      def resolve_package(entry, from)
+        state, err = run_resolve(entry, from)
+        unless state["status"] == "vendored"
+          raise Malformed, "#{@source_path}: package #{entry.name}@#{entry.version} was not resolved: " \
+                           "#{state["refusal"] || err}"
+        end
+
+        state.fetch("report").lines.filter_map { |line| line.chomp.delete_prefix("file: ") if line.start_with?(FILE_LINE) }
+      end
+
+      # Runs `Package.Resolve` with `--wait`, so its policies have answered before the CLI reports.
+      #
+      # @param entry [PackageRef] the package and release a `loads` line names
+      # @param from [String] the registry checkout or git URL to resolve from
+      # @return [Array(Hash, String)] the command's `state`, and its trimmed standard error
+      # @raise [Malformed] if the CLI printed no answer the command's state can be read from
+      def run_resolve(entry, from)
+        lock = File.join(@source_dir, EmbryonautBluebook::PackageCache::LOCK_FILE)
+        out, err, = Open3.capture3(RbConfig.ruby, "-I", LIB_DIR, HECKS_EXE, "Package.resolve!",
+                                   "package.value=#{entry.name}@#{entry.version}", "from.value=#{from}",
+                                   "project_lock.value=#{lock}", "--wait")
+        [JSON.parse(out[ANSWER].to_s).fetch("state"), err.strip]
+      rescue JSON::ParserError, KeyError
+        raise Malformed, "#{@source_path}: package #{entry.name}@#{entry.version} gave no answer: #{err.to_s.strip}"
       end
 
       # Builds a suite in one call: constructs a builder, evaluates `block`

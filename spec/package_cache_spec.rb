@@ -11,6 +11,15 @@ RSpec.describe Hecks::EmbryonautBluebook::PackageCache do
   let(:project) { File.join(scratch, "project", "bluebook") }
   let(:project_lock) { File.join(project, "packages.lock") }
 
+  # The cache is scratch space for each example, including the subprocess a behaviors build runs.
+  around do |example|
+    previous = ENV.fetch("XDG_CACHE_HOME", nil)
+    ENV["XDG_CACHE_HOME"] = File.join(scratch, "cache")
+    example.run
+  ensure
+    ENV["XDG_CACHE_HOME"] = previous
+  end
+
   before do
     allow(Hecks::CacheDir).to receive(:path) { |name| File.join(scratch, "cache", name) }
   end
@@ -20,9 +29,10 @@ RSpec.describe Hecks::EmbryonautBluebook::PackageCache do
   # Commits and tags one release of the `widgets` package, with a bluebook and an adapter.
   def release(version, adapter: "# widgets adapter\n")
     repo.write(
-      "widgets/bluebook.yml"              => "name: widgets\nversion: #{version}\nsummary: Widgets.\n",
-      "widgets/bluebook/widgets.bluebook" => RegistryRepo.widgets_bluebook,
-      "widgets/bluebook/widgets.adapter"  => adapter
+      "widgets/bluebook.yml"               => "name: widgets\nversion: #{version}\nsummary: Widgets.\n",
+      "widgets/bluebook/widgets.bluebook"  => RegistryRepo.widgets_bluebook,
+      "widgets/bluebook/widgets.hecksagon" => "Hecks.hecksagon \"Widgets\" do\nend\n",
+      "widgets/bluebook/widgets.adapter"   => adapter
     )
     repo.commit("widgets #{version}")
     repo.tag("widgets-v#{version}")
@@ -45,7 +55,8 @@ RSpec.describe Hecks::EmbryonautBluebook::PackageCache do
   it "resolves the release's bluebook and adapter files" do
     release("1.0.0")
 
-    expect(resolve("1.0.0").map { |path| File.basename(path) }).to eq(%w[widgets.adapter widgets.bluebook])
+    expect(resolve("1.0.0").map { |path| File.basename(path) })
+      .to eq(%w[widgets.adapter widgets.bluebook widgets.hecksagon])
   end
 
   it "keeps the resolved files in the cache, not the project" do
@@ -118,7 +129,7 @@ RSpec.describe Hecks::EmbryonautBluebook::PackageCache do
       release("1.0.0")
 
       expect(build_suite(from: repo.path).loads.drop(1).map { |path| File.basename(path) })
-        .to eq(%w[widgets.adapter widgets.bluebook])
+        .to eq(%w[widgets.adapter widgets.bluebook widgets.hecksagon])
     end
 
     it "refuses a package that names no registry" do
