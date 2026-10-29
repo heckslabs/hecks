@@ -255,28 +255,48 @@ runs cold. Before adding a spec or a step, check where it runs:
   `cargo build` there costs minutes. A host harness spec belongs in
   `rspec_rust_host_lineage`, and a `cargo test` of the host in `rspec_rust_host_cargo`,
   whose `target-test` build is warm.
-- **Don't regenerate the corpus a second time in a job.** The `generated-rust`
-  action already restores or regenerates `rust/src/generated` and `rust/Cargo.toml`;
-  compare against that.
-- **Name the domains a job reads.** `generated-rust` takes `domains:` (feature names,
-  such as `lease_clock nested_pieces`; none means every domain). It regenerates only
-  those and keys its cache on `exe/hecks query corpus_run.generated_key domains=<names>`,
-  a hash of the generator and of those domains' own sources (`files=true` lists what was
-  hashed), so another domain's change leaves the cache alone. A job that builds Rust or
-  checks the whole tree names none. A spec that reads the whole generated tree is tagged
-  `:generated_all`: the shards run `--tag ~generated_all`, and the drift job runs it.
+- **`rust/src/generated` is committed; no job regenerates it.** The `generated-rust`
+  action only checks the tree is in the checkout (its `domains:` input has no effect).
+  `checks_codegen_drift` is the one job that sets `regenerate: "true"`, rewrites the whole
+  tree and diffs it with the committed one; without that rewrite its `git diff` compares
+  the tree with itself, and a stale module goes through green. After you change a bluebook
+  or the generator, run `exe/hecks regeneration_run.regenerate_corpus --confirm --wait` and
+  commit what it changed; a conflict in the tree is settled by regenerating, never by
+  editing. The Vocabulary rows are part of the `meta` module's IR, so changing a gate row
+  moves it too. A spec that reads the whole tree is tagged `:generated_all`: the shards run
+  `--tag ~generated_all`, and the drift job runs it.
+- **Two jobs that share a cargo cache name must build the same thing, from the same
+  directory, with the same flags.** The first job to save an entry wins, and an entry is
+  never replaced under its key, so a second job whose build differs (a `--manifest-path`
+  build from the repo root skips `rust/host/.cargo/config.toml`; `cargo test -p x --lib`
+  resolves features differently from `cargo test --workspace`) rebuilds every dependency on
+  every run. The warm job in `cache-warm.yml` must build each form its consumers build. The
+  key (`.github/actions/cargo-cache`) hashes the crate's manifest, path dependencies and the
+  toolchain pin; the saved target leaves out `debug/incremental` and the `rust-*` binaries.
 - **Split a job that sets the run's length into matrix legs, each its own gate check**:
   the fuzz sweeps run as `shard=I/N` legs (`fuzz_<I>_of_<N>` in the Vocabulary gate rows,
   `fuzz_shards` listing the split) and still report as `checks_fuzz` and
-  `checks_fuzz_sqlite`, which are red when any leg is, and when the legs drift apart,
-  refresh `spec/fuzzing/fuzz_runtime_baseline.log` from the `domain seconds:` line of a
-  CI shard's log.
+  `checks_fuzz_sqlite`, which are red when any leg is. The cost table
+  `spec/fuzzing/fuzz_runtime_baseline.log` must come from CI sweeps, not a laptop: a laptop's
+  disk prices banking and deploy in other proportions than a runner's and the legs split
+  worse. A file that parallel_tests cannot split (one spec file) sets a shard's length, so
+  split the file.
 - **Refresh the runtime baselines when you add io spec files**:
   `exe/hecks test_suite_run.refresh_runtime_baseline from_run=<a green CI run id> --confirm --wait`,
   then `test_suite_run.write_io_parallel_spec_list`. Shards group by these logs, and a
-  file missing from them lands wherever it lands.
+  file missing from them lands wherever it lands. The specs that need `rust/parser` stay
+  in `IO_PARALLEL_EXCLUDE_PATTERN`, or the Postgres shards skip them and the skip backstop
+  fails; the file-list check runs only on pull requests, so a stale list shows on a PR first.
 - **Look at the job times after your push** (`gh run view <id> --json jobs`). A job
   that grew by a minute is the regression; say so rather than leave it.
+- **Measure the right run.** The wall is `run_started_at` to `updated_at` of the attempt
+  (`gh api repos/<owner>/<repo>/actions/runs/<id>/attempts/<n>`). Take attempt 1 of a run on
+  a tree no earlier run had: a rerun, or a run on a tree already attested (the PR's own tree
+  after a squash merge; any rerun after the pre-push hook's note lands), skips the heavy jobs
+  and reads fast. A change to a cache key, to `rust/src` or to `ci-rust-io.yml` makes the next
+  run cold once. `main`'s runs and the cache-warm job share the runner pool, so a busy pool
+  adds queueing; a single cache download can also stall, so one slow job is not a regression
+  until it repeats.
 
 ## Never hand-edit generated output
 
