@@ -21,7 +21,7 @@ RSpec.describe "every list the language declares, filled more than once" do
   ALLOWED_SINGLETON = {
     # A process manager fills `endings` with one item per `ends_on` it declares. The corpus has none
     # that ends on more than one event yet, so every saga in it fills the list with one.
-    "endings" =>
+    "endings"          =>
                           "A process manager that declares several ends_on fills endings with each; " \
                           "no corpus domain declares one, so the walk sees one per saga.",
     # Filled with three in `PublishingRun` (lib/hecks/hecks/codebase.bluebook), which is not a

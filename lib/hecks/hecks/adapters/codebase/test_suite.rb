@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "open3"
 require_relative "tree"
+require_relative "minitest_runs"
+require_relative "run_options"
 require_relative "test_runner"
 require_relative "changed_specs"
 require_relative "sqlite_fixture"
@@ -89,7 +90,7 @@ module Hecks
         # @param tree [Tree] the checkout
         # @return [String] what the runner printed
         def spec_example(args, tree)
-          TestRunner.new(tree).run(file: args[:file], example: args[:example], env: spec_env(args), tags: args[:tags])
+          TestRunner.new(tree).run(file: args[:file], example: args[:example], env: RunOptions.spec_env(args), tags: args[:tags])
         end
 
         # Runs every spec of the folder's spec directory in one process.
@@ -98,40 +99,11 @@ module Hecks
         # @param tree [Tree] the folder whose specs run
         # @return [String] what the runner printed
         def suite(args, tree)
-          rspec = TestRunner.new(tree).run_paths(paths: [SPEC_DIRECTORY], env: spec_env(args), tags: args[:tags])
-          minitest = minitest_files(tree)
+          rspec = TestRunner.new(tree).run_paths(paths: [SPEC_DIRECTORY], env: RunOptions.spec_env(args), tags: args[:tags])
+          minitest = MinitestRuns.files(tree)
           return rspec if minitest.empty?
 
-          ([rspec] + minitest_reports(tree, minitest)).join("\n")
-        end
-
-        # The minitest files of the spec directory: RSpec does not run them, so each runs on its own.
-        #
-        # @param tree [Tree] the folder whose specs are listed
-        # @return [Array<String>] their paths, relative to the folder, sorted
-        def minitest_files(tree)
-          Dir.glob("#{SPEC_DIRECTORY}/**/*_test.rb", base: tree.root).sort
-        end
-
-        # Runs each minitest file in its own Ruby process, from the folder, outside this process's
-        # bundle so the folder's own gems are the ones it loads.
-        #
-        # @param tree [Tree] the folder the files run in
-        # @param files [Array<String>] the minitest files
-        # @return [Array<String>] one line per file: its path and its run summary
-        # @raise [ConsoleCapture::Failure] with the output of the first file that fails
-        def minitest_reports(tree, files)
-          files.map do |file|
-            out, status = unbundled { Open3.capture2e(RbConfig.ruby, file, chdir: tree.root) }
-            raise ConsoleCapture::Failure, "#{file} failed\n#{out.strip}" unless status.success?
-
-            "#{file}: #{out.lines.grep(/\d+ runs?, /).last.to_s.strip}"
-          end
-        end
-
-        # Runs the block without the bundle this process was started under, when Bundler is loaded.
-        def unbundled(&)
-          defined?(Bundler) ? Bundler.with_unbundled_env(&) : yield
+          ([rspec] + MinitestRuns.reports(tree, minitest)).join("\n")
         end
 
         # Runs the specs the files changed since a git ref map to, by name. Says so and runs nothing
@@ -143,45 +115,19 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when git cannot read the changes
         def changed(args, tree)
           base = args[:base] || "origin/main"
-          files = changed_files(tree, base)
+          files = ChangedSpecs.changed_files(tree, base)
           specs = Dir.glob("#{SPEC_DIRECTORY}/**/*_spec.rb", base: tree.root).sort
           mapped = ChangedSpecs.call(files, specs)
           return "no spec maps to the #{files.size} changed file(s) since #{base}; nothing run" if mapped.empty?
 
-          TestRunner.new(tree).run_paths(paths: mapped, env: spec_env(args), tags: args[:tags])
-        end
-
-        # The files that differ from the ref, tracked and untracked, relative to the folder.
-        #
-        # @param tree [Tree] the folder under git
-        # @param base [String] the ref to compare against
-        # @return [Array<String>] the changed files
-        # @raise [ConsoleCapture::Failure] when git refuses, with what it said
-        def changed_files(tree, base)
-          diff, status = Open3.capture2e("git", "-C", tree.root, "diff", "--name-only", base, "--")
-          raise ConsoleCapture::Failure, diff.strip unless status.success?
-
-          untracked, = Open3.capture2("git", "-C", tree.root, "ls-files", "--others", "--exclude-standard")
-          (diff.lines + untracked.lines).map(&:strip).reject(&:empty?).uniq
-        end
-
-        # The variables the specs read, set for one example only: the arguments of the run, so a
-        # person never sets them in a shell.
-        #
-        # @param args [Hash] `strict`, `seeds`, `environment` and `declaration_cache`, each
-        #   perhaps absent
-        # @return [Hash{String => String}] only those the run named
-        def spec_env(args)
-          { "CI" => ("true" if args[:strict] == true), "PROPERTY_SEEDS" => args[:seeds]&.to_s,
-            "HECKS_ENVIRONMENT" => args[:environment],
-            "HECKS_NO_DECLARATION_CACHE" => ("1" if args[:declaration_cache] == false) }.compact
+          TestRunner.new(tree).run_paths(paths: mapped, env: RunOptions.spec_env(args), tags: args[:tags])
         end
 
         # @param args [Hash] `runs`, `parallel` and `seed_start`
         # @param tree [Tree] the checkout
         # @return [String] what the stress run printed
         def stress(args, tree)
-          answer { command("stress_concurrency_specs").call(stress_flags(args), root: tree.root) }
+          answer { command("stress_concurrency_specs").call(RunOptions.stress_flags(args), root: tree.root) }
         end
 
         # @param args [Hash] `confirm`
@@ -200,7 +146,7 @@ module Hecks
         # @return [String] what the seeding printed
         def seed(args, tree)
           seeding = command("seed_semantics_corpus")
-          answer { TestRunner.at_reaction_depth_zero { seeding.call(root: tree.root, env: seed_env(args)) } }
+          answer { TestRunner.at_reaction_depth_zero { seeding.call(root: tree.root, env: RunOptions.seed_env(args)) } }
         end
 
         # A pure read: a listing, or the recorded pattern cases.
@@ -275,17 +221,6 @@ module Hecks
           "dry run, would #{args[:from_run] ? "read CI run #{args[:from_run]}'s timings" : "time a local run"} " \
             "and rewrite #{BASELINES.join(", ")} (add --confirm)"
         end
-
-        # @param args [Hash] `runs`, `parallel` and `seed_start`
-        # @return [Array<String>] the script's flags for those that are named
-        def stress_flags(args)
-          { "--runs" => :runs, "--parallel" => :parallel, "--seed-start" => :seed_start }
-            .filter_map { |flag, name| [flag, args[name].to_s] if args[name] }.flatten
-        end
-
-        # @param args [Hash] `fixture`, perhaps absent
-        # @return [Hash{String => String}] the variable that names the one fixture to re-seed
-        def seed_env(args) = args[:fixture] ? { "SEED" => args[:fixture] } : {}
 
         # @param args [Hash] `exclude`, `tags`, `write` and `confirm`
         # @param tree [Tree] the checkout whose spec list is written
