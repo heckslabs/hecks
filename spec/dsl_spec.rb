@@ -637,7 +637,7 @@ RSpec.describe "the DSL surface" do
       def supported_spellings
         proc do
           given("the balance is positive") { balance.positive? }
-          # rubocop:disable-next Style/ComparableBetween
+          # rubocop:disable-next Style/ComparableBetween -- the expression language refuses `between?`; the spelling is the case under test
           given("the balance is a real one") { balance >= 100 && balance <= 599 }
           given("the tag is named") { !status.to_s.empty? }
           given("the tag is one of these") { ["a", "b"].include?(status) }
