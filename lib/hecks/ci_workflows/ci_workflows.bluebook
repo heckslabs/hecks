@@ -66,7 +66,7 @@ Hecks.bluebook "CiWorkflows" do
              note: "Separate job because a job-level `if:` cannot read a step output from its own job.\nLets `rspec_shard` skip wholesale when a local run attested this tree.\nSafe to skip on push: `rspec_shard` never reads this result on that trigger."
       member workflow: "ci-rspec.yml", name: "rspec_shard", runner: "ubuntu-latest", timeout_minutes: 20,
              condition: "always() && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')",
-             shard_total: 6, shard_axis: "group",
+             shard_total: 8, shard_axis: "group",
              note: "The suite is split across shards, each running parallel workers, to cut wall-clock time.\n\n`always()` and the `.result` check are both required: a failed detector would otherwise\nskip this required check instead of running it. Also skipped on push (cache warming\nneeds only the postgres_io_parallel shards) and when the tree is attested.\n\nNo Postgres service: specs that boot examples/pizzas against PostgresEra are tagged\n`io: true` and run in rspec_postgres_io. An untagged one fails here with\nPG::ConnectionBad."
     end
 
