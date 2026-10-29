@@ -37,8 +37,8 @@ RSpec.describe "regenerating some of the corpus's domains", :io do
   def written = Dir.children(File.join(@workspace, "src/generated")).sort
 
   # The modules the named domains own, which a regeneration of the whole corpus writes as this run
-  # does. The bluebooks they attach (governance) and the grammar (meta) are shared: the corpus's last
-  # writer leaves them, so a run of some domains leaves them as its own last writer wrote them.
+  # does. The bluebooks they attach (governance) and the grammar (meta) are shared: the corpus's
+  # last writer leaves them, so a run of some domains leaves them as its own last writer wrote them.
   def held_in_checkout
     %w[lease_clock nested_pieces].select do |name|
       File.exist?(File.join(Hecks::RustBuild::ROOT, "rust/src/generated", name, "ir.json"))
