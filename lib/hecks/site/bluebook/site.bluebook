@@ -23,6 +23,7 @@ Hecks.bluebook "Site" do
 
   aggregate "Route" do
     description "The shape of one row of a site's route table: where a path is served from, who may reach it, how it is cached, and where it appears in the navigation."
+    acknowledges :no_command_surface, "a route row is declared data: the table is what a site's bluebook says, and no command changes a row"
 
     identified_by :path
 

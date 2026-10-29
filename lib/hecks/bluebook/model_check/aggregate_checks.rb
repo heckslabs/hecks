@@ -23,6 +23,33 @@ module Hecks
           bluebook.aggregates.filter_map { |aggregate| large_aggregate_finding(aggregate, limit) }
         end
 
+        # An aggregate with no commands has nothing that changes it and no command surface for a
+        # diagram to draw from. Reads are queries; a change needs a command.
+        #
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
+        # @return [Array<Finding>] one :no_command_surface error per aggregate with no commands
+        def no_command_surface_findings(bluebook)
+          unacknowledged_commandless(bluebook).map do |aggregate|
+            Finding.new(kind: :no_command_surface, severity: :error, subject: aggregate.hecks_name,
+                        message: "declares no commands, so nothing changes it and no command surface can " \
+                                 "be drawn — give it a command")
+          end
+        end
+
+        # @return [Array<Bluebook::Aggregate>] the aggregates with no commands that do not acknowledge it
+        def unacknowledged_commandless(bluebook)
+          commandless = bluebook.aggregates.select { |aggregate| aggregate.commands.empty? }
+          commandless.reject { |aggregate| Acknowledgements.held?(aggregate, :no_command_surface) }
+        end
+
+        # Every finding about an aggregate's size and its command surface.
+        #
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
+        # @return [Array<Finding>] the size and command-surface findings, in that order
+        def aggregate_findings(bluebook)
+          [*large_aggregate_findings(bluebook), *no_command_surface_findings(bluebook)]
+        end
+
         # @return [Finding, nil] the warning for an aggregate heavier than `limit`
         def large_aggregate_finding(aggregate, limit)
           weight = aggregate_weight(aggregate)

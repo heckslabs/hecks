@@ -1,6 +1,7 @@
 Hecks.bluebook "Hecksagon" do
   aggregate "PortOperation" do
     description "One operation a port exposes — the same shape a command's payload has (attributes in, an event out) with none of a command's given/ensures/sets : a port operation is the translation boundary itself, not a second place business rules live. Those stay on whichever command a policy triggers in reaction to the event it emits."
+    acknowledges :no_command_surface, "a port operation is the translation boundary itself; the command a policy triggers carries any change"
 
     identified_by OperationName, as: :name
 
