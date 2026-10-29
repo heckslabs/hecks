@@ -35,6 +35,13 @@ RSpec.describe "the cargo cache of the main crate" do
     expect(action.scan(%r{Cargo\.toml'.*?'rust/expr/\*\*', 'rust-toolchain\.toml'}).size).to eq(4)
   end
 
+  it "saves and restores a target without its incremental data or the feature binaries" do
+    steps = YAML.load_file(File.join(root, ".github/actions/cargo-cache/action.yml")).dig("runs", "steps")
+    paths = steps.map { |step| step.dig("with", "path").to_s.lines.map(&:strip) }
+
+    expect(paths).to all(include(a_string_ending_with("/debug/incremental")).and(include(a_string_ending_with("/debug/rust-*"))))
+  end
+
   it "has the Rust io job save it from leg a alone" do
     steps = YAML.load_file(File.join(root, ".github/workflows/ci-rust-io.yml")).dig("jobs", "rspec_rust_io", "steps")
 

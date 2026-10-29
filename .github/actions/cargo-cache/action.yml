@@ -24,6 +24,11 @@ description: >-
   it — `path` was never anything but "<crate-root>/target" at any of
   this action's 14 call sites, confirmed by grep, not assumed.
 
+  The saved target leaves out `debug/incremental`, which is most of its bytes and which only speeds a
+  rebuild of the crate's own sources, and the `rust-*` feature binaries, which the Rust io jobs fetch
+  from their own cache and delete from this one: a job spends 40 to 54s restoring a cache that big.
+  The `lean` in the key keeps entries saved before this from being restored under it.
+
   The key also hashes everything that moves cargo's own hashes for the crate's dependencies: its
   Cargo.toml (features and profile), the sources of its path dependencies (`<crate-root>/core`, which
   only the host has, and rust/expr) and the toolchain pin. A restored target built from other
@@ -101,17 +106,22 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/incremental
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/rust-*
+        key: ${{ runner.os }}-cargo-lean-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-${{ inputs.name }}-
+          ${{ runner.os }}-cargo-lean-${{ inputs.name }}-
 
     - if: inputs.include-registry != 'true' && inputs.save != 'false'
       uses: actions/cache@v4
       with:
-        path: ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
+        path: |
+          ${{ inputs.crate-root }}/${{ inputs.target-dir }}
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/incremental
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/rust-*
+        key: ${{ runner.os }}-cargo-lean-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-${{ inputs.name }}-
+          ${{ runner.os }}-cargo-lean-${{ inputs.name }}-
 
     - if: inputs.include-registry == 'true' && inputs.save == 'false'
       uses: actions/cache/restore@v4
@@ -120,14 +130,19 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/incremental
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/rust-*
+        key: ${{ runner.os }}-cargo-lean-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-${{ inputs.name }}-
+          ${{ runner.os }}-cargo-lean-${{ inputs.name }}-
 
     - if: inputs.include-registry != 'true' && inputs.save == 'false'
       uses: actions/cache/restore@v4
       with:
-        path: ${{ inputs.crate-root }}/${{ inputs.target-dir }}
-        key: ${{ runner.os }}-cargo-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
+        path: |
+          ${{ inputs.crate-root }}/${{ inputs.target-dir }}
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/incremental
+          !${{ inputs.crate-root }}/${{ inputs.target-dir }}/debug/rust-*
+        key: ${{ runner.os }}-cargo-lean-${{ inputs.name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.crate-root), format('{0}/Cargo.toml', inputs.crate-root), format('{0}/src/**', inputs.crate-root), format('{0}/core/**', inputs.crate-root), 'rust/expr/**', 'rust-toolchain.toml') }}
         restore-keys: |
-          ${{ runner.os }}-cargo-${{ inputs.name }}-
+          ${{ runner.os }}-cargo-lean-${{ inputs.name }}-
