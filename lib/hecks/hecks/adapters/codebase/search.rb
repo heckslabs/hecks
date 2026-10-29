@@ -14,7 +14,7 @@ module Hecks
       # byte in its first block, which is how a binary announces itself.
       module Search
         # Directory names that are never walked.
-        SKIPPED = %w[.git .jj target node_modules tmp vendor worktrees].freeze
+        SKIPPED = %w[.git target node_modules tmp vendor worktrees].freeze
 
         # The rows kept when `top` is not named.
         DEFAULT_TOP = 200
