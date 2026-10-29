@@ -322,4 +322,20 @@ Hecks.behaviors "CiSpeed" do
           reestimates: { value: "" }, expected_seconds: { value: 2 }
     expect refused: "only a faster verdict carries an estimate"
   end
+
+  test "Record keeps a finding, with its cause and the remedy still to try" do
+    tests "Record", on: "Finding"
+    input name: { value: "cache_download_stall" }, status: { value: "untried" },
+          symptom: { value: "one gem cache download stopped at 91% for about 80 seconds" },
+          cause: { value: "the cache service, seen once" },
+          remedy: { value: "set SEGMENT_DOWNLOAD_TIMEOUT_MINS to about a minute and check what a timeout does" }
+    expect emits: %w[FindingRecorded]
+  end
+
+  test "Record refuses a finding with no name" do
+    tests "Record", on: "Finding"
+    input name: { value: "" }, status: { value: "open" },
+          symptom: { value: "a symptom" }, cause: { value: "a cause" }, remedy: { value: "a remedy" }
+    expect refused: "must match"
+  end
 end
