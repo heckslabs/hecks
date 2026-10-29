@@ -25,6 +25,15 @@ module Hecks
         # The ledger's own command for an additive change, run from the checkout.
         SETTLE = %w[bundle exec exe/hecks conformance_run.check_shape_ledger --confirm --additive --wait].freeze
 
+        # The drift checks CI runs after a push lands, run here in check mode before the push: the
+        # generated Rust must match a regeneration, and the reserved-name tables and the CI gate rows
+        # must match their projections. Each only compares; none rewrites a file.
+        DRIFT = [
+          %w[bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait],
+          %w[bundle exec exe/hecks gate_run.gate stage=ci only=vocabulary_drift --wait],
+          %w[bundle exec exe/hecks gate_run.gate stage=ci only=ci_gates --wait]
+        ].freeze
+
         # How many rebase steps are tried before the rebase is given up as stuck.
         STEPS = 50
 
@@ -32,11 +41,14 @@ module Hecks
         # @param checkout [String] the repository's top level
         # @param branch [String] the branch being boarded
         # @param remote [String] the remote the branch is pushed to
-        def initialize(git, checkout, branch:, remote:)
+        # @param drift [Array<Array<String>>] the drift checks a Hecks checkout must pass; the
+        #   `DRIFT` list by default, and a spec replaces it
+        def initialize(git, checkout, branch:, remote:, drift: DRIFT)
           @git = git
           @checkout = checkout
           @branch = branch
           @remote = remote
+          @drift = drift
         end
 
         # @return [void]
@@ -46,6 +58,7 @@ module Hecks
           fetch
           rebase_onto_remote unless ancestor?(tracking, @branch)
           settle_ledger if ledger?
+          check_drift if hecks_checkout?
         end
 
         private
@@ -55,6 +68,8 @@ module Hecks
         def fetch = read("fetch", "--quiet", @remote, "+refs/heads/#{@branch}:refs/remotes/#{tracking}")
 
         def ledger? = File.exist?(File.join(@checkout, LEDGER))
+
+        def hecks_checkout? = File.exist?(File.join(@checkout, "exe", "hecks"))
 
         # Rebases the local branch onto its remote. Stops on the ledger, takes the remote's copy of it,
         # and continues; any other conflicted path aborts the rebase.
@@ -88,6 +103,23 @@ module Hecks
           raise ConsoleCapture::Failure, "the shape ledger command failed: #{err.strip}" unless status.success?
 
           commit_ledger
+        end
+
+        # Runs each drift check in check mode. The first that finds drift refuses the boarding and
+        # names the check and the end of what it printed; nothing is rewritten here.
+        def check_drift
+          @drift.each do |argv|
+            out, status = Open3.capture2e(*argv, chdir: @checkout)
+            next if status.success?
+
+            raise ConsoleCapture::Failure, "#{argv.drop(2).join(" ")} found drift; regenerate and commit it first: #{tail(out)}"
+          end
+        end
+
+        # The last three lines of what a check printed, as one line.
+        def tail(out)
+          last = out.lines.last(3)
+          last.join.strip
         end
 
         def commit_ledger

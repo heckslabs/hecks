@@ -74,4 +74,28 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect(carry[:outcome]).to eq(value: "pushed")
     expect(git("rev-parse", "HEAD", dir: work)).to eq(git("rev-parse", "origin/main", dir: work))
   end
+
+  describe "the drift checks" do
+    let(:git_adapter) { Hecks::Adapters::Git.new }
+    let(:drift_checks) { [] }
+
+    before do
+      FileUtils.mkdir_p(File.join(work, "exe"))
+      File.write(File.join(work, "exe", "hecks"), "")
+    end
+
+    def settle(checks)
+      Hecks::Adapters::GitTrain::Settlement.new(git_adapter, work, branch: "main", remote: "origin", drift: checks).run
+    end
+
+    it "refuses the boarding when a drift check finds drift, and names the check" do
+      checks = [["sh", "-c", "echo fine"], ["sh", "-c", "echo generated tree differs; exit 1"]]
+
+      expect { settle(checks) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /generated tree differs/)
+    end
+
+    it "passes when every drift check is clean" do
+      expect { settle([%w[sh -c true]]) }.not_to raise_error
+    end
+  end
 end
