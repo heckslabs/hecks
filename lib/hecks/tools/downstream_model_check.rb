@@ -62,6 +62,14 @@ module Hecks
                     ruby-version: "#{RUBY_VERSION}"
                     bundler-cache: false
 
+                # The generator ships inside the pinned hecks gem, so the file is checked against the
+                # same generator that a bump brings in: a hand edit, or a stale file after a bump, fails here.
+                - name: Generated workflow is current
+                  working-directory: #{domain_directory}
+                  run: |
+                    bundle install --quiet --jobs 4
+                    ruby "$(bundle info hecks --path)/lib/hecks/tools/downstream_model_check.rb" "$GITHUB_WORKSPACE" #{domain_directory} --check
+
                 - name: Model check (hecks #{PROFILE} profile)
                   working-directory: #{domain_directory}
                   env:
