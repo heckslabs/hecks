@@ -121,7 +121,6 @@ jobs:
 
   # Calls ci-rspec.yml; secrets are passed explicitly.
   rspec_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rspec.yml
     secrets:
@@ -151,7 +150,6 @@ jobs:
 
   # Calls ci-checks.yml; secrets are passed explicitly.
   checks_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-checks.yml
     secrets:
@@ -238,7 +236,6 @@ jobs:
 
   # Calls ci-postgres-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io.yml
     secrets:
@@ -272,7 +269,6 @@ jobs:
 
   # Calls ci-postgres-io-parallel.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_parallel_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
     secrets:
@@ -306,7 +302,6 @@ jobs:
 
   # Calls ci-rust-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_io_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-io.yml
     secrets:
@@ -423,7 +418,6 @@ jobs:
 
   # Calls ci-rust-parser.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_parser_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-parser.yml
     secrets:
@@ -456,7 +450,6 @@ jobs:
 
   # Calls ci-rust-codegen.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_codegen_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-codegen.yml
     secrets:
@@ -489,7 +482,6 @@ jobs:
 
   # Calls ci-rust-host.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_host_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-host.yml
     secrets:
@@ -508,7 +500,6 @@ jobs:
   ci_attestation_rspec_fuzzing:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: inherit_certification
     if: ${{ !cancelled() }}
 
     outputs:
