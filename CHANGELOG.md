@@ -5,6 +5,10 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
+## [6.1.0]
+
+- **A behaviors suite can boot a released package by name, instead of a path into the project.** A `.behaviors` file's `loads` takes `package("name", "X.Y.Z", from: registry)`, and the build resolves it into the Hecks cache, never into the project tree. The project's `packages.lock` records each resolved pin (version, commit, digest); a resolution that disagrees with the record is refused as drift, and a cached file whose digest no longer matches its own lock is refused as tampered. `from:` takes a local checkout or a git URL, and with no `from:` the registry is read from `HECKS_REGISTRY`. Adapters run code when a suite boots, so the digest check is the only gate on what is fetched.
+
 ## [Unreleased] - planned 7.0.0
 
 - **The CiSpeed chapter holds what was learned about where CI loses time: `Finding`.** The `KnownFinding` rows each give the way CI lost time, its cause, the remedy and the run that shows it, with a `status` of `fixed`, `open` or `untried`; the one untried remedy is a timeout on the cache download that stalled once. `Finding.Record` adds one as it is made, and the next effort starts from them.

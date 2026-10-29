@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    hecks (6.0.0)
+    hecks (6.1.0)
       prism
 
 GEM
