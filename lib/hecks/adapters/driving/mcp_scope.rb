@@ -45,7 +45,7 @@ module Hecks
 
         # Argument names whose values are git refs: plain names only, so a value cannot read as an
         # option to git.
-        REF_ARGUMENTS = %w[branch commit onto ref].freeze
+        REF_ARGUMENTS = %w[base branch commit onto ref].freeze
 
         # What a plain git ref looks like: no leading dash, no `..`, no spaces.
         PLAIN_REF = %r{\A[A-Za-z0-9][A-Za-z0-9._/~^@-]*\z}
