@@ -822,6 +822,7 @@ policy "RecordTheEra" do
       attribute :confirm, Boolean, default: true
 
       emits ShipRequested
+      emits ShipStarted
     end
 
     command "Land" do
@@ -953,9 +954,11 @@ policy "RecordTheEra" do
   # ledger is checked, the quick gate runs, then the branch lands and boards the push train. Rubocop
   # autocorrect is not a step yet (no command), so offenses it would fix still stop the gate. A
   # refusal parks the instance in needs_human; a person confirms the ledger and starts it again.
-  # A saga cannot dispatch when it starts, so a policy starts the fix on the same request.
+  # A saga cannot dispatch when it starts, so a policy starts the fix. It hears ShipStarted, emitted
+  # after ShipRequested is handled, because policies run before sagas for one event: on ShipRequested
+  # the fix would finish before the saga exists to hear it.
   policy "StartTheCommentFix" do
-    on      "Landing.ShipRequested"
+    on      "Landing.ShipStarted"
     trigger StyleRun::FixComments, with: { run: :run, paths: :paths, confirm: :confirm }
   end
 
