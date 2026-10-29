@@ -72,7 +72,7 @@ module Hecks
 
           refuse_unadmitted_word!(keywords, context, word) if admitted.empty?
 
-          dispatched = GenericDispatch.try(self, context, word.to_s, args, kwargs, block, rows)
+          dispatched = GenericDispatch.try(self, context, word.to_s, GenericDispatch::Invocation.new(args, kwargs, block), rows)
           return dispatched unless dispatched.equal?(GenericDispatch::NOT_HANDLED)
 
           raise Malformed,

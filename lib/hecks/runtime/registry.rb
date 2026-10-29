@@ -35,6 +35,10 @@ module Hecks
       # The thread-local key under which open reaction collections are kept.
       REACTION_SINKS = :hecks_reaction_sinks
 
+      # Guards every registry's reaction log and its outcome index, which dispatching threads all append
+      # to. One lock serves every registry: each hold is a single append, so the contention is negligible.
+      REACTION_LOCK = Mutex.new
+
       attr_reader :root, :saga_mutex
 
       # What a boot gathers, and what a dispatch produces; each is held by `Declarations` or
@@ -62,6 +66,7 @@ module Hecks
         @saga_mutex   = Mutex.new
         @repositories = {}
         @projection_repositories = {}
+        @saga_persistence = {}
         # Eager: CapabilityGraph.new only stores the registry reference, and eager
         # construction avoids the same first-access race as `resolved_eras` while
         # keeping one instance per registry.
@@ -69,7 +74,6 @@ module Hecks
         # Guards only the lazy per-domain resolution inside @saga_persistence. Must not reuse
         # @saga_mutex: checkpoint calls saga_persistence(domain) from inside
         # @saga_mutex.synchronize, and Mutex is not reentrant.
-        @saga_persistence = {}
         @saga_persistence_mutex = Mutex.new
         @outbox = Outbox::Relay.new(self)
       end
@@ -95,12 +99,11 @@ module Hecks
       # Boot-time-only, single-threaded: every add_* below runs from Hecks.collect while a
       # .bluebook/.hecksagon/.world file is being Kernel.loaded, strictly during Loader.boot,
       # before dispatcher_for hands this registry to a live, multi-threaded caller.
-      # rubocop:disable Hecks/ThreadSharedIvarMutation
       # Registers a loaded bluebook, keyed by its own declared name.
       #
       # @param item [Bluebook::Declaration] the loaded, judged bluebook
       # @return [Bluebook::Declaration] `item`, unchanged
-      def add_bluebook(item) = @declared.bluebooks[item.name] = item
+      def add_bluebook(item) = @declared.store(:bluebooks, item.name, item)
 
       # Drops a bluebook and the open builder and source record that accumulated it, so the
       # bluebook can be loaded again from nothing.
@@ -108,9 +111,9 @@ module Hecks
       # @param name [String, Symbol] the bluebook name to forget
       # @return [void]
       def forget_bluebook(name)
-        @declared.bluebooks.delete(name.to_s)
-        @declared.bluebook_builders.delete(name.to_s)
-        @declared.bluebook_sources.delete(name.to_s)
+        @declared.remove(:bluebooks, name.to_s)
+        @declared.remove(:bluebook_builders, name.to_s)
+        @declared.remove(:bluebook_sources, name.to_s)
       end
 
       # Tracks which .bluebook file(s) contributed to a bluebook name (a boot-time loading
@@ -121,7 +124,7 @@ module Hecks
       # @param path [String] the `.bluebook` file that declared it
       # @return [Array<String>] every path recorded for that bluebook, `path` last
       def record_bluebook_source(name, path)
-        (@declared.bluebook_sources[name.to_s] ||= []) << path
+        @declared.record_source(name.to_s, path)
       end
 
       # Merges into any wiring already registered for the domain rather than replacing it,
@@ -131,7 +134,7 @@ module Hecks
       # @return [void]
       def add_hecksagon(item)
         existing = @declared.hecksagons[item.domain]
-        @declared.hecksagons[item.domain] = existing ? merge_hecksagons(existing, item) : item
+        @declared.store(:hecksagons, item.domain, existing ? merge_hecksagons(existing, item) : item)
         mark_bounded(item.domain) if item.bounded?
       end
 
@@ -143,7 +146,7 @@ module Hecks
       # @param name [String, Symbol] the bluebook name to mark bounded
       # @return [void]
       def mark_bounded(name)
-        @declared.bounded_bluebooks[name.to_s] = true
+        @declared.store(:bounded_bluebooks, name.to_s, true)
       end
 
       # Says whether `name` is a bounded context — attached via `attaches`, or a consumer
@@ -157,13 +160,13 @@ module Hecks
       #
       # @param item [Bluebook::Port, Bluebook::DomainPort] the loaded port
       # @return [Bluebook::Port, Bluebook::DomainPort] `item`, unchanged
-      def add_port(item) = @declared.ports[item.name] = item
+      def add_port(item) = @declared.store(:ports, item.name, item)
 
       # Registers a loaded adapter, keyed by its own declared name.
       #
       # @param item [Bluebook::Adapter] the loaded, judged adapter
       # @return [Bluebook::Adapter] `item`, unchanged
-      def add_adapter(item) = @declared.adapters[item.name] = item
+      def add_adapter(item) = @declared.store(:adapters, item.name, item)
 
       # Finds the plugin adapters that say they answer a query.
       #
@@ -182,7 +185,7 @@ module Hecks
       # @return [void]
       def add_world(item)
         existing = @declared.worlds[item.domain]
-        @declared.worlds[item.domain] = existing ? merge_worlds(existing, item) : item
+        @declared.store(:worlds, item.domain, existing ? merge_worlds(existing, item) : item)
       end
 
       # Registers a loaded translation.
@@ -190,7 +193,7 @@ module Hecks
       # @param item [Bluebook::Translation] the loaded, judged translation
       # @return [Array<Bluebook::Translation>] every translation registered so far,
       #   `item` last
-      def add_translation(item) = @declared.translations << item
+      def add_translation(item) = @declared.append(:translations, item)
 
       # Declares one attribute of a domain's aggregate sensitive, called from a terminal
       # has_<category>(readable_by:). Recorded, not dispatched: Loader.boot's
@@ -205,10 +208,9 @@ module Hecks
       # @param readable_by [String] the Governance role a read must hold, unredacted
       # @return [void]
       def add_pending_privacy_marking(domain:, attribute_path:, category:, readable_by:)
-        @declared.pending_privacy_markings << { domain: domain, attribute_path: attribute_path,
-                                                category: category, readable_by: readable_by }
+        @declared.append(:pending_privacy_markings, { domain: domain, attribute_path: attribute_path,
+                                                      category: category, readable_by: readable_by })
       end
-      # rubocop:enable Hecks/ThreadSharedIvarMutation
 
       # `resolved_eras` is {domain name => era ordinal} resolved by the boot-time era gate;
       # `superseded_eras` is the domain name -> the ordinal that superseded this boot's own era,
@@ -278,10 +280,8 @@ module Hecks
       # @param record [Hash{Symbol => Object}] the reaction's outcome
       # @param event [String, Integer, nil] identity of the event instance the reaction answered
       # @return [void]
-      # rubocop:disable-next Hecks/ThreadSharedIvarMutation
       def log_reaction(record, event: nil)
-        @state.reaction_log << record
-        @state.reaction_events[record] = event if event
+        REACTION_LOCK.synchronize { @state.log_reaction(record, event) }
         Array(Thread.current[REACTION_SINKS]).each { |sink| sink << record }
       end
 
@@ -310,16 +310,15 @@ module Hecks
       # what booting the files produced (bluebooks, hecksagons, ports, adapters, worlds,
       # resolved eras) untouched.
       #
-      # Repositories are dropped, not emptied, so a fresh Memory adapter starts empty while
-      # a durable one still sees what it persisted. Single-threaded caller only
+      # Repositories are dropped from the registry's maps, so a fresh Memory adapter starts empty
+      # while a durable one still sees what it persisted. Single-threaded caller only
       # (Behaviors::Expectations.run_one runs one test at a time).
       #
       # @return [Runtime::Registry] self
-      # rubocop:disable-next Hecks/ThreadSharedIvarMutation
       def reset_runtime_state!
         @state.clear
-        @repositories = {}
-        @projection_repositories = {}
+        @repositories.clear
+        @projection_repositories.clear
         @outbox.clear_log
         rehydrate_sagas!
         self

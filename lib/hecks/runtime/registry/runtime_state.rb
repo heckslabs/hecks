@@ -22,6 +22,16 @@ module Hecks
         def clear
           to_a.each(&:clear)
         end
+
+        # Logs one reaction's outcome, and the event instance it answered when known.
+        #
+        # @param record [Hash{Symbol => Object}] the reaction's outcome
+        # @param event [String, Integer, nil] the event instance, or nil when not known
+        # @return [void]
+        def log_reaction(record, event)
+          reaction_log << record
+          reaction_events[record] = event if event
+        end
       end
     end
   end

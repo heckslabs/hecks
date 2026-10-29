@@ -10,6 +10,9 @@ module Hecks
 
         COERCE_BY_KIND = { "text" => :to_s, "symbol" => :to_sym }.freeze
 
+        # The arguments of one word call: its positional arguments, its keyword arguments, and its block.
+        Invocation = Struct.new(:args, :kwargs, :block)
+
         # Not derivable from `fills:` (these rows all carry `fills: ""`) — the append target
         # for each opens-block word must be named here explicitly.
         SAFE_OPENS_BLOCK = {
@@ -31,13 +34,12 @@ module Hecks
 
         # Executes a table-admitted word via the shape `shape_for` found for it, or returns
         # NOT_HANDLED so the caller can fall back to its own "not yet implemented" refusal.
-        # The seven-argument form is the entry point `WordGate` and the dispatch specs call.
-        # rubocop:disable-next Metrics/ParameterLists
-        def try(builder, context, word, args, kwargs, block, rows)
+        # The call's arguments travel together as an `Invocation`, which keeps the signature short.
+        def try(builder, context, word, invocation, rows)
           shape = shape_for(context, word, rows)
           return NOT_HANDLED unless shape
 
-          run_shape(shape, builder, args, kwargs, block)
+          run_shape(shape, builder, invocation.args, invocation.kwargs, invocation.block)
         end
 
         # Runs the dispatcher the shape's kind names.
