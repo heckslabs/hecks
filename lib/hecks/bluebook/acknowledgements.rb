@@ -4,7 +4,7 @@ module Hecks
     # reason, and a kind the check really emits (ADR 0150).
     module Acknowledgements
       # The finding kinds an aggregate may acknowledge.
-      AGGREGATE_KINDS = %i[large_aggregate key_by_value orphaned_reference].freeze
+      AGGREGATE_KINDS = %i[large_aggregate key_by_value orphaned_reference no_command_surface].freeze
 
       # The kinds that are reported once per attribute or per referenced aggregate, so an
       # acknowledgement of one names which (`of:`): the attribute for `key_by_value`, the

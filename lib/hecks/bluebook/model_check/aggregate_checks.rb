@@ -23,6 +23,21 @@ module Hecks
           bluebook.aggregates.filter_map { |aggregate| large_aggregate_finding(aggregate, limit) }
         end
 
+        # An aggregate with no commands has nothing that changes it and no command surface for a
+        # diagram to draw from. Reads are queries; a change needs a command.
+        #
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
+        # @return [Array<Finding>] one :no_command_surface error per aggregate with no commands
+        def no_command_surface_findings(bluebook)
+          bluebook.aggregates.select { |aggregate| aggregate.commands.empty? }
+                  .reject { |aggregate| Acknowledgements.held?(aggregate, :no_command_surface) }
+                  .map do |aggregate|
+            Finding.new(kind: :no_command_surface, severity: :error, subject: aggregate.hecks_name,
+                        message: "declares no commands, so nothing changes it and no command surface can " \
+                                 "be drawn — give it a command")
+          end
+        end
+
         # @return [Finding, nil] the warning for an aggregate heavier than `limit`
         def large_aggregate_finding(aggregate, limit)
           weight = aggregate_weight(aggregate)
