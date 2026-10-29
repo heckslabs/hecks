@@ -154,12 +154,19 @@ jobs:
 
       - uses: ./.github/actions/cargo-cache
         with:
-          name: hosttest
+          name: hosttest2
           crate-root: rust/host
           target-dir: target-test
 
+      # Both builds the rspec_rust_host_cargo job makes: `cargo test --workspace`, and the one
+      # spec/rust_host_query_step_spec.rb runs, `-p rust_host_core --lib`, which resolves the
+      # dependencies' features differently. Whichever job saves the entry first holds only what it
+      # built, and the key does not change after, so a build missing here is rebuilt in the job.
       - name: Warm the rust/host test build
-        run: cd rust/host && CARGO_TARGET_DIR=target-test cargo test --workspace --no-run
+        run: |
+          cd rust/host
+          CARGO_TARGET_DIR=target-test cargo test --workspace --no-run
+          CARGO_TARGET_DIR=target-test cargo test -p rust_host_core --lib query_step --no-run
 
   # Mirrors rspec_rust_host's cache step; builds the two binaries the lineage conformance
   # spec needs.
