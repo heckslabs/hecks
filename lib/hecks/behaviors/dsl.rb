@@ -1,10 +1,15 @@
 require_relative "ir"
+require_relative "../embryonaut_bluebook/package_cache"
 
 # The authoring surface for `Hecks.behaviors "Name" do ... end`, built with `instance_eval`.
 module Hecks
   module Behaviors
     # Raised at build time, so a missing `vision` or `loads` fails with the fix named.
     class Malformed < StandardError; end
+
+    # A released package a `loads` line names. `BehaviorsBuilder#resolved_loads` resolves it at
+    # build time.
+    PackageRef = Struct.new(:name, :version, :from, keyword_init: true)
 
     # The `test "description" do ... end` receiver; builds a `TestCase` (ir.rb).
     class TestCaseBuilder
@@ -128,13 +133,25 @@ module Hecks
       # @return [String] `text`, unchanged
       def vision(text) = @vision = text
 
-      # Paths are relative to this `.behaviors` file, never the cwd.
+      # Paths are relative to this `.behaviors` file, never the cwd. A `package` reference is
+      # resolved from the registry at build time, so it names no project folder.
       #
-      # @param paths [Array<String>] paths to the files this suite's domain boots
-      #   from, relative to the `.behaviors` file
+      # @param paths [Array<String, PackageRef>] paths to the files this suite's domain boots from,
+      #   relative to the `.behaviors` file, and `package` references to released packages
       # @return [void]
       def loads(*paths)
-        @loads = paths.map { |path| File.expand_path(path, @source_dir) }
+        @loads = paths.map { |path| path.is_a?(PackageRef) ? path : File.expand_path(path, @source_dir) }
+      end
+
+      # A released package a suite boots, fetched into the cache rather than copied into the
+      # project.
+      #
+      # @param name [String] the package name, such as `"thinking"`
+      # @param version [String] the release version, `X.Y.Z`
+      # @param from [String, nil] a registry checkout or git URL; nil reads `HECKS_REGISTRY`
+      # @return [PackageRef] the reference `loads` resolves at build time
+      def package(name, version, from: nil)
+        PackageRef.new(name: name.to_s, version: version.to_s, from: from)
       end
 
       # Builds and records one test case.
@@ -164,8 +181,28 @@ module Hecks
                            "must declare exactly which files to boot"
         end
 
-        BehaviorsSuite.new(name: @name, vision: @vision, loads: @loads,
+        BehaviorsSuite.new(name: @name, vision: @vision, loads: resolved_loads,
                            tests: @tests, path: @source_path)
+      end
+
+      # The boot paths, with each `package` reference resolved to its cached bluebook and adapter
+      # files.
+      #
+      # @return [Array<String>] absolute paths, in declaration order
+      # @raise [Malformed] if a `package` names no registry and `HECKS_REGISTRY` is unset
+      def resolved_loads
+        @loads.flat_map do |entry|
+          next [entry] unless entry.is_a?(PackageRef)
+
+          from = entry.from || ENV.fetch("HECKS_REGISTRY", nil)
+          if from.nil? || from.empty?
+            raise Malformed, "#{@source_path}: package #{entry.name.inspect} names no registry — pass `from:` " \
+                             "or set HECKS_REGISTRY"
+          end
+
+          EmbryonautBluebook::PackageCache.resolve(entry.name, entry.version, from:         from,
+                                                                              project_lock: File.join(@source_dir, EmbryonautBluebook::PackageCache::LOCK_FILE))
+        end
       end
 
       # Builds a suite in one call: constructs a builder, evaluates `block`
