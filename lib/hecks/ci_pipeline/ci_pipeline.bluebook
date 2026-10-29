@@ -1,5 +1,5 @@
 # CI pipeline: the GitHub Actions workflows under .github/workflows are a projection of
-# this chapter, as generated Rust is a projection of a domain. A workflow file, its jobs
+# this bluebook, as generated Rust is a projection of a domain. A workflow file, its jobs
 # and their steps, the gates that skip work, the edges that order jobs, the corpus the
 # jobs share, and the build that passes or fails are written down here. The projector
 # reads these rows and writes the YAML; a check compares the committed file with the rows.
@@ -8,17 +8,17 @@
 # build, and the Cache port answers whether a corpus is held. Both are declared in
 # ci_pipeline.ports.hecksagon.
 #
-# A client declares its workflows as `member` rows of value objects in its own chapter, as a
-# site declares its routes (the Site chapter): a `Workflow` row per file, then a `Trigger`, a
+# A client declares its workflows as `member` rows of value objects in its own bluebook, as a
+# site declares its routes (the Site bluebook): a `Workflow` row per file, then a `Trigger`, a
 # `Secret`, a `Job`, a `Need`, an `Output`, an `Env`, a `Step` and a `StepInput` row each, all
 # flat and joined by workflow and job name. The Workflow, JobSpec and Step aggregates below name
 # the fields those rows carry and the closed sets their values come from. `hecks
 # regeneration_run.project_ci_pipeline` reads the rows and writes the files.
 #
-# A job's `needs:` is a `Need` row. The policies at the end of this chapter are the same edges as
+# A job's `needs:` is a `Need` row. The policies at the end of this bluebook are the same edges as
 # a build sees them, as events: they decide when a job in one build queues, and write nothing.
 #
-# CiSpeed's Run and JobTiming record what this chapter's Build and Job already know. When
+# CiSpeed's Run and JobTiming record what this bluebook's Build and Job already know. When
 # CiSpeed reads them, the Runner port answers from these rows, not from a second record.
 
 Hecks.bluebook "CiPipeline" do
@@ -759,15 +759,15 @@ Hecks.bluebook "CiPipeline" do
     end
 
     # The answer the runner gives for one build: its jobs' wall times and conclusion. An adapter
-    # answers it; this chapter never fetches.
+    # answers it; this bluebook never fetches.
     query "Reading" do
-      description "One build as the runner reports it: each job's wall time and the conclusion. An adapter answers it; this chapter never fetches."
+      description "One build as the runner reports it: each job's wall time and the conclusion. An adapter answers it; this bluebook never fetches."
       attribute :build, BuildId
       returns Document
     end
 
     # The chain of jobs, each waiting on the one before, whose wall times add up to the build's.
-    # An adapter computes it from the Job seconds and the needs policies; this chapter only asks.
+    # An adapter computes it from the Job seconds and the needs policies; this bluebook only asks.
     query "CriticalPath" do
       description "The chain of jobs that sets a build's wall time, from Job seconds and the needs edges. An adapter answers it."
       attribute :build, BuildId

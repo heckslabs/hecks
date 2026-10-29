@@ -37,7 +37,7 @@ RSpec.describe "regenerating some of the corpus's domains", :io do
   def written = Dir.children(File.join(@workspace, "src/generated")).sort
 
   # The modules the named domains own, which a regeneration of the whole corpus writes as this run
-  # does. The chapters they attach (governance) and the grammar (meta) are shared: the corpus's last
+  # does. The bluebooks they attach (governance) and the grammar (meta) are shared: the corpus's last
   # writer leaves them, so a run of some domains leaves them as its own last writer wrote them.
   def held_in_checkout
     %w[lease_clock nested_pieces].select do |name|
@@ -45,7 +45,7 @@ RSpec.describe "regenerating some of the corpus's domains", :io do
     end
   end
 
-  it "writes only the named domains, the chapters they attach and the grammar every run writes" do
+  it "writes only the named domains, the bluebooks they attach and the grammar every run writes" do
     expect(written).to eq(%w[governance lease_clock meta mod.rs nested_pieces])
   end
 

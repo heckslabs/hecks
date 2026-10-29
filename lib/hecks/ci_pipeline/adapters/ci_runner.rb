@@ -10,7 +10,7 @@ module Hecks
     #
     # GitHub does not report a job's `needs`, so the path here is the jobs ordered by wall time with
     # the slowest first: the longest pole, which bounds the real chain from below. The needs edges
-    # the chapter declares as policies are what a projection would add.
+    # the bluebook declares as policies are what a projection would add.
     class CiRunner
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused

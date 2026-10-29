@@ -76,7 +76,7 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
     expect(key).to eq(before)
   end
 
-  it "does not move when an unrelated chapter's bluebook changes" do
+  it "does not move when an unrelated bluebook's bluebook changes" do
     before = key
 
     with_change("lib/hecks/bulk/bluebook/bulk.bluebook") { expect(key).to eq(before) }
@@ -102,13 +102,13 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
     with_new_file("qa/stress_domains/lease_clock/NEW.md") { expect(key).not_to eq(before) }
   end
 
-  it "moves when a chapter a named domain attaches changes" do
+  it "moves when a bluebook a named domain attaches changes" do
     before = key
 
     with_change("lib/hecks/framework/bluebook/governance.bluebook") { expect(key).not_to eq(before) }
   end
 
-  it "does not move a domain's key for a chapter only another named domain attaches" do
+  it "does not move a domain's key for a bluebook only another named domain attaches" do
     only_lease_clock = key(%w[lease_clock])
 
     with_change("lib/hecks/framework/bluebook/governance.bluebook") { expect(key(%w[lease_clock])).to eq(only_lease_clock) }
@@ -131,7 +131,7 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
     expect(key(nil)).to eq(key(Hecks::Corpus.rust_regen_order(root: @root).map(&:feature)))
   end
 
-  it "hashes no file of an unrelated domain or chapter", :aggregate_failures do
+  it "hashes no file of an unrelated domain or bluebook", :aggregate_failures do
     files = described_class.files(subset, root: @root)
 
     expect(files.grep(%r{\Aqa/stress_domains/(?!lease_clock|nested_pieces)})).to be_empty
@@ -148,20 +148,20 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
 
   def lease_clock_files = described_class.files(%w[lease_clock], root: @root)
 
-  it "hashes every gem chapter file for a domain that attaches one it cannot follow" do
+  it "hashes every gem bluebook file for a domain that attaches one it cannot follow" do
     with_hecksagon("  attaches(\"Gov\" + \"ernance\")") do
       expect(lease_clock_files).to include("lib/hecks/bulk/bluebook/bulk.bluebook")
     end
   end
 
-  it "moves with any chapter for a domain that attaches one it cannot follow" do
+  it "moves with any bluebook for a domain that attaches one it cannot follow" do
     with_hecksagon("  attaches(\"Gov\" + \"ernance\")") do
       wide = key(%w[lease_clock])
       with_change("lib/hecks/bulk/bluebook/bulk.bluebook") { expect(key(%w[lease_clock])).not_to eq(wide) }
     end
   end
 
-  it "follows a chapter's name to the files attaching it reads, its ports file included", :aggregate_failures do
+  it "follows a bluebook's name to the files attaching it reads, its ports file included", :aggregate_failures do
     with_hecksagon("  attaches \"Bulk\"") do
       bulk = "lib/hecks/bulk/bluebook"
 

@@ -41,9 +41,9 @@ module Hecks
       #   and the seconds it took, which no verdict uses
       attr_reader :warm_up
 
-      # @param registry [Runtime::Registry, nil] the booted registry whose CiSpeed chapter holds
+      # @param registry [Runtime::Registry, nil] the booted registry whose CiSpeed bluebook holds
       #   the definitions; unused when `catalog` is given
-      # @param catalog [Catalog, nil] the definitions to read instead of the chapter's rows
+      # @param catalog [Catalog, nil] the definitions to read instead of the bluebook's rows
       # @param root [String, nil] the checkout that asks, whose refs are resolved and whose
       #   generated tree is copied; this repository when nil
       # @param scratch [String, nil] where the temporary checkouts are made; `$CLAUDE_JOB_DIR/tmp`
@@ -86,7 +86,7 @@ module Hecks
       end
 
       def catalog
-        @catalog ||= Catalog.from_chapter(@registry&.bluebook("CiSpeed") || raise(Refused, "no CiSpeed chapter is booted"))
+        @catalog ||= Catalog.from_bluebook(@registry&.bluebook("CiSpeed") || raise(Refused, "no CiSpeed bluebook is booted"))
       end
 
       # Checks the two sides out, works out which steps both can run, and samples them interleaved.

@@ -1,7 +1,7 @@
 require "spec_helper"
 require_relative "support/local_runner_world"
 
-# The `LocalRunner` adapter of the CiSpeed chapter runs an experiment's steps in two temporary
+# The `LocalRunner` adapter of the CiSpeed bluebook runs an experiment's steps in two temporary
 # checkouts of the refs it names. This spec holds what it does to those checkouts and to the one it
 # was asked about, and its refusals; the sampling examples are in
 # ci_speed_local_runner_sampling_spec.rb, and the setup both share is in

@@ -18,8 +18,8 @@ module Hecks
         # A table the projection refuses; the message lists each problem on its own line.
         class Invalid < ArgumentError; end
 
-        # The name of the chapter that declares the shape of a row.
-        CHAPTER = "CiPipeline"
+        # The name of the bluebook that declares the shape of a row.
+        BLUEBOOK = "CiPipeline"
 
         # The value object whose member rows mark a bluebook as the client's.
         MARKER = "Workflow"
@@ -30,68 +30,68 @@ module Hecks
         # Finds the one bluebook of a project that declares workflow rows.
         #
         # @param registry [Runtime::Registry] the registry the project booted into
-        # @return [Bluebook::Chapter] the bluebook holding `Workflow` rows
+        # @return [Bluebook::Declaration] the bluebook holding `Workflow` rows
         # @raise [Invalid] when no bluebook, or more than one, declares one
-        def self.chapter(registry)
+        def self.bluebook(registry)
           claimed = holders(registry)
-          raise Invalid, "no chapter declares a value_object \"#{MARKER}\" with member rows" if claimed.empty?
+          raise Invalid, "no bluebook declares a value_object \"#{MARKER}\" with member rows" if claimed.empty?
           return claimed.first if claimed.one?
 
-          raise Invalid, "#{claimed.size} chapters declare a value_object \"#{MARKER}\": " \
+          raise Invalid, "#{claimed.size} bluebooks declare a value_object \"#{MARKER}\": " \
                          "#{claimed.map(&:name).join(", ")}; a project has one set of workflow rows"
         end
 
-        # @return [Array<Bluebook::Chapter>] the project's bluebooks that declare `Workflow` rows
+        # @return [Array<Bluebook::Declaration>] the project's bluebooks that declare `Workflow` rows
         def self.holders(registry)
-          clients = registry.bluebooks.values.reject { |chapter| chapter.name == CHAPTER }
-          clients.select { |chapter| rows_of(chapter, MARKER).any? }
+          clients = registry.bluebooks.values.reject { |bluebook| bluebook.name == BLUEBOOK }
+          clients.select { |bluebook| rows_of(bluebook, MARKER).any? }
         end
 
         # Reads and checks one bluebook's workflow rows.
         #
-        # @param chapter [Bluebook::Chapter] the bluebook that declares the rows
+        # @param bluebook [Bluebook::Declaration] the bluebook that declares the rows
         # @param registry [Runtime::Registry] the registry the project booted into, which holds the
         #   CiPipeline bluebook
         # @return [Table] the checked table
         # @raise [Invalid] when the CiPipeline bluebook is not attached or a row is refused
-        def self.read(chapter, registry:)
-          rows = Typing::SHAPES.keys.to_h { |object| [object, rows_of(chapter, object)] }
+        def self.read(bluebook, registry:)
+          rows = Typing::SHAPES.keys.to_h { |object| [object, rows_of(bluebook, object)] }
           new(rows, vocabulary: vocabulary(registry))
         end
 
         # @param registry [Runtime::Registry] a registry holding the CiPipeline bluebook
         # @return [Hash{Symbol => Object}] `:trigger` and `:uses`, the closed sets, as arrays of
-        #   members, and `:patterns`, each named field to the regexp its chapter value object holds
+        #   members, and `:patterns`, each named field to the regexp its bluebook value object holds
         # @raise [Invalid] when the registry does not hold the CiPipeline bluebook
         def self.vocabulary(registry)
-          pipeline = registry.bluebook(CHAPTER) or
-            raise Invalid, "the project does not attach the #{CHAPTER} chapter (attaches \"#{CHAPTER}\")"
+          pipeline = registry.bluebook(BLUEBOOK) or
+            raise Invalid, "the project does not attach the #{BLUEBOOK} bluebook (attaches \"#{BLUEBOOK}\")"
           { trigger:  members(pipeline, "Workflow", "Trigger"),
             uses:     members(pipeline, "JobSpec", "ActionRef").reject(&:empty?),
             patterns: Rows::PATTERNS.transform_values { |(aggregate, object)| pattern(pipeline, aggregate, object) } }
         end
 
-        # @param chapter [Bluebook::Chapter] a bluebook to search
+        # @param bluebook [Bluebook::Declaration] a bluebook to search
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
-        def self.rows_of(chapter, object)
-          objects = chapter.aggregates.flat_map(&:value_objects)
+        def self.rows_of(bluebook, object)
+          objects = bluebook.aggregates.flat_map(&:value_objects)
           objects.select { |candidate| candidate.hecks_name == object }.flat_map(&:members)
         end
 
         # @return [Array<String>] the members of a closed set held as a value object of an aggregate
-        def self.members(chapter, aggregate, object)
-          held(chapter, aggregate, object).members.map { |member| member.fetch(:value) }
+        def self.members(bluebook, aggregate, object)
+          held(bluebook, aggregate, object).members.map { |member| member.fetch(:value) }
         end
 
         # @return [Regexp] the pattern of a value object's one attribute
-        def self.pattern(chapter, aggregate, object)
-          Regexp.new(held(chapter, aggregate, object).attributes.first.pattern)
+        def self.pattern(bluebook, aggregate, object)
+          Regexp.new(held(bluebook, aggregate, object).attributes.first.pattern)
         end
 
-        # @return [Bluebook::ValueObject] a value object of an aggregate of the chapter
-        def self.held(chapter, aggregate, object)
-          chapter.aggregate(aggregate).value_objects.find { |candidate| candidate.hecks_name == object }
+        # @return [Bluebook::ValueObject] a value object of an aggregate of the bluebook
+        def self.held(bluebook, aggregate, object)
+          bluebook.aggregate(aggregate).value_objects.find { |candidate| candidate.hecks_name == object }
         end
         private_class_method :holders, :members, :pattern, :held
 

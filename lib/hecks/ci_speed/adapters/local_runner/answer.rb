@@ -4,7 +4,7 @@ module Hecks
   module Adapters
     class LocalRunner
       # What an adapter of the `LocalRunner` port answers with: each field in the shape
-      # `Experiment::Complete` takes it, so the chapter's policy passes it on as it stands.
+      # `Experiment::Complete` takes it, so the bluebook's policy passes it on as it stands.
       module Answer
         module_function
 

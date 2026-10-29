@@ -1,5 +1,5 @@
 Hecks.behaviors "CiWorkflows" do
-  vision "Hecks's own workflows are rows of this chapter, which attaches CiPipeline for the shape of a row."
+  vision "Hecks's own workflows are rows of this bluebook, which attaches CiPipeline for the shape of a row."
 
   # The hecksagon attaches CiPipeline and Governance, so a boot of these files holds the shapes the
   # rows are read against, and the memory-only guard and the role check pass.
