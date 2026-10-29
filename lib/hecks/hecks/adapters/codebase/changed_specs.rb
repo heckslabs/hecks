@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "open3"
+
 module Hecks
   module Adapters
     module Codebase
@@ -19,7 +21,7 @@ module Hecks
           changed.flat_map do |file|
             next [file] if specs.include?(file)
 
-            by_name.fetch(File.basename(file, ".rb") + "_spec.rb", [])
+            by_name.fetch("#{File.basename(file, ".rb")}_spec.rb", [])
           end.uniq.sort
         end
 
@@ -29,6 +31,20 @@ module Hecks
         def unmapped(changed, specs)
           mapped = call(changed, specs)
           changed.select { |file| file.end_with?(".rb") && !mapped.include?(file) && call([file], specs).empty? }
+        end
+
+        # The files that differ from the ref, tracked and untracked, relative to the folder.
+        #
+        # @param tree [Tree] the folder under git
+        # @param base [String] the ref to compare against
+        # @return [Array<String>] the changed files
+        # @raise [ConsoleCapture::Failure] when git refuses, with what it said
+        def changed_files(tree, base)
+          diff, status = Open3.capture2e("git", "-C", tree.root, "diff", "--name-only", base, "--")
+          raise ConsoleCapture::Failure, diff.strip unless status.success?
+
+          untracked, = Open3.capture2("git", "-C", tree.root, "ls-files", "--others", "--exclude-standard")
+          (diff.lines + untracked.lines).map(&:strip).reject(&:empty?).uniq
         end
       end
     end

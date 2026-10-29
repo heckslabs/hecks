@@ -10,6 +10,7 @@ require_relative "style"
 require_relative "inspection"
 require_relative "search"
 require_relative "reading"
+require_relative "corpus_queries"
 require_relative "generated_keys"
 require_relative "codemods"
 require_relative "test_suite"
@@ -33,6 +34,8 @@ module Hecks
     # `perform` finds the task family that carries an operation out; a family lives beside this
     # file and does the work with the existing generators, linters and tools.
     class SourceTree
+      include CorpusQueries
+
       class << self
         # @return [#capture, nil] starts each child process; a `Shell` when nil. A spec replaces it
         #   so no gate has to run to test what is asked of it.
@@ -154,25 +157,6 @@ module Hecks
         { text: test_suite("record_pattern_cases", {}) }
       end
 
-      # @return [Hash] `text:` the feature and directory of every domain with a Rust feature
-      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
-      def rust_domains(**)
-        { text: corpus("rust_domains", {}) }
-      end
-
-      # @return [Hash] `text:` the directories regeneration walks, in the order it walks them
-      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
-      def regen_order(**)
-        { text: corpus("regen_order", {}) }
-      end
-
-      # @return [Hash] `text:` whether each generated Rust module is covered
-      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
-      # @raise [ConsoleCapture::Failure] when a module is not covered
-      def corpus_rust_coverage(**)
-        { text: corpus("corpus_rust_coverage", {}) }
-      end
-
       # @param args [Hash] the query's arguments: `domains` (feature names), `files`
       # @return [Hash] `text:` the hash of what regenerating those domains reads, with `files` each
       #   file hashed above it
@@ -181,28 +165,6 @@ module Hecks
       def generated_key(**args)
         tree.require_checkout!
         { text: Codebase::GeneratedKeys.report(args.transform_values { |value| plain(value) }, tree) }
-      end
-
-      # @param args [Hash] the query's arguments: `names`
-      # @return [Hash] `text:` each IR construct's diff from its meta-domain
-      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
-      def ir_constructs(**args)
-        { text: corpus("ir_constructs", args) }
-      end
-
-      # @param args [Hash] the query's arguments: `domains`, `meta`
-      # @return [Hash] `text:` the rules declared more than once
-      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
-      def ir_duplicates(**args)
-        { text: corpus("ir_duplicates", args) }
-      end
-
-      # @param args [Hash] the query's arguments: `name`, `field`
-      # @return [Hash] `text:` which propagation touchpoints already show the field
-      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
-      # @raise [ConsoleCapture::Failure] when the construct is not one
-      def ir_impact(**args)
-        { text: corpus("ir_impact", args) }
       end
 
       private
