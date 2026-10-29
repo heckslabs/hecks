@@ -720,6 +720,7 @@ policy "RecordTheEra" do
   # `git log`. The `Reading` port's adapter answers each query; the aggregate keeps no record.
   aggregate "Checkout" do
     description "A look at a checkout: its branch, what it changed and what it committed."
+    acknowledges :no_command_surface, "a look at a checkout: it answers the state of a checkout and changes nothing"
 
     attribute :checkout, Place
     identified_by :checkout
