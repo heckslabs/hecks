@@ -112,6 +112,10 @@ RSpec.describe ".github/workflows/release.yml" do
       expect(check).not_to have_key("continue-on-error")
     end
 
+    it "judges the bump from the commit alone, so a merged release branch is read by approval.rb" do
+      expect(check.fetch("run")).to include('COMMIT="$commit"').and(satisfy { |run| !run.include?("COMMIT_MESSAGE") })
+    end
+
     it "lets an existing tag and a by-hand approval through, and no other run", :aggregate_failures do
       expect(check.fetch("run")).to include("TAG_EXISTS")
       expect(triggers.fetch("workflow_dispatch").fetch("inputs").fetch("approved_by")).to include("required" => false)

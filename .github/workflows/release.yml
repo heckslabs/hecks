@@ -118,7 +118,7 @@ jobs:
             elif [ -n "$version" ]; then
               tag_exists=false
               [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
-              if ! COMMIT_MESSAGE="$(git log -1 --format=%B "$commit")" TAG_EXISTS="$tag_exists" \
+              if ! COMMIT="$commit" TAG_EXISTS="$tag_exists" \
                 ruby -I lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'; then
                 echo "::notice::v$version is not released: its bump commit carries no approval. Nothing to cut."
                 pending=false
@@ -161,7 +161,8 @@ jobs:
           [ -n "$commit" ] || { echo "::error::no commit on stable sets Hecks::VERSION"; exit 1; }
           git checkout --detach "$commit"
 
-      # A by-hand run for a tag that already exists works from that tag's tree.
+      # A by-hand run for a tag that already exists works from that tag's tree; for one that does not,
+      # from the commit on stable that set the version, never the head of the branch it was started on.
       - name: Check out the requested tag
         if: env.REQUESTED_TAG != ''
         run: |
@@ -172,6 +173,11 @@ jobs:
           git fetch --force --tags origin
           if git rev-parse -q --verify "refs/tags/$REQUESTED_TAG^{commit}" > /dev/null; then
             git checkout --detach "refs/tags/$REQUESTED_TAG"
+          else
+            git fetch --quiet origin stable
+            commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' FETCH_HEAD -- lib/hecks/version.rb)"
+            [ -n "$commit" ] || { echo "::error::no commit on stable sets Hecks::VERSION"; exit 1; }
+            git checkout --detach "$commit"
           fi
 
       - name: The release commit is on stable
@@ -189,7 +195,7 @@ jobs:
           commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
           tag_exists=false
           [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
-          COMMIT_MESSAGE="$(git log -1 --format=%B "$commit")" TAG_EXISTS="$tag_exists" \
+          COMMIT="$commit" TAG_EXISTS="$tag_exists" \
             ruby -I lib -r hecks/release/approval -e 'exit Hecks::Release::Approval.check'
 
       - name: The files agree on one version
