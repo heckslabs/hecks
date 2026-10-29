@@ -7,6 +7,7 @@ require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
 require_relative "git_train/survey"
+require_relative "git_train/settlement"
 
 module Hecks
   module Adapters
@@ -41,11 +42,7 @@ module Hecks
       #   remote's conflict, or the push is refused
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
-        carriage = Carriage.new(@git, @checkout, branch: plain(held[:branch]) || "main",
-                                                 remote: plain(held[:remote]) || "origin",
-                                                 config: gate_config(held))
-        boarded = carriage.local_head
-        in_turn { carriage.carry(boarded) }
+        in_turn { settle_and_carry(held) }
       end
 
       # Lists every checkout under a directory whose default branch has commits its remote does
@@ -63,6 +60,15 @@ module Hecks
       end
 
       private
+
+      # Brings the branch up to its remote and settles the shape ledger, then carries what is local.
+      def settle_and_carry(held)
+        branch = plain(held[:branch]) || "main"
+        remote = plain(held[:remote]) || "origin"
+        Settlement.new(@git, @checkout, branch: branch, remote: remote).run
+        carriage = Carriage.new(@git, @checkout, branch: branch, remote: remote, config: gate_config(held))
+        carriage.carry(carriage.local_head)
+      end
 
       # A git hook takes no arguments, so the argument reaches the pre-push hook as git
       # configuration, for this push only (`git -c`).

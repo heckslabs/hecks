@@ -1,6 +1,7 @@
 spec/adapters/driven/codebase_release_facts_git_spec.rb
 spec/adapters/driven/git_landing_spec.rb
 spec/adapters/driven/git_spec.rb
+spec/adapters/driven/git_train_settlement_spec.rb
 spec/adapters/driven/git_train_spec.rb
 spec/adapters/driven/host_http_spec.rb
 spec/adapters/driven/journal_store_spec.rb
