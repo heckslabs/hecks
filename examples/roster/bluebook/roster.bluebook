@@ -1,5 +1,5 @@
 Hecks.bluebook "Roster" do
-  vision "A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST."
+  vision "A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a list."
   supporting
 
   # Smallest example of the enumeration operators (`.none?`/`.any?`/`.all?`/`.find`) over
