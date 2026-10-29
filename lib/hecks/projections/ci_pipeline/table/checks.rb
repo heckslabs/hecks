@@ -11,7 +11,7 @@ module Hecks
         # and a command that names a shard total its job does not have.
         class Checks
           # The text a step's command writes where its job's shard total belongs.
-          SHARD_TOKEN = "%{shard_total}" # rubocop:disable Style/FormatStringToken -- row text, not a format string
+          SHARD_TOKEN = "%{shard_total}"
 
           # One scope of a job's `permissions:` line: a scope, a colon and what is allowed.
           PERMISSION = /\A[a-z-]+: (read|write|none)\z/

@@ -30,7 +30,7 @@ module Hecks
       # @param key_reference [String] the opaque reference {#issue} returned
       # @return [Boolean] true when a key was held and is now gone; false when this
       #   reference was already destroyed, or never issued
-      def destroy(key_reference:) = !(@keys ||= {}).delete(key_reference).nil? # rubocop:disable Naming/PredicateMethod
+      def destroy(key_reference:) = !(@keys ||= {}).delete(key_reference).nil?
 
       # Resets the vault to empty, forgetting every key this process ever issued.
       #

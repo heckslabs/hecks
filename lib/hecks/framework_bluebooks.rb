@@ -107,7 +107,7 @@ module Hecks
       Bluebook::MetaValidator.defer { paths.each { |path| SentenceForm.load_file(path) } }
       Bluebook::MetaValidator.judge_deferred!(registry)
       load_wiring(name, paths)
-    rescue Exception # rubocop:disable Lint/RescueException -- rolls back, then re-raises
+    rescue Exception
       roll_back(registry, name, before)
       raise
     end

@@ -17,7 +17,6 @@ module Hecks
         # Delivers one command a saga leg dispatches: resolves its arguments, logs the inputs they
         # were bound from, then runs the checkpoint/dispatch/compensation ledger protocol with the
         # retries a crash gets.
-        # rubocop:disable-next Metrics/ParameterLists -- spec/runtime/reaction_invocation_spec.rb calls it by name
         def deliver_saga_dispatch(process_manager, spec, event, instance, correlation, domain, dispatch_key: nil)
           leg = Leg.new(process_manager, event, domain, correlation, nil, instance)
           leg.dispatch_key = dispatch_key

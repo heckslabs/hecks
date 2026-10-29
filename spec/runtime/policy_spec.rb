@@ -125,7 +125,6 @@ RSpec.describe "a policy" do
   # query answers. Built inline because fixture bluebooks are swept into
   # `spec/parser_parity_spec.rb`, and the Rust parser lacks both (`PENDING_PAIRS`).
   describe "where and for_each" do
-    # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
     def boot_fanout
       registry = Hecks::Runtime::Registry.new
 

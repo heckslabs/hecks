@@ -70,7 +70,7 @@ module InProcessLauncher
   # (`$VERBOSE = nil` would hide that, and every `warn` the launcher makes with it).
   def forget_constants
     CONSTANTS.each do |name|
-      Object.send(:remove_const, name) if Object.const_defined?(name, false) # rubocop:disable RSpec/RemoveConst
+      Object.send(:remove_const, name) if Object.const_defined?(name, false)
     end
   end
 end

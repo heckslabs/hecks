@@ -103,7 +103,7 @@ module Hecks
 
       # @return [Boolean] true if the block ran and the gates held; false after restoring the
       #   snapshots when a gate refused
-      def edit_and_gate(word, context, evolve, root, &) # rubocop:disable Naming/PredicateMethod -- the edit's verdict
+      def edit_and_gate(word, context, evolve, root, &)
         paths = evolve.syntax_paths + [File.join(root, "spec/golden/ir/Bluebook.json")]
         snapshots = paths.to_h { |path| [path, File.read(path)] }
         evolve.restore_on_raise(paths, &)
@@ -124,7 +124,7 @@ module Hecks
       end
 
       # @return [true]
-      def status(evolve) # rubocop:disable Naming/PredicateMethod -- the command always succeeds
+      def status(evolve)
         rows = evolve.keyword_rows
         moving = rows.reject { |row| row[:status] == "admitted" }
         renamed = rows.reject { |row| row[:was].to_s.empty? }

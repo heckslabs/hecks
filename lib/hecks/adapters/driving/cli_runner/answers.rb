@@ -21,7 +21,7 @@ module Hecks
           # @param bluebook [Bluebook::Declaration] the bluebook the command belongs to
           # @param launcher [Hash, nil] the bluebook's `launcher` world setting; nil when not opted
           #   in
-          def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil) # rubocop:disable Metrics/ParameterLists -- the signature is what `call` passes
+          def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
             args, wait, text = command_line(spec, rest, launcher)
             return answer_query(runtime, spec, args, wait, launcher) if spec[:kind] == :query
 

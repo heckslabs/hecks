@@ -40,7 +40,7 @@ class FakeCodebaseShell
     @asked << { command: [name, *argv], env: {}, chdir: root, program: name }
     out, status = next_answer
     # The tool prints and the caller captures it, so this must reach `$stdout`.
-    print out # rubocop:disable RSpec/Output
+    print out
     status
   end
 

@@ -19,7 +19,7 @@ module Hecks
           # @param err [IO] where a refusal goes
           # @param max_polls [Integer, nil] stop after this many asks; unbounded when nil
           # @return [Integer, nil] 0 or 1 for a stream, nil when `call` should run the line
-          def stream(runtime:, argv:, program: "hecks run", out: $stdout, err: $stderr, max_polls: nil) # rubocop:disable Metrics/ParameterLists -- the keyword API is what callers pass
+          def stream(runtime:, argv:, program: "hecks run", out: $stdout, err: $stderr, max_polls: nil)
             plan  = resolve(runtime, argv, program)
             words = stream_words(plan)
             return unless words

@@ -33,7 +33,7 @@ module Hecks
           { touchpoint: "meta-domain grammar declares it", present: meta_declared(name).map(&:to_s).include?(field) },
           { touchpoint: "docs/resolution-rules/ names it", present: resolution_rule_mentions?(field) },
           { touchpoint: "Assembly::Contracts consumes it", present: contract_consumes?(name, field) },
-          { touchpoint: "Reconstruction's hand-typed method reads it", present: reconstruction_reads?(name, field) },
+          { touchpoint: "Reconstruction's hand-typed method reads it", present: reconstruction_reads(name, field) },
           { touchpoint: "fuzzer FEATURE_COVERAGE/GUARANTEED_BY_CONSTRUCTION claims it", present: fuzzer_claims?(name, field) },
           { touchpoint: "Rust mirror (rust/parser/src/parse/*.rs) mentions it", present: rust_mentions?(field) }
         ]
@@ -52,13 +52,11 @@ module Hecks
         false
       end
 
-      # nil, not false, for constructs without a hand-typed method: the touchpoint does not apply.
-      def reconstruction_reads?(name, field)
+      # Whether the hand-typed Reconstruction method reads `field`. Answers nil, not false, for a
+      # construct without one: nil means "not applicable", false means "applicable, and it fails",
+      # and the touchpoint reports each differently. Named without `?` because it is not a predicate.
+      def reconstruction_reads(name, field)
         method_name = RECONSTRUCTION_METHODS[name]
-        # rubocop:disable-next Style/ReturnNilInPredicateMethodDefinition -- nil vs
-        # false is a deliberate distinction here: nil means "not applicable" (no
-        # hand-typed method to check), false means "applicable, and it fails" —
-        # see the spec's own "not-applicable (nil), not false" example.
         return nil unless method_name
 
         reconstruction_body(method_name).include?("#{field}:")

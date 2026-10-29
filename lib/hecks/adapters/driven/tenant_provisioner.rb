@@ -37,7 +37,7 @@ module Hecks
       # @param adapter [String, Hash, nil] the adapter the overlay binds; PostgresEra when none
       # @return [Hash{Symbol => Object}] `:slug`, `:domain`, `:realm`, `:schema` and `:output`
       # @raise [Refused] when a value is outside its allow-list or the path leaves `environments/`
-      def write_overlay(slug:, domain:, realm:, schema:, database:, directory:, adapter: nil, **) # rubocop:disable Metrics/ParameterLists -- one keyword per command attribute
+      def write_overlay(slug:, domain:, realm:, schema:, database:, directory:, adapter: nil, **)
         values = { slug: unwrap(slug), domain: unwrap(domain), realm: unwrap(realm),
                    schema: unwrap(schema), database: unwrap(database),
                    adapter: adapter_name(adapter) }

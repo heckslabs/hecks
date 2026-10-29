@@ -52,7 +52,6 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
     describe File.basename(domain) do
       # One example accumulates a combined divergence report across all seeds and fields;
       # splitting would re-pay the cargo build and scatter related divergences.
-      # rubocop:disable-next RSpec/ExampleLength
       it "agrees with Ruby across #{SEEDS_PER_DOMAIN} generated sequences (instances, events, refusals, " \
          "reactions, sagas, queries)" do
         pending RUST_FUZZ_PENDING.fetch(File.basename(domain)) if RUST_FUZZ_PENDING.key?(File.basename(domain))

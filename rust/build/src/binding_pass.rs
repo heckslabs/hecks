@@ -77,7 +77,7 @@ fn persistence(
             let text = read(path)?;
             (
                 lineage_pass::persistence_binds(&text),
-                domain_default(&text, declaration),
+                domain_default(&text, declaration)?,
             )
         }
         None => (HashMap::new(), None),
@@ -115,7 +115,11 @@ fn persistence(
 
 // The bare `persisted_by "X"` line of the bluebook's own `Hecks.hecksagon` block: every aggregate
 // without a bind of its own inherits it. The last one in the block wins.
-fn domain_default(text: &str, declaration: &str) -> Option<String> {
+//
+// The line is read as text, not evaluated, so anything after the adapter's name (a guard such as
+// `if ENV[...]`, or an option) cannot be honored here. Such a line is refused rather than read as
+// an unconditional bind, because the build and the Ruby loader would then disagree on the adapter.
+fn domain_default(text: &str, declaration: &str) -> Result<Option<String>, String> {
     let mut in_bluebook = false;
     let mut found = None;
     for line in text.lines() {
@@ -130,11 +134,60 @@ fn domain_default(text: &str, declaration: &str) -> Option<String> {
             continue;
         };
         let quoted = &rest[open + 1..];
-        found = quoted.find('"').map(|close| quoted[..close].to_string());
+        let Some(close) = quoted.find('"') else {
+            found = None;
+            continue;
+        };
+        let after = quoted[close + 1..].trim();
+        if !after.is_empty() && !after.starts_with('#') {
+            return Err(format!(
+                "{declaration}'s hecksagon has `persisted_by` with `{after}` after the adapter; \
+                 the build cannot evaluate that, so the bind is refused. Remove the condition, \
+                 or wire the adapter in a hecksagon that applies to it."
+            ));
+        }
+        found = Some(quoted[..close].to_string());
     }
-    found
+    Ok(found)
 }
 
 fn read(path: &Path) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| format!("reading {}: {e}", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::domain_default;
+
+    #[test]
+    fn a_bare_bind_names_the_domain_default() {
+        let text = "Hecks.hecksagon \"Miette\" do\n  persisted_by \"PostgresEra\"\nend\n";
+        assert_eq!(
+            domain_default(text, "Miette"),
+            Ok(Some("PostgresEra".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_trailing_comment_is_not_a_condition() {
+        let text = "Hecks.hecksagon \"Miette\" do\n  persisted_by \"Memory\" # in-memory by default\nend\n";
+        assert_eq!(
+            domain_default(text, "Miette"),
+            Ok(Some("Memory".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_guarded_bind_is_refused_not_read_as_unconditional() {
+        let text = "Hecks.hecksagon \"Miette\" do\n  persisted_by \"PostgresEra\" if ENV[\"MIETTE_LOCAL\"]\nend\n";
+        let err = domain_default(text, "Miette").unwrap_err();
+        assert!(err.contains("`if ENV[\"MIETTE_LOCAL\"]`"), "{err}");
+    }
+
+    #[test]
+    fn a_bind_in_another_bluebook_is_ignored() {
+        let text =
+            "Hecks.hecksagon \"Other\" do\n  persisted_by \"PostgresEra\" if ENV[\"X\"]\nend\n";
+        assert_eq!(domain_default(text, "Miette"), Ok(None));
+    }
 }

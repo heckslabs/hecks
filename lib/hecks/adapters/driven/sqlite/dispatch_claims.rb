@@ -17,7 +17,7 @@ module Hecks
         # @param key [String] the dispatch key a saga leg stamped on the command
         # @return [Boolean] true when the key was new and is now held; false when already held
         # @raise [SQLite3::Exception] if the insert fails
-        def dispatch_claim(key) # rubocop:disable Naming/PredicateMethod -- the claim port's verb
+        def dispatch_claim(key)
           @db.execute("INSERT OR IGNORE INTO hecks_dispatch_claims (claim_key, claimed_at) VALUES (?, ?)",
                       [key, Time.now.utc.iso8601])
           @db.changes.positive?

@@ -48,7 +48,6 @@ module Hecks
       # `element`/`view` are the entity piece itself, pre- and
       # post-mutation. `:chain` intentionally shadows Enumerable#chain —
       # every read is the struct field, never enumerable-combining.
-      # rubocop:disable-next Lint/StructNewOverride
       Context = Struct.new(:domain, :aggregate, :entity, :entity_name, :command, :command_name,
                            :args, :repository, :instance, :chain, :element, :view, :transition,
                            :old_element, :result, :route, :plan, :persistence_outcome, :dry_run, :outbox_rows,

@@ -151,7 +151,12 @@ module Hecks
       # @yield the dispatch order; an exception rolls the transaction back
       # @return [Object] the block's own value
       # @raise [PG::ConnectionBad] if the connection dropped; it reconnects, then re-raises
-      def with_write_lock(&) = transaction { lock_writes!; yield } # rubocop:disable Style/Semicolon
+      def with_write_lock(&)
+        transaction do
+          lock_writes!
+          yield
+        end
+      end
 
       # Builds the instance an entry describes, writing nothing; the head is derived, so
       # projecting is reading.
@@ -183,7 +188,7 @@ module Hecks
       # @param id [String, Object] the record's identity, journaled as `id.to_s`
       # @return [true] always
       # @raise [Runtime::WiringError] if this boot's era has been superseded by a mint
-      def delete(id) # rubocop:disable Naming/PredicateMethod -- the repository port's verb, not a question
+      def delete(id)
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
         append(entry)
         true

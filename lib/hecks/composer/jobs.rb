@@ -35,7 +35,7 @@ module Hecks
       # @param confirm [String, nil] the confirmation the runner requires, if any
       # @return [true]
       # @raise [Busy] when a job is running
-      def start(kind:, verb:, args: {}, confirm: nil) # rubocop:disable Naming/PredicateMethod
+      def start(kind:, verb:, args: {}, confirm: nil)
         @mutex.synchronize do
           raise Busy, "a job is already running" if running?
 

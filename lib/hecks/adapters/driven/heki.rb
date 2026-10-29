@@ -133,7 +133,7 @@ module Hecks
       # @param id [String, Object] the record's identity, compared as `id.to_s`
       # @return [Boolean] true when a record was found and deleted, false when there was none
       #   and nothing was journaled
-      def delete(id) # rubocop:disable Naming/PredicateMethod -- the repository port's verb, answering whether a record existed
+      def delete(id)
         return false unless find(id)
 
         entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)

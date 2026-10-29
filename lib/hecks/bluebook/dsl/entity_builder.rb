@@ -51,7 +51,6 @@ module Hecks
 
         # `has_many_impl`/`has_one_impl` are DSL keywords (`has_many`/`has_one` in a bluebook),
         # not real predicates, so Naming/PredicatePrefix does not apply here.
-        # rubocop:disable Naming/PredicatePrefix
         # Declares a list-typed relationship to another entity, referenced by its plural name.
         def has_many_impl(type, as: nil, **options)
           unless options.empty?
@@ -69,7 +68,6 @@ module Hecks
           target = Naming.demodulise(type)
           relationship_attribute(target, :has_one, as || Naming.snake(target).to_sym, optional: optional)
         end
-        # rubocop:enable Naming/PredicatePrefix
 
         # Declares a single-valued relationship to the entity that owns this one.
         def belongs_to_impl(type, as: nil, optional: false)

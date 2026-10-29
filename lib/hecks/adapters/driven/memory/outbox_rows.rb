@@ -26,7 +26,7 @@ module Hecks
         # @param id [Integer] the row id `outbox_enqueue` assigned
         # @return [Boolean] true when the row was pending and is now claimed; false when it is
         #   unknown or not pending
-        def outbox_claim(id) # rubocop:disable Naming/PredicateMethod
+        def outbox_claim(id)
           row = outbox_row(id)
           return false unless row&.pending?
 
@@ -42,7 +42,7 @@ module Hecks
         #   not validated here
         # @param error [String, nil] the failure description, or nil to clear it
         # @return [Boolean] true when the row exists and was updated; false when no row has `id`
-        def outbox_settle(id, status:, error: nil) # rubocop:disable Naming/PredicateMethod
+        def outbox_settle(id, status:, error: nil)
           row = outbox_row(id) or return false
           row.status = status.to_s
           row.error  = error

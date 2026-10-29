@@ -69,7 +69,7 @@ module Hecks
         # @param opted [Boolean] whether the bluebook's world declares a `launcher` setting
         # @return [String] the Ruby source
         # @raise [ArgumentError] if a name, path, executable or legacy command is not plain
-        def launcher(path, name, program, executable: nil, legacy: nil, memory_commands: nil, opted: !executable.nil?) # rubocop:disable Metrics/ParameterLists -- the generator's documented signature
+        def launcher(path, name, program, executable: nil, legacy: nil, memory_commands: nil, opted: !executable.nil?)
           plain!("bluebook name", name, NAME)
           plain!("domain path", path, PATH)
           site = executable ? executable_site(path, executable) : plain_site(path, name, program)

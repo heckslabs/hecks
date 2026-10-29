@@ -4,8 +4,6 @@ require "spec_helper"
 # element or onto another field (a bare Symbol always names a command argument).
 RSpec.describe "a mutation sourced from the record's own state" do
   # One inline bluebook declared whole; splitting would scatter a single DSL declaration.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def boot_board
     registry = Hecks::Runtime::Registry.new
 

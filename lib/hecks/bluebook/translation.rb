@@ -9,7 +9,6 @@ module Hecks
     # One field whose value changed, bridged by an exhaustive lookup table.
     # Paths follow `TranslationMove`; `values` maps each old-era value to its new-era one.
     # `:values` shadows Struct#values on purpose; no caller reads the built-in.
-    # rubocop:disable-next Lint/StructNewOverride
     TranslationConvert = Struct.new(:from, :to, :values)
 
     # A value object's or entity's type name changed with its members unchanged.

@@ -52,7 +52,7 @@ RSpec.describe "saga durability across a process death mid-leg" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry)).tap(&:redrive_sagas!)
   end
 
-  class SimulatedCrash < Exception; end # rubocop:disable Lint/InheritException
+  class SimulatedCrash < Exception; end
 
   let(:runtime) { boot_wire }
 

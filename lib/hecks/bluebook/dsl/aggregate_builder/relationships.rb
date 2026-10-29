@@ -65,7 +65,6 @@ module Hecks
 
         # `has_many_impl`/`has_one_impl` are DSL keywords (`has_many`/`has_one` in a bluebook),
         # not real predicates, so Naming/PredicatePrefix does not apply here.
-        # rubocop:disable Naming/PredicatePrefix
 
         # Declares a list-typed relationship to another aggregate, referenced by its plural name.
         #
@@ -105,7 +104,6 @@ module Hecks
           relationship_attribute(target, :has_one, as || Naming.snake(target).to_sym,
                                  optional: optional)
         end
-        # rubocop:enable Naming/PredicatePrefix
 
         # Declares a single-valued relationship toward the aggregate that owns this one.
         #

@@ -13,7 +13,6 @@ module Hecks
         # raises before it is stored, so a failure is never cached. Written from dispatch
         # threads, so every access holds PATHS_LOCK; the cache is cleared when it reaches
         # PATHS_CACHE_LIMIT entries, so distinct texts cannot grow it without bound.
-        # rubocop:disable-next Style/MutableConstant
         PATHS_CACHE = {}
         PATHS_LOCK = Mutex.new
         PATHS_CACHE_LIMIT = 4096

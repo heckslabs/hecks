@@ -30,7 +30,7 @@ module Hecks
         # @return [Boolean] true when the row was pending and is now claimed; false when it is
         #   unknown or another claimer got there first
         # @raise [SQLite3::Exception] if the update fails
-        def outbox_claim(id) # rubocop:disable Naming/PredicateMethod -- the outbox port's verb
+        def outbox_claim(id)
           @db.execute(
             "UPDATE hecks_outbox SET status = 'claimed', attempts = attempts + 1, claimed_at = ? " \
             "WHERE id = ? AND status = 'pending'",
@@ -48,7 +48,7 @@ module Hecks
         # @param error [String, nil] the failure description, or nil to store NULL
         # @return [Boolean] true when exactly one row was updated; false when no row has `id`
         # @raise [SQLite3::Exception] if the update fails
-        def outbox_settle(id, status:, error: nil) # rubocop:disable Naming/PredicateMethod -- the outbox port's verb
+        def outbox_settle(id, status:, error: nil)
           @db.execute(
             "UPDATE hecks_outbox SET status = ?, error = ?, settled_at = ? WHERE id = ?",
             [status.to_s, error, Time.now.utc.iso8601, id]

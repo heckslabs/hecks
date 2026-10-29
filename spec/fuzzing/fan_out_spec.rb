@@ -5,8 +5,6 @@ require "hecks/fuzzing"
 # `for_each` has no fixture (the Rust parser does not build it; see spec/runtime/policy_spec.rb).
 RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
   # One inline bluebook read top to bottom as the fixture; splitting it would scatter it.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def boot_fanout
     registry = Hecks::Runtime::Registry.new
 
