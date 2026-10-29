@@ -739,6 +739,9 @@
       "correlates_by": "reference.value",
       "starts_on": "ConsignmentRequested",
       "ends_on": "ConsignmentShipped",
+      "endings": [
+        "ConsignmentShipped"
+      ],
       "states": [
         "packing",
         "filling",

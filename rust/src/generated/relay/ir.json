@@ -198,6 +198,9 @@
       "correlates_by": "tag.value",
       "starts_on": "ParcelPosted",
       "ends_on": "ParcelDelivered",
+      "endings": [
+        "ParcelDelivered"
+      ],
       "states": [
         "posted",
         "picked_up",

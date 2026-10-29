@@ -10902,6 +10902,9 @@
       "correlates_by": "reference.value",
       "starts_on": "OnboardingOpened",
       "ends_on": "AccountOpened",
+      "endings": [
+        "AccountOpened"
+      ],
       "states": [
         "screening",
         "cleared",
@@ -10952,6 +10955,9 @@
       "correlates_by": "reference.value",
       "starts_on": "TransferRequested",
       "ends_on": "TransferSettled",
+      "endings": [
+        "TransferSettled"
+      ],
       "states": [
         "requested",
         "awaiting_credit",
@@ -11102,6 +11108,9 @@
       "correlates_by": "end_to_end.value",
       "starts_on": "ExternalTransferRequested",
       "ends_on": "ExternalTransferSent",
+      "endings": [
+        "ExternalTransferSent"
+      ],
       "states": [
         "requested",
         "returned"

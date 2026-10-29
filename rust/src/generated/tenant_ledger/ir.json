@@ -892,6 +892,9 @@
       "correlates_by": "reference.value",
       "starts_on": "TransferRequested",
       "ends_on": "LedgerCredited",
+      "endings": [
+        "LedgerCredited"
+      ],
       "states": [
         "settling"
       ],

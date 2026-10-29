@@ -15281,6 +15281,16 @@
           "relationship": null
         },
         {
+          "name": "endings",
+          "type": "ProcessManagerText",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "states",
           "type": "SagaState",
           "list": true,
@@ -16523,6 +16533,16 @@
               "relationship": null
             },
             {
+              "name": "endings",
+              "type": "ProcessManagerText",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "position",
               "type": "Position",
               "list": false,
@@ -16586,6 +16606,15 @@
               "source": {
                 "kind": "argument",
                 "name": "ends_on"
+              }
+            },
+            {
+              "target": "endings",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "endings"
               }
             },
             {
@@ -37998,7 +38027,11 @@
       ],
       "provenance": null,
       "acknowledgements": [
-
+        {
+          "finding": "no_command_surface",
+          "subject": "",
+          "reason": "the closed sets are declared once and projected into both runtimes; nothing changes them at runtime"
+        }
       ]
     }
   ],
