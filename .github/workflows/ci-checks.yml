@@ -277,15 +277,15 @@ jobs:
           name: codegen
           crate-root: rust/codegen
 
-      # Materializes rust/src/generated and rust/Cargo.toml: the saved output of a regeneration on
-      # identical generator inputs, or a fresh `regenerate_corpus --confirm` over every domain.
-      # Every domain, on purpose: this job is the safety net that compares the whole tree.
+      # Rewrites rust/src/generated and rust/Cargo.toml with a fresh `regenerate_corpus --confirm`
+      # over every domain, on purpose: this job is the safety net that compares the whole tree.
       - uses: ./.github/actions/generated-rust
+        with:
+          regenerate: "true"
 
-      # Fails when the committed pizzas, mod.rs or Cargo.toml differ from that regeneration, so a
-      # change to them with no matching regen is caught on the push that caused it. The step above
-      # already regenerated (or restored a regeneration of these exact inputs), so this compares
-      # instead of regenerating the corpus a second time.
+      # Fails when the committed tree or Cargo.toml differs from that regeneration, so a change to
+      # a bluebook or the generator with no matching regeneration is caught on the push that caused
+      # it. The step above regenerated, so this compares instead of regenerating a second time.
       - name: "rust codegen: fail on drift between the committed and the regenerated tree"
         run: bundle exec exe/hecks gate_run.gate stage=ci only=codegen_drift --wait
 

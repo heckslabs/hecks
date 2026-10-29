@@ -78,6 +78,14 @@ RSpec.describe "the generated-rust step of each workflow" do
     expect(names_every_domain.values).to all(match(/\S/))
   end
 
+  # The tree is committed, so a job that does not regenerate reads it as checked out; the drift job
+  # regenerates, since its `git diff` of the tree is only a check if something was rewritten first.
+  it "has only the drift job regenerate the committed tree, so its diff means something" do
+    regenerating = workflow_steps.select { |_, _, step| step.dig("with", "regenerate").to_s == "true" }.map(&:first)
+
+    expect(regenerating).to eq(["ci-checks.yml#checks_codegen_drift"])
+  end
+
   it "deals every domain to one of the feature binary legs" do
     legs = sets.select { |label, _| label.include?("rust_feature_binaries") }.values.flatten
 
