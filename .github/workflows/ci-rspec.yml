@@ -60,10 +60,10 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      # A shard reads only the domains named below (rust_build_kernel_input_spec), so it holds those and its
-      # cache moves only with them. Specs that read the whole tree are tagged `generated_all` and run in the
-      # drift job, which holds every domain.
+      # rust/src/generated is committed, so the whole tree is in the checkout and this step only checks it.
+      # A shard reads only the domains named below (rust_build_kernel_input_spec); the input names them and
+      # changes nothing. Specs that read the whole tree are tagged `generated_all` and run in the drift job,
+      # which regenerates every domain.
       - uses: ./.github/actions/generated-rust
         with:
           domains: lease_clock nested_pieces

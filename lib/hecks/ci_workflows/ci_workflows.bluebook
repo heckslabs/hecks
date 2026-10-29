@@ -116,7 +116,7 @@ Hecks.bluebook "CiWorkflows" do
              uses: "./.github/actions/hecks-environment"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "generated_rust",
              uses: "./.github/actions/generated-rust",
-             note: "rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.\nA shard reads only the domains named below (rust_build_kernel_input_spec), so it holds those and its\ncache moves only with them. Specs that read the whole tree are tagged `generated_all` and run in the\ndrift job, which holds every domain."
+             note: "rust/src/generated is committed, so the whole tree is in the checkout and this step only checks it.\nA shard reads only the domains named below (rust_build_kernel_input_spec); the input names them and\nchanges nothing. Specs that read the whole tree are tagged `generated_all` and run in the drift job,\nwhich regenerates every domain."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "file_list",
              title: "Determine this shard's own file list",
              run: "mkdir -p tmp\nbundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=%{shard_total} runtime_log=.github/rspec_runtime_baseline.log \\\n  > tmp/rspec_shard_files.txt\n",
