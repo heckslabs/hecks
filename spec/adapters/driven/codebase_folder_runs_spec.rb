@@ -162,7 +162,7 @@ RSpec.describe "Spec runs in a folder of their own" do
         runner_noting_its_call
 
         expect { test_suite.call("run_suite", {}, Hecks::Adapters::Codebase::Tree.new(root: dir)) }
-          .to raise_error(failure, /spec\/broken_test.rb failed/)
+          .to raise_error(failure, %r{spec/broken_test.rb failed})
       end
     end
   end

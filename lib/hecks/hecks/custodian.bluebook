@@ -809,6 +809,21 @@ policy "RecordTheEra" do
       mark :terminal, "landed", "refused", "retired"
     end
 
+    # The request that starts GateAndBoard: a branch to fix, gate, land and board. It emits nothing
+    # but its own event, so the saga and the policy that starts the fix both hear it once.
+    command "Ship" do
+      role "Operator"
+      goal "Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train"
+
+      attribute :run,      RunKey, sets: true
+      attribute :branch,   Word, sets: true
+      attribute :checkout, Word
+      attribute :paths,    Word, default: "lib/hecks,spec"
+      attribute :confirm, Boolean, default: true
+
+      emits ShipRequested
+    end
+
     command "Land" do
       role "Operator"
       goal "Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed"
@@ -932,6 +947,46 @@ policy "RecordTheEra" do
   policy "KeepTheLauncherCurrent" do
     on      "PushTrain.BranchPushed"
     ask     :refresh, with: { run: :run }
+  end
+
+  # Lands a branch on main after its mechanical gate work: comment style is fixed, the shape
+  # ledger is checked, the quick gate runs, then the branch lands and boards the push train. Rubocop
+  # autocorrect is not a step yet (no command), so offenses it would fix still stop the gate. A
+  # refusal parks the instance in needs_human; a person confirms the ledger and starts it again.
+  # A saga cannot dispatch when it starts, so a policy starts the fix on the same request.
+  policy "StartTheCommentFix" do
+    on      "Landing.ShipRequested"
+    trigger StyleRun::FixComments, with: { run: :run, paths: :paths, confirm: :confirm }
+  end
+
+  process_manager "GateAndBoard" do
+    correlates_by :"run.value"
+    starts_on Landing::ShipRequested
+
+    transition StyleRun::StyleCompleted => "checking", from: "fixing" do
+      dispatch ConformanceRun::CheckShapeLedger, with: { run: :run }
+    end
+
+    transition ConformanceRun::ConformanceAccepted => "gated", from: %w[checking needs_human] do
+      dispatch GateRun::Gate, with: { run: :run, stage: "quick" }
+    end
+
+    transition GateRun::GateCompleted => "landing", from: "gated" do
+      dispatch Landing::Land, with: { run: :run, checkout: :checkout, branch: :branch, onto: "main" }
+    end
+
+    transition Landing::BranchLanded => "boarding", from: "landing" do
+      dispatch PushTrain::Board, with: { run: :run, checkout: :checkout, branch: "main" }
+    end
+
+    transition PushTrain::BranchPushed => "boarded", from: "boarding"
+    transition PushTrain::CarriedByEarlierPush => "boarded", from: "boarding"
+
+    transition StyleRun::StyleFaulted => "needs_human", from: "fixing"
+    transition ConformanceRun::ConformanceFaulted => "needs_human", from: "checking"
+    transition GateRun::GateFaulted => "needs_human", from: "gated"
+    transition Landing::LandingRefused => "needs_human", from: "landing"
+    transition PushTrain::PushFaulted => "needs_human", from: "boarding"
   end
 
   aggregate "Era" do
