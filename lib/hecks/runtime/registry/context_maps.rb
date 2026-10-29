@@ -5,16 +5,12 @@ module Hecks
       module ContextMaps
         # Boot-time-only, single-threaded: it runs from Hecks.collect while a `.contextmap` file is
         # being Kernel.loaded, before the registry reaches a live, multi-threaded caller.
-        # rubocop:disable Hecks/ThreadSharedIvarMutation
         # Registers a declared context map under its system's name, a later one of the same name
         # replacing the earlier (a map is one declaration, not a layered overlay).
         #
         # @param item [Bluebook::ContextMap] the declared map
         # @return [Bluebook::ContextMap] the map
-        def add_context_map(item)
-          @declared.context_maps[item.name] = item
-        end
-        # rubocop:enable Hecks/ThreadSharedIvarMutation
+        def add_context_map(item) = @declared.store(:context_maps, item.name, item)
 
         # Finds a system's declared context map by name.
         #

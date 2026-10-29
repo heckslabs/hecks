@@ -11,7 +11,7 @@ RSpec.describe "GenericDispatch.try, an unrecognized dispatch shape" do
 
     expect do
       # `builder` is never touched: the stubbed shape hits the `else` first.
-      GenericDispatch.try(nil, "Aggregate", "teleport", [], {}, nil, {})
+      GenericDispatch.try(nil, "Aggregate", "teleport", GenericDispatch::Invocation.new([], {}, nil), {})
     end.to raise_error(Hecks::Runtime::WiringError, /no dispatcher handles shape :teleport/)
   end
 end
