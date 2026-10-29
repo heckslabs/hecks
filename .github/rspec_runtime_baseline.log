@@ -137,7 +137,8 @@ spec/ci_hecks_verbs_spec.rb:9.04
 spec/ci_main_cargo_cache_spec.rb:0.02
 spec/ci_pipeline_projection_spec.rb:5.34
 spec/ci_skip_backstop_spec.rb:0.01
-spec/ci_speed_local_runner_spec.rb:107.36
+spec/ci_speed_local_runner_sampling_spec.rb:58.00
+spec/ci_speed_local_runner_spec.rb:49.00
 spec/ci_summary_jobs_spec.rb:0.08
 spec/claude_transcript_spec.rb:0.00
 spec/cli/behaviors_cli_spec.rb:0.00
