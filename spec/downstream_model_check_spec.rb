@@ -23,6 +23,13 @@ RSpec.describe Hecks::Tools::DownstreamModelCheck do
     expect(step["run"]).to include("model_check_run.model_check! profile=client domains=bluebook --wait")
   end
 
+  it "checks the committed file against the generator the pinned gem ships before it runs the model check" do
+    names = YAML.load(described_class.workflow(domain_directory: "domain/emaho"))
+                .dig("jobs", "model-check", "steps").filter_map { |s| s["name"] }
+
+    expect(names.index("Generated workflow is current")).to be < names.index("Model check (hecks client profile)")
+  end
+
   it "writes the workflow when the checkout has none", :aggregate_failures do
     expect(run).to eq(0)
     expect(File.read(path)).to eq(described_class.workflow(domain_directory: "domain/emaho"))
