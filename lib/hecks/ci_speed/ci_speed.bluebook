@@ -856,6 +856,131 @@ Hecks.bluebook "CiSpeed" do
     end
   end
 
+  # What has been learned about where main CI loses time: the way it showed, what caused it, and
+  # what fixed it or would. A finding is a way of losing time, a lever is one attempt to stop it; a
+  # lever that comes of a finding is proposed against the pole the finding names. The rows of
+  # `KnownFinding` are what the 2026-10-29 effort that took main CI from over ten minutes to under
+  # three taught, each with the run that shows it. `status` is `fixed` (the remedy is in and a run
+  # shows it), `open` (a cost that stays, with how to live with it) or `untried` (a remedy not yet
+  # made, to be proposed as a lever when its time comes). `Record` adds a finding as one is made.
+  aggregate "Finding" do
+    description "A way main CI was found to lose time, what caused it, and the remedy made or still to try."
+
+    identified_by :name
+
+    attribute :name,     FindingName
+    attribute :status,   FindingStatus
+    attribute :symptom,  FindingText
+    attribute :cause,    FindingText
+    attribute :remedy,   FindingText
+    attribute :evidence, FindingText, optional: true
+
+    value_object "FindingName" do
+      attribute :value, String, matches: :present
+      invariant("a finding is named") { !value.to_s.empty? }
+    end
+
+    value_object "FindingStatus" do
+      attribute :value, String, one_of: %w[fixed open untried]
+    end
+
+    value_object "FindingText" do
+      attribute :value, String, matches: :present
+      invariant("a finding says something") { !value.to_s.empty? }
+    end
+
+    value_object "KnownFinding" do
+      attribute :name,     String
+      attribute :status,   String
+      attribute :symptom,  String
+      attribute :cause,    String
+      attribute :remedy,   String
+      attribute :evidence, String
+
+      member name: "generated_rust_regenerated_per_job", status: "fixed",
+             symptom: "Every Rust job spent 30 to 90 seconds regenerating the corpus, and its cache moved with every merge of main.",
+             cause: "The generated tree was untracked, so each job rebuilt or restored it, keyed on the generator's inputs.",
+             remedy: "Commit rust/src/generated. The generated-rust action only checks it; the drift job alone regenerates and diffs.",
+             evidence: "main runs 156s and 150s, from 233 to 1091s"
+      member name: "drift_check_compared_a_tree_with_itself", status: "fixed",
+             symptom: "A stale meta module went through green.",
+             cause: "With generated-rust a no-op, the drift job's git diff compared the committed tree with itself.",
+             remedy: "generated-rust takes regenerate; only checks_codegen_drift sets it, and a spec holds that.",
+             evidence: "spec/ci_generated_rust_domains_spec.rb"
+      member name: "cargo_cache_key_missed_its_inputs", status: "fixed",
+             symptom: "A restored target was rebuilt in full and never replaced, because an exact hit does not save.",
+             cause: "The key hashed Cargo.lock and src only, so a target built from another manifest or path dependency matched.",
+             remedy: "The key also hashes the manifest, the path dependencies and the toolchain pin.",
+             evidence: ".github/actions/cargo-cache/action.yml"
+      member name: "shared_cache_built_two_ways", status: "fixed",
+             symptom: "rspec_rust_host_lineage compiled 349 crates on every run, 230 seconds, with an exact cache hit.",
+             cause: "Two jobs saved the cache named host from different directories: a --manifest-path build from the repo root skips rust/host/.cargo/config.toml, whose rustflags are in every crate's hash. The first to save won.",
+             remedy: "Build from rust/host in both jobs. Two jobs that share a cache name build the same thing from the same directory with the same flags.",
+             evidence: "lineage 230s to 95s"
+      member name: "warm_job_built_one_form", status: "fixed",
+             symptom: "The first full main run took 346s; one job spent 209s in a step that rebuilt the dependencies.",
+             cause: "The warm job built cargo test --workspace --no-run; the consumer ran cargo test -p rust_host_core --lib, which resolves features differently. On main the warm job saves first and the key never changes.",
+             remedy: "The warm job builds every form its consumers build, and the cache is renamed so a fresh entry is saved.",
+             evidence: "rspec_rust_host_cargo 331s to 139s"
+      member name: "cache_held_bytes_nobody_used", status: "fixed",
+             symptom: "The Rust io legs spent 40 to 54 seconds restoring the main crate's cache.",
+             cause: "It held debug/incremental, most of its bytes, and the rust-* feature binaries those legs delete after restoring.",
+             remedy: "The saved target leaves both out.",
+             evidence: "rust io legs 141s and 154s to 73s and 82s"
+      member name: "binary_key_hashed_the_generator", status: "fixed",
+             symptom: "Editing a bluebook or lib/hecks sent every feature binary leg cold.",
+             cause: "The key hashed the generator's Ruby inputs as well as rust/src, which since the tree is committed decides the binaries alone.",
+             remedy: "The key is the committed sources and the workflow file.",
+             evidence: "ci-rust-io.yml"
+      member name: "unsplittable_spec_file", status: "fixed",
+             symptom: "One rspec shard ran 158s while its neighbours ran 125s.",
+             cause: "parallel_tests cannot split a file, and one spec file cost 107s, more than a shard's share.",
+             remedy: "Split the file so the halves are dealt to different shards.",
+             evidence: "ci_speed_local_runner_spec.rb and its sampling spec"
+      member name: "fuzz_costs_measured_on_a_laptop", status: "fixed",
+             symptom: "The two SQLite fuzz legs ran 185s and 94s.",
+             cause: "Costs measured on a laptop's disk price banking and deploy in other proportions than a runner's.",
+             remedy: "The cost table comes from CI sweeps, not a laptop.",
+             evidence: "spec/fuzzing/fuzz_runtime_baseline.log"
+      member name: "parser_specs_in_postgres_shards", status: "fixed",
+             symptom: "Two Postgres shards failed on the skip backstop.",
+             cause: "Specs that need rust/parser skip where it is not built. The file-list check runs only on pull requests, so a list or pattern gone stale shows on a PR first.",
+             remedy: "Keep those specs in IO_PARALLEL_EXCLUDE_PATTERN.",
+             evidence: "ci-postgres-io-parallel.yml"
+      member name: "serial_front_gate", status: "fixed",
+             symptom: "Every job started 33 to 58 seconds into the run.",
+             cause: "Each called workflow waited on inherit_certification, and so on the release_only decision, which needs a checkout, a Ruby setup and a launcher call.",
+             remedy: "The calls no longer wait; a release bump may run the full suite. ADR 0107 is amended and the commit reverts alone.",
+             evidence: "front 11s; runs 148s to 176s"
+      member name: "reruns_skip_attested_trees", status: "open",
+             symptom: "A rerun reads fast: 109 to 128s with about 30 jobs skipped.",
+             cause: "An attestation note keyed by tree is written for a pull request's tree, and by the push train's hook for a pushed one; a run on a tree with a note skips its heavy jobs.",
+             remedy: "Measure attempt 1 of a push run on a tree no earlier run had, and count the skipped jobs. Never take a rerun as a sample.",
+             evidence: "runs 40822078842 and 40906130337 attempt 2"
+      member name: "cache_download_stall", status: "untried",
+             symptom: "One job's gem cache download stopped at 91% for about 80 seconds, and its run took 197s instead of about 151s.",
+             cause: "GitHub's cache service; not in our workflows. It was seen once.",
+             remedy: "Set SEGMENT_DOWNLOAD_TIMEOUT_MINS to about a minute at workflow level, so a stalled download aborts and the job proceeds as a miss; check the variable and what a timeout does in this version of actions/cache first. Also pass rust-toolchain false to setup-ruby in the Ruby-only jobs, which skips the 390 MB toolchain restore.",
+             evidence: "run 40906130337, rspec_rust_io leg c"
+    end
+
+    # A finding is written down when it is made, whatever its status, so the next effort starts
+    # from what this one learned.
+    command "Record" do
+      role "CI engineer"
+      goal "Write down how CI was found to lose time, what caused it, and the remedy made or still to try"
+
+      attribute :name,     FindingName
+      attribute :status,   FindingStatus
+      attribute :symptom,  FindingText
+      attribute :cause,    FindingText
+      attribute :remedy,   FindingText
+      attribute :evidence, FindingText, optional: true
+
+      emits "FindingRecorded"
+    end
+  end
+
   # An experiment runs as soon as it is asked for: the port runs it and answers with the numbers.
   policy "MeasureWhenRequested" do
     on      "Experiment.ExperimentRequested"
