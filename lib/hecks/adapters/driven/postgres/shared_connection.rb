@@ -12,7 +12,7 @@ module Hecks
     # transaction. The owning thread re-enters freely, so a nested `transaction` joins the open
     # one, whichever aggregate's adapter opened it.
     class PostgresSharedConnection
-      REGISTRY = {} # rubocop:disable Style/MutableConstant
+      REGISTRY = {}
       REGISTRY_LOCK = Mutex.new
       private_constant :REGISTRY, :REGISTRY_LOCK
 

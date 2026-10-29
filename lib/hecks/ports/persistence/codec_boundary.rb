@@ -83,7 +83,7 @@ module Hecks
         module Guarded; end
 
         # A per-adapter-class cache, filled lazily under `WRAPPERS_LOCK`; deliberately mutable.
-        WRAPPERS = {} # rubocop:disable Style/MutableConstant
+        WRAPPERS = {}
         WRAPPERS_LOCK = Mutex.new
 
         # Builds, or fetches from the cache, the module that guards one adapter class.

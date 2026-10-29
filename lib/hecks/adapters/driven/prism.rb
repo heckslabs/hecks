@@ -10,7 +10,6 @@ module Hecks
       # Not frozen — a real cache, keyed by file path and mutated by
       # #tree_for below (`TREES[file] ||= ...`) and #forget/#forget_all.
       # False positive for Style/MutableConstant.
-      # rubocop:disable-next Style/MutableConstant
       TREES = {}
 
       # The first block node starting on each line, per parsed tree (by identity), built by one

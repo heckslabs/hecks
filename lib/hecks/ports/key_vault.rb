@@ -23,7 +23,7 @@ module Hecks
       # shredded or being shredded, is left alone and returns false.
       #
       # @return [Boolean] whether a shred was asked for; the record's status says how it ended
-      def shred!(dispatcher, domain:, subject_id:) # rubocop:disable Naming/PredicateMethod
+      def shred!(dispatcher, domain:, subject_id:)
         provider = dispatcher.registry.provider_of(Bluebook::Capabilities::SUBJECT_KEYS)
         return false unless provider
 

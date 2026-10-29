@@ -4,7 +4,6 @@ require "spec_helper"
 # Otherwise Memory would read Heki's `persisted_by` entry and fail check_settings on `:dir`.
 RSpec.describe "World#for_binding" do
   # Needs a Heki-bound and a Memory-bound aggregate under the same verb to reproduce the leak.
-  # rubocop:disable-next RSpec/ExampleLength
   it "answers {} for an adapter the world configured nothing for, even when a sibling adapter under the same verb has settings",
      :aggregate_failures do
     registry = Hecks::Runtime::Registry.new

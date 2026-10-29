@@ -4,7 +4,6 @@ require "spec_helper"
 # through FieldPath.dig, and a declared offset is applied before limit.
 RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
   # One inline fixture domain; splitting it would scatter a single declaration.
-  # rubocop:disable-next Metrics/AbcSize, Metrics/MethodLength
   def boot
     registry = Hecks::Runtime::Registry.new
 

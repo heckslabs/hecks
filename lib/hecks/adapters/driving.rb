@@ -10,7 +10,6 @@ module Hecks
   # A constant owned by user code or the stdlib is left alone with a warning.
   module Namespace
     # A live registry, mutated by `install`, so it cannot be frozen.
-    # rubocop:disable-next Style/MutableConstant
     GENERATED = {}
 
     module_function

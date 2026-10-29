@@ -21,7 +21,7 @@ module Hecks
           #
           # @return [Array(String, Integer)] the JSON and the status, plus (Array(String, Integer,
           #   String)) why the run failed when it did
-          def settled(runtime, spec, handle, bluebook, launcher, extra, text: false) # rubocop:disable Metrics/ParameterLists -- pinned by the callers and specs
+          def settled(runtime, spec, handle, bluebook, launcher, extra, text: false)
             why = reactions_failed(handle)
             return finish(stateless_json(handle, extra), why) if handle.state.nil?
 

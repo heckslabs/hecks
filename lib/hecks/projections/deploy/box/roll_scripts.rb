@@ -117,7 +117,7 @@ module Hecks
           end
 
           def health_probe(label, args, wanted)
-            write_out = '-w "%{http_code}"' # rubocop:disable Style/FormatStringToken -- curl's own token
+            write_out = '-w "%{http_code}"'
             <<~SH.chomp
               code=$(curl -s -o /dev/null #{write_out} --max-time 40 localhost/#{args})
               #{wanted} && echo "ok   #{label} -> $code" || { echo "FAIL #{label} -> $code"; BAD=1; }

@@ -116,7 +116,6 @@ module Hecks
 
         # Evaluates one operation block against a fresh builder and returns what it built;
         # `private` above doesn't reach this singleton method, since `.build` is the real entry.
-        # rubocop:disable-next Lint/IneffectiveAccessModifier
         def self.build(name, to: nil, owner: nil, direction: :inbound, &block)
           builder = new(name, to: to, owner: owner, direction: direction)
           builder.instance_eval(&block) if block

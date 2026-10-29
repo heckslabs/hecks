@@ -6,8 +6,6 @@ require "spec_helper"
 # value with more than one numeric field.
 RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
   # One inline bluebook, declared whole: splitting the DSL block would scatter the fixture.
-  # rubocop:disable-next Metrics/AbcSize
-  # rubocop:disable-next Metrics/MethodLength
   def boot(&binds)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do

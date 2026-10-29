@@ -83,7 +83,7 @@ module Hecks
       # @param key [String] the dispatch key a saga leg stamped on the command
       # @return [Boolean] true when the key was new and is now held; false when already held
       # @raise [PG::Error] if the insert fails
-      def dispatch_claim(key) # rubocop:disable Naming/PredicateMethod -- the claim port's verb
+      def dispatch_claim(key)
         pg_exec_params("INSERT INTO hecks_dispatch_claims (claim_key) VALUES ($1) ON CONFLICT DO NOTHING " \
                        "RETURNING claim_key", [key]).ntuples.positive?
       end
@@ -94,7 +94,7 @@ module Hecks
       # @return [Boolean] true when the row was pending and is now claimed; false when it is
       #   unknown or another claimer got there first
       # @raise [PG::Error] if the update fails
-      def outbox_claim(id) # rubocop:disable Naming/PredicateMethod
+      def outbox_claim(id)
         pg_exec_params(
           "UPDATE hecks_outbox SET status = 'claimed', attempts = attempts + 1, claimed_at = now() " \
           "WHERE id = $1 AND status = 'pending'",
@@ -111,7 +111,7 @@ module Hecks
       # @param error [String, nil] the failure description, or nil to store NULL
       # @return [Boolean] true when exactly one row was updated; false when no row has `id`
       # @raise [PG::Error] if the update fails
-      def outbox_settle(id, status:, error: nil) # rubocop:disable Naming/PredicateMethod
+      def outbox_settle(id, status:, error: nil)
         pg_exec_params(
           "UPDATE hecks_outbox SET status = $2, error = $3, settled_at = now() WHERE id = $1",
           [id, status.to_s, error]

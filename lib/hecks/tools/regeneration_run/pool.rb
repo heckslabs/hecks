@@ -16,7 +16,7 @@ module Hecks
         # What a child runs: `hecks project_rust` with the domain and the declared-domain flags,
         # writing to the streams it was given.
         PROJECT_RUST = lambda do |argv|
-          Hecks::RustBuild.run("project_rust", argv, out: STDOUT, err: STDERR) # rubocop:disable Style/GlobalStdStream
+          Hecks::RustBuild.run("project_rust", argv, out: STDOUT, err: STDERR)
         end
 
         # @param domains [Array<String>] the domains, in the order their output is printed
@@ -124,8 +124,8 @@ module Hecks
         # @return [void] never returns: the child leaves without the parent's exit handlers
         def run_child(out, argv)
           # The real descriptors, not the globals: a caller may have swapped those for a buffer.
-          STDOUT.reopen(out) # rubocop:disable Style/GlobalStdStream
-          STDERR.reopen(out) # rubocop:disable Style/GlobalStdStream
+          STDOUT.reopen(out)
+          STDERR.reopen(out)
           $stdout = STDOUT
           $stderr = STDERR
           status = child_status(argv)

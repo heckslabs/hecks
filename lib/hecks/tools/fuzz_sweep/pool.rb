@@ -16,7 +16,7 @@ module Hecks
         # @yieldparam domain [String] a domain directory
         # @yieldreturn [Boolean] whether it was clean
         # @return [Boolean] true if every domain's child exited 0, false if any exited non-zero
-        def fuzz_in_pool(domains, workers, &) # rubocop:disable Naming/PredicateMethod -- the sweep's verdict
+        def fuzz_in_pool(domains, workers, &)
           results = run_children(domains, workers, &)
           slowest = results.max_by(5) { |_, (_, _, seconds)| seconds }
                            .map { |index, (_, _, seconds)| "#{File.basename(domains[index])} #{seconds.round}s" }

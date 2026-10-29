@@ -10,7 +10,6 @@ module Hecks
 
         ListOf = Struct.new(:type)
         # `:values` shadows Struct#values so the accessor returns the flat permitted-value array.
-        # rubocop:disable-next Lint/StructNewOverride
         OneOf  = Struct.new(:values)
 
         UNSET = Object.new.freeze

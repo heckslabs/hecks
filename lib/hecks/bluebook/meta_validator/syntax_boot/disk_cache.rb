@@ -47,7 +47,7 @@ module Hecks
           # @param touch [Boolean] whether to mark it as used (a shipped file is read-only)
           # @return [Hash, nil] the table
           def load_table(path, touch: false)
-            table = Marshal.load(File.binread(path)) # rubocop:disable Security/MarshalLoad -- own cache or the gem's own file, never external input
+            table = Marshal.load(File.binread(path))
             FileUtils.touch(path) if touch
             table
           end

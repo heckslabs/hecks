@@ -147,7 +147,6 @@ module Hecks
       # @raise [Runtime::UnknownVerb] if the domain, aggregate, port or operation is undeclared
       # @raise [Runtime::TypeMismatch] if no receiving identity is found, or `to:`/`with:` is bad
       # @raise [Runtime::NotFound] if the receiving record does not exist
-      # rubocop:disable-next Metrics/ParameterLists -- the public dispatcher's parts, one argument per verb segment
       def dispatch_port(domain, aggregate_name, port_name, operation_name, to: nil, with: nil, flat: {})
         verb = "#{domain}::#{aggregate_name}.#{port_name}.#{operation_name}"
         aggregate = resolve_aggregate(domain, aggregate_name, verb)

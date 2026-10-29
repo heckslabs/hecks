@@ -12,7 +12,6 @@ module Hecks
         # Cached per suite, keyed by `loads`' file paths and mtimes, so a boot is
         # reused across tests but an edited bluebook boots fresh on the next one.
         # Mutated in place (`RUNTIMES[key] ||= boot_and_guard(files)`).
-        # rubocop:disable-next Style/MutableConstant
         RUNTIMES      = {}
         RUNTIMES_LOCK = Mutex.new
         private_constant :RUNTIMES, :RUNTIMES_LOCK

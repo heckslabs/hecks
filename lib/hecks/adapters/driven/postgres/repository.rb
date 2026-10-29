@@ -104,7 +104,7 @@ module Hecks
         # @param id [String, Object] the aggregate identity, journalled as `id.to_s`
         # @return [Boolean] always true
         # @raise [PG::Error] if either statement fails; the transaction is rolled back
-        def delete(id) # rubocop:disable Naming/PredicateMethod -- the repository port's verb, not a question
+        def delete(id)
           entry = Ports::Persistence::Entry.new(operation: "delete", id: id.to_s, state: nil)
           transaction do
             append(entry)
