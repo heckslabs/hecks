@@ -25787,7 +25787,11 @@
     },
     {
       "acknowledgements": [
-
+        {
+          "finding": "no_command_surface",
+          "reason": "the closed sets are declared once and projected into both runtimes; nothing changes them at runtime",
+          "subject": null
+        }
       ],
       "attributes": [
         {

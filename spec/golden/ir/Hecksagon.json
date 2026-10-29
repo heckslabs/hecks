@@ -280,7 +280,11 @@
     },
     {
       "acknowledgements": [
-
+        {
+          "finding": "no_command_surface",
+          "reason": "a port is declared on the hecksagon and exposes translations; the commands they trigger do the changing",
+          "subject": null
+        }
       ],
       "attributes": [
         {
@@ -2511,7 +2515,11 @@
     },
     {
       "acknowledgements": [
-
+        {
+          "finding": "no_command_surface",
+          "reason": "a port operation is the translation boundary itself; the command a policy triggers carries any change",
+          "subject": null
+        }
       ],
       "attributes": [
         {
