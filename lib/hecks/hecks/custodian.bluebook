@@ -927,11 +927,105 @@ policy "RecordTheEra" do
     trigger Landing::Decline, with: { refusal: :refusal }
   end
 
+  # A commit that was asked for is made by the git port, which answers with its sha or refuses with why.
+  policy "CommitWhenMade" do
+    on      "Commit.CommitRequested"
+    ask     :commit, with: { run: :run }
+  end
+
+  policy "RecordTheCommit" do
+    on      "Commit.CommitAnswered"
+    trigger Commit::Record, with: { sha: :sha, report: :report }
+  end
+
+  policy "DeclineTheCommit" do
+    on      "Commit.CommitRefused"
+    trigger Commit::Decline, with: { refusal: :refusal }
+  end
+
   # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the
   # records it keeps run the code that landed, not the code that was there when it was set up.
   policy "KeepTheLauncherCurrent" do
     on      "PushTrain.BranchPushed"
     ask     :refresh, with: { run: :run }
+  end
+
+  # A commit made in a checkout under a message: asked of the git port, then recorded or declined. It commits
+  # what is staged, or the named paths, and never pushes, amends, forces, or commits onto main. Those go
+  # through `Landing` and `PushTrain`.
+  aggregate "Commit" do
+    description "One commit made in a checkout, or declined with the reason: what it says and what it is on."
+
+    attribute :run,      RunKey
+    attribute :checkout, Word,   optional: true
+    attribute :message,  Text,   optional: true
+    attribute :paths,    Text,   optional: true
+    attribute :sha,      Word,   optional: true
+    attribute :report,   Report, optional: true
+    attribute :refusal,  Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A directory or a commit.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # What a commit says, and which paths it stages first, separated by spaces.
+    value_object "Text" do
+      attribute :value, String
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "declined"
+      transition "Record"  => "committed", from: "requested"
+      transition "Decline" => "declined",  from: "requested"
+      mark :terminal, "committed", "declined"
+    end
+
+    command "Make" do
+      role "Operator"
+      goal "Commit what is staged in a checkout under a message: never pushed, never amended, never onto main"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :message,  Text, sets: true
+      attribute :paths,    Text, optional: true, sets: true
+
+      given("a commit says what it commits") do
+        message.value.to_s.strip != ""
+      end
+
+      emits CommitRequested
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record the commit a checkout made, by the sha it has"
+
+      reference_to Commit
+      attribute :sha,    Word,   sets: true
+      attribute :report, Report, sets: true
+
+      emits CommitRecorded
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why a commit could not be made"
+
+      reference_to Commit
+      attribute :refusal, Report, sets: true
+
+      emits CommitDeclined
+    end
   end
 
   aggregate "Era" do

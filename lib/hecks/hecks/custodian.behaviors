@@ -75,6 +75,20 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[LandingRequested MergeRefused LandingRefused]
   end
 
+  test "Make keeps a checkout that is not there as a declined commit" do
+    tests "Make", on: "Commit"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          message: { value: "say ok" }
+    expect emits: %w[CommitRequested CommitRefused CommitDeclined]
+  end
+
+  test "Make refuses a commit that says nothing" do
+    tests "Make", on: "Commit"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          message: { value: "  " }
+    expect refused: "a commit says what it commits"
+  end
+
   test "Retire keeps a checkout that is not there as a declined retirement" do
     tests "Retire", on: "Landing"
     input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
