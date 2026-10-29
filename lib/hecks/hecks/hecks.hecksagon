@@ -339,6 +339,20 @@ Hecks.hecksagon "Hecks" do
 
   # Codebase: every ask goes to the SourceTree port, which examines the working tree before it
   # carries a request out.
+  Hecks::ScriptRun.port "SourceTree" do
+    asks "Examine", to: ScriptRun do
+      attribute :run, RunKey
+      answers "ScriptExamined"
+      refuses "ScriptRefused"
+    end
+
+    asks "Perform", to: ScriptRun do
+      attribute :run, RunKey
+      answers "ScriptAnswered"
+      refuses "ScriptRefused"
+    end
+  end
+
   Hecks::LanguageRun.port "SourceTree" do
     asks "Examine", to: LanguageRun do
       attribute :run, RunKey

@@ -1540,6 +1540,151 @@ Hecks.bluebook "Hecks" do
     end
   end
 
+  # One named one-off script the checkout runs: planned, or applied once confirmed. Its body is a
+  # tool under lib/hecks/tools, named by `script`, so a migration is a record, not a shell session.
+  aggregate "ScriptRun" do
+    description "One named one-off script the checkout runs, planned or applied; the body is a tool."
+
+    attribute :run,       RunKey
+    attribute :operation, Operation, optional: true
+    attribute :script,    ScriptName, optional: true
+    attribute :confirm,   Switch, optional: true
+    attribute :checkout,  Switch, optional: true
+    attribute :report,    Report, optional: true
+    attribute :refusal,   Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "Operation" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Switch" do
+      attribute :value, Boolean
+    end
+
+    value_object "Report" do
+      attribute :value, String
+    end
+
+    # The name of a tool under lib/hecks/tools, such as move_disables.
+    value_object "ScriptName" do
+      attribute :value, String, pattern: '^[a-z_]+$'
+
+      invariant("a script is named") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "faulted"
+      transition "Accept"   => "accepted",  from: "requested"
+      transition "Complete" => "completed", from: "accepted"
+      transition "Fault"    => "faulted",   from: %w[requested accepted]
+      mark :terminal, "completed", "faulted"
+    end
+
+    command "PlanScript" do
+      role "Maintainer"
+      goal "Show what a named one-off script would change, writing nothing"
+
+      attribute :run,    RunKey, sets: true
+      attribute :script, ScriptName, sets: true
+
+      sets :operation, to: "plan_script"
+
+      emits PlanScriptRequested
+    end
+
+    command "ApplyScript" do
+      role "Maintainer"
+      goal "Carry out a named one-off script's changes, only when confirmed"
+
+      attribute :run,     RunKey, sets: true
+      attribute :script,  ScriptName, sets: true
+      attribute :confirm, Switch, sets: true
+
+      given("the apply is confirmed") { confirm.value }
+
+      sets :operation, to: "apply_script"
+
+      emits ApplyScriptRequested
+    end
+
+    # What the tree reported about itself, held against every request: nothing here runs
+    # outside a hecks checkout (hecks.gemspec beside lib/).
+    command "Accept" do
+      role "System"
+      goal "Let a request through only when the working tree is a hecks checkout"
+
+      reference_to ScriptRun
+      attribute :checkout, Switch, sets: true
+
+      given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+      emits ScriptAccepted
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record that the request was carried out, and what it reported"
+
+      reference_to ScriptRun
+      attribute :report, Report, sets: true
+
+      emits ScriptCompleted
+    end
+
+    command "Fault" do
+      role "System"
+      goal "Record that the request was refused or could not be carried out, and why"
+
+      reference_to ScriptRun
+      attribute :refusal, Report, sets: true
+
+      emits ScriptFaulted
+    end
+  end
+
+  policy "ExamineWhenPlanScriptRequested" do
+    on      "ScriptRun.PlanScriptRequested"
+    ask     :examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenApplyScriptRequested" do
+    on      "ScriptRun.ApplyScriptRequested"
+    ask     :examine, with: { run: :run }
+  end
+
+  policy "AcceptScriptWhenExamined" do
+    on      "ScriptRun.ScriptExamined"
+    trigger ScriptRun::Accept, with: { checkout: :checkout }
+  end
+
+  policy "FaultScriptWhenNotAccepted" do
+    on      "ScriptRun.ScriptExamined"
+    where   { !checkout.value }
+    trigger ScriptRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+  end
+
+  policy "PerformScriptWhenAccepted" do
+    on      "ScriptRun.ScriptAccepted"
+    ask     :perform, with: { run: :run }
+  end
+
+  policy "RecordScriptOutcome" do
+    on      "ScriptRun.ScriptAnswered"
+    trigger ScriptRun::Complete, with: { report: :report }
+  end
+
+  policy "RecordScriptFault" do
+    on      "ScriptRun.ScriptRefused"
+    trigger ScriptRun::Fault, with: { refusal: :refusal }
+  end
+
   policy "ExamineWhenCheckCommentsRequested" do
     on      "StyleRun.CheckCommentsRequested"
     ask     :examine, with: { run: :run }
