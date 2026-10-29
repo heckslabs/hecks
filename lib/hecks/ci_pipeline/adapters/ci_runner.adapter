@@ -1,0 +1,7 @@
+# Binds the `Runner` port to `CiRunner`, which answers `Build`'s queries from the run GitHub reports.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/ci_pipeline/adapters/ci_runner"
+
+Hecks.adapter "CiRunner" do
+  port "Runner"
+end

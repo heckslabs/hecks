@@ -10,6 +10,7 @@ require_relative "style"
 require_relative "inspection"
 require_relative "search"
 require_relative "reading"
+require_relative "generated_keys"
 require_relative "codemods"
 require_relative "test_suite"
 require_relative "corpus_tasks"
@@ -167,6 +168,16 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when a module is not covered
       def corpus_rust_coverage(**)
         { text: corpus("corpus_rust_coverage", {}) }
+      end
+
+      # @param args [Hash] the query's arguments: `domains` (feature names), `files`
+      # @return [Hash] `text:` the hash of what regenerating those domains reads, with `files` each
+      #   file hashed above it
+      # @raise [Codebase::Tree::NeedsCheckout] when the tree is not a hecks checkout
+      # @raise [ConsoleCapture::Failure] when a name is not a domain, listing the valid ones
+      def generated_key(**args)
+        tree.require_checkout!
+        { text: Codebase::GeneratedKeys.report(args.transform_values { |value| plain(value) }, tree) }
       end
 
       # @param args [Hash] the query's arguments: `names`

@@ -26,3 +26,9 @@ The attestation notes already do half of this. A signed note keyed by tree tells
 - Every run now waits for the `release_only` job before its detectors start. It is one checkout and one launcher call, comparable to the existing `runtime_changed` detector.
 - The `stable` ruleset gains `release_consistency` as a required context (`hecks project_lanes`). Applying a ruleset to GitHub is the existing separate, confirmed step.
 - Not done here: inheriting for a commit whose parent is itself an inherited bump beyond the base's own check runs (they are read the same way, and report success), and exempting other mechanical commits.
+
+## Amendment (2026-10-29): the calls no longer wait for the inheritance job
+
+Decision 4 had the `_impl` calls and the fuzzing detector wait for `inherit_certification`, so the note was written before any detector looked. That wait put the `release_only` decision, a checkout, a Ruby setup and a launcher call, in front of every job of every run, a serial front on the run's critical path.
+
+The calls and the fuzzing detector no longer wait. A release bump's detectors now race the job that writes the note: one that finds it skips its heavy job, one that looks first runs it. Both certify the commit, since a job that runs passes or fails on its own sha, so the guarantee of the Consequences is unchanged. What goes is the certainty that a bump skips the whole suite; it skips what the race lets it. `inherit_certification` and its `needs: release_only` stay, and so does `release_consistency`. Restoring the wait is nine `needs: inherit_certification` lines in `ci.yml`.

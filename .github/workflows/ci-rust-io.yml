@@ -55,17 +55,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The generated Rust is not committed, so its sources' hash stands in for it in the key.
-      - name: Hash the generator inputs
-        id: inputs
-        uses: ./.github/actions/generated-rust-inputs
-
+      # The generated Rust is committed, so `rust/src/**` in the key is the generated sources
+      # themselves: a change to the Ruby that writes them moves the key only when it changes them.
       - name: Look for the cached feature binaries
         id: probe
         uses: actions/cache/restore@v4
         with:
           path: rust/target/debug/rust-*
-          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/expr/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}
+          key: rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/expr/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}
           lookup-only: true
 
   rust_feature_binaries:
@@ -87,8 +84,20 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
+      # The features this leg builds, below: every fourth of Cargo.toml's, by the same rule. Each one
+      # builds from its own domain's directory, so the leg regenerates those domains and no others.
+      # `meta` is a feature but not a corpus domain: every regeneration writes it.
+      - name: Name this leg's feature domains
+        id: leg_domains
+        run: |
+          names="$(grep -E '^[a-z0-9_]+ = \[\]$' rust/Cargo.toml | sed 's/ = \[\]$//' | grep -vx default \
+            | awk -v leg=${{ matrix.leg }} 'NR % 4 == leg % 4' | grep -vx meta | paste -sd' ' -)"
+          echo "names=$names" >> "$GITHUB_OUTPUT"
+
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: ${{ steps.leg_domains.outputs.names }}
 
       # `hecks project_rust` runs the hecks-codegen binary, so these builds are restored.
       - uses: ./.github/actions/cargo-cache
@@ -105,10 +114,13 @@ jobs:
       - name: Regenerate the Rust crate
         run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
 
+      # Restore only: each leg's tree holds its own features' domains, so each would save its own
+      # copy of this cache. The all-domain warm job and leg a of rspec_rust_io save it.
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
           crate-root: rust
+          save: "false"
 
       # Every fourth feature of the list, from this leg's place in it. The cargo cache restore
       # above brings back every feature's binary from an earlier run, built from older sources.
@@ -142,17 +154,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    # Two legs, each on its own checkout: the specs mutate rust/ and so cannot share a process or a
-    # tree. The exclusivity spec runs real cargo builds for about 40s; the other five files take
-    # about 20s together, so it gets a leg to itself.
+    # Three legs, each on its own checkout: the specs mutate rust/ and so cannot share a process or a
+    # tree. The exclusivity spec runs real cargo builds for about 40s, so it gets a leg to itself.
+    # The two regeneration specs, about 50s together, run `hecks-codegen` in scratch workspaces:
+    # they need this job's parser and codegen caches and leave rust/ alone, so leg c runs them
+    # without the main crate's cache or the banking build. The conformance files, which build the
+    # crate, stay together in leg a. Only leg a takes the prebuilt feature binaries, because its
+    # specs build one per domain; leg b's spec runs its own cargo builds, so it does not wait for them.
+    #
+    # `domains` is what a leg's generated-rust step regenerates. Leg a names none, which is every
+    # domain: rust_conformance_fuzz_spec builds and fuzzes each one. Leg b builds banking, the
+    # default after the regeneration below, and the two it prefers, pizzas (committed) and roster.
+    # Leg c's subset spec compares what it writes for these two with the checkout's own.
     strategy:
       fail-fast: false
       matrix:
         include:
           - leg: a
+            domains: ""
             specs: spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb
           - leg: b
+            domains: banking roster
             specs: spec/rust_generated/domain_feature_exclusivity_spec.rb
+          - leg: c
+            domains: lease_clock nested_pieces
+            specs: spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb
 
     needs: ci_attestation_rust_io
     if: always() && (needs.ci_attestation_rust_io.result != 'success' || needs.ci_attestation_rust_io.outputs.attested != 'true')
@@ -172,25 +198,25 @@ jobs:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       # The feature binaries' cache key, from the committed sources: the probe job computes the same
-      # one from a bare checkout, before the regeneration below adds files to rust/src.
-      # This workflow file is in the key: how the binaries are built and merged is part of what they are, so a
-      # change to it must not restore entries an earlier, faulty build saved.
-      - name: Hash the generator inputs
-        id: inputs
-        uses: ./.github/actions/generated-rust-inputs
-
+      # one. This workflow file is in the key: how the binaries are built and merged is part of what
+      # they are, so a change to it must not restore entries an earlier, faulty build saved.
       - name: Name the feature binaries' cache entry
         id: feature_key
-        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/expr/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}-${{ steps.inputs.outputs.hash }}" >> "$GITHUB_OUTPUT"
+        run: echo "key=rust-feature-binaries-${{ runner.os }}-${{ hashFiles('rust/src/**', 'rust/expr/**', 'rust/Cargo.toml', 'rust/Cargo.lock', '.github/workflows/ci-rust-io.yml') }}" >> "$GITHUB_OUTPUT"
 
       # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: ${{ matrix.domains }}
 
-      # Root crate only, so a dependency bump in rust/parser does not invalidate it.
+      # Root crate only, so a dependency bump in rust/parser does not invalidate it. Leg c builds
+      # nothing of the main crate, so it skips the restore, the slowest step of the job.
       - uses: ./.github/actions/cargo-cache
+        if: matrix.leg != 'c'
         with:
           name: main
           crate-root: rust
+          save: ${{ matrix.leg == 'a' }}
 
       # The specs below build the parser and codegen crates; sharing
       # the keys of rspec_rust_parser/rspec_rust_codegen reuses their cached builds
@@ -215,6 +241,7 @@ jobs:
       # via RustConformanceHelpers#build_rust_for, and the exemplar step below
       # already type-checks the default feature set.
       - name: Build the Rust conformance binary
+        if: matrix.leg != 'c'
         run: bundle exec exe/hecks build.project_rust domain=examples/banking --wait
 
       # The specs build one binary per domain feature, one after another: 23 builds that depend on
@@ -224,10 +251,12 @@ jobs:
       # post-job step saves what the specs built. Binaries left by the cargo cache restore above
       # were built from other sources, so they are removed first.
       - name: Remove pinned feature binaries left by the cargo cache
+        if: matrix.leg == 'a'
         run: rm -f rust/target/debug/rust-*
 
       - name: Restore the built feature binaries
         id: feature_binaries
+        if: matrix.leg == 'a'
         uses: actions/cache@v4
         with:
           path: rust/target/debug/rust-*
@@ -272,7 +301,7 @@ jobs:
       # take what arrived. The post-job step saves them for the next run. Placed after the steps
       # that do not need them, so the wait overlaps their work.
       - name: Wait for the feature binaries the legs build
-        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        if: matrix.leg == 'a' && steps.feature_binaries.outputs.cache-hit != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -285,7 +314,7 @@ jobs:
           echo "not every feature-binaries artifact arrived within 300s; the specs build the rest" >&2
 
       - name: Fetch the feature binaries
-        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        if: matrix.leg == 'a' && steps.feature_binaries.outputs.cache-hit != 'true'
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
@@ -295,7 +324,7 @@ jobs:
 
       # An artifact does not keep the executable bit, and NativeBuild takes only an executable binary.
       - name: Mark the fetched binaries executable and built after the sources
-        if: steps.feature_binaries.outputs.cache-hit != 'true'
+        if: matrix.leg == 'a' && steps.feature_binaries.outputs.cache-hit != 'true'
         run: |
           chmod +x rust/target/debug/rust-* 2>/dev/null || true
           touch rust/target/debug/rust-* 2>/dev/null || true

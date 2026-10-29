@@ -193,6 +193,10 @@ RSpec.configure do |config|
   config.define_derived_metadata(file_path: %r{/spec/fuzzing/}) { |metadata| metadata[:fuzzing] = true }
   config.filter_run_excluding fuzzing: true unless ENV["CI"]
 
+  # `generated_all: true` marks a group that reads the whole generated Rust tree (every domain), not
+  # the few a job holds. Nothing excludes it here: the rspec shards pass `--tag ~generated_all`, and
+  # the drift job, which holds every domain, runs `--tag generated_all`.
+
   # Under CI, an example that ends skipped fails the run unless
   # spec/support/ci_skip_backstop.rb accounts for its reason — see that
   # file. Locally (no CI) skips stay skips.

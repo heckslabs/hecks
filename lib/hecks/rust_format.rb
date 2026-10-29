@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "etc"
 require "open3"
 
 module Hecks
@@ -71,7 +72,30 @@ module Hecks
     # @param content [Hash{String => String}] absolute path to text
     # @return [Hash{String => String}] the same map with each `.rs` text formatted
     def files(content)
-      content.to_h { |path, text| [path, rust?(path) ? call(text) : text] }
+      rust = content.select { |path, _| rust?(path) }
+      formatted = parallel_map(rust.values) { |text| call(text) }
+      content.to_h { |path, text| [path, rust.key?(path) ? formatted.shift : text] }
+    end
+
+    # Maps `items` through the block on one thread per core. rustfmt runs as a child process, so
+    # the threads wait on it rather than on the interpreter lock; order is kept.
+    #
+    # @param items [Array] the inputs
+    # @return [Array] the block's result for each input, in order
+    def parallel_map(items)
+      results = Array.new(items.size)
+      queue = closed_queue(items.size)
+      workers = Array.new([Etc.nprocessors, items.size].min) do
+        Thread.new { while (index = queue.pop) do results[index] = yield(items[index]) end }
+      end
+      workers.each(&:join)
+      results
+    end
+
+    # @param size [Integer] how many indexes to hold
+    # @return [Queue] the indexes 0...size, closed, so a pop past the last returns nil
+    def closed_queue(size)
+      Queue.new((0...size).to_a).tap(&:close)
     end
   end
 end

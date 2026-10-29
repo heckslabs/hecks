@@ -1,0 +1,19 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Metering::Gauge",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Metering::Gauge.Install",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Metering::Gauge.Read",
+    "generated": true,
+    "routed": true
+  }
+]

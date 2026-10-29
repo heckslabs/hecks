@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "GeneratedEntityNoIdentity::Kiosk",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "GeneratedEntityNoIdentity::Kiosk.Line",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "GeneratedEntityNoIdentity::Kiosk.Line.Label",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "GeneratedEntityNoIdentity::Kiosk.Line.Settle",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedEntityNoIdentity::Kiosk.Open",
+    "generated": true,
+    "routed": true
+  }
+]

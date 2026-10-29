@@ -4,8 +4,9 @@ description: >-
   rust/src/generated: the bluebooks, hecksagons and worlds it reads, the generator crates, the
   Ruby that builds the IR, and the rustfmt layout it is written in (the formatter and the toolchain
   pin). It reads only tracked files, so a bare checkout computes the same hash
-  as one that has already regenerated. The generated-rust action keys its cache on it, and a job
-  that must name a cache before it regenerates uses it in place of hashing rust/src/generated.
+  as one that has already regenerated. A job that must name a cache before it regenerates, and has
+  no Ruby to ask `hecks corpus_run.generated_key`, uses it in place of hashing rust/src/generated.
+  The generated-rust action no longer does: it keys its cache on that query, for the domains it holds.
 outputs:
   hash:
     description: The hash of the inputs.

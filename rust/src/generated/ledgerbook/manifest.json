@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Ledgerbook::Shelf",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Ledgerbook::Shelf.Stock",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "Ledgerbook::Register",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Ledgerbook::Register.Note",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Ledgerbook::NoteOnStock",
+    "generated": true,
+    "routed": true
+  }
+]

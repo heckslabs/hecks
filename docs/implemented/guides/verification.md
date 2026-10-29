@@ -359,6 +359,17 @@ from the property, the message with its minted parts (ids, numbers, quoted liter
 away, and the verbs of the shrunk steps, so two seeds that break the same property the same way
 share one file, and a repro already kept is never overwritten.
 
+To split a sweep across jobs, add `shard=I/N` (`--shard I/N`): shard I of N sweeps only its own
+domains, so N jobs together sweep every domain exactly once. The split depends only on the sorted
+domain list, N and the committed cost table `spec/fuzzing/fuzz_runtime_baseline.log`, never on
+timing, so every job computes the same partition; domains are dealt, dearest first, to the shard
+with the least cost so far, and a domain the table does not name costs the table's median. A shard
+that finds something exits non-zero like any sweep, and starts its dearest domains first. An `I` of 0 or past `N` is refused. To see the
+split without sweeping, `list_shards=N` (`--list-shards N`) prints one `I/N<TAB>cost<TAB>directory`
+line for each domain, and refuses a split that would leave one out or put one in two shards. A
+sweep prints `domain seconds: …` for every domain it ran, which is what to read when refreshing the
+cost table.
+
 ## The corpus — the refusals you already decided matter
 
 Refusals are not exceptions; they are half the language, and

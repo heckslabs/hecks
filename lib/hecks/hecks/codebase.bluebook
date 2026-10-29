@@ -915,6 +915,8 @@ Hecks.bluebook "Hecks" do
     attribute :check,     Switch, optional: true
     attribute :live,      Switch, optional: true
     attribute :gate,      GateName, optional: true
+    attribute :domains,   DomainList, optional: true
+    attribute :workers,   Count, optional: true
     attribute :checkout,  Switch, optional: true
     attribute :report,    Report, optional: true
     attribute :refusal,   Report, optional: true
@@ -943,6 +945,18 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
+    # The features of corpus domains, comma separated, such as `lease_clock,nested_pieces`.
+    value_object "DomainList" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
+    end
+
+    # How many domains are generated at once, always at least one.
+    value_object "Count" do
+      attribute :value, Integer
+
+      invariant("a count is positive") { value > 0 }
+    end
+
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
       transition "Accept"   => "accepted",  from: "requested"
@@ -953,9 +967,11 @@ Hecks.bluebook "Hecks" do
 
     command "RegenerateCorpus" do
       role "Maintainer"
-      goal "Regenerate every corpus domain's Rust output, or with check only compare it with the tree"
+      goal "Regenerate the Rust output of every corpus domain or the ones named, or with check only compare it"
 
       attribute :check,   Switch, optional: true, sets: true
+      attribute :domains, DomainList, optional: true, sets: true
+      attribute :workers, Count, optional: true, sets: true
       attribute :run,     RunKey, sets: true
       attribute :confirm, Switch, optional: true, sets: true
 
@@ -975,6 +991,22 @@ Hecks.bluebook "Hecks" do
       sets :operation, to: "project_ci_gates"
 
       emits ProjectCiGatesRequested
+    end
+
+    command "ProjectCiPipeline" do
+      role "Maintainer"
+      goal "Project the CiWorkflows rows into their workflow files, or with check only compare them"
+
+      attribute :check,   Switch, optional: true
+      attribute :run,     RunKey
+      attribute :confirm, Switch, optional: true
+
+      sets :check
+      sets :run
+      sets :confirm
+      sets :operation, to: "project_ci_pipeline"
+
+      emits ProjectCiPipelineRequested
     end
 
     command "ProjectLanes" do
@@ -1075,6 +1107,11 @@ Hecks.bluebook "Hecks" do
   policy "ExamineWhenProjectCiGatesRequested" do
     on      "RegenerationRun.ProjectCiGatesRequested"
     ask     :examine, with: { run: :run }
+  end
+
+  policy "ExamineWhenProjectCiPipelineRequested" do
+    on      "RegenerationRun.ProjectCiPipelineRequested"
+    trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
   end
 
   policy "ExamineWhenProjectLanesRequested" do
@@ -2372,6 +2409,7 @@ Hecks.bluebook "Hecks" do
     attribute :names,     NameList, optional: true
     attribute :domains,   PathList, optional: true
     attribute :meta,      Switch, optional: true
+    attribute :files,     Switch, optional: true
     attribute :name,      ConstructName, optional: true
     attribute :field,     FieldName, optional: true
     attribute :port,      Port, optional: true
@@ -2563,6 +2601,13 @@ Hecks.bluebook "Hecks" do
 
     query "CorpusRustCoverage" do
       description "Whether every generated Rust module is routed by its domain."
+      returns Document
+    end
+
+    query "GeneratedKey" do
+      description "The content hash of what regenerating the named domains reads: the generator and each domain's own sources."
+      attribute :domains, PathList, optional: true
+      attribute :files, Switch, optional: true
       returns Document
     end
 

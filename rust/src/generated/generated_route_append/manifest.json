@@ -1,0 +1,88 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "GeneratedRouteAppend::Hangar",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Hangar.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Hangar.Retag",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Hangar.Prioritize",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Hangar.Rescore",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "GeneratedRouteAppend::Kiosk",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "GeneratedRouteAppend::Kiosk.Line",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "GeneratedRouteAppend::Kiosk.Line.Label",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Kiosk.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Kiosk.Close",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Kiosk.Reopen",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Kiosk.Prioritize",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Kiosk.Rescore",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "GeneratedRouteAppend::Kiosk.AddLine",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "GeneratedRouteAppend::Kiosk.Listed",
+    "generated": true
+  }
+]

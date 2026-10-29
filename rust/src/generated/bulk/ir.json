@@ -1,0 +1,671 @@
+{
+  "ir_version": 1,
+  "name": "Bulk",
+  "version": null,
+  "vision": "Send one command to every row a query answers, and keep what each row did with it.",
+  "classification": "supporting",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "BulkRun",
+      "description": "One command sent to every row of one query, and the outcome of each row: delivered, or refused and why.",
+      "identified_by": [
+        "run.value"
+      ],
+      "attributes": [
+        {
+          "name": "run",
+          "type": "RunKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "verb",
+          "type": "VerbName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "over",
+          "type": "QueryName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "arguments",
+          "type": "Argument",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "results",
+          "type": "RowResult",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "refusal",
+          "type": "Report",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "RunKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a run is named",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "VerbName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\\.[A-Z][A-Za-z0-9]*$",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "QueryName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "^[A-Z][A-Za-z0-9]*::[A-Z][A-Za-z0-9]*\\.[A-Z][A-Za-z0-9]*$",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Argument",
+          "attributes": [
+            {
+              "name": "key",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "RowResult",
+          "attributes": [
+            {
+              "name": "row",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "outcome",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "^(delivered|refused)$",
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "reason",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Report",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Request",
+          "role": null,
+          "goal": "Send one command to every row a query answers, keeping each row's outcome",
+          "references": null,
+          "attributes": [
+            {
+              "name": "run",
+              "type": "RunKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "verb",
+              "type": "VerbName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "over",
+              "type": "QueryName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "arguments",
+              "type": "Argument",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "run",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "run"
+              }
+            },
+            {
+              "target": "verb",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "verb"
+              }
+            },
+            {
+              "target": "over",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "over"
+              }
+            },
+            {
+              "target": "arguments",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "arguments"
+              }
+            }
+          ],
+          "emits": [
+            "BulkRunRequested"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Record",
+          "role": "System",
+          "goal": "Keep how every row of the run came out",
+          "references": "BulkRun",
+          "attributes": [
+            {
+              "name": "results",
+              "type": "RowResult",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "results",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "results"
+              }
+            }
+          ],
+          "emits": [
+            "BulkRunRecorded"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Decline",
+          "role": "System",
+          "goal": "Keep why the run could not start, before any row was sent",
+          "references": "BulkRun",
+          "attributes": [
+            {
+              "name": "refusal",
+              "type": "Report",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "refusal",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refusal"
+              }
+            }
+          ],
+          "emits": [
+            "BulkRunDeclined"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": {
+        "field": "status",
+        "default": "requested",
+        "transitions": [
+          {
+            "command": "Record",
+            "to_state": "swept",
+            "from_state": "requested"
+          },
+          {
+            "command": "Decline",
+            "to_state": "declined",
+            "from_state": "requested"
+          }
+        ],
+        "marks": {
+          "failure": [
+            "declined"
+          ],
+          "terminal": [
+            "declined",
+            "swept"
+          ]
+        }
+      },
+      "entities": [
+
+      ],
+      "queries": [
+        {
+          "name": "Outcome",
+          "description": "How one run stands: its status, every row's outcome, or why it could not start.",
+          "attributes": [
+            {
+              "name": "run",
+              "type": "RunKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "run",
+              "op": "eq",
+              "value": ":run"
+            }
+          ],
+          "order_by": {
+            "field": "run",
+            "direction": "asc"
+          },
+          "limit": null
+        },
+        {
+          "name": "Declined",
+          "description": "Every run that could not start, such as one whose command no loaded bluebook declares.",
+          "attributes": [
+
+          ],
+          "wheres": [
+            {
+              "field": "status",
+              "op": "eq",
+              "value": "\"declined\""
+            }
+          ],
+          "order_by": {
+            "field": "run",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+        {
+          "name": "Rows",
+          "operations": [
+            {
+              "name": "Sweep",
+              "attributes": [
+                {
+                  "name": "run",
+                  "type": "RunKey",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "emits": [
+
+              ],
+              "direction": "outbound",
+              "answers": "BulkRunSwept",
+              "refuses": "BulkRunRefused",
+              "to": "BulkRun"
+            }
+          ]
+        }
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+    {
+      "name": "SweepWhenRequested",
+      "on_event": "BulkRun.BulkRunRequested",
+      "ask": "sweep",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "run",
+          ":run"
+        ]
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "RecordTheSweep",
+      "on_event": "BulkRun.BulkRunSwept",
+      "trigger_command": "BulkRun.Record",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "results",
+          ":results"
+        ]
+      ],
+      "where_ast": null
+    },
+    {
+      "name": "RecordTheRefusal",
+      "on_event": "BulkRun.BulkRunRefused",
+      "trigger_command": "BulkRun.Decline",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "refusal",
+          ":refusal"
+        ]
+      ],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ]
+}

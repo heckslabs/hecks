@@ -810,7 +810,7 @@ Hecks.bluebook "Bluebook" do
              title: "codegen drift, rust/src/generated/ must match a fresh regeneration",
              argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait",
              script: "",
-             blocked: "regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed."
+             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
       member name: "comment_style", id: "comment_style",
              title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md",
              argv: "bundle exec exe/hecks style_run.check_comments paths=lib/hecks spec --wait",
@@ -827,15 +827,22 @@ Hecks.bluebook "Bluebook" do
              script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n",
              blocked: "a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output."
       member name: "rust_io", id: "rust_io",
-             title: "rust io specs, conformance, coercion, has_many, semantics corpus and feature exclusivity",
+             title: "rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity",
              argv: "",
-             script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait\nbundle exec exe/hecks build.project_rust domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\n",
+             script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait\nbundle exec exe/hecks build.project_rust domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n",
              blocked: "a Rust io spec failed, or skipped; the crate it built is under rust/target."
       member name: "ci_codegen_drift", id: "codegen_drift",
              title: "codegen drift, the committed generated Rust must match the regeneration this job holds",
              argv: "git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml",
              script: "",
-             blocked: "regenerating hits a diff. Only pizzas, mod.rs and Cargo.toml are committed, so run `hecks regenerate_corpus --confirm` (it also materializes the rest on a fresh checkout) and commit what it changed."
+             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+      # The rspec shards each hold only the domains they read, so the examples that read the whole
+      # generated tree are tagged `generated_all` and left out of them. This job holds every domain.
+      member name: "generated_tree", id: "generated_tree",
+             title: "whole-tree specs, the examples tagged generated_all against every domain's generated Rust",
+             argv: "bundle exec rspec --tag generated_all",
+             script: "",
+             blocked: "a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
       member name: "rust_clippy", id: "rust_clippy",
              title: "clippy, every Rust crate with its warnings as errors",
              argv: "",
@@ -846,19 +853,56 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks deploy makefile_check.lint --wait",
              script: "",
              blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen."
-      member name: "fuzz", id: "fuzz",
-             title: "fuzz, every example domain on the Memory adapter",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz --wait",
+      # The fuzz sweeps run as three shards each, one CI job leg apiece, so the corpus is swept in
+      # a third of the time. No unsharded row stays: no stage but `ci` ran the whole sweep, and a
+      # person who wants one run of it types `hecks fuzz_run.fuzz --wait`. A shard is `shard=I/N`,
+      # and the matrix legs of `checks_fuzz` and `checks_fuzz_sqlite` in ci-checks.yml number 1 to
+      # N, which spec/ci_fuzz_shards_spec.rb holds to the N written here.
+      member name: "fuzz_1_of_3", id: "fuzz_1_of_3",
+             title: "fuzz, shard 1 of 3 of the example domains on the Memory adapter",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=1/3 --wait",
              script: "",
              blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
-      member name: "fuzz_sqlite", id: "fuzz_sqlite",
-             title: "fuzz on a real on-disk SQLite database",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 --wait",
+      member name: "fuzz_2_of_3", id: "fuzz_2_of_3",
+             title: "fuzz, shard 2 of 3 of the example domains on the Memory adapter",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=2/3 --wait",
+             script: "",
+             blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
+      member name: "fuzz_3_of_3", id: "fuzz_3_of_3",
+             title: "fuzz, shard 3 of 3 of the example domains on the Memory adapter",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz shard=3/3 --wait",
+             script: "",
+             blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output."
+      member name: "fuzz_sqlite_1_of_3", id: "fuzz_sqlite_1_of_3",
+             title: "fuzz, shard 1 of 3 on a real on-disk SQLite database",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/3 --wait",
              script: "",
              blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
-      member name: "fuzz_postgres", id: "fuzz_postgres",
-             title: "fuzz on real Postgres, up to four workers (each in its own scratch schema)",
-             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 --wait",
+      member name: "fuzz_sqlite_2_of_3", id: "fuzz_sqlite_2_of_3",
+             title: "fuzz, shard 2 of 3 on a real on-disk SQLite database",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/3 --wait",
+             script: "",
+             blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
+      member name: "fuzz_sqlite_3_of_3", id: "fuzz_sqlite_3_of_3",
+             title: "fuzz, shard 3 of 3 on a real on-disk SQLite database",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=3/3 --wait",
+             script: "",
+             blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats."
+      member name: "fuzz_shards", id: "fuzz_shards",
+             title: "fuzz shards, the three shards together hold every domain of the sweep once",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait",
+             script: "",
+             blocked: "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log."
+      # The Postgres sweep is two legs of its own, a runner and a database apiece: it is the slowest
+      # sweep, since every dispatch is a real round trip.
+      member name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2",
+             title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=1/2 --wait",
+             script: "",
+             blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD."
+      member name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2",
+             title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)",
+             argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=2/2 --wait",
              script: "",
              blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD."
       member name: "vocabulary_drift", id: "vocabulary_drift",
@@ -871,6 +915,11 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks regeneration_run.project_ci_gates --wait",
              script: "",
              blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`."
+      member name: "ci_pipeline", id: "ci_pipeline",
+             title: "ci pipeline, the workflow rows must match the files they project",
+             argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline --wait",
+             script: "",
+             blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline --confirm`."
       member name: "tools_doc", id: "tools_doc",
              title: "tools doc, docs/tools.md must match the RetiredScript rows",
              argv: "bundle exec exe/hecks regeneration_run.project_tools_doc --wait",
@@ -923,7 +972,7 @@ Hecks.bluebook "Bluebook" do
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks"
       member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
-      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz,fuzz_sqlite,fuzz_postgres,vocabulary_drift,ci_gates,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each

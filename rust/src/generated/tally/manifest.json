@@ -1,0 +1,121 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Tallying::Tally",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.SetCount",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Bump",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Add",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Increase",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Lower",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Weigh",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Certify",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Cap",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Check",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.TagWith",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Untag",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Relabel",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.Measure",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.RaiseLimit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.LowerLimit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.ScaleLimit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.ClampLimit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Tallying::Tally.AddLabel",
+    "generated": true,
+    "routed": true
+  }
+]

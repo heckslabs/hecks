@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "LedgerOrdering::Folder",
+    "generated": true
+  },
+  {
+    "kind": "entity",
+    "id": "LedgerOrdering::Folder.Slip",
+    "generated": true
+  },
+  {
+    "kind": "entity_command",
+    "id": "LedgerOrdering::Folder.Slip.Amend",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "LedgerOrdering::Folder.Open",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "LedgerOrdering::Folder.AddSlip",
+    "generated": true,
+    "routed": true
+  }
+]

@@ -197,7 +197,9 @@ attaches (`MetaValidator::VerdictCache` stores the verdicts; `HECKS_VERDICT_CACH
 
 What decides cold or warm: the cache file's name carries a digest of every file under `lib/`, the Ruby and Hecks versions and the
 cache format. So an edit to any file under `lib/`, including a comment, makes the next launch cold, and a fresh checkout or a CI runner
-that does not keep the cache directory (`Hecks::CacheDir`) starts cold.
+that does not keep the cache directory (`Hecks::CacheDir`) starts cold. The CiGate detector jobs, which every other job of a CI run
+waits on, restore the cache directories with the `hecks-boot-cache` action, keyed by a hash of `lib/` and the lockfile, so a run on
+an unchanged `lib/` starts warm; a run on changed code starts cold and saves them.
 
 Not done, and not safe to do without an audit: keying the digest to the files a verdict actually reads. It would keep the cache warm
 across unrelated edits, but a stale "no refusals" entry would skip validation, so the key must name every input of a verdict, and

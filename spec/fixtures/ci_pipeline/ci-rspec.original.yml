@@ -1,0 +1,96 @@
+name: CI rspec (reusable)
+
+# Reusable rspec gate behind the `rspec` required check; called from ci.yml.
+#
+# One file per required check: a called workflow reports a single `.result` to its caller.
+# Secrets are declared, not inherited: ci.yml must pass HECKS_CI_ATTEST_KEY and
+# HECKS_JOURNAL_DATABASE at the call site.
+
+on:
+  workflow_call:
+    secrets:
+      HECKS_CI_ATTEST_KEY:
+        required: false
+      HECKS_JOURNAL_DATABASE:
+        required: false
+
+jobs:
+  # Separate job because a job-level `if:` cannot read a step output from its own job.
+  # Lets `rspec_shard` skip wholesale when a local run attested this tree.
+  ci_attestation_rspec:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Safe to skip on push: `rspec_shard` never reads this result on that trigger.
+
+    outputs:
+      attested: ${{ steps.attest.outputs.attested }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/check-attestation
+        id: attest
+        with:
+          checks: rspec
+          hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
+
+  # Four shards, each running `-n 4` parallel workers, to cut wall-clock to about a quarter.
+  rspec_shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    needs: ci_attestation_rspec
+
+    # `always()` and the `.result` check are both required: a failed detector would otherwise
+    # skip this required check instead of running it. Also skipped on push (cache warming
+    # needs only the postgres_io_parallel shards) and when the tree is attested.
+    if: always() && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4]
+
+    # No Postgres service: specs that boot examples/pizzas against PostgresEra are tagged
+    # `io: true` and run in rspec_postgres_io. An untagged one fails here with
+    # PG::ConnectionBad.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+      - uses: ./.github/actions/hecks-environment
+        with:
+          database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
+
+      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      - uses: ./.github/actions/generated-rust
+
+      # `io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io.
+      # Every shard must compute its file list from identical inputs or the lists stop
+      # partitioning the suite, so grouping reads only the committed baseline, never a cache.
+      - name: Determine this shard's own file list
+        run: |
+          mkdir -p tmp
+          bundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=4 runtime_log=.github/rspec_runtime_baseline.log \
+            > tmp/rspec_shard_files.txt
+
+      # --group-by runtime: without it parallel_rspec splits by file size and one worker can
+      # draw the slowest files. --allowed-missing: spec files newer than the baseline get the
+      # average cost instead of failing.
+      - name: "rspec: parallel (this shard's own file list only)"
+        run: |
+          FILES=()
+          while IFS= read -r line; do FILES+=("$line"); done < tmp/rspec_shard_files.txt
+          bundle exec parallel_rspec "${FILES[@]}" \
+            --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \
+            -o "--tag ~io --tag ~fuzzing --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log"
+
+      # Artifact only, never restored: `hecks refresh_runtime_baseline from_run= <run-id>`
+      # rebuilds the committed baseline from CI timings.
+      - name: Upload this shard's runtime log (for hecks refresh_runtime_baseline from_run=)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rspec-runtime-group-${{ matrix.group }}
+          path: tmp/runtime_rspec.log
+          retention-days: 14
+          if-no-files-found: ignore

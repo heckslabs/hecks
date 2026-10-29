@@ -76,6 +76,10 @@ jobs:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
       - uses: ./.github/actions/setup-ruby
+        with:
+          # The decision diffs files and calls an API; it formats and builds no Rust.
+          rust-toolchain: "false"
+      - uses: ./.github/actions/hecks-boot-cache
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'is this change only a release bump on a certified base?'
@@ -117,7 +121,6 @@ jobs:
 
   # Calls ci-rspec.yml; secrets are passed explicitly.
   rspec_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rspec.yml
     secrets:
@@ -147,7 +150,6 @@ jobs:
 
   # Calls ci-checks.yml; secrets are passed explicitly.
   checks_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-checks.yml
     secrets:
@@ -234,7 +236,6 @@ jobs:
 
   # Calls ci-postgres-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io.yml
     secrets:
@@ -268,7 +269,6 @@ jobs:
 
   # Calls ci-postgres-io-parallel.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_postgres_io_parallel_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
     secrets:
@@ -302,7 +302,6 @@ jobs:
 
   # Calls ci-rust-io.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_io_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-io.yml
     secrets:
@@ -316,9 +315,10 @@ jobs:
       actions: read
 
   # Split from rspec_rust_io: the spec backs up and restores rust/src/generated and Cargo.toml
-  # itself, so it needs its own checkout. Two legs, each with its own: the five domain parity
-  # examples (generated source only, no wasm), and the one that builds wasm and compares it
-  # (wasm32-wasip1 and wasmtime), with the crate's own unit tests.
+  # itself, so it needs its own checkout. Three legs, each with its own: the five domain parity
+  # examples (generated source only, no wasm) in two halves, banking alone against the other four,
+  # and the one that builds wasm and compares it (wasm32-wasip1 and wasmtime), with the crate's own
+  # unit tests. Each example runs both pipelines over one domain, so a half is a set of domains.
   rspec_rust_io_build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -327,24 +327,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - leg: parity
-            example: byte for byte
+          - leg: parity banking
+            examples: --example "examples/banking:"
+            wasm: false
+          - leg: parity rest
+            examples: --example "examples/pizzas:" --example "examples/roster:" --example "examples/compliance:" --example "examples/embryonaut_vendoring_demo:"
             wasm: false
           - leg: wasm
-            example: opted into the all-Rust pipeline
+            examples: --example "opted into the all-Rust pipeline"
             wasm: true
 
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: the spec runs `hecks project_rust` for each domain it compares, in
+      # the checkout, and puts rust/src/generated back as it found it; rust/build's own tests read
+      # no generated module.
 
+      # Restore only: this job's tree holds no generated domain, which is a key of its own.
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
           crate-root: rust
+          save: "false"
 
       # rust/build (hecks-build) is a separate crate; only this spec builds it.
       - uses: ./.github/actions/cargo-cache
@@ -357,7 +363,7 @@ jobs:
         if: matrix.wasm
 
       - name: "rspec: hecks-build (Rust-native orchestrator) pipeline parity (${{ matrix.leg }})"
-        run: bundle exec rspec --tag io --example "${{ matrix.example }}" spec/hecks_build_pipeline_spec.rb
+        run: bundle exec rspec --tag io ${{ matrix.examples }} spec/hecks_build_pipeline_spec.rb
 
       # The crate's own unit tests.
       - name: "cargo test: rust/build (hecks-build)"
@@ -374,13 +380,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: `hecks build_wasm` regenerates the domain it builds in a scratch copy
+      # of rust/, so the spec reads nothing the checkout holds beyond the committed mod.rs and pizzas.
 
+      # Restore only, as in rspec_rust_io_build.
       - uses: ./.github/actions/cargo-cache
         with:
           name: main
           crate-root: rust
+          save: "false"
 
       - uses: ./.github/actions/wasm-toolchain
 
@@ -410,7 +418,6 @@ jobs:
 
   # Calls ci-rust-parser.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_parser_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-parser.yml
     secrets:
@@ -443,7 +450,6 @@ jobs:
 
   # Calls ci-rust-codegen.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_codegen_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-codegen.yml
     secrets:
@@ -476,7 +482,6 @@ jobs:
 
   # Calls ci-rust-host.yml; secrets are passed explicitly, same as rspec_impl/checks_impl.
   rspec_rust_host_impl:
-    needs: inherit_certification
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rust-host.yml
     secrets:
@@ -495,7 +500,6 @@ jobs:
   ci_attestation_rspec_fuzzing:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: inherit_certification
     if: ${{ !cancelled() }}
 
     outputs:
@@ -528,7 +532,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # Every domain, on purpose: spec/fuzzing/rust_gap_manifest_spec.rb reads each domain's
+      # manifest.json, so a domain left out would shrink the gaps its ratchet checks.
       - uses: ./.github/actions/generated-rust
 
       # Preinstalled and tuned, not a `services:` container; see the action's header.
@@ -557,6 +562,10 @@ jobs:
           # Full history: the diff needs both endpoints present as real objects.
           fetch-depth: 0
       - uses: ./.github/actions/setup-ruby
+        with:
+          # The decision diffs files and calls an API; it formats and builds no Rust.
+          rust-toolchain: "false"
+      - uses: ./.github/actions/hecks-boot-cache
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch lib/hecks/runtime/**?'
@@ -580,8 +589,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
-      - uses: ./.github/actions/generated-rust
+      # No generated-rust step: the specs it repeats (dispatcher_spec.rb and the two concurrent
+      # dispatch specs) boot in-process domains and read no generated module.
 
       # Preinstalled and tuned, not a `services:` container. The durability settings it turns
       # off don't affect Postgres locking or MVCC visibility, so the contention is unchanged.

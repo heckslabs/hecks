@@ -6,6 +6,7 @@ require "hecks/tools/era_reattest"
 require "hecks/tools/era_projection_backfill"
 require "hecks/tools/translation_audit"
 require "hecks/tools/tail_merge"
+require "hecks/hecks/adapters/journal_store"
 
 # A domain on Memory by default that a copy opts into PostgresEra with `*.local.hecksagon` and
 # `*.local.world` (ADR 0136). The era tools read the held journal, so they must load the domain with

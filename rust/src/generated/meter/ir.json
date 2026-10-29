@@ -1,0 +1,305 @@
+{
+  "ir_version": 1,
+  "name": "Metering",
+  "version": null,
+  "vision": "A meter keeps its latest reading and the one before it.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Gauge",
+      "description": null,
+      "identified_by": [
+        "tag.value"
+      ],
+      "attributes": [
+        {
+          "name": "tag",
+          "type": "Tag",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "current",
+          "type": "Reading",
+          "list": false,
+          "default": {
+            "value": 0
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "previous",
+          "type": "Reading",
+          "list": false,
+          "default": {
+            "value": 0
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Tag",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Reading",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Install",
+          "role": null,
+          "goal": "Mount a gauge, reading zero",
+          "references": null,
+          "attributes": [
+            {
+              "name": "tag",
+              "type": "Tag",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "MeterInstalled"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Read",
+          "role": null,
+          "goal": "Take a reading, keeping the one before it",
+          "references": "Gauge",
+          "attributes": [
+            {
+              "name": "current",
+              "type": "Reading",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "current",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "current"
+              }
+            },
+            {
+              "target": "previous",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "state",
+                "name": "current"
+              }
+            }
+          ],
+          "emits": [
+            "MeterRead"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Gauge",
+        "storage_name": "gauge",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "Hecks.bluebook \"Metering\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C4.2).\n  # A command's effects are ONE UPDATE SET evaluated against the\n  # pre-dispatch state: every source reads the state as it was before\n  # the command, whatever order the effects are declared in. `Read`\n  # deliberately declares `sets :current` BEFORE `sets :previous, to:\n  # state(:current)` — under sequential, intermediate-reading effects\n  # (the pre-C4.2 reading of both runtimes) `previous` would copy the\n  # value `current` had JUST been set to; under C4.2 it copies the\n  # reading the meter held before this one. No example domain reads a\n  # field it writes in the same command, so the clause needed its own.\n  vision \"A meter keeps its latest reading and the one before it.\"\n  core\n\n  aggregate \"Gauge\" do\n    identified_by :tag\n\n    attribute :tag,      Tag\n    attribute :current,  Reading, default: { value: 0 }\n    attribute :previous, Reading, default: { value: 0 }\n\n    value_object \"Tag\" do\n      attribute :value, String\n    end\n\n    value_object \"Reading\" do\n      attribute :value, Integer\n    end\n\n    command \"Install\" do\n      goal \"Mount a gauge, reading zero\"\n      attribute :tag, Tag\n      emits \"MeterInstalled\"\n    end\n\n    command \"Read\" do\n      goal \"Take a reading, keeping the one before it\"\n      reference_to Gauge\n      attribute :current, Reading\n      # DECLARED WRITE-FIRST ON PURPOSE — see the header.\n      sets :current\n      sets :previous, to: state(:current)\n      emits \"MeterRead\"\n    end\n  end\nend\n"
+}

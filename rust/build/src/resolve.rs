@@ -117,6 +117,7 @@ const OTHER_GEM_BLUEBOOK_DIRS: &[&str] = &[
     "composer/bluebook",
     "quality_control",
     "bulk/bluebook",
+    "ci_pipeline",
 ];
 
 // Every bluebook the gem carries beside the framework members, with the bluebook its header names.

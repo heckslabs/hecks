@@ -1,0 +1,43 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Courier::Run",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Courier::Run.Start",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Courier::Run.Advance",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Courier::Run.Log",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Courier::Run.Note",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Courier::Audit",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Courier::Route",
+    "generated": true,
+    "routed": true
+  }
+]

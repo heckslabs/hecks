@@ -1,0 +1,768 @@
+{
+  "ir_version": 1,
+  "name": "OptionalNestedValueObjectFixture",
+  "version": null,
+  "vision": "The smallest domain whose value objects hold optional value objects, alone and in lists.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Layout",
+      "description": "An ordered list of panels, each of which may carry a note, and cells that may too.",
+      "identified_by": [
+        "key.value"
+      ],
+      "attributes": [
+        {
+          "name": "key",
+          "type": "LayoutKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "panels",
+          "type": "Panel",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "LayoutKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a layout is keyed",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Panel",
+          "attributes": [
+            {
+              "name": "kind",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "title",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "note",
+              "type": "Note",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "cells",
+              "type": "Cell",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a panel has a kind",
+              "canonical": "!kind.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "kind"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "a title is not blank when given",
+              "canonical": "title.unset? || !title.to_s.empty?",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "assignment",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "title"
+                    ]
+                  },
+                  "negated": true
+                },
+                "right": {
+                  "op": "not",
+                  "expr": {
+                    "op": "empty",
+                    "receiver": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": [
+                          "title"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "a callout carries a note",
+              "canonical": "kind != \"callout\" || note.set?",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "kind"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "callout"
+                  }
+                },
+                "right": {
+                  "op": "assignment",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "note"
+                    ]
+                  },
+                  "negated": false
+                }
+              }
+            },
+            {
+              "description": "a quiet panel has no loud note",
+              "canonical": "kind != \"quiet\" || note.tone != \"loud\"",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "kind"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "quiet"
+                  }
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": false,
+                    "equal": true,
+                    "negated": true
+                  },
+                  "left": {
+                    "op": "lookup",
+                    "path": [
+                      "note",
+                      "tone"
+                    ]
+                  },
+                  "right": {
+                    "op": "str",
+                    "value": "loud"
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Cell",
+          "attributes": [
+            {
+              "name": "label",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "note",
+              "type": "Note",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a cell is labelled",
+              "canonical": "!label.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "label"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "a cell's note is short",
+              "canonical": "note.unset? || note.text.size <= 40",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "assignment",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "note"
+                    ]
+                  },
+                  "negated": true
+                },
+                "right": {
+                  "op": "compare",
+                  "cmp": {
+                    "less_than": true,
+                    "equal": true,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "size",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "note",
+                        "text"
+                      ]
+                    }
+                  },
+                  "right": {
+                    "op": "int",
+                    "value": 40
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Note",
+          "attributes": [
+            {
+              "name": "text",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "tone",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "link",
+              "type": "Link",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a note has words",
+              "canonical": "!text.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "text"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "description": "a tone is calm or loud",
+              "canonical": "tone.unset? || tone == \"calm\" || tone == \"loud\"",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "assignment",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "tone"
+                    ]
+                  },
+                  "negated": true
+                },
+                "right": {
+                  "op": "or",
+                  "left": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "tone"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "calm"
+                    }
+                  },
+                  "right": {
+                    "op": "compare",
+                    "cmp": {
+                      "less_than": false,
+                      "equal": true,
+                      "negated": false
+                    },
+                    "left": {
+                      "op": "lookup",
+                      "path": [
+                        "tone"
+                      ]
+                    },
+                    "right": {
+                      "op": "str",
+                      "value": "loud"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Link",
+          "attributes": [
+            {
+              "name": "href",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "label",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a link is a path",
+              "canonical": "href.start_with?(\"/\")",
+              "ast": {
+                "op": "starts_with",
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "href"
+                  ]
+                },
+                "substring": "/"
+              }
+            },
+            {
+              "description": "a link label is not blank when given",
+              "canonical": "label.unset? || !label.to_s.empty?",
+              "ast": {
+                "op": "or",
+                "left": {
+                  "op": "assignment",
+                  "receiver": {
+                    "op": "lookup",
+                    "path": [
+                      "label"
+                    ]
+                  },
+                  "negated": true
+                },
+                "right": {
+                  "op": "not",
+                  "expr": {
+                    "op": "empty",
+                    "receiver": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": [
+                          "label"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Write",
+          "role": "Editor",
+          "goal": "Start a layout's panels",
+          "references": null,
+          "attributes": [
+            {
+              "name": "key",
+              "type": "LayoutKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "panels",
+              "type": "Panel",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "key",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "key"
+              }
+            },
+            {
+              "target": "panels",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "panels"
+              }
+            }
+          ],
+          "emits": [
+            "LayoutWritten"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Revise",
+          "role": "Editor",
+          "goal": "Replace the panels",
+          "references": "Layout",
+          "attributes": [
+            {
+              "name": "panels",
+              "type": "Panel",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "panels",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "panels"
+              }
+            }
+          ],
+          "emits": [
+            "LayoutRevised"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Layout",
+        "storage_name": "layout",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# Smallest domain with an optional value object held inside a value object (Panel.note), inside a\n# list member (Cell.note) and two levels down (Note.link), each with invariants that read a slot\n# an offered or stored value may leave out. Held to the same answers by Ruby and Rust through\n# spec/corpus/rust_conformance/optional_nested_value_object_*.json and, for a stored value's mint\n# audit, spec/rust_host_reference_validate_conformance_spec.rb.\nHecks.bluebook \"OptionalNestedValueObjectFixture\" do\n  vision \"The smallest domain whose value objects hold optional value objects, alone and in lists.\"\n\n  core\n\n  aggregate \"Layout\" do\n    description \"An ordered list of panels, each of which may carry a note, and cells that may too.\"\n\n    identified_by :key\n    attribute :key,    LayoutKey\n    attribute :panels, list_of(Panel)\n\n    value_object \"LayoutKey\" do\n      attribute :value, String, matches: :present\n      invariant(\"a layout is keyed\") { !value.to_s.empty? }\n    end\n\n    value_object \"Panel\" do\n      attribute :kind,  String\n      attribute :title, String, optional: true\n      attribute :note,  Note, optional: true\n      attribute :cells, list_of(Cell)\n\n      invariant(\"a panel has a kind\") { !kind.to_s.empty? }\n      invariant(\"a title is not blank when given\") { title.unset? || !title.to_s.empty? }\n      invariant(\"a callout carries a note\") { kind != \"callout\" || note.set? }\n      invariant(\"a quiet panel has no loud note\") { kind != \"quiet\" || note.tone != \"loud\" }\n    end\n\n    value_object \"Cell\" do\n      attribute :label, String\n      attribute :note,  Note, optional: true\n\n      invariant(\"a cell is labelled\") { !label.to_s.empty? }\n      invariant(\"a cell's note is short\") { note.unset? || note.text.size <= 40 }\n    end\n\n    value_object \"Note\" do\n      attribute :text, String\n      attribute :tone, String, optional: true\n      attribute :link, Link, optional: true\n\n      invariant(\"a note has words\") { !text.to_s.empty? }\n      invariant(\"a tone is calm or loud\") { tone.unset? || tone == \"calm\" || tone == \"loud\" }\n    end\n\n    value_object \"Link\" do\n      attribute :href,  String\n      attribute :label, String, optional: true\n\n      invariant(\"a link is a path\") { href.start_with?(\"/\") }\n      invariant(\"a link label is not blank when given\") { label.unset? || !label.to_s.empty? }\n    end\n\n    command \"Write\" do\n      role \"Editor\"\n      goal \"Start a layout's panels\"\n\n      attribute :key,    LayoutKey\n      attribute :panels, list_of(Panel)\n      sets :key\n      sets :panels\n\n      emits \"LayoutWritten\"\n    end\n\n    command \"Revise\" do\n      role \"Editor\"\n      goal \"Replace the panels\"\n\n      reference_to Layout\n      attribute :panels, list_of(Panel)\n      sets :panels\n\n      emits \"LayoutRevised\"\n    end\n  end\nend\n"
+}

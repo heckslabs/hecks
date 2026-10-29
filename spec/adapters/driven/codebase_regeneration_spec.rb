@@ -47,6 +47,34 @@ RSpec.describe Hecks::Adapters::Codebase::Regeneration do
     expect(report).to eq("regenerated 7 corpus domains into the checkout")
   end
 
+  it "hands the domains it is told to regenerate to the tool, and none when it is told none", :aggregate_failures do
+    shell = fake_run(plan)
+
+    regenerate({ confirm: { value: true }, domains: { value: "lease_clock,nested_pieces" } })
+    regenerate({ confirm: { value: true }, domains: { value: "" } })
+
+    expect(shell.asked.first[:command]).to eq(["regen_codegen_domains", "domains=lease_clock,nested_pieces"])
+    expect(shell.asked.last[:command]).to eq(["regen_codegen_domains"])
+  end
+
+  it "hands the tool how many domains to generate at once, and says nothing when it is not told", :aggregate_failures do
+    shell = fake_run(plan)
+
+    regenerate({ confirm: { value: true }, workers: { value: 4 } })
+    regenerate({ confirm: { value: true } })
+
+    expect(shell.asked.first[:command]).to eq(["regen_codegen_domains", "workers=4"])
+    expect(shell.asked.last[:command]).to eq(["regen_codegen_domains"])
+  end
+
+  it "checks only the domains it is told to, still into a scratch crate" do
+    shell = fake_run(plan)
+
+    regenerate({ check: { value: true }, domains: { value: "lease_clock" } })
+
+    expect(shell.asked.first[:command]).to eq(["regen_codegen_domains", "--check", "domains=lease_clock"])
+  end
+
   it "refuses with the difference the check found, keeping the last lines" do
     lines = (1..80).map { |number| "diff line #{number}" }.join("\n")
     fake_run("#{plan}#{lines}\n", 1)

@@ -1,0 +1,7 @@
+# Binds the `Cache` port to `CiCache`, which answers `Corpus`'s `Lookup` query from GitHub's cache.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/ci_pipeline/adapters/ci_cache"
+
+Hecks.adapter "CiCache" do
+  port "Cache"
+end

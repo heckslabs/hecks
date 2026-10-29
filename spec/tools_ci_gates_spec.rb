@@ -23,7 +23,8 @@ RSpec.describe Hecks::Tools::CiGates do
     end
 
     # CI does not circumvent the binary: the step that decides is a call to `hecks`, and the only
-    # local actions a detector job uses are the ones that set up Ruby and the journal.
+    # local actions a detector job uses are the ones that set up Ruby, restore the boot caches
+    # and choose the journal.
     def workflow_steps(gate)
       YAML.load_file(File.join(root, ".github/workflows", gate.fetch("workflow"))).dig("jobs", gate.fetch("name"), "steps")
     end
@@ -36,12 +37,49 @@ RSpec.describe Hecks::Tools::CiGates do
       end
     end
 
-    it "use no local action in a detector job but the ones that set up Ruby and the journal" do
+    it "use no local action in a detector job but the ones that set up Ruby, the boot caches and the journal" do
       described_class.gates.each do |gate|
         local = workflow_steps(gate).filter_map { |step| step["uses"] }.select { |uses| uses.start_with?("./") }
 
-        expect(local).to eq(%w[./.github/actions/setup-ruby ./.github/actions/hecks-environment])
+        expect(local).to eq(%w[./.github/actions/setup-ruby ./.github/actions/hecks-boot-cache
+                               ./.github/actions/hecks-environment])
       end
+    end
+
+    def action_steps(name) = YAML.load_file(File.join(root, ".github/actions", name, "action.yml")).dig("runs", "steps")
+
+    def cache_step = action_steps("hecks-boot-cache").find { |step| step["uses"].to_s.start_with?("actions/cache@") }
+
+    def cache_dirs = %w[hecks_syntax_boot_cache hecks_verdict_cache].map { |name| File.basename(Hecks::CacheDir.path(name)) }
+
+    # The launcher names each cached file by a digest of `lib/`, so a stale restore is ignored; the
+    # key decides only whether a run starts warm, and it holds the inputs that digest covers.
+    it "key the boot caches by lib/ and the lockfile" do
+      expect(cache_step.dig("with", "key")).to include("hashFiles('lib/**', 'Gemfile.lock')")
+    end
+
+    it "cache the directories the launcher writes its boot caches to" do
+      paths = cache_step.dig("with", "path").lines.map(&:strip)
+
+      expect(paths).to match_array(cache_dirs.map { |dir| "~/.cache/hecks/#{dir}" })
+    end
+
+    # Every job of the run waits on a detector, so a detector installs no Rust toolchain: it
+    # formats and builds nothing, and restoring the toolchains directory is seconds of the front.
+    it "set up Ruby in a detector job without the Rust toolchain" do
+      described_class.gates.each do |gate|
+        setup = workflow_steps(gate).find { |step| step["uses"] == "./.github/actions/setup-ruby" }
+
+        expect(setup.dig("with", "rust-toolchain")).to eq("false")
+      end
+    end
+
+    it "keep the Rust toolchain in setup-ruby for every job that does not opt out", :aggregate_failures do
+      action = YAML.load_file(File.join(root, ".github/actions/setup-ruby/action.yml"))
+      toolchain = action_steps("setup-ruby").find { |step| step["uses"] == "./.github/actions/rust-toolchain" }
+
+      expect(action.dig("inputs", "rust-toolchain", "default")).to eq("true")
+      expect(toolchain["if"]).to eq("inputs.rust-toolchain != 'false'")
     end
 
     def workflow(name) = YAML.load_file(File.join(root, ".github/workflows", name))

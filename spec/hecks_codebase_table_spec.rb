@@ -60,6 +60,9 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["project_ci_gates", "RegenerationRun", "ProjectCiGates", "project_ci_gates",
      { renamed: "no bin script: the path gates were inline shell in the workflows; without --confirm the " \
                 "verb only compares" }],
+    ["project_ci_pipeline", "RegenerationRun", "ProjectCiPipeline", "project_ci_pipeline",
+     { renamed: "no bin script: the workflow files were hand-written; without --confirm the verb only " \
+                "compares" }],
     ["project_lanes", "RegenerationRun", "ProjectLanes", "project_lanes",
      { renamed: "no bin script: the branch rulesets and the promotion workflow were hand-written; without " \
                 "--confirm the verb only compares, and only --live --confirm changes GitHub" }],
@@ -110,6 +113,10 @@ RSpec.describe "the Codebase rows of the ADR command table" do
                              "nothing (the script's output is redirected by the caller), so it is a query" }],
     ["corpus", "CorpusRun", "RustDomains", "rust_domains", { query: true }],
     ["corpus", "CorpusRun", "RegenOrder", "regen_order", { query: true }],
+    ["(new)", "CorpusRun", "GeneratedKey", "generated_key",
+     { query: true, args: %w[domains=lease_clock],
+       renamed: "no bin script: the key a job caches the generated Rust of some domains under, a hash of " \
+                "the generator and of those domains' own sources" }],
     ["corpus", "CorpusRun", "CorpusRustCoverage", "corpus_rust_coverage",
      { query: true, renamed: "the table names the query RustCoverage; Build already has one, " \
                              "so it is CorpusRustCoverage, as the launcher column says" }],

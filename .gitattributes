@@ -1,0 +1,3 @@
+# Written by `hecks regeneration_run.regenerate_corpus --confirm`; GitHub collapses these diffs, and a
+# conflict in them is settled by regenerating, never by editing.
+rust/src/generated/** linguist-generated=true

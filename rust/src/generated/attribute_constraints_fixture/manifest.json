@@ -1,0 +1,24 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "AttributeConstraintsFixture::Vocabulary",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "AttributeConstraintsFixture::Vocabulary.Name",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "AttributeConstraintsFixture::Shelf",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "AttributeConstraintsFixture::Shelf.Write",
+    "generated": true,
+    "routed": true
+  }
+]

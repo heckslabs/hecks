@@ -1,0 +1,59 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Bulk::BulkRun",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Bulk::BulkRun.Request",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bulk::BulkRun.Record",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Bulk::BulkRun.Decline",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "port_operation",
+    "id": "Bulk::BulkRun.Rows.Sweep",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "Bulk::BulkRun.Outcome",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "Bulk::BulkRun.Declined",
+    "generated": true
+  },
+  {
+    "kind": "policy",
+    "id": "Bulk::SweepWhenRequested",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Bulk::RecordTheSweep",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Bulk::RecordTheRefusal",
+    "generated": true,
+    "routed": true
+  }
+]

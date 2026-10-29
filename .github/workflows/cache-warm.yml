@@ -38,7 +38,9 @@ jobs:
 
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # Every domain, on purpose: this saves the all-domains entry the jobs that name none restore
+      # (rspec_rust_io leg a, checks_codegen_drift, checks_drift_tables, rspec_fuzzing), and the
+      # main crate's cargo cache keyed on the whole tree that rspec_rust_io leg a restores.
       - uses: ./.github/actions/generated-rust
 
       - uses: ./.github/actions/hecks-environment
@@ -143,9 +145,12 @@ jobs:
 
       - uses: ./.github/actions/setup-ruby
 
-      # The host unit tests include_str! rust/src/generated/*/ir.json, which is not committed
-      # (pizzas aside); restore or regenerate it before `cargo test --no-run` compiles them.
+      # The host unit tests include_str! rust/src/generated/lease_clock/ir.json, which is not
+      # committed; restore or regenerate it before `cargo test --no-run` compiles them. The two
+      # domains are the ones rspec_rust_host_cargo names, so both jobs share one cache entry.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: lease_clock checkout_fixture
 
       - uses: ./.github/actions/cargo-cache
         with:

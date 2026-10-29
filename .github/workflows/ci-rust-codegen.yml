@@ -44,8 +44,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # rust/src/generated is not committed (pizzas aside); restore or regenerate it before rust/src is used.
+      # The planted-gap spec reads banking's ir.json, and refuses unless two modules have one:
+      # banking brings governance, identity, bulk and meta. No other domain is read.
       - uses: ./.github/actions/generated-rust
+        with:
+          domains: banking
 
       - uses: ./.github/actions/cargo-cache
         with:
