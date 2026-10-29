@@ -304,7 +304,7 @@ Hecks.bluebook "CiPipeline" do
       attribute :value, String, one_of: [
         "",
         "./.github/actions/cargo-cache", "./.github/actions/check-attestation",
-        "./.github/actions/generated-rust", "./.github/actions/generated-rust-inputs",
+        "./.github/actions/generated-rust",
         "./.github/actions/ghcr-binary-cache-restore", "./.github/actions/ghcr-binary-cache-save",
         "./.github/actions/hecks-environment", "./.github/actions/postgres",
         "./.github/actions/require-result", "./.github/actions/rust-toolchain",
