@@ -5,10 +5,15 @@ that sets what a contribution should look like. The interesting bugs here
 are rarely "it crashed"; they are "the declaration says one thing and
 the runtime quietly did another." Read
 [Verification](docs/implemented/guides/verification.md) before you
-open a PR that touches the language surface, the IR, or the runtime —
+land a change that touches the language surface, the IR, or the runtime —
 it explains the four tools this project uses instead of trusting a
-green suite by itself, and a PR that skips them is a PR someone else
+green suite by itself, and a change that skips them is one someone else
 has to re-verify by hand.
+
+Agents land work on `main` with `hecks landing.land` and then
+`hecks push_train.board!`; they do not open pull requests for it. A pull
+request is for outside authors, and for a change that needs a reviewer's
+eyes before it lands.
 
 ## Getting running
 
@@ -188,8 +193,8 @@ Hecks reads almost no environment variables for you to set, and none for a datab
 
 ## Verification beyond the suite
 
-A green suite only proves the paths someone thought to write. Before a
-PR that touches a `.bluebook`, the DSL builder, the runtime, or the
+A green suite only proves the paths someone thought to write. Before you
+land a change that touches a `.bluebook`, the DSL builder, the runtime, or the
 IR:
 
 ```sh
