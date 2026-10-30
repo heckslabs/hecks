@@ -1,7 +1,7 @@
 require_relative "bluebook"
 require_relative "codemod"
 require_relative "projections/model"
-require_relative "fuzzing/properties"
+require_relative "properties"
 require_relative "query_ir/rules"
 require_relative "query_ir/formatting"
 require_relative "query_ir/touchpoints"

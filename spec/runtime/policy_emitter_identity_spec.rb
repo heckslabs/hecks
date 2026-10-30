@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/fuzzing/properties"
+require "hecks/properties"
 
 # A policy's `with:` may read the emitting record's own identity, offered by
 # `PolicyInterpreter#emitter_identity` as `Event#id` under the emitter's identity heads.

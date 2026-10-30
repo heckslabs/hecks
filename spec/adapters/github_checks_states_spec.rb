@@ -1,5 +1,5 @@
 require "hecks"
-require_relative "../../lib/hecks/quality_control/adapters/github_checks"
+require_relative "../../lib/hecks/hecks/adapters/github_checks"
 
 # Transport only: `Open3.capture3` is stubbed, so the suite never shells out to a real `gh`.
 RSpec.describe Hecks::Adapters::GithubChecks, "#states" do

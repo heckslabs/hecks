@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/vocabulary"
-require_relative "../../quality_control/adapters/github_checks"
+require_relative "../../hecks/adapters/github_checks"
 
 module Hecks
   module Tools

@@ -1,4 +1,4 @@
-require_relative "../nondeterministic"
+require_relative "../../fuzzing/nondeterministic"
 
 module Hecks
   module Fuzzing

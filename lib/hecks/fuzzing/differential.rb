@@ -1,7 +1,7 @@
 require "json"
 require "open3"
 require_relative "replay"
-require_relative "properties"
+require_relative "../properties"
 require_relative "self_consistency"
 require_relative "rust_gap_manifest"
 require_relative "../rust_build/kernel_input"
