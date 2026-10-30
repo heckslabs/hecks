@@ -19,7 +19,6 @@ require_relative "composing"
 require_relative "previewing"
 require_relative "publishing"
 require_relative "promotion"
-require_relative "scripting"
 require_relative "../git"
 
 module Hecks
@@ -196,7 +195,7 @@ module Hecks
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
                   Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
                   Codebase::CorpusTasks, Codebase::Composing, Codebase::Previewing,
-                  Codebase::Publishing, Codebase::Promotion, Codebase::Scripting].freeze
+                  Codebase::Publishing, Codebase::Promotion].freeze
       private_constant :FAMILIES
 
       # The facts of a promotion or a watch, naming the operation so policies can tell them apart.
