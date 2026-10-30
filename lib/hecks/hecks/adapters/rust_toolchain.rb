@@ -21,7 +21,7 @@ module Hecks
       # The `Hecks::RustBuild` tool each ask runs.
       TOOLS = { generate: "project_rust", wasm: "project_wasm", host: "project_host",
                 browser_wasm: "project_wasm_browser", conform: "rust_conformance",
-                replay: "rust_conformance_fuzz", coverage: "rust_coverage" }.freeze
+                replay: "rust_conformance_fuzz", coverage: "rust_coverage", parser: "build_parser" }.freeze
 
       # The load path the benchmark child runs with: this checkout's or gem's `lib/`.
       LIB = File.expand_path("../../..", __dir__)
@@ -131,6 +131,15 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when a rule excuses nothing
       def audit(**_held)
         child(:coverage, ["--check-allowlist"])
+      end
+
+      # Builds the `hecks-parse` binary the parser specs run, in `rust/parser`.
+      #
+      # @param _held [Hash] the `Build` record, which holds nothing this needs
+      # @return [Hash{Symbol => Hash}] `output:` what cargo reported
+      # @raise [ConsoleCapture::Failure] when cargo cannot build the crate
+      def parser(**_held)
+        child(:parser, [])
       end
 
       # Measures command throughput and latency for each target, building the Rust binary in the
