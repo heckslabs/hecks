@@ -41,6 +41,22 @@ RSpec.describe Hecks::Ports::AdapterRegistry do
     expect(described_class.fetch("Sqlite")).to eq(adapter)
   end
 
+  it "refuses an adapter that lacks the capability its port needs" do
+    described_class.register("Probe", adapter, provides: ["lineage"])
+    expect { described_class.check_capability!("Probe", "persistence") }
+      .to raise_error(Hecks::Runtime::WiringError, /needs the persistence capability/)
+  end
+
+  it "passes an adapter that provides the capability" do
+    described_class.register("Probe", adapter, provides: ["persistence"])
+    expect { described_class.check_capability!("Probe", "persistence") }.not_to raise_error
+  end
+
+  it "maps every port it checks to a capability in the closed list" do
+    mapped = Hecks::Ports::AdapterRegistry::PORT_CAPABILITIES.values
+    expect(mapped - Hecks::Ports::AdapterRegistry::CAPABILITIES).to be_empty
+  end
+
   it "fetches nothing for a name no adapter registered" do
     expect(described_class.fetch("Nope")).to be_nil
   end
