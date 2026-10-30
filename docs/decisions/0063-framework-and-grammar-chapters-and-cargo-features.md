@@ -12,7 +12,7 @@ The chapters half is true, and the question it raises is worth deciding on purpo
 ### What is true today
 
 `rust/Cargo.toml` declares one feature per Rust-facing *domain*: an in-repo domain
-directory (`examples/*`, `corpus/stress_domains/*`, `spec/fixtures/rust_project/*`,
+directory (`examples/*`, `qa/stress_domains/*`, `spec/fixtures/rust_project/*`,
 `Hecks::Corpus::RUST_DOMAIN_KINDS`) whose generated module carries its own
 `merged.rs`. Every list that matters reads that one table: the differential fuzz
 bridge (`Hecks::Corpus.rust_domains`), `bin/regen_codegen_domains` (the drift check),
@@ -50,7 +50,7 @@ A feature is more than a line in `Cargo.toml`. It puts the chapter into every
 Rust-facing list at once: a slot in the regen order, a domain-exclusive `cfg` in
 `generated/mod.rs`, a share of the fuzz-bridge seed budget, a codegen-parity entry, a
 `bin/rust_coverage` row and a conformance build. The corpus model would also have to
-learn a directory shape that is not `examples/`, `corpus/stress_domains/` or
+learn a directory shape that is not `examples/`, `qa/stress_domains/` or
 `spec/fixtures/`, because the framework chapters live under `lib/hecks/framework/`
 and the grammar chapters directly under `lib/hecks/grammar/`.
 

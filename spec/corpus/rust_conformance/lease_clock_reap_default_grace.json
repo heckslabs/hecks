@@ -1,5 +1,5 @@
 {
-  "domain": "corpus/stress_domains/lease_clock",
+  "domain": "qa/stress_domains/lease_clock",
   "note": "A command attribute's declared default fills an argument the caller left out, in both engines. `Reap` declares `grace` with `default: { value: 0 }`: the first lease is reaped with no `grace` named (the default of none applies, so its expiry alone decides), and the second names a `grace` of 50, which the caller's own value wins over the default and holds the reap back.",
   "steps": [
     {

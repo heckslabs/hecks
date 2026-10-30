@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 # An `append:` onto an entity-owned nested list must refuse a duplicate identity, as the
 # aggregate-owned list does; Rust's generated code refuses with `AlreadyExists` for both.
 RSpec.describe "Board.AddCard — a nested-entity-owned append's own duplicate-identity guard" do
-  NESTED_ENTITY_APPEND_COLLISION_DOMAIN = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/nested_pieces")
+  NESTED_ENTITY_APPEND_COLLISION_DOMAIN = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
 
   def open_workspace_step(reference)
     { "verb" => "NestedPieces::Workspace.Open", "args" => { "reference" => { "value" => reference } } }

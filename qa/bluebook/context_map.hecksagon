@@ -1,0 +1,7 @@
+# ANTI-CORRUPTION LAYER — sibling bounded-context hecksagons.
+# Same-name blocks merge with quality_control.hecksagon, order-independent.
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("PostgresEra")
+  Governance::RoleTransition.persisted_by("PostgresEra")
+end

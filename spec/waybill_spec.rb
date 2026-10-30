@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# Pins a saga dispatching into a nested entity's own command (corpus/stress_domains/waybill).
+# Pins a saga dispatching into a nested entity's own command (qa/stress_domains/waybill).
 # Saga dispatch qualifies against its home domain; entity-owned dispatch must resolve its receiver.
 RSpec.describe "Waybill" do
-  WAYBILL_ROOT = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/waybill/bluebook").freeze
+  WAYBILL_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/waybill/bluebook").freeze
 
   def load_waybill_files
     MemoryPorts.load!

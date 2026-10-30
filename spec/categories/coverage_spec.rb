@@ -76,7 +76,7 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
   }.freeze
 
   # Committed projection output, each with the drift spec comparing it to a fresh projection.
-  DRIFT_SPECS = { "docs/generated/diagrams" => "spec/diagrams_spec.rb" }.freeze
+  DRIFT_SPECS = { "glossary" => "spec/glossary_spec.rb", "docs/generated/diagrams" => "spec/diagrams_spec.rb" }.freeze
 
   # The category specs that loop every example domain.
   EXAMPLE_DOMAIN_SPECS = %w[
@@ -114,6 +114,11 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
 
   it "loops every projection category, or says why one is left out" do
     expect(Hecks::Projector.registered_by_category.keys - [:projection] - PROJECTIONS_ELSEWHERE.keys).to be_empty
+  end
+
+  it "compares every example domain's committed glossary with a fresh projection" do
+    committed = Dir[File.join(InMemoryDomain::ROOT, "examples/*/glossary")].map { |dir| File.basename(File.dirname(dir)) }
+    expect(committed.reject { |domain| source(DRIFT_SPECS.fetch("glossary")).include?("examples/#{domain}") }).to be_empty
   end
 
   it "compares every committed diagram set with a fresh projection" do

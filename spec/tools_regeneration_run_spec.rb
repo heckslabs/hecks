@@ -65,7 +65,7 @@ RSpec.describe Hecks::Tools::RegenerationRun do
     end
 
     it "plans the named domains in the corpus's fixed order whatever order they are named in" do
-      expect(planned(%w[nested_pieces lease_clock])).to eq(%w[corpus/stress_domains/lease_clock corpus/stress_domains/nested_pieces])
+      expect(planned(%w[nested_pieces lease_clock])).to eq(%w[qa/stress_domains/lease_clock qa/stress_domains/nested_pieces])
     end
 
     it "plans every domain when none is named" do
@@ -90,13 +90,13 @@ RSpec.describe Hecks::Tools::RegenerationRun do
     end
 
     it "runs a named subset as a partial run, and a check of it too", :aggregate_failures do
-      allow(described_class).to receive(:plan).and_return(["corpus/stress_domains/lease_clock"])
+      allow(described_class).to receive(:plan).and_return(["qa/stress_domains/lease_clock"])
       allow(described_class).to receive(:regenerate)
 
       described_class.main(["domains=lease_clock"], root: root)
 
       expect(described_class).to have_received(:regenerate)
-        .with(["corpus/stress_domains/lease_clock"], partial: true, workers: Etc.nprocessors)
+        .with(["qa/stress_domains/lease_clock"], partial: true, workers: Etc.nprocessors)
     end
 
     it "runs a whole regeneration as a whole run", :aggregate_failures do

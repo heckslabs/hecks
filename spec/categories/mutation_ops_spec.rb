@@ -9,7 +9,7 @@ require "hecks/fuzzing"
 # every one must agree.
 RSpec.describe "every mutation op", :aggregate_failures do
   # The domains whose entity commands use every field-writing op between them.
-  ENTITY_OP_DOMAINS = %w[spec/fixtures/entity_list_mutations corpus/stress_domains/nested_pieces].freeze
+  ENTITY_OP_DOMAINS = %w[spec/fixtures/entity_list_mutations qa/stress_domains/nested_pieces].freeze
 
   def self.root = InMemoryDomain::ROOT
 

@@ -5870,7 +5870,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Open",
       "kind": "aggregate",
       "pair": [
@@ -5892,7 +5892,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Open",
       "kind": "aggregate",
       "pair": [
@@ -5917,7 +5917,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.AddBoard",
       "kind": "aggregate",
       "pair": [
@@ -5942,7 +5942,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.AddBoard",
       "kind": "aggregate",
       "pair": [
@@ -5969,7 +5969,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.AddBoard",
       "kind": "aggregate",
       "pair": [
@@ -5996,7 +5996,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Board.AddCard",
       "kind": "entity",
       "pair": [
@@ -6024,7 +6024,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Board.AddCard",
       "kind": "entity",
       "pair": [
@@ -6054,7 +6054,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Board.AddCard",
       "kind": "entity",
       "pair": [
@@ -6084,7 +6084,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Board.Label",
       "kind": "entity",
       "pair": [
@@ -6112,7 +6112,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Board.Label",
       "kind": "entity",
       "pair": [
@@ -6143,7 +6143,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/nested_pieces",
+      "domain": "qa/stress_domains/nested_pieces",
       "verb": "NestedPieces::Workspace.Board.Label",
       "kind": "entity",
       "pair": [
@@ -6173,7 +6173,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.Open",
       "kind": "aggregate",
       "pair": [
@@ -6195,7 +6195,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.Open",
       "kind": "aggregate",
       "pair": [
@@ -6220,7 +6220,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.AddSlip",
       "kind": "aggregate",
       "pair": [
@@ -6245,7 +6245,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.AddSlip",
       "kind": "aggregate",
       "pair": [
@@ -6269,7 +6269,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.AddSlip",
       "kind": "aggregate",
       "pair": [
@@ -6297,7 +6297,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.AddSlip",
       "kind": "aggregate",
       "pair": [
@@ -6324,7 +6324,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.Slip.Amend",
       "kind": "entity",
       "pair": [
@@ -6349,7 +6349,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.Slip.Amend",
       "kind": "entity",
       "pair": [
@@ -6376,7 +6376,7 @@
       }
     },
     {
-      "domain": "corpus/stress_domains/ledger_ordering",
+      "domain": "qa/stress_domains/ledger_ordering",
       "verb": "LedgerOrdering::Folder.Slip.Amend",
       "kind": "entity",
       "pair": [

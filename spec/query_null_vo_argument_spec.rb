@@ -5,7 +5,7 @@ require "hecks/fuzzing"
 # defaults (Value::Coercion#nil_argument). Only the refusal kind must match Rust, not the prose.
 RSpec.describe "a null required value-object-typed query argument (QualityControl BUG#36)" do
   describe "LeaseClock::Lease.Expired (single-field value object, WITH a default)" do
-    let(:domain) { File.join(InMemoryDomain::ROOT, "corpus/stress_domains/lease_clock") }
+    let(:domain) { File.join(InMemoryDomain::ROOT, "qa/stress_domains/lease_clock") }
     let(:result) do
       Hecks::Fuzzing::Replay.call(domain, [{ "query" => "LeaseClock::Lease.Expired", "args" => { "now" => nil } }])
     end

@@ -51,18 +51,9 @@ module Hecks
         covered.select { |_, names| names.uniq.size == 1 }.map { |pair, names| "#{pair} (only #{names.first})" }.sort
       end
 
-# The prompt the QA gem ships in its `qa/`; the miner reads it from the installed gem.
-#
-# @param root [String] the repository root, used when the gem's prompt is not installed
-# @return [String] the prompt template's path
-def prompt_template_path(root)
-  dir = Hecks::FrameworkBluebooks.satellite_dirs.find { |candidate| File.file?(File.join(candidate, PROMPT_TEMPLATE)) }
-  dir ? File.join(dir, PROMPT_TEMPLATE) : File.join(root, PROMPT_TEMPLATE)
-end
-
       def prompt(root, brief, count:, out_dir:)
         substitutions = prompt_substitutions(brief, count, out_dir)
-        File.read(prompt_template_path(root)).gsub(PLACEHOLDER) { substitutions.fetch(Regexp.last_match(1)) }
+        File.read(File.join(root, PROMPT_TEMPLATE)).gsub(PLACEHOLDER) { substitutions.fetch(Regexp.last_match(1)) }
       end
 
       def prompt_substitutions(brief, count, out_dir)

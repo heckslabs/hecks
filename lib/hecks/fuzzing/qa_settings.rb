@@ -23,15 +23,10 @@ module Hecks
 
       attr_reader(*EXPECTED_TYPES.keys)
 
-
-      # The dials live in the installed hecks-qa gem's `qa/settings.yml`, found by name among the
-      # satellites. Nil when no satellite carries it, so a caller without the gem gets a clear error.
-      #
-      # @return [String, nil] the settings file's path, or nil when no satellite carries one
-      def self.default_path
-        dir = Hecks::FrameworkBluebooks.satellite_dirs.find { |candidate| File.file?(File.join(candidate, "qa", "settings.yml")) }
-        dir && File.join(dir, "qa", "settings.yml")
-      end
+      # The one real file, resolved from this file's `__dir__` rather than the bluebook's: the
+      # bluebook ships in `lib/hecks/quality_control/`, the settings stay in `qa/`, and IsolatedBoot
+      # copies only `qa/bluebook`, so a bluebook-relative path would miss it.
+      DEFAULT_PATH = File.expand_path("../../../qa/settings.yml", __dir__)
 
       class << self
         # Loads and validates `qa/settings.yml` (or `path`), returning a frozen instance.
@@ -41,8 +36,7 @@ module Hecks
         # @raise [ArgumentError] if `path` does not exist, is not valid YAML, is not a
         #   YAML mapping at the top level, is missing a required key, declares an
         #   unknown key, or gives a value the wrong type for its dial
-        def load(path = default_path)
-          raise ArgumentError, "no hecks-qa gem carries qa/settings.yml; install hecks-qa" unless path
+        def load(path = DEFAULT_PATH)
           raise ArgumentError, "qa settings file not found: #{path}" unless File.file?(path)
 
           raw = begin

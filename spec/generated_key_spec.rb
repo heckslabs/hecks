@@ -15,7 +15,7 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
   before(:all) do
     root = Hecks::Corpus::ROOT
     @root = Dir.mktmpdir("generated-key")
-    %w[lib/hecks corpus/stress_domains/lease_clock corpus/stress_domains/nested_pieces corpus/stress_domains/waybill
+    %w[lib/hecks qa/stress_domains/lease_clock qa/stress_domains/nested_pieces qa/stress_domains/waybill
        rust/codegen/src rust/build/src rust/parser/src rust/src/generated/mod.rs rust/src/generated/pizzas rust/Cargo.toml
        rust-toolchain.toml Gemfile.lock].each do |path|
       FileUtils.mkdir_p(File.dirname(File.join(@root, path)))
@@ -68,7 +68,7 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
   end
 
   it "does not move with a file's modification time" do
-    path = File.join(@root, "corpus/stress_domains/lease_clock/bluebook/lease_clock.bluebook")
+    path = File.join(@root, "qa/stress_domains/lease_clock/bluebook/lease_clock.bluebook")
     before = key
 
     FileUtils.touch(path, mtime: Time.now + 3600)
@@ -85,7 +85,7 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
   it "does not move when another domain's file changes" do
     before = key
 
-    with_change("corpus/stress_domains/waybill/bluebook/waybill.bluebook") { expect(key).to eq(before) }
+    with_change("qa/stress_domains/waybill/bluebook/waybill.bluebook") { expect(key).to eq(before) }
   end
 
   it "does not move for generated output, which a bare checkout does not have", :aggregate_failures do
@@ -98,8 +98,8 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
   it "moves when a named domain's own file changes", :aggregate_failures do
     before = key
 
-    with_change("corpus/stress_domains/lease_clock/bluebook/lease_clock.bluebook") { expect(key).not_to eq(before) }
-    with_new_file("corpus/stress_domains/lease_clock/NEW.md") { expect(key).not_to eq(before) }
+    with_change("qa/stress_domains/lease_clock/bluebook/lease_clock.bluebook") { expect(key).not_to eq(before) }
+    with_new_file("qa/stress_domains/lease_clock/NEW.md") { expect(key).not_to eq(before) }
   end
 
   it "moves when a bluebook a named domain attaches changes" do
@@ -134,16 +134,16 @@ RSpec.describe Hecks::Corpus::GeneratedKey do
   it "hashes no file of an unrelated domain or bluebook", :aggregate_failures do
     files = described_class.files(subset, root: @root)
 
-    expect(files.grep(%r{\Acorpus/stress_domains/(?!lease_clock|nested_pieces)})).to be_empty
+    expect(files.grep(%r{\Aqa/stress_domains/(?!lease_clock|nested_pieces)})).to be_empty
     expect(files.grep(%r{\Alib/hecks/(bulk|deploy|site|tickets|composer)/})).to be_empty
-    expect(files).to include("corpus/stress_domains/lease_clock/bluebook/lease_clock.bluebook",
+    expect(files).to include("qa/stress_domains/lease_clock/bluebook/lease_clock.bluebook",
                              "lib/hecks/framework/bluebook/governance.bluebook")
   end
 
   # A hecksagon added to lease_clock's copy while the example runs.
   def with_hecksagon(body, &)
     text = "Hecks.hecksagon \"LeaseClock\" do\n#{body}\nend\n"
-    with_new_file("corpus/stress_domains/lease_clock/bluebook/odd.hecksagon", text, &)
+    with_new_file("qa/stress_domains/lease_clock/bluebook/odd.hecksagon", text, &)
   end
 
   def lease_clock_files = described_class.files(%w[lease_clock], root: @root)

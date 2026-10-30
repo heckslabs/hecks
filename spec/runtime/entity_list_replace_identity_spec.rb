@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 # A whole-list `sets :entries` replace must refuse an offered list that repeats an identity or
 # names none, as the append-time guard does; runs Ledger.ReplaceEntries through `Fuzzing::Replay`.
 RSpec.describe "Ledger.ReplaceEntries — a whole-list entity replace" do
-  ENTITY_LIST_REPLACE_IDENTITY_DOMAIN = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/corrections")
+  ENTITY_LIST_REPLACE_IDENTITY_DOMAIN = File.join(InMemoryDomain::ROOT, "qa/stress_domains/corrections")
 
   def open_ledger_step(reference)
     { "verb" => "Corrections::Ledger.Open", "args" => { "reference" => { "value" => reference } } }

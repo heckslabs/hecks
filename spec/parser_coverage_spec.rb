@@ -95,7 +95,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
     ]],
     # Checked against the whole corpus: each pair here appears in no tracked
     # parity bluebook (a nested `entity` inside an `entity`, for instance,
-    # appears only in corpus/stress_domains/nested_pieces, not a parity member).
+    # appears only in qa/stress_domains/nested_pieces, not a parity member).
     ["declared, and no parity corpus member exercises it", [
       %w[attaches_to Bluebook], %w[belongs_to Entity], %w[entity Entity], %w[formerly_known_as Bluebook],
       %w[has_many Aggregate], %w[has_many Entity], %w[has_one Aggregate], %w[has_one Entity],

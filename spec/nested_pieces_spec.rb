@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# Two-level nested pieces (Board, Card) from corpus/stress_domains/nested_pieces.
+# Two-level nested pieces (Board, Card) from qa/stress_domains/nested_pieces.
 # Pins NotFound, not InvariantViolation, for an address failing its own invariant at both hops.
 RSpec.describe "NestedPieces" do
-  NESTED_PIECES_ROOT = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/nested_pieces/bluebook").freeze
+  NESTED_PIECES_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces/bluebook").freeze
 
   def declare_workspace_hexagon
     Hecks.hecksagon "NestedPieces" do

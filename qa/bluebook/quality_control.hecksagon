@@ -1,0 +1,19 @@
+# Live wiring for the QualityControl ledger, persisted through PostgresEra.
+# The bluebook, its ports and its adapters ship in lib/hecks/quality_control/; this directory holds
+# what belongs to this repository's QA practice: the wiring below, the sibling quality_control.world
+# (the database name), the era's translations/ and the Governance binds in context_map.hecksagon.
+Hecks::FrameworkBluebooks.load!("QualityControl")
+
+Hecks.hecksagon "QualityControl" do
+  attaches "Governance"
+
+  QualityControl::Target.persisted_by("PostgresEra")
+  QualityControl::Sweep.persisted_by("PostgresEra")
+  QualityControl::Bug.persisted_by("PostgresEra")
+  QualityControl::Angle.persisted_by("PostgresEra")
+  QualityControl::Ticket.persisted_by("PostgresEra")
+  QualityControl::Patch.persisted_by("PostgresEra")
+  QualityControl::Improvement.persisted_by("PostgresEra")
+  QualityControl::DailyQuota.persisted_by("PostgresEra")
+  QualityControl::Clearance.persisted_by("PostgresEra")
+end

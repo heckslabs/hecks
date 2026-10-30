@@ -15,7 +15,7 @@ module Hecks
 
       # The groups the picker shows, in order, each with the ids it takes.
       GROUPS = [["Examples", %r{\Aexamples/[^/]+\z}],
-                ["Stress domains", %r{\Acorpus/stress_domains/[^/]+\z}],
+                ["Stress domains", %r{\Aqa/stress_domains/[^/]+\z}],
                 ["Hecks bluebooks", %r{\Alib/hecks/}],
                 ["Quality control", /\Aqa\z/],
                 ["Composer fixtures", %r{\Aspec/fixtures/composer/[^/]+\z}]].freeze
