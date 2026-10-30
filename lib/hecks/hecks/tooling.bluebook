@@ -1238,4 +1238,68 @@ Hecks.bluebook "Hecks" do
     on      "FuzzRun.FuzzRefused"
     trigger FuzzRun::Halt, with: { refusal: :refusal }
   end
+
+  # A port forwarded from this machine to a private host through an SSM-managed instance. The
+  # `Session` port of hecks.hecksagon answers `Open` by running the forward; nothing is journaled.
+  aggregate "Tunnel" do
+    description "A port forwarded from this machine to a private host, through an SSM-managed instance."
+
+    attribute :name,        TunnelName
+    attribute :instance,    InstanceId
+    attribute :host,        TunnelHost
+    attribute :remote_port, TunnelPort
+    attribute :local_port,  TunnelPort
+    attribute :refusal,     Note, optional: true
+    identified_by :name
+
+    value_object "TunnelName" do
+      attribute :value, String, matches: :present
+
+      invariant("a tunnel is named") { !value.to_s.empty? }
+    end
+
+    value_object "InstanceId" do
+      attribute :value, String, pattern: 'i-[0-9a-f]+'
+    end
+
+    value_object "TunnelHost" do
+      attribute :value, String, matches: :not_empty
+    end
+
+    value_object "TunnelPort", Integer
+
+    command "Open" do
+      role "Operator"
+      goal "Forward a local port to a private host through an SSM instance"
+
+      attribute :name,        TunnelName,  sets: true
+      attribute :instance,    InstanceId,  sets: true
+      attribute :host,        TunnelHost,  sets: true
+      attribute :remote_port, TunnelPort,  sets: true
+      attribute :local_port,  TunnelPort,  sets: true
+
+      emits "TunnelRequested"
+    end
+
+    command "Refuse" do
+      role "System"
+      goal "Record that the forward could not be opened, and why"
+
+      reference_to Tunnel
+      attribute :refusal, Note, sets: true
+
+      emits "TunnelStopped"
+    end
+  end
+
+  policy "RecordTheRefusal" do
+    on      "Tunnel.TunnelRefused"
+    trigger Tunnel::Refuse, with: { refusal: :refusal }
+  end
+
+  policy "ForwardTheTunnel" do
+    on      "Tunnel.TunnelRequested"
+    ask     :forward, with: { name: :name, instance: :instance, host: :host,
+                              remote_port: :remote_port, local_port: :local_port }
+  end
 end
