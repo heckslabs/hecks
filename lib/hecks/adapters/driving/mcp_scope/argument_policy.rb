@@ -18,14 +18,20 @@ module Hecks
           # and admit_path! still confines it to the checkout.
           READ_PATH_QUESTIONS = %w[inspection_run.read_source inspection_run.outline].freeze
 
+          # The line window those reads take: plain numbers that name no place, so they pass.
+          READ_WINDOW_ARGUMENTS = %w[from to top].freeze
+
           # @param args [Hash, Array, nil] the arguments as the caller gave them
           # @param label [String] how the server describes its mode, for the refusal
           # @param question [String, nil] the query asked, when the arguments are a question's
           # @raise [Runtime::TypeMismatch] on the first argument refused
           def admit!(args, label, question = nil)
-            read_path = READ_PATH_QUESTIONS.include?(snake_question(question))
+            read_question = READ_PATH_QUESTIONS.include?(snake_question(question))
             each_argument(args) do |name, value|
-              if name == "path" && read_path
+              if read_question && READ_WINDOW_ARGUMENTS.include?(name)
+                next
+              end
+              if name == "path" && read_question
                 admit_path!(name, value, label)
                 next
               end

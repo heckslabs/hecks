@@ -40,4 +40,14 @@ RSpec.describe Hecks::Adapters::Driving::McpScope::ArgumentPolicy do
     expect { described_class.admit!({ "path" => "lib/hecks/hecks/codebase.bluebook" }, label) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /never passes it on/)
   end
+
+  it "admits the line window for a read-only question" do
+    args = { "path" => "lib/hecks/hecks/codebase.bluebook", "from" => 1, "to" => 5, "top" => 20 }
+    expect { described_class.admit!(args, label, "inspection_run.read_source") }.not_to raise_error
+  end
+
+  it "still refuses from for a command that is not a read-only question" do
+    expect { described_class.admit!({ "from" => 1 }, label, "model_check_run.model_check") }
+      .to raise_error(Hecks::Runtime::TypeMismatch, /"from" is refused/)
+  end
 end
