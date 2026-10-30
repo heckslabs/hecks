@@ -10,11 +10,12 @@ version.
 
 - **Input:** a file whose first line is `Domain: <name>`, read as sentences. Indented with spaces.
   A line starting with `#` is a comment.
-- **Output (success):** the chapter's IR as `ir.json`, the same shape the Ruby runtime produces.
+- **Output (success):** Ruby-form `.bluebook` text declaring the same chapter. Hecks loads that text
+  and builds the IR; the reader does not produce IR.
 - **Output (refusal):** `file:line:column: message`, naming the line and column the sentence stopped
   fitting at, and the nearest phrase rows. A refusal is never a silent skip.
-- **Output (format):** the chapter as canonical sentences. Formatting then parsing returns the same
-  IR, and formatting twice changes nothing.
+- **Output (format):** not part of this contract. Formatting bluebook back to sentences is decided
+  in ADR 0159 ("Not decided here").
 
 ## Phrase table
 
@@ -34,12 +35,12 @@ accept exactly the slot kinds in this list and refuse any other.
 
 The reader carries no grammar of its own. A sentence matching no row is refused.
 
-## Sentence to IR mapping
+## Sentence to bluebook mapping
 
 The mapping is the contract's semantic core. A reader must produce, for each sentence form below,
-the IR node shown.
+the Ruby-form bluebook it stands for. The right-hand column names the bluebook construct.
 
-| Sentence | IR |
+| Sentence | Bluebook construct |
 |---|---|
 | `Domain: X` and an indented paragraph | domain, `vision` |
 | `Aggregate: X` and a paragraph | aggregate, `description` |
@@ -54,13 +55,14 @@ the IR node shown.
 | `Who: A or B` | `role` (first) and `roles`, only when more than one role is named |
 
 A rule or given is `Rule "<description>" holds when <condition>`: the description and the
-checkable condition both survive into the IR.
+checkable condition both survive into the bluebook.
 
 ## Conformance
 
-The corpus is `spec/fixtures/sentence/`. Each case is a sentence file and the IR it must lower to,
-byte for byte. The reader passes a case when its output equals the IR exactly, or when it refuses
-by naming the construct it has no phrase for. A refusal that drops a construct fails.
+The corpus is `spec/fixtures/sentence/`. Each case is a sentence file, the bluebook text it must
+project to byte for byte, and a hand-written Ruby twin. Hecks checks that the projected text loads
+to the same IR as the twin. The reader passes a case when its output matches exactly, or when it
+refuses by naming the construct it has no phrase for. A refusal that drops a construct fails.
 
 The known refusals are listed in `spec/sentence_coverage_spec.rb`. An entry the reader now
 handles fails that spec, so the list only shrinks.
@@ -68,7 +70,7 @@ handles fails that spec, so the list only shrinks.
 ## Versioning
 
 - The contract carries a version (`MAJOR.MINOR.PATCH`) in `contract/version.json`.
-- A phrase or mapping change bumps the minor version; a removed phrase or changed IR shape bumps
+- A phrase or mapping change bumps the minor version; a removed phrase or changed bluebook form bumps
   the major version.
 - Hecks pins the reader to a contract version in its gate. A reader that does not match the pinned
   version fails the conformance run.
