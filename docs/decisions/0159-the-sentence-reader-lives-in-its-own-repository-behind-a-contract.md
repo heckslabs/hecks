@@ -27,7 +27,7 @@ actually depends on is much smaller: the IR, and the mapping from sentences to t
    - the **mapping rules** (sentence to IR), written in `docs/sentence-contract.md`;
    - the **conformance corpus**: sentence files and the IR each must lower to, under
      `spec/fixtures/sentence/`.
-2. **The reader lives in its own repository** (working name `hecks-sentence`). It holds the
+2. **The reader lives in its own repository** (working name `hecks-gherkin`). It holds the
    lexer, the parser, the formatter, `complete`, the diagnostics and `hecks-lsp`. It depends on
    a pinned contract version, not on hecks' source tree.
 3. **Hecks keeps lowering and loading.** `Hecks::SentenceForm` and `Adapters::Folder#load_file`
