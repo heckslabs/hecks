@@ -844,6 +844,15 @@ Hecks.bluebook "Hecks" do
       emits WasmBuildRequested
     end
 
+    command "BuildParser" do
+      role "Operator"
+      goal "Build the hecks-parse binary the bluebook parser specs run, from rust/parser"
+
+      attribute :run, BuildKey, sets: true
+
+      emits ParserBuildRequested
+    end
+
     # Compiles the host binary from the installed gem's workspace for the target and stages it with
     # the domain's `.wasm` and `.ir.json` (in `.hecks/host/<target>/` unless `stage_dir` names a
     # directory), the files a container image copies in.
@@ -967,6 +976,11 @@ Hecks.bluebook "Hecks" do
   policy "CompileWasmWhenRequested" do
     on      "Build.WasmBuildRequested"
     ask     :wasm, with: { run: :run }
+  end
+
+  policy "BuildParserWhenRequested" do
+    on      "Build.ParserBuildRequested"
+    ask     :parser, with: { run: :run }
   end
 
   policy "BuildHostWhenRequested" do
