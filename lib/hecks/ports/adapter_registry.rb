@@ -18,6 +18,16 @@ module Hecks
         persistence lineage saga_store outbox read_model loading identity clock remote_dispatch
       ].freeze
 
+      # The capability a port needs from the adapter bound to it. A port not listed here has no
+      # capability to check, so its binds are verified by their adapter's own shape alone.
+      PORT_CAPABILITIES = {
+        "persistence"         => "persistence",
+        "projection"          => "read_model",
+        "loading"             => "loading",
+        "clock"               => "clock",
+        "identity_generation" => "identity"
+      }.freeze
+
       @registrations = {}
 
       module_function
@@ -52,6 +62,24 @@ module Hecks
       # @param name [String] the adapter's declared name
       # @return [Class, nil] the class registered under that name, or nil if none is
       def fetch(name) = @registrations.dig(name, :klass)
+
+      # Checks that the adapter registered under `name` provides the capability `port_name` needs
+      # (ADR 0161). An adapter that never registered, or a port with no capability, is not checked.
+      #
+      # @param name [String] the adapter's declared name
+      # @param port_name [String] the port the adapter is bound to
+      # @return [void]
+      # @raise [Runtime::WiringError] if the adapter lacks the port's capability
+      def check_capability!(name, port_name)
+        capability = PORT_CAPABILITIES[port_name]
+        registered = @registrations[name]
+        return unless capability && registered
+        return if registered[:provides].include?(capability)
+
+        raise Runtime::WiringError,
+              "#{name} is bound to the #{port_name} port, which needs the #{capability} " \
+              "capability, but it provides #{registered[:provides].join(", ")}"
+      end
 
       # @return [Hash{String => Hash}] every registered adapter, keyed by its name
       def all = @registrations.dup
