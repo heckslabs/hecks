@@ -203,7 +203,7 @@ pub fn parse_body(
             "acknowledges" => {
                 aggregate.acknowledgements.push(ir::Acknowledgement {
                     finding: super::positional_symbol(file, line, "acknowledges", &gated.args, 1)?,
-                    subject: super::named_symbol(&gated.args, "of").unwrap_or_default(),
+                    subject: super::named_symbol(&gated.args, "of"),
                     reason: super::positional_text(file, line, "acknowledges", &gated.args, 2)?,
                 });
             }
