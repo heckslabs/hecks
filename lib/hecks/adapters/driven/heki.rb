@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require "json"
 require "fileutils"
 require_relative "heki/snapshot"
@@ -188,3 +189,4 @@ module Hecks
     end
   end
 end
+Hecks::Ports::AdapterRegistry.register("Heki", Hecks::Adapters::Heki, provides: %w[persistence])

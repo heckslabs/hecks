@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require "json"
 require "fileutils"
 
@@ -135,3 +136,4 @@ module Hecks
 end
 
 require_relative "sqlite/projection"
+Hecks::Ports::AdapterRegistry.register("Sqlite", Hecks::Adapters::Sqlite, provides: %w[persistence read_model])

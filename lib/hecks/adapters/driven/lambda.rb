@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require_relative "lambda/client"
 require_relative "lambda/remote_dispatcher"
 require_relative "../../ports/query/in_memory"
@@ -106,3 +107,4 @@ module Hecks
     end
   end
 end
+Hecks::Ports::AdapterRegistry.register("Lambda", Hecks::Adapters::Lambda, provides: %w[persistence])

@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require "json"
 
 require_relative "sql_query_builder"
@@ -143,3 +144,4 @@ module Hecks
     end
   end
 end
+Hecks::Ports::AdapterRegistry.register("D1", Hecks::Adapters::D1, provides: %w[persistence])
