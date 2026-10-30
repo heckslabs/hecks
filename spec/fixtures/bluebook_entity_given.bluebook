@@ -12,9 +12,7 @@ Hecks.bluebook "BluebookEntityGiven" do
     attribute :ref, AccountRef
     reference_to Customer
 
-    value_object "AccountRef" do
-      attribute :value, String
-    end
+    value_object "AccountRef", String
 
     entity "LedgerEntry" do
       description "The FIRST declaration — a plain block, resolved locally."
@@ -36,9 +34,7 @@ Hecks.bluebook "BluebookEntityGiven" do
       end
     end
 
-    value_object "Sequence" do
-      attribute :value, String
-    end
+    value_object "Sequence", String
 
     command "Open" do
       role "Clerk"
@@ -58,9 +54,7 @@ Hecks.bluebook "BluebookEntityGiven" do
 
     attribute :ref, BoxRef
 
-    value_object "BoxRef" do
-      attribute :value, String
-    end
+    value_object "BoxRef", String
 
     entity "Visit" do
       description "The SECOND declaration — a bare reference, disambiguated with declared_by:."
@@ -82,9 +76,7 @@ Hecks.bluebook "BluebookEntityGiven" do
       end
     end
 
-    value_object "Note" do
-      attribute :value, String
-    end
+    value_object "Note", String
 
     command "Open" do
       role "Clerk"
@@ -103,9 +95,7 @@ Hecks.bluebook "BluebookEntityGiven" do
 
     attribute :status, Status
 
-    value_object "Status" do
-      attribute :value, String
-    end
+    value_object "Status", String
 
     command "Register" do
       role "Clerk"

@@ -14,10 +14,10 @@ Hecks.bluebook "Lamps" do
 
     identified_by :name
 
-    value_object("LampName")   { attribute :value, String }
-    value_object("Brightness") { attribute :value, Integer }
-    value_object("Wattage")    { attribute :value, Integer }
-    value_object("Label")      { attribute :value, String }
+    value_object "LampName", String
+    value_object "Brightness", Integer
+    value_object "Wattage", Integer
+    value_object "Label", String
 
     lifecycle :status, default: "off" do
       transition "SwitchOn"  => "on",  from: "off"

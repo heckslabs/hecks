@@ -13,13 +13,9 @@ Hecks.bluebook "Discovery" do
       attribute :value, String, pattern: '^(post|page):[a-z0-9-]+$'
     end
 
-    value_object "ResultTitle" do
-      attribute :value, String
-    end
+    value_object "ResultTitle", String
 
-    value_object "ResultSummary" do
-      attribute :value, String
-    end
+    value_object "ResultSummary", String
 
     attribute :key,         WordingKey
     attribute :title,       ResultTitle

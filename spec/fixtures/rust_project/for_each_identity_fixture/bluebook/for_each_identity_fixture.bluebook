@@ -16,9 +16,7 @@ Hecks.bluebook "ForEachIdentityFixture" do
 
     attribute :registration_id, RegistrationId
 
-    value_object "RegistrationId" do
-      attribute :value, String
-    end
+    value_object "RegistrationId", String
 
     lifecycle :status, default: "open" do
       transition "Cancel" => "cancelled", from: "open"
@@ -51,13 +49,9 @@ Hecks.bluebook "ForEachIdentityFixture" do
     attribute :refund_id, RefundId
     attribute :registration_id, RegistrationId
 
-    value_object "RefundId" do
-      attribute :value, String
-    end
+    value_object "RefundId", String
 
-    value_object "RegistrationId" do
-      attribute :value, String
-    end
+    value_object "RegistrationId", String
 
     lifecycle :status, default: "tracking" do
       transition "Settle" => "settled", from: "tracking"

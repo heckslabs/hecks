@@ -17,9 +17,7 @@ Hecks.bluebook "AttributeConstraintsFixture" do
     identified_by :name
     attribute :name, VocabularyName
 
-    value_object "VocabularyName" do
-      attribute :value, String
-    end
+    value_object "VocabularyName", String
 
     value_object "Unit" do
       attribute :value, String, one_of: ["gram", "litre"]
@@ -51,25 +49,17 @@ Hecks.bluebook "AttributeConstraintsFixture" do
     attribute :panels, list_of(Panel)
     attribute :spare,  Panel, optional: true
 
-    value_object "UnitRef" do
-      attribute :value, String
-    end
+    value_object "UnitRef", String
 
     value_object "Stamp" do
       attribute :value, String, pattern: '^[a-z]+$'
     end
 
-    value_object "Count" do
-      attribute :value, Integer
-    end
+    value_object "Count", Integer
 
-    value_object "Ratio" do
-      attribute :value, Float
-    end
+    value_object "Ratio", Float
 
-    value_object "Note" do
-      attribute :value, String
-    end
+    value_object "Note", String
 
     value_object "ShelfKey" do
       attribute :value, String, matches: :no_whitespace

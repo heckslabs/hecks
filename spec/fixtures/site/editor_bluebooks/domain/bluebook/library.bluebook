@@ -21,9 +21,7 @@ Hecks.bluebook "Library" do
       invariant("a picture has alt text") { !value.to_s.strip.empty? }
     end
 
-    value_object "MimeType" do
-      attribute :value, String
-    end
+    value_object "MimeType", String
 
     attribute :key,       PictureKey
     attribute :alt,       AltText
@@ -50,13 +48,9 @@ Hecks.bluebook "Library" do
 
     identified_by :slug
 
-    value_object "CategorySlug" do
-      attribute :value, String
-    end
+    value_object "CategorySlug", String
 
-    value_object "GroupName" do
-      attribute :value, String
-    end
+    value_object "GroupName", String
 
     attribute :slug, CategorySlug
     attribute :name, GroupName
@@ -85,13 +79,9 @@ Hecks.bluebook "Library" do
       attribute :value, String, pattern: '^(article|note):[a-z0-9-]+$'
     end
 
-    value_object "GalleryName" do
-      attribute :value, String
-    end
+    value_object "GalleryName", String
 
-    value_object "PictureRef" do
-      attribute :value, String
-    end
+    value_object "PictureRef", String
 
     attribute :key,      GalleryKey
     attribute :name,     GalleryName

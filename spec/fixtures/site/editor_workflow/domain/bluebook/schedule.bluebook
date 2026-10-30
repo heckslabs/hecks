@@ -11,9 +11,7 @@ Hecks.bluebook "Schedule" do
 
     identified_by :id
 
-    value_object "ActionId" do
-      attribute :value, String
-    end
+    value_object "ActionId", String
 
     value_object "SubjectKey" do
       attribute :value, String, pattern: '^(post|page):[a-z0-9-]+$'
@@ -28,9 +26,7 @@ Hecks.bluebook "Schedule" do
       invariant("a due time is a real moment") { value >= 0 }
     end
 
-    value_object "Outcome" do
-      attribute :value, String
-    end
+    value_object "Outcome", String
 
     attribute :id,      ActionId
     attribute :subject, SubjectKey

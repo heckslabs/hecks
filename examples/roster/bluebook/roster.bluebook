@@ -20,10 +20,10 @@ Hecks.bluebook "Roster" do
 
     identified_by :name
 
-    value_object("RosterName") { attribute :value, String }
+    value_object "RosterName", String
     # Scalar literals set into single-field value objects: the runtime rewraps a bare
     # literal into the sole field (`sets :motto, to: "all hands"`, `rank: "hand"`).
-    value_object("Motto") { attribute :value, String }
+    value_object "Motto", String
 
     value_object "Mood" do
       attribute :value, String, one_of: ["open", "busy"]
@@ -37,9 +37,9 @@ Hecks.bluebook "Roster" do
     value_object "Standing" do
       attribute :value, String, one_of: ["none", "hand", "officer"]
     end
-    value_object("MemberId")   { attribute :value, String }
-    value_object("SeatNumber") { attribute :value, Integer }
-    value_object("Age")        { attribute :value, Integer }
+    value_object "MemberId", String
+    value_object "SeatNumber", Integer
+    value_object "Age", Integer
 
     value_object "Row" do
       attribute :value, String, one_of: ["front", "back"]

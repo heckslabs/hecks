@@ -12,13 +12,9 @@ Hecks.bluebook "Ledgerbook" do
     attribute :row,  Row
     attribute :slot, Slot
 
-    value_object "Row" do
-      attribute :value, String
-    end
+    value_object "Row", String
 
-    value_object "Slot" do
-      attribute :value, String
-    end
+    value_object "Slot", String
 
     command "Stock" do
       goal "Put a shelf into service"
@@ -33,9 +29,7 @@ Hecks.bluebook "Ledgerbook" do
 
     attribute :shelf, Label
 
-    value_object "Label" do
-      attribute :value, String
-    end
+    value_object "Label", String
 
     command "Note" do
       goal "Write down which shelf was stocked"

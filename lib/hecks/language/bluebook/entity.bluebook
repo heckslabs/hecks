@@ -27,9 +27,7 @@ Hecks.bluebook "Bluebook" do
       invariant("an entity is named") { !value.to_s.empty? }
     end
 
-    value_object "EntityText" do
-      attribute :value, String
-    end
+    value_object "EntityText", String
 
     # Same shape as Aggregate's "Rule"; a value object is aggregate-scoped, so it is repeated.
     value_object "Rule" do
@@ -38,9 +36,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     # Declared here, not shared: a value object belongs to the aggregate that uses it.
-    value_object "IdentityPath" do
-      attribute :value, String
-    end
+    value_object "IdentityPath", String
 
     value_object "PieceField" do
       attribute :name,    String
@@ -67,9 +63,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     # Declaration order is a fact about the source, so the language holds it, not the store.
-    value_object "Position" do
-      attribute :value, Integer
-    end
+    value_object "Position", Integer
 
     attribute :position, Position
 

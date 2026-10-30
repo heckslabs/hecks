@@ -47,13 +47,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # A keyword of the language, or the keyword an argument belongs to.
     value_object "Word" do
@@ -591,13 +587,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
@@ -742,13 +734,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
@@ -932,13 +920,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # A `CiGate` row of the Vocabulary bluebook, by name.
     value_object "GateName" do
@@ -1190,13 +1174,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
@@ -1329,13 +1309,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # Files or directories, comma separated.
     value_object "PathList" do
@@ -1565,13 +1541,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # The name of a tool under lib/hecks/tools, such as move_disables.
     value_object "ScriptName" do
@@ -1772,13 +1744,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # Files or directories, comma separated; lib when none is named.
     value_object "PathList" do
@@ -2037,13 +2005,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
@@ -2213,13 +2177,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # How many, always at least one.
     value_object "Count" do
@@ -2638,13 +2598,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # Construct names, comma separated.
     value_object "NameList" do
@@ -2927,13 +2883,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # One word of a fact: a branch, a commit, whether a tag stands.
     value_object "Word" do
@@ -3232,13 +3184,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # A branch name, or a commit.
     value_object "Word" do
@@ -3246,9 +3194,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # How long a lane has stood behind the lane it follows, or how long its row lets it.
-    value_object "Hours" do
-      attribute :value, Integer
-    end
+    value_object "Hours", Integer
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"

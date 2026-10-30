@@ -15,21 +15,13 @@ Hecks.bluebook "DispatchOrder" do
       transition "Open" => "active", from: "new"
     end
 
-    value_object "Label" do
-      attribute :value, String
-    end
+    value_object "Label", String
 
-    value_object "Amount" do
-      attribute :value, Integer
-    end
+    value_object "Amount", Integer
 
-    value_object "PartSequence" do
-      attribute :value, Integer
-    end
+    value_object "PartSequence", Integer
 
-    value_object "Note" do
-      attribute :value, String
-    end
+    value_object "Note", String
 
     command "Open" do
       role "System"

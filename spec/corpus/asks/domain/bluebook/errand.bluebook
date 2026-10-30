@@ -12,13 +12,9 @@ Hecks.bluebook "Errand" do
     attribute :result,  Outcome, optional: true
     attribute :refusal, Outcome, optional: true
 
-    value_object "Ref" do
-      attribute :value, String
-    end
+    value_object "Ref", String
 
-    value_object "Outcome" do
-      attribute :value, String
-    end
+    value_object "Outcome", String
 
     lifecycle :status, default: "requested" do
       transition "Settle"  => "settled",   from: "requested"

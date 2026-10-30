@@ -14,9 +14,7 @@ Hecks.bluebook "Studio" do
       attribute :value, String, pattern: '[^@ ]+@[^@ ]+'
     end
 
-    value_object "MessageText" do
-      attribute :value, String
-    end
+    value_object "MessageText", String
 
     command "Submit" do
       goal "Record a visitor's inquiry"

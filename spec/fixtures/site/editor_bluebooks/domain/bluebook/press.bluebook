@@ -33,9 +33,7 @@ Hecks.bluebook "Press" do
       invariant("a category is named by its slug") { !value.to_s.empty? }
     end
 
-    value_object "ImageRef" do
-      attribute :value, String
-    end
+    value_object "ImageRef", String
 
     attribute :slug,         ArticleSlug
     attribute :title,        Headline
@@ -147,17 +145,11 @@ Hecks.bluebook "Press" do
 
     identified_by :key
 
-    value_object "NoteKey" do
-      attribute :value, String
-    end
+    value_object "NoteKey", String
 
-    value_object "Remark" do
-      attribute :value, String
-    end
+    value_object "Remark", String
 
-    value_object "Moment" do
-      attribute :value, Integer
-    end
+    value_object "Moment", Integer
 
     attribute :key,       NoteKey
     attribute :text,      Remark

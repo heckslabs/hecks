@@ -14,9 +14,7 @@ Hecks.bluebook "Bluebook" do
     # Member is nested here as an entity; `list_of(Member)` forward-references it.
     attribute :members,    list_of(Member)
 
-    value_object "RowCount" do
-      attribute :value, Integer
-    end
+    value_object "RowCount", Integer
 
     value_object "ValueObjectName" do
       attribute :value, String, matches: :present
@@ -49,14 +47,9 @@ Hecks.bluebook "Bluebook" do
     # An entity cannot declare its own value objects, so Member's pieces live here.
     # MemberPosition is distinct from Position: that orders value objects among an
     # aggregate's siblings, this orders admitted rows within one value object.
-    value_object "MemberPosition" do
-      attribute :value, Integer
-    end
+    value_object "MemberPosition", Integer
 
-    value_object "MemberText" do
-      attribute :value, String
-      # Free-form text; may be empty or numeric, so unrestricted.
-    end
+    value_object "MemberText", String
 
     value_object "Pair" do
       attribute :key,   String, matches: :present
@@ -67,9 +60,7 @@ Hecks.bluebook "Bluebook" do
 
     # Declaration order is a fact about the source, so the language holds it rather than
     # inheriting store iteration order; an unordered ask is answered in identity order.
-    value_object "Position" do
-      attribute :value, Integer
-    end
+    value_object "Position", Integer
 
     attribute :position, Position
 
@@ -141,10 +132,7 @@ Hecks.bluebook "Bluebook" do
       emits AssertionAttached
     end
 
-    value_object "ValueObjectText" do
-      attribute :value, String
-      # Free-form text; may be empty or numeric, so unrestricted.
-    end
+    value_object "ValueObjectText", String
 
     # An entity is only located by its own dotted verb, never created (see
     # EntityInterpreter#element_of), so Member is created by an append here.

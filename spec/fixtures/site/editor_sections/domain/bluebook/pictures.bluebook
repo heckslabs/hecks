@@ -19,9 +19,7 @@ Hecks.bluebook "Pictures" do
       invariant("a picture has alt text") { !value.to_s.strip.empty? }
     end
 
-    value_object "MimeType" do
-      attribute :value, String
-    end
+    value_object "MimeType", String
 
     attribute :key,       PictureKey
     attribute :alt,       AltText

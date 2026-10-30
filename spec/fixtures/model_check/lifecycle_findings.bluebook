@@ -8,9 +8,7 @@ Hecks.bluebook "LifecycleFindings" do
     attribute :number, Number
     attribute :parts,  list_of(Part)
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     # Unreachable state and dead transition from one declaration: no other transition
     # reaches "orphaned", and the transition into it has an unreachable source.
@@ -58,9 +56,7 @@ Hecks.bluebook "LifecycleFindings" do
       end
     end
 
-    value_object "Serial" do
-      attribute :value, String
-    end
+    value_object "Serial", String
   end
 
   # Terminal exempt: unlike Widget::Part's empty lifecycle, this one declares a real
@@ -70,9 +66,7 @@ Hecks.bluebook "LifecycleFindings" do
 
     attribute :code, Code
 
-    value_object "Code" do
-      attribute :value, String
-    end
+    value_object "Code", String
 
     lifecycle :status, default: "queued" do
       transition "Escalate" => "escalated", from: "flagged"
@@ -100,9 +94,7 @@ Hecks.bluebook "LifecycleFindings" do
 
     attribute :code, Code
 
-    value_object "Code" do
-      attribute :value, String
-    end
+    value_object "Code", String
 
     lifecycle :status, default: "open" do
       transition "Close" => "closed", from: "open"
@@ -131,9 +123,7 @@ Hecks.bluebook "LifecycleFindings" do
 
     attribute :code, Code
 
-    value_object "Code" do
-      attribute :value, String
-    end
+    value_object "Code", String
 
     lifecycle :status, default: "open" do
       transition "Close"  => "closed", from: "open"

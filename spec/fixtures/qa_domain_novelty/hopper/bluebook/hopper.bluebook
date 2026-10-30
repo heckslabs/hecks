@@ -6,7 +6,7 @@ Hecks.bluebook "Hopper" do
   aggregate "Client" do
     identified_by :name
     attribute :name, Name
-    value_object("Name") { attribute :value, String }
+    value_object "Name", String
 
     lifecycle :status, default: "active" do
       transition "Churn" => "churned", from: "active"
@@ -28,7 +28,7 @@ Hecks.bluebook "Hopper" do
     identified_by :reference
     reference_to Client
     attribute :reference, Reference
-    value_object("Reference") { attribute :value, String }
+    value_object "Reference", String
 
     lifecycle :stage, default: "started" do
       transition "Close" => "closed", from: "started"
@@ -56,7 +56,7 @@ Hecks.bluebook "Hopper" do
     identified_by :number
     reference_to Engagement
     attribute :number, Number
-    value_object("Number") { attribute :value, String }
+    value_object "Number", String
 
     command "Draft" do
       reference_to Engagement
