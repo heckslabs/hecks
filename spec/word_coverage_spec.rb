@@ -23,9 +23,9 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "**", "*.world"),
     # Stress domains: real domains the QA rotation sweeps, not invented
     # fixtures. spec/fixtures stays out — those are invented for one spec.
-    File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.bluebook"),
-    File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.hecksagon"),
-    File.join(InMemoryDomain::ROOT, "qa/stress_domains", "*", "**", "*.world"),
+    File.join(InMemoryDomain::ROOT, "corpus/stress_domains", "*", "**", "*.bluebook"),
+    File.join(InMemoryDomain::ROOT, "corpus/stress_domains", "*", "**", "*.hecksagon"),
+    File.join(InMemoryDomain::ROOT, "corpus/stress_domains", "*", "**", "*.world"),
     # `.port` — real, non-synthetic port declarations the framework binds
     # against (`Hecks.port "..." do verb "..." ; signal :... end` calls).
     File.join(InMemoryDomain::ROOT, "lib/hecks/ports", "*.port"),

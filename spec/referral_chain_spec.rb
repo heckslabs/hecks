@@ -3,13 +3,13 @@ require "json"
 require "open3"
 require_relative "support/rust_conformance_helpers"
 
-# qa/stress_domains/referral_chain: a Referral -> Member -> Sponsor `reference_to` chain that
+# corpus/stress_domains/referral_chain: a Referral -> Member -> Sponsor `reference_to` chain that
 # exercises one- and two-hop `given`, a two-hop `where`, and a reference re-pointed through a
 # plain value object. These pin the Ruby answers the differential harness compares Rust against.
 RSpec.describe "ReferralChain" do
   include RustConformanceHelpers
 
-  REFERRAL_CHAIN_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/referral_chain/bluebook").freeze
+  REFERRAL_CHAIN_ROOT = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/referral_chain/bluebook").freeze
 
   # The reassignment of a referral to a handle that names no member, as the Rust binary is asked.
   REFERRAL_CHAIN_STEPS = [

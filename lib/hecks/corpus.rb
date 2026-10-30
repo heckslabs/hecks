@@ -19,7 +19,7 @@ module Hecks
     # or directly in `<dir>` (see `bluebook_files`). Stemmed by directory.
     DIRECTORY_KINDS = {
       example:   "examples/*",
-      stress:    "qa/stress_domains/*",
+      stress:    "corpus/stress_domains/*",
       semantics: "spec/corpus/semantics/domains/*",
       # The Hecks domain (ADR 0080): its bluebooks share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
@@ -132,10 +132,8 @@ module Hecks
       members(*MODEL_CHECK_KINDS, root: root).reject { |member| route_for(member.path.delete_prefix("#{root}/")) }
     end
 
-    # **The ledger sweeps itself** — its own bluebook is a domain like any
-    # other, and the one rotation member that is neither an example nor a
-    # stress domain.
-    ROTATION_LEDGER = { "quality_control" => "qa/bluebook" }.freeze
+    # The QA ledger sweeps itself from the hecks-qa gem, so this checkout holds no ledger member.
+    ROTATION_LEDGER = {}.freeze
 
     # What the QA rotation is made of — every example and stress domain,
     # plus the ledger, as `reference => repo-relative path` — derived, not hand-kept.

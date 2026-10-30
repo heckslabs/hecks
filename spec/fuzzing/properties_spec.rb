@@ -17,7 +17,7 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
   # with a VO-typed appended field (sequence, CardSequence-typed) — this
   # exercises recompute_append's type-aware coercion, which bare-String
   # append targets elsewhere never do.
-  PROPERTIES_NESTED_PIECES = File.join(ROOT_DIR, "qa/stress_domains/nested_pieces")
+  PROPERTIES_NESTED_PIECES = File.join(ROOT_DIR, "corpus/stress_domains/nested_pieces")
   # The self-hosted meta-domain — Expression + Translation, in that load
   # order — pins a multi-bluebook regression: `command_for_verb` only
   # consulting whichever bluebook loaded first misread every genuine

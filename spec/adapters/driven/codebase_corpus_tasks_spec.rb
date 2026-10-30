@@ -64,7 +64,7 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
 
         expect(lines.last).to eq(key(domains: "lease_clock"))
         expect(lines[0..-2]).to all(match(/\A\h{64}  \S+\z/))
-        expect(lines.join("\n")).to include("  qa/stress_domains/lease_clock/bluebook/lease_clock.bluebook")
+        expect(lines.join("\n")).to include("  corpus/stress_domains/lease_clock/bluebook/lease_clock.bluebook")
       end
 
       it "refuses a domain that is not one, listing the valid ones" do

@@ -43,7 +43,7 @@ RSpec.describe "remove: on an entity-typed list" do
         end
 
         # THE AGGREGATE-LEVEL SHAPE THIS BUG IS ABOUT — `Ledger.Void`'s
-        # own real-corpus shape (`qa/stress_domains/corrections`):
+        # own real-corpus shape (`corpus/stress_domains/corrections`):
         # `remove:`'s single scalar target names the entity's own
         # identity field.
         command "Void" do

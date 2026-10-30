@@ -1,5 +1,5 @@
 {
-  "domain": "qa/stress_domains/nested_pieces",
+  "domain": "corpus/stress_domains/nested_pieces",
   "note": "A command attribute's declared default fills an omitted argument on an entity's command as it does on an aggregate's, in both engines, at both depths. `Board.Retitle` declares `label` with a default: board 1 is retitled with no label named and takes the default, board 2 names one and keeps it. `Board.Card.Remark`, two hops down, declares `note` with a default and the card takes it when none is named.",
   "steps": [
     {

@@ -4,7 +4,7 @@ require "hecks/fuzzing"
 # Pins `Hecks::Fuzzing::Properties.commands_respect_tenant_scope` against the tenant_ledger
 # stress domain, in both directions: it fires on a cross-tenant write, never on a same-tenant one.
 RSpec.describe "Hecks::Fuzzing::Properties.commands_respect_tenant_scope", :aggregate_failures do
-  TENANT_LEDGER_STRESS_DOMAIN = File.join(InMemoryDomain::ROOT, "qa/stress_domains/tenant_ledger")
+  TENANT_LEDGER_STRESS_DOMAIN = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/tenant_ledger")
 
   def replay(steps)
     Hecks::Fuzzing::Replay.call(TENANT_LEDGER_STRESS_DOMAIN, steps)

@@ -1,5 +1,5 @@
 {
-  "domain": "qa/stress_domains/lease_clock",
+  "domain": "corpus/stress_domains/lease_clock",
   "note": "A query that declares `needs :now` has the runtime fill the clock reading the caller left out, in both engines (ADR 0081). `Lease.Expired` is asked with no `now` after a lease is acquired to expire at second 200: each engine reads its own clock, which is long past 200, so the lease is expired in both and the rows agree whatever the exact time.",
   "steps": [
     {

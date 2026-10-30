@@ -9,7 +9,7 @@ require "hecks/fuzzing/self_consistency"
 # The defect is installed as a singleton override (`apply_to_element` is a module_function)
 # and restored in an `ensure`, as in spec/fuzzing/self_consistency_spec.rb.
 RSpec.describe "Ruby self-correctness — a defect only mutations_match_recompute can see", :aggregate_failures do
-  MUTATION_SET_NESTED_PIECES = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
+  MUTATION_SET_NESTED_PIECES = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/nested_pieces")
 
   # Seed 2 is the smallest fixed seed whose sequence dispatches `Board.Label` (a plain
   # entity-owned `:set`) with arguments that apply; every example replays the same steps.

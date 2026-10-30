@@ -6,7 +6,7 @@ require "hecks/fuzzing"
 # The constant names are distinctive because spec/load_hygiene_spec.rb refuses shared ones.
 RSpec.describe "Hecks::Fuzzing::Properties.corrections_reference_an_emitted_event", :aggregate_failures do
   CORRECTIONS_SPEC_ROOT   = InMemoryDomain::ROOT
-  CORRECTIONS_SPEC_DOMAIN = File.join(CORRECTIONS_SPEC_ROOT, "qa/stress_domains/corrections")
+  CORRECTIONS_SPEC_DOMAIN = File.join(CORRECTIONS_SPEC_ROOT, "corpus/stress_domains/corrections")
   CORRECTIONS_SPEC_BANKING = File.join(CORRECTIONS_SPEC_ROOT, "examples/banking")
 
   def bluebooks_for(domain)
@@ -72,7 +72,7 @@ RSpec.describe "Hecks::Fuzzing::Properties.corrections_reference_an_emitted_even
 
   # `Ledger.Entry.Amend` cannot be dispatched (see the header), so `history` is hand-built from
   # real objects of a zero-step boot plus a hand-written `events` array.
-  describe "the entity-level case (qa/stress_domains/corrections, hand-built history)" do
+  describe "the entity-level case (corpus/stress_domains/corrections, hand-built history)" do
     let(:bluebooks) { bluebooks_for(CORRECTIONS_SPEC_DOMAIN) }
 
     # A history of `[event name, ledger id]` pairs, each an event on a Corrections::Ledger.

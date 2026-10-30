@@ -94,7 +94,7 @@ Two chapters are named Translation today; Hecks attaches only the language's (se
 Some chapters stay out on purpose:
 
 - The framework members (Governance, Identity, Privacy, Compliance, ConsoleSettings) are libraries application domains attach. Hecks uses Governance the way QualityControl does; it does not own them.
-- The QA stress domains under `qa/stress_domains/` are subjects QualityControl rotates through, not part of the framework.
+- The QA stress domains under `corpus/stress_domains/` are subjects QualityControl rotates through, not part of the framework.
 - Test fixtures (`rust/parser/tests/fixtures/`, the `Fixture*` chapters) are inputs to specs.
 
 The one `hecks` launcher reaches every chapter's verbs, for example `hecks quality_control log_bug` or `hecks deploy lint`. No chapter gets a launcher of its own.

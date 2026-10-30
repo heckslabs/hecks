@@ -11,7 +11,7 @@ module Hecks
       # purpose and never packaged, so it is not counted.
       class CleanTree
         # The repository paths the gem packages.
-        SHIPPED = %w[lib rust exe qa/settings.yml].freeze
+        SHIPPED = %w[lib rust exe].freeze
 
         # Ignored build output, which the gem leaves out.
         BUILD_OUTPUT = %r{(\A|/)target/?\z}

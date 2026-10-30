@@ -1,9 +1,9 @@
 require "spec_helper"
 
 # Pins which refusal wins, entity addressing or argument invariant (ADR 0037); see
-# qa/stress_domains/ledger_ordering/NOTES.md.
+# corpus/stress_domains/ledger_ordering/NOTES.md.
 RSpec.describe "LedgerOrdering" do
-  LEDGER_ORDERING_ROOT = File.join(InMemoryDomain::ROOT, "qa/stress_domains/ledger_ordering/bluebook").freeze
+  LEDGER_ORDERING_ROOT = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/ledger_ordering/bluebook").freeze
 
   def declare_ledger_ordering_hecksagon
     Hecks.hecksagon "LedgerOrdering" do

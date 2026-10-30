@@ -14,7 +14,7 @@ require_relative "support/kernel_input_fixtures"
 RSpec.describe Hecks::RustBuild::KernelInput do
   let(:rust_dir) { Dir.mktmpdir("hecks-kernel-input") }
 
-  def domain = "qa/stress_domains/lease_clock"
+  def domain = "corpus/stress_domains/lease_clock"
 
   def steps = [{ "verb" => "LeaseClock::Lease.Register", "args" => { "key" => { "value" => "a" } } }]
 
@@ -53,7 +53,7 @@ RSpec.describe Hecks::RustBuild::KernelInput do
   end
 
   it "lists an entity's commands, and a nested entity's, under their full verb path" do
-    expect(described_class.defaults_for("qa/stress_domains/nested_pieces")).to eq(
+    expect(described_class.defaults_for("corpus/stress_domains/nested_pieces")).to eq(
       "#{board}.Retitle"     => { "label" => { "value" => "untitled" } },
       "#{board}.Card.Remark" => { "note" => { "text" => "none" } }
     )
@@ -84,14 +84,14 @@ RSpec.describe Hecks::RustBuild::KernelInput do
     before { allow(Hecks::RustBuild).to receive(:rust_dir).and_call_original }
 
     it "reads the same tables from the generated lease_clock IR", :aggregate_failures do
-      real = File.join(InMemoryDomain::ROOT, "qa/stress_domains/lease_clock")
+      real = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/lease_clock")
 
       expect(described_class.defaults_for(real)).to eq("LeaseClock::Lease.Reap" => { "grace" => { "value" => 0 } })
       expect(described_class.tables_for(real)["query_needs"].keys).to eq(["LeaseClock::Lease.Expired"])
     end
 
     it "reads the same nested paths from the generated nested_pieces IR" do
-      real = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
+      real = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/nested_pieces")
 
       expect(described_class.defaults_for(real).keys).to contain_exactly("#{board}.Retitle", "#{board}.Card.Remark")
     end

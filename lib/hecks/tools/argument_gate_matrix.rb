@@ -25,8 +25,8 @@ module Hecks
         examples/pizzas
         examples/roster
         examples/chess
-        qa/stress_domains/nested_pieces
-        qa/stress_domains/ledger_ordering
+        corpus/stress_domains/nested_pieces
+        corpus/stress_domains/ledger_ordering
       ].freeze
 
       MATRIX_FILE = "spec/corpus/argument_gate_order/matrix.json"

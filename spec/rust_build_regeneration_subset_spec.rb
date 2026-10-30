@@ -50,7 +50,7 @@ RSpec.describe "regenerating some of the corpus's domains", :io do
   end
 
   it "runs the named domains in the corpus's order whatever order they were named in" do
-    expect(@domains).to eq(%w[qa/stress_domains/lease_clock qa/stress_domains/nested_pieces])
+    expect(@domains).to eq(%w[corpus/stress_domains/lease_clock corpus/stress_domains/nested_pieces])
   end
 
   it "leaves mod.rs and Cargo.toml byte-identical to the committed ones", :aggregate_failures do

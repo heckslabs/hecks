@@ -31,13 +31,12 @@ Gem::Specification.new do |spec|
   # spec/gemspec_packaging_spec.rb holds each of these.
   # `prebuilt/` ships when the release workflow has built it: the syntax-boot and verdict caches for
   # this exact `lib/`, so a first run after `gem install` reads them instead of judging every bluebook.
-  # `qa/settings.yml` ships too: `Fuzzing::QaSettings` reads its dials when the Hecks bluebook boots.
-  # `examples/pizzas` ships, without its glossary, because it is the domain `hecks console` opens when
+  #   # `examples/pizzas` ships, without its glossary, because it is the domain `hecks console` opens when
   # given none, so the quickstart works from a plain `gem install`.
   # Each crate's own `rust/<crate>/tests/` (fixtures, corpus tests) stays out with `rust/tests/`.
   not_shipped = %r{\A(rust/(tests/|[^/]+/tests/|src/generated/|(.+/)?target/)|examples/pizzas/glossary/)}
   spec.files = Dir.chdir(__dir__) do
-    shipped = %w[lib rust exe/hecks qa/settings.yml examples/pizzas]
+    shipped = %w[lib rust exe/hecks examples/pizzas]
     tracked = begin
       listed = IO.popen(["git", "ls-files", "-z", "--", *shipped], err: File::NULL, &:read)
       Process.last_status.success? ? listed.split("\0") : []
@@ -46,7 +45,7 @@ Gem::Specification.new do |spec|
     end
     candidates = if tracked.empty?
                    Dir.glob("lib/**/*", File::FNM_DOTMATCH) + Dir.glob("rust/**/*", File::FNM_DOTMATCH) +
-                     Dir.glob("examples/pizzas/**/*", File::FNM_DOTMATCH) + ["exe/hecks", "qa/settings.yml"]
+                     Dir.glob("examples/pizzas/**/*", File::FNM_DOTMATCH) + ["exe/hecks"]
                  else
                    tracked
                  end

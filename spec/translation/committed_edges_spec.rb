@@ -62,7 +62,7 @@ RSpec.describe "the committed translation edges" do
 
   it "finds the committed edges (the discovery itself is not silently empty)" do
     expect(self.class.domains_with_edges.map { |domain| domain.delete_prefix("#{InMemoryDomain::ROOT}/") })
-      .to include("examples/pizzas", "qa", "examples/directory")
+      .to include("examples/pizzas", "examples/directory")
   end
 
   domains_with_edges.each do |domain|

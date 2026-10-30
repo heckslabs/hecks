@@ -8,8 +8,8 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
   PIZZAS            = File.join(InMemoryDomain::ROOT, "examples/pizzas")
   ADVERSARY_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking")
   CHESS             = File.join(InMemoryDomain::ROOT, "examples/chess")
-  NESTED_PIECES     = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")
-  LEDGER_ORDERING   = File.join(InMemoryDomain::ROOT, "qa/stress_domains/ledger_ordering")
+  NESTED_PIECES     = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/nested_pieces")
+  LEDGER_ORDERING   = File.join(InMemoryDomain::ROOT, "corpus/stress_domains/ledger_ordering")
 
   # Every `[step, mutation]` pair across a few seeds, grouped by kind. Fraction 1.0 mutates
   # every step that can be, so "each kind appears" is not luck.
