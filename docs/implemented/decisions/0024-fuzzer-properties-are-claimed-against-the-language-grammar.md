@@ -1,6 +1,6 @@
 # A fuzzer property declares which language feature it covers, and the meta-domain enforces that every feature is claimed
 
-**Status:** Accepted — implemented. `lib/hecks/properties.rb` (`Properties::FEATURE_COVERAGE`), `spec/fuzzing/meta_domain_coverage_spec.rb`.
+**Status:** Accepted — implemented. `lib/hecks/fuzzing/properties.rb` (`Properties::FEATURE_COVERAGE`), `spec/fuzzing/meta_domain_coverage_spec.rb`.
 
 ## Context
 

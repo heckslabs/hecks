@@ -251,7 +251,7 @@ and — separately, because it costs a second full replay — whether two
 runs of the identical steps produced byte-identical histories.
 
 The declared properties live in `Hecks::Fuzzing::Properties`; the list is
-`PROPERTY_NAMES` in `lib/hecks/properties/parts/catalog.rb`, with
+`PROPERTY_NAMES` in `lib/hecks/fuzzing/properties/catalog.rb`, with
 `FEATURE_COVERAGE` saying which language feature each one holds. A few of
 them: `lifecycle_values_are_declared` (every lifecycle field a replay leaves
 an instance holding is one of that aggregate's own declared states),

@@ -62,7 +62,7 @@ Hecks.world "Hecks" do
                                       CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release ScriptRun
                                       SyntaxBootCache],
                        newcomer: %w[launch.init launch.interview operation.open_console],
-                       bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer],
+                       bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
                        legacy: %w[run docs narrate ir stores model_check smoke_test

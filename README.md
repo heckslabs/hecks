@@ -508,7 +508,7 @@ Only what this repository actually does today, checked, not aspired to:
   saga advances that follow declared handlers, query answers that match
   a reference implementation, role checks that agree with grants,
   aggregations that match a recompute, and more (the list is
-  `PROPERTY_NAMES` in `lib/hecks/properties/parts/catalog.rb`) — and,
+  `PROPERTY_NAMES` in `lib/hecks/fuzzing/properties/catalog.rb`) — and,
   the one that actually matters for an event-sourced system, **replaying the same
   steps against a fresh boot produces byte-identical history.** This
   runs against the Memory adapter by default, can steer seeds by real
