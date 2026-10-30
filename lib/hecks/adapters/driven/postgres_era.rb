@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require "json"
 
 require_relative "../../ports/persistence/plugins/era"
@@ -206,3 +207,4 @@ module Hecks
     end
   end
 end
+Hecks::Ports::AdapterRegistry.register("PostgresEra", Hecks::Adapters::PostgresEra, provides: %w[persistence lineage])

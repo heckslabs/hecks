@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 module Hecks
   module Adapters
     # The real `clock` fulfillment — the machine's own time, in seconds.
@@ -15,3 +16,4 @@ module Hecks
     end
   end
 end
+Hecks::Ports::AdapterRegistry.register("SystemClock", Hecks::Adapters::SystemClock, provides: %w[clock])

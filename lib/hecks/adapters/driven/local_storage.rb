@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require_relative "../../ports/persistence/append_only"
 require_relative "../../ports/query/in_memory"
 require_relative "in_memory_ordering"
@@ -156,3 +157,4 @@ module Hecks
     end
   end
 end
+Hecks::Ports::AdapterRegistry.register("LocalStorage", Hecks::Adapters::LocalStorage, provides: %w[persistence])
