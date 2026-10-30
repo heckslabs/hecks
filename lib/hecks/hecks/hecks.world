@@ -45,6 +45,9 @@ Hecks.world "Hecks" do
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
+                                  test_suite_run.run_spec_example test_suite_run.run_suite
+                                  test_suite_run.run_changed test_suite_run.stress_concurrency
+                                  test_suite_run.run_cargo_tests
                                   service_roll.run box_roll.run data_copy.restore
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy
