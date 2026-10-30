@@ -144,10 +144,11 @@ Hecks.bluebook "Hecks" do
       emits ProjectionsRefreshRequested
     end
 
-    # Redelivers what a domain's outbox left behind. A row never claimed is always safe to redeliver. A
-    # row claimed before a crash and never settled may or may not have run its effect, so it is only
-    # named (on stderr, as at boot) unless `claimed.value=true` says the effect is known not to have run,
-    # for every claimed row, or `row.value=<delivery id>` says it for that one row alone.
+    # Redelivers what a domain's outbox left behind. A row never claimed is always safe to
+    # redeliver. A row claimed before a crash and never settled may or may not have run its effect,
+    # so it is only named (on stderr, as at boot) unless `claimed.value=true` says the effect is
+    # known not to have run, for every claimed row, or `row.value=<delivery id>` says it for that
+    # one row alone.
     command "RedriveOutbox" do
       role "Operator"
       goal "Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled"
@@ -165,8 +166,9 @@ Hecks.bluebook "Hecks" do
       emits OutboxRedriveRequested
     end
 
-    # Settles one stalled claimed row as failed without running its effect, for a row whose effect is
-    # known to have landed or that nobody wants run. It never redelivers; `RedriveOutbox` does that.
+    # Settles one stalled claimed row as failed without running its effect, for a row whose effect
+    # is known to have landed or that nobody wants run. It never redelivers; `RedriveOutbox` does
+    # that.
     command "AbandonOutboxRow" do
       role "Operator"
       goal "Settle one stalled outbox row as failed, naming it by its delivery id, without running it"
@@ -309,7 +311,8 @@ Hecks.bluebook "Hecks" do
     # A launcher answers once, so a follow is a bounded poll: it answers the entries past `since`
     # and a `cursor` to pass as the next `since`, waiting up to `wait` seconds for the first one.
     # `hecks follow <domain> --stream` asks again from each cursor and prints every entry as it
-    # arrives, until interrupted (the world's `launcher` setting lists the question under `streams`).
+    # arrives, until interrupted (the world's `launcher` setting lists the question under
+    # `streams`).
     query "Follow" do
       description "A domain's persisted event log past a cursor, for tailing it call by call."
       attribute :domain,    Subject
@@ -1263,7 +1266,7 @@ policy "RecordTheEra" do
       attribute :text, String
     end
 
-    # The reads that used to write. None holds an era or names one: a domain that holds no era
+    # The reads of the era ledger. None holds an era or names one: a domain that holds no era
     # answers "no era held yet", and `hold_first` is the only thing that holds the first.
     query "ScaffoldTranslation" do
       description "The edge file that would lead the latest held era to the current shape."
