@@ -40,8 +40,8 @@ RSpec.describe "a sum over a list, read by hecks-parse", :io do
   let(:path) { File.join(scratch, "cart.bluebook").tap { |file| File.write(file, CART_WITH_SUM) } }
   let(:read) { Open3.capture3(binary, "bluebook", "--bluebook", "Cart", path) }
 
-  # The binary comes from the Build command's parser ask, not a hand build, so a missing one is built
-  # here and a failed build fails the example.
+  # The binary comes from the Build command's parser ask, not a hand build, so a missing one is
+  # built here and a failed build fails the example.
   before { Hecks::Adapters::RustToolchain.new.parser unless File.exist?(binary) }
 
   after { FileUtils.remove_entry(scratch) }
