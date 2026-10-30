@@ -1,0 +1,23 @@
+# Bluebooks are Ruby files, but declarations: only the cops that hold for a declaration run here.
+# The general Ruby cops (documentation, layout of method bodies, and so on) do not apply to a
+# bluebook, so they are off. `spec/bluebook_rubocop_spec.rb` runs this config over the bluebooks,
+# so the gate's rspec step enforces it.
+#
+# Sentence-form bluebooks are not Ruby and are not listed.
+AllCops:
+  DisabledByDefault: true
+  NewCops: disable
+  TargetRubyVersion: 3.3
+  Include:
+    - "**/*.bluebook"
+  Exclude:
+    - "spec/fixtures/sentence/**/*.bluebook"
+    - "spec/fixtures/sentence_examples/**/*.bluebook"
+    - "rust/**/*"
+    - "vendor/**/*"
+
+require:
+  - ./lib/rubocop/cop/hecks/inline_single_field_value_object
+
+Hecks/InlineSingleFieldValueObject:
+  Enabled: true
