@@ -48,13 +48,11 @@ pub fn parse_body(
                 )?);
             }
             "ends_on" => {
-                pm.ends_on = Some(super::positional_event_name_ref(
-                    file,
-                    line,
-                    "ends_on",
-                    &gated.args,
-                    1,
-                )?);
+                // A process manager can end on several events: `ends_on` is the first, as the
+                // Ruby builder's `ends_on` reads `endings.first`.
+                let event = super::positional_event_name_ref(file, line, "ends_on", &gated.args, 1)?;
+                pm.ends_on.get_or_insert_with(|| event.clone());
+                pm.endings.push(event);
             }
             "transition" => {
                 for handler in parse_transition(file, lines, pos, line, &gated)? {
