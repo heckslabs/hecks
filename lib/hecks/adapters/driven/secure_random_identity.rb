@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require "securerandom"
 
 module Hecks
@@ -15,3 +16,4 @@ module Hecks
     end
   end
 end
+Hecks::Ports::AdapterRegistry.register("SecureRandomIdentity", Hecks::Adapters::SecureRandomIdentity, provides: %w[identity])

@@ -1,3 +1,4 @@
+require_relative "../../ports/adapter_registry"
 require "json"
 
 require_relative "sql_query_builder"
@@ -148,3 +149,4 @@ module Hecks
 end
 
 require_relative "postgres/projection"
+Hecks::Ports::AdapterRegistry.register("Postgres", Hecks::Adapters::Postgres, provides: %w[persistence read_model])
