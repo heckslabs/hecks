@@ -19,4 +19,6 @@ module ScratchDirectory
   end
 end
 
-RSpec.configure { |config| config.extend ScratchDirectory }
+# Extended onto the example group base class, not the configuration: RSpec.reset, which the
+# launcher's runner calls between runs in one process, clears configuration, but not class methods.
+RSpec::Core::ExampleGroup.extend(ScratchDirectory)
