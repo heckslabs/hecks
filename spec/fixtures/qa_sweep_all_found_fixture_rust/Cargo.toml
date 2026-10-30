@@ -1,0 +1,19 @@
+# Standalone fixture crate owned by spec/qa_sweep_all_spec.rb, kept outside `rust/`'s workspace.
+# `QA_SWEEP_RUST_DIR` points hecks quality_control ask run at it.
+#
+# One feature per fixture domain, named exactly like its fixture directory
+# (`RustConformanceHelpers#build_rust_for` matches on it); src/main.rs branches on each.
+[features]
+qa_sweep_all_found_fixture = []
+qa_sweep_all_dry_run_fixture = []
+
+[package]
+name = "qa_sweep_all_found_fixture_rust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Named "rust" because `RustConformanceHelpers#build_and_pin` always looks for target/debug/rust.
+[[bin]]
+name = "rust"
+path = "src/main.rs"

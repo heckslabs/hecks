@@ -1,0 +1,181 @@
+require "hecks"
+require "hecks/ports/persistence/plugins/era"
+require_relative "support/postgres_probe"
+require_relative "support/qa_ledger_fixture"
+require "open3"
+require "hecks/quality_control/cli/child"
+require "fileutils"
+require "pathname"
+
+# `qa_sweep`'s `concurrency` mode against a real subprocess and disposable fixtures; the
+# lock mechanics live in `spec/fuzzing/concurrent_dispatch_spec.rb`, so this proves only wiring.
+RSpec.describe "qa_sweep concurrency", :io do
+  # Named for the process, so two runs on one Postgres (parallel sessions) never drop each
+  # other's databases mid-spec.
+  QA_SWEEP_CONCURRENCY_LEDGER_DATABASE = "hecks_qa_sweep_concurrency_spec_#{Process.pid}".freeze
+  QA_SWEEP_CONCURRENCY_TARGET_DATABASE = "hecks_qa_sweep_concurrency_target_spec_#{Process.pid}".freeze
+
+  # Same smallest domain as `spec/fuzzing/concurrent_dispatch_spec.rb`, which uses the real lock.
+  CONCURRENCY_TARGET_BLUEBOOK = <<~RUBY.freeze
+    Hecks.bluebook "QaSweepConcurrencyFixtureTarget" do
+      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's concurrency mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
+
+      aggregate "Account" do
+        identified_by :number
+
+        attribute :number,  AccountNumber
+        attribute :balance, Money, default: { cents: 0 }
+
+        value_object "AccountNumber" do
+          attribute :value, String
+        end
+
+        value_object "Money" do
+          attribute :cents, Integer
+          invariant("a balance is never negative") { cents >= 0 }
+        end
+
+        command "Open" do
+          attribute :number,  AccountNumber
+          attribute :balance, Money
+
+          sets :number
+          sets :balance
+
+          emits "AccountOpened"
+        end
+
+        command "Debit" do
+          reference_to Account
+          attribute :amount, Money
+
+          given("the balance covers it") { balance.cents >= amount.cents }
+
+          sets :balance, decrement: :amount
+
+          emits "AccountDebited"
+        end
+      end
+    end
+  RUBY
+
+  CONCURRENCY_TARGET_HECKSAGON = <<~RUBY.freeze
+    Hecks.hecksagon "QaSweepConcurrencyFixtureTarget" do
+      QaSweepConcurrencyFixtureTarget::Account.persisted_by("PostgresEra")
+    end
+  RUBY
+
+  def concurrency_target_world
+    <<~RUBY
+      Hecks.world "QaSweepConcurrencyFixtureTarget" do
+        persisted_by("PostgresEra") do
+          database "postgres://localhost/#{QA_SWEEP_CONCURRENCY_TARGET_DATABASE}"
+          allow_superuser true
+        end
+      end
+    RUBY
+  end
+
+  before(:all) do
+    skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
+
+    @fixture_root = Dir.mktmpdir("qa_sweep_concurrency_spec")
+    @fixture_dir  = File.join(@fixture_root, "bluebook")
+    FileUtils.mkdir_p(@fixture_dir)
+    QaLedgerFixture.write_files(@fixture_dir, QA_SWEEP_CONCURRENCY_LEDGER_DATABASE)
+
+    # Not named after the mode: the basename is printed on every line, so a mode-name prefix
+    # would make stdout greps pass whether or not the mode ran.
+    @target_domain_dir = Dir.mktmpdir("qa-sweep-cc-target-", InMemoryDomain::ROOT)
+    File.write(File.join(@target_domain_dir, "fixture.bluebook"), CONCURRENCY_TARGET_BLUEBOOK)
+    File.write(File.join(@target_domain_dir, "fixture.hecksagon"), CONCURRENCY_TARGET_HECKSAGON)
+    File.write(File.join(@target_domain_dir, "fixture.world"), concurrency_target_world)
+    @target_domain_relpath =
+      Pathname.new(@target_domain_dir).relative_path_from(Pathname.new(InMemoryDomain::ROOT)).to_s
+
+    admin = PG.connect(dbname: "postgres")
+    admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_CONCURRENCY_LEDGER_DATABASE} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{QA_SWEEP_CONCURRENCY_LEDGER_DATABASE}")
+    admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_CONCURRENCY_TARGET_DATABASE} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{QA_SWEEP_CONCURRENCY_TARGET_DATABASE}")
+    admin.close
+    QaLedgerRole.provision!(QA_SWEEP_CONCURRENCY_LEDGER_DATABASE)
+  end
+
+  after(:all) do
+    next unless PostgresProbe.available?
+
+    admin = PG.connect(dbname: "postgres")
+    admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_CONCURRENCY_LEDGER_DATABASE} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{QA_SWEEP_CONCURRENCY_TARGET_DATABASE} WITH (FORCE)")
+    admin.close
+    FileUtils.remove_entry(@fixture_root)
+    FileUtils.remove_entry(@target_domain_dir)
+  end
+
+  before { reset_schemas! }
+
+  def reset_schemas!
+    ledger = PG.connect(dbname: QA_SWEEP_CONCURRENCY_LEDGER_DATABASE)
+    ledger.exec("DROP SCHEMA public CASCADE")
+    ledger.exec("CREATE SCHEMA public")
+    ledger.close
+    QaLedgerRole.own_public!(QA_SWEEP_CONCURRENCY_LEDGER_DATABASE)
+
+    target = PG.connect(dbname: QA_SWEEP_CONCURRENCY_TARGET_DATABASE)
+    target.exec("SET client_min_messages = warning")
+    target.exec("DROP SCHEMA public CASCADE")
+    target.exec("CREATE SCHEMA public")
+    target.close
+  end
+
+  def run_qa_sweep(*args)
+    Open3.capture3(
+      { "QA_SWEEP_DOMAIN_DIR" => @fixture_dir },
+      *Hecks::QualityControlCli::Child.argv(InMemoryDomain::ROOT, "qa_sweep", *args),
+      chdir: InMemoryDomain::ROOT
+    )
+  end
+
+  def identify_target!(reference, path)
+    Hecks.boot(@fixture_dir)
+    QualityControl::Target.identify!(reference: { value: reference }, path: { value: path })
+  end
+
+  # Identifies a fresh target and runs a concurrency-only sweep on it; returns the process result.
+  def run_concurrency_sweep(reference, seeds:, steps:)
+    identify_target!(reference, @target_domain_relpath)
+    run_qa_sweep(reference, "--modes", "concurrency", "--seeds", seeds, "--steps", steps)
+  end
+
+  def recorded_sweep
+    Hecks.boot(@fixture_dir)
+    QualityControl::Sweep.all.first
+  end
+
+  it "runs its own seat, one [concurrency] Check per seed, and reports clean when the real lock holds", :aggregate_failures do
+    stdout, stderr, status = run_concurrency_sweep("concurrency", seeds: "1", steps: "10")
+
+    expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
+    expect(stdout).to include("resolved modes: concurrency (capabilities=postgres_era,sqlite)", "seed 1: held (concurrency)",
+                              "clean — concurrency concluded and released.")
+  end
+
+  it "records the sweep it ran, with a [concurrency] Check per seed", :aggregate_failures do
+    run_concurrency_sweep("concurrency", seeds: "1", steps: "10")
+    sweep = recorded_sweep
+
+    expect(sweep).not_to be_nil
+    expect(sweep.checks.map { |c| c[:subject][:value] }).to include(a_string_starting_with("[concurrency]"))
+  end
+
+  # Asking for more seeds than the cap yields exactly the cap, with a note saying so.
+  it "clamps --seeds down to QualityControlDials::CONCURRENCY_SEED_CAP", :aggregate_failures do
+    stdout, _stderr, status = run_concurrency_sweep("concurrency-cap", seeds: "50", steps: "5")
+
+    expect(status.exitstatus).to eq(0)
+    expect(stdout).to include("note: --seeds 50 exceeds QualityControlDials::CONCURRENCY_SEED_CAP", "resolved depth: seeds=3",
+                              "seed 3: held (concurrency)")
+    expect(stdout).not_to include("seed 4:")
+  end
+end

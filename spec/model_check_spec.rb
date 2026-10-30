@@ -163,6 +163,16 @@ RSpec.describe "the model checker" do
     it "raises no finding kind outside the ones this fixture deliberately triggers" do
       expect(findings.map(&:kind).uniq.sort).to eq(%i[deaf_policy unknown_trigger])
     end
+
+    # A policy triggering an `asks`/`tells` port operation (three segments) is not an
+    # `unknown_trigger`; the QualityControl bluebook's FileWhenSubmitted is the real case.
+    it "does not flag a policy triggering a real, declared port operation (BUG#23)" do
+      quality_control = File.join(ROOT_DIR, "lib/hecks/quality_control/quality_control.bluebook")
+      real_findings = call_model_check(boot(quality_control))
+
+      unknown_triggers = real_findings.select { |f| f.kind == :unknown_trigger }
+      expect(unknown_triggers.map(&:subject)).not_to include("FileWhenSubmitted", "AskOnceMore")
+    end
   end
 
   describe "relationship findings (Context Mapping)" do

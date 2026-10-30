@@ -3,7 +3,7 @@
 require "rbconfig"
 require "hecks/tools"
 require "hecks/rust_build"
-require "hecks/fuzzing/quality_control_child"
+require "hecks/quality_control/cli/child"
 
 # The repository's own tools as a child process, for a spec that needs a real process (a
 # separate boot, its own exit status) without a launcher script to start.

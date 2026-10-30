@@ -1,0 +1,131 @@
+require "spec_helper"
+require "hecks/quality_control/adapters/sweep_tools"
+
+# The `qa_*` scripts as queries of the QualityControl bluebook: each is answered by a `*Tools`
+# port whose adapter runs the script's own command in a child process and hands back what it
+# printed. What needs the ledger's Postgres is proven by the `:io` specs that run the scripts.
+RSpec.describe "the QualityControl tool queries" do
+  NOVELTY_FIXTURES_DIR = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_domain_novelty").freeze
+
+  before(:all) do
+    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @declaration = @hecks.registry.bluebook("QualityControl")
+  end
+
+  def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
+
+  # Every query the bluebook answers by a port, with the port's name and its aggregate.
+  def tool_queries
+    @declaration.aggregates.flat_map do |aggregate|
+      aggregate.queries.filter_map do |query|
+        port = aggregate.query_binding(query.name)
+        [aggregate, query, port.name] if port
+      end
+    end
+  end
+
+  it "answers thirteen scripts by four ports", :aggregate_failures do
+    expect(tool_queries.map { |_, _, port| port }.uniq.sort)
+      .to eq(%w[AngleTools ClearanceTools SweepTools TargetTools])
+    expect(tool_queries.size).to eq(13)
+  end
+
+  # The class of the one adapter bound to the port.
+  def adapter_class_for(port)
+    adapters = @hecks.registry.adapters.values.select { |adapter| adapter.port == port }
+    expect(adapters.size).to eq(1), "#{port} is bound to #{adapters.map(&:name)}"
+    Hecks::Adapters.const_get(adapters.first.name)
+  end
+
+  it "binds one adapter to each port, and the adapter has a method for every query it answers", :aggregate_failures do
+    tool_queries.each do |aggregate, query, port|
+      klass = adapter_class_for(port)
+      answered = "#{klass} answers #{aggregate.hecks_name}.#{query.name}"
+      expect(klass.method_defined?(Hecks::Naming.snake(query.name))).to be(true), answered
+    end
+  end
+
+  it "runs the novelty gate through the launcher and answers its report", :aggregate_failures, :process do
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "hopper")}",
+                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "baseline")}")
+
+    expect(status).to eq(0), out
+    expect(out).to include("earns its place", "Hopper::Proposal")
+  end
+
+  it "answers a judgment that is not a pass, as the command does: no new pair is still an answer", :aggregate_failures,
+     :process do
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "baseline")}",
+                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "hopper")}")
+
+    expect(status).to eq(0), out
+    expect(out).to include("no new pair")
+  end
+
+  it "refuses with the command's own report when it ends in an error", :aggregate_failures, :process do
+    out, status = launch("quality_control", "target.judge_novelty", "domain=#{File.join(NOVELTY_FIXTURES_DIR, "flat.bluebook")}",
+                         "arguments=--against #{File.join(NOVELTY_FIXTURES_DIR, "baseline")}")
+
+    expect(status).to eq(1)
+    expect(out).to include("not shaped like a stress domain", "ended with status 2")
+  end
+
+  it "answers help for the sweep by asking for it, qualified: `sweep.run`", :aggregate_failures do
+    out, status = launch("quality_control", "ask", "sweep.run", "--help")
+
+    expect(status).to eq(0)
+    expect(out).to include("reads QualityControl::Sweep.Run", "arguments.value")
+  end
+
+  describe Hecks::Adapters::QaTool do
+    let(:tool) { Hecks::Adapters::SweepTools.new(root: "/repo") }
+
+    def ended_with(status, output = "report\n")
+      allow(Open3).to receive(:capture2e).and_return([output, instance_double(Process::Status, exitstatus: status)])
+    end
+
+    it "answers what the command printed when it ends with an answering status" do
+      ended_with(2, "FOUND SOMETHING\n")
+
+      expect(tool.tick).to eq(text: "FOUND SOMETHING\n")
+    end
+
+    it "refuses with the report and the status when it ends with any other" do
+      ended_with(1, "the ledger did not boot\n")
+
+      expect { tool.tick }.to raise_error(Hecks::Adapters::QaTool::ToolRefused, /the ledger did not boot.*status 1/m)
+    end
+
+    it "refuses as a GivenNotMet, so the launcher reports it, though no guard description quotes it" do
+      ended_with(1, "the ledger did not boot\n")
+
+      expect { tool.tick }.to raise_error(Hecks::Runtime::GivenNotMet)
+    end
+
+    # Answers every command with an empty report and status 0; records each [argv, options] asked.
+    def recorded_commands
+      calls = []
+      allow(Open3).to receive(:capture2e) do |*argv, **options|
+        calls << [argv, options]
+        ["", instance_double(Process::Status, exitstatus: 0)]
+      end
+      calls
+    end
+
+    it "hands the command its arguments, a value object's text and a flag string split as a shell would", :aggregate_failures do
+      calls = recorded_commands
+      tool.run(target: { value: "banking" }, arguments: { value: "--seeds 5 --notes 'two words'" })
+      argv, = calls.first
+
+      expect(argv[(argv.index("--") + 1)..]).to eq(["banking", "--seeds", "5", "--notes", "two words"])
+      expect(argv[argv.index("-e") + 1]).to include("qa_sweep")
+    end
+
+    it "starts each command in the checkout it was given" do
+      calls = recorded_commands
+      tool.tick
+
+      expect(calls.first.last).to eq(chdir: "/repo")
+    end
+  end
+end

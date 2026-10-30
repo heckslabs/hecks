@@ -1,0 +1,7 @@
+# Binds the `SweepTools` port to `SweepTools`, which answers `Sweep`'s queries: a tick, a sweep, the Heki migration, the ledger's role and a racer.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/quality_control/adapters/sweep_tools"
+
+Hecks.adapter "SweepTools" do
+  port "SweepTools"
+end

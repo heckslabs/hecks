@@ -1,0 +1,26 @@
+# Ruby side of the "found something" case in spec/qa_sweep_all_spec.rb: a well-behaved domain
+# whose divergence lives entirely in ../qa_sweep_all_found_fixture_rust/src/main.rs.
+Hecks.bluebook "QaSweepAllFoundFixture" do
+  vision "A trivially well-behaved domain, authored only so spec/qa_sweep_all_spec.rb's own 'found something' example never depends on this repository's own live, actively-changing QA corpus staying broken."
+
+  aggregate "Beacon" do
+    description "One lit beacon — nothing a fuzzer can ever catch on the Ruby side alone."
+
+    identified_by :reference
+
+    attribute :reference, BeaconReference
+
+    value_object "BeaconReference" do
+      attribute :value, String, matches: :present
+      invariant("a beacon is referenced") { !value.to_s.empty? }
+    end
+
+    command "Light" do
+      attribute :reference, BeaconReference
+
+      sets :reference
+
+      emits "BeaconLit"
+    end
+  end
+end

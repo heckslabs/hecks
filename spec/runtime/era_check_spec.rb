@@ -94,6 +94,10 @@ RSpec.describe "the era check at boot" do
     [first, second]
   end
 
+  def quality_control_source
+    File.read(File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control/quality_control.bluebook"), encoding: "UTF-8")
+  end
+
   it "reads source containing non-ASCII bytes even when the process default external encoding is US-ASCII" do
     # An em-dash in a .bluebook comment raised ArgumentError under us-ASCII.
     source = "Hecks.bluebook \"Shaped\" do\n  vision \"an em dash — right here\"\nend\n"
@@ -108,12 +112,12 @@ RSpec.describe "the era check at boot" do
     expect(source_text_for("Shaped", root)).to eq("#{first}\n#{second}")
   end
 
-  # A domain that attaches a bluebook the gem carries (Deploy) holds no file for it: the era reads
-  # the bluebook's own files, wherever the gem keeps them.
+  # A domain that attaches a bluebook the gem carries (the QA ledger, QualityControl) holds no
+  # file for it: the era reads the bluebook's own files, wherever the gem keeps them.
   it "reads an attached bluebook's source from the files the gem carries it in" do
-    File.write(File.join(root, "deploy.hecksagon"), "# wiring only\n")
+    File.write(File.join(root, "quality_control.hecksagon"), "# wiring only\n")
 
-    expect(source_text_for("Deploy", root)).to include("Hecks.bluebook \"Deploy\"")
+    expect(source_text_for("QualityControl", root)).to eq(quality_control_source)
   end
 
   it "holds nothing for an adapter that has no eras, and never refuses its drift", :aggregate_failures do

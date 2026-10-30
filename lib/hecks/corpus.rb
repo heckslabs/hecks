@@ -35,6 +35,7 @@ module Hecks
     FILE_KINDS = {
       grammar:      "lib/hecks/grammar/*.bluebook",
       framework:    "lib/hecks/framework/bluebook/*.bluebook",
+      qa:           "lib/hecks/quality_control/*.bluebook",
       language:     "lib/hecks/language/**/*.bluebook",
       deploy:       "lib/hecks/deploy/bluebook/*.bluebook",
       site:         "lib/hecks/site/bluebook/*.bluebook",
@@ -122,7 +123,7 @@ module Hecks
 
     # Every kind hecks model_check walks: excludes language/deploy (checked
     # elsewhere) and anything a route already sends to its own destination.
-    MODEL_CHECK_KINDS = %i[example grammar framework vendored stress fixture hecks].freeze
+    MODEL_CHECK_KINDS = %i[example grammar framework vendored qa stress fixture hecks].freeze
 
     # Every corpus member `hecks model_check` and `spec/model_check_spec.rb` walk.
     #
@@ -169,6 +170,7 @@ module Hecks
     # the reason. A fuzz boots a tmpdir copy of a domain to isolate its state.
     FUZZ_UNBOOTABLE = {
       "lib/hecks/hecks"                                           => "the gem's own bluebook; model_check covers it",
+      "spec/fixtures/qa_discover_external_domains/projects/hecks" => "declares the reserved bluebook name `Hecks`",
       "spec/fixtures/sentence/cms_page"                           => "holds one bluebook twice, as sentences and as Ruby; " \
                                                                      "sentence_form_spec compares the pair"
     }.freeze
