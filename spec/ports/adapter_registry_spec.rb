@@ -1,8 +1,15 @@
 require "hecks"
 
 RSpec.describe Hecks::Ports::AdapterRegistry do
-  before { described_class.reset! }
-  after { described_class.reset! }
+  # Other specs in this process rely on the core adapters the boot registered, so put back
+  # whatever was there rather than leaving the registry empty.
+  around do |example|
+    saved = described_class.all
+    described_class.reset!
+    example.run
+    described_class.reset!
+    saved.each { |name, entry| described_class.register(name, entry[:klass], provides: entry[:provides]) }
+  end
 
   let(:adapter) { Class.new }
 
@@ -27,6 +34,15 @@ RSpec.describe Hecks::Ports::AdapterRegistry do
     replacement = Class.new
     described_class.register("Heki", replacement, provides: ["persistence"])
     expect(described_class.lookup("persistence")).to eq([["Heki", replacement]])
+  end
+
+  it "fetches an adapter class by its name" do
+    described_class.register("Sqlite", adapter, provides: ["persistence"])
+    expect(described_class.fetch("Sqlite")).to eq(adapter)
+  end
+
+  it "fetches nothing for a name no adapter registered" do
+    expect(described_class.fetch("Nope")).to be_nil
   end
 
   it "refuses a capability outside the closed list" do

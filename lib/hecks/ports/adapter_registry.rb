@@ -49,6 +49,10 @@ module Hecks
           .map { |name, entry| [name, entry[:klass]] }
       end
 
+      # @param name [String] the adapter's declared name
+      # @return [Class, nil] the class registered under that name, or nil if none is
+      def fetch(name) = @registrations.dig(name, :klass)
+
       # @return [Hash{String => Hash}] every registered adapter, keyed by its name
       def all = @registrations.dup
 
