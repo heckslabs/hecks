@@ -271,6 +271,18 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Tunnel.port "Session" do
+    asks "Forward", to: Tunnel do
+      attribute :name, TunnelName
+      attribute :instance, InstanceId
+      attribute :host, TunnelHost
+      attribute :remote_port, TunnelPort
+      attribute :local_port, TunnelPort
+      answers "TunnelForwarded"
+      refuses "TunnelRefused"
+    end
+  end
+
   Hecks::Launch.port "Terminal" do
     asks "Serve", to: Launch do
       attribute :run, LaunchKey

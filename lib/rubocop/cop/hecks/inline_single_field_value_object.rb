@@ -2,11 +2,8 @@ module RuboCop
   module Cop
     module Hecks
       # Flags a `value_object` block whose whole body is one `attribute :value, Type`, and asks
-      # for the bare shorthand `value_object "Name", Type` instead.
-      #
-      # The block adds nothing when it holds only that line: the shorthand declares the same value
-      # object in one line. A block with an invariant, a second attribute, or an attribute option
-      # (`default:`, `optional:`) is left alone, because the shorthand cannot carry those.
+      # for the bare shorthand `value_object "Name", Type` instead. A block with an invariant, a
+      # second attribute, or an option is left alone: the shorthand cannot carry those.
       #
       # @example
       #   value_object "BookCopies" do            # bad
