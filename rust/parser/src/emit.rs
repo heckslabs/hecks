@@ -284,7 +284,7 @@ fn given_json(g: &ir::Given) -> JsonValue {
 fn acknowledgement_json(a: &ir::Acknowledgement) -> JsonValue {
     JsonValue::Object(vec![
         ("finding".to_string(), JsonValue::str(a.finding.clone())),
-        ("subject".to_string(), JsonValue::str(a.subject.clone())),
+        ("subject".to_string(), JsonValue::opt_str(a.subject.as_ref())),
         ("reason".to_string(), JsonValue::str(a.reason.clone())),
     ])
 }
@@ -788,6 +788,7 @@ fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
             "ends_on".to_string(),
             JsonValue::opt_str(pm.ends_on.as_ref()),
         ),
+        ("endings".to_string(), JsonValue::strings(&pm.endings)),
         ("states".to_string(), JsonValue::strings(&pm.states)),
         (
             "handlers".to_string(),
