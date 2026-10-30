@@ -60,11 +60,6 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "fuzzed idempotent command twice with the same arguments and compare " \
                                            "the record's state after the first delivery with the state after the " \
                                            "second",
-    "ProcessManager#endings"            => "a saga ends on any of its declared endings (1a26fd7a6), and " \
-                                           "sagas_rehydrate_cleanly only round-trips the saga's memory, so no property " \
-                                           "drives a fuzzed saga to each ending. A property would advance a fuzzed saga " \
-                                           "until it reaches each declared ending and compare the instance's ended state " \
-                                           "with the ending it reached",
     "Aggregate#projected_fields"        => "the local half of a cross-aggregate read (S12, ADR 0025) is read by " \
                                            "GuardState the same way an attribute is (ProjectionAbsent vs. " \
                                            "AttributeAbsent), but nothing populates it inside a normal command dispatch " \
