@@ -19,6 +19,7 @@ require_relative "previewing"
 require_relative "publishing"
 require_relative "promotion"
 require_relative "scripting"
+require_relative "task_families"
 require_relative "../git"
 
 module Hecks
@@ -73,10 +74,10 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no family carries the operation out, or it refuses
       def perform(**held)
         operation = plain(held[:operation])
-        family = FAMILIES.find { |candidate| candidate::OPERATIONS.include?(operation) }
+        family = Codebase::TaskFamilies::ALL.find { |candidate| candidate::OPERATIONS.include?(operation) }
         raise ConsoleCapture::Failure, "no task carries out #{operation.inspect}" unless family
 
-        working = Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation) ? folder_tree(held) : checkout_tree
+        working = working_tree(operation, held)
         args = held.except(:operation)
         done = family.call(operation, args, working, shell: self.class.shell || Shell.new)
         done.is_a?(Hash) ? done : { report: { value: done } }
@@ -208,34 +209,26 @@ module Hecks
       private
 
       def test_suite(operation, args)
-        tree.require_checkout!
-        plain_args = args.transform_values { |value| plain(value) }
-        Codebase::TestSuite.report(operation, plain_args, tree, shell: self.class.shell)
+        checked(args) { |plain_args| Codebase::TestSuite.report(operation, plain_args, tree, shell: self.class.shell) }
       end
 
       def reading(operation, args)
-        tree.require_checkout!
-        Codebase::Reading.public_send(operation, args.transform_values { |value| plain(value) }, tree)
+        checked(args) { |plain_args| Codebase::Reading.public_send(operation, plain_args, tree) }
       end
 
       def corpus(operation, args)
-        tree.require_checkout!
-        plain_args = args.transform_values { |value| plain(value) }
-        Codebase::CorpusTasks.report(operation, plain_args, tree, shell: self.class.shell)
+        checked(args) { |plain_args| Codebase::CorpusTasks.report(operation, plain_args, tree, shell: self.class.shell) }
       end
 
       def report(operation, args)
-        tree.require_checkout!
-        plain_args = args.transform_values { |value| plain(value) }
-        Codebase::Style.report(operation, plain_args, tree, shell: self.class.shell)
+        checked(args) { |plain_args| Codebase::Style.report(operation, plain_args, tree, shell: self.class.shell) }
       end
 
-      # The task families, each carrying out the operations it lists.
-      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
-                  Codebase::CorpusTasks, Codebase::Composing, Codebase::Previewing,
-                  Codebase::Publishing, Codebase::Promotion, Codebase::Scripting].freeze
-      private_constant :FAMILIES
+      # Hands a task family the request's plain values, once the checkout is known to be one.
+      def checked(args)
+        tree.require_checkout!
+        yield args.transform_values { |value| plain(value) }
+      end
 
       # The facts of a promotion or a watch, naming the operation so policies can tell them apart.
       def promotion_facts(held)
@@ -245,19 +238,19 @@ module Hecks
 
       def tree = Codebase::Tree.new
 
-      # The checkout this repository's own tooling works on, which must be a hecks checkout.
-      def checkout_tree
-        tree.require_checkout!
-        tree
-      end
-
       # The folder a spec run works in: the one the request names, this checkout when none is.
       def folder_tree(held) = Codebase::Tree.new(root: plain(held[:root]))
 
-      # Whether the folder a spec run names holds a spec directory, so any project's suite can run.
-      def folder_specs?(held)
-        File.directory?(File.join(folder_tree(held).root, Codebase::TestSuite::SPEC_DIRECTORY))
+      # The tree an operation works in: the folder a spec run names, or this checkout, which must
+      # be a hecks checkout.
+      def working_tree(operation, held)
+        return folder_tree(held) if Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation)
+
+        tree.tap(&:require_checkout!)
       end
+
+      # Whether the folder a spec run names holds a spec directory, so any project's suite can run.
+      def folder_specs?(held) = File.directory?(File.join(folder_tree(held).root, Codebase::TestSuite::SPEC_DIRECTORY))
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

@@ -23,6 +23,30 @@ RSpec.describe "Spec runs in a folder of their own" do
     asked
   end
 
+  # Yields a temporary folder that holds a spec directory, and removes the folder afterwards.
+  def in_folder_with_specs
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "spec"))
+      yield dir
+    end
+  end
+
+  # Writes a minitest file whose one test asserts the sum of one and one is `expected`.
+  def write_minitest(dir, path, class_name, expected)
+    File.write(File.join(dir, path), <<~RUBY)
+      require "minitest/autorun"
+      class #{class_name} < Minitest::Test
+        def test_it = assert_equal(#{expected}, 1 + 1)
+      end
+    RUBY
+  end
+
+  # Runs the whole suite of a folder, with the runner noting its call, and answers the report.
+  def run_suite_in(dir)
+    runner_noting_its_call
+    test_suite.call("run_suite", {}, Hecks::Adapters::Codebase::Tree.new(root: dir))
+  end
+
   describe Hecks::Adapters::Codebase::ChangedSpecs do
     let(:specs) { %w[spec/lib/thing_spec.rb spec/other_spec.rb] }
 
@@ -45,27 +69,32 @@ RSpec.describe "Spec runs in a folder of their own" do
   end
 
   describe Hecks::Adapters::Codebase::TestRunner do
-    it "hands the runner every path it is given, from the folder's root" do
-      Dir.mktmpdir do |dir|
-        FileUtils.mkdir_p(File.join(dir, "spec"))
-        tree = Hecks::Adapters::Codebase::Tree.new(root: dir)
+    it "hands the runner every path it is given" do
+      in_folder_with_specs do |dir|
         asked = runner_noting_its_call
 
-        test_runner.new(tree).run_paths(paths: ["spec"], tags: "--tag io")
+        test_runner.new(Hecks::Adapters::Codebase::Tree.new(root: dir)).run_paths(paths: ["spec"], tags: "--tag io")
 
         expect(asked[:args]).to eq(["--tag", "io", "spec"])
+      end
+    end
+
+    it "runs the paths from the folder's root" do
+      in_folder_with_specs do |dir|
+        asked = runner_noting_its_call
+
+        test_runner.new(Hecks::Adapters::Codebase::Tree.new(root: dir)).run_paths(paths: ["spec"])
+
         expect(File.realpath(asked[:cwd])).to eq(File.realpath(dir))
       end
     end
 
     it "refuses a path that is not there, without starting the runner" do
-      Dir.mktmpdir do |dir|
-        tree = Hecks::Adapters::Codebase::Tree.new(root: dir)
-        test_runner.runner = ->(*) { raise "the runner must not start" }
+      tree = Hecks::Adapters::Codebase::Tree.new(root: Dir.pwd)
+      test_runner.runner = ->(*) { raise "the runner must not start" }
 
-        expect { test_runner.new(tree).run_paths(paths: ["spec/missing_spec.rb"]) }
-          .to raise_error(failure, "no such spec spec/missing_spec.rb")
-      end
+      expect { test_runner.new(tree).run_paths(paths: ["spec/missing_spec.rb"]) }
+        .to raise_error(failure, "no such spec spec/missing_spec.rb")
     end
   end
 
@@ -96,9 +125,17 @@ RSpec.describe "Spec runs in a folder of their own" do
       File.write(File.join(@dir, "lib/thing.rb"), "# two\n")
       asked = runner_noting_its_call
 
-      report = test_suite.call("run_changed", { base: "main" }, Hecks::Adapters::Codebase::Tree.new(root: @dir))
+      test_suite.call("run_changed", { base: "main" }, Hecks::Adapters::Codebase::Tree.new(root: @dir))
 
       expect(asked[:args]).to eq(["spec/thing_spec.rb"])
+    end
+
+    it "reports the summary of the run it made" do
+      File.write(File.join(@dir, "lib/thing.rb"), "# two\n")
+      runner_noting_its_call
+
+      report = test_suite.call("run_changed", { base: "main" }, Hecks::Adapters::Codebase::Tree.new(root: @dir))
+
       expect(report).to eq("1 example, 0 failures")
     end
 
@@ -123,8 +160,7 @@ RSpec.describe "Spec runs in a folder of their own" do
 
   describe "the whole-suite run" do
     it "runs the folder's spec directory" do
-      Dir.mktmpdir do |dir|
-        FileUtils.mkdir_p(File.join(dir, "spec"))
+      in_folder_with_specs do |dir|
         asked = runner_noting_its_call
 
         test_suite.call("run_suite", {}, Hecks::Adapters::Codebase::Tree.new(root: dir))
@@ -134,34 +170,20 @@ RSpec.describe "Spec runs in a folder of their own" do
     end
 
     it "runs the minitest files of the spec directory too, and reports each one" do
-      Dir.mktmpdir do |dir|
-        FileUtils.mkdir_p(File.join(dir, "spec"))
-        File.write(File.join(dir, "spec/adds_test.rb"), <<~RUBY)
-          require "minitest/autorun"
-          class AddsTest < Minitest::Test
-            def test_adds = assert_equal(2, 1 + 1)
-          end
-        RUBY
-        runner_noting_its_call
+      in_folder_with_specs do |dir|
+        write_minitest(dir, "spec/adds_test.rb", "AddsTest", 2)
 
-        report = test_suite.call("run_suite", {}, Hecks::Adapters::Codebase::Tree.new(root: dir))
+        report = run_suite_in(dir)
 
         expect(report).to include("spec/adds_test.rb: 1 runs, 1 assertions, 0 failures, 0 errors, 0 skips")
       end
     end
 
     it "refuses with the minitest output when one of those files fails" do
-      Dir.mktmpdir do |dir|
-        FileUtils.mkdir_p(File.join(dir, "spec"))
-        File.write(File.join(dir, "spec/broken_test.rb"), <<~RUBY)
-          require "minitest/autorun"
-          class BrokenTest < Minitest::Test
-            def test_breaks = assert_equal(3, 1 + 1)
-          end
-        RUBY
-        runner_noting_its_call
+      in_folder_with_specs do |dir|
+        write_minitest(dir, "spec/broken_test.rb", "BrokenTest", 3)
 
-        expect { test_suite.call("run_suite", {}, Hecks::Adapters::Codebase::Tree.new(root: dir)) }
+        expect { run_suite_in(dir) }
           .to raise_error(failure, %r{spec/broken_test.rb failed})
       end
     end
@@ -169,9 +191,7 @@ RSpec.describe "Spec runs in a folder of their own" do
 
   describe "the folder check that lets a run in" do
     it "accepts a folder with a spec directory, though it is not a hecks checkout" do
-      Dir.mktmpdir do |dir|
-        FileUtils.mkdir_p(File.join(dir, "spec"))
-
+      in_folder_with_specs do |dir|
         answer = Hecks::Adapters::SourceTree.new.examine(operation: "run_suite", root: dir)
 
         expect(answer[:checkout]).to eq({ value: true })

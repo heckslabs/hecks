@@ -19,7 +19,7 @@ module Hecks
           changed.flat_map do |file|
             next [file] if specs.include?(file)
 
-            by_name.fetch(File.basename(file, ".rb") + "_spec.rb", [])
+            by_name.fetch("#{File.basename(file, ".rb")}_spec.rb", [])
           end.uniq.sort
         end
 
