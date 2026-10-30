@@ -34376,7 +34376,7 @@
               ],
               [
                 "env",
-                "HECKS_ENVIRONMENT=memory HECKS_NO_LOCAL_FILES=1"
+                "HECKS_ENVIRONMENT=memory"
               ],
               [
                 "checks",
