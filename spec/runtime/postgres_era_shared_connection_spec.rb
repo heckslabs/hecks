@@ -23,7 +23,7 @@ RSpec.describe "PostgresEra shares one connection across a domain's aggregates",
   end
 
   PG_ERA_THING_BODY = proc do
-    value_object("Name") { attribute :value, String }
+    value_object "Name", String
     attribute :name, Name
     identified_by :name
   end

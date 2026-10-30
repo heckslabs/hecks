@@ -6,9 +6,7 @@ RSpec.describe "value-object identity declarations" do
   # A box whose identity is a named two-field value object with a nested value object.
   let(:location_box) do
     build_aggregate("SafeDepositBox") do
-      value_object "BranchCode" do
-        attribute :value, String
-      end
+      value_object "BranchCode", String
 
       value_object "BoxIdentity" do
         attribute :branch, BranchCode
@@ -24,9 +22,7 @@ RSpec.describe "value-object identity declarations" do
     build_aggregate("SafeDepositBox") do
       identified_by BoxNumber
 
-      value_object "BoxNumber" do
-        attribute :value, String
-      end
+      value_object "BoxNumber", String
 
       entity "Visit" do
         identified_by do
@@ -49,9 +45,7 @@ RSpec.describe "value-object identity declarations" do
 
   def account_number_aggregate
     build_aggregate("Account") do
-      value_object "AccountNumber" do
-        attribute :value, String
-      end
+      value_object "AccountNumber", String
 
       identified_by AccountNumber, as: :number
     end
@@ -112,7 +106,7 @@ RSpec.describe "value-object identity declarations" do
 
   def declaring_identity_twice
     build_aggregate("Account") do
-      value_object("AccountNumber") { attribute :value, String }
+      value_object "AccountNumber", String
       identified_by AccountNumber, as: :number
       identified_by AccountNumber, as: :other_number
     end
@@ -120,7 +114,7 @@ RSpec.describe "value-object identity declarations" do
 
   def minting_a_declared_field
     build_aggregate("Account") do
-      value_object("AccountNumber") { attribute :value, String }
+      value_object "AccountNumber", String
       attribute :number, AccountNumber
       identified_by AccountNumber, as: :number
     end
@@ -128,7 +122,7 @@ RSpec.describe "value-object identity declarations" do
 
   def account_with_positions
     build_aggregate("Account") do
-      value_object("AccountNumber") { attribute :value, String }
+      value_object "AccountNumber", String
       attribute :opened_on, String
       identified_by AccountNumber, as: :number
       attribute :status, String

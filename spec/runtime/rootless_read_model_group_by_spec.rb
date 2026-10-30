@@ -21,9 +21,7 @@ RSpec.describe "a rootless read model's own group_by" do
       identified_by :ref
       attribute :ref,   Ref
       attribute :group, Ref
-      value_object "Ref" do
-        attribute :value, String
-      end
+      value_object "Ref", String
       command "Declare" do
         attribute :ref,   Ref
         attribute :group, Ref
@@ -47,9 +45,7 @@ RSpec.describe "a rootless read model's own group_by" do
       identified_by :ref
       attribute :ref,   Ref
       attribute :group, Ref
-      value_object "Ref" do
-        attribute :value, String
-      end
+      value_object "Ref", String
       command "Declare" do
         attribute :ref,   Ref
         attribute :group, Ref

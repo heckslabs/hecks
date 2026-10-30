@@ -17,8 +17,8 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
           attribute :customer_id, CustomerId
           attribute :risk,        RiskLevel
 
-          value_object("CustomerId") { attribute :value, String }
-          value_object("RiskLevel")  { attribute :value, String }
+          value_object "CustomerId", String
+          value_object "RiskLevel", String
 
           command "Flag" do
             role "Ops"
@@ -37,9 +37,9 @@ RSpec.describe "Hecks::Fuzzing::Replay.fan_out_findings" do
           attribute :customer_id, AccountCustomerId
           attribute :status,      AccountStatus
 
-          value_object("AccountId")         { attribute :value, String }
-          value_object("AccountCustomerId") { attribute :value, String }
-          value_object("AccountStatus")     { attribute :value, String }
+          value_object "AccountId", String
+          value_object "AccountCustomerId", String
+          value_object "AccountStatus", String
 
           command "Open" do
             role "Ops"

@@ -21,6 +21,12 @@ require:
   - ./lib/rubocop/cop/hecks/train_wreck
   - ./lib/rubocop/cop/hecks/unnamed_pipeline
   - ./lib/rubocop/cop/hecks/inline_regexp
+  - ./lib/rubocop/cop/hecks/inline_single_field_value_object
+
+# `value_object "X" do attribute :value, T end` with nothing else is the shorthand
+# `value_object "X", T`; the block adds nothing. Scope: the Ruby files RuboCop already covers.
+Hecks/InlineSingleFieldValueObject:
+  Enabled: true
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:

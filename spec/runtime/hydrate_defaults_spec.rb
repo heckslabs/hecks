@@ -15,7 +15,7 @@ RSpec.describe "hydrating stored state through declared defaults" do
     end
 
     value_object("Money") { attribute :cents, Integer }
-    value_object("Standing") { attribute :value, String }
+    value_object "Standing", String
     value_object("Note") { attribute :text, String }
   end
 

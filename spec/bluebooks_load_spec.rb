@@ -68,7 +68,7 @@ RSpec.describe Hecks::FrameworkBluebooks, ".load!" do
       aggregate("Session") do
         identified_by :id
         attribute :id, Id
-        value_object("Id") { attribute :value, String }
+        value_object "Id", String
         instance_eval(&open_session)
       end
     end

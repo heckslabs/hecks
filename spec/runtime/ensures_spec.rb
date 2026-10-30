@@ -26,9 +26,7 @@ RSpec.describe "a command's ensures" do
         attribute :number,  Number
         attribute :balance, Money, default: { cents: 0 }
 
-        value_object "Number" do
-          attribute :value, String
-        end
+        value_object "Number", String
 
         value_object "Money" do
           attribute :cents, Integer
@@ -141,21 +139,15 @@ RSpec.describe "a command's ensures" do
           attribute :total,  Money, default: { cents: 0 }
           attribute :coins,  list_of(Coin)
 
-          value_object "Number" do
-            attribute :value, String
-          end
+          value_object "Number", String
 
           value_object "Money" do
             attribute :cents, Integer
           end
 
-          value_object "Label" do
-            attribute :value, String
-          end
+          value_object "Label", String
 
-          value_object "Serial" do
-            attribute :value, String
-          end
+          value_object "Serial", String
 
           command "Open" do
             role "Teller"

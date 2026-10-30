@@ -14,7 +14,7 @@ RSpec.describe "a command's corrects" do
       attribute :number,  Number
       attribute :balance, Money, default: { cents: 0 }
 
-      value_object("Number") { attribute :value, String }
+      value_object "Number", String
       value_object("Money")  { attribute :cents, Integer }
 
       command "Open" do
@@ -56,7 +56,7 @@ RSpec.describe "a command's corrects" do
       attribute :number,  Number
       attribute :balance, Money, default: { cents: 0 }
 
-      value_object("Number") { attribute :value, String }
+      value_object "Number", String
       value_object("Money")  { attribute :cents, Integer }
 
       command "Open" do
@@ -94,7 +94,7 @@ RSpec.describe "a command's corrects" do
       attribute :number,  Number
       attribute :balance, Money, default: { cents: 0 }
 
-      value_object("Number") { attribute :value, String }
+      value_object "Number", String
       value_object("Money")  { attribute :cents, Integer }
 
       command "Open" do
@@ -145,9 +145,9 @@ RSpec.describe "a command's corrects" do
       attribute :reference, Reference
       attribute :entries,   list_of(Entry)
 
-      value_object("Reference")     { attribute :value, String }
+      value_object "Reference", String
       value_object("Amount")        { attribute :cents, Integer }
-      value_object("EntrySequence") { attribute :value, Integer }
+      value_object "EntrySequence", Integer
 
       command "Open" do
         role "Clerk"
@@ -211,7 +211,7 @@ RSpec.describe "a command's corrects" do
       attribute :number,  Number
       attribute :balance, Money, default: { cents: 0 }
 
-      value_object("Number") { attribute :value, String }
+      value_object "Number", String
       value_object("Money")  { attribute :cents, Integer }
 
       command "Open" do

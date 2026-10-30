@@ -18,7 +18,7 @@ RSpec.describe "QueryInterpreter — entity offset and dotted where/order_by" do
 
           identified_by :name
 
-          value_object("BoardName") { attribute :value, String }
+          value_object "BoardName", String
           value_object("Price") { attribute :cents, Integer }
           value_object("ItemSequence") do
             attribute :value, Integer

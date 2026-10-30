@@ -246,7 +246,7 @@ RSpec.shared_context "with the atomic_put Item aggregate" do
           attribute :sku, String
         end
 
-        value_object("Label") { attribute :value, String }
+        value_object "Label", String
         attribute :label, Label
       end
     end.aggregate("Item")

@@ -5,8 +5,8 @@ RSpec.describe "lexical parent state and explicit disambiguation" do
     vision "commands read parent facts without repeating them as inputs"
 
     aggregate "Meter" do
-      value_object("MeterCode") { attribute :value, String }
-      value_object("Reading") { attribute :value, Integer }
+      value_object "MeterCode", String
+      value_object "Reading", Integer
       identified_by MeterCode, as: :code
       attribute :reading, Reading
 

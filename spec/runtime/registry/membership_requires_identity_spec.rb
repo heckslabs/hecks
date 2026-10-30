@@ -14,9 +14,7 @@ RSpec.describe "membership requires identity" do
     aggregate "Person" do
       identified_by :email
       attribute :email, Email
-      value_object "Email" do
-        attribute :value, String
-      end
+      value_object "Email", String
       command "Admit" do
         goal "admit"
         attribute :email, Email

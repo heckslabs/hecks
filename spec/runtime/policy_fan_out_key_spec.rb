@@ -18,12 +18,12 @@ RSpec.describe "a for_each policy's row id" do
           attribute :holder, Holder
           attribute :condition, ChitState
 
-          value_object("Serial")    { attribute :value, String }
-          value_object("Holder")    { attribute :value, String }
-          value_object("ChitState") { attribute :value, String }
+          value_object "Serial", String
+          value_object "Holder", String
+          value_object "ChitState", String
           # A policy forwards the event's whole payload, so `Void` must declare `alarm:`
           # or the delivery is refused as UnknownArgument for an unrelated reason.
-          value_object("AlarmRef")  { attribute :value, String }
+          value_object "AlarmRef", String
 
           command "Issue" do
             attribute :serial, Serial
@@ -55,7 +55,7 @@ RSpec.describe "a for_each policy's row id" do
           attribute :note, Note
           reference_to Chit
 
-          value_object("Note") { attribute :value, String }
+          value_object "Note", String
 
           command "Record" do
             attribute :note,   Note
@@ -70,8 +70,8 @@ RSpec.describe "a for_each policy's row id" do
           attribute :alarm,  AlarmRef
           attribute :holder, Holder
 
-          value_object("AlarmRef") { attribute :value, String }
-          value_object("Holder")   { attribute :value, String }
+          value_object "AlarmRef", String
+          value_object "Holder", String
 
           command "Raise" do
             attribute :alarm,  AlarmRef

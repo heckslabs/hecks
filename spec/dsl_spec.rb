@@ -30,8 +30,8 @@ RSpec.describe "the DSL surface" do
 
   def build_command(domain, &block)
     build_aggregate(domain) do
-      value_object("Size") { attribute :value, Integer }
-      value_object("Tag") { attribute :value, String }
+      value_object "Size", Integer
+      value_object "Tag", String
 
       # Fields the `sets` cases below mutate; a mutation must name a
       # declared field (AggregateBuilder#seal_mutation_targets) or it
@@ -383,7 +383,7 @@ RSpec.describe "the DSL surface" do
 
     def unnamed_attribute_declaration
       proc do
-        value_object("Label") { attribute :value, String }
+        value_object "Label", String
         begin
           attribute "", Object.const_get("Label")
         rescue StandardError
@@ -413,7 +413,7 @@ RSpec.describe "the DSL surface" do
       proc do
         aggregate "Root" do
           attribute :key, Key
-          value_object("Key") { attribute :value, String }
+          value_object "Key", String
 
           entity("Child") { command("Change") { reference_to Child } }
         end
@@ -433,7 +433,7 @@ RSpec.describe "the DSL surface" do
         aggregate "Root" do
           identified_by :id
 
-          value_object("Code") { attribute :value, String }
+          value_object "Code", String
 
           command("UseCode") { reference_to Code }
         end
@@ -450,14 +450,14 @@ RSpec.describe "the DSL surface" do
     # dispatch — refusing consistently is agreement about nothing.
     it "refuses a bare default where the type wants fields" do
       expect_refusal(:aggregate, "Defaulted", /Cover is a value object — a default fills its FIELDS/) do
-        value_object("Cover") { attribute :value, String }
+        value_object "Cover", String
         attribute :cover, Cover, default: "open"
       end
     end
 
     it "takes a default that fills the fields" do
       thing = build_aggregate("Defaulted") do
-        value_object("Cover") { attribute :value, String }
+        value_object "Cover", String
         attribute :cover, Cover, default: { value: "open" }
       end
 
@@ -469,8 +469,8 @@ RSpec.describe "the DSL surface" do
     # field, `Instance#[]`) would silently see only the first.
     def label_declared_twice
       proc do
-        value_object("Tag") { attribute :value, String }
-        value_object("Size") { attribute :value, Integer }
+        value_object "Tag", String
+        value_object "Size", Integer
         attribute :label, Tag
         attribute :label, Size
       end
@@ -888,7 +888,7 @@ RSpec.describe "the DSL surface" do
     # out of scalar.
     def thing_value_objects
       proc do
-        value_object("ThingId") { attribute :value, String }
+        value_object "ThingId", String
         value_object("Ref") { attribute :amount, Amount }
         value_object("Amount") { attribute :cents, Integer }
       end
@@ -929,7 +929,7 @@ RSpec.describe "the DSL surface" do
           identified_by :id
 
           attribute :reference, CustomerNumber
-          value_object("CustomerNumber") { attribute :value, String }
+          value_object "CustomerNumber", String
         end
       end
     end
@@ -1097,7 +1097,7 @@ RSpec.describe "the DSL surface" do
         aggregate "Rider" do
           identified_by :tag
           attribute :tag, RiderTag
-          value_object("RiderTag") { attribute :value, String }
+          value_object "RiderTag", String
           reference_to Bicycle
         end
       end
@@ -1108,7 +1108,7 @@ RSpec.describe "the DSL surface" do
         aggregate "Bicycle" do
           identified_by :serial
           attribute :serial, BicycleSerial
-          value_object("BicycleSerial") { attribute :value, String }
+          value_object "BicycleSerial", String
           reference_to Rider
         end
       end
@@ -1138,7 +1138,7 @@ RSpec.describe "the DSL surface" do
         aggregate "Board" do
           identified_by :tag
           attribute :tag, BoardTag
-          value_object("BoardTag") { attribute :value, String }
+          value_object "BoardTag", String
           instance_eval(&card)
         end
       end
@@ -1149,7 +1149,7 @@ RSpec.describe "the DSL surface" do
         aggregate "Product" do
           identified_by :sku
           attribute :sku, ProductSku
-          value_object("ProductSku") { attribute :value, String }
+          value_object "ProductSku", String
           reference_to Board
         end
       end
@@ -1165,7 +1165,7 @@ RSpec.describe "the DSL surface" do
         aggregate "Owner" do
           identified_by :tag
           attribute :tag, OwnerTag
-          value_object("OwnerTag") { attribute :value, String }
+          value_object "OwnerTag", String
         end
       end
     end
@@ -1175,7 +1175,7 @@ RSpec.describe "the DSL surface" do
         aggregate "Item" do
           identified_by :serial
           attribute :serial, ItemSerial
-          value_object("ItemSerial") { attribute :value, String }
+          value_object "ItemSerial", String
           reference_to Owner
         end
       end
@@ -1538,7 +1538,7 @@ RSpec.describe "the DSL surface" do
 
     def identified_by_name
       build_aggregate("Identified") do
-        value_object("IdentifiedName") { attribute :value, String }
+        value_object "IdentifiedName", String
         attribute :name, IdentifiedName
 
         identified_by :name
@@ -1554,7 +1554,7 @@ RSpec.describe "the DSL surface" do
 
     def composite_identity_aggregate
       build_aggregate("Composite") do
-        value_object("CompositeName") { attribute :value, String }
+        value_object "CompositeName", String
         attribute :name, CompositeName
 
         # `:batch_id` has no matching attribute, resolved bare by the
@@ -1586,7 +1586,7 @@ RSpec.describe "the DSL surface" do
       def community_aggregate
         build_aggregate("Community") do
           identified_by :id
-          value_object("CommunityId") { attribute :value, String }
+          value_object "CommunityId", String
           attribute :id, CommunityId
         end
       end
@@ -1628,7 +1628,7 @@ RSpec.describe "the DSL surface" do
         proc do
           aggregate "Team" do
             identified_by :name
-            value_object("Name") { attribute :value, String }
+            value_object "Name", String
             attribute :name, Name
           end
         end
@@ -1674,8 +1674,8 @@ RSpec.describe "the DSL surface" do
           aggregate "Bracket" do
             identified_by :bracket_id
             attribute :bracket_id, BracketId
-            value_object("BracketId") { attribute :value, String }
-            value_object("GameId")    { attribute :value, String }
+            value_object "BracketId", String
+            value_object "GameId", String
             instance_eval(&game)
           end
         end
@@ -1691,7 +1691,7 @@ RSpec.describe "the DSL surface" do
 
     it "refuses as: on the bare-field-name form — there is no field left it could rename" do
       expect_refusal(:aggregate, "Thing", /Thing\.identified_by takes no as: — name the declared field itself/) do
-        value_object("Name") { attribute :value, String }
+        value_object "Name", String
         attribute :name, Name
         identified_by :name, as: :other
       end
@@ -1700,7 +1700,7 @@ RSpec.describe "the DSL surface" do
     def pizza_name_order
       build_aggregate("Order") do
         identified_by PizzaName
-        value_object("PizzaName") { attribute :value, String }
+        value_object "PizzaName", String
       end
     end
 
@@ -1722,7 +1722,7 @@ RSpec.describe "the DSL surface" do
       def pizza_name_order_as_name
         build_aggregate("Order") do
           identified_by PizzaName, as: :name
-          value_object("PizzaName") { attribute :value, String }
+          value_object "PizzaName", String
         end
       end
 
@@ -1750,8 +1750,8 @@ RSpec.describe "the DSL surface" do
           aggregate "Bracket" do
             identified_by :bracket_id
             attribute :bracket_id, BracketId
-            value_object("BracketId") { attribute :value, String }
-            value_object("WinnerRef") { attribute :value, String }
+            value_object "BracketId", String
+            value_object "WinnerRef", String
             instance_eval(&game)
           end
         end
@@ -1853,7 +1853,7 @@ RSpec.describe "the DSL surface" do
 
     def preconditioned_aggregate
       build_aggregate("Preconditioned") do
-        value_object("Status") { attribute :value, String }
+        value_object "Status", String
         attribute :status, Status
 
         given("the record is open") { status.value == "open" }
@@ -1931,7 +1931,7 @@ RSpec.describe "the DSL surface" do
 
     it "projects refuses reading through something that is not a reference_to" do
       expect_refusal(:aggregate, "NotAReference", /never declares.*as a reference_to/) do
-        value_object("Status") { attribute :value, String }
+        value_object "Status", String
         attribute :status, Status
 
         projects :nope, from: :"status.value"
@@ -1986,7 +1986,7 @@ RSpec.describe "the DSL surface" do
       proc do
         aggregate("Customer") do
           identified_by :id
-          value_object("Tag") { attribute :value, String }
+          value_object "Tag", String
           attribute :tags, list_of(Tag)
         end
       end
@@ -2068,8 +2068,8 @@ RSpec.describe "the DSL surface" do
           attribute :sku,      Sku
           attribute :quantity, Quantity
         end
-        value_object("Sku") { attribute :value, String }
-        value_object("Quantity") { attribute :value, Integer }
+        value_object "Sku", String
+        value_object "Quantity", Integer
       end.entities.first
     end
 
@@ -2103,7 +2103,7 @@ RSpec.describe "the DSL surface" do
         # The fields the query below asks about. A query must name a field the
         # aggregate declares (AggregateBuilder#seal_query_targets), so the
         # fixture declares them instead of asking into a void.
-        value_object("Name") { attribute :value, String }
+        value_object "Name", String
         attribute :name, Name
         lifecycle(:status, default: "available") { transition "Retire" => "retired", from: "available" }
         instance_eval(&available)
@@ -2135,7 +2135,7 @@ RSpec.describe "the DSL surface" do
 
     def name_declaration
       proc do
-        value_object("Name") { attribute :value, String }
+        value_object "Name", String
         attribute :name, Name
       end
     end
@@ -2225,7 +2225,7 @@ RSpec.describe "the DSL surface" do
 
       def decision_submission(&queries)
         build_aggregate("Submission") do
-          value_object("DecisionRef") { attribute :value, String }
+          value_object "DecisionRef", String
           attribute :decision, DecisionRef
           instance_eval(&queries)
         end
@@ -2233,7 +2233,7 @@ RSpec.describe "the DSL surface" do
 
       def noted_submission
         build_aggregate("Submission") do
-          value_object("Note") { attribute :value, String }
+          value_object "Note", String
           attribute :note, Note, optional: true
 
           query "ByNote" do |note|
@@ -2244,7 +2244,7 @@ RSpec.describe "the DSL surface" do
 
       def unmatched_parameter_submission
         build_aggregate("Submission") do
-          value_object("Name") { attribute :value, String }
+          value_object "Name", String
           attribute :name, Name
 
           query "Broken" do |nonexistent|
@@ -2255,9 +2255,9 @@ RSpec.describe "the DSL surface" do
 
       def bracket_value_objects
         proc do
-          value_object("BracketId") { attribute :value, String }
-          value_object("GameId")    { attribute :value, String }
-          value_object("WinnerRef") { attribute :value, String }
+          value_object "BracketId", String
+          value_object "GameId", String
+          value_object "WinnerRef", String
         end
       end
 
@@ -2362,7 +2362,7 @@ RSpec.describe "the DSL surface" do
 
       it "refuses an ordered comparator over a field that holds no number" do
         expect_refusal(:aggregate, "Texting", /compares label with gt.*holds no number.*adapters answer differently/m) do
-          value_object("Label") { attribute :value, String }
+          value_object "Label", String
           attribute :label, Label
           query("Sorted") { where(label: { gt: "m" }) }
         end
@@ -2421,9 +2421,9 @@ RSpec.describe "the DSL surface" do
 
       def sound_types
         proc do
-          value_object("Money")  { attribute :cents, Integer }
-          value_object("Name")   { attribute :value, String }
-          value_object("Tag")    { attribute :name, String }
+          value_object("Money") { attribute :cents, Integer }
+          value_object "Name", String
+          value_object("Tag") { attribute :name, String }
         end
       end
 
@@ -2451,7 +2451,7 @@ RSpec.describe "the DSL surface" do
           aggregate "Client" do
             identified_by :name
             attribute :name, ClientName
-            value_object("ClientName") { attribute :value, String }
+            value_object "ClientName", String
             lifecycle(:status, default: "active") { transition "Churn" => "churned", from: "active" }
             instance_eval(&client) if client
           end
@@ -2464,7 +2464,7 @@ RSpec.describe "the DSL surface" do
             identified_by :number
             reference_to Client
             attribute :number, ProposalNumber
-            value_object("ProposalNumber") { attribute :value, String }
+            value_object "ProposalNumber", String
             instance_eval(&proposal_query)
           end
         end
@@ -2506,7 +2506,7 @@ RSpec.describe "the DSL surface" do
           aggregate "Product" do
             identified_by :sku
             attribute :sku, ProductSku
-            value_object("ProductSku") { attribute :value, String }
+            value_object "ProductSku", String
           end
         end
       end
@@ -2540,7 +2540,7 @@ RSpec.describe "the DSL surface" do
           aggregate "Board" do
             identified_by :tag
             attribute :tag, BoardTag
-            value_object("BoardTag") { attribute :value, String }
+            value_object "BoardTag", String
             instance_eval(&card)
           end
         end
@@ -2552,7 +2552,7 @@ RSpec.describe "the DSL surface" do
             identified_by :reference
             reference_to Client
             attribute :reference, EngagementRef
-            value_object("EngagementRef") { attribute :value, String }
+            value_object "EngagementRef", String
           end
         end
       end
@@ -2563,7 +2563,7 @@ RSpec.describe "the DSL surface" do
             identified_by :number
             reference_to Engagement
             attribute :number, ProposalNumber
-            value_object("ProposalNumber") { attribute :value, String }
+            value_object "ProposalNumber", String
             query("AwaitingReply") { where("engagement/client/status": "active") }
           end
         end
@@ -2575,7 +2575,7 @@ RSpec.describe "the DSL surface" do
             identified_by :label
             reference_to Node, as: :parent
             attribute :label, NodeLabel
-            value_object("NodeLabel") { attribute :value, String }
+            value_object "NodeLabel", String
             query("GrandparentLabel") { where("parent/parent/label": "root") }
           end
         end
@@ -2587,7 +2587,7 @@ RSpec.describe "the DSL surface" do
             identified_by :label
             reference_to Node
             attribute :label, NodeLabel
-            value_object("NodeLabel") { attribute :value, String }
+            value_object "NodeLabel", String
             nine = ((["node"] * 9) + ["label"]).join("/")
             query("TooFar") { where(nine.to_sym => "root") }
           end
@@ -2599,7 +2599,7 @@ RSpec.describe "the DSL surface" do
           aggregate "Studio" do
             identified_by :name
             attribute :name, StudioName
-            value_object("StudioName") { attribute :value, String }
+            value_object "StudioName", String
           end
         end
       end
@@ -2610,7 +2610,7 @@ RSpec.describe "the DSL surface" do
             identified_by :tag
             reference_to Studio, as: :studio
             attribute :tag, PieceTag
-            value_object("PieceTag") { attribute :value, String }
+            value_object "PieceTag", String
             instance_eval(&piece_query)
           end
         end
@@ -2776,7 +2776,7 @@ RSpec.describe "the DSL surface" do
 
     it "attribute adds a value-object field" do
       declared = build_aggregate("Attributed") do
-        value_object("Size") { attribute :value, String }
+        value_object "Size", String
         attribute :size, Size
       end.attribute(:size)
 
@@ -2785,7 +2785,7 @@ RSpec.describe "the DSL surface" do
 
     it "attribute takes a default" do
       aggregate = build_aggregate("Defaulting") do
-        value_object("Status") { attribute :value, String }
+        value_object "Status", String
         attribute :status, Status, default: { value: "open" }
       end
       expect(aggregate.attribute(:status).default).to eq(value: "open")
@@ -2793,7 +2793,7 @@ RSpec.describe "the DSL surface" do
 
     it "list_of marks an attribute as a list" do
       aggregate = build_aggregate("Listed") do
-        value_object("Part") { attribute :value, String }
+        value_object "Part", String
         attribute :parts, list_of(Part)
       end
       expect([aggregate.attribute(:parts).type, aggregate.attribute(:parts).list?]).to eq(["Part", true])

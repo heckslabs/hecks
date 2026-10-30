@@ -39,7 +39,7 @@ RSpec.describe "WorldBuilder aggregate-qualified bind mirror" do
           aggregate("Thing") do
             identified_by :ref
             attribute :ref, Ref
-            value_object("Ref") { attribute :value, String }
+            value_object "Ref", String
             command("Make") do
               sets :ref
               emits "Made"

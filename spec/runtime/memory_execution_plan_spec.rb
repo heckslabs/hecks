@@ -5,8 +5,8 @@ RSpec.describe "Memory execution-plan capabilities" do
     vision "complete facts can be put without first loading a record"
 
     aggregate "Item" do
-      value_object("Sku") { attribute :value, String }
-      value_object("Label") { attribute :value, String }
+      value_object "Sku", String
+      value_object "Label", String
       identified_by Sku, as: :sku
       attribute :label, Label
 

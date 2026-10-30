@@ -16,9 +16,7 @@ RSpec.describe "arithmetic on a VO-typed attribute that was never set" do
         aggregate "Wallet" do
           identified_by :label
           attribute :label, Label
-          value_object "Label" do
-            attribute :value, String
-          end
+          value_object "Label", String
 
           # No default: — genuinely absent until a command first sets it.
           attribute :balance, Money, optional: true

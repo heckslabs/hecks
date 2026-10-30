@@ -17,9 +17,7 @@ RSpec.describe "SyntaxBoot's memo" do
       attribute :name, ProbeName
       identified_by :name
 
-      value_object "ProbeName" do
-        attribute :value, String
-      end
+      value_object "ProbeName", String
     end
   end
 

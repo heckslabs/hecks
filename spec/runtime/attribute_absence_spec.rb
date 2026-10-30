@@ -10,9 +10,9 @@ RSpec.describe "reading a declared attribute a record predates" do
     attribute :balance, Balance
     attribute :note,    Note, optional: true
 
-    value_object("Number")  { attribute :value, String }
+    value_object "Number", String
     value_object("Balance") { attribute :cents, Integer }
-    value_object("Note")    { attribute :value, String }
+    value_object "Note", String
   end
 
   def aggregate_without_defaults

@@ -19,9 +19,9 @@ RSpec.describe "a mutation sourced from the record's own state" do
           attribute :positions, list_of(Position)
           identified_by :label
 
-          value_object("Label")   { attribute :value, String }
-          value_object("PieceId") { attribute :value, String }
-          value_object("Ply")     { attribute :value, Integer }
+          value_object "Label", String
+          value_object "PieceId", String
+          value_object "Ply", Integer
           value_object("Square")  { attribute :file, Integer }
 
           # One snapshot: the ply and the aggregate's piece entities, held by a value object.

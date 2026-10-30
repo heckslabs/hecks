@@ -5,7 +5,7 @@ RSpec.describe "relationship list runtime behavior" do
     vision "relationships store and validate the identities they name"
 
     aggregate "Customer" do
-      value_object("CustomerNumber") { attribute :value, String }
+      value_object "CustomerNumber", String
       identified_by CustomerNumber, as: :number
 
       command "Register" do
@@ -16,7 +16,7 @@ RSpec.describe "relationship list runtime behavior" do
     end
 
     aggregate "Account" do
-      value_object("AccountNumber") { attribute :value, String }
+      value_object "AccountNumber", String
       identified_by AccountNumber, as: :number
 
       command "Open" do
@@ -27,7 +27,7 @@ RSpec.describe "relationship list runtime behavior" do
     end
 
     aggregate "Portfolio" do
-      value_object("PortfolioNumber") { attribute :value, String }
+      value_object "PortfolioNumber", String
       identified_by PortfolioNumber, as: :number
 
       belongs_to Customer

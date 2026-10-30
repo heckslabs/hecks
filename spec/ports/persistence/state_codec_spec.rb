@@ -39,7 +39,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
           attribute :code, Code
           attribute :price, Price
 
-          value_object("Code") { attribute :value, String }
+          value_object "Code", String
           value_object("Price") do
             attribute :base, Money
             attribute :extras, list_of(Money)
@@ -65,7 +65,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
           attribute :slug, Slug
           attribute :body, Body
 
-          value_object("Slug") { attribute :value, String }
+          value_object "Slug", String
           value_object("Body") { attribute :blocks, list_of(Block) }
           value_object("Block") do
             attribute :kind, String

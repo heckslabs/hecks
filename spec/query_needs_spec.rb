@@ -18,9 +18,9 @@ RSpec.describe "a query that needs a fact" do
       attribute :day, Day, optional: true
       identified_by :ref
 
-      value_object("Ref")     { attribute :value, String }
-      value_object("Instant") { attribute :value, Integer }
-      value_object("Day")     { attribute :value, Integer }
+      value_object "Ref", String
+      value_object "Instant", Integer
+      value_object "Day", Integer
 
       command "Issue" do
         attribute :ref, Ref

@@ -114,9 +114,7 @@ RSpec.describe "a read model's query options" do
     aggregate "Item" do
       identified_by :name
       attribute :name, Name
-      value_object "Name" do
-        attribute :value, String
-      end
+      value_object "Name", String
       command "Add" do
         attribute :name, Name
         sets :name
@@ -129,9 +127,7 @@ RSpec.describe "a read model's query options" do
       identified_by :ref
       attribute :ref, Ref
       reference_to Item, as: :item
-      value_object "Ref" do
-        attribute :value, String
-      end
+      value_object "Ref", String
       command "Promote" do
         attribute :ref, Ref
         reference_to Item
@@ -177,9 +173,7 @@ RSpec.describe "a read model's query options" do
       identified_by :ref
       attribute :ref, Ref
       reference_to Promotion, as: :promotion
-      value_object "Ref" do
-        attribute :value, String
-      end
+      value_object "Ref", String
       command "Issue" do
         attribute :ref, Ref
         reference_to Promotion
@@ -212,12 +206,8 @@ RSpec.describe "a read model's query options" do
       identified_by :name
       attribute :name, Name
       attribute :notes, list_of(Note)
-      value_object "Name" do
-        attribute :value, String
-      end
-      value_object "NoteRef" do
-        attribute :value, String
-      end
+      value_object "Name", String
+      value_object "NoteRef", String
       command "Add" do
         attribute :name, Name
         sets :name
@@ -646,9 +636,7 @@ RSpec.describe "a read model's query options" do
       aggregate "Shelf" do
         identified_by :ref
         attribute :ref, Ref
-        value_object "Ref" do
-          attribute :value, String
-        end
+        value_object "Ref", String
 
         command "Open" do
           sets :ref
@@ -661,12 +649,8 @@ RSpec.describe "a read model's query options" do
         identified_by :ref
         attribute :ref, Ref
         attribute :flagged, Flag
-        value_object "Ref" do
-          attribute :value, String
-        end
-        value_object "Flag" do
-          attribute :value, TrueClass
-        end
+        value_object "Ref", String
+        value_object "Flag", TrueClass
 
         command "Place" do
           sets :shelf

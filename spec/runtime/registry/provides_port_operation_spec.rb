@@ -7,9 +7,7 @@ RSpec.describe "a provides verb naming a port operation" do
   PROBE_PAYMENT_BODY = proc do
     identified_by :reference
     attribute :reference, Reference
-    value_object "Reference" do
-      attribute :value, String
-    end
+    value_object "Reference", String
     command "Open" do
       goal "open"
       attribute :reference, Reference
