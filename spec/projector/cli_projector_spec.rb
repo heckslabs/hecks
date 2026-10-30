@@ -32,8 +32,8 @@ RUNS_JOB_SHAPE = proc do
   attribute :run, RunKey
   attribute :note, Note, optional: true
   identified_by :run
-  value_object("RunKey") { attribute :value, String }
-  value_object("Note") { attribute :value, String }
+  value_object "RunKey", String
+  value_object "Note", String
   value_object("Document") { attribute :text, String }
   lifecycle(:status, default: "requested") { transition "Fault" => "faulted", from: "requested" }
 end

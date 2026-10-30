@@ -13,8 +13,8 @@ RSpec.describe "a command that needs :now" do
 
   def link_value_objects
     proc do
-      value_object("Ref")     { attribute :value, String }
-      value_object("Instant") { attribute :value, Integer }
+      value_object "Ref", String
+      value_object "Instant", Integer
     end
   end
 

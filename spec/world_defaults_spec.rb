@@ -12,7 +12,7 @@ RSpec.describe "a world's project-wide defaults" do
     proc do
       identified_by :label
       attribute :label, Label
-      value_object("Label") { attribute :value, String }
+      value_object "Label", String
       command "Open" do
         attribute :label, Label
         emits "#{name}Opened"

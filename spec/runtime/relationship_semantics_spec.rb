@@ -6,7 +6,7 @@ RSpec.describe "relationship cardinality and traversal" do
     vision "relationship cardinality and paths retain their domain meaning"
 
     aggregate "Owner" do
-      value_object("OwnerNumber") { attribute :value, String }
+      value_object "OwnerNumber", String
       identified_by OwnerNumber, as: :number
 
       command "Register" do
@@ -16,7 +16,7 @@ RSpec.describe "relationship cardinality and traversal" do
     end
 
     aggregate "Customer" do
-      value_object("CustomerNumber") { attribute :value, String }
+      value_object "CustomerNumber", String
       identified_by CustomerNumber, as: :number
 
       lifecycle :status, default: "active" do
@@ -35,7 +35,7 @@ RSpec.describe "relationship cardinality and traversal" do
     end
 
     aggregate "Team" do
-      value_object("TeamNumber") { attribute :value, String }
+      value_object "TeamNumber", String
       identified_by TeamNumber, as: :number
 
       belongs_to Owner

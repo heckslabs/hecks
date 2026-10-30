@@ -15,8 +15,8 @@ RSpec.describe "the generated diagrams" do
 
   def scratch_payment_types
     proc do
-      value_object("PaymentReference") { attribute :value, String }
-      value_object("Channel") { attribute :value, String }
+      value_object "PaymentReference", String
+      value_object "Channel", String
     end
   end
 
@@ -154,7 +154,7 @@ RSpec.describe "the generated diagrams" do
       aggregate "Ledger" do
         identified_by :reference
         attribute :reference, LedgerReference
-        value_object("LedgerReference") { attribute :value, String }
+        value_object "LedgerReference", String
         parts.each { |part| instance_eval(&part) }
       end
     end

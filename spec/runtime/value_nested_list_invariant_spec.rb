@@ -15,7 +15,7 @@ RSpec.describe Hecks::Runtime::Value, ".build with lists nested in value objects
           attribute :slug, Slug
           attribute :body, Body
 
-          value_object("Slug") { attribute :value, String }
+          value_object "Slug", String
           value_object("Body") { attribute :blocks, list_of(Block) }
           value_object("Block") do
             attribute :kind, String

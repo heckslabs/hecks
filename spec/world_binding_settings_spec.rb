@@ -15,9 +15,7 @@ RSpec.describe "World#for_binding" do
         aggregate "Game" do
           identified_by :label
           attribute :label, GameLabel
-          value_object "GameLabel" do
-            attribute :value, String
-          end
+          value_object "GameLabel", String
           command "Start" do
             attribute :label, GameLabel
             emits "GameStarted"
@@ -26,9 +24,7 @@ RSpec.describe "World#for_binding" do
         aggregate "Bubble" do
           identified_by :label
           attribute :label, BubbleLabel
-          value_object "BubbleLabel" do
-            attribute :value, String
-          end
+          value_object "BubbleLabel", String
           command "Pop" do
             attribute :label, BubbleLabel
             emits "BubblePopped"

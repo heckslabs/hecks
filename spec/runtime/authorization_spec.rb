@@ -39,9 +39,7 @@ RSpec.describe "role-based command rejections" do
     aggregate "Order" do
       identified_by :ref
       attribute :ref, OrderRef
-      value_object "OrderRef" do
-        attribute :value, String
-      end
+      value_object "OrderRef", String
 
       command "Place" do
         role "Customer"

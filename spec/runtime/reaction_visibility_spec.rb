@@ -3,8 +3,8 @@ require "spec_helper"
 RSpec.describe "policy and process lexical visibility" do
   REACTION_VISIBILITY_DOMAIN = proc do
     aggregate "Meter" do
-      value_object("Code") { attribute :value, String }
-      value_object("Reading") { attribute :value, Integer }
+      value_object "Code", String
+      value_object "Reading", Integer
 
       attribute :code, Code
       attribute :reading, Reading
@@ -48,8 +48,8 @@ RSpec.describe "policy and process lexical visibility" do
     end
 
     aggregate "Proposal" do
-      value_object("Reference") { attribute :value, String }
-      value_object("Reading") { attribute :value, Integer }
+      value_object "Reference", String
+      value_object "Reading", Integer
 
       attribute :reference, Reference
       attribute :reading, Reading

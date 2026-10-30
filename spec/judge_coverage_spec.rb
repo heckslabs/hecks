@@ -35,9 +35,7 @@ RSpec.describe "the judge's coverage of the language" do
         identified_by { attribute :number, String }
         attribute :flagged, HolderFlag, optional: true
 
-        value_object "HolderFlag" do
-          attribute :value, TrueClass
-        end
+        value_object "HolderFlag", TrueClass
 
         entity "Piece" do
           identified_by { attribute :sequence, Integer }
@@ -62,8 +60,8 @@ RSpec.describe "the judge's coverage of the language" do
 
   def clocked_value_objects
     proc do
-      value_object("ClockedRef")     { attribute :value, String }
-      value_object("ClockedInstant") { attribute :value, Integer }
+      value_object "ClockedRef", String
+      value_object "ClockedInstant", Integer
     end
   end
 

@@ -77,8 +77,8 @@ RSpec.describe "mutation op append, bare-symbol shorthand" do
   HASH_APPEND_BLUEBOOK = proc do
     aggregate "Sprint" do
       identified_by :id
-      value_object("SprintId") { attribute :value, String }
-      value_object("Dependency") { attribute :value, String }
+      value_object "SprintId", String
+      value_object "Dependency", String
       attribute :id,           SprintId
       attribute :dependencies, list_of(Dependency)
 

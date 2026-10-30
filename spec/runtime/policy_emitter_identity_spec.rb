@@ -20,8 +20,8 @@ RSpec.describe "a policy projecting its emitter's identity" do
           attribute :pieces, list_of(Piece)
           identified_by :label
 
-          value_object("Label")   { attribute :value, String }
-          value_object("PieceId") { attribute :value, String }
+          value_object "Label", String
+          value_object "PieceId", String
 
           entity "Piece" do
             attribute :id, PieceId
@@ -61,8 +61,8 @@ RSpec.describe "a policy projecting its emitter's identity" do
           attribute :fallen, list_of(Fallen)
           identified_by :label
 
-          value_object("Label")   { attribute :value, String }
-          value_object("PieceId") { attribute :value, String }
+          value_object "Label", String
+          value_object "PieceId", String
 
           entity "Fallen" do
             attribute :id, PieceId
@@ -156,8 +156,8 @@ RSpec.describe "a policy projecting its emitter's identity" do
           attribute :row,  Row
           attribute :seat, Seat
           identified_by :row, :seat
-          value_object("Row")  { attribute :value, String }
-          value_object("Seat") { attribute :value, String }
+          value_object "Row", String
+          value_object "Seat", String
 
           command "Take" do
             attribute :row, Row
@@ -171,7 +171,7 @@ RSpec.describe "a policy projecting its emitter's identity" do
         aggregate "Note" do
           attribute :key, Key
           identified_by :key
-          value_object("Key") { attribute :value, String }
+          value_object "Key", String
 
           command "Write" do
             attribute :key, Key

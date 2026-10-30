@@ -23,8 +23,8 @@ RSpec.describe "an entity attribute's own one_of" do
         identified_by :name
         attribute :pieces, list_of(Piece)
 
-        value_object("BoardName") { attribute :value, String }
-        value_object("PieceId")   { attribute :value, String }
+        value_object "BoardName", String
+        value_object "PieceId", String
 
         entity "Piece" do
           description "One piece, with a two-state flag of its own."
@@ -61,8 +61,8 @@ RSpec.describe "an entity attribute's own one_of" do
           attribute :name, BoardName
           identified_by :name
 
-          value_object("BoardName") { attribute :value, String }
-          value_object("PieceId")   { attribute :value, String }
+          value_object "BoardName", String
+          value_object "PieceId", String
 
           entity "Piece" do
             description "Flag as up/down."
