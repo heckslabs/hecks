@@ -49,7 +49,8 @@ module Hecks
         dispatch_binding_fidelity:                        %w[Handler#dispatches Policy#with_spec],
         mutations_match_recompute:                        %w[Command#mutations],
         sagas_rehydrate_cleanly:                          %w[ProcessManager#states ProcessManager#correlates_by
-                                                             ProcessManager#starts_on ProcessManager#ends_on],
+                                                             ProcessManager#starts_on ProcessManager#ends_on
+                                                             ProcessManager#endings],
         fanout_dispatches_once_per_matching_row:          %w[Policy#for_each Policy#where],
         aggregation_matches_recompute:                    %w[ReadModel#count ReadModel#median_field ReadModel#sum_field
                                                              ReadModel#avg_field ReadModel#min_field ReadModel#max_field

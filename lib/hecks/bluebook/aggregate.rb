@@ -44,7 +44,7 @@ module Hecks
         provenance:       :provenance,
         # Additive: an aggregate that acknowledges no finding emits `acknowledgements: []`.
         acknowledgements: lambda {
-          acknowledgements.map { |held| { finding: held.finding.to_s, subject: held.subject.to_s, reason: held.reason } }
+          acknowledgements.map { |held| { finding: held.finding.to_s, subject: held.subject, reason: held.reason } }
         }
       )
 
