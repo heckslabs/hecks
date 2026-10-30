@@ -1,7 +1,7 @@
 require "json"
 require "tempfile"
 require_relative "../isolated_boot"
-require_relative "../../quality_control/cli/child"
+require_relative "../quality_control_child"
 
 module Hecks
   module Fuzzing

@@ -4,7 +4,7 @@ require "tempfile"
 require "json"
 require_relative "isolated_boot"
 require_relative "../naming"
-require_relative "../quality_control/cli/child"
+require_relative "quality_control_child"
 require_relative "concurrent_dispatch/racing"
 require_relative "concurrent_dispatch/world_copy"
 

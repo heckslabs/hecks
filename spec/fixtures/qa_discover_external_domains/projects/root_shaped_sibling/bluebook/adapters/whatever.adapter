@@ -1,3 +1,0 @@
-# a sibling file next to the entry point, the way a real client project's
-# real bluebook/ directory carries adapters/ and translations/ beside its
-# own entry point — this must never be mistaken for a second entity.

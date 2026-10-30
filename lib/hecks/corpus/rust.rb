@@ -46,7 +46,7 @@ module Hecks
       BLUEBOOK_NAME = /^\s*Hecks\.bluebook\s+"([^"]+)"/
 
       # The corpus kinds holding bluebooks the gem carries and a hecksagon attaches by name.
-      GEM_BLUEBOOK_KINDS = %i[qa deploy site tickets composer tenancy sme bulk ci_pipeline].freeze
+      GEM_BLUEBOOK_KINDS = %i[deploy site tickets composer tenancy sme bulk ci_pipeline].freeze
 
       # Every place a Rust-facing domain's own `attaches` attachment could be declared.
       #

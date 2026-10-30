@@ -18,8 +18,12 @@ module Hecks
     # Where attachable bluebooks live, relative to `lib/hecks/`.
     GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook rails_app/bluebook/*.bluebook tickets/bluebook/*.bluebook
-               composer/bluebook/*.bluebook quality_control/*.bluebook bulk/bluebook/*.bluebook
+               composer/bluebook/*.bluebook bulk/bluebook/*.bluebook
                ci_pipeline/*.bluebook].freeze
+
+    # The gem-name prefix of a satellite: an installed gem such as `hecks-qa` that carries its own
+    # bluebooks under its `lib/hecks/`. Found by name, so a satellite is attached by being installed.
+    SATELLITE_PREFIX = "hecks-"
 
     # A `Hecks.bluebook "Name"` header line, capturing the bluebook's name.
     BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/
@@ -35,7 +39,33 @@ module Hecks
 
     # @return [Array<String>] every file the globs find, sorted
     def self.bluebook_files
-      GLOBS.flat_map { |glob| Dir.glob(File.join(__dir__, glob)) }.sort
+      (GLOBS.map { |glob| File.join(__dir__, glob) } + satellite_globs).flat_map { |glob| Dir.glob(glob) }.sort
+    end
+
+    # The names of the bluebooks the installed satellite gems carry, for the domain to attach.
+    #
+    # @return [Array<String>] bluebook names, sorted and unique
+    def self.satellite_names
+      satellite_globs.flat_map { |glob| Dir.glob(glob) }.filter_map { |path| declaration_name(path) }.uniq.sort
+    end
+
+    # The bluebook globs of every installed satellite gem (`hecks-*`), each under its `lib/hecks/`.
+    # Read from the gem directories rather than `Gem::Specification`, which a Bundler setup narrows to
+    # the Gemfile's gems, so a satellite installed beside the checkout is found either way.
+    #
+    # @return [Array<String>] absolute globs, one per installed satellite, sorted
+    def self.satellite_globs
+      satellite_dirs.each { |dir| $LOAD_PATH.push(File.join(dir, "lib")) unless $LOAD_PATH.include?(File.join(dir, "lib")) }
+      satellite_dirs.map { |dir| File.join(dir, "lib", "hecks", "**", "*.bluebook") }
+    end
+
+    # The installed satellite gem directories, sorted, the core gem's own versions left out.
+    #
+    # @return [Array<String>] absolute gem directories
+    def self.satellite_dirs
+      Gem.path.flat_map { |root| Dir.glob(File.join(root, "gems", "#{SATELLITE_PREFIX}*")) }
+           .reject { |dir| File.basename(dir).match?(/\Ahecks-\d/) }
+           .uniq.sort
     end
 
     # Every bluebook the gem carries, whichever module loads it: the one lookup table `attaches`
@@ -107,6 +137,9 @@ module Hecks
       Bluebook::MetaValidator.defer { paths.each { |path| SentenceForm.load_file(path) } }
       Bluebook::MetaValidator.judge_deferred!(registry)
       load_wiring(name, paths)
+      # A satellite's aggregates take the Governance store the core domain's own bluebooks take, so
+      # its roles are real access rather than refused as ungoverned.
+      Hecks.hecksagon(name) { attaches "Governance" } if satellite_names.include?(name)
     rescue Exception
       roll_back(registry, name, before)
       raise
@@ -153,7 +186,9 @@ module Hecks
     def self.wiring_files(name, paths)
       directory = File.dirname(paths.first)
       ports     = File.join(directory, "#{Naming.snake(name)}.ports.hecksagon")
-      [*(ports if File.file?(ports)), *Dir.glob(File.join(directory, "adapters", "*.adapter"))]
+      world     = File.join(directory, "#{Naming.snake(name)}.world")
+      [*(world if File.file?(world)), *(ports if File.file?(ports)),
+       *Dir.glob(File.join(directory, "adapters", "*.adapter"))]
     end
     private_class_method :wiring_files
 

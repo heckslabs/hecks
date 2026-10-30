@@ -117,9 +117,9 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
     it "loads nothing twice when a second hecksagon attaches the bluebook" do
       registry_with do
         declare_console
-        Hecks::FrameworkBluebooks.load!("QualityControl")
+        Hecks::FrameworkBluebooks.load!("Tickets")
 
-        expect(Hecks::FrameworkBluebooks.load!("QualityControl")).to be_nil
+        expect(Hecks::FrameworkBluebooks.load!("Tickets")).to be_nil
       end
     end
 
