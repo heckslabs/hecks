@@ -49,7 +49,7 @@ pub struct ProjectedField {
 #[derive(Debug, Clone, Default)]
 pub struct Acknowledgement {
     pub finding: String,
-    pub subject: String,
+    pub subject: Option<String>,
     pub reason: String,
 }
 
@@ -343,6 +343,7 @@ pub struct ProcessManager {
     pub correlates_by: String,
     pub starts_on: Option<String>,
     pub ends_on: Option<String>,
+    pub endings: Vec<String>,
     pub states: Vec<String>,
     pub handlers: Vec<ProcessManagerHandler>,
 }
