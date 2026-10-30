@@ -34,7 +34,11 @@ impl Parser<'_> {
             match m.id {
                 "process_matched" => pm.correlates_by = m.text_of("path"),
                 "process_starts" => pm.starts_on = Some(m.text_of("event")),
-                "process_ends" => pm.ends_on = Some(m.text_of("event")),
+                "process_ends" => {
+                    let event = m.text_of("event");
+                    pm.ends_on.get_or_insert_with(|| event.clone());
+                    pm.endings.push(event);
+                }
                 "process_when" | "process_when_refused" => {
                     let handler = self.handler(&m)?;
                     if let Some(earlier) = pm.handlers.iter().find(|h| {
@@ -140,7 +144,7 @@ pub(super) fn said(pm: &ir::ProcessManager) -> Result<String, String> {
     if let Some(event) = &pm.starts_on {
         out.push_str(&format!("  It starts when {event} is announced\n"));
     }
-    if let Some(event) = &pm.ends_on {
+    for event in &pm.endings {
         out.push_str(&format!("  It ends when {event} is announced\n"));
     }
     for handler in &pm.handlers {

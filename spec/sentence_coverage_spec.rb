@@ -24,7 +24,8 @@ RSpec.describe "the sentence form against the whole corpus", :io do
     /triggers \S+, a command this bluebook does not declare/,
     /names no command \w+ declares/,
     /no phrase for this filter in query Live\w+/,
-    /no phrase for this paging option in report/
+    /no phrase for this paging option in report/,
+    /the sentence form has no phrase for acknowledgements/
   ].freeze
 
   def self.name_of(path) = File.read(path)[/Hecks\.bluebook\s+"([^"]+)"/, 1]
