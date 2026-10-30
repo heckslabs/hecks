@@ -52,6 +52,7 @@ module Hecks
         # Checks that `bind`'s adapter implements the port it names and satisfies its verb.
         def check_verb(bind)
           port = port_for(bind)
+          Ports::AdapterRegistry.check_capability!(bind.adapter, port.name)
           check_answers(port, bind.adapter)
           return if port.verb.to_s == bind.verb.to_s
 
