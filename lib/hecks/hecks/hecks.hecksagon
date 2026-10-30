@@ -1,6 +1,5 @@
 Hecks.hecksagon "Hecks" do
   attaches "Governance"
-  attaches "Scripting"
 
   # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring their own ports).
@@ -766,5 +765,23 @@ Hecks.hecksagon "Tenancy" do
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned
     trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }
+  end
+end
+
+# The Scripting change moves through the `Script` port: `Examine` plans it, `Perform` carries it out.
+# What a script does is the adapter's (ScriptRunner), so the bluebook never names one.
+Hecks.hecksagon "Hecks" do
+  Hecks::Change.port "Script" do
+    asks "Examine", to: Change do
+      attribute :run, RunKey
+      answers "ChangeExamined"
+      refuses "ChangeRefused"
+    end
+
+    asks "Perform", to: Change do
+      attribute :run, RunKey
+      answers "ChangeAnswered"
+      refuses "ChangeRefused"
+    end
   end
 end

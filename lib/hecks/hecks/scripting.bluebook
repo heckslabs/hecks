@@ -1,9 +1,8 @@
-Hecks.bluebook "Scripting" do
+Hecks.bluebook "Hecks" do
   vision "A change you can preview: it is planned, shown, confirmed against exactly that plan, and only then carried out, whatever script it runs."
-  supporting
 
-  # A framework member like Governance and Identity: attach it with `attaches "Scripting"` in the
-  # consuming domain's own `.hecksagon`. The script is the port's adapter, so what a change
+  # Scripting: how a change is planned, confirmed and carried out. A Hecks command, not a member,
+  # so `hecks Change.request!` and the rest are on the CLI. The script is the port's adapter, so what a change
   # does lives behind the `Script` port, and this bluebook holds only how any change moves.
   aggregate "Change" do
     description "One change a script makes, previewed before it is carried out and applied only if its plan is unchanged."
@@ -148,7 +147,7 @@ Hecks.bluebook "Scripting" do
     trigger Change::Complete, with: { report: :report }
   end
 
-  policy "RecordTheRefusal" do
+  policy "RecordTheChangeRefusal" do
     on      "Change.ChangeRefused"
     trigger Change::Fault, with: { refusal: :refusal }
   end

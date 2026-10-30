@@ -6,10 +6,6 @@
 Hecks.hecksagon "Governance" do
 end
 
-# Change's scripts run through the `Script` port its own framework hecksagon declares.
-Hecks.hecksagon "Scripting" do
-end
-
 # The attached bluebooks (hecks.hecksagon `attaches`): each is a bounded context whose store is the
 # one the Hecks domain's own `persisted_by` gives it, so a copy that opts the Hecks bluebook in
 # opts them all in.

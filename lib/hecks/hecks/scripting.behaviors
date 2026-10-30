@@ -1,4 +1,4 @@
-Hecks.behaviors "Scripting" do
+Hecks.behaviors "Hecks" do
   vision "A change names its script, faults when that script cannot plan it, and is confirmed only from a plan."
 
   loads "change.bluebook", "governance.bluebook", "change.hecksagon", "../../../../spec/fixtures/change/governance.hecksagon"
@@ -23,7 +23,7 @@ Hecks.behaviors "Scripting" do
 
   test "Confirm refuses a change that was never planned" do
     tests "Confirm", on: "Change"
-    setup  "Scripting::Change.Request", run: { value: "c3" }, script: { value: "no_such_script" }
+    setup  "Hecks::Change.Request", run: { value: "c3" }, script: { value: "no_such_script" }
     input  run: { value: "c3" }, digest: { value: "ab12" }
     expect refused: "the digest confirmed is the digest planned"
   end
