@@ -10,6 +10,8 @@ Hecks.bluebook "Hecks" do
     attribute :run,            RunKey
     attribute :script,         ScriptName
     attribute :arguments,      list_of(Argument), optional: true
+    attribute :source,         SourcePath,        optional: true
+    attribute :expected,       Digest,            optional: true
     attribute :plan,           Report,            optional: true
     attribute :planned_digest, Digest,            optional: true
     attribute :report,         Report,            optional: true
@@ -47,7 +49,8 @@ Hecks.bluebook "Hecks" do
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
-      transition "Plan"     => "planned",   from: "requested"
+      transition "Plan"      => "planned",   from: "requested"
+      transition "ApplyPlan" => "planned",   from: "requested"
       transition "Confirm"  => "confirmed", from: "planned"
       transition "Complete" => "applied",   from: "confirmed"
       transition "Fault"    => "faulted",   from: ["requested", "planned", "confirmed"]
@@ -113,6 +116,38 @@ Hecks.bluebook "Hecks" do
       emits ChangeFaulted
     end
 
+    # Apply runs a script in one process: it loads the script's source, plans it, and carries it out
+    # only when the plan's digest is the one the person expected. Nothing is kept between runs.
+    value_object "SourcePath" do
+      attribute :value, String, matches: :present
+    end
+
+    command "Apply" do
+      role "Maintainer"
+      goal "Carry out a script in one run, only if its plan's digest is the one expected"
+
+      attribute :run,       RunKey, sets: true
+      attribute :script,    ScriptName, sets: true
+      attribute :arguments, list_of(Argument), optional: true, sets: true
+      attribute :source,    SourcePath, sets: true
+      attribute :expected,  Digest, sets: true
+
+      emits ChangeApplyRequested
+    end
+
+    command "ApplyPlan" do
+      role "System"
+      goal "Record the plan a run of Apply made, and the digest that stands for it"
+
+      reference_to Change
+      attribute :plan,   Report, sets: true
+      attribute :digest, Digest
+
+      sets :planned_digest, to: :digest
+
+      emits ChangeApplyPlanned
+    end
+
     query "Outcome" do
       description "How one change stands: its status, its plan, and what it reported or why it failed."
       attribute :run, RunKey
@@ -150,5 +185,21 @@ Hecks.bluebook "Hecks" do
   policy "RecordTheChangeRefusal" do
     on      "Change.ChangeRefused"
     trigger Change::Fault, with: { refusal: :refusal }
+  end
+
+  policy "ExamineForApplyWhenApplied" do
+    on      "Change.ChangeApplyRequested"
+    ask     :examine_for_apply, with: { run: :run, script: :script, arguments: :arguments,
+                                        source: :source, expected: :expected }
+  end
+
+  policy "RecordTheApplyPlan" do
+    on      "Change.ChangeApplyExamined"
+    trigger Change::ApplyPlan, with: { plan: :plan, digest: :digest }
+  end
+
+  policy "ConfirmWhenApplyPlanned" do
+    on      "Change.ChangeApplyPlanned"
+    trigger Change::Confirm, with: { digest: :digest }
   end
 end

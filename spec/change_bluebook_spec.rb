@@ -1,4 +1,5 @@
 require "spec_helper"
+require "tempfile"
 
 # A change is planned, shown, confirmed against exactly that plan, and only then carried out. The
 # bluebook holds how any change moves; the `Script` port's adapter holds what a script does.
@@ -32,6 +33,23 @@ RSpec.describe "a change" do
     confirm(run, digest)
   end
 
+  # The digest a plan of `rename` has, which a person would have reviewed in an earlier run.
+  def expected_digest
+    runner.new.examine(script: { value: "rename" }, arguments: rename_args)[:digest][:value]
+  end
+
+  # One run: asks for the change with the expected digest, carried out in this process.
+  # The script's source: this example registers the script itself, so the file only has to exist.
+  let(:source) do
+    Tempfile.new(["change", ".rb"]).tap { |file| file.write("# registered by the example\n") && file.flush }.path
+  end
+
+  def apply(run, expected:)
+    hecks.dispatch_flat("Hecks::Change.Apply", run: { value: run }, script: { value: "rename" },
+                                              arguments: rename_args, source: { value: source },
+                                              expected: { value: expected })
+  end
+
   def standing(run) = hecks.query("Hecks::Change.Outcome", run: { value: run }).first
 
   def shown_digest(run) = standing(run)[:planned_digest][:value]
@@ -53,6 +71,21 @@ RSpec.describe "a change" do
     confirm("c2", shown_digest("c2"))
 
     expect([standing("c2")[:status], said("c2", :report), done]).to eq(["applied", "renamed to b", ["b"]])
+  end
+
+  it "carries out a run whose plan has the expected digest, in one process", :aggregate_failures do
+    register_rename
+    expected = expected_digest
+    apply("c4", expected: expected)
+
+    expect([standing("c4")[:status], said("c4", :report), done]).to eq(["applied", "renamed to b", ["b"]])
+  end
+
+  it "refuses a run whose plan does not have the expected digest, and nothing runs", :aggregate_failures do
+    register_rename
+    apply("c5", expected: "0" * 64)
+
+    expect([standing("c5")[:status], done]).to eq(["faulted", []])
   end
 
   it "refuses a digest that is not the one planned, and nothing runs", :aggregate_failures do

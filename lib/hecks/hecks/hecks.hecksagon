@@ -783,5 +783,15 @@ Hecks.hecksagon "Hecks" do
       answers "ChangeAnswered"
       refuses "ChangeRefused"
     end
+
+    asks "ExamineForApply", to: Change do
+      attribute :run, RunKey
+      attribute :script, ScriptName
+      attribute :arguments, list_of(Argument), optional: true
+      attribute :source, SourcePath
+      attribute :expected, Digest
+      answers "ChangeApplyExamined"
+      refuses "ChangeRefused"
+    end
   end
 end

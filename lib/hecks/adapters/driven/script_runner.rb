@@ -53,6 +53,28 @@ module Hecks
         { plan: { value: text }, digest: { value: digest(name, args, text) } }
       end
 
+      # Loads the script's source when the record names one, plans the change, and answers the plan
+      # only if its digest is the expected one. A run of `Apply` uses this in place of `examine`, so
+      # the digest the person reviewed is what gets carried out in the same process.
+      #
+      # @param held [Hash] the record: `script`, `arguments`, `source` and `expected`
+      # @return [Hash{Symbol => Hash}] `plan:` and `digest:`, as `examine` answers
+      # @raise [Refused] when the source cannot be loaded, the plan's digest is not the expected one,
+      #   or the script is unknown or its plan raises
+      def examine_for_apply(**held)
+        source = plain(held[:source])
+        load(source) if source && !source.to_s.empty?
+        answer = examine(**held)
+        expected = plain(held[:expected])
+        return answer if expected.nil? || answer[:digest][:value] == expected
+
+        raise Refused, "the plan's digest is #{answer[:digest][:value]}, not the expected #{expected}; review it again"
+      rescue ::LoadError, ::StandardError => e
+        raise e if e.is_a?(Refused)
+
+        raise Refused, "could not load #{source}: #{e.message}"
+      end
+
       # Carries out a confirmed change if its plan has not moved.
       #
       # @param held [Hash] the record: `script`, `arguments` and `planned_digest`
