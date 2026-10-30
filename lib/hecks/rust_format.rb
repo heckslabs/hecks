@@ -22,6 +22,10 @@ module Hecks
     # The most passes `call` makes; a text still changing after them keeps the last result.
     PASSES = 3
 
+    # Serializes the rustfmt children of this process. In a whole-suite run, worker threads capturing
+    # at once end with `Errno::EBADF` in `Open3.popen_run`, so each capture waits for this lock.
+    SPAWN_LOCK = Mutex.new
+
     module_function
 
     # @param path [String] where the text will be written
@@ -57,7 +61,9 @@ module Hecks
     # @return [String] the source after one pass, or unchanged when rustfmt cannot parse it
     # @raise [Failed] when rustfmt fails for a reason other than the text
     def pass(text)
-      out, err, status = Open3.capture3("rustfmt", "--edition", EDITION, "--emit", "stdout", stdin_data: text)
+      out, err, status = SPAWN_LOCK.synchronize do
+        Open3.capture3("rustfmt", "--edition", EDITION, "--emit", "stdout", stdin_data: text)
+      end
       return out if status.success?
       raise Failed, "rustfmt failed: #{err.lines.first&.strip}" unless err.include?("<stdin>")
 
