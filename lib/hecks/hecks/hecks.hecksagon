@@ -1,5 +1,6 @@
 Hecks.hecksagon "Hecks" do
   attaches "Governance"
+  attaches "Scripting"
 
   # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring their own ports).

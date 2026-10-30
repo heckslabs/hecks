@@ -6,7 +6,7 @@
   },
   "steps": [
     {
-      "verb": "Change::Change.Request",
+      "verb": "Scripting::Change.Request",
       "args": {
         "run": { "value": "c1" },
         "script": { "value": "no_such_script" },
@@ -16,7 +16,7 @@
       }
     },
     {
-      "verb": "Change::Change.Confirm",
+      "verb": "Scripting::Change.Confirm",
       "args": {
         "run": { "value": "c1" },
         "digest": { "value": "ab12" }

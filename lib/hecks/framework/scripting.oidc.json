@@ -1,29 +1,29 @@
 {
-  "audience": "Change",
+  "audience": "Scripting",
   "scopes": [
     {
       "scope": "change:change.complete",
-      "verb": "Change::Change.Complete",
+      "verb": "Scripting::Change.Complete",
       "role": "System"
     },
     {
       "scope": "change:change.confirm",
-      "verb": "Change::Change.Confirm",
+      "verb": "Scripting::Change.Confirm",
       "role": "Maintainer"
     },
     {
       "scope": "change:change.fault",
-      "verb": "Change::Change.Fault",
+      "verb": "Scripting::Change.Fault",
       "role": "System"
     },
     {
       "scope": "change:change.plan",
-      "verb": "Change::Change.Plan",
+      "verb": "Scripting::Change.Plan",
       "role": "System"
     },
     {
       "scope": "change:change.request",
-      "verb": "Change::Change.Request",
+      "verb": "Scripting::Change.Request",
       "role": "Maintainer"
     }
   ],

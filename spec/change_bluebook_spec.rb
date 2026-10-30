@@ -18,10 +18,10 @@ RSpec.describe "a change" do
   end
 
   def request(run, script: "rename")
-    hecks.dispatch_flat("Change::Change.Request", run: { value: run }, script: { value: script }, arguments: rename_args)
+    hecks.dispatch_flat("Scripting::Change.Request", run: { value: run }, script: { value: script }, arguments: rename_args)
   end
 
-  def confirm(run, digest) = hecks.dispatch_flat("Change::Change.Confirm", run: { value: run }, digest: { value: digest })
+  def confirm(run, digest) = hecks.dispatch_flat("Scripting::Change.Confirm", run: { value: run }, digest: { value: digest })
 
   # Requests a change, then makes the script plan something else before the digest is confirmed.
   def confirm_after_the_plan_moves(run)
@@ -32,7 +32,7 @@ RSpec.describe "a change" do
     confirm(run, digest)
   end
 
-  def standing(run) = hecks.query("Change::Change.Outcome", run: { value: run }).first
+  def standing(run) = hecks.query("Scripting::Change.Outcome", run: { value: run }).first
 
   def shown_digest(run) = standing(run)[:planned_digest][:value]
 
