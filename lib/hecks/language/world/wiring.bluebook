@@ -15,9 +15,7 @@ Hecks.bluebook "World" do
     attribute :adapter,  WiringText
     attribute :settings, list_of(Setting)
 
-    value_object "WiringText" do
-      attribute :value, String
-    end
+    value_object "WiringText", String
 
     value_object "Setting" do
       attribute :key,   String

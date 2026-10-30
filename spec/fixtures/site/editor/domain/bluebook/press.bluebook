@@ -22,18 +22,14 @@ Hecks.bluebook "Press" do
       invariant("an article has a headline") { !value.to_s.empty? }
     end
 
-    value_object "Standfirst" do
-      attribute :value, String
-    end
+    value_object "Standfirst", String
 
     value_object "Byline" do
       attribute :name, String
       attribute :contact, String
     end
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
     value_object "Link" do
       attribute :label, String
@@ -204,13 +200,9 @@ Hecks.bluebook "Press" do
 
     identified_by :key
 
-    value_object "MastheadKey" do
-      attribute :value, String
-    end
+    value_object "MastheadKey", String
 
-    value_object "Title" do
-      attribute :value, String
-    end
+    value_object "Title", String
 
     # A document body under other names: the editor picks its widget by this shape, not by a name.
     value_object "Run" do
@@ -257,13 +249,9 @@ Hecks.bluebook "Press" do
       invariant("a picture has alt text") { !value.to_s.strip.empty? }
     end
 
-    value_object "MimeType" do
-      attribute :value, String
-    end
+    value_object "MimeType", String
 
-    value_object "Pixels" do
-      attribute :value, Integer
-    end
+    value_object "Pixels", Integer
 
     value_object "FocalPoint" do
       attribute :x, Float

@@ -43,9 +43,7 @@ Hecks.bluebook "Tickets" do
       invariant("a finding has a title") { !value.to_s.empty? }
     end
 
-    value_object "Body" do
-      attribute :value, String
-    end
+    value_object "Body", String
 
     # What the finding is: a `gap` Hecks cannot yet express, a `parity` divergence between the Ruby
     # and Rust runtimes, a `qa` finding from the QA loop, or an `idea`.

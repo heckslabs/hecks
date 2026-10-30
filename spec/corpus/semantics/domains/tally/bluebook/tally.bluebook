@@ -19,21 +19,13 @@ Hecks.bluebook "Tallying" do
     attribute :limit,  Count,  optional: true
     attribute :tags,   list_of(Label)
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
-    value_object "Count" do
-      attribute :value, Integer
-    end
+    value_object "Count", Integer
 
-    value_object "Weight" do
-      attribute :value, Float
-    end
+    value_object "Weight", Float
 
-    value_object "Label" do
-      attribute :value, String
-    end
+    value_object "Label", String
 
     command "Open" do
       goal "Start a tally"

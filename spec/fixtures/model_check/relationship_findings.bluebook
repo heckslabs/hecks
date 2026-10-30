@@ -7,9 +7,7 @@ Hecks.bluebook "RelationshipFindings" do
 
     attribute :number, Number
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     command "Do" do
       role "Tester"

@@ -38,18 +38,11 @@ Hecks.bluebook "Bluebook" do
       invariant("a command is named") { !value.to_s.empty? }
     end
 
-    value_object "Actor" do
-      attribute :value, String
-      # Optional: many commands declare no role or goal, and the builder never required one.
-    end
+    value_object "Actor", String
 
-    value_object "Goal" do
-      attribute :value, String
-    end
+    value_object "Goal", String
 
-    value_object "EventName" do
-      attribute :value, String
-    end
+    value_object "EventName", String
 
     value_object "Announcement" do
       attribute :name, String
@@ -91,13 +84,9 @@ Hecks.bluebook "Bluebook" do
     end
 
     # Plain string holder for an aggregate id; the other text value objects mean something else.
-    value_object "CommandText" do
-      attribute :value, String
-    end
+    value_object "CommandText", String
     # Declaration order is a fact about the source, so the language holds it, not the store.
-    value_object "Position" do
-      attribute :value, Integer
-    end
+    value_object "Position", Integer
 
     attribute :position, Position
 
@@ -178,10 +167,7 @@ Hecks.bluebook "Bluebook" do
       invariant("an argument is named") { !value.to_s.empty? }
     end
 
-    value_object "ArgType" do
-      attribute :value, String
-      # list / default reuse this shape and are legitimately empty
-    end
+    value_object "ArgType", String
 
     command "Rule" do
       role "Language"
@@ -213,9 +199,7 @@ Hecks.bluebook "Bluebook" do
       emits EnsureAttached
     end
 
-    value_object "RuleText" do
-      attribute :value, String
-    end
+    value_object "RuleText", String
 
     command "Change" do
       role "Language"
@@ -236,13 +220,9 @@ Hecks.bluebook "Bluebook" do
       emits ChangeAttached
     end
 
-    value_object "FieldRef" do
-      attribute :value, String
-    end
+    value_object "FieldRef", String
 
-    value_object "OpName" do
-      attribute :value, String
-    end
+    value_object "OpName", String
 
     command "ActsOn" do
       role "Language"
@@ -285,9 +265,7 @@ Hecks.bluebook "Bluebook" do
       emits RoleAllowed
     end
 
-    value_object "RoleName" do
-      attribute :value, String
-    end
+    value_object "RoleName", String
 
     command "Need" do
       role "Language"
@@ -302,9 +280,7 @@ Hecks.bluebook "Bluebook" do
       emits NeedNamed
     end
 
-    value_object "FactName" do
-      attribute :value, String
-    end
+    value_object "FactName", String
 
     # Keyword rows for this bluebook; SyntaxBoot discovers aggregate-local seed tables.
     value_object "KeywordSeed" do

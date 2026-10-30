@@ -6,9 +6,7 @@ Hecks.bluebook "Shop" do
     attribute :band, Band
     identified_by :sku
 
-    value_object "Sku" do
-      attribute :value, String
-    end
+    value_object "Sku", String
 
     value_object "Band" do
       attribute :value, String, one_of: ["small", "medium", "large"]
@@ -41,9 +39,7 @@ Hecks.bluebook "Shop" do
     attribute :number, Number
     identified_by :number
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     command "Place" do
       attribute :number, Number

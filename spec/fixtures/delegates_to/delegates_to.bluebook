@@ -13,13 +13,9 @@ Hecks.bluebook "DelegatesTo" do
     attribute :pieces,     list_of(Piece)
     attribute :move_count, MoveCount
 
-    value_object "BoardName" do
-      attribute :value, String
-    end
+    value_object "BoardName", String
 
-    value_object "PieceId" do
-      attribute :value, String
-    end
+    value_object "PieceId", String
 
     value_object "Square" do
       attribute :file, Integer
@@ -33,9 +29,7 @@ Hecks.bluebook "DelegatesTo" do
       attribute :value, Integer, default: 0
     end
 
-    value_object "RelabelReason" do
-      attribute :value, String
-    end
+    value_object "RelabelReason", String
 
     command "OpenBoard" do
       goal "Start a fresh, empty board"

@@ -21,17 +21,11 @@ Hecks.bluebook "ComputedSetsFixture" do
     attribute :late_owed, Cents, default: { value: 0 }
     attribute :net, Cents, default: { value: 0 }
 
-    value_object "SettlementRef" do
-      attribute :value, String
-    end
+    value_object "SettlementRef", String
 
-    value_object "Cents" do
-      attribute :value, Integer
-    end
+    value_object "Cents", Integer
 
-    value_object "Percent" do
-      attribute :value, Integer
-    end
+    value_object "Percent", Integer
 
     value_object "Charge" do
       attribute :cents, Integer

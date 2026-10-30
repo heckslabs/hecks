@@ -12,8 +12,8 @@ Hecks.bluebook "Directory" do
 
     identified_by :email
 
-    value_object("MemberTitle") { attribute :value, String }
-    value_object("MemberEmail") { attribute :value, String }
+    value_object "MemberTitle", String
+    value_object "MemberEmail", String
 
     command "Enlist" do
       goal "Add a member to the directory, addressed by their own email"

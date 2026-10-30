@@ -17,9 +17,7 @@ Hecks.bluebook "Relay" do
 
     attribute :tag, Tag
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
     lifecycle :status, default: "posted" do
       transition "Scan"    => "in_transit", from: ["posted", "in_transit"]

@@ -154,9 +154,7 @@ Hecks.bluebook "Site" do
       attribute :value, String, one_of: ["ts", "mts"]
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
     # A CloudFront distribution's id, whose configuration `check_live` reads.
     value_object "DistributionId" do
@@ -178,9 +176,7 @@ Hecks.bluebook "Site" do
       attribute :value, String, pattern: '^https?://[^ \t\n\r]+$'
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"

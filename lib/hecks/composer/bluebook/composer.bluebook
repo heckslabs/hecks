@@ -34,14 +34,10 @@ Hecks.bluebook "Composer" do
     end
 
     # What is on screen. A draft may be empty or half-written; the check judges it, not this.
-    value_object "SourceText" do
-      attribute :value, String
-    end
+    value_object "SourceText", String
 
     # The check's last word on the draft, or the agent's one-line account of what it changed.
-    value_object "Note" do
-      attribute :value, String
-    end
+    value_object "Note", String
 
     value_object "TurnSequence" do
       attribute :value, Integer

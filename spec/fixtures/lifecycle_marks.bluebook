@@ -19,9 +19,7 @@ Hecks.bluebook "LifecycleMarks" do
       transition "Dispute"  => "disputed",  from: "succeeded"
     end
 
-    value_object "PaymentRef" do
-      attribute :value, String
-    end
+    value_object "PaymentRef", String
 
     command "Start" do
       role "Clerk"
@@ -67,13 +65,9 @@ Hecks.bluebook "LifecycleMarks" do
 
     attribute :ref, OrderRef
 
-    value_object "OrderRef" do
-      attribute :value, String
-    end
+    value_object "OrderRef", String
 
-    value_object "Sku" do
-      attribute :value, String
-    end
+    value_object "Sku", String
 
     entity "Line" do
       attribute :sku, Sku

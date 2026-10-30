@@ -11,9 +11,7 @@ Hecks.bluebook "PagesSite" do
     attribute :name, MapName
     identified_by :name
 
-    value_object "MapName" do
-      attribute :value, String
-    end
+    value_object "MapName", String
 
     value_object "Route" do
       attribute :path,      String

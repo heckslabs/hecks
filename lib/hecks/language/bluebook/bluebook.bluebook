@@ -48,15 +48,9 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :verb,       String
     end
 
-    value_object "ProvisionText" do
-      attribute :value, String
-    end
+    value_object "ProvisionText", String
 
-    value_object "RuleText" do
-      # deliberately permissive : source_token and replacement are legitimately
-      # empty for the collapse_whitespace rule
-      attribute :value, String
-    end
+    value_object "RuleText", String
 
     value_object "NormalisationRule" do
       attribute :strategy,     String

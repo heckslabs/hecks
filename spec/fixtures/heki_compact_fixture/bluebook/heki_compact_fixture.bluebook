@@ -12,13 +12,9 @@ Hecks.bluebook "HekiCompactFixture" do
     attribute :name,  GadgetName
     attribute :label, GadgetLabel
 
-    value_object "GadgetName" do
-      attribute :value, String
-    end
+    value_object "GadgetName", String
 
-    value_object "GadgetLabel" do
-      attribute :value, String
-    end
+    value_object "GadgetLabel", String
 
     command "MakeGadget" do
       goal "Create a gadget"

@@ -17,9 +17,7 @@ Hecks.bluebook "TillRoom" do
     # payload gate long before `sets` ever resolves its source.
     attribute :note,    Note
 
-    value_object "TillNumber" do
-      attribute :value, String
-    end
+    value_object "TillNumber", String
 
     value_object "Money" do
       attribute :cents, Integer

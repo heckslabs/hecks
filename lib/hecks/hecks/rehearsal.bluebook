@@ -115,9 +115,7 @@ Hecks.bluebook "Hecks" do
       attribute :journal,   Integer
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
     value_object "Count" do
       attribute :value, Integer
@@ -171,9 +169,7 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # Only the first rows are held, so a domain with a million stale rows is a report, not a
     # flood; the total says how many there were.

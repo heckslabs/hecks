@@ -10,13 +10,9 @@ Hecks.bluebook "Reflex" do
     attribute :name,      LightName
     attribute :condition, LightCondition
 
-    value_object "LightName" do
-      attribute :value, String
-    end
+    value_object "LightName", String
 
-    value_object "LightCondition" do
-      attribute :value, String
-    end
+    value_object "LightCondition", String
 
     command "Flip" do
       role "Operator"
@@ -68,13 +64,9 @@ Hecks.bluebook "Reflex" do
     attribute :name,  BellName
     attribute :rings, RingCount
 
-    value_object "BellName" do
-      attribute :value, String
-    end
+    value_object "BellName", String
 
-    value_object "RingCount" do
-      attribute :value, Integer
-    end
+    value_object "RingCount", Integer
 
     command "Install" do
       role "Operator"
@@ -109,9 +101,7 @@ Hecks.bluebook "Reflex" do
 
     attribute :signal, SignalName
 
-    value_object "SignalName" do
-      attribute :value, String
-    end
+    value_object "SignalName", String
 
     command "Raise" do
       role "Operator"

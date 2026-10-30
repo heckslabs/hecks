@@ -90,9 +90,7 @@ Hecks.bluebook "SME" do
     end
 
     # Whether an action brings its thing into being, as opposed to happening to one that exists.
-    value_object "Creates" do
-      attribute :value, Boolean
-    end
+    value_object "Creates", Boolean
 
     # A list the expert gave in a breath, comma separated: the values a field may take, or the
     # fields an action needs to be told. Absent when the expert gave none.

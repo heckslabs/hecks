@@ -28,13 +28,9 @@ Hecks.bluebook "Hecksagon" do
       invariant("an emitted event is named") { !value.to_s.empty? }
     end
 
-    value_object "AnsweringEvent" do
-      attribute :value, String
-    end
+    value_object "AnsweringEvent", String
 
-    value_object "RefusingEvent" do
-      attribute :value, String
-    end
+    value_object "RefusingEvent", String
 
     # Keyword rows for PortOperation; SyntaxBoot discovers every aggregate-local seed table.
     value_object "KeywordSeed" do

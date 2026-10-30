@@ -18,17 +18,11 @@ Hecks.bluebook "ProjectedSingleFieldFixture" do
     attribute :starts_at, StartsAt
     attribute :title, Title
 
-    value_object "EventRef" do
-      attribute :value, String
-    end
+    value_object "EventRef", String
 
-    value_object "StartsAt" do
-      attribute :value, Integer
-    end
+    value_object "StartsAt", Integer
 
-    value_object "Title" do
-      attribute :value, String
-    end
+    value_object "Title", String
 
     command "Schedule" do
       goal "Schedule an event"
@@ -67,9 +61,7 @@ Hecks.bluebook "ProjectedSingleFieldFixture" do
     projects :starts_at, from: :"event.starts_at"
     projects :title, from: :"event.title"
 
-    value_object "BookingRef" do
-      attribute :value, String
-    end
+    value_object "BookingRef", String
 
     command "Open" do
       goal "Book an event"

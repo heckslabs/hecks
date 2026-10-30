@@ -12,7 +12,7 @@ Hecks.bluebook "Widgets" do
 
     identified_by :name
 
-    value_object("WidgetName") { attribute :value, String }
+    value_object "WidgetName", String
 
     value_object "WidgetStatus" do
       attribute :value, String, one_of: ["available", "retired"]

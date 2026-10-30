@@ -6,9 +6,7 @@ Hecks.bluebook "Shaped", version: "v2" do
 
     attribute :full_name, FullName
 
-    value_object "FullName" do
-      attribute :value, String
-    end
+    value_object "FullName", String
   end
 
   aggregate "Account" do
@@ -25,9 +23,7 @@ Hecks.bluebook "Shaped", version: "v2" do
       transition "Reopen" => "open", from: "closed"
     end
 
-    value_object "AccountNumber" do
-      attribute :value, String
-    end
+    value_object "AccountNumber", String
 
     query "StillOpen" do
       where(status: "open")
@@ -38,9 +34,7 @@ Hecks.bluebook "Shaped", version: "v2" do
       attribute :currency, String, default: "EUR"
     end
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
     command "Open" do
       attribute :number,  AccountNumber

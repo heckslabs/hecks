@@ -15,9 +15,7 @@ Hecks.bluebook "ProjectedFields" do
       transition "Suspend" => "suspended", from: "active"
     end
 
-    value_object "CustomerRef" do
-      attribute :value, String
-    end
+    value_object "CustomerRef", String
 
     command "Register" do
       role "Clerk"
@@ -48,9 +46,7 @@ Hecks.bluebook "ProjectedFields" do
 
     projects :customer_status, from: :"customer.status"
 
-    value_object "AccountRef" do
-      attribute :value, String
-    end
+    value_object "AccountRef", String
 
     command "Open" do
       role "Clerk"

@@ -5,9 +5,7 @@ Hecks.bluebook "Payments" do
   aggregate "Payment" do
     identified_by :payment_id
 
-    value_object "PaymentId" do
-      attribute :value, String
-    end
+    value_object "PaymentId", String
 
     value_object "Money" do
       attribute :cents, Integer

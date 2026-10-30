@@ -18,9 +18,7 @@ Hecks.bluebook "Courier" do
 
     attribute :tag, Tag
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
     command "Start" do
       goal "Open a run"

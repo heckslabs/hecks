@@ -36,9 +36,7 @@ Hecks.bluebook "Change" do
       attribute :value, String
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # A fingerprint of the plan, the script and its arguments: confirming one digest applies
     # that plan and no other.

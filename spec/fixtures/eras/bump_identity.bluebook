@@ -4,9 +4,7 @@ Hecks.bluebook "Shaped" do
 
     attribute :full_name, FullName
 
-    value_object "FullName" do
-      attribute :value, String
-    end
+    value_object "FullName", String
   end
 
   aggregate "Account" do
@@ -22,9 +20,7 @@ Hecks.bluebook "Shaped" do
       transition "Close" => "closed", from: "open"
     end
 
-    value_object "AccountNumber" do
-      attribute :value, String
-    end
+    value_object "AccountNumber", String
 
     # Single field, unlike base.bluebook's Money: a bare `identified_by :balance` only
     # auto-unwraps a one-field value object (ADR 0025).
@@ -32,9 +28,7 @@ Hecks.bluebook "Shaped" do
       attribute :cents, Integer
     end
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
     command "Open" do
       attribute :number,  AccountNumber

@@ -9,20 +9,20 @@ Hecks.bluebook "Remarks" do
   aggregate "Post" do
     identified_by :ref
     attribute :ref, Ref
-    value_object("Ref") { attribute :value, String }
+    value_object "Ref", String
   end
 
   aggregate "Photo" do
     identified_by :ref
     attribute :ref, Ref
-    value_object("Ref") { attribute :value, String }
+    value_object "Ref", String
   end
 
   aggregate "Comment" do
     identified_by :ref
     attribute :ref, Ref
     reference_to one_of(Post, Photo), as: :subject
-    value_object("Ref") { attribute :value, String }
+    value_object "Ref", String
 
     command "Pin" do
       reference_to Comment
@@ -35,7 +35,7 @@ Hecks.bluebook "Remarks" do
     identified_by :ref
     attribute :ref, Ref
     reference_to one_of(Post, Photo), as: :subject
-    value_object("Ref") { attribute :value, String }
+    value_object "Ref", String
 
     command "Boost" do
       reference_to Like
@@ -60,7 +60,7 @@ Hecks.bluebook "Remarks" do
     identified_by :ref
     attribute :ref, Ref
     reference_to one_of(Post, Photo), as: :subject
-    value_object("Ref") { attribute :value, String }
+    value_object "Ref", String
 
     command "Crop" do
       reference_to Tag
@@ -73,7 +73,7 @@ Hecks.bluebook "Remarks" do
     identified_by :ref
     attribute :ref, Ref
     reference_to one_of(Post, Photo), as: :subject
-    value_object("Ref") { attribute :value, String }
+    value_object "Ref", String
   end
 
   read_model "PostTags" do

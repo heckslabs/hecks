@@ -35,9 +35,7 @@ Hecks.bluebook "Bluebook" do
       invariant("a policy is named") { !value.to_s.empty? }
     end
 
-    value_object "PolicyText" do
-      attribute :value, String
-    end
+    value_object "PolicyText", String
 
     # Declared here rather than shared with Dispatch's: a value object belongs to its aggregate.
     value_object "Binding" do
@@ -47,9 +45,7 @@ Hecks.bluebook "Bluebook" do
 
     # Declaration order among siblings. The IR is read index for index, so the language
     # holds it rather than inheriting whatever order a store iterates.
-    value_object "Position" do
-      attribute :value, Integer
-    end
+    value_object "Position", Integer
 
     attribute :position, Position
 

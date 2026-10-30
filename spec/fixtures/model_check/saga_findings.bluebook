@@ -7,9 +7,7 @@ Hecks.bluebook "SagaFindings" do
 
     attribute :reference, Reference
 
-    value_object "Reference" do
-      attribute :value, String
-    end
+    value_object "Reference", String
 
     command "Request" do
       role "Tester"

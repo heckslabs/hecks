@@ -15,9 +15,7 @@ Hecks.bluebook "Comparing" do
       transition "Release" => "released", from: "held"
     end
 
-    value_object "Code" do
-      attribute :value, String
-    end
+    value_object "Code", String
 
     command "File" do
       goal "Open a claim"
@@ -50,21 +48,15 @@ Hecks.bluebook "Comparing" do
       transition "Release" => "released", from: "held"
     end
 
-    value_object "Code" do
-      attribute :value, String
-    end
+    value_object "Code", String
 
     value_object "Amount" do
       attribute :cents, Integer
     end
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
-    value_object "ClaimCode" do
-      attribute :value, String
-    end
+    value_object "ClaimCode", String
 
     command "Add" do
       goal "Add an item naming a claim"

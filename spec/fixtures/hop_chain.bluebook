@@ -5,7 +5,7 @@ Hecks.bluebook "HopChain" do
   aggregate "Client" do
     identified_by :name
     attribute :name, Name
-    value_object("Name") { attribute :value, String }
+    value_object "Name", String
 
     lifecycle :status, default: "active" do
       transition "Churn" => "churned", from: "active"
@@ -27,7 +27,7 @@ Hecks.bluebook "HopChain" do
     identified_by :reference
     reference_to Client
     attribute :reference, Reference
-    value_object("Reference") { attribute :value, String }
+    value_object "Reference", String
 
     lifecycle :stage, default: "started" do
       transition "Demo" => "demo_shown", from: "started"
@@ -54,7 +54,7 @@ Hecks.bluebook "HopChain" do
     identified_by :number
     reference_to Engagement, optional: true
     attribute :number, Number
-    value_object("Number") { attribute :value, String }
+    value_object "Number", String
 
     lifecycle :status, default: "drafted" do
       transition "Send" => "sent", from: "drafted"
@@ -107,7 +107,7 @@ Hecks.bluebook "HopChain" do
     # second self-reference and is refused as naming two roots.
     reference_to Node, as: :parent, optional: true
     attribute :label, Label
-    value_object("Label") { attribute :value, String }
+    value_object "Label", String
 
     command "Plant" do
       reference_to Node, as: :parent, optional: true

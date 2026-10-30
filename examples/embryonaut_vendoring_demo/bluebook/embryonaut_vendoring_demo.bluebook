@@ -12,7 +12,7 @@ Hecks.bluebook "EmbryonautVendoringDemo" do
 
     identified_by :name
 
-    value_object("GadgetName") { attribute :value, String }
+    value_object "GadgetName", String
 
     value_object "GadgetStatus" do
       attribute :value, String, one_of: ["idle", "active"]

@@ -12,13 +12,9 @@ Hecks.bluebook "Pluginned" do
     attribute :note, Note
     identified_by :name
 
-    value_object "LedgerName" do
-      attribute :value, String
-    end
+    value_object "LedgerName", String
 
-    value_object "Note" do
-      attribute :value, String
-    end
+    value_object "Note", String
 
     value_object "Doubling" do
       attribute :amount, Integer

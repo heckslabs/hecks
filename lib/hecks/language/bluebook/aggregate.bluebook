@@ -42,15 +42,11 @@ Hecks.bluebook "Bluebook" do
       invariant("a description says something") { !value.to_s.empty? }
     end
 
-    value_object "IdentityField" do
-      attribute :value, String
-    end
+    value_object "IdentityField", String
 
     # One part of an identity: a path to the scalar that carries it, like "number.value".
     # Its field is `value`, the name the judge wraps a cell under; any other name reads nothing.
-    value_object "IdentityPath" do
-      attribute :value, String
-    end
+    value_object "IdentityPath", String
 
     value_object "Field" do
       attribute :name,    String
@@ -143,9 +139,7 @@ Hecks.bluebook "Bluebook" do
 
     # Declaration order is a fact about the source: the IR is read index for index, so the language
     # holds it rather than inheriting a store's iteration order.
-    value_object "Position" do
-      attribute :value, Integer
-    end
+    value_object "Position", Integer
 
     attribute :position, Position
 
@@ -236,9 +230,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     # A literal written the way it can be read back (Readings#encode_literal).
-    value_object "LiteralText" do
-      attribute :value, String
-    end
+    value_object "LiteralText", String
 
     # True or false as text, the wire form of `list` and `optional`.
     # `pattern` is not typed with it: a pattern is a regex, so it is `LiteralText`.

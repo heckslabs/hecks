@@ -33,17 +33,11 @@ Hecks.bluebook "Translation" do
       invariant("a rule reads from somewhere") { !value.to_s.empty? }
     end
 
-    value_object "DestinationPath" do
-      attribute :value, String
-    end
+    value_object "DestinationPath", String
 
-    value_object "Target" do
-      attribute :value, String
-    end
+    value_object "Target", String
 
-    value_object "Form" do
-      attribute :value, String
-    end
+    value_object "Form", String
 
     value_object "Execution" do
       attribute :target, String
@@ -126,17 +120,11 @@ Hecks.bluebook "Translation" do
       invariant("an era is named by its minted hash") { !value.to_s.empty? }
     end
 
-    value_object "Kind" do
-      attribute :value, String
-    end
+    value_object "Kind", String
 
-    value_object "SourcePath" do
-      attribute :value, String
-    end
+    value_object "SourcePath", String
 
-    value_object "DestinationPath" do
-      attribute :value, String
-    end
+    value_object "DestinationPath", String
 
     value_object "Reason" do
       attribute :value, String

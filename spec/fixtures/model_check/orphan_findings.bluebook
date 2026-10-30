@@ -9,9 +9,7 @@ Hecks.bluebook "OrphanFindings" do
 
     attribute :code, Code
 
-    value_object "Code" do
-      attribute :value, String
-    end
+    value_object "Code", String
 
     lifecycle :status, default: "active" do
       transition "Suspend"   => "suspended", from: "active"
@@ -55,9 +53,7 @@ Hecks.bluebook "OrphanFindings" do
     reference_to Member
     attribute :number, Number
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     lifecycle :status, default: "out" do
       transition "Return" => "returned", from: "out"
@@ -86,9 +82,7 @@ Hecks.bluebook "OrphanFindings" do
     reference_to Member
     attribute :number, Number
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     lifecycle :status, default: "waiting" do
       transition "Cancel" => "cancelled", from: "waiting"
@@ -122,9 +116,7 @@ Hecks.bluebook "OrphanFindings" do
     reference_to Member
     attribute :number, Number
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     command "Issue" do
       role "Tester"

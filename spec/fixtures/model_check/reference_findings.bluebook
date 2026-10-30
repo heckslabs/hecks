@@ -7,9 +7,7 @@ Hecks.bluebook "ReferenceFindings" do
 
     attribute :account_number, AccountNumber
 
-    value_object "AccountNumber" do
-      attribute :value, String
-    end
+    value_object "AccountNumber", String
 
     command "Open" do
       role "Tester"
@@ -26,13 +24,9 @@ Hecks.bluebook "ReferenceFindings" do
     attribute :entry, Entry
     attribute :account_number, AccountNumber
 
-    value_object "Entry" do
-      attribute :value, String
-    end
+    value_object "Entry", String
 
-    value_object "AccountNumber" do
-      attribute :value, String
-    end
+    value_object "AccountNumber", String
 
     command "Post" do
       role "Tester"
@@ -50,9 +44,7 @@ Hecks.bluebook "ReferenceFindings" do
     attribute :period, Period
     reference_to Account
 
-    value_object "Period" do
-      attribute :value, String
-    end
+    value_object "Period", String
 
     command "Issue" do
       role "Tester"
@@ -69,13 +61,9 @@ Hecks.bluebook "ReferenceFindings" do
     attribute :note_id, NoteId
     attribute :label, Label
 
-    value_object "NoteId" do
-      attribute :value, String
-    end
+    value_object "NoteId", String
 
-    value_object "Label" do
-      attribute :value, String
-    end
+    value_object "Label", String
 
     command "Write" do
       role "Tester"
@@ -91,9 +79,7 @@ Hecks.bluebook "ReferenceFindings" do
 
     attribute :reference, SiteKey
 
-    value_object "SiteKey" do
-      attribute :value, String
-    end
+    value_object "SiteKey", String
 
     command "Register" do
       role "Tester"
@@ -110,9 +96,7 @@ Hecks.bluebook "ReferenceFindings" do
     attribute :site_key, SiteKey
     attribute :requested_at, RequestedAt
 
-    value_object "RequestedAt" do
-      attribute :value, String
-    end
+    value_object "RequestedAt", String
 
     command "Request" do
       role "Tester"
@@ -130,9 +114,7 @@ Hecks.bluebook "ReferenceFindings" do
     attribute :rollout_id, RolloutId
     reference_to Site, as: :site
 
-    value_object "RolloutId" do
-      attribute :value, String
-    end
+    value_object "RolloutId", String
 
     command "Start" do
       role "Tester"

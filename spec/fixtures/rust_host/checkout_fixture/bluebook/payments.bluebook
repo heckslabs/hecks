@@ -53,13 +53,9 @@ Hecks.bluebook "Payments" do
       invariant("a client has an email") { !email.to_s.empty? }
     end
 
-    value_object "ProcessorTransactionId" do
-      attribute :value, String
-    end
+    value_object "ProcessorTransactionId", String
 
-    value_object "FailureReason" do
-      attribute :value, String
-    end
+    value_object "FailureReason", String
 
     attribute :reference,      PaymentReference
     attribute :processor,      Processor

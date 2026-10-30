@@ -22,18 +22,14 @@ Hecks.bluebook "EntityListMutations" do
     # sole field, the same default-omission shape `AddPrice`/`RemovePrice` exercise below.
     attribute :highlight_count, ListCount
 
-    value_object "BoardName" do
-      attribute :value, String
-    end
+    value_object "BoardName", String
 
     value_object "Tag" do
       attribute :key,   String
       attribute :value, String
     end
 
-    value_object "ListLabel" do
-      attribute :value, String
-    end
+    value_object "ListLabel", String
 
     value_object "ListCount" do
       attribute :value, Integer, default: 0

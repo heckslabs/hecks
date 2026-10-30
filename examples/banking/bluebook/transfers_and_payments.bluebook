@@ -161,9 +161,7 @@ Hecks.bluebook "Banking" do
     end
 
     # The type is local; the set of values belongs to Account, which `admits` names.
-    value_object "MovementDirection" do
-      attribute :value, String
-    end
+    value_object "MovementDirection", String
 
     value_object "ExternalAmount" do
       attribute :cents, Integer

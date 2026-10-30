@@ -20,25 +20,17 @@ Hecks.bluebook "Club" do
       invariant("a meeting has a title") { !value.to_s.empty? }
     end
 
-    value_object "Kind" do
-      attribute :value, String
-    end
+    value_object "Kind", String
 
-    value_object "Moment" do
-      attribute :value, String
-    end
+    value_object "Moment", String
 
     value_object "Link" do
       attribute :url, String
     end
 
-    value_object "ImageRef" do
-      attribute :value, String
-    end
+    value_object "ImageRef", String
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
     value_object "AgendaItem" do
       attribute :title,   String
@@ -123,21 +115,13 @@ Hecks.bluebook "Club" do
 
     identified_by :slug
 
-    value_object "NoticeSlug" do
-      attribute :value, String
-    end
+    value_object "NoticeSlug", String
 
-    value_object "NoticeTitle" do
-      attribute :value, String
-    end
+    value_object "NoticeTitle", String
 
-    value_object "PostedOn" do
-      attribute :value, Integer
-    end
+    value_object "PostedOn", Integer
 
-    value_object "Summary" do
-      attribute :value, String
-    end
+    value_object "Summary", String
 
     attribute :slug,      NoticeSlug
     attribute :title,     NoticeTitle
@@ -195,9 +179,7 @@ Hecks.bluebook "Club" do
 
     identified_by :key
 
-    value_object "SettingsKey" do
-      attribute :value, String
-    end
+    value_object "SettingsKey", String
 
     attribute :key, SettingsKey
 
