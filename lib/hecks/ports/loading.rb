@@ -1,4 +1,5 @@
 require_relative "../runtime/errors"
+require_relative "adapter_registry"
 
 module Hecks
   module Ports
@@ -10,16 +11,16 @@ module Hecks
     module Loading
       NAME = "loading".freeze
 
-      @bootstrap = nil
-
       module_function
 
-      # Names the adapter class every boot starts loading with.
+      # Names the adapter class every boot starts loading with. The adapter is also recorded in
+      # the adapter registry with the `loading` capability.
       #
       # @param adapter [Class] a class whose bare `.new` answers the loading port's methods
       # @return [Class] the same class
       def bootstrap_with(adapter)
-        @bootstrap = adapter
+        name = adapter.name ? adapter.name.split("::").last : adapter.inspect
+        AdapterRegistry.register(name, adapter, provides: [NAME])
       end
 
       # Builds the loader a boot starts from, before any registry exists to resolve one.
@@ -27,9 +28,10 @@ module Hecks
       # @return [Object] a new instance of the registered loading adapter, with no settings
       # @raise [Runtime::WiringError] if no loading adapter has registered itself
       def bootstrap
-        raise Runtime::WiringError, "no adapter has registered for the #{NAME} port" unless @bootstrap
+        _name, klass = AdapterRegistry.lookup(NAME).last
+        raise Runtime::WiringError, "no adapter has registered for the #{NAME} port" unless klass
 
-        @bootstrap.new
+        klass.new
       end
     end
   end
