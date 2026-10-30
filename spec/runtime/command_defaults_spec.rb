@@ -16,9 +16,9 @@ RSpec.describe "command attribute defaults" do
           attribute :label, Label, optional: true
           identified_by :ref
 
-          value_object("Ref")   { attribute :value, String }
-          value_object("Count") { attribute :value, Integer }
-          value_object("Label") { attribute :value, String }
+          value_object "Ref", String
+          value_object "Count", Integer
+          value_object "Label", String
 
           command "Start" do
             attribute :ref, Ref

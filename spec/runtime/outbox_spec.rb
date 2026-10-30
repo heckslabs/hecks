@@ -21,7 +21,7 @@ RSpec.describe "the transactional outbox" do
     core
 
     aggregate "Order" do
-      value_object("Number") { attribute :value, String }
+      value_object "Number", String
       attribute :number, Number
       identified_by :number
 
@@ -38,7 +38,7 @@ RSpec.describe "the transactional outbox" do
     end
 
     aggregate "Ledger" do
-      value_object("Number") { attribute :value, String }
+      value_object "Number", String
       attribute :number, Number
       identified_by :number
 

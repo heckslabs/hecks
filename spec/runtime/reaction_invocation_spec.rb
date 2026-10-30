@@ -21,8 +21,8 @@ RSpec.describe "reaction invocation routing" do
       attribute :code, Code
       identified_by :code
 
-      value_object("Code") { attribute :value, String }
-      value_object("Day")  { attribute :value, String }
+      value_object "Code", String
+      value_object "Day", String
       value_object("Note") { attribute :text, String }
 
       command "Grant" do

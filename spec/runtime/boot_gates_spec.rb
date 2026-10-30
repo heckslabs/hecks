@@ -59,7 +59,7 @@ RSpec.describe Hecks::Runtime::BootGates do
         aggregate("Thing") do
           identified_by :name
           attribute :name, Name
-          value_object("Name") { attribute :value, String }
+          value_object "Name", String
         end
       end
     end

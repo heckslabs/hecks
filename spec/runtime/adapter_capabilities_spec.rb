@@ -9,7 +9,7 @@ RSpec.describe "what the adapter an aggregate is bound to provides" do
       aggregate "Entry" do
         identified_by :label
         attribute :label, Label
-        value_object("Label") { attribute :value, String }
+        value_object "Label", String
         command("Open") { attribute :label, Label }
       end
     end

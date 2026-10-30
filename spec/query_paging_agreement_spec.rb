@@ -9,7 +9,7 @@ RSpec.describe "limit and offset on one query" do
 
       identified_by :number
 
-      value_object("Number") { attribute :value, String }
+      value_object "Number", String
 
       command "Draw" do
         attribute :number, Number

@@ -9,9 +9,7 @@ READ_MODEL_PLAIN_AGGREGATE = lambda do |name|
     aggregate name do
       identified_by :ref
       attribute :ref, Ref
-      value_object "Ref" do
-        attribute :value, String
-      end
+      value_object "Ref", String
     end
   end
 end
@@ -23,9 +21,7 @@ READ_MODEL_LINKED_AGGREGATE = lambda do |name|
       identified_by :ref
       attribute :ref, Ref
       reference_to Account, as: :account
-      value_object "Ref" do
-        attribute :value, String
-      end
+      value_object "Ref", String
     end
   end
 end

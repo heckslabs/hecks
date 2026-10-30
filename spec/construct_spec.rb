@@ -218,7 +218,7 @@ RSpec.describe "a construct's identity" do
           identified_by :id
           description "a thing"
           attribute :label, Label
-          value_object("Label") { attribute :value, String }
+          value_object "Label", String
         end
       end
     end

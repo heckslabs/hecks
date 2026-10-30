@@ -18,8 +18,8 @@ RSpec.describe "package-declared capability" do
   KILN_BODY = proc do
     identified_by :code
     attribute :code, Code
-    value_object("Code") { attribute :value, String }
-    value_object("Seconds") { attribute :value, Integer }
+    value_object "Code", String
+    value_object "Seconds", Integer
     attribute :hold, Seconds, default: { value: 1800 }
     attribute :batch_at, Code, optional: true
     command("Fire") do

@@ -19,9 +19,9 @@ RSpec.describe "a policy's trigger projection" do
 
           identified_by :code
 
-          value_object("Code")   { attribute :value, String }
-          value_object("Holder") { attribute :value, String }
-          value_object("Note")   { attribute :text,  String }
+          value_object "Code", String
+          value_object "Holder", String
+          value_object("Note")   { attribute :text, String }
 
           lifecycle :status, default: "valid" do
             transition "Revoke" => "revoked", from: "valid"
@@ -63,9 +63,9 @@ RSpec.describe "a policy's trigger projection" do
 
           identified_by :ref
 
-          value_object("Ref")     { attribute :value, String }
-          value_object("Holder")  { attribute :value, String }
-          value_object("Summary") { attribute :text,  String }
+          value_object "Ref", String
+          value_object "Holder", String
+          value_object("Summary") { attribute :text, String }
 
           command "Report" do
             attribute :ref,     Ref
