@@ -4973,7 +4973,7 @@ pub struct GateStage {
 
 pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec,fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt" },
-    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks" },
+    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory HECKS_NO_LOCAL_FILES=1", checks: "shape_ledger,rubocop,comment_style,comment_blocks" },
     GateStage { name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
     GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
