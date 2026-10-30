@@ -85,7 +85,9 @@ module Hecks
       def transaction(&)
         return yield if @db.transaction_active?
 
-        @db.transaction(&)
+        # Immediate, so the write lock is taken up front: a deferred transaction that reads and then
+        # writes fails at once when another process holds the file, and the busy timeout never runs.
+        @db.transaction(:immediate, &)
       end
 
       # Names the aggregate's table; the journal table and outbox rows are keyed off it.
@@ -98,6 +100,9 @@ module Hecks
       def open_database
         FileUtils.mkdir_p(File.dirname(@path))
         @db = SQLite3::Database.new(@path)
+        # Several processes may boot one journal at once (the gate's checks do), so a busy file
+        # is waited for rather than refused as "database is locked".
+        @db.busy_timeout = 10_000
         @db.results_as_hash = true
         # The append is the recovery commit point, so the fsync policy is explicit.
         @db.execute("PRAGMA synchronous = FULL")
