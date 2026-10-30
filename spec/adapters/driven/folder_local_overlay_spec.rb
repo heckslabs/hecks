@@ -37,6 +37,13 @@ RSpec.describe Hecks::Adapters::Folder do
       expect(loaded).to eq([local_files, *local_worlds])
     end
 
+    it "reads no local files when HECKS_NO_LOCAL_FILES is set, so a gate check boots without the copy's database" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("HECKS_NO_LOCAL_FILES").and_return("1")
+      folder.load_overlay("/domain", "memory")
+      expect(loaded).to eq([["/domain", "environments/local.hecksagon", "environments/local.world"], memory_files])
+    end
+
     it "loads the local files once when the working directory is the domain's" do
       allow(Dir).to receive(:pwd).and_return("/domain")
       folder.load_overlay("/domain", nil)

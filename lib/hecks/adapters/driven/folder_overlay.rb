@@ -18,14 +18,16 @@ module Hecks
 
       # Loads the copy's own overlay, then its local files (beside the domain, then in the working
       # directory), then an environment's overlay, each `.hecksagon` then `.world`, when present.
-      # The environment loads last, so `memory` still wins over a local database.
+      # The environment loads last, so `memory` still wins over a local database. With
+      # `HECKS_NO_LOCAL_FILES=1` the copy's local files are not read at all: a check that boots
+      # beside others must not open the copy's database, the gate's quick checks set it.
       #
       # @param directory [String] the directory holding the `environments/` folder
       # @param environment [String, nil] the environment name; nil loads no named overlay
       # @return [void]
       def load_overlay(directory, environment)
         load_each(directory, overlay_files(LOCAL_OVERLAY))
-        [directory, Dir.pwd].uniq.each { |where| load_each(where, LOCAL_FILES) }
+        [directory, Dir.pwd].uniq.each { |where| load_each(where, LOCAL_FILES) } unless ENV["HECKS_NO_LOCAL_FILES"] == "1"
         load_each(directory, overlay_files(environment)) if environment && environment != LOCAL_OVERLAY
       end
 
