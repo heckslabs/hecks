@@ -9,9 +9,7 @@ Hecks.bluebook "LedgerPages" do
 
     attribute :name, DeskName
 
-    value_object "DeskName" do
-      attribute :value, String
-    end
+    value_object "DeskName", String
 
     value_object "App" do
       attribute :title, String

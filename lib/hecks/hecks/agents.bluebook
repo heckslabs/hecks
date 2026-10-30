@@ -31,9 +31,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # What the session is asked to do. It may span lines; the dispatch refuses one that is blank.
-    value_object "Brief" do
-      attribute :value, String
-    end
+    value_object "Brief", String
 
     # A custom agent's name. It starts with a letter or digit, so it cannot be taken for a flag.
     value_object "AgentName" do
@@ -45,18 +43,12 @@ Hecks.bluebook "Hecks" do
     end
 
     # What a session reported about itself the last time it was asked.
-    value_object "Condition" do
-      attribute :value, String
-    end
+    value_object "Condition", String
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # When the outside removed a session, as the port reports it.
-    value_object "Moment" do
-      attribute :value, String
-    end
+    value_object "Moment", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "refused"

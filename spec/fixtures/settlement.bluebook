@@ -9,9 +9,7 @@ Hecks.bluebook "Wire" do
     attribute :number, DrawerNumber
     attribute :cents, Money, default: { cents: 0 }
 
-    value_object "DrawerNumber" do
-      attribute :value, String
-    end
+    value_object "DrawerNumber", String
 
     value_object "Money" do
       attribute :cents, Integer
@@ -71,9 +69,7 @@ Hecks.bluebook "Wire" do
     attribute :reference,   WireReference
     attribute :amount,      Money, default: { cents: 0 }
 
-    value_object "WireReference" do
-      attribute :value, String
-    end
+    value_object "WireReference", String
     reference_to Drawer, as: :source
     reference_to Drawer, as: :destination
 

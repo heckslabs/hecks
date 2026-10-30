@@ -3,13 +3,13 @@ Hecks.bluebook "Deciderate" do
   aggregate "Game" do
     identified_by :label
     attribute :label, GameLabel
-    value_object("GameLabel") { attribute :value, String }
+    value_object "GameLabel", String
     command("StartGame") { attribute :label, GameLabel }
   end
   aggregate "Bubble" do
     identified_by :label
     attribute :label, BubbleLabel
-    value_object("BubbleLabel") { attribute :value, String }
+    value_object "BubbleLabel", String
     command("PopBubble") { attribute :label, BubbleLabel }
   end
 end

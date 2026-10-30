@@ -21,21 +21,13 @@ Hecks.bluebook "FanOutRowFieldsFixture" do
     attribute :refunded, Amount, default: { value: 0 }
     attribute :refund_label, Label, optional: true
 
-    value_object "ChargeRef" do
-      attribute :value, String
-    end
+    value_object "ChargeRef", String
 
-    value_object "BookingKey" do
-      attribute :value, String
-    end
+    value_object "BookingKey", String
 
-    value_object "Amount" do
-      attribute :value, Integer
-    end
+    value_object "Amount", Integer
 
-    value_object "Label" do
-      attribute :value, String
-    end
+    value_object "Label", String
 
     command "Take" do
       goal "Take a charge"
@@ -79,17 +71,11 @@ Hecks.bluebook "FanOutRowFieldsFixture" do
 
     attribute :ref, CancellationRef
 
-    value_object "CancellationRef" do
-      attribute :value, String
-    end
+    value_object "CancellationRef", String
 
-    value_object "BookingKey" do
-      attribute :value, String
-    end
+    value_object "BookingKey", String
 
-    value_object "Label" do
-      attribute :value, String
-    end
+    value_object "Label", String
 
     command "Cancel" do
       goal "Cancel a booking"

@@ -22,9 +22,7 @@ Hecks.bluebook "CiWorkflows" do
     attribute :name, PipelineName
     identified_by :name
 
-    value_object "PipelineName" do
-      attribute :value, String
-    end
+    value_object "PipelineName", String
 
     value_object "Workflow" do
       attribute :name,         String

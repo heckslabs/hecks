@@ -22,9 +22,7 @@ Hecks.bluebook "Bluebook" do
       invariant("a process manager is named") { !value.to_s.empty? }
     end
 
-    value_object "ProcessManagerText" do
-      attribute :value, String
-    end
+    value_object "ProcessManagerText", String
 
     value_object "SagaState" do
       attribute :name, String
@@ -32,13 +30,9 @@ Hecks.bluebook "Bluebook" do
 
     # Value objects live at the root: an entity mints none of its own at any depth, so Handler and
     # its nested Dispatch share this one pool.
-    value_object "HandlerText" do
-      attribute :value, String
-    end
+    value_object "HandlerText", String
 
-    value_object "DispatchText" do
-      attribute :value, String
-    end
+    value_object "DispatchText", String
 
     value_object "Binding" do
       attribute :key,   String
@@ -48,15 +42,11 @@ Hecks.bluebook "Bluebook" do
     # Orders one handler's dispatches; Position orders process managers within a bluebook.
     # Part of Dispatch identity: a handler may send the same command several times with different
     # `with:` bindings, so command_name alone collides.
-    value_object "DispatchPosition" do
-      attribute :value, Integer
-    end
+    value_object "DispatchPosition", Integer
 
     # Declaration order among siblings. The IR is read index for index, so the language
     # holds it rather than inheriting whatever order a store iterates.
-    value_object "Position" do
-      attribute :value, Integer
-    end
+    value_object "Position", Integer
 
     attribute :position, Position
 

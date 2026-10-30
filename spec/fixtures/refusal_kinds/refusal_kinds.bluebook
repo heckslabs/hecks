@@ -20,17 +20,13 @@ Hecks.bluebook "RefusalKinds" do
 
     invariant("the balance never goes negative") { balance.cents >= 0 }
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     value_object "Money" do
       attribute :cents, Integer
     end
 
-    value_object "Label" do
-      attribute :value, String
-    end
+    value_object "Label", String
 
     value_object "Count" do
       attribute :value, Integer, default: 0

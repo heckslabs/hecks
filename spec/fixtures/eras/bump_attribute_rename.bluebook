@@ -4,9 +4,7 @@ Hecks.bluebook "Shaped" do
 
     attribute :full_name, FullName
 
-    value_object "FullName" do
-      attribute :value, String
-    end
+    value_object "FullName", String
   end
 
   aggregate "Account" do
@@ -22,18 +20,14 @@ Hecks.bluebook "Shaped" do
       transition "Close" => "closed", from: "open"
     end
 
-    value_object "AccountNumber" do
-      attribute :value, String
-    end
+    value_object "AccountNumber", String
 
     value_object "Money" do
       attribute :cents,    Integer
       attribute :currency, String, default: "USD"
     end
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
     command "Open" do
       attribute :number,  AccountNumber

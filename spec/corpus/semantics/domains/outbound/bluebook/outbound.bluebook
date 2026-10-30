@@ -12,13 +12,9 @@ Hecks.bluebook "Outbound" do
     attribute :tag,  Tag
     attribute :note, Note
 
-    value_object "Tag" do
-      attribute :value, String
-    end
+    value_object "Tag", String
 
-    value_object "Note" do
-      attribute :value, String
-    end
+    value_object "Note", String
 
     command "Send" do
       goal "Send a parcel on its way"

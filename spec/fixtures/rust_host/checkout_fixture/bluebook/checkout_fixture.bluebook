@@ -53,13 +53,9 @@ Hecks.bluebook "CheckoutFixture" do
 
     # Both optional: an event that sets them stops taking registrations
     # `registration_cutoff_hours` before `starts_at` (Unix seconds).
-    value_object "StartsAt" do
-      attribute :value, Integer
-    end
+    value_object "StartsAt", Integer
 
-    value_object "CutoffHours" do
-      attribute :value, Integer
-    end
+    value_object "CutoffHours", Integer
 
     attribute :starts_at,                  StartsAt,    optional: true
     attribute :registration_cutoff_hours, CutoffHours, optional: true
@@ -114,9 +110,7 @@ Hecks.bluebook "CheckoutFixture" do
       invariant("an attendee has an email") { !email.to_s.empty? }
     end
 
-    value_object "RequestedAt" do
-      attribute :value, String
-    end
+    value_object "RequestedAt", String
 
     reference_to Event, as: :event_slug
 

@@ -172,13 +172,9 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, pattern: '^client$'
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # How many domains the report examined, counted from its headers so a reader need not.
     value_object "Checked" do
@@ -282,9 +278,7 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # An answer that is one document of text, exactly as the tool that produced it wrote it.
     value_object "Document" do
@@ -415,9 +409,7 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # An answer that is one document of text, exactly as the tool that produced it wrote it.
     value_object "Document" do
@@ -544,9 +536,7 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
     # What a new domain is called, as its bluebook spells it: a capital and then letters and digits.
     value_object "DomainName" do
@@ -568,9 +558,7 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Note" do
-      attribute :value, String
-    end
+    value_object "Note", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "stopped"
@@ -799,17 +787,13 @@ Hecks.bluebook "Hecks" do
     end
 
     # Whether the host build may download a published binary instead of compiling it.
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
     value_object "CodegenName" do
       attribute :value, String, pattern: '^(ruby|rust)$'
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
@@ -1079,9 +1063,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # Whether each distinct finding's minimized repro is also kept under `spec/corpus/regressions/`.
-    value_object "RegressionSwitch" do
-      attribute :value, Boolean
-    end
+    value_object "RegressionSwitch", Boolean
 
     # One share of a sweep, as `I/N`: shard I of N, which sweeps only its own domains so that N
     # jobs together sweep every domain once. The sweep refuses an I past N.
@@ -1106,9 +1088,7 @@ Hecks.bluebook "Hecks" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "halted"

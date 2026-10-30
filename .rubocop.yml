@@ -184,9 +184,13 @@ AllCops:
   NewCops: enable
   Include:
     - "**/*.rb"
+    - "**/*.bluebook"
   Exclude:
     - "rust/**/*"
     - "vendor/**/*"
+    # Sentence-form bluebooks are not Ruby; RuboCop cannot parse them.
+    - "spec/fixtures/sentence/**/*.bluebook"
+    - "spec/fixtures/sentence_examples/**/*.bluebook"
     # Gitignored scratch (probes, fuzz output): never shipped, absent from CI and from a clean
     # checkout, so an untracked file there must not fail the gate on one machine.
     - "tmp/**/*"

@@ -25,9 +25,7 @@ Hecks.bluebook "Bug28ExistenceFixture" do
       invariant("a code is not blank") { !value.to_s.empty? }
     end
 
-    value_object "Cents" do
-      attribute :value, Integer
-    end
+    value_object "Cents", Integer
 
     invariant("a vault's balance never goes negative") { balance.value >= 0 }
 

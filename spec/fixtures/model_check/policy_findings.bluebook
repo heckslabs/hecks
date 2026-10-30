@@ -7,9 +7,7 @@ Hecks.bluebook "PolicyFindings" do
 
     attribute :number, Number
 
-    value_object "Number" do
-      attribute :value, String
-    end
+    value_object "Number", String
 
     command "Write" do
       role "Tester"

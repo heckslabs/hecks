@@ -76,13 +76,9 @@ Hecks.bluebook "Publishing" do
 
     identified_by :slug
 
-    value_object "PageSlug" do
-      attribute :value, String
-    end
+    value_object "PageSlug", String
 
-    value_object "PageTitle" do
-      attribute :value, String
-    end
+    value_object "PageTitle", String
 
     attribute :slug,  PageSlug
     attribute :title, PageTitle
