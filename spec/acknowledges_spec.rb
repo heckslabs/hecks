@@ -35,7 +35,7 @@ RSpec.describe "acknowledges" do
 
   it "emits the acknowledgements in the IR" do
     expect(acknowledged.to_h[:acknowledgements])
-      .to eq([{ finding: "large_aggregate", subject: "", reason: "one ledger holds every entry" }])
+      .to eq([{ finding: "large_aggregate", subject: nil, reason: "one ledger holds every entry" }])
   end
 
   it "emits an empty list when nothing is acknowledged" do

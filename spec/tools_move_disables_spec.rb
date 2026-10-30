@@ -7,10 +7,10 @@ require "hecks/tools/move_disables"
 # the real repository is touched.
 RSpec.describe Hecks::Tools::MoveDisables do
   CONFIG_TEXT = "Layout/LineLength:\n  Max: 130\n".freeze
-  SOURCE = "x = 1 # rubocop:disable Style/MutableConstant -- registry\n" \
-           "# rubocop:disable Metrics/AbcSize\n" \
-           "def y; end\n" \
-           "# rubocop:enable Metrics/AbcSize\n".freeze
+  REGISTRY_SOURCE = "x = 1 # rubocop:disable Style/MutableConstant -- registry\n" \
+                    "# rubocop:disable Metrics/AbcSize\n" \
+                    "def y; end\n" \
+                    "# rubocop:enable Metrics/AbcSize\n".freeze
 
   before { @roots = [] }
   after { @roots.each { |root| FileUtils.remove_entry(root) } }
@@ -33,12 +33,12 @@ RSpec.describe Hecks::Tools::MoveDisables do
   def read(root, path) = File.read(File.join(root, path))
 
   it "strips directives and keeps the code" do
-    root = checkout({ "lib/a.rb" => SOURCE })
+    root = checkout({ "lib/a.rb" => REGISTRY_SOURCE })
     expect(read(root, "lib/a.rb")).to eq("x = 1\ndef y; end\n")
   end
 
   it "adds each moved cop with its reason and file" do
-    root = checkout({ "lib/a.rb" => SOURCE })
+    root = checkout({ "lib/a.rb" => REGISTRY_SOURCE })
     expect(read(root, ".rubocop.yml")).to include("Style/MutableConstant:\n  Exclude:\n    - \"lib/a.rb\"")
   end
 
@@ -54,8 +54,8 @@ RSpec.describe Hecks::Tools::MoveDisables do
   end
 
   it "plans without writing when apply is false" do
-    root = checkout({ "lib/a.rb" => SOURCE }, apply: false)
-    expect(read(root, "lib/a.rb")).to eq(SOURCE)
+    root = checkout({ "lib/a.rb" => REGISTRY_SOURCE }, apply: false)
+    expect(read(root, "lib/a.rb")).to eq(REGISTRY_SOURCE)
   end
 
   it "refuses a cop that has no reason written" do
