@@ -1486,6 +1486,7 @@ Hecks.bluebook "Hecks" do
       goal "Record that the request was carried out, and what it reported"
 
       reference_to StyleRun
+      attribute :run,    RunKey
       attribute :report, Report, sets: true
 
 
@@ -1738,7 +1739,7 @@ Hecks.bluebook "Hecks" do
 
   policy "RecordStyleOutcome" do
     on      "StyleRun.StyleAnswered"
-    trigger StyleRun::Complete, with: { report: :report }
+    trigger StyleRun::Complete, with: { run: :run, report: :report }
   end
 
   policy "RecordStyleFault" do

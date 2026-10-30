@@ -1028,6 +1028,73 @@ policy "RecordTheEra" do
     end
   end
 
+  # Lands a branch on main after its mechanical gate work: comment style is fixed, the shape
+  # ledger is checked, the quick gate runs, then the branch lands and boards the push train. Rubocop
+  # autocorrect is not a step yet (no command), so offenses it would fix still stop the gate. A
+  # refusal parks the instance in needs_human; a person confirms the ledger and starts it again.
+  # A saga cannot dispatch when it starts, so a policy starts the fix. It hears ShipStarted, emitted
+  # after ShipRequested is handled, because policies run before sagas for one event: on ShipRequested
+  # the fix would finish before the saga exists to hear it.
+  policy "StartTheCommentFix" do
+    on      "Shipment.ShipStarted"
+    trigger StyleRun::FixComments, with: { run: :run, paths: :paths, confirm: :confirm }
+  end
+
+  process_manager "GateAndBoard" do
+    correlates_by :"run.value"
+    starts_on Shipment::ShipRequested
+
+    # Each step records itself and waits. The caller dispatches the next command at top level:
+    # ConformanceRun.CheckShapeLedger, then GateRun.Gate, then Landing.Land, then PushTrain.Board.
+    # A dispatch made from inside this saga would run past the reaction depth bound.
+    transition StyleRun::StyleCompleted => "checking", from: "fixing"
+    transition ConformanceRun::ConformanceAccepted => "gated", from: %w[checking needs_human]
+    transition GateRun::GateCompleted => "landing", from: "gated"
+    transition Landing::BranchLanded => "boarding", from: "landing"
+
+    transition PushTrain::BranchPushed => "boarded", from: "boarding"
+    transition PushTrain::CarriedByEarlierPush => "boarded", from: "boarding"
+
+    transition StyleRun::StyleFaulted => "needs_human", from: "fixing"
+    transition ConformanceRun::ConformanceFaulted => "needs_human", from: "checking"
+    transition GateRun::GateFaulted => "needs_human", from: "gated"
+    transition Landing::LandingRefused => "needs_human", from: "landing"
+    transition PushTrain::PushFaulted => "needs_human", from: "boarding"
+  end
+
+  # The request that starts GateAndBoard, under its own identity so the Landing record it leads to
+  # is a separate one: Land creates a Landing under the same run key, and that would collide.
+  aggregate "Shipment" do
+    description "One request to fix, gate, land and board a branch: the gate-and-board saga starts on it."
+
+    attribute :run,    RunKey
+    attribute :branch, Word
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A branch, a directory or a commit.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    command "Ship" do
+      role "Operator"
+      goal "Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train"
+
+      attribute :run,      RunKey, sets: true
+      attribute :branch,   Word, sets: true
+      attribute :checkout, Word
+      attribute :paths,    Word, default: "lib/hecks,spec"
+      attribute :confirm,  Boolean, default: true
+
+      emits ShipRequested
+      emits ShipStarted
+    end
+  end
+
   aggregate "Era" do
     description "One change to a domain's journal of eras, and how it ended: a store's upkeep."
 
