@@ -21,26 +21,32 @@ module Hecks
           # The line window those reads take: plain numbers that name no place, so they pass.
           READ_WINDOW_ARGUMENTS = %w[from to top].freeze
 
+          # The boundary between a lower-case letter or digit and the upper-case letter after it.
+          CAMEL_BOUNDARY = /([a-z\d])([A-Z])/
+
           # @param args [Hash, Array, nil] the arguments as the caller gave them
           # @param label [String] how the server describes its mode, for the refusal
           # @param question [String, nil] the query asked, when the arguments are a question's
           # @raise [Runtime::TypeMismatch] on the first argument refused
           def admit!(args, label, question = nil)
             read_question = READ_PATH_QUESTIONS.include?(snake_question(question))
-            each_argument(args) do |name, value|
-              if read_question && READ_WINDOW_ARGUMENTS.include?(name)
-                next
-              end
-              if name == "path" && read_question
-                admit_path!(name, value, label)
-                next
-              end
-              if DENIED_ARGUMENTS.include?(name)
-                refuse!(name, label, "never passes it on: it names a host, a binary, an output or a change of state")
-              end
-              admit_path!(name, value, label) if PATH_ARGUMENTS.include?(name)
-              admit_ref!(name, value, label) if REF_ARGUMENTS.include?(name)
+            each_argument(args) { |name, value| admit_one!(name, value, label, read_question) }
+          end
+
+          # Whether an argument is a line window the read questions take, which names no place.
+          def window?(name, read_question) = read_question && READ_WINDOW_ARGUMENTS.include?(name)
+
+          # Checks one argument by its name: a read path is allowed its path, and anything else is
+          # refused, confined to the checkout, or checked as a ref.
+          def admit_one!(name, value, label, read_question)
+            return if window?(name, read_question)
+            return admit_path!(name, value, label) if name == "path" && read_question
+
+            if DENIED_ARGUMENTS.include?(name)
+              refuse!(name, label, "never passes it on: it names a host, a binary, an output or a change of state")
             end
+            admit_path!(name, value, label) if PATH_ARGUMENTS.include?(name)
+            admit_ref!(name, value, label) if REF_ARGUMENTS.include?(name)
           end
 
           # Yields every argument name with its value, descending into nested objects and lists, so
@@ -67,8 +73,12 @@ module Hecks
           # The question as `Aggregate.query` or `aggregate_run.query` names it, in the snake form
           # `READ_PATH_QUESTIONS` uses.
           def snake_question(question)
-            question.to_s.split(".").map { |part| part.gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase }.join(".")
+            parts = question.to_s.split(".")
+            parts.map { |part| snake_part(part) }.join(".")
           end
+
+          # One part of a question name, in snake form: `ReadSource` is `read_source`.
+          def snake_part(part) = part.gsub(CAMEL_BOUNDARY, '\1_\2').downcase
 
           def refuse!(name, label, why)
             raise Runtime::TypeMismatch, "argument: #{name.inspect} is refused: this server runs in #{label} and #{why}"
