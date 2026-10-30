@@ -23,13 +23,13 @@ module Hecks
       # list change tracked files, so unconfirmed they report what they would do and write nothing.
       module TestSuite
         # Every operation this family carries out.
-        OPERATIONS = %w[refresh_runtime_baseline run_spec_example run_suite run_changed stress_concurrency
+        OPERATIONS = %w[refresh_runtime_baseline run_spec_example run_suite run_spec_folder run_changed stress_concurrency
                         run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
                         write_io_parallel_spec_list].freeze
 
         # The operations that run specs in a folder of their own: they need that folder to hold specs,
         # not to be this checkout, so any project's suite runs through them.
-        FOLDER_OPERATIONS = %w[run_spec_example run_suite run_changed].freeze
+        FOLDER_OPERATIONS = %w[run_spec_example run_suite run_spec_folder run_changed].freeze
 
         # The spec directory a folder's whole suite lives in.
         SPEC_DIRECTORY = "spec"
@@ -65,6 +65,7 @@ module Hecks
           case operation
           when "run_spec_example" then spec_example(args, tree)
           when "run_suite" then suite(args, tree)
+          when "run_spec_folder" then spec_folder(args, tree)
           when "run_changed" then changed(args, tree)
           when "run_cargo_tests" then CargoTests.run(args, tree, shell)
           when "clear_caches" then CacheClearing.clear
@@ -104,6 +105,15 @@ module Hecks
           return rspec if minitest.empty?
 
           ([rspec] + MinitestRuns.reports(tree, minitest)).join("\n")
+        end
+
+        # Runs the specs of one folder or one file under the spec directory, in one process.
+        #
+        # @param args [Hash] `folder`, relative to the root, and the arguments that set the specs' variables
+        # @param tree [Tree] the folder whose specs run
+        # @return [String] what the runner printed
+        def spec_folder(args, tree)
+          TestRunner.new(tree).run_paths(paths: [args[:folder]], env: RunOptions.spec_env(args), tags: args[:tags])
         end
 
         # Runs the specs the files changed since a git ref map to, by name. Says so and runs nothing

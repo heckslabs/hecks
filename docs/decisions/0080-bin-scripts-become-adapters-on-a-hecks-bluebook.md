@@ -236,6 +236,7 @@ Every script becomes one or more commands or queries, named for the domain actio
 | `spec_example` | TestSuite · RunSpecExample | `hecks test_suite_run.run_spec_example file=path example=text [root=path]` |
 | (added after this table) | TestSuite · RunSuite | `hecks test_suite_run.run_suite [root=path] [tags=…] [strict=true] [seeds=N] [environment=name]`: every `*_spec.rb` under the folder's `spec/`, then each `*_test.rb` on its own |
 | (added after this table) | TestSuite · RunChanged | `hecks test_suite_run.run_changed [root=path] [base=ref]`: the specs the files changed since the ref map to, by name; nothing runs for an unmapped change |
+| (added after this table) | TestSuite · RunSpecFolder | `hecks test_suite_run.run_spec_folder folder=path [root=path] [tags=…] [strict=true] [seeds=N] [environment=name]`: the specs under one folder or file of the spec directory, in one process |
 | `stress_concurrency_specs` | TestSuite · StressConcurrency | `hecks test_suite_run.stress_concurrency [runs=30] [parallel=] [seed_start=1]` |
 | `regenerate_persistence_legacy_fixtures` | TestSuite · RegenerateLegacyFixtures | `hecks test_suite_run.regenerate_legacy_fixtures --confirm` |
 | `seed_semantics_corpus` | TestSuite · SeedSemanticsCorpus | `hecks test_suite_run.seed_semantics_corpus` |
