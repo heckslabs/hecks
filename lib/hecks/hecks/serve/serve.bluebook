@@ -1,0 +1,91 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Serve" do
+    vision "Open something on a port until it is stopped: the Composer, a rendered example, or a static site."
+
+    aggregate "Server", kind: "Run" do
+      description "One server opened on a checkout, until it is stopped."
+
+      attribute :port,      Port, optional: true
+      attribute :domains,   PathList, optional: true
+      attribute :agent,     AgentName, optional: true
+      attribute :directory, Directory, optional: true
+
+      # One directory of files, named by a path.
+      value_object "Directory" do
+        attribute :value, String, matches: :present
+      end
+
+      # Which agent drives the Composer's assistant: the real `claude`, or a scripted `fake` for
+      # trying the editor without a model.
+      value_object "AgentName" do
+        attribute :value, String, pattern: '^(claude|fake)$'
+      end
+
+      # Domain directories, comma separated.
+      value_object "PathList" do
+        attribute :value, String, matches: :csv_list
+      end
+
+      # A local port a server listens on.
+      value_object "Port" do
+        attribute :value, Integer
+
+        invariant("a port is 1 to 65535") { value >= 1 && value <= 65535 }
+      end
+
+      command "Present" do
+        role "Maintainer"
+        goal "Serve the banking example's rendered forms and views on a local port until stopped"
+
+        attribute :port, Port, optional: true, sets: true
+        attribute :run,  RunKey, sets: true
+
+        sets :operation, to: "present"
+
+        emits PresentRequested
+      end
+
+      command "Compose" do
+        role "Maintainer"
+        goal "Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped"
+
+        attribute :port,    Port, optional: true, sets: true
+        attribute :domains, PathList, optional: true, sets: true
+        attribute :agent,   AgentName, default: "claude", sets: true
+        attribute :run,     RunKey, sets: true
+
+        sets :operation, to: "compose"
+
+        emits ComposeRequested
+      end
+
+      command "Preview" do
+        role "Maintainer"
+        goal "Serve one directory of static files, such as a website, on a local port until stopped"
+
+        attribute :directory, Directory, sets: true
+        attribute :port,      Port, optional: true, sets: true
+        attribute :run,       RunKey, sets: true
+
+        sets :operation, to: "preview"
+
+        emits PreviewRequested
+      end
+    end
+
+    policy "ExamineWhenPresentRequested" do
+      on      "Server.PresentRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenComposeRequested" do
+      on      "Server.ComposeRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenPreviewRequested" do
+      on      "Server.PreviewRequested"
+      ask     :examine, with: { run: :run }
+    end
+  end
+end

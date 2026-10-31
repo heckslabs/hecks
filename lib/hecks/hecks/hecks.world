@@ -61,7 +61,7 @@ Hecks.world "Hecks" do
                        streams: %w[Follow],
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
-                                      CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release ScriptRun
+                                      CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun
                                       SyntaxBootCache],
                        newcomer: %w[launch.init launch.interview operation.open_console],
                        everyday: %w[operation.run operation.open_console gate_run.gate
