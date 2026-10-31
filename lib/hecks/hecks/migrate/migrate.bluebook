@@ -41,7 +41,7 @@ Hecks.bluebook "Hecks" do
 
       value_object "OperationName" do
         attribute :value, String,
-                  pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki|write_translation)$'
+                  pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki|write_translation|reconcile)$'
       end
 
       # `id:old,id:new`: which world's record wins for each id both worlds touched since the cut.
@@ -193,6 +193,24 @@ Hecks.bluebook "Hecks" do
         emits TranslationRequested
       end
 
+      # Writes, for every domain of the project, the one edge that leads its latest held era to its
+      # current shape, deletes the edges that edge supersedes, and audits what it wrote. Any refused
+      # domain writes nothing. The dry run is `ReconcilePlan`: this command refuses without confirm.
+      command "Reconcile" do
+        role "Operator"
+        goal "Write the translation edges that lead every domain's latest held era to its current shape"
+
+        attribute :domain,  DomainPath, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the reconciliation is confirmed") { confirm.value == true }
+
+        sets :operation, to: "reconcile"
+
+        emits ReconcileRequested
+      end
+
       # The facts the journal store reported, held against the change that was asked for.
       command "Permit" do
         role "System"
@@ -303,6 +321,15 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
 
+      # The dry run of `Reconcile`: each domain's held era, current shape, edge it would write, edges it
+      # would delete, and the verdict, written nowhere.
+      query "ReconcilePlan" do
+        description "The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge " \
+                    "it would write, the edges it would delete, and the verdict."
+        attribute :domain, DomainPath, optional: true
+        returns Document
+      end
+
       query "Attestation" do
         description "An era's held text as it now stands, and whether it still matches its digest."
         attribute :domain, DomainPath
@@ -350,6 +377,11 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenTranslationRequested" do
       on      "Era.TranslationRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenReconcileRequested" do
+      on      "Era.ReconcileRequested"
       ask     :examine, with: { run: :run }
     end
 

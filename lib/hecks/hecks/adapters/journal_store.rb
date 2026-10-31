@@ -4,6 +4,7 @@ require_relative "journal_store/examination"
 require_relative "journal_store/changes"
 require_relative "journal_store/readings"
 require_relative "journal_store/translation_write"
+require_relative "journal_store/reconciliation"
 
 module Hecks
   module Adapters
@@ -21,6 +22,7 @@ module Hecks
       include Changes
       include Readings
       include TranslationWrite
+      include Reconciliation
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
