@@ -25,7 +25,7 @@ Hecks.bluebook "Translation" do
     value_object "Kind" do
       attribute :value, String,
                 one_of: ["rename", "move", "convert", "drop", "retype", "retired", "derive", "rekey_to",
-                         "backfill", "unresolved"]
+                         "backfill", "split", "unresolved"]
     end
 
     value_object "SourcePath" do

@@ -7,11 +7,12 @@ module Hecks
     #   derive "to" "expression" (a tree)   rename "from" "to"   move "from" "to" (dotted paths)
     #   convert "from" "to" "values" ([old, new] pairs)   drop "path"   retype "from" "to"
     #   backfill "path" "default"   rekey_to "to"
+    #   split "into" "keyed_by" "fields" (a list of field names)
     module TranslationPlan
       VERSION = 1
 
       # The op names, in the order they apply; one per rule list of a `TranslationAggregate`.
-      OPS = %w[derive rename move convert drop retype backfill rekey_to].freeze
+      OPS = %w[derive rename move convert drop retype backfill rekey_to split].freeze
 
       module_function
 
@@ -31,7 +32,7 @@ module Hecks
 
       def ops(aggregate)
         [*derives(aggregate), *renames(aggregate), *moves(aggregate), *converts(aggregate), *drops(aggregate),
-         *retypes(aggregate), *backfills(aggregate), *rekeys(aggregate)]
+         *retypes(aggregate), *backfills(aggregate), *rekeys(aggregate), *splits(aggregate)]
       end
 
       def derives(aggregate)
@@ -64,6 +65,12 @@ module Hecks
 
       def rekeys(aggregate)
         aggregate.rekeys.map { |rekey| { "op" => "rekey_to", "to" => rekey.to } }
+      end
+
+      def splits(aggregate)
+        aggregate.splits.map do |split|
+          { "op" => "split", "into" => split.into, "keyed_by" => split.keyed_by.to_s, "fields" => split.fields.map(&:to_s) }
+        end
       end
     end
   end
