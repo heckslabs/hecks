@@ -301,7 +301,7 @@ RSpec.describe "the stdio MCP servers" do
   SPEC_EXAMPLE_RUNS = [
     ["spec/driving_adapters/cli_runner_spec.rb", "hands back the domain's own wording, and a non-zero status"],
     ["spec/exe_hecks_spec.rb", "is executable"],
-    ["spec/exe_hecks_spec.rb", "hands every name the gem shipped to Hecks::CLI"]
+    ["spec/exe_hecks_spec.rb", "no longer hands the retired positional names to Hecks::CLI"]
   ].freeze
 
   # Commands mode (ADR 0089): reader mode plus `dispatch` for a closed list of commands.
