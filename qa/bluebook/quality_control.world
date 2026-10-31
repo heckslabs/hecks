@@ -7,4 +7,10 @@ Hecks.world "QualityControl" do
   persisted_by("PostgresEra") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
   end
+  # The rehearsal reads a throwaway copy of the ledger, named by an environment variable so the
+  # file holds no connection string; the copy is made beforehand and is never this database.
+  rehearsed_by("Postgres") do
+    connection_env "HECKS_QC_REHEARSAL_URL"
+    mode "readonly_copy"
+  end
 end
