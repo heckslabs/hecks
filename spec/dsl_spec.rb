@@ -1462,14 +1462,14 @@ RSpec.describe "the DSL surface" do
     it "process_manager expands a bare aggregate name to its identity field", :aggregate_failures do
       keyed = bare_key_process_manager("BareAggregate") { correlates_by Thing }
 
-      expect(keyed.correlates_by).to eq("Thing.id")
+      expect(keyed.correlates_by).to eq(:"Thing.id.value")
       expect(keyed.correlation_head).to eq(:Thing)
     end
 
     it "process_manager expands a bare aggregate name to the identity it declares, not id" do
       keyed = bare_identity_process_manager
 
-      expect(keyed.correlates_by).to eq("Sighting.code.value")
+      expect(keyed.correlates_by).to eq(:"Sighting.code.value")
     end
 
     it "process_manager refuses a bare name that names no aggregate of its bluebook" do
@@ -1482,7 +1482,7 @@ RSpec.describe "the DSL surface" do
     it "process_manager leaves a dotted correlates_by unchanged" do
       keyed = bare_key_process_manager("DottedKey") { correlates_by "Thing.ref.amount" }
 
-      expect(keyed.correlates_by).to eq("Thing.ref.amount")
+      expect(keyed.correlates_by).to eq(:"Thing.ref.amount")
     end
 
     # `identified_by` reads its own source line via Prism, so it needs a
