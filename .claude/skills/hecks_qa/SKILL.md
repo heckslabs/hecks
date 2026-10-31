@@ -55,6 +55,14 @@ reclaimed and named), and exits with the precedence across both:
   dispatch ONE fresh subagent carrying that slice VERBATIM plus the
   section below. Findings never wait on each other.
 
+## CI intake — red runs the `hecks_ci` loop filed for QA
+
+Every tick, after the sweep report and before exiting, read the CI queue (read-only):
+
+`sqlite3 ~/.claude/hecks-dev/tickets.db "select id, title, detail from work where work='ci' and status='open' and decision='qa'"`
+
+For EACH row, mark it `in_progress` (`update work set status='in_progress' where id=…`) and dispatch ONE fresh subagent carrying the row VERBATIM plus the per-finding section below. The subagent's job is the same as for a sweep finding: reproduce from the row's repro command, write the failing test, fix in the runner worktree, and land through `Landing.land!`. If it cannot fix the cause, set the row back to `open` with a note in `reason`. Do not close rows: `hecks_ci` closes a row when its cause passes on a newer SHA. CI rows never wait on the sweep, and the sweep never waits on them.
+
 If the report's `stale holds reclaimed:` count is non-zero on consecutive
 ticks for the same target, say so: a hold that has to be reclaimed every
 tick is a release that keeps failing to land, and that is worth a Bug.
