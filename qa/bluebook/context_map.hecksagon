@@ -5,3 +5,10 @@ Hecks.hecksagon "Governance" do
   Governance::RoleAssignment.persisted_by("PostgresEra")
   Governance::RoleTransition.persisted_by("PostgresEra")
 end
+
+# Coder is attached here so both bluebooks load before the translations in
+# quality_control.translations.hecksagon. That file must load after quality_control.hecksagon,
+# which loads the QualityControl bluebook a `translates` names. Hecksagons load in filename order.
+Hecks.hecksagon "QualityControl" do
+  attaches "Coder"
+end
