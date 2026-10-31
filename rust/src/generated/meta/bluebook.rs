@@ -4,6 +4,211 @@
 use crate::kernel::Expr;
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct ModuleMembership {
+    pub name: String,
+    pub vision: String,
+    pub aggregate: String,
+}
+
+impl crate::kernel::Fielded for ModuleMembership {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "name" => Some(Field::Value(Value::Str(self.name.clone()))),
+            "vision" => Some(Field::Value(Value::Str(self.vision.clone()))),
+            "aggregate" => Some(Field::Value(Value::Str(self.aggregate.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+impl ModuleMembership {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl ModuleMembership {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.clone()),
+            ),
+            (
+                "vision".to_string(),
+                crate::kernel::Json::Str(self.vision.clone()),
+            ),
+            (
+                "aggregate".to_string(),
+                crate::kernel::Json::Str(self.aggregate.clone()),
+            ),
+        ])
+    }
+}
+
+impl ModuleMembership {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "ModuleMembership expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["name", "vision", "aggregate"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "ModuleMembership",
+                    unknown: &unknown,
+                    declared: &["name", "vision", "aggregate"],
+                }
+                .render_args(),
+            ));
+        }
+        Ok(Self {
+            name: {
+                let x = v.get("name").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "ModuleMembership.name expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "ModuleMembership.name expects String, got {}",
+                        x.describe()
+                    ))
+                })?
+            },
+            vision: {
+                let x = v.get("vision").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "ModuleMembership.vision expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "ModuleMembership.vision expects String, got {}",
+                        x.describe()
+                    ))
+                })?
+            },
+            aggregate: {
+                let x = v.get("aggregate").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "ModuleMembership.aggregate expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "ModuleMembership.aggregate expects String, got {}",
+                        x.describe()
+                    ))
+                })?
+            },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModuleText {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for ModuleText {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl ModuleText {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        Ok(())
+    }
+}
+
+impl ModuleText {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![(
+            "value".to_string(),
+            crate::kernel::Json::Str(self.value.clone()),
+        )])
+    }
+}
+
+impl ModuleText {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "ModuleText expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["value"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "ModuleText",
+                    unknown: &unknown,
+                    declared: &["value"],
+                }
+                .render_args(),
+            ));
+        }
+        Ok(Self {
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "ModuleText.value expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "ModuleText.value expects String, got {}",
+                        x.describe()
+                    ))
+                })?
+            },
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Provision {
     pub capability: String,
     pub key: String,
@@ -1452,6 +1657,18 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         resolves_via: "",
         disambiguator: "",
     },
+    KeywordSeed {
+        word: "domain_module",
+        context: "Bluebook",
+        body: "keywords",
+        inner: "Bluebook",
+        opens: "Bluebook",
+        fills: "",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
 ];
 
 impl KeywordSeed {
@@ -1632,6 +1849,7 @@ impl KeywordSeed {
                     "read_model",
                     "policy",
                     "process_manager",
+                    "domain_module",
                 ],
                 offered: offered.as_str(),
             }
@@ -2119,6 +2337,23 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
         coerce: "",
         blank_message: "",
     },
+    ArgumentSeed {
+        keyword: "domain_module",
+        context: "Bluebook",
+        at: "1",
+        named: "",
+        kind: "text",
+        required: "true",
+        fills: "name",
+        selects: "",
+        pair_key_fills: "",
+        pair_value_fills: "",
+        pairs_shape: "",
+        status: "admitted",
+        variadic: "",
+        coerce: "",
+        blank_message: "",
+    },
 ];
 
 impl ArgumentSeed {
@@ -2380,6 +2615,7 @@ impl ArgumentSeed {
                     "provides",
                     "provides",
                     "aggregate",
+                    "domain_module",
                 ],
                 offered: offered.as_str(),
             }
@@ -2399,6 +2635,7 @@ pub struct Bluebook {
     pub normalisations: Vec<NormalisationRule>,
     pub attaches_to: Vec<AttachesToContext>,
     pub provides: Vec<Provision>,
+    pub modules: Vec<ModuleMembership>,
 }
 
 impl crate::kernel::Fielded for Bluebook {
@@ -2438,6 +2675,7 @@ impl crate::kernel::Fielded for Bluebook {
             "normalisations" => Some(Field::Value(Value::List(self.normalisations.len()))),
             "attaches_to" => Some(Field::Value(Value::List(self.attaches_to.len()))),
             "provides" => Some(Field::Value(Value::List(self.provides.len()))),
+            "modules" => Some(Field::Value(Value::List(self.modules.len()))),
             _ => None,
         }
     }
@@ -2454,6 +2692,7 @@ impl crate::kernel::Fielded for Bluebook {
             ),
             "attaches_to" => Some(self.attaches_to.iter().map(|v| Field::Nested(v)).collect()),
             "provides" => Some(self.provides.iter().map(|v| Field::Nested(v)).collect()),
+            "modules" => Some(self.modules.iter().map(|v| Field::Nested(v)).collect()),
             _ => None,
         }
     }
@@ -2516,6 +2755,10 @@ impl Bluebook {
                 "provides".to_string(),
                 crate::kernel::Json::Array(self.provides.iter().map(|x| x.to_json()).collect()),
             ),
+            (
+                "modules".to_string(),
+                crate::kernel::Json::Array(self.modules.iter().map(|x| x.to_json()).collect()),
+            ),
         ])
     }
 }
@@ -2576,6 +2819,13 @@ impl Bluebook {
                 Some(items) => items
                     .iter()
                     .map(Provision::from_json)
+                    .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
+                None => Vec::new(),
+            },
+            modules: match v.get("modules").and_then(crate::kernel::Json::as_array) {
+                Some(items) => items
+                    .iter()
+                    .map(ModuleMembership::from_json)
                     .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
                 None => Vec::new(),
             },
@@ -2742,6 +2992,7 @@ pub fn dispatch_declare(
                         normalisations: vec![],
                         attaches_to: vec![],
                         provides: vec![],
+                        modules: vec![],
                     }),
                     state_independent: true,
                 }
@@ -2760,6 +3011,7 @@ pub fn dispatch_declare(
                         normalisations: vec![],
                         attaches_to: vec![],
                         provides: vec![],
+                        modules: vec![],
                     }),
                     state_independent: true,
                 }
@@ -3454,6 +3706,233 @@ impl ProvideArgs {
     }
 }
 
+impl crate::kernel::Fielded for GroupArgs {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+
+        match name {
+            "name" => Some(Field::Nested(&self.name)),
+            "vision" => Some(Field::Nested(&self.vision)),
+            "aggregate" => Some(Field::Nested(&self.aggregate)),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GroupArgs {
+    pub name: ModuleText,
+    pub vision: ModuleText,
+    pub aggregate: ModuleText,
+}
+
+pub fn dispatch_group(
+    repo: &mut impl crate::kernel::Repository<Bluebook>,
+    id: &str,
+    args: GroupArgs,
+    mutations: &mut Vec<crate::kernel::MutationRecord>,
+    owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
+    tenant_boundary_check: Result<(), crate::kernel::Refusal>,
+) -> crate::kernel::DispatchResult<Bluebook> {
+    args.name.check_invariants()?;
+    args.vision.check_invariants()?;
+    args.aggregate.check_invariants()?;
+    let with_references = crate::kernel::WithReferences {
+        command_deref: &command_deref,
+        args: &args,
+        owner_deref: &owner_deref,
+    };
+    let seed_projections =
+        crate::kernel::seeded_projections(&with_references, BLUEBOOK_PROJECTED_FIELDS);
+
+    crate::kernel::dispatch(
+        repo,
+        crate::kernel::Hydrate::Act { id: id.to_string() },
+        "Group",
+        "Bluebook::Bluebook",
+        "Bluebook",
+        "name.value",
+        &with_references,
+        &[],
+        None,
+        |record| {
+            record.modules.push(ModuleMembership {
+                name: args.name.value.clone(),
+                vision: args.vision.value.clone(),
+                aggregate: args.aggregate.value.clone(),
+            });
+            Ok(())
+        },
+        &[],
+        &bluebook_invariants(),
+        &["AggregateGrouped"],
+        args.to_json(),
+        mutations,
+        seed_projections,
+        tenant_boundary_check,
+    )
+}
+
+impl GroupArgs {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(
+            vec![
+                ("name".to_string(), self.name.to_json()),
+                ("vision".to_string(), self.vision.to_json()),
+                ("aggregate".to_string(), self.aggregate.to_json()),
+            ]
+            .into_iter()
+            .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
+            .collect(),
+        )
+    }
+}
+
+impl GroupArgs {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "GroupArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["name", "vision", "aggregate", "id"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Group",
+                    unknown: &unknown,
+                    declared: &["name", "vision", "aggregate"],
+                }
+                .render_args(),
+            ));
+        }
+        let required: &[&str] = &["aggregate", "name", "vision"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            return Err(crate::kernel::Refusal::AbsentArgument(
+                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                    command: "Group",
+                    absent: &absent,
+                    declared: &["name", "vision", "aggregate"],
+                }
+                .render_args(),
+            ));
+        }
+        let name = ModuleText::from_json(
+            &(match v.get("name").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Group.name expects ModuleText, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
+        name.check_invariants()?;
+        let vision = ModuleText::from_json(
+            &(match v.get("vision").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Group.vision expects ModuleText, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
+        vision.check_invariants()?;
+        let aggregate = ModuleText::from_json(
+            &(match v.get("aggregate").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Group.aggregate expects ModuleText, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
+        aggregate.check_invariants()?;
+        Ok(Self {
+            name,
+            vision,
+            aggregate,
+        })
+    }
+}
+
+impl GroupArgs {
+    pub fn decode_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "GroupArgs expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        let unknown = v.unknown_keys(&["name", "vision", "aggregate", "id"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            crate::kernel::collecting::refuse_each(&unknown, |names| {
+                crate::kernel::Refusal::UnknownArgument(
+                    crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                        command: "Group",
+                        unknown: names,
+                        declared: &["name", "vision", "aggregate"],
+                    }
+                    .render_args(),
+                )
+            })?;
+        }
+        Ok(())
+    }
+
+    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
+        let required: &[&str] = &["aggregate", "name", "vision"];
+        let absent: Vec<&str> = required
+            .iter()
+            .copied()
+            .filter(|key| v.get(key).is_none())
+            .collect();
+        if !absent.is_empty() {
+            crate::kernel::collecting::refuse_each(&absent, |names| {
+                crate::kernel::Refusal::AbsentArgument(
+                    crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
+                        command: "Group",
+                        absent: names,
+                        declared: &["name", "vision", "aggregate"],
+                    }
+                    .render_args(),
+                )
+            })?;
+        }
+        Ok(())
+    }
+}
+
 impl crate::kernel::Fielded for NormaliseArgs {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
@@ -3766,196 +4245,5 @@ impl NormaliseArgs {
 /// This aggregate's state, or one of its events' payloads, as a caller is answered with
 /// it: each single-field value object as its bare field (the shape a command takes it in).
 pub fn present(state: crate::kernel::Json) -> crate::kernel::Json {
-    match state {
-        crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(
-            fields
-                .into_iter()
-                .map(|(k, v)| {
-                    let new_v = match k.as_str() {
-                        "name" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "vision" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "classification" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "version" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "formerly_known_as" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "namespace" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "normalisations" => match v {
-                            crate::kernel::Json::Array(items) => crate::kernel::Json::Array(
-                                items
-                                    .into_iter()
-                                    .map(|item| match item {
-                                        crate::kernel::Json::Object(fields) => {
-                                            crate::kernel::Json::Object(
-                                                fields
-                                                    .into_iter()
-                                                    .map(|(k, v)| {
-                                                        let new_v = match k.as_str() {
-                                                            "strategy" => v,
-                                                            "source_token" => v,
-                                                            "replacement" => v,
-                                                            "boundary" => v,
-                                                            "position" => v,
-                                                            _ => v,
-                                                        };
-                                                        (k, new_v)
-                                                    })
-                                                    .collect(),
-                                            )
-                                        }
-                                        other => other,
-                                    })
-                                    .collect(),
-                            ),
-                            other => other,
-                        },
-                        "attaches_to" => match v {
-                            crate::kernel::Json::Array(items) => crate::kernel::Json::Array(
-                                items
-                                    .into_iter()
-                                    .map(|item| match item {
-                                        crate::kernel::Json::Object(fields) => {
-                                            fields.into_iter().find(|(k, _)| k == "value").map_or(
-                                                crate::kernel::Json::Null,
-                                                |(_, field_value)| field_value,
-                                            )
-                                        }
-                                        other => other,
-                                    })
-                                    .collect(),
-                            ),
-                            other => other,
-                        },
-                        "provides" => match v {
-                            crate::kernel::Json::Array(items) => crate::kernel::Json::Array(
-                                items
-                                    .into_iter()
-                                    .map(|item| match item {
-                                        crate::kernel::Json::Object(fields) => {
-                                            crate::kernel::Json::Object(
-                                                fields
-                                                    .into_iter()
-                                                    .map(|(k, v)| {
-                                                        let new_v = match k.as_str() {
-                                                            "capability" => v,
-                                                            "key" => v,
-                                                            "verb" => v,
-                                                            _ => v,
-                                                        };
-                                                        (k, new_v)
-                                                    })
-                                                    .collect(),
-                                            )
-                                        }
-                                        other => other,
-                                    })
-                                    .collect(),
-                            ),
-                            other => other,
-                        },
-                        "context" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "capability" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "key" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "verb" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "strategy" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "source_token" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "replacement" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "boundary" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        "position" => match v {
-                            crate::kernel::Json::Object(fields) => fields
-                                .into_iter()
-                                .find(|(k, _)| k == "value")
-                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
-                            other => other,
-                        },
-                        _ => v,
-                    };
-                    (k, new_v)
-                })
-                .collect(),
-        ),
-        other => other,
-    }
+    match state { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "name" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "vision" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "classification" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "version" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "formerly_known_as" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "namespace" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "normalisations" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "strategy" => v, "source_token" => v, "replacement" => v, "boundary" => v, "position" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "attaches_to" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }).collect()), other => other }, "provides" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "capability" => v, "key" => v, "verb" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "modules" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "name" => v, "vision" => v, "aggregate" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "context" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "capability" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "key" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "verb" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "aggregate" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "strategy" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "source_token" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "replacement" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "boundary" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "position" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }
 }

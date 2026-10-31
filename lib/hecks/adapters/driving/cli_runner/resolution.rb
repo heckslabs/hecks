@@ -19,10 +19,11 @@ module Hecks
             bluebook, argv, program = bluebook_for(runtime, argv, program)
             launcher = LauncherOptions.settings(runtime, bluebook.name)
             options  = LauncherOptions.projection(launcher, program)
-            cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
+            shown = options.merge(audience(runtime, launcher))
+            cli = Projector.call(:cli, bluebook: bluebook, options: shown)
             scope = { runtime: runtime, bluebook: bluebook, launcher: launcher, options: options,
-                      cli: cli, program: program }
-            usage_answer(scope, argv.first) || command_plan(scope, argv)
+                      shown: shown, cli: cli, program: program }
+            usage_answer(scope, argv.first) || module_answer(scope, argv.first) || command_plan(scope, argv)
           end
 
           # The answer to a line that is only a request for usage, or nil.
@@ -32,6 +33,16 @@ module Hecks
             return unless name == "--maintainer"
 
             { answer: [maintainer_usage(*scope.values_at(:runtime, :bluebook, :launcher, :options)), 0] }
+          end
+
+          # The help of the module a line is only the word of, or nil. A module groups aggregates of
+          # one bluebook (ADR 0163), so `hecks deliver` lists what `deliver` holds.
+          def module_answer(scope, word)
+            name = Projector::CliProjector.module_named(scope[:bluebook], word)
+            return unless name
+
+            shown = scope[:shown].merge(module: name, program: scope[:program])
+            { answer: [Projector.call(:cli, bluebook: scope[:bluebook], options: shown)[:usage], 0] }
           end
 
           # The command a line names, or the answer when it names none or asks for its help.

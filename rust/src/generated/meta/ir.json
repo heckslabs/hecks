@@ -4502,9 +4502,83 @@
           "pattern": null,
           "admits": null,
           "relationship": null
+        },
+        {
+          "name": "modules",
+          "type": "ModuleMembership",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
+        {
+          "name": "ModuleMembership",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "ModuleText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
         {
           "name": "Provision",
           "attributes": [
@@ -5443,6 +5517,32 @@
               [
                 "opens",
                 "ProcessManager"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Bluebook"
+              ],
+              [
+                "opens",
+                "Bluebook"
               ],
               [
                 "fills",
@@ -6431,6 +6531,36 @@
                 "fills",
                 "kind"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
             ]
           ]
         }
@@ -6715,6 +6845,71 @@
           ],
           "emits": [
             "CapabilityProvided"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Group",
+          "role": "Language",
+          "goal": "Declare that an aggregate belongs to a module",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "modules",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":name",
+                "vision": ":vision",
+                "aggregate": ":aggregate"
+              }
+            }
+          ],
+          "emits": [
+            "AggregateGrouped"
           ],
           "from": null,
           "provenance": null,

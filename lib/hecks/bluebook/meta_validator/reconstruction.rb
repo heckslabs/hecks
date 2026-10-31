@@ -66,9 +66,14 @@ module Hecks
             classification:    text(@declaration[:classification]),
             formerly_known_as: text(@declaration[:formerly_known_as]),
             namespace:         text(@declaration[:namespace]),
-            attaches_to:       attached_contexts(@declaration),
-            provides:          provisions(@declaration)
+            **row_fields(@declaration)
           }
+        end
+
+        # The row-valued fields of the bluebook: its attachments, provisions and module memberships.
+        def row_fields(declaration)
+          { attaches_to: attached_contexts(declaration), provides: provisions(declaration),
+            modules: memberships(declaration) }
         end
 
         def policy(row) = declaration("Policy", row)

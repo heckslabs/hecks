@@ -120,6 +120,7 @@ pub fn parse_bluebook(
                     &mut bluebook_entity_named_givens,
                     &mut pending_bluebook_entity_givens,
                     &mut pending_entity_command_givens,
+                    false,
                 )?;
             }
             "Hecksagon" => hecksagon_files.push(entry),
@@ -414,13 +415,38 @@ fn parse_body_into(
     bluebook_entity_named_givens: &mut Vec<(String, ir::Given)>,
     pending_bluebook_entity_givens: &mut Vec<(usize, entity::PendingBluebookEntityGiven)>,
     pending_entity_command_givens: &mut Vec<(usize, entity::PendingEntityCommandGiven)>,
+    in_module: bool,
 ) -> ParseResult<()> {
     // The given pool spans the whole bluebook, not one file: a later concept file may reference
     // a named given an earlier one declared. Entries are (owner aggregate name, `Given`).
     while let Some(gated) = super::next_line(file, lines, pos, "Bluebook")? {
         let line = gated.line.number;
+        refuse_inside_module(file, line, gated.row.word, in_module)?;
 
         match gated.row.word {
+            "domain_module" => {
+                let module_name =
+                    super::positional_text(file, line, "domain_module", &gated.args, 1)?;
+                let first = bluebook.aggregates.len();
+                let outer_vision = bluebook.vision.take();
+                parse_body_into(
+                    file,
+                    lines,
+                    pos,
+                    bluebook,
+                    aggregate_policies,
+                    bluebook_policies,
+                    bluebook_named_givens,
+                    pending_bluebook_givens,
+                    pending_command_givens,
+                    bluebook_entity_named_givens,
+                    pending_bluebook_entity_givens,
+                    pending_entity_command_givens,
+                    true,
+                )?;
+                let vision = std::mem::replace(&mut bluebook.vision, outer_vision);
+                group_in_module(bluebook, file, line, &module_name, first, vision)?;
+            }
             "vision" => {
                 bluebook.vision = Some(super::positional_text(
                     file,
@@ -543,5 +569,73 @@ fn parse_body_into(
         }
     }
 
+    Ok(())
+}
+
+/// The words that describe the whole bluebook, which a `domain_module` block refuses, and
+/// `domain_module` itself, since modules do not nest.
+fn refuse_inside_module(file: &str, line: usize, word: &str, in_module: bool) -> ParseResult<()> {
+    let wide = matches!(
+        word,
+        "namespace"
+            | "formerly_known_as"
+            | "attaches_to"
+            | "provides"
+            | "core"
+            | "supporting"
+            | "generic"
+    );
+    if in_module && wide {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("{word} describes the whole bluebook, so it cannot sit inside a domain_module"),
+        ));
+    }
+    if in_module && word == "domain_module" {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            "modules do not nest".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+/// Records the aggregates a `domain_module` block declared (from `first` on) as its module's
+/// rows, and gives every row of the module the vision it names, as the Ruby builder does for a
+/// module an earlier file opened.
+fn group_in_module(
+    bluebook: &mut ir::Bluebook,
+    file: &str,
+    line: usize,
+    name: &str,
+    first: usize,
+    vision: Option<String>,
+) -> ParseResult<()> {
+    let held_rows = bluebook.modules.iter().any(|row| row.name == name);
+    if bluebook.aggregates.len() == first && !held_rows {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("domain_module {name:?} holds no aggregate"),
+        ));
+    }
+    let held = bluebook
+        .modules
+        .iter()
+        .find(|row| row.name == name)
+        .map(|row| row.vision.clone());
+    let vision = vision.or(held).unwrap_or_default();
+    for aggregate in &bluebook.aggregates[first..] {
+        bluebook.modules.push(ir::ModuleRow {
+            name: name.to_string(),
+            vision: vision.clone(),
+            aggregate: aggregate.name.clone(),
+        });
+    }
+    for row in bluebook.modules.iter_mut().filter(|row| row.name == name) {
+        row.vision = vision.clone();
+    }
     Ok(())
 }

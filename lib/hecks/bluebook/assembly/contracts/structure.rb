@@ -14,7 +14,8 @@ module Hecks
             formerly_known_as: [:formerly_known_as, :plain],
             namespace:         [:namespace, :plain],
             attaches_to:       [:attaches_to, :plain],
-            provides:          [:provides, :plain]
+            provides:          [:provides, :plain],
+            modules:           [:modules, :plain]
           },
           rows: { normalisations: :normalisation_table },
           derived: { normalisations: :elsewhere }
