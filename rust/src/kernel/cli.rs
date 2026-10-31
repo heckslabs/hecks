@@ -243,6 +243,7 @@ pub fn run(input: &str) -> String {
                 &command_input,
                 caller_role,
                 caller_actor_id,
+                step.get("occurred_at").and_then(Json::as_str),
             ));
             mutations_per_step.push(Vec::new());
             cross_domain_per_step.push(Vec::new());
@@ -260,6 +261,7 @@ pub fn run(input: &str) -> String {
                 &command_input,
                 caller_role,
                 caller_actor_id,
+                step.get("occurred_at").and_then(Json::as_str),
             ));
             mutations_per_step.push(Vec::new());
             cross_domain_per_step.push(Vec::new());
@@ -392,8 +394,16 @@ fn dry_run(
     command_input: &Json,
     caller_role: Option<&str>,
     caller_actor_id: Option<&str>,
+    occurred_at: Option<&str>,
 ) -> Json {
-    let (outcome, collected) = preview(store, verb, command_input, caller_role, caller_actor_id);
+    let (outcome, collected) = preview(
+        store,
+        verb,
+        command_input,
+        caller_role,
+        caller_actor_id,
+        occurred_at,
+    );
     match outcome {
         Ok(()) => Json::obj(vec![
             ("verb", Json::str(verb.to_string())),
@@ -411,8 +421,16 @@ fn validation(
     command_input: &Json,
     caller_role: Option<&str>,
     caller_actor_id: Option<&str>,
+    occurred_at: Option<&str>,
 ) -> Json {
-    let (outcome, collected) = preview(store, verb, command_input, caller_role, caller_actor_id);
+    let (outcome, collected) = preview(
+        store,
+        verb,
+        command_input,
+        caller_role,
+        caller_actor_id,
+        occurred_at,
+    );
     let refusals: Vec<Json> = match outcome {
         Ok(()) => Vec::new(),
         Err(refusal) if collected.is_empty() => vec![refusal_entry(&refusal, &Detail::default())],
@@ -429,14 +447,19 @@ fn validation(
 }
 
 /// The command run against a throwaway copy of the store with a collector bound: what it raised,
-/// and every refusal its failing stage kept.
+/// and every refusal its failing stage kept. The facts the command `needs` are answered first, as
+/// `orchestrate` answers them for a real dispatch, so a dry run or a validation sees the same
+/// arguments the command would.
 fn preview(
     store: &Store,
     verb: &str,
     command_input: &Json,
     caller_role: Option<&str>,
     caller_actor_id: Option<&str>,
+    occurred_at: Option<&str>,
 ) -> (Result<(), Refusal>, Vec<Collected>) {
+    let enriched = super::needs::enrich(verb, command_input, occurred_at);
+    let command_input = enriched.as_ref().unwrap_or(command_input);
     let mut scratch = store.clone();
     let (outcome, collected) = collecting::collecting(|| {
         dispatch_by_name(
@@ -569,6 +592,7 @@ pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
                         &dry_run_command_input(args),
                         caller_role,
                         caller_actor_id,
+                        occurred_at,
                     )
                 } else if let Some(verb) = step.get("verb").and_then(Json::as_str) {
                     let mut events: Vec<Event> = Vec::new();
