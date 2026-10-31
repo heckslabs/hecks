@@ -2446,6 +2446,31 @@ Hecks.bluebook "QualityControl" do
     group_by :status, :number
   end
 
+  # The fixer does the work of a fix; the ledger records each step it reports, so only these policies
+  # write a bug's state after logging. Each names the fixer event it reacts to, and the Bug command
+  # it records.
+  policy "RecordClaimOnAttemptClaimed" do
+    on      "Attempt.AttemptClaimed"
+    trigger Bug::Claim, with: { bug: :reference, held_by: :held_by, now: :now }
+  end
+
+  policy "RecordInvestigationOnAttemptInvestigated" do
+    on      "Attempt.AttemptInvestigated"
+    trigger Bug::Investigate, with: { bug: :reference, site: :site, cause: :cause }
+  end
+
+  # The fix commit is recorded as the bug's fixed state; `BugCiWatch` starts on the `BugFixed` it emits.
+  policy "RecordFixOnFixReady" do
+    on      "Attempt.FixReady"
+    trigger Bug::Fix, with: { reference: :reference, commit: :commit }
+  end
+
+  # A verified fix is the ledger's verified state, recorded with the evidence the fixer names.
+  policy "RecordVerifyOnFixVerified" do
+    on      "Attempt.FixVerified"
+    trigger Bug::Verify, with: { bug: :reference, evidence: :evidence }
+  end
+
   # `Ticket.Close` is the only way a ticket leaves `filed`, and only the outside can know it
   # happened, so the fact arrives by whichever route reaches us first.
   policy "CloseWhenClosedUpstream" do
