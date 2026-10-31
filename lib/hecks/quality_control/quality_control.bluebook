@@ -2106,6 +2106,187 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # What remote CI said about one commit of a repository's main, once every job it ran for that
+  # commit
+  # settled. The Runner adapter answers `Check`; a green verdict is announced as `CiGreen`, and a
+  # red one
+  # as `CiRed` with the failing jobs. Lives here, beside the roll it feeds: a policy reads only
+  # events
+  # its own bluebook emits.
+  aggregate "Head" do
+    description "One commit of a repository's main, and whether remote CI passed every job it ran for that commit."
+
+    identified_by :commit
+
+    attribute :commit,       HeadCommit
+    attribute :branch,       HeadBranch
+    attribute :repo,         HeadRepo
+    attribute :color,        one_of("green", "red")
+    attribute :failing_jobs, FailingJobs
+
+    value_object "HeadCommit" do
+      attribute :value, String, pattern: '^[0-9a-f]{40}$'
+    end
+
+    value_object "HeadBranch" do
+      attribute :value, String, matches: :present
+      invariant("a head names its branch") { !value.to_s.empty? }
+    end
+
+    value_object "HeadRepo" do
+      # GitHub's `owner/name`.
+      attribute :value, String, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+    end
+
+    # The failing jobs of a red run, comma-separated; empty for a green one.
+    value_object "FailingJobs" do
+      attribute :value, String, default: ""
+    end
+
+    # Asks remote CI about one commit. Only main is judged: a commit on a branch says nothing about
+    # main.
+    command "Request" do
+      role "CI engineer"
+      goal "Ask remote CI what it said about one commit of a repository's main"
+
+      attribute :commit, HeadCommit
+      attribute :branch, HeadBranch
+      attribute :repo,   HeadRepo
+
+      given("only main is judged") { branch.value == "main" }
+
+      emits "HeadRequested"
+    end
+
+    # Records a green verdict. Refused for any other colour: a red head is never announced as
+    # green.
+    command "Green" do
+      role "System"
+      goal "Announce that remote CI passed every job it ran for one commit of main"
+
+      attribute :commit, HeadCommit
+      attribute :branch, HeadBranch
+      attribute :repo,   HeadRepo
+      attribute :color,  one_of("green", "red")
+
+      given("only a green verdict is announced") { color.value == "green" }
+
+      emits "CiGreen"
+    end
+
+    # Records a red verdict, naming the jobs that failed. Refused for any other colour.
+    command "Red" do
+      role "System"
+      goal "Announce that remote CI refused one commit of main, and which jobs failed"
+
+      attribute :commit,       HeadCommit
+      attribute :repo,         HeadRepo
+      attribute :color,        one_of("green", "red")
+      attribute :failing_jobs, FailingJobs
+
+      given("only a red verdict names the jobs that failed") do
+        color.value == "red" && !failing_jobs.value.to_s.empty?
+      end
+
+      emits "CiRed"
+    end
+  end
+
+  # The image roll of one commit of embryonaut_platform's main. A commit whose remote CI is green
+  # is
+  # classified by the paths it changed: only the console container's inputs roll by themselves, and
+  # anything else waits for a person. A commit rolls once; a second request finds the roll under
+  # way.
+  aggregate "ImageRoll" do
+    description "One commit of embryonaut_platform's main: whether its container image was rolled, or waits for a person."
+
+    identified_by :commit
+
+    attribute :commit, CommitRef
+    attribute :app,    AppName
+    attribute :paths,  ChangedPaths
+    attribute :outcome, one_of("done", "failed")
+
+    lifecycle :roll, default: "idle" do
+      transition "Request"       => "requested",         from: "idle"
+      transition "NeedsApproval" => "awaiting_approval", from: "idle"
+      transition "Finish"        => "finished",          from: "requested"
+      mark :terminal, "awaiting_approval", "finished"
+    end
+
+    value_object "CommitRef" do
+      attribute :value, String, pattern: '^[0-9a-f]{40}$'
+    end
+
+    value_object "AppName" do
+      attribute :value, String, matches: :present
+      invariant("an app is named") { !value.to_s.empty? }
+    end
+
+    value_object "RollBranch" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "RollRepo" do
+      # GitHub's `owner/name`.
+      attribute :value, String, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+    end
+
+    # The changed paths of the commit, newline-separated, as the classifier read them.
+    value_object "ChangedPaths" do
+      attribute :value, String, default: ""
+    end
+
+    # Takes a green commit of the platform's main into the roll's chain; the classifier answers
+    # next.
+    command "Consider" do
+      role "System"
+      goal "Take one green commit of embryonaut_platform's main into the image roll's chain"
+
+      attribute :commit, CommitRef
+      attribute :branch, RollBranch
+      attribute :repo,   RollRepo
+
+      emits "RollConsidered"
+    end
+
+    # Opens the roll of one classified commit; only an idle one may be requested.
+    command "Request" do
+      role "System"
+      goal "Start the image roll of one commit whose changes touch only the console container's inputs"
+
+      attribute :commit, CommitRef
+      attribute :app,    AppName
+
+      emits "RollRequested"
+    end
+
+    # Holds a commit whose changes reach past the container: a person releases it.
+    command "NeedsApproval" do
+      role "System"
+      goal "Hold one commit whose changes reach past the container's inputs for a person to approve"
+
+      attribute :commit, CommitRef
+      attribute :paths,  ChangedPaths
+
+      emits "RollNeedsApproval"
+    end
+
+    # Records how a requested roll ended, done or failed.
+    command "Finish" do
+      role "System"
+      goal "Record how the image roll of one commit ended"
+
+      reference_to ImageRoll
+      attribute :app,     AppName
+      attribute :status,  one_of("done", "failed")
+
+      sets :outcome, to: :status
+
+      emits "RollDone"
+    end
+  end
+
   # One CI run against one commit. A clearance is minted per commit, so a later commit is stale
   # by simply having none.
   aggregate "Clearance" do
@@ -2322,6 +2503,65 @@ Hecks.bluebook "QualityControl" do
       target: :target,
       reason: { value: "a check surprised — a person releases with hecks quality_control query sweep.run <target> --release --notes" }
     }
+  end
+
+  # A requested head is read from remote CI by the CiHead port; the answer is the verdict's event.
+  policy "CheckHeadOnRequest" do
+    on      "Head.HeadRequested"
+    ask     :check, with: { commit: :commit, branch: :branch, repo: :repo }
+  end
+
+  policy "GreenOnHeadChecked" do
+    on      "Head.HeadChecked"
+    where   { color.value == "green" }
+    trigger Head::Green, with: { commit: :commit, branch: :branch, repo: :repo, color: :color }
+  end
+
+  policy "RedOnHeadChecked" do
+    on      "Head.HeadChecked"
+    where   { color.value == "red" }
+    trigger Head::Red, with: { commit: :commit, repo: :repo, color: :color, failing_jobs: :failing_jobs }
+  end
+
+  # The image roll's chain. A green remote CI on embryonaut_platform's main is classified by the
+  # `ImageRoll` port: the answer is `ImageClassified`, and a refusal (the quick gate not green on
+  # record, or the change set unreadable) ends the chain. Only the classifier's verdict decides.
+  policy "RollImages" do
+    on      "Head.CiGreen"
+    where   { repo.value == "heckslabs/embryonaut_platform" }
+    trigger ImageRoll::Consider, with: { commit: :commit, branch: :branch, repo: :repo }
+  end
+
+  policy "ClassifyConsidered" do
+    on      "ImageRoll.RollConsidered"
+    ask     :classify, with: { commit: :commit, branch: :branch, repo: :repo }
+  end
+
+  policy "RollWhenImageOnly" do
+    on      "ImageRoll.ImageClassified"
+    where   { kind.value == "image" }
+    trigger ImageRoll::Request, with: { commit: :commit, app: :app }
+  end
+
+  policy "HoldWhenInfra" do
+    on      "ImageRoll.ImageClassified"
+    where   { kind.value == "infra" }
+    trigger ImageRoll::NeedsApproval, with: { commit: :commit, paths: :paths }
+  end
+
+  policy "RunRollOnRequest" do
+    on      "ImageRoll.RollRequested"
+    ask     :roll, with: { commit: :commit, app: :app }
+  end
+
+  policy "FinishOnRollAnswered" do
+    on      "ImageRoll.RollAnswered"
+    trigger ImageRoll::Finish, with: { commit: :commit, app: :app, status: :status }
+  end
+
+  policy "FinishOnRollRefused" do
+    on      "ImageRoll.RollRefused"
+    trigger ImageRoll::Finish, with: { commit: :commit, app: :app, status: { value: "failed" } }
   end
 
   # The main-maintenance chain, one policy per event. Each `ask` is answered by the `MainMaintenance` port;

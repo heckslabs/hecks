@@ -53,6 +53,37 @@ Hecks.hecksagon "QualityControl" do
     answers_query "CheckPullRequests"
   end
 
+  # Remote CI's verdict on one commit of a repository's main, answered by `adapters/ci_head`, which
+  # reads the
+  # runs GitHub reports for the commit. A run still going is a refusal: no verdict until every job
+  # settled.
+  QualityControl::Head.port "CiHead" do
+    asks "Check", to: Head do
+      attribute :branch, HeadBranch
+      attribute :repo,   HeadRepo
+      answers "HeadChecked"
+      refuses "HeadRefused"
+    end
+  end
+
+  # Answered by `adapters/image_roll`: the classifier reads remote CI's green commit's change set
+  # and the
+  # quick gate on record, and the roll runs the console image's deploy. A refusal ends the chain.
+  QualityControl::ImageRoll.port "ImageRoll" do
+    asks "Classify", to: ImageRoll do
+      attribute :branch, RollBranch
+      attribute :repo,   RollRepo
+      answers "ImageClassified"
+      refuses "ClassifyRefused"
+    end
+
+    asks "Roll", to: ImageRoll do
+      attribute :app, AppName
+      answers "RollAnswered"
+      refuses "RollRefused"
+    end
+  end
+
   # Answered by `adapters/main_maintenance`: the quick gate on main, the reconcile, and the push through the
   # train. Each answers the event its policy waits for, or refuses with a named event and stops the run.
   QualityControl::Maintenance.port "MainMaintenance" do
