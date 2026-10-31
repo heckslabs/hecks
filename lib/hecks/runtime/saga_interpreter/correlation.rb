@@ -30,9 +30,18 @@ module Hecks
         # `respond_to?(:[])`.
         def payload_correlation(process_manager, event)
           path = own_correlation_path(process_manager, event)
-          path.reduce(event.payload) do |held, segment|
-            held.is_a?(Hash) || held.is_a?(Value) ? held[segment.to_sym] : held
+          held = path.reduce(event.payload) do |current, segment|
+            current.is_a?(Hash) || current.is_a?(Value) ? current[segment.to_sym] : current
           end
+          sole_field_scalar(held)
+        end
+
+        # A path ending at a single-field value object reads that object's one field, so a bare
+        # `Thing.id` keys by the same scalar `Thing.id.value` does.
+        def sole_field_scalar(held)
+          return held unless held.is_a?(Value)
+
+          Value.materialize_unwrapped(held)
         end
 
         # The stamp `deliver_saga_dispatch` puts on its own event, for legs whose command

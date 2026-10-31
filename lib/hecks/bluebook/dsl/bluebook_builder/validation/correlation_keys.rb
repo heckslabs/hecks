@@ -48,10 +48,11 @@ module Hecks
             end
 
             # The one field an aggregate is correlated by: its identity, or `id` when it declares none.
+            # A value-object identity drops its trailing `.value`, so `Thing` reads as `Thing.id`.
             def identity_path(process_manager, aggregate)
               paths = aggregate.identity_paths.map(&:to_s)
               return "id" if paths.empty?
-              return paths.first if paths.one?
+              return paths.first.delete_suffix(".value") if paths.one?
 
               raise ProcessManagerBuilder::InvalidProcessManager,
                     "#{process_manager.name} correlates_by #{aggregate.name}, but #{aggregate.name} has a " \

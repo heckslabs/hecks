@@ -1108,8 +1108,8 @@ fn every_real_world_file_parses_and_prints_no_setting_value() {
 
 #[test]
 fn a_bare_aggregate_correlates_by_resolves_to_its_identity_and_a_dotted_key_stays() {
-    // `correlates_by Message` means the aggregate's identity (`Message.id.value`, the scalar its
-    // `id` attribute resolves to); the dotted `:"Message.id"` beside it is kept as written.
+    // `correlates_by Message` means the aggregate's identity (`Message.id`, the field its `id`
+    // attribute names); the dotted `:"Message.id"` beside it is kept as written.
     let path = fixture("process_manager_bare_correlation.bluebook");
     let output = run(&[
         "bluebook",
@@ -1125,7 +1125,7 @@ fn a_bare_aggregate_correlates_by_resolves_to_its_identity_and_a_dotted_key_stay
     );
 
     let compact: String = stdout.split_whitespace().collect();
-    for expected in [r#""correlates_by":"Message.id.value""#, r#""correlates_by":"Message.id""#] {
+    for expected in [r#""correlates_by":"Message.id""#] {
         assert!(compact.contains(expected), "missing {expected}: {stdout}");
     }
 }
