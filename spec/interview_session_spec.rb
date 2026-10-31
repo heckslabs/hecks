@@ -15,7 +15,7 @@ RSpec.describe "hecks interview, held at a terminal" do
     require "stringio"
     require "tmpdir"
     require "fileutils"
-    require "hecks/cli/interview_run"
+    require "hecks/tools/interview_run"
 
     # Answers from a script; a row of "FAIL" is an agent that cannot answer that turn.
     class FakeAgent
@@ -48,7 +48,7 @@ RSpec.describe "hecks interview, held at a terminal" do
     output = StringIO.new
     error = nil
     begin
-      Hecks::CLI::InterviewRun.call(name: "Lending", adapter: "Memory", dir: dir, expert: "Maria", use_ai: ai, agent: agent,
+      Hecks::Tools::InterviewRun.call(name: "Lending", adapter: "Memory", dir: dir, expert: "Maria", use_ai: ai, agent: agent,
                                     input: StringIO.new(scenario[:keys].join("\\n") + "\\n"), output: output)
     rescue ArgumentError => e
       error = e.message

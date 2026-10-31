@@ -1,5 +1,5 @@
 require "spec_helper"
-require "hecks/cli/refresh_rspec_runtime_baseline"
+require "hecks/tools/refresh_rspec_runtime_baseline"
 
 # The era check's timeout and the runtime baseline's worker count are declared once, on the
 # bluebook commands that dispatch them; the launchers behind them hold no copy.
@@ -32,11 +32,11 @@ RSpec.describe "launcher defaults declared on their bluebook commands" do
   end
 
   it "has the baseline launcher refuse a local run it was not told the worker count for", :aggregate_failures do
-    expect { Hecks::CLI::RefreshRspecRuntimeBaseline.call([], root: Dir.pwd, out: StringIO.new) }
+    expect { Hecks::Tools::RefreshRspecRuntimeBaseline.call([], root: Dir.pwd, out: StringIO.new) }
       .to raise_error(SystemExit) { |error| expect(error.status).to eq(1) }
   end
 
   it "has the era check's library take its timeout from the caller" do
-    expect { Hecks::CLI::CheckEra.assess("http://127.0.0.1:1", "/no/such/eras") }.to raise_error(ArgumentError, /timeout/)
+    expect { Hecks::Tools::CheckEra.assess("http://127.0.0.1:1", "/no/such/eras") }.to raise_error(ArgumentError, /timeout/)
   end
 end

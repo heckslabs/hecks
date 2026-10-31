@@ -5,7 +5,7 @@ require_relative "../../../lib/hecks/hecks/adapters/in_process_boot"
 require_relative "../../support/thread_parking"
 
 # What the DomainRuntime port's adapter does when a journaled Custodian command asks it to run
-# something: the answer is the text an existing `Hecks::CLI::*` entry point printed, and anything
+# something: the answer is the text an existing `Hecks::Tools::*` entry point printed, and anything
 # that would have exited non-zero is a raise, which the runtime records as a refusal.
 RSpec.describe Hecks::Adapters::InProcessOperations do
   OPERATIONS_BLUEBOOK = <<~RUBY.freeze

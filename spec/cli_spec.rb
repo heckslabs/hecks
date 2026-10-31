@@ -38,15 +38,15 @@ RSpec.describe Hecks::CLI do
   end
 
   it "reads --wait as a flag to model_check, not as a domain name", :aggregate_failures do
-    require "hecks/cli/model_check"
-    check = -> { described_class::ModelCheck.call(["--wait", File.join(root, "examples/pizzas")], program: "hecks") }
+    require "hecks/tools/model_check"
+    check = -> { Hecks::Tools::ModelCheck.call(["--wait", File.join(root, "examples/pizzas")], program: "hecks") }
 
     expect { check.call }.to output(/── pizzas/).to_stdout.and raise_error(SystemExit) { |e| expect(e.status).to eq(0) }
   end
 
   it "routes to the library entry point `hecks ir` runs", :aggregate_failures, :io do
-    entry = '$LOAD_PATH.unshift("lib"); require "hecks/cli/ir"; Hecks::CLI::Ir.call(ARGV, program: "hecks ir")'
-    hecks, = Open3.capture3(RbConfig.ruby, "exe/hecks", "ir", "examples/banking", chdir: root)
+    entry = '$LOAD_PATH.unshift("lib"); require "hecks/tools/ir"; Hecks::Tools::Ir.call(ARGV, program: "hecks ir")'
+    hecks, = Open3.capture3(RbConfig.ruby, "exe/hecks", "query", "Introspection.ir", "domain.value=examples/banking", chdir: root)
     library, = Open3.capture3(RbConfig.ruby, "-e", entry, "--", "examples/banking", chdir: root)
 
     expect(hecks).to start_with("{")

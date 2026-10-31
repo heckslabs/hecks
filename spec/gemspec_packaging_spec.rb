@@ -2,7 +2,7 @@ require "hecks"
 require "fileutils"
 require "open3"
 require "tmpdir"
-require "hecks/cli/console"
+require "hecks/tools/console"
 require_relative "../lib/hecks/hecks/adapters/rust_workspace"
 
 # Both checks below walk the same glob-derived sources `Hecks::Framework.members`
@@ -144,7 +144,7 @@ RSpec.describe "gem packaging" do
   # The program that requires the framework and every packaged subcommand, then names any feature
   # that loaded from outside `dir`.
   def packaged_load_script(dir)
-    requires = PACKAGED_SUBCOMMANDS.map { |name| "require \"hecks/cli/#{name}\"" }.join("\n")
+    requires = PACKAGED_SUBCOMMANDS.map { |name| "require \"hecks/tools/#{name}\"" }.join("\n")
     <<~RUBY
       require "hecks"
       #{requires}
@@ -178,7 +178,7 @@ RSpec.describe "gem packaging" do
 
     it "ships the pizzas example `hecks console` opens when given no domain, and not its glossary", :aggregate_failures,
        :process do
-      opened = Hecks::CLI::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
+      opened = Hecks::Tools::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
 
       expect(gemspec.files).to include(*opened)
       expect(gemspec.files.grep(%r{\Aexamples/pizzas/glossary/})).to be_empty
