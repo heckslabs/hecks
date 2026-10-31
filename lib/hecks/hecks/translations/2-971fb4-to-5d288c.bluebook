@@ -1,0 +1,16 @@
+# Composed edge from the era-11 shape 971fb4 to the current 5d288c. The chain 971fb4 -> e102d8 -> 0d4101
+# -> bc4f14 -> f2947b -> 50f4dd -> 9144c4 -> c16350 -> 35350c -> 5d288c carries no field change; its only
+# content is the 7.0 renames on the c16350 -> 35350c edge, copied here so an era held at 971fb4 boots.
+Hecks.data_translation "Hecks", from: "971fb4", to: "5d288c" do
+  aggregate "SendTrain", was: "PushTrain" do
+  end
+
+  aggregate "Workspace", was: "Checkout" do
+  end
+
+  aggregate "Revision", was: "Commit" do
+  end
+
+  aggregate "ReviewRequest", was: "PullRequest" do
+  end
+end
