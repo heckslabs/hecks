@@ -4,6 +4,7 @@ require "json"
 require "open3"
 require "fileutils"
 require_relative "../cli/qa_main_gate"
+require_relative "qa_era_mint"
 
 module Hecks
   module Adapters
@@ -26,17 +27,14 @@ module Hecks
         TRAIN_CHECKOUT = File.expand_path("~/.claude/hecks-train")
         TRAIN_LAUNCHER = File.join(TRAIN_CHECKOUT, "exe/hecks")
 
-        # The mint is not wired to the QA ledger yet: until it is, every mint refuses by name, so nothing
-        # can mint by accident. Wiring it is the Maintenance mint's own command, not a boot.
-        UNWIRED_MINT = "the mint is not wired to the QA ledger yet; no era was minted"
-
         module_function
 
         # The mint of one era of a domain, through the era check with the mint command's request.
         #
-        # @return [Array(String, Boolean)]
-        def mint_era(_root, **_request)
-          [UNWIRED_MINT, false]
+        # @return [Array(String, Boolean)] the minted era's label or the refusal, and whether it
+        #   minted
+        def mint_era(root, domain:, era:, request:)
+          QaEraMint.call(root, domain: domain, era: era, request: request)
         end
 
         # Lands a minted era's branch on main through the landing command, with confirmation.
@@ -171,9 +169,13 @@ module Hecks
 
       # Runs the era check's mint through the mint command, and answers the label it minted.
       def run_mint!(request)
-        output, minted = @commands.mint_era(@root, domain:    value_of(request[:domain]),
-                                                   era:       value_of(request[:era]),
-                                                   watermark: value_of(request[:watermark]))
+        output, minted = @commands.mint_era(@root, domain:  value_of(request[:domain]),
+                                                   era:     value_of(request[:era]),
+                                                   request: {
+                                                     confirm:   value_of(request[:confirm]) == "yes",
+                                                     verdict:   value_of(request[:rehearsal_verdict]),
+                                                     watermark: value_of(request[:watermark])
+                                                   })
         raise Refused, output.strip unless minted
 
         output.strip

@@ -2696,7 +2696,7 @@ Hecks.bluebook "QualityControl" do
     on      "Maintenance.MintRequested"
     where   { verdict.value == "would_mint" }
     ask     :mint, with: { run: :run, domain: :domain, era: :era, sha: :sha, branch: :branch,
-                           watermark: :watermark, rehearsal_verdict: :verdict }
+                           watermark: :watermark, rehearsal_verdict: :verdict, confirm: :confirm }
   end
 
   policy "RefuseMintWithoutVerdict" do
