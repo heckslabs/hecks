@@ -47,11 +47,18 @@ RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
     let(:setting) { { maintainer: %w[LanguageRun], bluebooks: %w[Deploy], maintainer_bluebooks: %w[Bluebook] } }
 
     it "hides the maintainer's aggregates from anyone else and points at the bluebooks" do
-      expect(described_class.audience(setting, false)).to eq(hide: %w[LanguageRun], declarations: %w[Deploy])
+      expect(described_class.audience(setting, false)).to eq(hide: %w[LanguageRun], declarations: %w[Deploy], everyday: [])
     end
 
     it "hides nothing from a maintainer, and adds the language's own bluebooks" do
-      expect(described_class.audience(setting, true)).to eq(hide: [], declarations: %w[Deploy Bluebook])
+      expect(described_class.audience(setting, true)).to eq(hide: [], declarations: %w[Deploy Bluebook], everyday: [])
+    end
+
+    it "passes the everyday names on, to every audience", :aggregate_failures do
+      daily = setting.merge(everyday: %i[operation.run checkout.status])
+
+      expect(described_class.audience(daily, false)).to include(everyday: %w[operation.run checkout.status])
+      expect(described_class.audience(daily, true)).to include(everyday: %w[operation.run checkout.status])
     end
 
     it "leaves a bluebook that did not opt in whole" do
