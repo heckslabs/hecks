@@ -25,8 +25,8 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     expect(text("search", "nothing-here")).to eq("no command or query matches nothing-here")
   end
 
-  it "answers a search with no word with the usage line and status 1" do
-    expect(run("search")).to eq(["usage: hecks search <word> [--all]", 1])
+  it "answers a search with no word with the usage line and the usage status" do
+    expect(run("search")).to eq(["usage: hecks search <word> [--all]", 2])
   end
 
   it "lists more hits with --all than without" do
