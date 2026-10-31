@@ -555,6 +555,9 @@
               "emits": [
 
               ],
+              "handles": [
+
+              ],
               "direction": "outbound",
               "answers": "BulkRunSwept",
               "refuses": "BulkRunRefused",

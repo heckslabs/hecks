@@ -69,6 +69,7 @@ fn parse_operation_body(
         answers: None,
         refuses: None,
         to,
+        handles: Vec::new(),
     };
 
     loop {
@@ -106,6 +107,11 @@ fn parse_operation_body(
                     &gated.args,
                     1,
                 )?);
+            }
+            "handles" => {
+                let command = super::positional_text(file, line, "handles", &gated.args, 1)?;
+                let value = super::named_text(&gated.args, "value").unwrap_or_default();
+                operation.handles.push(ir::CommandValue { command, value });
             }
             "reference_to" => {
                 let target_raw =

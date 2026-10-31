@@ -363,6 +363,15 @@ pub struct PortOperation {
     pub refuses: Option<String>,
     /// The receiving aggregate as routing metadata (`to: Payment`), not an attribute.
     pub to: Option<String>,
+    /// Which value of which command this operation handles (`handles "Build.build!", value: "wasm"`).
+    pub handles: Vec<CommandValue>,
+}
+
+/// One `handles` line: a command and the value of it this operation takes.
+#[derive(Debug, Clone, Default)]
+pub struct CommandValue {
+    pub command: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, Default)]

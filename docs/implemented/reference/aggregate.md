@@ -158,6 +158,18 @@ Raw and unread — nothing coerces the Hash, so nothing refuses it either:
 Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
 ```
 
+## formerly_known_as
+
+<!-- generated:begin word=formerly_known_as -->
+`formerly_known_as formerly_known_as` — fills `formerly_known_as`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | formerly_known_as |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
 ## identified_by
 
 <!-- generated:begin word=identified_by -->

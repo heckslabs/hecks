@@ -736,6 +736,9 @@
               ],
               "emits": [
                 "PaymentConfirmedByProcessor"
+              ],
+              "handles": [
+
               ]
             },
             {
@@ -764,6 +767,9 @@
               ],
               "emits": [
                 "PaymentDeclinedByProcessor"
+              ],
+              "handles": [
+
               ]
             }
           ]
