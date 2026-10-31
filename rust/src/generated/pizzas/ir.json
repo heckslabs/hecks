@@ -858,6 +858,9 @@
               ],
               "emits": [
                 "PizzaPaymentReceived"
+              ],
+              "handles": [
+
               ]
             }
           ]

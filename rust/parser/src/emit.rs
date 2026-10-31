@@ -216,6 +216,8 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
                 .as_ref()
                 .map_or(JsonValue::Null, ruby_value_json),
         ),
+        // `formerly_known_as` is admitted but the parser does not build it yet, so it is null.
+        ("formerly_known_as".to_string(), JsonValue::Null),
         (
             "acknowledgements".to_string(),
             JsonValue::Array(
@@ -959,6 +961,10 @@ fn port_operation_json(op: &ir::PortOperation) -> JsonValue {
             JsonValue::Array(op.attributes.iter().map(attribute_json).collect()),
         ),
         ("emits".to_string(), JsonValue::strings(&op.emits)),
+        (
+            "handles".to_string(),
+            JsonValue::Array(op.handles.iter().map(command_value_json).collect()),
+        ),
     ];
     // An `asks` names its direction and both endings, as `PortOperation#to_h` merges them.
     if op.outbound {
@@ -974,6 +980,14 @@ fn port_operation_json(op: &ir::PortOperation) -> JsonValue {
         fields.push(("to".to_string(), JsonValue::str(to.clone())));
     }
     JsonValue::Object(fields)
+}
+
+/// One `handles` entry as the Ruby IR writes it: the command and the value it takes.
+fn command_value_json(held: &ir::CommandValue) -> JsonValue {
+    JsonValue::Object(vec![
+        ("command".to_string(), JsonValue::str(held.command.clone())),
+        ("value".to_string(), JsonValue::str(held.value.clone())),
+    ])
 }
 
 /// A string, or `null` when absent.

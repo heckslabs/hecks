@@ -260,3 +260,16 @@ world's fault at all — a broken adapter refuses exactly the same way a
 reachable one saying no does, which is the point: the domain has one
 word for "this did not happen", and it is in the record.
 
+## handles
+
+<!-- generated:begin word=handles -->
+`handles command, value:` — fills `handles`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | command |
+| `value:` | text | true | value |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
