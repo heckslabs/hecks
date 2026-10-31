@@ -37,7 +37,7 @@ pub fn resolve_bare(file: &str, bluebook: &mut ir::Bluebook) -> ParseResult<()> 
 fn identity_path(file: &str, process_manager: &str, aggregate: &ir::Aggregate) -> ParseResult<String> {
     match aggregate.identified_by.as_slice() {
         [] => Ok("id".to_string()),
-        [only] => Ok(only.clone()),
+        [only] => Ok(only.strip_suffix(".value").unwrap_or(only).to_string()),
         [first, ..] => Err(Diagnostic::new(
             file,
             0,
@@ -96,7 +96,7 @@ mod tests {
 
         resolve_bare("t.bluebook", &mut bluebook).unwrap();
 
-        assert_eq!(bluebook.process_managers[0].correlates_by, "Sighting.code.value");
+        assert_eq!(bluebook.process_managers[0].correlates_by, "Sighting.code");
     }
 
     #[test]

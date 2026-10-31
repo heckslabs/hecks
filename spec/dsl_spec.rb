@@ -1462,14 +1462,14 @@ RSpec.describe "the DSL surface" do
     it "process_manager expands a bare aggregate name to its identity field", :aggregate_failures do
       keyed = bare_key_process_manager("BareAggregate") { correlates_by Thing }
 
-      expect(keyed.correlates_by).to eq(:"Thing.id.value")
+      expect(keyed.correlates_by).to eq(:"Thing.id")
       expect(keyed.correlation_head).to eq(:Thing)
     end
 
     it "process_manager expands a bare aggregate name to the identity it declares, not id" do
       keyed = bare_identity_process_manager
 
-      expect(keyed.correlates_by).to eq(:"Sighting.code.value")
+      expect(keyed.correlates_by).to eq(:"Sighting.code")
     end
 
     it "process_manager refuses a bare name that names no aggregate of its bluebook" do
