@@ -496,6 +496,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "symbol.value"
       ],
@@ -1395,6 +1396,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -2224,6 +2226,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "canonical.value"
       ],

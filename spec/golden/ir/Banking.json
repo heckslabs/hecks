@@ -245,6 +245,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -2073,6 +2074,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "number.value"
       ],
@@ -3053,6 +3055,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -3494,6 +3497,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -4399,6 +4403,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "serial.value"
       ],
@@ -5593,6 +5598,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "authorisation.value"
       ],
@@ -6747,6 +6753,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "branch_code.value",
         "box_number.value"
@@ -7350,6 +7357,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "account",
         "period.value"
@@ -8194,6 +8202,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -8980,6 +8989,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "end_to_end.value"
       ],
@@ -9957,6 +9967,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "instruction.value"
       ],

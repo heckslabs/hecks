@@ -15,6 +15,7 @@ module Hecks
         # [context, word] => the method a word's whole call forwards to.
         CALLS = {
           ["Aggregate", "provenance"] => :provenance_impl,
+          ["Aggregate", "formerly_known_as"] => :formerly_known_as_impl,
           ["Aggregate", "identified_by"] => :identified_by_impl,
           ["Aggregate", "reference_to"] => :reference_to_impl,
           ["Aggregate", "has_many"] => :has_many_impl,

@@ -280,6 +280,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "number.value"
       ],
@@ -608,6 +609,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],

@@ -4,6 +4,7 @@ require_relative "aggregate_builder/relationships"
 require_relative "aggregate_builder/one_of_reference"
 require_relative "aggregate_builder/rules"
 require_relative "aggregate_builder/draining"
+require_relative "aggregate_builder/renaming"
 module Hecks
   module Bluebook
     module DSL
@@ -17,6 +18,7 @@ module Hecks
         include RuleReference
         include WordGate
         include Sealing
+        include Renaming
         include OneOfReference
 
         # @param name [String] the aggregate's name, as written after `aggregate`
@@ -177,6 +179,7 @@ module Hecks
           { name: @name, description: @description, attributes: attributes,
             value_objects: @value_objects + closed_sets, identified_by: @identity_paths,
             lifecycle: @lifecycle, entities: @entities, provenance: @provenance,
+            formerly_known_as: @formerly_known_as,
             acknowledgements: @acknowledgements }
         end
 

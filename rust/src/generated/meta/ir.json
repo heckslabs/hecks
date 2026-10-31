@@ -56,6 +56,16 @@
           "relationship": null
         },
         {
+          "name": "formerly_known_as",
+          "type": "AggregateFormerlyKnownAs",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "identified_by",
           "type": "IdentityPath",
           "list": true,
@@ -234,6 +244,46 @@
           "invariants": [
             {
               "description": "a description says something",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "AggregateFormerlyKnownAs",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an aggregate's formerly_known_as says something",
               "canonical": "!value.to_s.empty?",
               "ast": {
                 "op": "not",
@@ -962,6 +1012,36 @@
               [
                 "calls",
                 "provenance_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ],
+              [
+                "calls",
+                "formerly_known_as_impl"
               ]
             ],
             [
@@ -1797,6 +1877,36 @@
               [
                 "fills",
                 "provenance"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "formerly_known_as"
               ]
             ],
             [
@@ -3198,6 +3308,16 @@
               "relationship": null
             },
             {
+              "name": "formerly_known_as",
+              "type": "AggregateFormerlyKnownAs",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "position",
               "type": "Position",
               "list": false,
@@ -3252,6 +3372,15 @@
               "source": {
                 "kind": "argument",
                 "name": "provenance"
+              }
+            },
+            {
+              "target": "formerly_known_as",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "formerly_known_as"
               }
             },
             {
@@ -4402,6 +4531,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -7047,6 +7177,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -11155,6 +11286,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -14283,6 +14415,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -15623,6 +15756,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -17539,6 +17673,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -20478,6 +20613,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -22700,6 +22836,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -24655,6 +24792,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -26193,6 +26331,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
 
       ]
@@ -38483,6 +38622,7 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
       "acknowledgements": [
         {
           "finding": "no_command_surface",

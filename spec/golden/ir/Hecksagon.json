@@ -230,6 +230,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "hecksagon.value",
         "aggregate.value",
@@ -345,6 +346,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -1568,6 +1570,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "domain.value"
       ],
@@ -2580,6 +2583,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],

@@ -12,6 +12,17 @@ RSpec.describe "the DSL surface" do
     registry
   end
 
+  def renamed_aggregate
+    build_bluebook("Renamed") do
+      aggregate("Pizza") do
+        formerly_known_as "Pie"
+        value_object("Name") { attribute :value, String }
+        attribute :name, Name
+        identified_by :name
+      end
+    end.aggregates.first
+  end
+
   def build_bluebook(name, &block)
     in_registry { Hecks.bluebook(name, &block) }.bluebook(name)
   end
@@ -1189,6 +1200,10 @@ RSpec.describe "the DSL surface" do
 
     it "vision records the domain's sentence" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")
+    end
+
+    it "formerly_known_as on an aggregate records the name it held before" do
+      expect(renamed_aggregate.formerly_known_as.value).to eq("Pie")
     end
 
     it "formerly_known_as records what a domain's own identity used to be" do

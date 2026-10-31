@@ -24,17 +24,18 @@ module Hecks
         "Aggregate"   => Contract.new(
           holder: Aggregate, make: :new,
           fields: {
-            name:             [:name,          :plain],
-            description:      [:description,   :plain],
-            identified_by:    [:identified_by, :plain],
-            attributes:       [:attributes,    [:each, :attribute]],
+            name:              [:name,          :plain],
+            description:       [:description,   :plain],
+            identified_by:     [:identified_by, :plain],
+            attributes:        [:attributes,    [:each, :attribute]],
             # Aggregate's own precondition, referenced by name from a command (ADR 0025).
-            invariants:       [:invariants,    [:each, :invariant]],
-            preconditions:    [:preconditions, [:each, :given]],
+            invariants:        [:invariants,    [:each, :invariant]],
+            preconditions:     [:preconditions, [:each, :given]],
             # The local half of `projects :name, from: "reference.remote_field"` (ADR 0025).
-            projected_fields: [:projected_fields, [:each, :projected_field]],
-            provenance:       [:provenance, :plain],
-            acknowledgements: [:acknowledgements, [:each, :acknowledgement]]
+            projected_fields:  [:projected_fields, [:each, :projected_field]],
+            provenance:        [:provenance, :plain],
+            formerly_known_as: [:formerly_known_as, :plain],
+            acknowledgements:  [:acknowledgements, [:each, :acknowledgement]]
           },
           rows: { transitions: :transition_rows, marks: :mark_rows, value_objects: :value_object_names,
                   identified_by: :identity_rows },
