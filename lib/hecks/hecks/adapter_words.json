@@ -1,0 +1,7 @@
+{
+  "words": [
+    "git", "github", "cargo", "postgres", "sqlite", "mysql", "pgadmin",
+    "terminal", "shell", "worktree", "worktrees", "rust", "wasm",
+    "docker", "aws", "lambda", "fargate"
+  ]
+}

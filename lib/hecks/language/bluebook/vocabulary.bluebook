@@ -832,6 +832,11 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec rspec spec/secret_output_spec.rb",
              script: "",
              blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
+      member name: "adapter_words", id: "adapter_words",
+             title: "adapter words, no domain name equal to a technology word the adapters are named for",
+             argv: "bundle exec rspec spec/adapter_words_spec.rb",
+             script: "",
+             blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
       member name: "rust_fmt", id: "rust_fmt",
              title: "rustfmt, every Rust crate laid out as `cargo fmt` would",
              argv: "",
@@ -980,7 +985,7 @@ Hecks.bluebook "Bluebook" do
       attribute :checks, String
 
       member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec,fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
-      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names"
+      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words"
       member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
