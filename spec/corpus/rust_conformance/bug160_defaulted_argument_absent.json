@@ -1,0 +1,134 @@
+{
+  "domain": "qa/stress_domains/lease_clock",
+  "note": "BUG#160: a command argument that declares a `default:` is filled by Ruby when the caller omits it, so the dry run of `Reap` with `grace` left out is ok. The Rust absent-argument gate refused it as AbsentArgument. Each step is a dry run or a real `Reap` that names no `grace`.",
+  "steps": [
+    {
+      "verb": "LeaseClock::Lease.Register",
+      "args": {
+        "key": {
+          "value": "L1"
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Acquire",
+      "args": {
+        "key": {
+          "value": "L1"
+        },
+        "holder": {
+          "value": "ann"
+        },
+        "now": {
+          "value": 100
+        },
+        "expiry": {
+          "value": 200
+        }
+      }
+    },
+    {
+      "dry_run": "LeaseClock::Lease.Reap",
+      "args": {
+        "key": {
+          "value": "L1"
+        },
+        "now": {
+          "value": 200
+        }
+      }
+    },
+    {
+      "verb": "LeaseClock::Lease.Reap",
+      "args": {
+        "key": {
+          "value": "L1"
+        },
+        "now": {
+          "value": 200
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "LeaseClock::Lease#L1": {
+        "key": {
+          "value": "L1"
+        },
+        "holder": {
+          "value": "ann"
+        },
+        "expires_at": {
+          "value": 200
+        },
+        "status": "free"
+      }
+    },
+    "events": [
+      {
+        "name": "LeaseRegistered",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          }
+        }
+      },
+      {
+        "name": "LeaseAcquired",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          },
+          "holder": {
+            "value": "ann"
+          },
+          "now": {
+            "value": 100
+          },
+          "expiry": {
+            "value": 200
+          }
+        }
+      },
+      {
+        "name": "LeaseReaped",
+        "aggregate": "LeaseClock::Lease",
+        "id": "L1",
+        "payload": {
+          "key": {
+            "value": "L1"
+          },
+          "now": {
+            "value": 200
+          },
+          "grace": {
+            "value": 0
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+      {
+        "verb": "LeaseClock::Lease.Reap",
+        "ok": true
+      }
+    ],
+    "reactions": [
+
+    ]
+  }
+}
