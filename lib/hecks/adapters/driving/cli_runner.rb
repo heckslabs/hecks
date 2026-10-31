@@ -1,6 +1,7 @@
 require "json"
 require_relative "cli"
 require_relative "command_request"
+require_relative "context_line"
 require_relative "json"
 require_relative "launcher_options"
 require_relative "newcomer"
@@ -46,15 +47,23 @@ module Hecks
         # @return [Array(String, Integer)] the text and the status: 0 answered, 1 refused or misused
         # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
         # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
-        def call(runtime:, argv:, program: "hecks run", usage_log: false)
+        def call(runtime:, argv:, program: "hecks run", usage_log: false, err: $stderr)
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
 
+          announce_command(plan, err)
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
           UsageLog.record(argv: argv, resolved: plan[:name], status: answer[1], started: started) if usage_log
           answer
+        end
+
+        # Prints the context line before a command (not a query) runs.
+        #
+        # @api private
+        def announce_command(plan, err)
+          ContextLine.announce(err) unless plan[:asking]
         end
 
         # The names a person can type at the launcher, as the projection names them: commands and
