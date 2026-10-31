@@ -25,7 +25,7 @@ module Hecks
 
         written = write_glossary(File.expand_path(domain_path, Dir.pwd), declaration_name)
 
-        puts "wrote #{written.size} file(s):"
+        warn "wrote #{written.size} file(s):"
         written.each { |path| puts "  #{path}" }
       end
 

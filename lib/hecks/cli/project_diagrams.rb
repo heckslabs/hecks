@@ -48,9 +48,9 @@ module Hecks
       # @api private
       def report(declaration_name, directory, written)
         if written.empty?
-          puts "#{declaration_name} declares no lifecycle, relationship, or dispatch to project yet"
+          warn "#{declaration_name} declares no lifecycle, relationship, or dispatch to project yet"
         else
-          puts "wrote #{written.size} diagram(s) to #{directory}:"
+          warn "wrote #{written.size} diagram(s) to #{directory}:"
           written.each { |path| puts "  #{path}" }
         end
       end
