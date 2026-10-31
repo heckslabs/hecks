@@ -56,7 +56,7 @@ module Hecks
           refusals = []
           after = subject.aggregates.to_h do |aggregate|
             declared = edge.for_aggregate(aggregate.name)
-            before = records(declared&.was || aggregate.name)
+            before = split_before(edge, aggregate) || records(declared&.was || aggregate.name)
             translated = translate(aggregate, declared, before)
             refusals.concat(Translation::Audit.check(aggregate: aggregate, declared: declared, before: before,
                                                      after: translated).violations)
@@ -66,6 +66,24 @@ module Hecks
         end
 
         private
+
+        # A split target's "before": its source's held records, fanned out one per key the split names,
+        # carrying the split's fields (ADR 0166). Nil when the aggregate is not a split target.
+        def split_before(edge, aggregate)
+          edge.aggregates.each do |source|
+            split = source.splits.find { |candidate| candidate.into == aggregate.name }
+            next unless split
+
+            held = records(source.was || source.name)
+            fields = split.fields.map(&:to_s)
+            return held.filter_map do |_id, state|
+              key = state[split.keyed_by.to_s]
+              key = key["value"] if key.is_a?(Hash)
+              [key.to_s, state.slice(*fields)] if key
+            end.to_h
+          end
+          nil
+        end
 
         def records(name) = @document.dig("records", name.to_s) || {}
 

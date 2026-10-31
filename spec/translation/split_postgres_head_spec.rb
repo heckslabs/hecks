@@ -102,4 +102,12 @@ RSpec.describe "a split target's head, read from the journal", :io do
       end
     end
   end
+  it "keys a target by its source's value-object key, not the object" do
+    db.exec_params("INSERT INTO split_head_journal (era, aggregate, aggregate_id, operation, state) " \
+                   "VALUES (1, $1, $2, $3, $4::jsonb)",
+                   ["collection", "D", "save", JSON.generate("agg" => { "value" => "D" }, "columns" => [{ "field" => "x" }])])
+    heads = host.latest_of(host.chain_sql(layout, 2, edges))
+
+    expect(heads["D"]).to eq("columns" => [{ "field" => "x" }])
+  end
 end
