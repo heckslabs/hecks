@@ -899,6 +899,9 @@
       "endings": [
         "LedgerCredited"
       ],
+      "resumes": [
+
+      ],
       "states": [
         "settling"
       ],

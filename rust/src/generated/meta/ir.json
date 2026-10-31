@@ -15964,6 +15964,16 @@
           "relationship": null
         },
         {
+          "name": "resumes",
+          "type": "ProcessManagerText",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "states",
           "type": "SagaState",
           "list": true,
@@ -16392,6 +16402,36 @@
               [
                 "calls",
                 "ends_on_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "resumes_impl"
               ]
             ],
             [
@@ -16858,6 +16898,36 @@
             [
               [
                 "keyword",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "resumes"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "transition"
               ],
               [
@@ -17216,6 +17286,16 @@
               "relationship": null
             },
             {
+              "name": "resumes",
+              "type": "ProcessManagerText",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "position",
               "type": "Position",
               "list": false,
@@ -17288,6 +17368,15 @@
               "source": {
                 "kind": "argument",
                 "name": "endings"
+              }
+            },
+            {
+              "target": "resumes",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "resumes"
               }
             },
             {
@@ -35973,6 +36062,20 @@
                 "meaning",
                 "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."
               ]
+            ],
+            [
+              [
+                "name",
+                "red_main_check"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
+              ]
             ]
           ]
         },
@@ -38293,6 +38396,46 @@
               [
                 "verb",
                 "create_ledger_role"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_main_gate"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "MainCheck"
+              ],
+              [
+                "verb",
+                "check_main"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_fix_main_bug"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "Bug"
+              ],
+              [
+                "verb",
+                "fix_and_land"
+              ],
+              [
+                "passes",
+                "--bug BUG#n"
               ]
             ],
             [

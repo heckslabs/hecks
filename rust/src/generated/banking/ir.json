@@ -10927,6 +10927,9 @@
       "endings": [
         "AccountOpened"
       ],
+      "resumes": [
+
+      ],
       "states": [
         "screening",
         "cleared",
@@ -10979,6 +10982,9 @@
       "ends_on": "TransferSettled",
       "endings": [
         "TransferSettled"
+      ],
+      "resumes": [
+
       ],
       "states": [
         "requested",
@@ -11132,6 +11138,9 @@
       "ends_on": "ExternalTransferSent",
       "endings": [
         "ExternalTransferSent"
+      ],
+      "resumes": [
+
       ],
       "states": [
         "requested",

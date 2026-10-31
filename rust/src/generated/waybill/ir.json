@@ -746,6 +746,9 @@
       "endings": [
         "ConsignmentShipped"
       ],
+      "resumes": [
+
+      ],
       "states": [
         "packing",
         "filling",

@@ -4749,6 +4749,7 @@ args.correlates_by.check_invariants()?;
 args.starts_on.check_invariants()?;
 if let Some(v) = &args.ends_on { v.check_invariants()?; }
 if let Some(items) = &args.endings { for item in items { item.check_invariants()?; } }
+if let Some(items) = &args.resumes { for item in items { item.check_invariants()?; } }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::processmanager::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?;
                 if let Some(route) = route {
@@ -4765,6 +4766,7 @@ args.correlates_by.check_invariants()?;
 args.starts_on.check_invariants()?;
 if let Some(v) = &args.ends_on { v.check_invariants()?; }
 if let Some(items) = &args.endings { for item in items { item.check_invariants()?; } }
+if let Some(items) = &args.resumes { for item in items { item.check_invariants()?; } }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::processmanager::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?
             };
@@ -8736,6 +8738,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "starts_on",
             "ends_on",
             "endings",
+            "resumes",
             "position",
         ],
         "Bluebook::ProcessManager.State" => &["name"],

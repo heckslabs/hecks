@@ -223,6 +223,9 @@
       "endings": [
         "RunLogged"
       ],
+      "resumes": [
+
+      ],
       "states": [
         "started",
         "logged"
