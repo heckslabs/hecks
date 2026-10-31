@@ -69,6 +69,13 @@ module Hecks
             latest_of("SELECT ordinal, era, aggregate_id, operation, state FROM (#{tail}) tail_rows")
           end
 
+          # A split target's records as its split fans them out of the source, latest per id, or nil when
+          # the aggregate is not a split target: the "before" side of the audit of a split edge.
+          def split_latest(aggregate, edges)
+            tail = split_tail_sql(names_by_era(aggregate, edges), edges)
+            tail && latest_of("SELECT ordinal, era, aggregate_id, operation, state FROM (#{tail}) split_rows")
+          end
+
           # Reduces to newest entry per aggregate id, dropping any id whose
           # newest entry is a delete rather than returning it with a nil state.
           def latest_of(sql)

@@ -54,8 +54,10 @@ module Hecks
           # target row too.
           def split_fanout_sql(source_sql, split, target_storage)
             key = text_literal(split.keyed_by.to_s)
+            # A keyed_by field is often a value object, whose identity is its `value` member.
+            key_value = "COALESCE(state -> #{key} ->> 'value', state ->> #{key})"
             fields = split.fields.map { |field| "#{text_literal(field.to_s)}, state -> #{text_literal(field.to_s)}" }
-            "SELECT ordinal, era, #{text_literal(target_storage)} AS aggregate, state ->> #{key} AS aggregate_id, " \
+            "SELECT ordinal, era, #{text_literal(target_storage)} AS aggregate, #{key_value} AS aggregate_id, " \
               "operation, jsonb_build_object(#{fields.join(", ")}) AS state " \
               "FROM (#{source_sql}) split_source WHERE state ? #{key}"
           end
