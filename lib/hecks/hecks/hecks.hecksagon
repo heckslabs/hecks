@@ -304,35 +304,24 @@ Hecks.hecksagon "Hecks" do
 
     asks "Wasm", to: Build do
       attribute :run, BuildKey
-      attribute :domain, DomainPath, optional: true
-      attribute :profile, WasmProfile, optional: true
-      handles "Build.build!", value: "wasm"
       answers "BuildAnswered"
       refuses "BuildRefused"
     end
 
     asks "Host", to: Build do
       attribute :run, BuildKey
-      attribute :domain, DomainPath, optional: true
-      attribute :target, TargetTriple, optional: true
-      attribute :stage_dir, StagePath, optional: true
-      attribute :prebuilt, Switch, optional: true
-      handles "Build.build!", value: "host"
       answers "BuildAnswered"
       refuses "BuildRefused"
     end
 
     asks "BrowserWasm", to: Build do
       attribute :run, BuildKey
-      attribute :domain, DomainPath, optional: true
-      handles "Build.build!", value: "browser"
       answers "BuildAnswered"
       refuses "BuildRefused"
     end
 
     asks "Parser", to: Build do
       attribute :run, BuildKey
-      handles "Build.build!", value: "parser"
       answers "BuildAnswered"
       refuses "BuildRefused"
     end
