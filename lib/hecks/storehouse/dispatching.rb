@@ -103,6 +103,17 @@ module Hecks
         end
       end
 
+      # The commands an agent may dispatch: those that explicitly declare `:agent` in their
+      # `audience`. A command that declares no audience is not an agent tool, so the default
+      # never grants agent access.
+      #
+      # @param runtime [Runtime::Dispatcher] the booted domain
+      # @return [Array<String>] the command names as the launcher lists them, in order
+      def agent_commands(runtime)
+        cli = cli_for(bluebook_for(runtime))
+        cli[:commands].filter_map { |name, spec| name.to_s if Array(spec[:audience]).include?("agent") }
+      end
+
       # :nodoc:
       def guide_line(name, spec)
         arguments = spec[:arguments].map { |arg| arg[:path].split(".").first + (arg[:required] ? "*" : "") }
