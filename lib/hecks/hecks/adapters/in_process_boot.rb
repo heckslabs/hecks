@@ -10,6 +10,7 @@ require_relative "../../cli/shape"
 require_relative "../../cli/history"
 require_relative "../../projections/context_map_diagram"
 require_relative "in_process_operations"
+require_relative "in_process_undo"
 require_relative "in_process_access"
 
 module Hecks
@@ -28,6 +29,7 @@ module Hecks
     class InProcessBoot
       include InProcessOperations
       include InProcessAccess
+      include InProcessUndo
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
