@@ -101,5 +101,18 @@ Hecks.hecksagon "QualityControl" do
       answers "Pushed"
       refuses "PushRefused"
     end
+
+    # The mint answers `Minted`; a refusal (no would_mint, a stranded landing, the era check's refusal) is
+    # `MintRefused`. The landing answers `Landed`, and a landing that fails leaves the ledger ahead of main:
+    # that refusal is `MintStranded`, which stops every later mint until the owner resolves it.
+    asks "Mint", to: Maintenance do
+      answers "Minted"
+      refuses "MintRefused"
+    end
+
+    asks "Land", to: Maintenance do
+      answers "Landed"
+      refuses "MintStranded"
+    end
   end
 end

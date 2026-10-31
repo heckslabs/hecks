@@ -6,10 +6,13 @@ require "fileutils"
 require "tempfile"
 require "pg"
 require "json"
+require_relative "../support/mint_request_support"
 
 # `Hecks::Fuzzing::EraBoundary` against a real diverged write: file-based domain loading,
 # `BindingPolicy` resolution and `.world` settings reach the answer `hecks merge_tail` reports.
 RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
+  include MintRequestSupport
+
   ERA_BOUNDARY_SPEC_DATABASE = "hecks_era_boundary_spec".freeze
 
   # Prefixed names: constants assigned inside `RSpec.describe` land on `Object`, so a
@@ -85,7 +88,8 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
     load_bluebook(registry, source, translation_source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
-      settings: { database: database_url, allow_superuser: true, mint_eras: true }
+      settings: with_mint_request({ database: database_url, allow_superuser: true, mint_eras: true },
+                                  domain: registry.bluebooks.values.first.name)
     )
     registry
   end

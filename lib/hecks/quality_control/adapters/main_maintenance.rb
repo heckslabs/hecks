@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
+require "json"
 require "open3"
+require "fileutils"
 require_relative "../cli/qa_main_gate"
 
 module Hecks
@@ -14,14 +16,36 @@ module Hecks
       # Raised when a step refuses; its message is the refusal's reason.
       class Refused < RuntimeError; end
 
-      # The launcher commands the steps run outside the ledger: the reconcile plan and write, and the push
-      # train. A spec injects a stub in their place.
+      # Where a stranded landing is recorded. The owner resolves it by removing the file.
+      STRANDED_DIR = ENV.fetch("HECKS_MINT_STATE", File.expand_path("~/.claude/hecks-dev/mint")).freeze
+
+      # The launcher commands the steps run outside the ledger: the reconcile plan and write, the mint, the
+      # landing, and the push train. A spec injects a stub in their place.
       module Commands
         # The push train's own launcher and its detached checkout.
         TRAIN_CHECKOUT = File.expand_path("~/.claude/hecks-train")
         TRAIN_LAUNCHER = File.join(TRAIN_CHECKOUT, "exe/hecks")
 
+        # The mint is not wired to the QA ledger yet: until it is, every mint refuses by name, so nothing
+        # can mint by accident. Wiring it is the Maintenance mint's own command, not a boot.
+        UNWIRED_MINT = "the mint is not wired to the QA ledger yet; no era was minted"
+
         module_function
+
+        # The mint of one era of a domain, through the era check with the mint command's request.
+        #
+        # @return [Array(String, Boolean)]
+        def mint_era(_root, **_request)
+          [UNWIRED_MINT, false]
+        end
+
+        # Lands a minted era's branch on main through the landing command, with confirmation.
+        #
+        # @return [Array(String, Boolean)]
+        def land(root, branch)
+          launch(root, root, "landing.land!", "checkout.value=#{root}", "branch.value=#{branch}", "--confirm",
+                 "--wait")
+        end
 
         # The read-only dry run of `Era.Reconcile`.
         #
@@ -88,6 +112,30 @@ module Hecks
         { run: wrap(run), sha: wrap(sha), color: wrap(color), verdict: { value: verdict } }
       end
 
+      # Mints one era of a domain. Refuses while a stranded landing is unresolved, and unless the rehearsal
+      # said would_mint; the era check then refuses a watermark that moved since the rehearsal.
+      #
+      # @param request [Hash] the `MintRequested` attributes: `run`, `domain`, `era`, `sha`, `branch`,
+      #   `watermark` and `rehearsal_verdict`
+      # @return [Hash] `run`, `domain`, `era`, `sha`, `branch` and `label`
+      def mint(**request)
+        refuse_while_stranded!
+        refuse_unrehearsed!(value_of(request[:rehearsal_verdict]))
+        label = run_mint!(request)
+        %i[run domain era sha branch].to_h { |key| [key, wrap(request[key])] }.merge(label: wrap(label))
+      end
+
+      # Lands the branch that carries a minted era onto main in the same step. A landing that fails leaves
+      # the ledger ahead of main, so the run is stranded: the marker is written, and every later mint
+      # refuses until the owner removes it.
+      #
+      # @return [Hash] `run`, `era`, `sha` and `branch`, which `MintStranded` takes on refusal
+      def land(run:, era:, sha:, branch:, **)
+        output, landed = @commands.land(@root, value_of(branch))
+        strand!(run, era, sha, output) unless landed
+        { run: wrap(run), era: wrap(era), sha: wrap(sha), branch: wrap(branch) }
+      end
+
       # Pushes local main through the train, after the most recent gate verdict on this commit is green and
       # origin is an ancestor of main.
       #
@@ -116,6 +164,35 @@ module Hecks
       end
 
       def wrap(value) = { value: value_of(value) }
+
+      def refuse_unrehearsed!(verdict)
+        raise Refused, "the rehearsal said #{verdict}, not would_mint" unless verdict == "would_mint"
+      end
+
+      # Runs the era check's mint through the mint command, and answers the label it minted.
+      def run_mint!(request)
+        output, minted = @commands.mint_era(@root, domain:    value_of(request[:domain]),
+                                                   era:       value_of(request[:era]),
+                                                   watermark: value_of(request[:watermark]))
+        raise Refused, output.strip unless minted
+
+        output.strip
+      end
+
+      def stranded_path = File.join(STRANDED_DIR, "stranded.json")
+
+      def refuse_while_stranded!
+        return unless File.exist?(stranded_path)
+
+        raise Refused, "mints are refused until the stranded landing is resolved: #{File.read(stranded_path).strip}"
+      end
+
+      def strand!(run, era, sha, output)
+        FileUtils.mkdir_p(STRANDED_DIR)
+        record = { run: value_of(run), era: value_of(era), sha: value_of(sha), reason: output.strip }
+        File.write(stranded_path, JSON.generate(record))
+        raise Refused, "the landing failed after the mint of era #{value_of(era)}: #{output.strip}"
+      end
 
       def value_of(value) = value.is_a?(Hash) ? value.transform_keys(&:to_s)["value"] : value
 

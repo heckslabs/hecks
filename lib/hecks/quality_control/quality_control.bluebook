@@ -2104,6 +2104,61 @@ Hecks.bluebook "QualityControl" do
 
       emits "PushRequested"
     end
+
+    value_object "MintVerdict" do
+      attribute :value, String, one_of: ["would_mint", "would_refuse", "needs_edge", "cannot_boot", "empty_copy"]
+    end
+
+    # Records what the rehearsal of a domain's next era concluded, at the ledger watermark it read. The mint
+    # policy reads the verdict off `MintRequested`, so a mint is only ever asked for a rehearsal that said
+    # would_mint.
+    command "RecordRehearsalVerdict" do
+      role "QA engineer"
+      goal "Record what the rehearsal of a domain's next era concluded, and the watermark it read"
+
+      attribute :run,       MaintenanceRun
+      attribute :domain,    String
+      attribute :watermark, Integer
+      attribute :verdict,   MintVerdict
+
+      emits "RehearsalVerdict"
+    end
+
+    # Asks for the mint of a domain's next era. The mint command is the only caller that mints: a boot never
+    # does, and a mint names the commit its landing will put on main, so the ledger and main move together.
+    command "RequestMint" do
+      role "QA engineer"
+      goal "Ask for the mint of a domain's next era, against the rehearsal of that same era"
+
+      attribute :run,            MaintenanceRun
+      attribute :domain,         String
+      attribute :era,            Integer
+      attribute :sha,            MaintenanceSha
+      attribute :branch,         String
+      attribute :rehearsal_ref,  String
+      attribute :watermark,      Integer
+      attribute :verdict,        MintVerdict
+      attribute :confirm,        one_of("no", "yes")
+
+      given("only a confirmed mint is requested") { confirm.value == "yes" }
+
+      emits "MintRequested"
+    end
+
+    # Refuses a mint whose rehearsal did not say would_mint, and nothing mints or lands after it.
+    command "RefuseMint" do
+      role "QA engineer"
+      goal "Stop a mint whose rehearsal did not say would_mint"
+
+      attribute :run,     MaintenanceRun
+      attribute :domain,  String
+      attribute :era,     Integer
+      attribute :verdict, MintVerdict
+
+      given("only a rehearsal that did not say would_mint is refused") { verdict.value != "would_mint" }
+
+      emits "MintRefused"
+    end
   end
 
   # What remote CI said about one commit of a repository's main, once every job it ran for that
@@ -2631,5 +2686,27 @@ Hecks.bluebook "QualityControl" do
   policy "PushOnRequest" do
     on      "Maintenance.PushRequested"
     ask     :push, with: { run: :run, sha: :sha }
+  end
+
+  # The mint chain. `MintRequested` carries the rehearsal's verdict and the watermark it read; the mint is
+  # asked only for a would_mint verdict, and the refusal is the same named event as every other refusal.
+  # A mint's landing follows it in the same step; a failed landing is `MintStranded`, the event a refused
+  # `Land` ask names.
+  policy "MintOnWouldMint" do
+    on      "Maintenance.MintRequested"
+    where   { verdict.value == "would_mint" }
+    ask     :mint, with: { run: :run, domain: :domain, era: :era, sha: :sha, branch: :branch,
+                           watermark: :watermark, rehearsal_verdict: :verdict }
+  end
+
+  policy "RefuseMintWithoutVerdict" do
+    on      "Maintenance.MintRequested"
+    where   { verdict.value != "would_mint" }
+    trigger Maintenance::RefuseMint, with: { run: :run, domain: :domain, era: :era, verdict: :verdict }
+  end
+
+  policy "LandOnMinted" do
+    on      "Maintenance.Minted"
+    ask     :land, with: { run: :run, era: :era, sha: :sha, branch: :branch }
   end
 end

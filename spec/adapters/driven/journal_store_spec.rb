@@ -8,10 +8,12 @@ require_relative "../../support/postgres_probe"
 require_relative "../../support/fenced_owner"
 require_relative "../../support/era_registry_loading"
 require_relative "../../../lib/hecks/hecks/adapters/journal_store"
+require_relative "../../support/mint_request_support"
 
 # The JournalStore port's adapter against a real Postgres: the facts an examination reports, the
 # changes an admitted request makes, and the reads that never write. Needs a reachable Postgres.
 RSpec.describe Hecks::Adapters::JournalStore, :io do
+  include MintRequestSupport
   include EraRegistryLoading
 
   JS_DB = "hecks_journal_store_spec".freeze
@@ -150,7 +152,8 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
   def check_lineage!(registry, bluebook, text, **extra)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: text, settings: { database: url, mint_eras: true }, **extra
+      registry: registry, bluebook: bluebook, current_text: text,
+      settings: with_mint_request({ database: url, mint_eras: true }, domain: bluebook.name), **extra
     )
   end
 

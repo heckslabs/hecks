@@ -1,6 +1,7 @@
 require_relative "../lineage"
 require_relative "../../../../ports/persistence/plugins/era/storage_shape"
 require_relative "context"
+require_relative "mint_request"
 require_relative "../../../../indifferent_key"
 
 module Hecks
@@ -11,7 +12,8 @@ module Hecks
         # a superseded shape boots read-only, an unheld shape goes to the minter.
         module EraResolver
           # Whether this copy may mint when its world says nothing about it. False, so a copy that
-          # was not told refuses, and only the copy that owns a database moves it.
+          # was not told refuses, and only the copy that owns a database moves it. A mint also needs
+          # the Maintenance mint command's request (`mint_request` in the settings): a boot never mints.
           MINT_BY_DEFAULT = false
 
           # Resolves which era this boot is and records it on the registry.
@@ -27,10 +29,11 @@ module Hecks
             lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
             lineage.ensure_base!
             # key? first, never `||`: a stored `false` must not read as an absent key.
-            role = IndifferentKey.read(settings, :role)
+            # key? first, never `||`: a stored `false` must not read as an absent key.
             resolve_era(Context.new(registry: registry, bluebook: bluebook, current_text: current_text,
-                                    lineage: lineage, role: role, directory: directory,
-                                    mint_permitted: mint_permitted?(settings)))
+                                    lineage: lineage, role: IndifferentKey.read(settings, :role),
+                                    directory: directory, mint_permitted: mint_permitted?(settings),
+                                    mint_request: MintRequest.from(settings)))
           ensure
             db&.close
           end
@@ -59,7 +62,16 @@ module Hecks
             matched, = shapes.find { |_, shape| shape == current_shape }
             return resolve_superseded(context, matched, latest) if matched
 
-            context.record_resolved(mint!(context.with(latest: latest)))
+            context.record_resolved(mint_or_refuse!(context, latest))
+          end
+
+          # A boot that would mint refuses by name; only a context carrying the mint command's request
+          # reaches `mint!`.
+          def mint_or_refuse!(context, latest)
+            held = context.with(latest: latest)
+            refuse_boot_mint!(held) unless context.mint_request
+
+            mint!(held)
           end
 
           def hold_first_era(context)

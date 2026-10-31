@@ -4,9 +4,11 @@ Hecks.world "QualityControl" do
   realm "QA"
   # Connects as the ordinary role hecks_qa: a superuser bypasses the era write-fence
   # (row-level security), so the boot refuses one. hecks_qa owns the database.
+  # `mint_eras` is off: the Maintenance mint command turns it on for the one mint it runs, and a boot
+  # of this world never mints, whatever the setting says.
   persisted_by("PostgresEra") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
-    mint_eras true
+    mint_eras false
   end
   # The rehearsal reads a throwaway copy of the ledger, named by an environment variable so the
   # file holds no connection string; the copy is made beforehand and is never this database.
