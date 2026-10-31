@@ -597,6 +597,8 @@ against the code before assuming it is missing or present.
 The architecture map, the command table, the resolution rules, the decision
 log, the changelog and the design documents are listed under [Beyond the
 guides](docs/implemented/guides/index.md#beyond-the-guides).
+[What a hecks release promises](docs/compatibility.md) says what a version number
+means for the command line: what counts as a break, and how long an old name lives.
 
 The example domains this README draws from, plus one that consumes a
 vendored [embryonaut bluebook](#embryonaut-bluebook):

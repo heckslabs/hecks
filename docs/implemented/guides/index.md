@@ -68,6 +68,10 @@ you're not.
   and `rust/` directory layout, and the dependency direction the split
   follows.
 - **[The commands](../../tools.md)** — every `hecks <verb>`, with the `bin/` script it replaces.
+- **[What a hecks release promises](../../compatibility.md)** — what counts as a
+  break on the command line, how long an old name lives, and how a removal is
+  announced; **[what makes the command line better](../../cli-measures.md)** —
+  the measures each step of its plan is judged by.
 - **[Running a rules service](../../running-a-rules-service.md)** — from a
   bluebook to a deployed API, with the auth caveats.
 - **Resolution rules** — the exact algorithm behind every piece of DSL
