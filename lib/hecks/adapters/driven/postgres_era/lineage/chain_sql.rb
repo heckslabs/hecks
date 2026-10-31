@@ -54,6 +54,15 @@ module Hecks
             latest_of("SELECT ordinal, era, aggregate_id, operation, state FROM (#{tail}) tail_rows")
           end
 
+          # The aggregate's head as the chain's last edge receives it: every edge but the last,
+          # read under the name the held era gives the aggregate. The last edge's `was` is that
+          # name, so a renamed aggregate's held rows are found, as `ancestor_latest` finds them.
+          # Needs at least two edges; with one, `ancestor_latest` is the whole answer.
+          def received_latest(aggregate, era, edges)
+            held_name = edges.last[:translation].for_aggregate(aggregate.name)&.was || aggregate.name
+            latest_of(chain_sql(Struct.new(:name).new(held_name), era, edges[0..-2]))
+          end
+
           # Reduces to newest entry per aggregate id, dropping any id whose
           # newest entry is a delete rather than returning it with a nil state.
           def latest_of(sql)
@@ -96,7 +105,8 @@ module Hecks
 
           private
 
-          # A split target's tail is its own journal rows plus the rows its split fans out of the source.
+          # A split target's tail is its own journal rows plus the rows its split fans out of the
+          # source.
           def target_tail_sql(names, era, edges)
             [ancestor_tail_sql(names, era), split_tail_sql(names, edges)].compact.reject(&:empty?).join(" UNION ALL ")
           end
