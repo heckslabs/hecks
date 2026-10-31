@@ -10,7 +10,7 @@ module Hecks
           SAGA = "GateAndBoard".freeze
 
           # The answer to `resume <run>`, or nil when the line is not a resume.
-          def resume_answer(scope, argv)
+          def resume(scope, argv)
             return unless argv.first == "resume"
             return { answer: [resume_usage, ExitStatus::USAGE] } unless argv[1]
 
