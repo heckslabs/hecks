@@ -5,6 +5,7 @@ require "open3"
 require_relative "../rust_build"
 require_relative "native_build"
 require_relative "conformance/surface"
+require_relative "kernel_input"
 
 module Hecks
   module RustBuild
@@ -49,18 +50,28 @@ module Hecks
       # The artifact's JSON for the script: live from a binary, or read from a file.
       def artifact_output(domain, script, other)
         case other
-        when "native" then run_binary(native_binary || missing_native!, script)
-        when "build" then run_binary(built_binary(domain), script)
+        when "native" then run_binary(native_binary || missing_native!, kernel_input(domain, script))
+        when "build" then run_binary(built_binary(domain), kernel_input(domain, script))
         when WASM_MODULE then run_wasm(domain, script, other)
-        when method(:pinned_binary?) then run_binary(other, script)
+        when method(:pinned_binary?) then run_binary(other, kernel_input(domain, script))
         else File.read(other)
         end
+      end
+
+      # The stdin a compiled artifact reads: the script's steps with the domain's `defaults`,
+      # `needs` and `query_needs` tables beside them, as every other conformance caller sends
+      # them (`KernelInput`). Without the tables the kernel never answers a fact the declaration
+      # `needs`, and a Ruby-filled argument refuses on the Rust side.
+      def kernel_input(domain, script)
+        input = JSON.parse(File.read(script))
+        KernelInput.tables_for(domain).each { |name, table| input[name] = table unless table.empty? }
+        JSON.generate(input)
       end
 
       def run_wasm(domain, script, wasm)
         raise Failure, "#{wasm}: no such file — run hecks build_wasm #{domain} first" unless File.exist?(wasm)
 
-        run_process(["wasmtime", "run", wasm], File.read(script))
+        run_process(["wasmtime", "run", wasm], kernel_input(domain, script))
       end
 
       # A pinned per-domain binary, as named by a sweep's `replay:` line.
@@ -68,7 +79,7 @@ module Hecks
         !path.end_with?(".json") && File.file?(path) && File.executable?(path)
       end
 
-      def run_binary(binary, script) = run_process([binary], File.read(script))
+      def run_binary(binary, stdin) = run_process([binary], stdin)
 
       def run_process(command, stdin_data)
         stdout, status = Open3.capture2(*command, stdin_data: stdin_data)
