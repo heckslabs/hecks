@@ -7,6 +7,11 @@ Hecks::FrameworkBluebooks.load!("QualityControl")
 Hecks.hecksagon "QualityControl" do
   attaches "Governance"
   attaches "Coder"
+  attaches "Fixer"
+
+  # The fixer's attempts are transient work held in Memory, as the Fixer hecksagon declares, so the
+  # ledger keeps no era for them: the bug's own state is what the ledger records and persists.
+  Fixer::Attempt.persisted_by("Memory")
 
   QualityControl::Target.persisted_by("PostgresEra")
   QualityControl::Sweep.persisted_by("PostgresEra")
