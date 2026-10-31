@@ -34,7 +34,7 @@
 # gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
 # the commands that launcher runs on the Memory environment unless `HECKS_ENVIRONMENT` is set (so
 # `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
-# positional forms ADR 0066 shipped. `maintainer` names the aggregates only someone working on a hecks
+# positional forms ADR 0066 shipped (none remain: the legacy forms are retired). `maintainer` names the aggregates only someone working on a hecks
 # checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
 # `--maintainer` lists them; `bluebooks` names the attached bluebooks the help points at, one line each
 # (`hecks deploy`), and `maintainer_bluebooks` the language's own, added inside a checkout.
@@ -71,7 +71,5 @@ Hecks.world "Hecks" do
                                     workspace.status codebase.search],
                        bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
-                       memory_commands: %w[console init interview],
-                       legacy: %w[run docs narrate ir stores model_check smoke_test
-                                  project_diagrams project_cli mcp]
+                       memory_commands: %w[console init interview]
 end

@@ -43,6 +43,13 @@ module Hecks
             abort "cannot open {{name}}: #{e.message.lines.first.strip}"
           end
 
+          # `hecks usage` reads the local record of what this launcher ran; it boots nothing.
+          if ARGV.first == "usage"
+            known = Hecks::Adapters::Driving::CliRunner.known_names(runtime: described, program: program)
+            puts Hecks::Adapters::Driving::UsageLog.summary(known: known)
+            exit 0
+          end
+
           text, status, reason = Hecks::Adapters::Driving::CliRunner.usage(
             runtime: described, argv: ARGV, program: program
           )
@@ -56,7 +63,7 @@ module Hecks
             streamed = Hecks::Adapters::Driving::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
             exit streamed unless streamed.nil?
             text, status, reason = Hecks::Adapters::Driving::CliRunner.call(
-              runtime: runtime, argv: ARGV, program: program
+              runtime: runtime, argv: ARGV, program: program, usage_log: true
             )
           end
         RUBY

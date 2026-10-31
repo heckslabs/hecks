@@ -26,13 +26,6 @@ if File.exist?(File.expand_path("../hecks.gemspec", __dir__)) && File.exist?(gem
   end
 end
 
-# The names the gem has always shipped keep their positional forms.
-LEGACY = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
-if LEGACY.include?(ARGV.first)
-  require "hecks/cli"
-  exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
-end
-
 # These commands keep nothing worth a database, so they run on Memory unless told otherwise.
 # A person is at them: they wait for their result, say why when they are refused, and print
 # no record when they end well.
