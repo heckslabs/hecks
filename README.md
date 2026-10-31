@@ -573,6 +573,7 @@ against the code before assuming it is missing or present.
 - [Aggregates and value objects](docs/implemented/guides/aggregates-and-value-objects.md)
 - [AI-native development](docs/implemented/guides/ai-native-development.md)
 - [Behaviors](docs/implemented/guides/behaviors.md)
+- [Where command names live outside the launcher](docs/implemented/guides/cli-rename-surfaces.md)
 - [Commands](docs/implemented/guides/commands.md)
 - [Entities](docs/implemented/guides/entities.md)
 - [Extending Hecks](docs/implemented/guides/extending-hecks.md)

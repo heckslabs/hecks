@@ -100,6 +100,7 @@ module Hecks
           ["Hecksagon", "port"] => :port_impl,
           ["PortOperation", "reference_to"] => :reference_to_impl,
           ["PortOperation", "attribute"] => :attribute_impl,
+          ["PortOperation", "handles"] => :handles_impl,
           ["Translation", "aggregate"] => :aggregate_impl,
           ["TranslationAggregate", "rename"] => :rename_impl,
           ["TranslationAggregate", "move"] => :move_impl,
