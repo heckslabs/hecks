@@ -1,23 +1,22 @@
 require "spec_helper"
 
-# The Tickets bluebook is attached to the Hecks domain: Finding and Adr are declared in it,
-# the finding's lifecycle drives GitHub through the GitHubIssues port, and a refused ask never
-# blocks
-# the finding.
+# The Tickets bluebook is attached to the Hecks domain: Finding, Adr and Work are declared in it,
+# the finding's lifecycle drives GitHub through the GitHubIssues port, a refused ask never blocks
+# the finding, and a Work step stays inside Hecks.
 RSpec.describe "the Tickets bluebook" do
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     @bluebook = @hecks.registry.bluebook("Tickets")
   end
 
-  it "declares Finding and Adr, and leaves Release to the Hecks domain and Ticket to QualityControl" do
-    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr")
+  it "declares Finding, Adr and Work, and leaves Release to the Hecks domain and Ticket to QualityControl" do
+    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
   end
 
   it "boots standing alone, as a fuzz or model_check boot of its directory does" do
     standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_driving: false)
 
-    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr")
+    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
   end
 
   it "gives a Finding the commands of its lifecycle" do
@@ -92,5 +91,23 @@ RSpec.describe "the Tickets bluebook" do
 
     expect(policies).to include("OpenIssueWhenReported", "LabelIssueWhenTriaged", "CloseIssueWhenResolved",
                                 "ReopenIssueWhenReopened", "RecordTheIssue", "RecordTheSyncFailure")
+  end
+
+  it "gives a Work step the commands of its lifecycle" do
+    commands = @bluebook.aggregate("Work").commands.map(&:hecks_name)
+
+    expect(commands).to contain_exactly("Plan", "Start", "Finish", "Drop", "Lapse")
+  end
+
+  it "drives nothing outside from a Work step" do
+    asks = @bluebook.policies.select { |policy| policy.event_name.start_with?("Work") }
+
+    expect(asks).to be_empty
+  end
+
+  it "lapses a superseded decision's undone steps" do
+    policies = @bluebook.policies.to_h { |policy| [policy.hecks_name, policy.event_name] }
+
+    expect(policies["LapseWorkWhenSuperseded"]).to eq("AdrSuperseded")
   end
 end

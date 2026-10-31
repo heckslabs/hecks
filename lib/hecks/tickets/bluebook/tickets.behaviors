@@ -1,0 +1,67 @@
+Hecks.behaviors "Tickets" do
+  vision "A step of a plan moves planned, started, done; or it is dropped with a reason, or lapses with its decision."
+
+  loads "tickets.bluebook", "tickets.hecksagon", "tickets.ports.hecksagon"
+
+  test "Plan enters a step as planned" do
+    tests "Plan", on: "Work"
+    input work: { value: "w1" }, title: { value: "Add the everyday list" }, step: { value: 1 }
+    expect status: "planned"
+  end
+
+  test "Plan refuses a step with no title" do
+    tests "Plan", on: "Work"
+    input work: { value: "w2" }, title: { value: "" }
+    expect refused: "a piece of work has a title"
+  end
+
+  test "Plan refuses a negative step" do
+    tests "Plan", on: "Work"
+    input work: { value: "w3" }, title: { value: "Too early" }, step: { value: -1 }
+    expect refused: "a step is not negative"
+  end
+
+  test "Start moves a planned step to started" do
+    tests "Start", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w4" }, title: { value: "Declare for:" }
+    input  work: { value: "w4" }
+    expect status: "started"
+  end
+
+  test "Finish closes a started step as done" do
+    tests "Finish", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w5" }, title: { value: "Declare the run kind" }
+    setup  "Tickets::Work.Start", work: { value: "w5" }
+    input  work: { value: "w5" }
+    expect status: "done"
+  end
+
+  test "Finish closes a planned step that was never started" do
+    tests "Finish", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w6" }, title: { value: "A one-line change" }
+    input  work: { value: "w6" }
+    expect status: "done"
+  end
+
+  test "Drop sets a step aside with the reason" do
+    tests "Drop", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w7" }, title: { value: "The context candidates query" }
+    input  work: { value: "w7" }, reason: { value: "modules inside one context need no boundary finder" }
+    expect status: "dropped"
+  end
+
+  test "Lapse drops a step whose decision was superseded" do
+    tests "Lapse", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w8" }, title: { value: "A step of a replaced plan" }
+    input  work: { value: "w8" }
+    expect status: "dropped"
+  end
+
+  test "Start refuses a step that is already done" do
+    tests "Start", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w9" }, title: { value: "Finished early" }
+    setup  "Tickets::Work.Finish", work: { value: "w9" }
+    input  work: { value: "w9" }
+    expect refused: "done"
+  end
+end
