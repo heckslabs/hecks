@@ -16,16 +16,16 @@ hecks search ship
 ```
 
 Lists the commands and queries whose names or descriptions match, grouped by module. For the
-checkout's text, use `hecks query InspectionRun.search pattern.value=<text>`.
+checkout's text, use `hecks query Codebase.search pattern.value=<text>`.
 
 **Example: read a file by line range**
 
 ```sh
-hecks query InspectionRun.read_source path.value=lib/hecks/cli.rb from.value=1 to.value=30
+hecks query Codebase.read_source path.value=lib/hecks/cli.rb from.value=1 to.value=30
 ```
 
 **Example: see what a file declares**
 
 ```sh
-hecks query InspectionRun.outline path.value=lib/hecks/cli.rb
+hecks query Codebase.outline path.value=lib/hecks/cli.rb
 ```
