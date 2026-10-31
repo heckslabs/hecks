@@ -230,7 +230,9 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, Word, optional: true, sets: true
         attribute :branch,   Word, optional: true, sets: true
         attribute :onto,     Word, default: "main", sets: true
+        attribute :confirm,  Switch, default: false
 
+        given("merges the branch onto local main needs --confirm; without it this only reports") { confirm.value == true }
 
         emits LandingRequested
       end
@@ -267,7 +269,9 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, Word, optional: true, sets: true
         attribute :branch,   Word, optional: true, sets: true
         attribute :onto,     Word, default: "main", sets: true
+        attribute :confirm,  Switch, default: false
 
+        given("removes the worktree and deletes its branch needs --confirm; without it this only reports") { confirm.value == true }
 
         emits RetirementRequested
       end
@@ -418,7 +422,9 @@ Hecks.bluebook "Hecks" do
         # Run the whole `pre_push` stage, the suite included, which also writes the CI attestation
         # note; without it the push runs only the `unguarded_push` stage.
         attribute :full_gate, Switch, optional: true, sets: true
+        attribute :confirm,   Switch, default: false
 
+        given("pushes the branch to the remote needs --confirm; without it this only reports") { confirm.value == true }
 
         emits BoardingRequested
       end
@@ -566,7 +572,9 @@ Hecks.bluebook "Hecks" do
         attribute :branch,   Word, sets: true
         attribute :checkout, Word
         attribute :paths,    Word, default: "lib/hecks,spec"
-        attribute :confirm,  Boolean, default: true
+        attribute :confirm,  Switch, default: false
+
+        given("lands the branch and pushes it to the remote needs --confirm; without it this only reports") { confirm.value == true }
 
         emits ShipRequested
         emits ShipStarted
@@ -618,6 +626,9 @@ Hecks.bluebook "Hecks" do
         attribute :run,    RunKey, sets: true
         attribute :branch, Word, sets: true
         attribute :base,   Word, default: "main", sets: true
+        attribute :confirm, Switch, default: false
+
+        given("opens a pull request on GitHub needs --confirm; without it this only reports") { confirm.value == true }
 
         emits "PullRequestRequested"
       end
@@ -628,6 +639,9 @@ Hecks.bluebook "Hecks" do
 
         attribute :run,    RunKey, sets: true
         attribute :number, Word, sets: true
+        attribute :confirm, Switch, default: false
+
+        given("squash-merges the pull request on GitHub needs --confirm; without it this only reports") { confirm.value == true }
 
         emits "PullRequestMergeRequested"
       end
