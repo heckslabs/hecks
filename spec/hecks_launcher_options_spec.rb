@@ -84,7 +84,7 @@ RSpec.describe "the launcher's opt-in options" do
     it "never fills the minted run key from a bare word, and says so", :aggregate_failures do
       out, status = run_verb("conformance_run.check_engine_agreement", "bogus")
 
-      expect(status).to eq(1)
+      expect(status).to eq(2)
       expect(out).to include("only argument is its run key", "run=<key>")
     end
 
@@ -134,7 +134,7 @@ RSpec.describe "the launcher's opt-in options" do
     it "refuses the bare words that were once commands", :aggregate_failures do
       %w[run model_check smoke_test project_cli].each do |name|
         out, status = run_verb(name, "--help")
-        expect(status).to eq(1), name
+        expect(status).to eq(2), name
         expect(out).to include("no such command: #{name}")
       end
     end

@@ -160,7 +160,10 @@ RSpec.describe "client launcher smoke" do
       wait:       %w[order.create_pizza name=C pizza.price_cents=1 pizza.size=small --wait],
       confirm:    %w[order.create_pizza name=D pizza.price_cents=1 pizza.size=small --confirm],
       run_given:  %w[order.create_pizza name=E pizza.price_cents=1 pizza.size=small run=mine-1],
-      wait_bad:   %w[ask order.available --wait]
+      wait_bad:   %w[ask order.available --wait],
+      unknown:    %w[order.create_piza],
+      bad_word:   %w[order.create_pizza nonsense=1],
+      invariant:  %w[order.create_pizza name=F pizza.price_cents=900 pizza.size=huge]
     }
     @opted = self.class.launch_all(@opted_root, opted_calls)
   end
@@ -223,7 +226,7 @@ RSpec.describe "client launcher smoke" do
       expect(results[:missing][:err]).to include('no Order with name.value "nope"', "purchase --help")
     end
 
-    it "suggests the near name and exits 1 for an unknown command", :aggregate_failures do
+    it "suggests the near name and exits 1 for an unknown command, as the earlier tail folds every status", :aggregate_failures do
       expect(results[:unknown][:status]).to eq(1)
       expect(results[:unknown][:err]).to include("no such command: order.create_piza", "did you mean:", "  Order.create_pizza")
     end
@@ -299,6 +302,13 @@ RSpec.describe "client launcher smoke" do
 
     it "takes --wait out of a question's words too, and answers it" do
       expect(created(@opted[:wait_bad])).to eq([])
+    end
+
+    it "exits 2 for a line it could not read and 1 for a refusal, as the runner answered them", :aggregate_failures do
+      expect(@opted[:unknown][:status]).to eq(2)
+      expect(@opted[:bad_word][:status]).to eq(2)
+      expect(@opted[:invariant][:status]).to eq(1)
+      expect(@opted[:unknown][:err]).to include("no such command: order.create_piza")
     end
   end
 end

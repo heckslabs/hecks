@@ -11,14 +11,14 @@ module Hecks
             return unless argv.first == "search"
 
             word = argv.drop(1).find { |arg| !arg.start_with?("--") }
-            return { answer: ["usage: #{scope[:program]} search <word> [--all]", 1] } unless word
+            return { answer: ["usage: #{scope[:program]} search <word> [--all]", ExitStatus::USAGE] } unless word
 
             options = search_options(scope, argv.include?("--all"))
             lines = Projector::CliProjector.search_lines(scope[:bluebook], scope[:cli][:commands],
                                                          scope[:cli][:questions], options, word)
-            return { answer: ["no command or query matches #{word}", 1] } unless lines
+            return { answer: ["no command or query matches #{word}", ExitStatus::REFUSED] } unless lines
 
-            { answer: [lines.join("\n"), 0] }
+            { answer: [lines.join("\n"), ExitStatus::ANSWERED] }
           end
 
           # The listing's options for a search: the audience the help shows, or with `--all` the
