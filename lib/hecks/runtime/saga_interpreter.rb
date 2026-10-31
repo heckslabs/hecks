@@ -27,6 +27,11 @@ module Hecks
       # The trigger lives on the declaration it triggers — see ProcessManager::REFUSED.
       REFUSED = Bluebook::ProcessManager::REFUSED
 
+      # The state a saga parks in when a stage faults, and the memory key that records the state it
+      # faulted from.
+      NEEDS_HUMAN = "needs_human".freeze
+      FAULTED_FROM_KEY = :__hecks_saga_faulted_from__
+
       # A crash gets this many retries before it's treated as something to
       # compensate for, instead of unwinding on the first failure.
       MAX_DEFECT_RETRIES = 3
@@ -54,7 +59,9 @@ module Hecks
         # @return [Array] the dispatches the taken handler declares
         def dispatches = handler.dispatches
 
-        # Moves the instance into the handler's state, remembering the state it left.
+        # Moves the instance into the handler's state, remembering the state it left. A move into
+        # `needs_human` also records that state in the instance's memory, so a resume knows the
+        # stage that faulted.
         #
         # @param leg_handler [Bluebook::ProcessManager::Handler] the leg being taken
         # @return [void]
@@ -62,6 +69,14 @@ module Hecks
           self.handler   = leg_handler
           self.pre_state = instance[:state]
           instance[:state] = leg_handler.to_state
+          remember_fault_origin if leg_handler.to_state == NEEDS_HUMAN
+        end
+
+        # Records the state the instance faulted from, under the saga's memory.
+        #
+        # @return [void]
+        def remember_fault_origin
+          (instance[:memory] ||= {})[FAULTED_FROM_KEY] = pre_state
         end
 
         # The identity the leg stamps on the dispatch it is delivering.
