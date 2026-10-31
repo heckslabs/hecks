@@ -17,6 +17,7 @@ require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
 require_relative "cli_runner/verb_names"
+require_relative "cli_runner/verbosity"
 
 module Hecks
   module Adapters
@@ -26,6 +27,7 @@ module Hecks
       # to its callers.
       module CliRunner
         include ExitStatus
+        extend Verbosity
 
         # The class an adapter raises when the tool it wraps refuses.
         TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze
@@ -54,7 +56,10 @@ module Hecks
         # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
         # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
         def call(runtime:, argv:, program: "hecks run", usage_log: false, err: $stderr)
-          answer_line(runtime, argv, program, usage_log, err)
+          level, argv = split_verbosity(argv)
+          return [Verbosity::CONFLICT, USAGE] if level == :conflict
+
+          with_verbosity(level) { answer_line(runtime, argv, program, usage_log, err) }
         rescue Interrupt
           [interrupted(argv), ExitStatus::REFUSED]
         end
@@ -73,7 +78,16 @@ module Hecks
 
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
-          UsageLog.record(argv: argv, resolved: plan[:name], status: answer[1], started: started) if usage_log
+          finish_line(answer, plan, started, { argv: argv, usage_log: usage_log, err: err })
+        end
+
+        # Records a line that ran and prints its details when `-v` asked for them.
+        #
+        # @api private
+        # @return [Array(String, Integer)] the answer, unchanged
+        def finish_line(answer, plan, started, details)
+          UsageLog.record(argv: details[:argv], resolved: plan[:name], status: answer[1], started: started) if details[:usage_log]
+          verbose_details(details[:err], plan[:name], started) if verbose?
           answer
         end
 
@@ -98,7 +112,7 @@ module Hecks
           refusal = WriteGuard.refusal(Dir.pwd, plan[:bluebook]&.name)
           return refusal if refusal
 
-          ContextLine.announce(err)
+          ContextLine.announce(err) unless quiet?
           nil
         end
 
@@ -133,6 +147,9 @@ module Hecks
         # @return [Array(String, Integer), nil] the text and status, or nil when the line would
         #   run a command or question and so needs a booted domain
         def usage(runtime:, argv:, program: "hecks run")
+          level, argv = split_verbosity(argv)
+          return [Verbosity::CONFLICT, USAGE] if level == :conflict
+
           UsageCache.fetch(runtime, argv, program, audience: audience_key) { resolve(runtime, argv, program)[:answer] }
         end
       end

@@ -9,6 +9,13 @@ module Hecks
     # `$stderr` into its journal, and the progress would be swallowed there. The verdict stays on
     # standard output, so a pipe still receives only the result.
     class StageProgress
+      class << self
+        # Whether the lines are left out, as `-q` asks: set by the launcher for the length of a line.
+        # @return [Boolean]
+        attr_accessor :quiet
+      end
+      self.quiet = false
+
       # @param io [#puts, #flush] where the lines are written; the process's own standard error
       #   (file descriptor 2), whatever `$stderr` is redirected to at the time
       def initialize(io = IO.new(2, "w", autoclose: false))
@@ -35,6 +42,8 @@ module Hecks
       # @param text [String] one line, written and flushed under a lock so threads do not interleave
       # @return [void]
       def line(text)
+        return if self.class.quiet
+
         @lock.synchronize do
           @io.puts(text)
           @io.flush
