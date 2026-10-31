@@ -58,9 +58,9 @@ module Hecks
           module_name ? module_header(bluebook, module_name, program) : usage_header(bluebook, program)
         end
 
-        # The bluebook's vision and the two ways to call it.
+        # The bluebook's vision, the release of the gem this launcher runs, and the two ways to call it.
         def usage_header(bluebook, program)
-          ["#{bluebook.name} — #{bluebook.vision}", "",
+          ["#{bluebook.name} — #{bluebook.vision}", "  hecks #{Hecks::VERSION}", "",
            "  #{program} <command>! [name=value …]       do something",
            "  #{program} query <query> [name=value …]    read something", ""]
         end
