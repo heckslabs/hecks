@@ -1,0 +1,4 @@
+# The collapsed `Build.build!` adds one optional kind field (`what`) to Build and one command; no stored
+# row is rewritten, since every existing field keeps its name and type.
+Hecks.data_translation "Hecks", from: "35350c", to: "a4c646" do
+end

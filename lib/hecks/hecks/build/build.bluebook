@@ -16,6 +16,7 @@ Hecks.bluebook "Hecks" do
       attribute :stage_dir, StagePath, optional: true
       attribute :profile,  WasmProfile, optional: true
       attribute :prebuilt, Switch,     optional: true
+      attribute :what,     BuildWhat,  optional: true
       attribute :seeds,    Count,      optional: true
       attribute :steps,    Count,      optional: true
       attribute :output,   Report,     optional: true
@@ -57,6 +58,12 @@ Hecks.bluebook "Hecks" do
       end
 
       # The directory a host build stages its files in.
+      # The kind of build the collapsed `Build.build!` runs: each value is handled by one port
+      # operation in the hecksagon (ADR 0163 step 55).
+      value_object "BuildWhat" do
+        attribute :value, String, one_of: %w[host wasm browser parser]
+      end
+
       value_object "StagePath" do
         attribute :value, String, matches: :not_empty
       end
@@ -105,6 +112,21 @@ Hecks.bluebook "Hecks" do
 
 
         emits RustProjectionRequested
+      end
+
+      # One command for every build kind: `what` names the kind, and the hecksagon binds each kind
+      # to the port operation that does the work (ADR 0163 step 55).
+      command "Build" do
+        role "Operator"
+        goal "Build a domain for the Rust host, the wasm target, the browser or the parser, by kind"
+
+        attribute :what,      BuildWhat, sets: true
+        attribute :domain,    DomainPath, optional: true, sets: true
+        attribute :run,       BuildKey, sets: true
+        attribute :profile,   WasmProfile, optional: true, sets: true
+        attribute :target,    TargetTriple, optional: true, sets: true
+        attribute :stage_dir, StagePath, optional: true, sets: true
+        attribute :prebuilt,  Switch, optional: true, sets: true
       end
 
       command "BuildWasm" do
