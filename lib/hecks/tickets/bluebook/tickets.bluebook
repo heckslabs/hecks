@@ -285,8 +285,22 @@ Hecks.bluebook "Tickets" do
     attribute :detail, WorkText, optional: true
     attribute :step,   Step, optional: true
     attribute :reason, WorkText, optional: true
+    attribute :claimed_by, Claimant, optional: true
+    attribute :claimed_at, ClaimedAt, optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :work
+
+    # The session that claimed a started step, named as the session names itself.
+    value_object "Claimant" do
+      attribute :value, String, matches: :present
+
+      invariant("a claim names its claimant") { !value.to_s.empty? }
+    end
+
+    # When the claim was taken, as the caller reads the clock: an ISO 8601 instant.
+    value_object "ClaimedAt" do
+      attribute :value, String, matches: :present
+    end
 
     value_object "WorkKey" do
       attribute :value, String, matches: :present
@@ -312,7 +326,8 @@ Hecks.bluebook "Tickets" do
     end
 
     lifecycle :status, default: "planned" do
-      transition "Start"  => "started", from: "planned"
+      transition "Start"   => "started", from: "planned"
+      transition "Release" => "planned", from: "started"
       transition "Finish" => "done",    from: %w[planned started]
       transition "Drop"   => "dropped", from: %w[planned started]
       transition "Lapse"  => "dropped", from: %w[planned started]
@@ -334,13 +349,25 @@ Hecks.bluebook "Tickets" do
       emits "WorkPlanned"
     end
 
+    # A started step is claimed: the second Start on it is refused, since only a planned step starts.
     command "Start" do
       role "Maintainer"
-      goal "Record that work on a planned step began"
+      goal "Claim a planned step for one session, recording who claimed it and when"
+
+      reference_to Work
+      attribute :claimed_by, Claimant, sets: true
+      attribute :claimed_at, ClaimedAt, sets: true
+
+      emits "WorkStarted"
+    end
+
+    # A claim gone stale returns its step to the plan, so the next session can claim it.
+    command "Release" do
+      goal "Return a started step to planned, releasing its claim"
 
       reference_to Work
 
-      emits "WorkStarted"
+      emits "WorkReleased"
     end
 
     command "Finish" do
@@ -377,6 +404,14 @@ Hecks.bluebook "Tickets" do
       description "Every step not yet done or dropped, in plan order."
       where(status: { in: "planned,started" })
       order_by :step
+    end
+
+    # The first step still planned in plan order: the next one a coder session claims.
+    query "NextPlanned" do
+      description "The oldest step not yet claimed, in plan order: the brief a coder session reads next."
+      where(status: "planned")
+      order_by :step
+      limit 1
     end
 
     query "Under" do
@@ -440,6 +475,14 @@ Hecks.bluebook "Tickets" do
     on       "Adr.AdrSuperseded"
     for_each "Work.UndoneUnder"
     trigger  Work::Lapse, with: { work: :work }
+  end
+
+  # A coder's submitted branch is named for its work step, so the branch is the step's key and the
+  # policy routes it with no parsing (`with:` only routes fields). A branch naming no step is refused
+  # by the Finish command: the refusal names Work.
+  policy "FinishWhenWorkSubmitted" do
+    on      "Submission.WorkSubmitted"
+    trigger Work::Finish, with: { work: :branch }
   end
 
   # A conformance or gate run that faults files its own finding.
