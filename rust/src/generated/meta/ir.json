@@ -34124,6 +34124,32 @@
             [
               [
                 "name",
+                "everyday_names"
+              ],
+              [
+                "id",
+                "everyday_names"
+              ],
+              [
+                "title",
+                "everyday names, every name in the launcher's everyday setting shown in the help"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/everyday_names_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a name in the world's `everyday` setting is not shown in the help's everyday section: it does not resolve to a command, it is internal, or it is not listed for people. The failure names each one; fix the spelling in hecks.world or the command's audience."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_fmt"
               ],
               [
@@ -34785,7 +34811,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks"
+                "shape_ledger,rubocop,comment_style,comment_blocks,everyday_names"
               ]
             ],
             [
