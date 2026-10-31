@@ -22,18 +22,25 @@ module RuboCop
         # @param node [RuboCop::AST::BlockNode] the block being visited
         # @return [void]
         def on_block(node)
+          return unless value_object_block?(node)
+          return unless single_value_attribute?(node.body)
+
           send = node.send_node
-          return unless send.receiver.nil? && send.method_name == :value_object
-          return unless send.first_argument&.str_type?
-
-          body = node.body
-          return unless single_value_attribute?(body)
-
-          type = body.arguments.last.const_name || body.arguments.last.source
-          add_offense(send, message: format(MSG, name: send.first_argument.value, type: type))
+          add_offense(send, message: offense_message(send, node.body))
         end
 
         private
+
+        # A `value_object "Name"` call with no receiver and a string name.
+        def value_object_block?(node)
+          send = node.send_node
+          send.receiver.nil? && send.method_name == :value_object && send.first_argument&.str_type?
+        end
+
+        def offense_message(send, body)
+          type = body.arguments.last.const_name || body.arguments.last.source
+          format(MSG, name: send.first_argument.value, type: type)
+        end
 
         # The body is exactly one `attribute :value, Type` call.
         def single_value_attribute?(body)

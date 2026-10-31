@@ -45,3 +45,7 @@ The reverse is a configuration that is the defaults plus a short, argued list. E
 - **A per-file todo that only shrinks.** Rejected: it leaves a second list of tolerated offenses beside the override list, and a regenerated todo hides new offenses.
 - **Autocorrect everything once.** Rejected for the cops in decision 7, which changed behavior when autocorrected.
 
+
+## Addendum: the bluebook-mistake cops exclude spec/
+
+The five cops that catch bluebook DSL mistakes (`Hecks/ValueObjectShorthand`, `Hecks/BareEventAndQueryNames`, `Hecks/InvariantExpressionLanguage`, `Hecks/CreatingCommandSets`, `Hecks/LifecycleNeedsAttribute`) flagged DSL samples written inside specs: 351 of the 367 offenses on main. Their `Exclude` now covers `spec/**/*`, so they keep checking `lib/`, where the bluebook builders live. Specs that test a cop still exercise it through its own spec file. Spec-side DSL samples stay out of scope for these cops until each cop's false positives are fixed.

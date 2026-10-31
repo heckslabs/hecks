@@ -115,8 +115,6 @@ module Hecks
           builder.build
         end
 
-        private
-
         # `from:` is required: the saga's admission check tests `from_state` by plain equality,
         # so a transition with no `from:` would match no instance.
         def refuse_missing_from!(mapping, from)
@@ -163,25 +161,14 @@ module Hecks
           refuse_ambiguous_legs!
         end
 
+        # A bare name is not checked here: it may name an aggregate, which only the bluebook
+        # can see. `BluebookBuilder` resolves it to `"<Aggregate>.<identity>"`, or refuses it
+        # with `bare_correlation_message`. A dotted path is a scalar by its spelling.
         def refuse_bad_correlation!
-          unless @correlates_by
-            raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
-                                         "nothing would tie its events to one instance"
-          end
+          return if @correlates_by
 
-          # A bare name is not checked here: it may name an aggregate, which only the bluebook
-          # can see. `BluebookBuilder` resolves it to `"<Aggregate>.<identity>"`, or refuses it
-          # with `bare_correlation_message`. A dotted path is a scalar by its spelling.
-        end
-
-        # The refusal for a bare name that does not name an aggregate of the bluebook.
-        #
-        # @param name [String] the process manager's name
-        # @param key [String] the bare name, as written
-        # @return [String] the message the refusal raises with
-        def self.bare_correlation_message(name, key)
-          "#{name} correlates_by #{key}, which names a whole field rather than one of its scalars — " \
-            "say which one, e.g. #{key}.value (or name an aggregate of this bluebook, which correlates by its identity)"
+          raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
+                                       "nothing would tie its events to one instance"
         end
 
         # A leg is selected by (event, current state), so two legs on the same pair would

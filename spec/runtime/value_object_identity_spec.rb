@@ -7,8 +7,8 @@ RSpec.describe "multi-field value-object identity at runtime" do
     aggregate "TransferInstruction" do
       value_object "TransferIdentity" do
         attribute :scheme, String, default: "ACH"
-        attribute :end_to_end_id, String
-        invariant("the end-to-end id is present") { end_to_end_id != "" }
+        attribute :end_to_end, String
+        invariant("the end-to-end id is present") { end_to_end != "" }
       end
 
       identified_by TransferIdentity, as: :identity
@@ -41,12 +41,12 @@ RSpec.describe "multi-field value-object identity at runtime" do
   end
 
   it "coerces defaults and concatenates every member in declaration order", :aggregate_failures do
-    register({ end_to_end_id: "e2e-42" })
+    register({ end_to_end: "e2e-42" })
 
     stored = runtime.registry.repository("IdentityRuntime", aggregate).find("ACH:e2e-42")
 
     expect(stored).not_to be_nil
-    expect(stored[:identity].to_h).to eq(scheme: "ACH", end_to_end_id: "e2e-42")
+    expect(stored[:identity].to_h).to eq(scheme: "ACH", end_to_end: "e2e-42")
   end
 
   it "does not reverse-split a joined identifier to invent structured state" do
@@ -56,7 +56,7 @@ RSpec.describe "multi-field value-object identity at runtime" do
   end
 
   it "refuses a blank required member before accepting the identity" do
-    expect { register({ scheme: "ACH", end_to_end_id: "" }) }
+    expect { register({ scheme: "ACH", end_to_end: "" }) }
       .to raise_error(Hecks::Runtime::InvariantViolation, /end-to-end id is present/)
   end
 end

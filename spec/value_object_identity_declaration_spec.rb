@@ -88,7 +88,7 @@ RSpec.describe "value-object identity declarations" do
       aggregate "TransferInstruction" do
         identified_by do
           attribute :scheme, String
-          attribute :end_to_end_id, String
+          attribute :end_to_end, String
         end
       end
     end

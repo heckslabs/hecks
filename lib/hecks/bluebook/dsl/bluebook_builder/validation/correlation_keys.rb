@@ -15,16 +15,36 @@ module Hecks
             def resolve_bare_correlation_keys!(bluebook)
               bluebook.process_managers.each do |process_manager|
                 key = process_manager.correlates_by.to_s
-                next if key.empty? || key.include?(".")
+                next if bare_correlation_key?(key)
 
-                aggregate = bluebook.aggregates.find { |candidate| candidate.name.to_s == Naming.demodulise(key) }
-                unless aggregate
-                  raise ProcessManagerBuilder::InvalidProcessManager,
-                        ProcessManagerBuilder.bare_correlation_message(process_manager.name, key)
-                end
-
-                process_manager.correlate_by!("#{aggregate.name}.#{identity_path(process_manager, aggregate)}")
+                resolve_bare_correlation_key!(bluebook, process_manager, key)
               end
+            end
+
+            def bare_correlation_key?(key)
+              key.empty? || key.include?(".")
+            end
+
+            def resolve_bare_correlation_key!(bluebook, process_manager, key)
+              aggregate = find_correlated_aggregate(bluebook, key)
+              unless aggregate
+                raise ProcessManagerBuilder::InvalidProcessManager,
+                      bare_correlation_message(process_manager.name, key)
+              end
+
+              path = identity_path(process_manager, aggregate)
+              process_manager.correlate_by!("#{aggregate.name}.#{path}")
+            end
+
+            # The refusal for a bare name that does not name an aggregate of the bluebook.
+            def bare_correlation_message(name, key)
+              "#{name} correlates_by #{key}, which names a whole field rather than one of its scalars " \
+                "— say which one, e.g. #{key}.value (or name an aggregate of this bluebook, " \
+                "which correlates by its identity)"
+            end
+
+            def find_correlated_aggregate(bluebook, key)
+              bluebook.aggregates.find { |candidate| candidate.name.to_s == Naming.demodulise(key) }
             end
 
             # The one field an aggregate is correlated by: its identity, or `id` when it declares none.

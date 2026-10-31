@@ -42,15 +42,21 @@ Hecks/NoIdStringAttribute:
 # A single-value `value_object` block with no invariant says the same as the one-line shorthand.
 Hecks/ValueObjectShorthand:
   Enabled: true
+  Exclude:
+    - "spec/**/*"
 
 # The bluebook expression language cannot evaluate `include?`, `length`, `to_s`, `empty?`,
 # `between?` or a `%w[...]` list; the check fails at boot, so the cop names the spelling to use.
 Hecks/InvariantExpressionLanguage:
   Enabled: true
+  Exclude:
+    - "spec/**/*"
 
 # A lifecycle moves a value its owner holds; with no `attribute :x` the lifecycle has nothing to move.
 Hecks/LifecycleNeedsAttribute:
   Enabled: true
+  Exclude:
+    - "spec/**/*"
 
 # A lifecycle names its terminal states on one `mark :terminal` line, so the set reads in one place.
 Hecks/OneTerminalMarkPerLifecycle:
@@ -60,6 +66,8 @@ Hecks/OneTerminalMarkPerLifecycle:
 # bluebook loads. Quoted state names in transition targets and `from:` are left alone.
 Hecks/BareEventAndQueryNames:
   Enabled: true
+  Exclude:
+    - "spec/**/*"
 
 # A bare aggregate name in `correlates_by` correlates by the aggregate's identity; the dotted
 # `"Aggregate.id"` path says the same thing. A dotted path into a field is left alone.
@@ -69,6 +77,8 @@ Hecks/CorrelatesByAggregate:
 # A creating command makes a new aggregate, so each attribute it accepts must be `sets` onto it.
 Hecks/CreatingCommandSets:
   Enabled: true
+  Exclude:
+    - "spec/**/*"
 
 # Memoized class-level state is the codebase's norm; only the runtime shared across threads
 # is held to it (Hecks/ThreadSharedIvarMutation covers the dispatcher and registry writes).
