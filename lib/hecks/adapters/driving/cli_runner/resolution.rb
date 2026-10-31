@@ -29,7 +29,7 @@ module Hecks
           # The answer a line gets without naming a command, or nil when it names one.
           def answer_for(scope, argv)
             json_answer(scope, argv) || usage_answer(scope, argv.first) || module_answer(scope, argv.first) ||
-              search_answer(scope, argv) || completion_answer(scope, argv)
+              search_answer(scope, argv) || completion_answer(scope, argv) || tour_answer(scope, argv)
           end
 
           # The answer to a line that is only a request for usage, or nil.
