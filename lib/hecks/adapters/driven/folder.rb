@@ -2,6 +2,7 @@ require_relative "../../vocabulary"
 require_relative "../../ports/loading"
 require_relative "../../sentence_form"
 require_relative "folder_overlay"
+require_relative "worktree_overlay"
 require_relative "../../module_folders"
 
 module Hecks
