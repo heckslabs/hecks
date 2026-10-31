@@ -2,6 +2,7 @@ require_relative "word_gate"
 require_relative "bluebook_builder/validation"
 require_relative "bluebook_builder/pending_givens"
 require_relative "bluebook_builder/modules"
+require_relative "bluebook_builder/metadata"
 module Hecks
   module Bluebook
     module DSL
@@ -12,6 +13,7 @@ module Hecks
 
         include WordGate
         include Modules
+        include Metadata
         extend Validation
 
         attr_reader :classification
@@ -25,8 +27,6 @@ module Hecks
           @read_models      = []
           @policies         = []
           @process_managers = []
-          @module_members   = []
-          @module_visions   = {}
           # The root of the bluebook-wide given pool, one level wider than
           # `AggregateBuilder`'s `@entity_named_givens` (S10). See `#given` for
           # what this closes.
@@ -65,26 +65,6 @@ module Hecks
           @vision = value
         end
 
-        # Records the bluebook's earlier name, so the storage layer recognizes its history
-        # under it instead of minting a new lineage — a bluebook's identity can change.
-        #
-        # @param value [String, Symbol] the bluebook's earlier name
-        # @return [String] `value`, stringified, as stored
-        def formerly_known_as(value)
-          bluebook_wide!(:formerly_known_as)
-          @formerly_known_as = value.to_s
-        end
-
-        # Names the Ruby module the bluebook's constants install under instead of its own name,
-        # such as `namespace "Hecks::Domain"` for a bluebook that would otherwise collide.
-        #
-        # @param value [String] a constant path, such as `"Hecks::Domain"`
-        # @return [String] `value`, stringified, as stored
-        def namespace(value)
-          bluebook_wide!(:namespace)
-          @namespace = value.to_s
-        end
-
         # Names a core grammar context this bluebook's sub-language extends (ADR 0026).
         # Variadic and accumulates across calls, like `identified_by`/`group_by`.
         #
@@ -119,22 +99,6 @@ module Hecks
           (@provides ||= []).concat(rows)
         end
 
-        # Classifies this bluebook as core to the framework, rather than a domain built on it.
-        #
-        # @return [Symbol] `:core`
-        def core       = classify(:core)
-
-        # Classifies this bluebook as a supporting piece of the framework, rather than a domain
-        # built on it.
-        #
-        # @return [Symbol] `:supporting`
-        def supporting = classify(:supporting)
-
-        # Classifies this bluebook as generic infrastructure, rather than a domain built on it.
-        #
-        # @return [Symbol] `:generic`
-        def generic    = classify(:generic)
-
         # Declares an aggregate belonging to this bluebook. `@bluebook_named_givens` is
         # threaded into it — see `AggregateBuilder#given` for the sharing this enables.
         #
@@ -142,16 +106,18 @@ module Hecks
         # named in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
         #
         # @param name [String] the aggregate's own name
+        # @param kind [String, nil] the kind whose text the aggregate's body is evaluated within
         # @yield the aggregate body, evaluated against a new `AggregateBuilder`; may be omitted
         # @return [Array<Bluebook::Aggregate>] every aggregate declared so far, this one last
         # @raise [Bluebook::DSL::Malformed] if the aggregate's own body fails any check
         #   `AggregateBuilder#build` raises
-        def aggregate_impl(name, &)
+        def aggregate_impl(name, kind: nil, &body)
           note_in_open_module(name)
           @aggregates << AggregateBuilder.build(name, bluebook_named_givens:          @bluebook_named_givens,
                                                       bluebook_pending_givens:        @bluebook_pending_givens,
                                                       bluebook_entity_named_givens:   @bluebook_entity_named_givens,
-                                                      bluebook_entity_pending_givens: @bluebook_entity_pending_givens, &)
+                                                      bluebook_entity_pending_givens: @bluebook_entity_pending_givens,
+                                                &Kinds.wrap(name, kind, &body))
         end
 
         # Declares a read model belonging to this bluebook.
@@ -262,12 +228,6 @@ module Hecks
         end
 
         private
-
-        # Sets how this bluebook is classified, which describes the whole of it.
-        def classify(kind)
-          bluebook_wide!(kind)
-          @classification = kind
-        end
 
         # The bluebook's own metadata.
         def bluebook_identity

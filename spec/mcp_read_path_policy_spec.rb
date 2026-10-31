@@ -32,7 +32,8 @@ RSpec.describe Hecks::Adapters::Driving::McpScope::ArgumentPolicy do
   end
 
   it "still refuses path for a command that is not a read-only question" do
-    expect { described_class.admit!({ "path" => "lib/hecks/hecks/evolve/evolve.bluebook" }, label, "model_check_run.model_check") }
+    path = { "path" => "lib/hecks/hecks/evolve/evolve.bluebook" }
+    expect { described_class.admit!(path, label, "model_check_run.model_check") }
       .to raise_error(Hecks::Runtime::TypeMismatch, /never passes it on/)
   end
 

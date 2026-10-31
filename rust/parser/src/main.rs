@@ -379,6 +379,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("lifecycle", "Entity"),
     ("role", "Command"),
     ("goal", "Command"),
+    ("audience", "Command"),
     ("reference_to", "Command"),
     ("given", "Command"),
     ("ensures", "Command"),

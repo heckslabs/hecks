@@ -1,0 +1,387 @@
+{
+  "aggregates": [
+    {
+      "acknowledgements": [
+
+      ],
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "code",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Code"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "finished",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "Finished"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "code",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Code"
+            }
+          ],
+          "emits": [
+            "PartCut"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": null,
+          "idempotent": false,
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "code"
+              },
+              "target": "code"
+            }
+          ],
+          "name": "Cut",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": null
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "finished",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Finished"
+            }
+          ],
+          "emits": [
+            "PartFinished"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": null,
+          "idempotent": false,
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "finished"
+              },
+              "target": "finished"
+            }
+          ],
+          "name": "Finish",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Part",
+          "role": null
+        }
+      ],
+      "description": null,
+      "entities": [
+
+      ],
+      "identified_by": [
+        "code.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": null,
+      "name": "Part",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Code"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Finished"
+        }
+      ]
+    },
+    {
+      "acknowledgements": [
+
+      ],
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "label",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Label"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "label",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Label"
+            }
+          ],
+          "emits": [
+            "ParcelPacked"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": null,
+          "idempotent": false,
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "label"
+              },
+              "target": "label"
+            }
+          ],
+          "name": "Pack",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": null
+        }
+      ],
+      "description": null,
+      "entities": [
+
+      ],
+      "identified_by": [
+        "label.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": null,
+      "name": "Parcel",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Label"
+        }
+      ]
+    }
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    },
+    {
+      "boundary": "word",
+      "position": "3",
+      "replacement": "86400",
+      "source_token": "days",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "4",
+      "replacement": "3600",
+      "source_token": "hours",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "5",
+      "replacement": "60",
+      "source_token": "minutes",
+      "strategy": "scale_call"
+    }
+  ],
+  "classification": "core",
+  "formerly_known_as": null,
+  "ir_version": 1,
+  "modules": [
+    {
+      "aggregate": "Part",
+      "name": "Make",
+      "vision": "Turn raw parts into finished ones."
+    },
+    {
+      "aggregate": "Parcel",
+      "name": "Hand on",
+      "vision": "Send finished parts to whoever ordered them."
+    }
+  ],
+  "name": "Workshop",
+  "namespace": null,
+  "policies": [
+    {
+      "expect_undelivered": false,
+      "for_each": null,
+      "name": "HandOnWhenFinished",
+      "on_event": "PartFinished",
+      "target_domain": null,
+      "trigger_command": "Parcel.Pack",
+      "where": null,
+      "where_ast": null,
+      "with_spec": [
+
+      ]
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "provides": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "A bench where parts are made and then handed on."
+}

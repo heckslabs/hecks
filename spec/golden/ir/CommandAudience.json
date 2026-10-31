@@ -1,0 +1,236 @@
+{
+  "aggregates": [
+    {
+      "acknowledgements": [
+
+      ],
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "name",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "DeskName"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "DeskName"
+            }
+          ],
+          "emits": [
+            "DeskOpened"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Open a desk",
+          "idempotent": false,
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              },
+              "target": "name"
+            }
+          ],
+          "name": "Open",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "audience": [
+            "agent",
+            "ci"
+          ],
+          "emits": [
+            "DeskAudited"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Check a desk for a pipeline",
+          "idempotent": false,
+          "mutations": [
+
+          ],
+          "name": "Audit",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Desk",
+          "role": "Clerk"
+        },
+        {
+          "attributes": [
+
+          ],
+          "audience": [
+            "record"
+          ],
+          "emits": [
+            "DeskNoted"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record that a desk was seen",
+          "idempotent": false,
+          "mutations": [
+
+          ],
+          "name": "Note",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "Desk",
+          "role": null
+        }
+      ],
+      "description": "A desk whose commands say who a launcher lists them for.",
+      "entities": [
+
+      ],
+      "identified_by": [
+        "name.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": null,
+      "name": "Desk",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "DeskName"
+        }
+      ]
+    }
+  ],
+  "attaches_to": [
+
+  ],
+  "canonical_form": [
+    {
+      "boundary": "none",
+      "position": "1",
+      "replacement": "",
+      "source_token": "",
+      "strategy": "collapse_whitespace"
+    },
+    {
+      "boundary": "word",
+      "position": "2",
+      "replacement": ".size",
+      "source_token": ".length",
+      "strategy": "replace"
+    },
+    {
+      "boundary": "word",
+      "position": "3",
+      "replacement": "86400",
+      "source_token": "days",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "4",
+      "replacement": "3600",
+      "source_token": "hours",
+      "strategy": "scale_call"
+    },
+    {
+      "boundary": "word",
+      "position": "5",
+      "replacement": "60",
+      "source_token": "minutes",
+      "strategy": "scale_call"
+    }
+  ],
+  "classification": "core",
+  "formerly_known_as": null,
+  "ir_version": 1,
+  "name": "CommandAudience",
+  "namespace": null,
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "provides": [
+
+  ],
+  "read_models": [
+
+  ],
+  "version": null,
+  "vision": "Which commands of a desk a person, an agent, a CI step or a run's bookkeeping is shown."
+}

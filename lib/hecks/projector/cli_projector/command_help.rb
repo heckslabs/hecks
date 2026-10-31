@@ -19,7 +19,12 @@ module Hecks
           out << "dispatches #{spec[:command]}" if spec[:kind] == :command
           out << "reads #{spec[:command]}"      if spec[:kind] == :query
           out << "issued by #{spec[:role]}" if spec[:role]
-          out
+          out.concat(command_help_audience_lines(spec))
+        end
+
+        # The audiences a command declares it is listed for, or nothing when it declares none.
+        def command_help_audience_lines(spec)
+          Array(spec[:audience]).any? ? ["listed for #{spec[:audience].join(", ")}"] : []
         end
 
         # The example call with every argument as `path=…`.

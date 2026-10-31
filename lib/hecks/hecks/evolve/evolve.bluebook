@@ -16,11 +16,9 @@ Hecks.bluebook "Hecks" do
     # projection reports drift from the committed files and writes only when it is confirmed; an
     # evolution edits the syntax tables, regenerates the golden and holds the gates, and only when
     # confirmed (without it, the edit is rehearsed in memory and nothing is written).
-    aggregate "LanguageRun" do
+    aggregate "LanguageRun", kind: "Run" do
       description "One change to the language's own tables, or one reading of where its words stand."
 
-      attribute :run,         RunKey
-      attribute :operation,   Operation, optional: true
       attribute :confirm,     Switch, optional: true
       attribute :stdout,      Switch, optional: true
       attribute :word,        Word, optional: true
@@ -35,28 +33,6 @@ Hecks.bluebook "Hecks" do
       attribute :at,          Position, optional: true
       attribute :named,       Fill, optional: true
       attribute :pairs_shape, Shape, optional: true
-      attribute :checkout,    Switch, optional: true
-      attribute :report,      Report, optional: true
-      attribute :refusal,     Report, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-
-        invariant("a run is named") { !value.to_s.empty? }
-      end
-
-      value_object "Operation" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
-
-      value_object "Report" do
-        attribute :value, String
-      end
 
       # A keyword of the language, or the keyword an argument belongs to.
       value_object "Word" do
@@ -98,14 +74,6 @@ Hecks.bluebook "Hecks" do
       # How a pairs argument is read, such as verbatim.
       value_object "Shape" do
         attribute :value, String, matches: :present
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
-        transition "Accept"   => "accepted",  from: "requested"
-        transition "Complete" => "completed", from: "accepted"
-        transition "Fault"    => "faulted",   from: %w[requested accepted]
-        mark :terminal, "completed", "faulted"
       end
 
       command "ProjectModel" do
@@ -384,56 +352,6 @@ Hecks.bluebook "Hecks" do
         emits RetireArgumentRequested
       end
 
-      # What the tree reported about itself, held against every request: nothing here runs
-      # outside a hecks checkout (hecks.gemspec beside lib/).
-      command "Accept" do
-        role "System"
-        goal "Let a request through only when the working tree is a hecks checkout"
-
-        reference_to LanguageRun
-        attribute :checkout, Switch, sets: true
-
-        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-
-
-        emits LanguageAccepted
-      end
-
-      command "Complete" do
-        role "System"
-        goal "Record that the request was carried out, and what it reported"
-
-        reference_to LanguageRun
-        attribute :report, Report, sets: true
-
-
-        emits LanguageCompleted
-      end
-
-      command "Fault" do
-        role "System"
-        goal "Record that the request was refused or could not be carried out, and why"
-
-        reference_to LanguageRun
-        attribute :refusal, Report, sets: true
-
-
-        emits LanguageFaulted
-      end
-
-      query "LanguageOutcome" do
-        description "How one request ended: its status, and what it reported or why it failed."
-        attribute :run, RunKey
-        where(run: :run)
-        order_by :run
-      end
-
-      query "LanguageFaulted" do
-        description "Every request that was refused or could not be carried out."
-        where(status: "faulted")
-        order_by :run
-      end
-
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
         attribute :text, String
@@ -545,32 +463,6 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
-    policy "AcceptLanguageWhenExamined" do
-      on      "LanguageRun.LanguageExamined"
-      trigger LanguageRun::Accept, with: { checkout: :checkout }
-    end
-
-    policy "FaultLanguageWhenNotAccepted" do
-      on      "LanguageRun.LanguageExamined"
-      where   { !checkout.value }
-      trigger LanguageRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
-    end
-
-    policy "PerformLanguageWhenAccepted" do
-      on      "LanguageRun.LanguageAccepted"
-      ask     :perform, with: { run: :run }
-    end
-
-    policy "RecordLanguageOutcome" do
-      on      "LanguageRun.LanguageAnswered"
-      trigger LanguageRun::Complete, with: { report: :report }
-    end
-
-    policy "RecordLanguageFault" do
-      on      "LanguageRun.LanguageRefused"
-      trigger LanguageRun::Fault, with: { refusal: :refusal }
-    end
-
     aggregate "SyntaxBootCache" do
       description "The grammar bluebooks' on-disk boot cache, keyed by a digest of the bluebooks it was built from."
 
@@ -592,6 +484,7 @@ Hecks.bluebook "Hecks" do
       command "Record" do
         role "Maintainer"
         goal "Record a boot cache as built from the grammar bluebooks that hash to this digest"
+        audience :record
 
         attribute :digest, Digest, sets: true
 
@@ -602,6 +495,7 @@ Hecks.bluebook "Hecks" do
       command "Invalidate", from: "fresh" do
         role "Maintainer"
         goal "Record that the grammar changed under the cache"
+        audience :record
 
         reference_to SyntaxBootCache
 
@@ -611,6 +505,7 @@ Hecks.bluebook "Hecks" do
       command "Rebuild", from: "stale" do
         role "Maintainer"
         goal "Record that the cache was rebuilt from the current grammar"
+        audience :record
 
         reference_to SyntaxBootCache
 
@@ -627,42 +522,10 @@ Hecks.bluebook "Hecks" do
     # Codemod: the mechanical rewrites of the example bluebooks. Each one edits tracked files, so
     # unconfirmed it rehearses the edit (the script reboots every bluebook and puts the files back)
     # and reports what it would change; the files stay changed only when it is confirmed.
-    aggregate "CodemodRun" do
+    aggregate "CodemodRun", kind: "Run" do
       description "One rewrite of the example bluebooks by a codemod, or the rehearsal of it."
 
-      attribute :run,       RunKey
-      attribute :operation, Operation, optional: true
       attribute :confirm,   Switch, optional: true
-      attribute :checkout,  Switch, optional: true
-      attribute :report,    Report, optional: true
-      attribute :refusal,   Report, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-
-        invariant("a run is named") { !value.to_s.empty? }
-      end
-
-      value_object "Operation" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
-
-      value_object "Report" do
-        attribute :value, String
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
-        transition "Accept"   => "accepted",  from: "requested"
-        transition "Complete" => "completed", from: "accepted"
-        transition "Fault"    => "faulted",   from: %w[requested accepted]
-        mark :terminal, "completed", "faulted"
-      end
 
       command "HoistLocalGivens" do
         role "Maintainer"
@@ -687,56 +550,6 @@ Hecks.bluebook "Hecks" do
 
         emits DropImplicitAppendFieldsRequested
       end
-
-      # What the tree reported about itself, held against every request: nothing here runs
-      # outside a hecks checkout (hecks.gemspec beside lib/).
-      command "Accept" do
-        role "System"
-        goal "Let a request through only when the working tree is a hecks checkout"
-
-        reference_to CodemodRun
-        attribute :checkout, Switch, sets: true
-
-        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-
-
-        emits CodemodAccepted
-      end
-
-      command "Complete" do
-        role "System"
-        goal "Record that the request was carried out, and what it reported"
-
-        reference_to CodemodRun
-        attribute :report, Report, sets: true
-
-
-        emits CodemodCompleted
-      end
-
-      command "Fault" do
-        role "System"
-        goal "Record that the request was refused or could not be carried out, and why"
-
-        reference_to CodemodRun
-        attribute :refusal, Report, sets: true
-
-
-        emits CodemodFaulted
-      end
-
-      query "CodemodOutcome" do
-        description "How one request ended: its status, and what it reported or why it failed."
-        attribute :run, RunKey
-        where(run: :run)
-        order_by :run
-      end
-
-      query "CodemodFaulted" do
-        description "Every request that was refused or could not be carried out."
-        where(status: "faulted")
-        order_by :run
-      end
     end
 
     policy "ExamineWhenHoistLocalGivensRequested" do
@@ -747,32 +560,6 @@ Hecks.bluebook "Hecks" do
     policy "ExamineWhenDropImplicitAppendFieldsRequested" do
       on      "CodemodRun.DropImplicitAppendFieldsRequested"
       ask     :examine, with: { run: :run }
-    end
-
-    policy "AcceptCodemodWhenExamined" do
-      on      "CodemodRun.CodemodExamined"
-      trigger CodemodRun::Accept, with: { checkout: :checkout }
-    end
-
-    policy "FaultCodemodWhenNotAccepted" do
-      on      "CodemodRun.CodemodExamined"
-      where   { !checkout.value }
-      trigger CodemodRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
-    end
-
-    policy "PerformCodemodWhenAccepted" do
-      on      "CodemodRun.CodemodAccepted"
-      ask     :perform, with: { run: :run }
-    end
-
-    policy "RecordCodemodOutcome" do
-      on      "CodemodRun.CodemodAnswered"
-      trigger CodemodRun::Complete, with: { report: :report }
-    end
-
-    policy "RecordCodemodFault" do
-      on      "CodemodRun.CodemodRefused"
-      trigger CodemodRun::Fault, with: { refusal: :refusal }
     end
 
     # One named one-off script the checkout runs: planned, or applied once confirmed. Its body is a

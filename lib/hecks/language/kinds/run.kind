@@ -1,0 +1,120 @@
+# The Run kind: an aggregate declared `kind: "Run"` is one request to the codebase tooling, carried
+# out only inside a hecks checkout. It holds the lifecycle every such request shares, the three
+# bookkeeping commands that move it along, the two queries that read how requests ended, and the
+# policies that examine, accept, perform and record it.
+#
+# This file is aggregate-body text in the bluebook's own words. `{Name}` stands for the aggregate's
+# name and `{Stem}` for that name without the kind (`GateRun` has the stem `Gate`). The aggregate's
+# own body is evaluated at the `# body` line, so its attributes, value objects and request commands
+# fall between the lines above and below it.
+attribute :run,       RunKey
+attribute :operation, Operation, optional: true
+
+value_object "RunKey" do
+  attribute :value, String, matches: :present
+
+  invariant("a run is named") { !value.to_s.empty? }
+end
+
+value_object "Operation" do
+  attribute :value, String, matches: :present
+end
+
+value_object "Switch" do
+  attribute :value, Boolean
+end
+
+value_object "Report" do
+  attribute :value, String
+end
+
+# body
+
+attribute :checkout, Switch, optional: true
+attribute :report,   Report, optional: true
+attribute :refusal,  Report, optional: true
+identified_by :run
+
+lifecycle :status, default: "requested" do
+  mark :failure, "faulted"
+  transition "Accept"   => "accepted",  from: "requested"
+  transition "Complete" => "completed", from: "accepted"
+  transition "Fault"    => "faulted",   from: %w[requested accepted]
+  mark :terminal, "completed", "faulted"
+end
+
+# What the tree reported about itself, held against every request: nothing here runs
+# outside a hecks checkout (hecks.gemspec beside lib/).
+command "Accept" do
+  role "System"
+  goal "Let a request through only when the working tree is a hecks checkout"
+
+  reference_to {Name}
+  attribute :checkout, Switch, sets: true
+
+  given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+  emits {Stem}Accepted
+end
+
+command "Complete" do
+  role "System"
+  goal "Record that the request was carried out, and what it reported"
+
+  reference_to {Name}
+  attribute :report, Report, sets: true
+
+
+  emits {Stem}Completed
+end
+
+command "Fault" do
+  role "System"
+  goal "Record that the request was refused or could not be carried out, and why"
+
+  reference_to {Name}
+  attribute :refusal, Report, sets: true
+
+
+  emits {Stem}Faulted
+end
+
+query "{Stem}Outcome" do
+  description "How one request ended: its status, and what it reported or why it failed."
+  attribute :run, RunKey
+  where(run: :run)
+  order_by :run
+end
+
+query "{Stem}Faulted" do
+  description "Every request that was refused or could not be carried out."
+  where(status: "faulted")
+  order_by :run
+end
+
+policy "Accept{Stem}WhenExamined" do
+  on      "{Name}.{Stem}Examined"
+  trigger {Name}::Accept, with: { checkout: :checkout }
+end
+
+policy "Fault{Stem}WhenNotAccepted" do
+  on      "{Name}.{Stem}Examined"
+  where   { !checkout.value }
+  trigger {Name}::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+end
+
+policy "Perform{Stem}WhenAccepted" do
+  on      "{Name}.{Stem}Accepted"
+  ask     :perform, with: { run: :run }
+end
+
+policy "Record{Stem}Outcome" do
+  on      "{Name}.{Stem}Answered"
+  trigger {Name}::Complete, with: { report: :report }
+end
+
+policy "Record{Stem}Fault" do
+  on      "{Name}.{Stem}Refused"
+  trigger {Name}::Fault, with: { refusal: :refusal }
+end

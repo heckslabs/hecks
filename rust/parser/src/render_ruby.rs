@@ -298,6 +298,14 @@ fn command_text(out: &mut String, command: &ir::Command) -> Result<(), String> {
     } else if let Some(role) = &command.role {
         out.push_str(&format!("      role {}\n", string(role)));
     }
+    if !command.audience.is_empty() {
+        let names: Vec<String> = command
+            .audience
+            .iter()
+            .map(|name| format!(":{name}"))
+            .collect();
+        out.push_str(&format!("      audience {}\n", names.join(", ")));
+    }
     if let Some(goal) = &command.goal {
         out.push_str(&format!("      goal {}\n", string(goal)));
     }

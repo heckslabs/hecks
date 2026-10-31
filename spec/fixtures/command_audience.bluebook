@@ -1,0 +1,46 @@
+# Small fixture that exercises the command `audience` word end to end (ADR 0163): who a launcher
+# lists a command for, one audience or several, and a command that names none.
+Hecks.bluebook "CommandAudience" do
+  vision "Which commands of a desk a person, an agent, a CI step or a run's bookkeeping is shown."
+  core
+
+  aggregate "Desk" do
+    description "A desk whose commands say who a launcher lists them for."
+
+    identified_by :name
+
+    attribute :name, DeskName
+
+    value_object "DeskName" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "Clerk"
+      goal "Open a desk"
+
+      attribute :name, DeskName, sets: true
+
+      emits "DeskOpened"
+    end
+
+    command "Audit" do
+      role "Clerk"
+      goal "Check a desk for a pipeline"
+      audience :agent, :ci
+
+      reference_to Desk
+
+      emits "DeskAudited"
+    end
+
+    command "Note" do
+      goal "Record that a desk was seen"
+      audience :record
+
+      reference_to Desk
+
+      emits "DeskNoted"
+    end
+  end
+end

@@ -275,43 +275,11 @@ Hecks.bluebook "Hecks" do
     # Conformance: the checks on the language itself. Each finds every disagreement and refuses with
     # them all, so a check that fails is recorded as faulted with what it found. The argument-gate
     # matrix rewrites a committed matrix and its fixtures, so it only reports unless it is confirmed.
-    aggregate "ConformanceRun" do
+    aggregate "ConformanceRun", kind: "Run" do
       description "One check that the engines, the reference docs and the argument gates agree with the language."
 
-      attribute :run,       RunKey
-      attribute :operation, Operation, optional: true
       attribute :confirm,   Switch, optional: true
       attribute :additive,  Switch, optional: true
-      attribute :checkout,  Switch, optional: true
-      attribute :report,    Report, optional: true
-      attribute :refusal,   Report, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-
-        invariant("a run is named") { !value.to_s.empty? }
-      end
-
-      value_object "Operation" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
-
-      value_object "Report" do
-        attribute :value, String
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
-        transition "Accept"   => "accepted",  from: "requested"
-        transition "Complete" => "completed", from: "accepted"
-        transition "Fault"    => "faulted",   from: %w[requested accepted]
-        mark :terminal, "completed", "faulted"
-      end
 
       command "CheckEngineAgreement" do
         role "Maintainer"
@@ -360,56 +328,6 @@ Hecks.bluebook "Hecks" do
 
         emits ArgumentGateMatrixRequested
       end
-
-      # What the tree reported about itself, held against every request: nothing here runs
-      # outside a hecks checkout (hecks.gemspec beside lib/).
-      command "Accept" do
-        role "System"
-        goal "Let a request through only when the working tree is a hecks checkout"
-
-        reference_to ConformanceRun
-        attribute :checkout, Switch, sets: true
-
-        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-
-
-        emits ConformanceAccepted
-      end
-
-      command "Complete" do
-        role "System"
-        goal "Record that the request was carried out, and what it reported"
-
-        reference_to ConformanceRun
-        attribute :report, Report, sets: true
-
-
-        emits ConformanceCompleted
-      end
-
-      command "Fault" do
-        role "System"
-        goal "Record that the request was refused or could not be carried out, and why"
-
-        reference_to ConformanceRun
-        attribute :refusal, Report, sets: true
-
-
-        emits ConformanceFaulted
-      end
-
-      query "ConformanceOutcome" do
-        description "How one request ended: its status, and what it reported or why it failed."
-        attribute :run, RunKey
-        where(run: :run)
-        order_by :run
-      end
-
-      query "ConformanceFaulted" do
-        description "Every request that was refused or could not be carried out."
-        where(status: "faulted")
-        order_by :run
-      end
     end
 
     policy "ExamineWhenCheckEngineAgreementRequested" do
@@ -430,32 +348,6 @@ Hecks.bluebook "Hecks" do
     policy "ExamineWhenArgumentGateMatrixRequested" do
       on      "ConformanceRun.ArgumentGateMatrixRequested"
       ask     :examine, with: { run: :run }
-    end
-
-    policy "AcceptConformanceWhenExamined" do
-      on      "ConformanceRun.ConformanceExamined"
-      trigger ConformanceRun::Accept, with: { checkout: :checkout }
-    end
-
-    policy "FaultConformanceWhenNotAccepted" do
-      on      "ConformanceRun.ConformanceExamined"
-      where   { !checkout.value }
-      trigger ConformanceRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
-    end
-
-    policy "PerformConformanceWhenAccepted" do
-      on      "ConformanceRun.ConformanceAccepted"
-      ask     :perform, with: { run: :run }
-    end
-
-    policy "RecordConformanceOutcome" do
-      on      "ConformanceRun.ConformanceAnswered"
-      trigger ConformanceRun::Complete, with: { report: :report }
-    end
-
-    policy "RecordConformanceFault" do
-      on      "ConformanceRun.ConformanceRefused"
-      trigger ConformanceRun::Fault, with: { refusal: :refusal }
     end
 
     # Style: the comment style guides (Ruby and Rust) and the canonical form of a JSON document. A
