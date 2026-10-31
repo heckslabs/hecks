@@ -460,7 +460,7 @@ Hecks.bluebook "CiPipeline" do
 
     identified_by :name
 
-    reference_to Build
+    reference_to CiRun
     attribute :name,        JobName
     attribute :required,    Switch
     attribute :gate,        GateName
@@ -508,7 +508,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Write down one job of a build, the edges into it, and whether a gate can skip it"
 
-      reference_to Build
+      reference_to CiRun
       attribute :name,        JobName
       attribute :required,    Switch
       attribute :gate,        GateName
@@ -630,7 +630,7 @@ Hecks.bluebook "CiPipeline" do
 
   # One CI run of one commit. It passes only when every required job has passed or been skipped by
   # its gate, and fails when one required job fails. Required jobs are counted as they land.
-  aggregate "Build" do
+  aggregate "CiRun" do
     description "One CI run of one commit: how many of its required jobs passed, were skipped, or failed, and whether the run passed or failed."
 
     identified_by :build
@@ -687,7 +687,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Start a build's jobs running"
 
-      reference_to Build
+      reference_to CiRun
 
       emits "BuildStarted"
     end
@@ -696,7 +696,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Count one required job as passed"
 
-      reference_to Build
+      reference_to CiRun
 
       given("a pass is counted while the build runs") { status == "running" }
 
@@ -709,7 +709,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Count one required job as skipped by its gate, which settles it"
 
-      reference_to Build
+      reference_to CiRun
 
       given("a skip is counted while the build runs") { status == "running" }
 
@@ -722,7 +722,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Count one required job as failed"
 
-      reference_to Build
+      reference_to CiRun
 
       given("a failure is counted while the build runs") { status == "running" }
 
@@ -737,7 +737,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Mark the build passed, once every required job passed or was skipped and none failed"
 
-      reference_to Build
+      reference_to CiRun
 
       given("every required job passed or was skipped by its gate") do
         passed.value + skipped.value == required_total.value
@@ -751,7 +751,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Mark the build failed, because a required job failed"
 
-      reference_to Build
+      reference_to CiRun
 
       given("a required job failed") { failed.value > 0 }
 
@@ -922,17 +922,17 @@ Hecks.bluebook "CiPipeline" do
 
   # Refused until every required job is settled, which is the "not yet" answer.
   policy "PassBuildOnPassCounted" do
-    on      "Build.PassCounted"
+    on      "CiRun.PassCounted"
     trigger Build::Pass, with: { build: :build }
   end
 
   policy "PassBuildOnSkipCounted" do
-    on      "Build.SkipCounted"
+    on      "CiRun.SkipCounted"
     trigger Build::Pass, with: { build: :build }
   end
 
   policy "FailBuildOnFailureCounted" do
-    on      "Build.FailureCounted"
+    on      "CiRun.FailureCounted"
     trigger Build::Fail, with: { build: :build }
   end
 end
