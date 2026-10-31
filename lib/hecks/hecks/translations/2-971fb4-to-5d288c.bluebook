@@ -13,4 +13,10 @@ Hecks.data_translation "Hecks", from: "971fb4", to: "5d288c" do
 
   aggregate "ReviewRequest", was: "PullRequest" do
   end
+
+  aggregate "CorpusRun" do
+    drop "port"
+    drop "agent"
+    drop "directory"
+  end
 end
