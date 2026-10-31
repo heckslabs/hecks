@@ -153,7 +153,7 @@ RSpec.describe "QualityControl" do
     # stale.
     it "fills now from the clock when the caller leaves it out", :aggregate_failures do
       target
-      text, code = cli("target.claim", "id=banking", "held_by.value=agent-one")
+      text, code = cli("target.claim!", "id=banking", "held_by.value=agent-one")
 
       expect(code).to eq(0)
       expect(JSON.parse(text).dig("state", "claimed_at")).to eq(1_000)
@@ -162,7 +162,7 @@ RSpec.describe "QualityControl" do
     # The entry point supplies only what was omitted.
     it "believes an explicit time over the clock" do
       target
-      text, = cli("target.claim", "id=banking", "held_by.value=agent-one", "now.value=55")
+      text, = cli("target.claim!", "id=banking", "held_by.value=agent-one", "now.value=55")
 
       expect(JSON.parse(text).dig("state", "claimed_at")).to eq(55)
     end
@@ -171,11 +171,11 @@ RSpec.describe "QualityControl" do
     # one-second window.
     it "does not let a claimer name the window it is judged against", :aggregate_failures do
       target
-      expect(cli("target.claim", "id=banking", "held_by.value=agent-one").last).to eq(0)
+      expect(cli("target.claim!", "id=banking", "held_by.value=agent-one").last).to eq(0)
 
-      text, refused = cli("target.claim", "id=banking", "held_by.value=agent-two", "window.value=1")
+      text, refused = cli("target.claim!", "id=banking", "held_by.value=agent-two", "window.value=1")
 
-      expect(refused).to eq(1)
+      expect(refused).to eq(Hecks::Adapters::Driving::ExitStatus::USAGE)
       expect(text).to include("no argument")
     end
 
@@ -622,7 +622,7 @@ RSpec.describe "QualityControl" do
       runtime
       Hecks::Adapters::Driving::CliRunner.call(
         runtime: runtime, program: "bin/qc",
-        argv: ["angle.propose", "reference.value=ANGLE-1", "premise.value=#{"a" * 60}",
+        argv: ["angle.propose!", "reference.value=ANGLE-1", "premise.value=#{"a" * 60}",
                "citation.value=BUG#1", "proposer.value=Claude QA"]
       )
     end
