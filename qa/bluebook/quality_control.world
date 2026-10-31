@@ -6,6 +6,7 @@ Hecks.world "QualityControl" do
   # (row-level security), so the boot refuses one. hecks_qa owns the database.
   persisted_by("PostgresEra") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
+    mint_eras true
   end
   # The rehearsal reads a throwaway copy of the ledger, named by an environment variable so the
   # file holds no connection string; the copy is made beforehand and is never this database.
