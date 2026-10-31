@@ -203,6 +203,9 @@
       "endings": [
         "ParcelDelivered"
       ],
+      "resumes": [
+
+      ],
       "states": [
         "posted",
         "picked_up",
