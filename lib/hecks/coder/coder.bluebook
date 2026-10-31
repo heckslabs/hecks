@@ -1,0 +1,252 @@
+# Coder: the coder side of the QA loop. It works the bugs QualityControl logs, and when a fix is
+# not ready it records a Stub, a named temporary workaround that lets the QA rotation keep moving
+# while the bug stays open.
+# Cross-domain wiring to QualityControl's Bug events is deliberately NOT in this first cut.
+
+Hecks.bluebook "Coder" do
+  vision "Every bug QA logs is worked by one coder at a time, and a bug that cannot be fixed yet is still never hidden: it is stubbed, named, and retired once the fix lands."
+
+  core
+
+  # One assignment per QA bug, keyed by the bug's reference. A claim is a lifecycle edge, so two
+  # coders racing for the same bug see one win and one refusal.
+  aggregate "Assignment" do
+    description "One QA bug, the coder working it, and how far the fix got."
+
+    identified_by :bug
+
+    attribute :bug,        BugReference
+    attribute :held_by,    Holder
+    # A number, not a timestamp type: the predicate sublanguage compares only numbers.
+    attribute :claimed_at, Instant
+    attribute :window,     StaleAfter
+
+    value_object "BugReference" do
+      attribute :value, String, matches: :present
+      invariant("an assignment names the bug it works") { !value.to_s.empty? }
+    end
+
+    # `nobody` when unclaimed, as QualityControl's `Engineer` is.
+    value_object "Holder" do
+      attribute :value, String, default: "nobody"
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # Mirrors `QualityControl::Target::StaleAfter`: a claim older than this may be taken over.
+    value_object "StaleAfter" do
+      attribute :value, Integer, default: 900
+      invariant("a staleness window is positive") { value.positive? }
+    end
+
+    # `stubbed` is a bug held by a coder with a Stub in place. Both held states can be taken over
+    # once stale, so a coder who goes quiet does not strand the bug.
+    lifecycle :status, default: "waiting" do
+      transition "Claim"   => "claimed",  from: ["waiting", "released", "claimed", "stubbed"]
+      transition "Stub"    => "stubbed",  from: "claimed"
+      transition "Fix"     => "fixed",    from: ["claimed", "stubbed"]
+      transition "Release" => "released", from: ["claimed", "stubbed"]
+      mark :terminal, "fixed"
+    end
+
+    # `from` includes the held states on purpose: without them the staleness rule below could never
+    # apply, because a claim that went quiet sits in `claimed` and no edge would leave it.
+    # Same arithmetic as QualityControl's `Bug.Claim`: `+` stands for `now - claimed_at >= window`.
+    command "Claim" do
+      role "Coder"
+      goal "Take a bug off the queue, or one whose holder has gone quiet"
+
+      reference_to Assignment
+      attribute :held_by, Holder, sets: true
+      attribute :now,     Instant
+      needs :now
+
+      given("a live claim is not taken from the coder holding it") do
+        held_by.value == "nobody" || claimed_at.value + window.value <= now.value
+      end
+
+      sets :claimed_at, to: :now
+
+      emits "AssignmentClaimed"
+    end
+
+    # The Stub is recorded by its own command; this only moves the assignment into `stubbed`.
+    command "Stub" do
+      role "Coder"
+      goal "Record that the bug is held open behind a temporary workaround"
+
+      reference_to Assignment
+
+      emits "AssignmentStubbed"
+    end
+
+    # `bug` is restated so `AssignmentFixed` carries it: an event holds only its dispatched arguments,
+    # and `RetireStubOnFix` needs the bug to find the Stub it retires.
+    command "Fix" do
+      role "Coder"
+      goal "Record that the bug no longer happens"
+
+      reference_to Assignment
+      attribute :bug, BugReference
+
+      emits "AssignmentFixed"
+    end
+
+    # Dropping a claim hands the bug back to the queue; the caller passes `nobody` as the holder.
+    command "Release" do
+      role "Coder"
+      goal "Put a bug back on the queue without finishing it"
+
+      reference_to Assignment
+      attribute :held_by, Holder, sets: true
+
+      emits "AssignmentReleased"
+    end
+  end
+
+  # The workaround that lets the QA rotation keep moving while the bug stays open. One Stub per bug,
+  # so its reference is the bug's reference, and `RetireStubOnFix` can name it from the fix alone.
+  aggregate "Stub" do
+    description "A named temporary workaround for a bug whose fix is not ready, with the QA target it keeps moving."
+
+    identified_by :reference
+
+    attribute :reference, StubReference
+    attribute :bug,       StubBug
+    attribute :target,    StubTarget
+    attribute :reason,    StubReason
+
+    value_object "StubReference" do
+      attribute :value, String, matches: :present
+      invariant("a stub is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "StubBug" do
+      attribute :value, String, matches: :present
+      invariant("a stub says which bug it stands in for") { !value.to_s.empty? }
+    end
+
+    # The QA target name, such as `ledger_ordering`, that this stub lets keep moving.
+    value_object "StubTarget" do
+      attribute :value, String, matches: :present
+      invariant("a stub says which target it keeps moving") { !value.to_s.empty? }
+    end
+
+    # Required: a workaround that does not say why it exists is a silent failure.
+    value_object "StubReason" do
+      attribute :value, String, matches: :present
+      invariant("a stub says why it exists") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Retire" => "retired", from: "active"
+      mark :terminal, "retired"
+    end
+
+    command "Record" do
+      role "Coder"
+      goal "Stand a named workaround in for a bug whose fix is not ready"
+
+      attribute :reference, StubReference
+      attribute :bug,       StubBug
+      attribute :target,    StubTarget
+      attribute :reason,    StubReason
+
+      emits "StubRecorded"
+    end
+
+    # Retire has no `given` on the bug's state: a Stub cannot read Assignment. The only path to
+    # this command is `RetireStubOnFix`, which fires on `AssignmentFixed`, so the bug is fixed by
+    # construction.
+    command "Retire" do
+      role "Coder"
+      goal "Take a workaround out once the bug it stood in for is fixed"
+
+      reference_to Stub
+
+      emits "StubRetired"
+    end
+  end
+
+  # A Patch is one pull request opened for a bug's fix, recorded so its CI status is a lookup.
+  # Named `Patch`, as QualityControl names its own; `identified_by :number` keeps it a lookup.
+  aggregate "Patch" do
+    description "One pull request opened for a bug's fix: number, branch, and the commit it was opened at."
+
+    identified_by :number
+
+    attribute :number, PatchNumber
+    attribute :bug,    PatchBug
+    attribute :branch, PatchBranch
+    attribute :commit, CommitRef
+
+    value_object "PatchNumber" do
+      attribute :value, Integer
+      invariant("a patch is numbered") { value.positive? }
+    end
+
+    value_object "PatchBug" do
+      attribute :value, String, matches: :present
+      invariant("a patch says which bug it fixes") { !value.to_s.empty? }
+    end
+
+    value_object "PatchBranch" do
+      attribute :value, String, matches: :present
+      invariant("a patch says which branch it is on") { !value.to_s.empty? }
+    end
+
+    # 7 to 40 hex: a fix that lives only in a working tree is not a fix.
+    value_object "CommitRef" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    # Both endings are terminal, as QualityControl's Patch has them.
+    lifecycle :status, default: "opened" do
+      transition "Merge" => "merged", from: "opened"
+      transition "Close" => "closed", from: "opened"
+      mark :terminal, "closed", "merged"
+    end
+
+    command "Open" do
+      role "Coder"
+      goal "Record that a fix has been opened as a pull request"
+
+      attribute :number, PatchNumber
+      attribute :bug,    PatchBug
+      attribute :branch, PatchBranch
+      attribute :commit, CommitRef
+
+      emits "PatchOpened"
+    end
+
+    command "Merge" do
+      role "Coder"
+      goal "Record that GitHub merged it"
+
+      reference_to Patch
+
+      emits "PatchMerged"
+    end
+
+    command "Close" do
+      role "Coder"
+      goal "Record that GitHub closed it without merging"
+
+      reference_to Patch
+
+      emits "PatchClosed"
+    end
+  end
+
+  # The one automatic reaction. A fix retires the workaround standing in for it: the stub is only
+  # needed while the bug is open, so it is retired by policy rather than inline in `Fix`, which
+  # would couple two aggregates in one command. `Assignment.Fix` emits `AssignmentFixed`, and the
+  # bug is the Stub's reference, so `stub: :bug` names the right one.
+  policy "RetireStubOnFix" do
+    on      "Assignment.AssignmentFixed"
+    trigger Stub::Retire, with: { stub: :bug }
+  end
+end
