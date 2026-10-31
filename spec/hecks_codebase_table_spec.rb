@@ -124,7 +124,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["query_ir", "CorpusRun", "IrDuplicates", "ir_duplicates", { query: true }],
     ["query_ir", "CorpusRun", "IrImpact", "ir_impact", { args: %w[name=Entity field=given], query: true }],
     ["hecks_query_ir_mcp", "CorpusRun", "ServeQueryIrMcp", "serve_query_ir_mcp"],
-    ["present", "CorpusRun", "Present", "present"],
+    ["present", "Server", "Present", "present"],
     ["release", "PublishingRun", "Publish", "publish"],
     ["release_gem", "PublishingRun", "PublishGem", "publish_gem"]
   ].map do |script, aggregate, name, verb, extra|
@@ -133,7 +133,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
   CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun CodemodRun
-                           TestSuiteRun CorpusRun PublishingRun PromotionRun].freeze
+                           TestSuiteRun CorpusRun Server PublishingRun PromotionRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
