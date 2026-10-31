@@ -6401,6 +6401,36 @@
                 "fills",
                 "provides"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "aggregate"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "kind"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "kind"
+              ]
             ]
           ]
         }

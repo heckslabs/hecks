@@ -2102,6 +2102,23 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
         coerce: "",
         blank_message: "",
     },
+    ArgumentSeed {
+        keyword: "aggregate",
+        context: "Bluebook",
+        at: "",
+        named: "kind",
+        kind: "text",
+        required: "false",
+        fills: "kind",
+        selects: "",
+        pair_key_fills: "",
+        pair_value_fills: "",
+        pairs_shape: "",
+        status: "admitted",
+        variadic: "",
+        coerce: "",
+        blank_message: "",
+    },
 ];
 
 impl ArgumentSeed {
@@ -2362,6 +2379,7 @@ impl ArgumentSeed {
                     "process_manager",
                     "provides",
                     "provides",
+                    "aggregate",
                 ],
                 offered: offered.as_str(),
             }

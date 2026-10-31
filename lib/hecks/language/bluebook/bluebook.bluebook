@@ -254,6 +254,8 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "provides", context: "Bluebook", at: "", named: "live_assignments", kind: "text", required: "false", fills: "provides"
 
       member keyword: "provides", context: "Bluebook", at: "", named: "live_transitions", kind: "text", required: "false", fills: "provides"
+
+      member keyword: "aggregate", context: "Bluebook", at: "", named: "kind", kind: "text", required: "false", fills: "kind"
     end
   end
 end

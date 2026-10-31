@@ -126,15 +126,17 @@ module Hecks
         # named in `GenericDispatch::BOOTSTRAP_CALLS_FALLBACK`.
         #
         # @param name [String] the aggregate's own name
+        # @param kind [String, nil] the kind whose text the aggregate's body is evaluated within
         # @yield the aggregate body, evaluated against a new `AggregateBuilder`; may be omitted
         # @return [Array<Bluebook::Aggregate>] every aggregate declared so far, this one last
         # @raise [Bluebook::DSL::Malformed] if the aggregate's own body fails any check
         #   `AggregateBuilder#build` raises
-        def aggregate_impl(name, &)
+        def aggregate_impl(name, kind: nil, &body)
           @aggregates << AggregateBuilder.build(name, bluebook_named_givens:          @bluebook_named_givens,
                                                       bluebook_pending_givens:        @bluebook_pending_givens,
                                                       bluebook_entity_named_givens:   @bluebook_entity_named_givens,
-                                                      bluebook_entity_pending_givens: @bluebook_entity_pending_givens, &)
+                                                      bluebook_entity_pending_givens: @bluebook_entity_pending_givens,
+                                                &Kinds.wrap(name, kind, &body))
         end
 
         # Declares a read model belonging to this bluebook.
