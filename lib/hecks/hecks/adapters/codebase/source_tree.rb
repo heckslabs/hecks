@@ -24,6 +24,29 @@ require_relative "../git"
 
 module Hecks
   module Adapters
+    # The lookup and working tree a perform runs against, kept out of the class body.
+    module Performing
+      # @param operation [String] the operation the request names
+      # @return [Module] the family that carries it out
+      # @raise [ConsoleCapture::Failure] when no family carries the operation out
+      def family_for(operation)
+        SourceTree::FAMILIES.find { |candidate| candidate::OPERATIONS.include?(operation) } ||
+          raise(ConsoleCapture::Failure, "no task carries out #{operation.inspect}")
+      end
+
+      # @param operation [String] the operation the request names
+      # @param held [Hash] the record, whose folder argument a folder operation reads
+      # @return [Object] the tree the operation runs against
+      def working_tree(operation, held)
+        Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation) ? folder_tree(held) : checkout_tree
+      end
+
+      # @return [Object] the shell the family runs commands through
+      def shell
+        self.class.shell || Shell.new
+      end
+    end
+
     # The `SourceTree` port's adapter: everything Codebase does to the working tree of this
     # repository.
     #
@@ -35,6 +58,7 @@ module Hecks
     # file and does the work with the existing generators, linters and tools.
     class SourceTree
       include CorpusQueries
+      include Performing
 
       class << self
         # @return [#capture, nil] starts each child process; a `Shell` when nil. A spec replaces it
@@ -78,12 +102,8 @@ module Hecks
         operation = plain(held[:operation])
         return handed_off(operation) if HANDED_OFF.include?(operation)
 
-        family = FAMILIES.find { |candidate| candidate::OPERATIONS.include?(operation) }
-        raise ConsoleCapture::Failure, "no task carries out #{operation.inspect}" unless family
-
-        working = Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation) ? folder_tree(held) : checkout_tree
-        args = held.except(:operation)
-        done = family.call(operation, args, working, shell: self.class.shell || Shell.new)
+        family = family_for(operation)
+        done = family.call(operation, held.except(:operation), working_tree(operation, held), shell: shell)
         done.is_a?(Hash) ? done : { report: { value: done } }
       end
 
@@ -169,6 +189,17 @@ module Hecks
         { text: Codebase::GeneratedKeys.report(args.transform_values { |value| plain(value) }, tree) }
       end
 
+      # Operations the Terminal adapter carries out itself: the run records that the server was
+      # started and answers when the process hands back, so nothing here runs them.
+      HANDED_OFF = %w[serve_mcp].freeze
+      private_constant :HANDED_OFF
+
+      # The task families, each carrying out the operations it lists.
+      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
+                  Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
+                  Codebase::CorpusTasks, Codebase::Composing, Codebase::Previewing,
+                  Codebase::Publishing, Codebase::Promotion, Codebase::Scripting].freeze
+
       private
 
       def test_suite(operation, args)
@@ -193,18 +224,6 @@ module Hecks
         plain_args = args.transform_values { |value| plain(value) }
         Codebase::Style.report(operation, plain_args, tree, shell: self.class.shell)
       end
-
-      # Operations the Terminal adapter carries out itself: the run records that the server was
-      # started and answers when the process hands back, so nothing here runs them.
-      HANDED_OFF = %w[serve_mcp].freeze
-      private_constant :HANDED_OFF
-
-      # The task families, each carrying out the operations it lists.
-      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
-                  Codebase::CorpusTasks, Codebase::Composing, Codebase::Previewing,
-                  Codebase::Publishing, Codebase::Promotion, Codebase::Scripting].freeze
-      private_constant :FAMILIES
 
       # The facts of a promotion or a watch, naming the operation so policies can tell them apart.
       def promotion_facts(held)
