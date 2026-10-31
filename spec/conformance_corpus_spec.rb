@@ -9,7 +9,7 @@ require_relative "support/conformance_corpus"
 # implementation, not the oracle.
 RSpec.describe "the conformance corpus" do
   def replayed_expectation(fixture)
-    Hecks::CLI::SeedSemanticsCorpus.expectation_for(InMemoryDomain::ROOT, fixture, full: true)
+    Hecks::Tools::SeedSemanticsCorpus.expectation_for(InMemoryDomain::ROOT, fixture, full: true)
   end
 
   ConformanceCorpus.paths.each do |path|

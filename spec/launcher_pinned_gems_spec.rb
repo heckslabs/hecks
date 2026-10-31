@@ -1,6 +1,6 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/cli/project_cli"
+require "hecks/tools/project_cli"
 
 # A checkout's launcher runs on the gems its Gemfile pins, the set `bundle exec` and CI use. The
 # block that does it is run here in scratch roots, so no launcher has to boot to test the decision.
@@ -12,7 +12,7 @@ RSpec.describe "the launcher's pinned gems" do
 
   after { FileUtils.remove_entry(root) }
 
-  def pinned_block = Hecks::CLI::ProjectCli.render(Hecks::CLI::ProjectCli::Templates::PINNED_GEMS, up: "../")
+  def pinned_block = Hecks::Tools::ProjectCli.render(Hecks::Tools::ProjectCli::Templates::PINNED_GEMS, up: "../")
 
   def ruby_output(*args) = IO.popen(clean_env, ["ruby", *args], err: File::NULL, &:read)
 

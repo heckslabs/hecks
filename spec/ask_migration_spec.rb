@@ -1,6 +1,6 @@
 require "spec_helper"
 require "hecks/cli"
-require "hecks/cli/model_check"
+require "hecks/tools/model_check"
 
 # ADR 0100's waves: a policy listed here has moved its port-naming trigger to `ask`, and a new
 # `trigger Aggregate::Port::Operation` in it is refused, so the leak cannot grow back.
@@ -17,7 +17,7 @@ RSpec.describe "policies migrated to ask" do
   ].freeze
 
   let(:declaration) do
-    Hecks::CLI::ModelCheck.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks")).bluebook("Hecks")
+    Hecks::Tools::ModelCheck.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks")).bluebook("Hecks")
   end
 
   def port_triggers

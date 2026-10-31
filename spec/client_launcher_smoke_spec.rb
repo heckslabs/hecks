@@ -1,6 +1,6 @@
 require "spec_helper"
 require "hecks/cli"
-require "hecks/cli/project_cli"
+require "hecks/tools/project_cli"
 require "json"
 require "open3"
 require "rbconfig"
@@ -133,7 +133,7 @@ RSpec.describe "client launcher smoke" do
 
   def self.generate(root)
     ENV["HECKS_ENVIRONMENT"] ||= "memory"
-    Hecks::CLI::ProjectCli.call(%w[pizzas], program: "hecks project_cli", root: root, remove_stale_bin: false)
+    Hecks::Tools::ProjectCli.call(%w[pizzas], program: "hecks project_cli", root: root, remove_stale_bin: false)
   end
 
   before(:all) do

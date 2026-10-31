@@ -1,6 +1,6 @@
 require "spec_helper"
 require "stringio"
-require_relative "../lib/hecks/cli/project_diagrams"
+require_relative "../lib/hecks/tools/project_diagrams"
 
 # A message a person reads is on standard error; the result is on standard output, so a pipe
 # through `jq` never receives a warning (ADR 0163, step 29), and no status line carries escape bytes
@@ -19,7 +19,7 @@ RSpec.describe "launcher status lines" do
   end
 
   def diagrams_notice
-    capture { Hecks::CLI::ProjectDiagrams.report("Pizza", "/tmp/none", []) }
+    capture { Hecks::Tools::ProjectDiagrams.report("Pizza", "/tmp/none", []) }
   end
 
   it "sends the no-lifecycle notice to standard error" do

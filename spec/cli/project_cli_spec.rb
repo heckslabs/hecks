@@ -1,11 +1,11 @@
 require "spec_helper"
-require "hecks/cli/project_cli"
+require "hecks/tools/project_cli"
 require "tmpdir"
 require "fileutils"
 
 # `hecks project_cli` checks and writes the launchers; a domain it cannot read must fail the
 # check, and nothing a domain or its world names may end a string literal in the launcher.
-RSpec.describe Hecks::CLI::ProjectCli do
+RSpec.describe Hecks::Tools::ProjectCli do
   let(:root) { Dir.mktmpdir("project_cli") }
 
   after { FileUtils.rm_rf(root) }
