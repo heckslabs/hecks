@@ -111,6 +111,7 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A light that logs its own flip",
       "entities": [
 
@@ -308,6 +309,7 @@
           "role": "Operator"
         }
       ],
+      "created_by": null,
       "description": "A bell whose ring makes it ring",
       "entities": [
 
@@ -426,6 +428,7 @@
           "role": "Operator"
         }
       ],
+      "created_by": null,
       "description": "A beacon that signals a domain which is not loaded — the undeliverable reaction, which must be recorded rather than swallowed",
       "entities": [
 

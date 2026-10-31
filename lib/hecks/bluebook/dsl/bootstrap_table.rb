@@ -16,6 +16,7 @@ module Hecks
         CALLS = {
           ["Aggregate", "provenance"] => :provenance_impl,
           ["Aggregate", "formerly_known_as"] => :formerly_known_as_impl,
+          ["Aggregate", "created_by"] => :created_by_impl,
           ["Aggregate", "identified_by"] => :identified_by_impl,
           ["Aggregate", "reference_to"] => :reference_to_impl,
           ["Aggregate", "has_many"] => :has_many_impl,

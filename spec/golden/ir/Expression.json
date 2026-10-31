@@ -492,6 +492,7 @@
           "role": "Language designer"
         }
       ],
+      "created_by": null,
       "description": "One admitted operation — its symbol, its precedence, and how it reads in every target that must evaluate it.",
       "entities": [
 
@@ -1392,6 +1393,7 @@
           "role": "Language designer"
         }
       ],
+      "created_by": null,
       "description": "One rule that turns written source into canonical text — its boundary condition, where it sits in the order, and how it reads in every target that must apply it.",
       "entities": [
 
@@ -2222,6 +2224,7 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "One predicate extracted from regular Ruby — the source as written, the canonical text the evaluator runs, and the subject it reads against.",
       "entities": [
 

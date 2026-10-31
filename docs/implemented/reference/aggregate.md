@@ -170,6 +170,18 @@ Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
 
 <!-- TODO: document this word -->
 
+## created_by
+
+<!-- generated:begin word=created_by -->
+`created_by created_by` — fills `created_by`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | created_by |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
 ## identified_by
 
 <!-- generated:begin word=identified_by -->

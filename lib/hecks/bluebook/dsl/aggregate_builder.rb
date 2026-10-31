@@ -179,7 +179,7 @@ module Hecks
           { name: @name, description: @description, attributes: attributes,
             value_objects: @value_objects + closed_sets, identified_by: @identity_paths,
             lifecycle: @lifecycle, entities: @entities, provenance: @provenance,
-            formerly_known_as: @formerly_known_as,
+            formerly_known_as: @formerly_known_as, created_by: @created_by,
             acknowledgements: @acknowledgements }
         end
 

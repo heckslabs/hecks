@@ -123,6 +123,7 @@
           "role": null
         }
       ],
+      "created_by": null,
       "description": "A desk whose commands say who a launcher lists them for.",
       "entities": [
 

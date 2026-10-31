@@ -183,6 +183,7 @@ Hecks.bluebook "Hecks" do
     # commits main lacks, so no unpushed work is deleted.
     aggregate "Landing" do
       description "One branch landed on local main, or one worktree retired: done, or refused with the reason."
+      created_by "Landing.land!"
 
       attribute :run,      RunKey
       attribute :checkout, Word,   optional: true

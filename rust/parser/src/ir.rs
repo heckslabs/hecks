@@ -251,6 +251,9 @@ pub struct Aggregate {
     // Same raw-captured-Hash shape as `Command.provenance`.
     pub provenance: Literal,
     pub acknowledgements: Vec<Acknowledgement>,
+    // The command that creates this aggregate's records, which a missing-record refusal names; null
+    // when the bluebook declares none.
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

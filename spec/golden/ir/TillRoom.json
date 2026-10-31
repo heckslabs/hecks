@@ -256,6 +256,7 @@
           "role": "Clerk"
         }
       ],
+      "created_by": null,
       "description": "One cash drawer and the count of cents inside it.",
       "entities": [
 

@@ -43,6 +43,7 @@ module Hecks
         ports:             many(:ports),
         provenance:        :provenance,
         formerly_known_as: :formerly_known_as,
+        created_by:        :created_by,
         # Additive: an aggregate that acknowledges no finding emits `acknowledgements: []`.
         acknowledgements:  lambda {
           acknowledgements.map { |held| { finding: held.finding.to_s, subject: held.subject, reason: held.reason } }
@@ -52,14 +53,14 @@ module Hecks
       attr_reader :name, :description, :attributes, :value_objects, :commands, :invariants, :preconditions,
                   :projected_fields, :identified_by, :identity_paths, :identity_heads, :lifecycle,
                   :entities, :queries, :policies, :ports, :reference_targets, :provenance,
-                  :acknowledgements, :formerly_known_as
+                  :acknowledgements, :formerly_known_as, :created_by
 
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         description: nil, attributes: [], value_objects: [], commands: [], invariants: [],
         preconditions: [], projected_fields: [], identified_by: [], lifecycle: nil, entities: [],
         queries: [], policies: [], ports: [], reference_targets: [], provenance: nil, acknowledgements: [],
-        formerly_known_as: nil
+        formerly_known_as: nil, created_by: nil
       }.freeze
 
       # Assigns the declared fields, then `settle` derives identity, name indexes and owner stamps.
