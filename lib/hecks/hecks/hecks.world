@@ -40,6 +40,8 @@
 # (`hecks deploy`), and `maintainer_bluebooks` the language's own, added inside a checkout.
 # `newcomer` names the only commands the help lists in a folder holding no bluebook yet
 # (`hecks --all` lists the rest), so a first run shows how to start and nothing else.
+# `everyday` names the commands and queries the help lists first, under its own heading, each
+# spelled as the call to type, for anyone the aggregate is not hidden from (ADR 0163).
 Hecks.world "Hecks" do
   realm "Hecks"
   launcher "Launcher", run_keys: true,
@@ -62,6 +64,10 @@ Hecks.world "Hecks" do
                                       CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release ScriptRun
                                       SyntaxBootCache],
                        newcomer: %w[launch.init launch.interview operation.open_console],
+                       everyday: %w[operation.run operation.open_console gate_run.gate
+                                    test_suite_run.run_changed test_suite_run.run_spec_example
+                                    build.build_host shipment.ship landing.land push_train.board
+                                    checkout.status inspection_run.search],
                        bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
