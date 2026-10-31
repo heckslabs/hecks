@@ -122,11 +122,11 @@ RSpec.describe "a port operation, dispatched" do
     expect(payment[:status]).to eq("received")
   end
 
-  # An interrupt while the adapter is answering is recorded as the operation's refusal, not left open.
+  # An interrupt while the adapter answers is recorded as the operation's refusal, not left open.
   it "records an interrupted ask as the operation's refusal, not a raise", :aggregate_failures do
     adapter = Object.new
     def adapter.receive(**) = raise(Interrupt)
-    allow_any_instance_of(Hecks::Runtime::PortOperationInterpreter).to receive(:adapter_for).and_return(adapter)
+    allow(Hecks::Runtime::AdapterLookup).to receive(:call).and_return(adapter)
     expect { dispatch_gateway("Receive", **RECEIVE_ARGS) }.not_to raise_error
     expect(@registry.event_log.to_a.map { |e| e.to_h.to_s }.join).to include("PaymentOpened")
   end

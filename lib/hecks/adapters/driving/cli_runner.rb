@@ -53,6 +53,16 @@ module Hecks
         # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
         # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
         def call(runtime:, argv:, program: "hecks run", usage_log: false, err: $stderr)
+          answer_line(runtime, argv, program, usage_log, err)
+        rescue Interrupt
+          [interrupted(argv), ExitStatus::REFUSED]
+        end
+
+        # Answers one line: resolves it, guards a write, dispatches it and records its usage.
+        #
+        # @api private
+        # @return [Array(String, Integer)] the text and the `ExitStatus`
+        def answer_line(runtime, argv, program, usage_log, err)
           started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
@@ -64,6 +74,16 @@ module Hecks
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
           UsageLog.record(argv: argv, resolved: plan[:name], status: answer[1], started: started) if usage_log
           answer
+        end
+
+        # The line an interrupted command ends with: what it was and that it was not finished,
+        # so the caller sees a refusal rather than a bare stop.
+        #
+        # @api private
+        # @return [String] the text the caller prints on standard error
+        def interrupted(argv)
+          name = argv.first || "the command"
+          "interrupted during #{name}: the run was stopped before it finished"
         end
 
         # Before a command (not a query) runs: refuses a write that would land in Memory from a
