@@ -40,6 +40,7 @@ module Hecks
       # @raise [ArgumentError] if a where clause uses an operator this builder cannot compile,
       #   or `contains` targets a list of a value object with more than one field
       def query(declared, args = {}, context: {})
+        Runtime::Value.check_query_arguments!(@aggregate, declared, args)
         return in_memory_answer(declared, args, context) if in_memory?(declared)
 
         sql = "SELECT #{select_list} FROM #{from_relation}"

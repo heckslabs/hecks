@@ -91,7 +91,7 @@ RSpec.describe "FreezeAccountsOnSuspension" do
     register_customer(runtime, "CUST-0002", "Grace", "Hopper")
     open_account(runtime, "CUST-0002", "acct-2", "current", 50_000)
 
-    rows = runtime.query("Banking::Account.OpenForCustomer", reference: { value: "CUST-0001" })
+    rows = runtime.query("Banking::Account.OpenForCustomer", reference: "CUST-0001")
 
     # not acct-2 — scoped to the right customer, not every open account
     expect(rows.map { |row| row[:id] }).to eq(["acct-1"])

@@ -1217,6 +1217,7 @@ pub fn generate(
                 aggregate: format!("{domain_name}::{agg_name}"),
                 arg_checks: queries::query_arg_checks(
                     query,
+                    agg_name,
                     &format!(
                         "crate::generated::{mod_name}::{}",
                         crate::naming::aggregate_module(agg_name)

@@ -1,0 +1,40 @@
+# A note about a subject, asked for by the subject's id: a query whose one argument is a bare
+# String. A caller that offers any other shape for that argument must be refused, on Memory and
+# on PostgresEra alike, before the store is read.
+Hecks.bluebook "QueryArgumentShape" do
+  vision "Notes asked about by their subject, so a query's argument is held to its declared type."
+  core
+
+  aggregate "Note" do
+    description "A note that may name the subject it is about."
+
+    identified_by :slug
+
+    attribute :slug, NoteId
+    attribute :subject_id, SubjectId, optional: true
+
+    value_object "NoteId" do
+      attribute :value, String
+    end
+
+    value_object "SubjectId" do
+      attribute :value, String
+    end
+
+    command "Write" do
+      goal "Write a note, optionally about a subject"
+
+      attribute :slug, NoteId
+      attribute :subject_id, SubjectId, optional: true
+
+      emits "NoteWritten"
+    end
+
+    query "About" do
+      description "The notes about one subject, by the subject's id."
+
+      attribute :subject_id, String
+      where(subject_id: :subject_id)
+    end
+  end
+end
