@@ -93,7 +93,8 @@ module Hecks
 
         def verdict_for(aggregate, edge, era, chain)
           after = translated(aggregate, era, chain)
-          before = if chain.size > 1
+          before = @lineage.split_latest(aggregate, chain) ||
+                   if chain.size > 1
                      translated(aggregate, era, chain[0..-2])
                    else
                      @lineage.ancestor_latest(aggregate, era, chain)
