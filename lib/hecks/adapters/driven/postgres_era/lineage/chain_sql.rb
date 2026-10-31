@@ -1,6 +1,7 @@
 require_relative "../../../../naming"
 require_relative "../../../../ports/persistence/plugins/era/translation/rule_compiler"
 require_relative "sql_templates"
+require_relative "split_sql"
 
 module Hecks
   module Adapters
@@ -11,6 +12,7 @@ module Hecks
         # over them in mint order.
         module ChainSql
           include SqlTemplates
+          include SplitSql
 
           # Reduces the tail before chaining edges over it, not after: every
           # reader already reduces to latest-per-id, so translating a
@@ -45,7 +47,7 @@ module Hecks
           # has no single phase order that applies both correctly.
           def chain_sql(aggregate, era, edges)
             names = names_by_era(aggregate, edges)
-            tail = latest_per_id(ancestor_tail_sql(names, era))
+            tail = latest_per_id(target_tail_sql(names, era, edges))
             chain = edges.each_with_index.map { |edge, index| edge_step_sql(edge, index, names) }
             format(CHAIN_SQL, tail: tail, chain: chain.join(",\n"), last: edges.size)
           end
@@ -108,6 +110,11 @@ module Hecks
           end
 
           private
+
+          # A split target's tail is its own journal rows plus the rows its split fans out of the source.
+          def target_tail_sql(names, era, edges)
+            [ancestor_tail_sql(names, era), split_tail_sql(names, edges)].compact.reject(&:empty?).join(" UNION ALL ")
+          end
 
           def layerable?(era, edges) = era >= 3 && edges.size >= 2 && edges.size == era - 1
 
