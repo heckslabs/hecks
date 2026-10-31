@@ -58,7 +58,7 @@ module Hecks
           return plan[:answer] if plan[:answer]
 
           refused = guard_command(plan, err)
-          return [refused, 1] if refused
+          return [refused, ExitStatus::REFUSED] if refused
 
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
