@@ -1,6 +1,6 @@
 # A translation can split one aggregate's fields into others
 
-**Status:** Proposed. Date: 2026-10-31. Planned for 7.0.1. Needs the owner's approval before any
+**Status:** Accepted (owner, 2026-10-31). Date: 2026-10-31. Planned for 7.0.1. Approved before any
 code lands: it adds a translation operation and touches the lineage path that every era mint runs.
 
 ## Context
