@@ -52,6 +52,18 @@ Hecks.bluebook "Coder" do
       mark :terminal, "fixed"
     end
 
+    # Creates the assignment in `waiting` when QualityControl logs a bug. Nothing is held yet, so
+    # the holder and claim time keep their defaults. Without this, no assignment could ever exist
+    # for `Claim` to take.
+    command "Offer" do
+      role "Coder"
+      goal "Put a newly logged QA bug on the queue"
+
+      attribute :bug, BugReference
+
+      emits "AssignmentOffered"
+    end
+
     # `from` includes the held states on purpose: without them the staleness rule below could never
     # apply, because a claim that went quiet sits in `claimed` and no edge would leave it.
     # Same arithmetic as QualityControl's `Bug.Claim`: `+` stands for `now - claimed_at >= window`.
@@ -222,11 +234,15 @@ Hecks.bluebook "Coder" do
       emits "PatchOpened"
     end
 
+    # `bug` and `commit` are restated so `PatchMerged` carries them: an event holds only its
+    # dispatched arguments, and QualityControl's `Bug.Fix` needs the commit that made the fix.
     command "Merge" do
       role "Coder"
       goal "Record that GitHub merged it"
 
       reference_to Patch
+      attribute :bug,    PatchBug
+      attribute :commit, CommitRef
 
       emits "PatchMerged"
     end
