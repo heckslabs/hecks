@@ -142,6 +142,10 @@ RSpec.describe Hecks::Projector::CliProjector do
     projection[:commands].fetch(command)[:arguments].find { |a| a[:path] == path }
   end
 
+  it "names the release of the gem in the header, read from the version constant" do
+    expect(command_help(banking_bluebook, nil)).to include("  hecks #{Hecks::VERSION}")
+  end
+
   it "is registered under :cli, reachable the way every projector is" do
     expect(Hecks::Projector).to be_registered(:cli)
   end
