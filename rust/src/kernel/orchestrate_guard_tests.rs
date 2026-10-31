@@ -3,6 +3,7 @@
 //! lives in Ruby conformance specs a Rust-side mutation run cannot see.
 
 use super::*;
+use crate::kernel::read_model::{ReadModelDef, ReadModelHead};
 
 struct Bus {
     calls: Vec<(String, Json)>,
@@ -10,12 +11,17 @@ struct Bus {
 
 impl AggregateScan for Bus {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
-        (aggregate == "D::Order").then(|| {
-            vec![
+        match aggregate {
+            "D::Order" => Some(vec![
                 ("o1".to_string(), Json::obj(vec![])),
                 ("o2".to_string(), Json::obj(vec![])),
-            ]
-        })
+            ]),
+            "D::Guardian" => Some(vec![
+                ("g1".to_string(), Json::obj(vec![])),
+                ("g2".to_string(), Json::obj(vec![])),
+            ]),
+            _ => None,
+        }
     }
 }
 
@@ -82,6 +88,7 @@ const fn policy(name: &'static str, event_name: &'static str, target: &'static s
         where_expr: None,
         for_each: None,
         for_each_key: None,
+        for_each_heads: &[],
         with_spec: NO_WITH,
     }
 }
@@ -98,7 +105,9 @@ const fn cross(name: &'static str, event_name: &'static str) -> CrossDomainPolic
     }
 }
 
-static POLICIES: [PolicyRule; 8] = [
+const GUARDIAN_HEADS: &[(&str, &str)] = &[("guardian", "guardian_id")];
+
+static POLICIES: [PolicyRule; 12] = [
     policy("NotifyOnPlaced", "Placed", "D::Order.Notify"),
     PolicyRule {
         event_qualifier: Some("Other"),
@@ -120,13 +129,67 @@ static POLICIES: [PolicyRule; 8] = [
     PolicyRule {
         for_each: Some("D::Order.Open"),
         for_each_key: Some("order_id"),
+        for_each_heads: &[],
         ..policy("FanPing", "Fan", "D::Order.Ping")
     },
     PolicyRule {
         for_each: Some("D::Order.Missing"),
         ..policy("FanMissing", "FanMissing", "D::Order.Ping")
     },
+    PolicyRule {
+        for_each: Some("D::Guardians"),
+        for_each_heads: GUARDIAN_HEADS,
+        ..policy("FanRoster", "Roster", "D::Order.Ping")
+    },
+    PolicyRule {
+        for_each: Some("D::Nobody"),
+        for_each_heads: GUARDIAN_HEADS,
+        ..policy("FanNobody", "Nobody", "D::Order.Ping")
+    },
+    PolicyRule {
+        for_each: Some("D::Nowhere"),
+        ..policy("FanNowhere", "Stray", "D::Order.Ping")
+    },
+    PolicyRule {
+        for_each: Some("D::Guardians"),
+        for_each_heads: &[("guardian", "guardian_id"), ("ledger", "ledger_id")],
+        ..policy("FanTwice", "Twice", "D::Order.Ping")
+    },
 ];
+
+const GUARDIANS: ReadModelDef = ReadModelDef {
+    verb: "D.Guardians",
+    reference_name: None,
+    heads: &[ReadModelHead {
+        aggregate: "D::Guardian",
+        as_name: "guardian",
+        many: true,
+        is_root: false,
+        reference_fields: &[],
+    }],
+    filtered_heads: &[],
+    authorization: None,
+    group_by: None,
+    reduction: None,
+};
+
+const NOBODY: ReadModelDef = ReadModelDef {
+    verb: "D.Nobody",
+    reference_name: None,
+    heads: &[ReadModelHead {
+        aggregate: "D::Nobody",
+        as_name: "guardian",
+        many: true,
+        is_root: false,
+        reference_fields: &[],
+    }],
+    filtered_heads: &[],
+    authorization: None,
+    group_by: None,
+    reduction: None,
+};
+
+static READ_MODELS: [ReadModelDef; 2] = [GUARDIANS, NOBODY];
 
 static CROSS_POLICIES: [CrossDomainPolicyRule; 5] = [
     cross("XPlain", "XEvt"),
@@ -266,6 +329,7 @@ fn tables() -> Tables<'static> {
         process_managers: &PROCESS_MANAGERS,
         reference_key_fn: no_key,
         queries: &QUERIES,
+        read_models: &READ_MODELS,
         command_creates_fn: creates,
         identity_head_fn: identity_head,
         command_attributes_fn: declared,
@@ -567,6 +631,63 @@ fn a_fan_out_dispatches_once_per_row_with_the_row_id_under_the_declared_key_one_
         .reaction_log
         .iter()
         .any(|entry| entry.get("for_row").and_then(Json::as_str) == Some("o2")));
+}
+
+#[test]
+fn a_fan_out_over_a_read_model_dispatches_once_per_row_under_the_addressing_key() {
+    let mut w = world();
+
+    w.react(&event("Roster", "D::Order", "o1", Json::obj(vec![])), 3);
+
+    assert_eq!(w.verbs(), ["D::Order.Ping", "D::Order.Ping"]);
+    assert_eq!(
+        w.bus.calls[0].1,
+        Json::obj(vec![("guardian_id", Json::str("g1"))])
+    );
+    assert_eq!(
+        w.bus.calls[1].1,
+        Json::obj(vec![("guardian_id", Json::str("g2"))])
+    );
+    assert!(w
+        .reaction_log
+        .iter()
+        .any(|entry| entry.get("for_row").and_then(Json::as_str) == Some("g2")));
+}
+
+#[test]
+fn a_fan_out_over_a_read_model_with_no_rows_fires_nothing() {
+    let mut w = world();
+
+    w.react(&event("Nobody", "D::Order", "o1", Json::obj(vec![])), 0);
+
+    assert!(w.bus.calls.is_empty());
+    assert!(w.reaction_log.is_empty());
+}
+
+#[test]
+fn a_fan_out_naming_no_query_or_read_model_is_refused_by_name() {
+    let mut w = world();
+
+    w.react(&event("Stray", "D::Order", "o1", Json::obj(vec![])), 0);
+
+    assert!(w.bus.calls.is_empty());
+    assert_eq!(
+        reason(&w.reaction_log[0]),
+        Some("for_each \"Nowhere\" names no query or read model in D")
+    );
+}
+
+#[test]
+fn a_fan_out_over_a_read_model_with_two_candidate_heads_is_refused() {
+    let mut w = world();
+
+    w.react(&event("Twice", "D::Order", "o1", Json::obj(vec![])), 0);
+
+    assert!(w.bus.calls.is_empty());
+    assert_eq!(
+        reason(&w.reaction_log[0]),
+        Some("for_each Guardians must have exactly one row kind that D::Order.Ping can address, found 2")
+    );
 }
 
 #[test]
