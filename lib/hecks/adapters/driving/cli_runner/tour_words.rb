@@ -12,7 +12,7 @@ module Hecks
         # only into a directory that does not exist yet.
         module TourWords
           TOUR_NAME = "Tour".freeze
-          TOUR_COMMAND = %w[Example.create name=hello].freeze
+          TOUR_COMMAND = %w[Example.create! name=hello].freeze
           TOUR_DIRECTORY = "hecks-tour".freeze
 
           # The answer to `tour [dir]`, or nil when the line is not a tour.
@@ -46,7 +46,7 @@ module Hecks
             result = capture_run(target)
             ran = "ran: #{scope[:program]} run #{shown} #{TOUR_COMMAND.join(" ")}"
             lines = ["wrote a sample domain in #{shown}/", "", ran, result]
-            lines + ["", "next: #{scope[:program]} run #{shown} Example.create name=yourname"]
+            lines + ["", "next: #{scope[:program]} run #{shown} Example.create! name=yourname"]
           end
 
           # The command's own answer, from a booted copy of the sample domain. The runner answers

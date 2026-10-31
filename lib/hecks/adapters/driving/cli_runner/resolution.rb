@@ -1,9 +1,13 @@
+require_relative "bang_rule"
+
 module Hecks
   module Adapters
     module Driving
       module CliRunner
         # Parses a command line against the projection. Extended into `CliRunner`.
         module Resolution
+          include BangRule
+
           # The words that ask for the usage.
           HELP_WORDS = ["--help", "-h", "help"].freeze
 
@@ -55,16 +59,17 @@ module Hecks
           # line that names nothing, or something the bluebook does not declare, could not be read.
           def command_plan(scope, argv)
             cli = scope[:cli]
+            word = typed_word(argv)
             asking, name, argv = entry_word(cli, argv)
             return { answer: [cli[:usage], ExitStatus::USAGE] } if name.nil?
 
             spec = find_spec(cli, asking, name)
             return { answer: [unknown(cli, name, asking, scope[:program]), ExitStatus::USAGE] } unless spec
 
-            rest = argv[1..]
-            return { answer: [command_help(scope, name, asking), ExitStatus::ANSWERED] } if rest.include?("--help")
+            answer = early_answer(scope, cli, { asking: asking, word: word, name: name, argv: argv })
+            return { answer: answer } if answer
 
-            { spec: spec, name: name, rest: rest, asking: asking, program: scope[:program],
+            { spec: spec, name: name, rest: argv[1..], asking: asking, program: scope[:program],
               bluebook: scope[:bluebook], launcher: scope[:launcher] }
           end
 
