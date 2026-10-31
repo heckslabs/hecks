@@ -67,7 +67,8 @@ module Hecks
             formerly_known_as: text(@declaration[:formerly_known_as]),
             namespace:         text(@declaration[:namespace]),
             attaches_to:       attached_contexts(@declaration),
-            provides:          provisions(@declaration)
+            provides:          provisions(@declaration),
+            modules:           memberships(@declaration)
           }
         end
 

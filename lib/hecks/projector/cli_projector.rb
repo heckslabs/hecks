@@ -6,6 +6,7 @@ require_relative "cli_projector/option_specs"
 require_relative "cli_projector/usage"
 require_relative "cli_projector/listing"
 require_relative "cli_projector/command_help"
+require_relative "cli_projector/modules"
 
 module Hecks
   module Projector
@@ -52,6 +53,7 @@ module Hecks
       extend Usage
       extend Listing
       extend CommandHelp
+      extend Modules
     end
   end
 end

@@ -107,7 +107,8 @@ RSpec.describe "the Codebase rows of the ADR table" do
                      "and like regenerate_corpus it only compares without --confirm")
   ].freeze
 
-  # The aggregates of codebase.bluebook: each holds commands a maintainer runs in a checkout.
+  # The maintainer aggregates of the evolve, check, test, build and release modules: each holds
+  # commands a maintainer runs in a checkout.
   CODEBASE_RECORDS = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun CodemodRun TestSuiteRun
                         CorpusRun PublishingRun PromotionRun].freeze
 

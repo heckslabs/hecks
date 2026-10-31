@@ -389,6 +389,8 @@ pub struct Bluebook {
     pub attaches_to: Vec<String>,
     // `provides "authorization", grant: "..."`: one row per key, in source order.
     pub provides: Vec<Provision>,
+    // `domain_module "Name" do … end`: one row per aggregate a module groups, in source order.
+    pub modules: Vec<ModuleRow>,
 }
 
 impl Default for Bluebook {
@@ -407,8 +409,18 @@ impl Default for Bluebook {
             process_managers: Vec::new(),
             attaches_to: Vec::new(),
             provides: Vec::new(),
+            modules: Vec::new(),
         }
     }
+}
+
+/// One aggregate's place in a module, emitted as `{"name", "vision", "aggregate"}`; the
+/// vision is empty when the module names none.
+#[derive(Debug, Clone, Default)]
+pub struct ModuleRow {
+    pub name: String,
+    pub vision: String,
+    pub aggregate: String,
 }
 
 /// One row of a declared capability, emitted as `{"capability", "key", "verb"}`.

@@ -100,6 +100,7 @@ fn refuse_unspelt(declaration: &ir::Bluebook) -> Result<(), String> {
         (!declaration.process_managers.is_empty(), "process managers"),
         (!declaration.provides.is_empty(), "provided capabilities"),
         (!declaration.attaches_to.is_empty(), "attaches"),
+        (!declaration.modules.is_empty(), "modules"),
         (declaration.version.is_some(), "a version"),
     ];
     match held.iter().find(|(present, _)| *present) {

@@ -37,8 +37,10 @@ module Hecks
 
         # The whole help: the two tables, the bluebooks, then the hints.
         def full_usage(bluebook, commands, questions, options, program)
-          shown = [commands, questions].map { |specs| CliAudience.audience_specs(specs, options) }
-          [usage_header(bluebook, program),
+          shown = [commands, questions].map do |specs|
+            in_module(bluebook, CliAudience.audience_specs(specs, options), options[:module])
+          end
+          [header_for(bluebook, program, options[:module]),
            tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)),
            CliAudience.bluebook_lines(program, options[:declarations]),
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
@@ -47,6 +49,11 @@ module Hecks
         # How many commands and queries the audience's `hide` list left out of `shown`.
         def left_out(commands, questions, shown)
           commands.size + questions.size - shown.sum(&:size)
+        end
+
+        # The heading of the help: the bluebook's, or the module's when one is asked for.
+        def header_for(bluebook, program, module_name)
+          module_name ? module_header(bluebook, module_name, program) : usage_header(bluebook, program)
         end
 
         # The bluebook's vision and the two ways to call it.
