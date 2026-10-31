@@ -4,6 +4,7 @@ require_relative "hecks/version"
 # them are read while a bluebook is still being parsed.
 require_relative "hecks/vocabulary"
 require_relative "hecks/rendering"
+require_relative "hecks/secrets"
 require_relative "hecks/naming"
 require_relative "hecks/text"
 require_relative "hecks/fqn"
