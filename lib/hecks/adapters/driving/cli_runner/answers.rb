@@ -75,6 +75,9 @@ module Hecks
           # Runs a command and answers its outcome, settled when `--wait` asks for it.
           def run_command(runtime, spec, invocation)
             args, minted = LauncherOptions.run_key(runtime, spec, invocation.args, invocation.launcher)
+            replayed = RunReplay.answer(runtime, spec, args)
+            return replayed if replayed
+
             handle = runtime.dispatch_flat(spec[:command], normalized_request(spec, args))
             extra  = refusals_and_run(handle, minted)
             if invocation.wait
