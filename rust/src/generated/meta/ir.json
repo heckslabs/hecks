@@ -33929,6 +33929,32 @@
             [
               [
                 "name",
+                "secret_output"
+              ],
+              [
+                "id",
+                "secret_output"
+              ],
+              [
+                "title",
+                "secret output, no value a world hands an adapter as a secret reaches what a launcher prints"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/secret_output_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_fmt"
               ],
               [
@@ -34590,7 +34616,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output"
               ]
             ],
             [
@@ -34604,7 +34630,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
               ]
             ],
             [
