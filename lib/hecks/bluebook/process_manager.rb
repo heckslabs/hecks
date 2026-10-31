@@ -55,15 +55,17 @@ module Hecks
         starts_on:     :starts_on,
         ends_on:       :ends_on,
         endings:       :endings,
+        resumes:       :resumes,
         states:        :states,
         handlers:      many(:handlers)
       )
 
-      attr_reader :name, :correlates_by, :starts_on, :ends_on, :endings, :states, :handlers
+      attr_reader :name, :correlates_by, :starts_on, :ends_on, :endings, :resumes, :states, :handlers
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        correlates_by: nil, starts_on: nil, ends_on: nil, endings: [], states: [], handlers: []
+        correlates_by: nil, starts_on: nil, ends_on: nil, endings: [], resumes: [],
+        states: [], handlers: []
       }.freeze
 
       # @param correlates_by [Symbol, nil] the payload field that correlates a triggering

@@ -350,6 +350,7 @@ pub struct ProcessManager {
     pub starts_on: Option<String>,
     pub ends_on: Option<String>,
     pub endings: Vec<String>,
+    pub resumes: Vec<String>,
     pub states: Vec<String>,
     pub handlers: Vec<ProcessManagerHandler>,
 }

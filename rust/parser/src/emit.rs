@@ -820,6 +820,7 @@ fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
             JsonValue::opt_str(pm.ends_on.as_ref()),
         ),
         ("endings".to_string(), JsonValue::strings(&pm.endings)),
+        ("resumes".to_string(), JsonValue::strings(&pm.resumes)),
         ("states".to_string(), JsonValue::strings(&pm.states)),
         (
             "handlers".to_string(),

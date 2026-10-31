@@ -15957,6 +15957,16 @@
           "admits": null,
           "default": null,
           "list": true,
+          "name": "resumes",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "ProcessManagerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
           "name": "states",
           "optional": false,
           "pattern": null,
@@ -16050,6 +16060,16 @@
             {
               "admits": null,
               "default": null,
+              "list": true,
+              "name": "resumes",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "ProcessManagerText"
+            },
+            {
+              "admits": null,
+              "default": null,
               "list": false,
               "name": "position",
               "optional": true,
@@ -16124,6 +16144,15 @@
                 "name": "endings"
               },
               "target": "endings"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "resumes"
+              },
+              "target": "resumes"
             },
             {
               "op": "set",
@@ -17053,6 +17082,36 @@
             [
               [
                 "word",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "resumes_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "transition"
               ],
               [
@@ -17509,6 +17568,36 @@
               [
                 "fills",
                 "ends_on"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "resumes"
               ]
             ],
             [
@@ -34230,7 +34319,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.check_engine_agreement --wait"
+                "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait"
               ],
               [
                 "script",
@@ -34256,7 +34345,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.check_shape_ledger --wait"
+                "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait"
               ],
               [
                 "script",
@@ -34264,7 +34353,7 @@
               ],
               [
                 "blocked",
-                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
+                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
               ]
             ],
             [
@@ -34308,7 +34397,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.measure_doc_coverage --wait"
+                "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait"
               ],
               [
                 "script",
@@ -34360,7 +34449,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait"
+                "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait"
               ],
               [
                 "script",
@@ -34386,7 +34475,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments paths=lib/hecks spec --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait"
               ],
               [
                 "script",
@@ -34412,7 +34501,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments paths=lib,spec,examples only=long_block --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait"
               ],
               [
                 "script",
@@ -34478,6 +34567,32 @@
             [
               [
                 "name",
+                "adapter_words"
+              ],
+              [
+                "id",
+                "adapter_words"
+              ],
+              [
+                "title",
+                "adapter words, no domain name equal to a technology word the adapters are named for"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/adapter_words_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_fmt"
               ],
               [
@@ -34520,7 +34635,7 @@
               ],
               [
                 "script",
-                "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait\nbundle exec exe/hecks build.project_rust domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n"
+                "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n"
               ],
               [
                 "blocked",
@@ -34646,7 +34761,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=1/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=1/3 --wait"
               ],
               [
                 "script",
@@ -34672,7 +34787,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=2/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=2/3 --wait"
               ],
               [
                 "script",
@@ -34698,7 +34813,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=3/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=3/3 --wait"
               ],
               [
                 "script",
@@ -34724,7 +34839,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=1/3 --wait"
               ],
               [
                 "script",
@@ -34750,7 +34865,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=2/3 --wait"
               ],
               [
                 "script",
@@ -34776,7 +34891,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=3/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=3/3 --wait"
               ],
               [
                 "script",
@@ -34802,7 +34917,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! list_shards=3 --wait"
               ],
               [
                 "script",
@@ -34828,7 +34943,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=1/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait"
               ],
               [
                 "script",
@@ -34854,7 +34969,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=2/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait"
               ],
               [
                 "script",
@@ -34884,7 +34999,7 @@
               ],
               [
                 "script",
-                "bundle exec exe/hecks language_run.project_vocabulary --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n"
+                "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n"
               ],
               [
                 "blocked",
@@ -34906,7 +35021,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_ci_gates --wait"
+                "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait"
               ],
               [
                 "script",
@@ -34914,7 +35029,7 @@
               ],
               [
                 "blocked",
-                "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`."
+                "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`."
               ]
             ],
             [
@@ -34932,7 +35047,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_ci_pipeline --wait"
+                "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait"
               ],
               [
                 "script",
@@ -34940,7 +35055,7 @@
               ],
               [
                 "blocked",
-                "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline --confirm`."
+                "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`."
               ]
             ],
             [
@@ -34958,7 +35073,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_tools_doc --wait"
+                "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait"
               ],
               [
                 "script",
@@ -34966,7 +35081,7 @@
               ],
               [
                 "blocked",
-                "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc --confirm`."
+                "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`."
               ]
             ],
             [
@@ -35036,7 +35151,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks kernel_run.measure_kernel_coverage --wait"
+                "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait"
               ],
               [
                 "script",
@@ -35066,7 +35181,7 @@
               ],
               [
                 "script",
-                "bundle exec exe/hecks language_run.project_rust_vocabulary --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n"
+                "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n"
               ],
               [
                 "blocked",
@@ -35139,7 +35254,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words"
               ]
             ],
             [

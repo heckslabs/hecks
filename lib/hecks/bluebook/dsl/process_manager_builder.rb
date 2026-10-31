@@ -37,6 +37,13 @@ module Hecks
         # @return [void]
         def ends_on_impl(event_ref) = (@endings ||= []) << Naming.event_name_ref(event_ref)
 
+        # Records the command that resumes one stage, written `stage=command`, as the stage
+        # map a resume reads. The runtime does not read it yet.
+        #
+        # @param entry [String] one `stage=command` pair, for example `"gated=GateRun.Gate"`
+        # @return [void]
+        def resumes_impl(entry) = (@resumes ||= []) << entry.to_s
+
         # Records one leg of the state machine: the event that takes it, the state(s) it
         # applies from, and the dispatches (with optional compensations) it fires.
         #
@@ -80,7 +87,7 @@ module Hecks
             correlates_by: @correlates_by,
             starts_on:     @starts_on,
             ends_on:       @endings&.first,
-            endings:       @endings || [],
+            endings: @endings || [], resumes: @resumes || [],
             states:        derived_states,
             handlers:      @handlers
           )

@@ -67,6 +67,7 @@ module Hecks
           ["Policy", "across"] => :across_impl,
           ["ProcessManager", "starts_on"] => :starts_on_impl,
           ["ProcessManager", "ends_on"] => :ends_on_impl,
+          ["ProcessManager", "resumes"] => :resumes_impl,
           ["ProcessManager", "transition"] => :transition_impl,
           ["Handler", "dispatch"] => :dispatch_impl,
           ["Dispatch", "compensates"] => :compensates_impl,

@@ -177,6 +177,7 @@ RSpec.describe "the declared syntax" do
       mark_impl:              "LifecycleBuilder's own real implementation, called by GenericDispatch's calls:",
       starts_on_impl:         "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       ends_on_impl:           "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
+      resumes_impl:           "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       tells_impl:             "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \
                               "— also the target for the \"operation\" spelling, a Ruby alias no more",
       asks_impl:              "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",

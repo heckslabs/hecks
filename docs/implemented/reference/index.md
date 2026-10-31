@@ -12,7 +12,7 @@ survives regeneration.
 - [Command](command.md) — 16 words
 - [Entity](entity.md) — 13 words
 - [Policy](policy.md) — 6 words
-- [ProcessManager](process_manager.md) — 4 words
+- [ProcessManager](process_manager.md) — 5 words
 - [Handler](handler.md) — 1 word
 - [Dispatch](dispatch.md) — 1 word
 - [ReadModel](read_model.md) — 21 words
