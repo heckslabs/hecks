@@ -123,7 +123,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["query_ir", "CorpusRun", "IrConstructs", "ir_constructs", { query: true }],
     ["query_ir", "CorpusRun", "IrDuplicates", "ir_duplicates", { query: true }],
     ["query_ir", "CorpusRun", "IrImpact", "ir_impact", { args: %w[name=Entity field=given], query: true }],
-    ["hecks_query_ir_mcp", "CorpusRun", "ServeQueryIrMcp", "serve_query_ir_mcp"],
+    ["hecks_query_ir_mcp", "Server", "ServeQueryIrMcp", "serve_query_ir_mcp"],
     ["present", "Server", "Present", "present"],
     ["release", "PublishingRun", "Publish", "publish"],
     ["release_gem", "PublishingRun", "PublishGem", "publish_gem"]

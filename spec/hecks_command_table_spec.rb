@@ -12,7 +12,7 @@ require "securerandom"
 RSpec.describe "the Hecks command table through the launcher" do
   # Introspection's queries and the verbs of ModelCheckRun and Operation, as the launcher spells
   # them.
-  COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "launch.serve_mcp" => "mcp" }.freeze
+  COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "server.serve_mcp" => "mcp" }.freeze
 
   # Settled verbs of the attached Deploy bluebook; hecks_deploy_smoke_run_spec.rb and
   # hecks_deploy_roll_spec.rb and the data copy, diff, preview and companion specs run them.
@@ -34,7 +34,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
     package.pinning package.unpinned package.verify package.digest package.check package.release
-    operation.bootstrap_admin launch.project_cli launch.serve_mcp
+    operation.bootstrap_admin launch.project_cli server.serve_mcp
     launch.ended launch.stopped build.project_rust build.build_wasm
     build.build_host build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
@@ -946,12 +946,12 @@ RSpec.describe "the Hecks command table through the launcher" do
       Dir.chdir(@dir) { example.run }
     end
 
-    # The argv the Terminal adapter was handed while `launch.serve_mcp` ran.
+    # The argv the Terminal adapter was handed while `server.serve_mcp` ran.
     def served_by_mcp(run)
       served = []
       Hecks::Adapters::Terminal.server = ->(argv) { served << argv }
       begin
-        run_verb("launch.serve_mcp", "run=#{run}", "--stdio")
+        run_verb("server.serve_mcp", "run=#{run}", "--stdio")
       ensure
         Hecks::Adapters::Terminal.server = nil
       end
@@ -979,7 +979,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       served = served_by_mcp("mcp-1")
 
       expect(served).to eq([["--stdio"]])
-      expect(ended_of("mcp-1")["output"]).to eq("mcp server closed")
+      expect(JSON.parse(run_verb("server.ended", "run=mcp-1").first).first["output"]).to eq("mcp server closed")
     end
   end
 
