@@ -80,7 +80,22 @@ module Hecks
             split = source.splits.find { |candidate| candidate.into == aggregate.name }
             return [source, split] if split
           end
-          nil
+          []
+        end
+
+        # One target record per source record that carries the split's key, holding the split's fields.
+        def fanned_out(held, split)
+          fields = split.fields.map(&:to_s)
+          held.filter_map do |_id, state|
+            key = split_key(state, split)
+            [key.to_s, state.slice(*fields)] if key
+          end.to_h
+        end
+
+        # A value object key is identified by its `value` member.
+        def split_key(state, split)
+          key = state[split.keyed_by.to_s]
+          key.is_a?(Hash) ? key["value"] : key
         end
 
         def fan_out(held, split)
