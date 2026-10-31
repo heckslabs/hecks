@@ -90,3 +90,8 @@ you're not.
   — the full aspirational architecture in one document. Treat this as a
   roadmap, not a status report; [Project status](project-status.md) is
   the status report.
+
+## The command line
+
+The command line is documented by task, one page per module, starting at
+[the overview](cli/README.md).

@@ -18,6 +18,9 @@ module Hecks
     # The last constant name of a class's path, such as `NotFound` of `Hecks::Runtime::NotFound`.
     LAST_NAME = /\w+\z/
 
+    # The boundary between a lower-case or digit letter and a capital, where a snake-case word starts.
+    CAMEL_BOUNDARY = /([a-z\d])([A-Z])/
+
     # @return [Symbol, nil] the attribute the refusal is about, when it is about one; the
     #   first in sorted order when it names several
     attr_reader :attribute
@@ -74,6 +77,24 @@ module Hecks
         copy.path = "/#{name}#{inner}"
       end
     end
+
+    # A stable identifier for the sort of no this is, for scripts and agents to branch on: the
+    # class's own name in snake case (`NotFound` is `not_found`). The names are the
+    # `DomainRefusal` vocabulary rows, so a new refusal gets its code by being declared there.
+    #
+    # @return [String] the snake-case name of the refusal's class
+    def code = snake_case(class_last_name)
+
+    # The last constant name of this refusal's class path, such as `NotFound`.
+    #
+    # @return [String] the class's own name without its namespace
+    def class_last_name = self.class.name[LAST_NAME]
+
+    # A CamelCase name in snake case, one word per capital.
+    #
+    # @param name [String] a constant's last name, such as `NotFound`
+    # @return [String] the name in snake case, such as `not_found`
+    def snake_case(name) = name.gsub(CAMEL_BOUNDARY, '\\1_\\2').downcase
 
     # @return [String, nil] a JSON Pointer to the offending value, such as `/balance/cents`
     def path = @path || (@attribute && "/#{@attribute}")
