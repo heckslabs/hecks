@@ -70,19 +70,29 @@ module Hecks
         # A split target's "before": its source's held records, fanned out one per key the split names,
         # carrying the split's fields (ADR 0166). Nil when the aggregate is not a split target.
         def split_before(edge, aggregate)
+          source, split = split_source_for(edge, aggregate)
+          source && fan_out(records(source.was || source.name), split)
+        end
+
+        # The source aggregate and the split that feeds `aggregate`, or nil.
+        def split_source_for(edge, aggregate)
           edge.aggregates.each do |source|
             split = source.splits.find { |candidate| candidate.into == aggregate.name }
-            next unless split
-
-            held = records(source.was || source.name)
-            fields = split.fields.map(&:to_s)
-            return held.filter_map do |_id, state|
-              key = state[split.keyed_by.to_s]
-              key = key["value"] if key.is_a?(Hash)
-              [key.to_s, state.slice(*fields)] if key
-            end.to_h
+            return [source, split] if split
           end
           nil
+        end
+
+        def fan_out(held, split)
+          fields = split.fields.map(&:to_s)
+          held.filter_map { |_id, state| fanned_row(state, split.keyed_by.to_s, fields) }.to_h
+        end
+
+        # One target row keyed by the held record's key, a value object's `value` member when it has one.
+        def fanned_row(state, key, fields)
+          value = state[key]
+          value = value["value"] if value.is_a?(Hash)
+          [value.to_s, state.slice(*fields)] if value
         end
 
         def records(name) = @document.dig("records", name.to_s) || {}
