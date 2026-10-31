@@ -64,7 +64,7 @@ module Hecks
           # `--text` asked for the recorded output alone (which waits).
           def command_line(spec, rest, launcher)
             text = launcher ? rest.include?(TEXT) : false
-            rest, wait = LauncherOptions.take_wait(spec, rest - [TEXT]) if launcher
+            rest, wait = LauncherOptions.take_wait(spec, launcher ? rest - [TEXT] : rest)
             [Cli.arguments(spec, rest), text || wait || LauncherOptions.settled?(launcher, spec), text]
           end
 
