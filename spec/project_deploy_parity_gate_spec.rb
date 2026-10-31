@@ -59,7 +59,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
 
     it "runs hecks check_conformance against $(WASM) — the exact artifact build-<LogicalId> just produced", :aggregate_failures do
       target_body = @makefile[/^verify-parity-\w+:\n(?:\t.*\n?)+/]
-      expect(target_body).to include("exe/hecks build.check_conformance")
+      expect(target_body).to include("exe/hecks build.check_conformance!")
       expect(target_body).to include("--wait")
       expect(target_body).to include("$(WASM)")
     end

@@ -5,7 +5,7 @@ require "json"
 require "securerandom"
 require "tmpdir"
 
-# A rehearsal through the launcher: `hecks rehearsal_run.request` is a run of RehearsalRun. The
+# A rehearsal through the launcher: `hecks rehearsal_run.request!` is a run of RehearsalRun. The
 # subject is a small Shop domain whose world names a memory copy of its data (`rehearsed_by`), so
 # nothing is created, restored or dropped: the eras held and the records stored come from a JSON
 # document beside the domain. Each example changes one thing about that copy or that domain and

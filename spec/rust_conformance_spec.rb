@@ -22,7 +22,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   # The fixture domain's compiled binary, skipping the example when its feature is not built.
   def binary_for(fixture)
     feature = File.basename(fixture.fetch("domain")).downcase
-    build_rust_for(feature) || skip("rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust for it first")
+    build_rust_for(feature) || skip("rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust! for it first")
   end
 
   def kernel_stdout(binary, fixture)
@@ -85,7 +85,7 @@ RSpec.describe "Rust conformance (native binary)", :io do
   end
 
   def banking_binary
-    build_rust_for("banking") || skip("rust/Cargo.toml has no banking feature — run hecks build.project_rust for it first")
+    build_rust_for("banking") || skip("rust/Cargo.toml has no banking feature — run hecks build.project_rust! for it first")
   end
 
   def uncovered_query_output(binary)

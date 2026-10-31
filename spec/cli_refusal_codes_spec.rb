@@ -9,8 +9,8 @@ RSpec.describe "refusal codes" do
   let(:runner) { Hecks::Adapters::Driving::CliRunner }
 
   def answer(*argv) = runner.call(runtime: runtime, argv: argv, program: "hecks")
-  def create(name) = answer("order.create_pizza", "name=#{name}", "pizza.price_cents.cents=900", "pizza.size.value=large")
-  def purchase(id) = answer("order.purchase", "id=#{id}", "customer_name=Chris", "amount.cents=900")
+  def create(name) = answer("order.create_pizza!", "name=#{name}", "pizza.price_cents.cents=900", "pizza.size.value=large")
+  def purchase(id) = answer("order.purchase!", "id=#{id}", "customer_name=Chris", "amount.cents=900")
 
   it("names a missing record") { expect(purchase("nope").first).to start_with("[not_found] ") }
 

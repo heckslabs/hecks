@@ -476,23 +476,23 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
       before { write_domain(edge: JS_EDGE) }
 
       it "holds the first era when confirmed" do
-        run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
+        run_verb("era.hold_first!", @domain, "run=first-1", "--confirm")
         row = settlement_row("first-1")
 
         expect([row.fetch("status"), row["report"]]).to eq(["settled", "Ledger holds era 1 now."])
       end
 
       it "refuses a merge before a second era exists" do
-        run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
-        out, = run_verb("era.merge_tail", @domain, "run=merge-1", "--confirm")
+        run_verb("era.hold_first!", @domain, "run=first-1", "--confirm")
+        out, = run_verb("era.merge_tail!", @domain, "run=merge-1", "--confirm")
 
         expect(refusal_reason(out)).to eq("Permit refused — an era beyond the first stands before a tail is merged")
       end
 
       it "refuses holding the first era again, saying none is held yet" do
-        run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
-        run_verb("era.merge_tail", @domain, "run=merge-1", "--confirm")
-        again, = run_verb("era.hold_first", @domain, "run=first-2", "--confirm")
+        run_verb("era.hold_first!", @domain, "run=first-1", "--confirm")
+        run_verb("era.merge_tail!", @domain, "run=merge-1", "--confirm")
+        again, = run_verb("era.hold_first!", @domain, "run=first-2", "--confirm")
 
         expect(refusal_reason(again)).to eq("Permit refused — no era is held yet")
       end
@@ -506,7 +506,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
       # The reasons the givens refuse a re-attestation of era 1 for, as run `run`.
       def reattest_reasons(run)
-        out, = run_verb("era.reattest", @domain, "era=1", "run=#{run}", "--confirm")
+        out, = run_verb("era.reattest!", @domain, "era=1", "run=#{run}", "--confirm")
         JSON.parse(out).fetch("refused_reactions", []).map { |reaction| reaction.fetch("reason") }
       end
 
@@ -534,7 +534,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     it "words the store-keeps-eras rule for a domain on Memory" do
       make_memory_domain
 
-      out, = run_verb("era.backfill_projections", @domain, "run=backfill-1")
+      out, = run_verb("era.backfill_projections!", @domain, "run=backfill-1")
 
       expect(refusal_reason(out)).to eq("Permit refused — the store keeps eras")
     end

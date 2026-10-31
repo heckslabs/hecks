@@ -31,14 +31,14 @@ RSpec.describe Hecks::Tools::ToolsDoc do
   end
 
   it "makes the first argument the bare word and names the rest", :aggregate_failures do
-    expect(forms.fetch("project")).to eq("hecks operation.refresh_projections <subject>")
-    expect(forms.fetch("check_era")).to eq("hecks host.check_era <host> expected= [timeout=]")
+    expect(forms.fetch("project")).to eq("hecks operation.refresh_projections! <subject>")
+    expect(forms.fetch("check_era")).to eq("hecks host.check_era! <host> expected= [timeout=]")
     expect(forms.fetch("deploy_template_diff")).to start_with("hecks deploy template_comparison.diff <before> after=")
     expect(forms.fetch("project_deploy")).to start_with("hecks deploy recipe.project <domain> ")
   end
 
   it "shows a switch as a flag, bare for --confirm, and leaves out the minted run key", :aggregate_failures do
-    expect(forms.fetch("merge_tail")).to eq("hecks era.merge_tail <domain> [winners=] --confirm")
+    expect(forms.fetch("merge_tail")).to eq("hecks era.merge_tail! <domain> [winners=] --confirm")
     expect(forms.values.join(" ")).not_to match(/(?<![a-z_])run=/)
   end
 
