@@ -44,12 +44,34 @@ module Hecks
         # @return [Array(String, Integer)] the text and the status: 0 answered, 1 refused or misused
         # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
         # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
-        def call(runtime:, argv:, program: "hecks run")
+        def call(runtime:, argv:, program: "hecks run", usage_log: false)
+          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
 
-          dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
-                   bluebook: plan[:bluebook], launcher: plan[:launcher])
+          answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
+                            bluebook: plan[:bluebook], launcher: plan[:launcher])
+          UsageLog.record(argv: argv, resolved: plan[:name], status: answer[1], started: started) if usage_log
+          answer
+        end
+
+        # The names a person can type at the launcher, as the projection names them: commands and
+        # queries, leaving out the internal steps a run records about itself.
+        #
+        # @param runtime [#registry] a booted domain, or what `Hecks.describe` answers
+        # @param program [String] how the caller was invoked
+        # @return [Array<String>] the sorted names
+        def known_names(runtime:, program: "hecks run")
+          bluebook, = bluebook_for(runtime, [], program)
+          launcher = LauncherOptions.settings(runtime, bluebook.name)
+          options = LauncherOptions.projection(launcher, program)
+          cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
+          public_names(cli[:names][:command], cli[:commands]) + public_names(cli[:names][:question], cli[:questions])
+        end
+
+        # @return [Array<String>] the names whose spec is not internal
+        def public_names(names, specs)
+          names.reject { |_, id| specs.dig(id, :internal) }.keys.sort
         end
 
         # Answers a command line that asks only for usage, from the projection alone.
