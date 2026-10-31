@@ -27,12 +27,13 @@ pub fn emit_policy_table(
     domain_name: &str,
     policies: &[Json],
     aggregates: &[Json],
+    read_models: &[Json],
 ) -> String {
     let fns = where_fns(policies);
-    let rows = local_policy_rows(domain_name, policies, aggregates);
+    let rows = local_policy_rows(domain_name, policies, aggregates, read_models);
     let table = exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },", rows.join("\n"))],
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, for_each_heads: &[], with_spec: &[], where_expr: None },", rows.join("\n"))],
     );
     if fns.is_empty() {
         table
@@ -84,7 +85,12 @@ fn where_fns(policies: &[Json]) -> Vec<String> {
         .collect()
 }
 
-fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) -> Vec<String> {
+fn local_policy_rows(
+    domain_name: &str,
+    policies: &[Json],
+    aggregates: &[Json],
+    read_models: &[Json],
+) -> Vec<String> {
     crate::asks::resolve_asks(policies, aggregates)
         .iter()
         .filter_map(|policy| {
@@ -101,12 +107,13 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, with_spec: {}, where_expr: {} }},",
+                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, for_each_heads: {}, with_spec: {}, where_expr: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
                 naming::ruby_inspect_string(&target_verb),
                 fan_out_verb_expr(domain_name, policy),
                 fan_out_key_expr(policy, aggregates),
+                fan_out_heads_expr(policy, read_models, aggregates),
                 with_spec_expr(policy),
                 where_expr(policy)
             ))
@@ -170,6 +177,7 @@ pub struct PolicySource<'a> {
     pub domain_name: &'a str,
     pub policies: &'a [Json],
     pub aggregates: &'a [Json],
+    pub read_models: &'a [Json],
 }
 
 /// The policy table for `merged.rs`, spanning the target domain and every attached bluebook.
@@ -180,7 +188,12 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
     let rows: Vec<String> = sources
         .iter()
         .flat_map(|source| {
-            local_policy_rows(source.domain_name, source.policies, source.aggregates)
+            local_policy_rows(
+                source.domain_name,
+                source.policies,
+                source.aggregates,
+                source.read_models,
+            )
         })
         .collect();
     let fns: Vec<String> = sources
@@ -190,7 +203,7 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
 
     let table = exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },", rows.join("\n"))],
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, for_each_heads: &[], with_spec: &[], where_expr: None },", rows.join("\n"))],
     );
     if fns.is_empty() {
         table
@@ -559,12 +572,24 @@ fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
 // read off the exported IR; `spec/codegen_parity_spec.rb` holds it identical to the Ruby side.
 fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
     let for_each = dotted_for_each(policy);
-    if for_each.is_empty() {
+    // A bare name is a read model, whose row keys come from `fan_out_heads_expr` instead.
+    if for_each.is_empty() || !for_each.contains('.') {
         return "None".to_string();
     }
     let path = for_each.split('.').next().unwrap_or_default().to_string();
     let row_aggregate = path.rsplit("::").next().unwrap_or(&path).to_string();
 
+    let key = trigger_command(policy, aggregates)
+        .and_then(|command| addressing_key_for(&command, &row_aggregate));
+
+    key.map_or_else(
+        || "None".to_string(),
+        |name| format!("Some({})", naming::ruby_inspect_string(&name)),
+    )
+}
+
+// The target command of a policy's trigger, read off the exported IR.
+fn trigger_command(policy: &Json, aggregates: &[Json]) -> Option<Json> {
     let trigger = policy
         .get("trigger_command")
         .map(Json::to_s)
@@ -573,7 +598,7 @@ fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
     let target_aggregate = parts.next().unwrap_or_default().to_string();
     let target_command = parts.next().unwrap_or_default().to_string();
 
-    let key = aggregates
+    aggregates
         .iter()
         .find(|a| a.get("name").map(Json::to_s).unwrap_or_default() == target_aggregate)
         .and_then(|a| a.get("commands"))
@@ -584,12 +609,43 @@ fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
                 .cloned(),
             _ => None,
         })
-        .and_then(|command| addressing_key_for(&command, &row_aggregate));
+}
 
-    key.map_or_else(
-        || "None".to_string(),
-        |name| format!("Some({})", naming::ruby_inspect_string(&name)),
-    )
+// A read-model `for_each` lists the many-side heads its trigger's command addresses, as
+// `(as name, addressing key)` pairs. Ruby's `addressed_head` refuses unless exactly one does; the
+// kernel does that refusal, so every candidate is listed here. A query source, or a name no read
+// model declares, lists none.
+fn fan_out_heads_expr(policy: &Json, read_models: &[Json], aggregates: &[Json]) -> String {
+    let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
+    if for_each.is_empty() || for_each.contains('.') {
+        return "&[]".to_string();
+    }
+    let Some(command) = trigger_command(policy, aggregates) else {
+        return "&[]".to_string();
+    };
+    let Some(model) = read_models
+        .iter()
+        .find(|m| m.get("name").map(Json::to_s).unwrap_or_default() == for_each)
+    else {
+        return "&[]".to_string();
+    };
+    let pairs: Vec<String> = model
+        .get("aggregate_heads")
+        .map_or_default(Json::each)
+        .iter()
+        .filter(|head| head.get("many").is_some_and(Json::as_bool))
+        .filter_map(|head| {
+            let aggregate = head.get("aggregate").map(Json::to_s).unwrap_or_default();
+            let key = addressing_key_for(&command, &aggregate)?;
+            let as_name = head.get("as").map(Json::to_s).unwrap_or_default();
+            Some(format!(
+                "({}, {})",
+                naming::ruby_inspect_string(&as_name),
+                naming::ruby_inspect_string(&key)
+            ))
+        })
+        .collect();
+    format!("&[{}]", pairs.join(", "))
 }
 
 fn addressing_key_for(command: &Json, aggregate_name: &str) -> Option<String> {
@@ -678,11 +734,13 @@ mod tests {
                 domain_name: "Orders",
                 policies: &orders_policies,
                 aggregates: &[],
+                read_models: &[],
             },
             PolicySource {
                 domain_name: "Payments",
                 policies: &payments_policies,
                 aggregates: &[],
+                read_models: &[],
             },
         ];
 
@@ -720,11 +778,13 @@ mod tests {
                 domain_name: "Orders",
                 policies: &orders_policies,
                 aggregates: &[],
+                read_models: &[],
             },
             PolicySource {
                 domain_name: "Payments",
                 policies: &payments_policies,
                 aggregates: &[],
+                read_models: &[],
             },
         ];
 

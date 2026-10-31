@@ -3,6 +3,7 @@
 
 use super::expr::{interpret, EvalContext, Expr, NoFields};
 use super::named_query;
+use super::read_model;
 use super::repository::AggregateScan;
 use super::{Event, Json, MutationRecord, Refusal};
 use std::collections::HashMap;
@@ -23,6 +24,10 @@ pub struct PolicyRule {
     /// Name each matched row's ID is minted under, resolved at codegen from the target command.
     /// The target command, not the aggregate name, decides it (`account` vs `account_id`).
     pub for_each_key: Option<&'static str>,
+    /// The many-side heads a read-model `for_each` may fan out over, as `(as name, addressing
+    /// key)` pairs, settled at codegen from the target command. Empty for a query source. A
+    /// read model source fans out only when exactly one pair is listed.
+    pub for_each_heads: &'static [(&'static str, &'static str)],
     /// `trigger ..., with:` as `(argument_name, binding)` pairs; empty forwards the whole payload.
     /// A binding starting with ":" names a source field; any other is a rendered literal.
     pub with_spec: &'static [(&'static str, &'static str)],
@@ -227,6 +232,7 @@ pub struct Tables<'a> {
     pub process_managers: &'a [ProcessManagerDef],
     pub reference_key_fn: fn(&str) -> Option<&'static str>,
     pub queries: &'a [crate::kernel::QueryDef],
+    pub read_models: &'a [read_model::ReadModelDef],
     pub command_creates_fn: fn(&str) -> bool,
     pub identity_head_fn: fn(&str) -> Option<&'static str>,
     // Slices a reaction's `with:` facts to the target command's declared attributes.
@@ -524,6 +530,68 @@ fn trigger_args(
 
 // `row` is a fan-out's own row (its id and stored record). A projection may read its fields, below
 // the emitter identity and the payload; an undeclared projection never sees them.
+/// The rows a `for_each` fans out over, and the key the trigger addresses each row by. A name with
+/// a `.` is a declared `Aggregate.Query`; a bare name is a read model, as Ruby's `for_each_rows`
+/// reads it. Either refusal is the reaction's recorded reason.
+fn fan_out_rows(
+    store: &impl AggregateScan,
+    policy: &PolicyRule,
+    for_each: &str,
+    event: &Event,
+    tables: &Tables,
+) -> Result<(Vec<(String, Json)>, Option<&'static str>), String> {
+    if for_each.contains('.') {
+        let Some(def) = named_query::find(tables.queries, for_each) else {
+            return Err(format!("no query {for_each}"));
+        };
+        // The query reads the event, not the projection, with the emitting record's identity lent
+        // under its head. No caller role: the policy is system-triggered.
+        let args = for_each_query_args(def, event, tables);
+        let rows =
+            named_query::run(store, def, &args, None).map_err(|refusal| refusal.to_string())?;
+        return Ok((rows, policy.for_each_key));
+    }
+    read_model_rows(store, policy, for_each, event, tables)
+}
+
+/// The rows of a read model's one many-side head that the trigger addresses, each keyed by its own
+/// `id`. The read model is answered from the event payload alone, as Ruby's `read_model_rows` does
+/// (no emitter id is lent to it).
+fn read_model_rows(
+    store: &impl AggregateScan,
+    policy: &PolicyRule,
+    for_each: &str,
+    event: &Event,
+    tables: &Tables,
+) -> Result<(Vec<(String, Json)>, Option<&'static str>), String> {
+    let (domain, name) = for_each.rsplit_once("::").unwrap_or(("", for_each));
+    let Some(def) = read_model::find(tables.read_models, &format!("{domain}.{name}")) else {
+        return Err(format!(
+            "for_each {name:?} names no query or read model in {domain}"
+        ));
+    };
+    let [(head, key)] = policy.for_each_heads else {
+        return Err(format!(
+            "for_each {name} must have exactly one row kind that {} can address, found {}",
+            policy.target_verb,
+            policy.for_each_heads.len()
+        ));
+    };
+    let answer =
+        read_model::run(store, def, &event.payload).map_err(|refusal| refusal.to_string())?;
+    let rows = match answer.get(head) {
+        Some(Json::Array(records)) => records
+            .iter()
+            .filter_map(|record| {
+                let id = record.get("id").and_then(Json::as_str)?;
+                Some((id.to_string(), record.clone()))
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
+    Ok((rows, Some(key)))
+}
+
 /// The arguments a `for_each` query runs with: the event payload, plus the emitting record's id
 /// under its aggregate's identity head when the query reads that name and the payload lacks it, as
 /// Ruby's `for_each_query_args` lends it. A payload value is never overridden. A composite identity
@@ -797,22 +865,12 @@ impl<S: AggregateScan> Cascade<'_, S> {
             // A fan-out dispatches once per row its query answers; the row id is merged into the
             // source a `with:` projection reads from.
             if let Some(for_each) = policy.for_each {
-                let Some(def) = named_query::find(tables.queries, for_each) else {
-                    self.reaction_log.push(record(vec![
-                        ("delivered", Json::Bool(false)),
-                        ("reason", Json::str(format!("no query {for_each}"))),
-                    ]));
-                    continue;
-                };
-                // The query reads the event, not the projection, with the emitting record's
-                // identity lent under its head. No caller role: the policy is system-triggered.
-                let query_args = for_each_query_args(def, event, &tables);
-                let rows = match named_query::run(self.store, def, &query_args, None) {
-                    Ok(rows) => rows,
-                    Err(refusal) => {
+                let (rows, key) = match fan_out_rows(self.store, policy, for_each, event, &tables) {
+                    Ok(found) => found,
+                    Err(reason) => {
                         self.reaction_log.push(record(vec![
                             ("delivered", Json::Bool(false)),
-                            ("reason", Json::str(refusal.to_string())),
+                            ("reason", Json::str(reason)),
                         ]));
                         continue;
                     }
@@ -830,7 +888,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                             other => other,
                         }
                     };
-                    let extra = policy.for_each_key.map(|key| (key, row_id.as_str()));
+                    let extra = key.map(|key| (key, row_id.as_str()));
                     let args = trigger_args_with_row(
                         policy,
                         event,
@@ -1609,6 +1667,7 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
+            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
@@ -1717,6 +1776,7 @@ mod tests {
             process_managers: NONE_M,
             reference_key_fn: multi_leg_no_reference_key,
             queries: NONE_Q,
+            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
@@ -1842,6 +1902,7 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
+            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
@@ -1946,6 +2007,7 @@ mod tests {
             process_managers: &[],
             reference_key_fn: routed_reference_key_never_found,
             queries: &[],
+            read_models: &[],
             command_creates_fn: routed_never_creates,
             identity_head_fn: routed_identity_head,
             command_attributes_fn: routed_declared_attributes,
@@ -1984,6 +2046,7 @@ mod tests {
             where_expr: None,
             for_each: None,
             for_each_key: None,
+            for_each_heads: &[],
             with_spec: &[("subject_key", ":id"), ("subject_kind", "\"box\"")],
         }
     }
@@ -2207,6 +2270,7 @@ mod tests {
             process_managers: &[],
             reference_key_fn: bug10_reference_key_never_found,
             queries: &[],
+            read_models: &[],
             command_creates_fn: bug10_never_creates,
             identity_head_fn: bug10_identity_head_never_found,
             command_attributes_fn: bug10_declared_attributes,
@@ -2341,6 +2405,7 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
+            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
@@ -2466,6 +2531,7 @@ mod tests {
             where_expr: None,
             for_each: None,
             for_each_key: None,
+            for_each_heads: &[],
             with_spec: &[],
         }];
         static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];
@@ -2477,6 +2543,7 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
+            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
