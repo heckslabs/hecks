@@ -50,6 +50,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 31 internal commands and queries
-  hecks --maintainer           also list the 354 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 356 commands and queries for working on hecks itself
   a command is called with its aggregate — Release.tag!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

@@ -41,7 +41,7 @@ Hecks.bluebook "Hecks" do
 
       value_object "OperationName" do
         attribute :value, String,
-                  pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki)$'
+                  pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki|write_translation)$'
       end
 
       # `id:old,id:new`: which world's record wins for each id both worlds touched since the cut.
@@ -175,6 +175,24 @@ Hecks.bluebook "Hecks" do
         emits HekiCompactionRequested
       end
 
+      # Writes the one edge that leads the latest held era to the current shape, composed from the
+      # chain of edges between them, and deletes the intermediate edges only that chain used. An
+      # audit that refuses the written edge puts the translations directory back as it was.
+      command "WriteTranslation" do
+        role "Operator"
+        goal "Write the one translation edge that leads the latest held era to the current shape"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the edge is confirmed") { confirm.value == true }
+
+        sets :operation, to: "write_translation"
+
+        emits TranslationRequested
+      end
+
       # The facts the journal store reported, held against the change that was asked for.
       command "Permit" do
         role "System"
@@ -212,6 +230,7 @@ Hecks.bluebook "Hecks" do
         given("the held text no longer matches its digest: there is nothing to re-attest") do
           operation.value != "reattest" || drifted.value
         end
+        given("the domain holds an era to lead from") { operation.value != "write_translation" || held.value > 0 }
         given("the edited text loads as a bluebook: restore a loadable text") do
           operation.value != "reattest" || loadable.value
         end
@@ -277,6 +296,13 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
 
+      # The edge `write_translation` would write and the edges it would delete, written nowhere.
+      query "ComposeTranslation" do
+        description "The one edge write_translation would write, and the stale edges it would delete."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
       query "Attestation" do
         description "An era's held text as it now stands, and whether it still matches its digest."
         attribute :domain, DomainPath
@@ -322,6 +348,11 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
+    policy "ExamineWhenTranslationRequested" do
+      on      "Era.TranslationRequested"
+      ask     :examine, with: { run: :run }
+    end
+
     policy "PermitWhenExamined" do
       on      "Era.EraExamined"
       trigger Era::Permit, with: {
@@ -342,7 +373,8 @@ Hecks.bluebook "Hecks" do
           (operation.value == "merge_tail" && (held.value <= 1 || forks.value != 0 || contested.value != 0)) ||
           ((operation.value == "compact" || operation.value == "compact_heki") &&
             (candidates.value <= 0 || bound.value != 0)) ||
-          (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value))
+          (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value)) ||
+          (operation.value == "write_translation" && held.value == 0)
       end
       trigger Era::Abandon, with: { refusal: "the journal's facts do not admit this change" }
     end

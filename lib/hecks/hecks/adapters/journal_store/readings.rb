@@ -7,6 +7,7 @@ require_relative "edge_audit"
 require_relative "compaction"
 require_relative "readings/scaffolding"
 require_relative "readings/attestation"
+require_relative "readings/composition"
 
 module Hecks
   module Adapters
@@ -22,6 +23,7 @@ module Hecks
 
         include Scaffolding
         include Attestation
+        include Composition
 
         # Words the answer for a domain that holds no era.
         #

@@ -131,6 +131,7 @@ commands:
     backfill_projections!         Store the shape every held era froze with, for the eras that predate it
     compact!                      Delete the journal entries a Postgres or Sqlite aggregate has already projected
     compact_heki!                 Empty a Heki aggregate's journal, keeping the snapshot
+    write_translation!            Write the one translation edge that leads the latest held era to the current shape
   RehearsalRun:
     One rehearsal of a domain's next era against a copy of its data: what a mint would do, and what it would refuse.
     request!                      Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome
@@ -242,6 +243,7 @@ queries (nothing here changes anything):
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     scaffold_translation    The edge file that would lead the latest held era to the current shape.
     audit_translation       The audit of the edge that leads the latest held era to the current shape.
+    compose_translation     The one edge write_translation would write, and the stale edges it would delete.
     attestation             An era's held text as it now stands, and whether it still matches its digest.
     compaction              What compacting the domain's journals would delete, without deleting it.
   Seal:
