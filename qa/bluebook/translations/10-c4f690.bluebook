@@ -1,16 +1,2 @@
-# The MainCheck addition, from 30b922. The stored text fields a shape change made required are
-# filled with an empty string where they were null, and left alone where they hold text.
 Hecks.data_translation "QualityControl", from: "30b922", to: "c4f690" do
-  aggregate "Sweep" do
-    backfill "notes.value", default: ""
-  end
-
-  aggregate "Bug" do
-    backfill "reason.value", default: ""
-    backfill "next_step.value", default: ""
-  end
-
-  aggregate "Target" do
-    backfill "reason.value", default: ""
-  end
 end
