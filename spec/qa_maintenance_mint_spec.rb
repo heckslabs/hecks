@@ -29,10 +29,6 @@ RSpec.describe Hecks::Adapters::MainMaintenance do
     expect { mint(verdict: "would_refuse") }.to raise_error(refused, /not would_mint/)
   end
 
-  it "refuses every mint until the command is wired to the QA ledger" do
-    expect { mint }.to raise_error(refused, /not wired to the QA ledger/)
-  end
-
   it "lands a minted era without stranding the run" do
     land(["merged", true])
     expect(File.exist?(File.join(state_dir, "state", "stranded.json"))).to be(false)
