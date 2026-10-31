@@ -556,6 +556,20 @@ Hecks.hecksagon "Hecks" do
     answers_query "IrImpact"
   end
 
+  Hecks::Server.port "SourceTree" do
+    asks "Examine", to: Server do
+      attribute :run, RunKey
+      answers "ServerExamined"
+      refuses "ServerRefused"
+    end
+
+    asks "Perform", to: Server do
+      attribute :run, RunKey
+      answers "ServerAnswered"
+      refuses "ServerRefused"
+    end
+  end
+
   Hecks::PublishingRun.port "SourceTree" do
     asks "Examine", to: PublishingRun do
       attribute :run, RunKey
