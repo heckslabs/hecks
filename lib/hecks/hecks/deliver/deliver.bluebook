@@ -144,6 +144,94 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # A linked worktree opened on a new branch from main: asked of the git port, then recorded or declined. The
+    # path is the one the caller names, or a directory under the checkout's `.claude/worktrees`. `Landing` and
+    # `Landing.retire!` take it from there, so a session that cannot run `git worktree add` itself can still open one.
+    aggregate "Worktree" do
+      description "A linked worktree opened on a new branch from main, or declined with the reason."
+
+      attribute :run,      RunKey
+      attribute :checkout, Word,   optional: true
+      attribute :branch,   Word,   optional: true
+      attribute :path,     Word,   optional: true
+      attribute :sha,      Word,   optional: true
+      attribute :report,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A directory or a branch name.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Record"  => "opened",   from: "requested"
+        transition "Decline" => "declined", from: "requested"
+        mark :terminal, "opened", "declined"
+      end
+
+      command "Add" do
+        role "Operator"
+        goal "Open a linked worktree on a new branch from main, never on main itself"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, sets: true
+        attribute :path,     Word, optional: true, sets: true
+
+        given("a worktree is opened on a branch other than main") do
+          branch.value.to_s.strip != "" && branch.value.to_s.strip != "main"
+        end
+
+        emits AddRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record the worktree a checkout opened, by the sha it stands on"
+
+        reference_to Worktree
+        attribute :sha,    Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits AddRecorded
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a worktree could not be opened"
+
+        reference_to Worktree
+        attribute :refusal, Report, sets: true
+
+        emits AddDeclined
+      end
+    end
+
+    policy "AddWorktreeWhenRequested" do
+      on      "Worktree.AddRequested"
+      ask     :create, with: { run: :run }
+    end
+
+    policy "RecordTheWorktree" do
+      on      "Worktree.CreateAnswered"
+      trigger Worktree::Record, with: { sha: :sha, report: :report }
+    end
+
+    policy "DeclineTheWorktree" do
+      on      "Worktree.CreateRefused"
+      trigger Worktree::Decline, with: { refusal: :refusal }
+    end
+
     # Lands a branch on main after its mechanical gate work: comment style is fixed, the shape
     # ledger is checked, the quick gate runs, then the branch lands and boards the push train. Rubocop
     # autocorrect is not a step yet (no command), so offenses it would fix still stop the gate. A
