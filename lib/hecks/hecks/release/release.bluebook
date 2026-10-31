@@ -37,6 +37,7 @@ Hecks.bluebook "Hecks" do
       command "Tag" do
         role "Maintainer"
         goal "Record a version as tagged, with the IR version it carries"
+        audience :record
 
         attribute :version,    Version, sets: true
         attribute :ir_version, Version, sets: true
@@ -49,6 +50,7 @@ Hecks.bluebook "Hecks" do
       command "MarkPublished", from: "tagged" do
         role "Maintainer"
         goal "Record that a tagged version reached the gem registry"
+        audience :record
 
         reference_to Release
 
@@ -58,6 +60,7 @@ Hecks.bluebook "Hecks" do
       command "Verify", from: %w[published verified] do
         role "Maintainer"
         goal "Record that the published version installs and boots"
+        audience :record
 
         reference_to Release
 
@@ -67,6 +70,7 @@ Hecks.bluebook "Hecks" do
       command "CloseFindings" do
         role "Maintainer"
         goal "Record the findings this version settled"
+        audience :record
 
         reference_to Release
         attribute :closes, list_of(FindingKey), sets: true

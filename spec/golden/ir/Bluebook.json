@@ -6982,6 +6982,36 @@
             [
               [
                 "keyword",
+                "aggregate"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "kind"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "kind"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "domain_module"
               ],
               [
@@ -7068,6 +7098,16 @@
           "pattern": null,
           "relationship": null,
           "type": "Permission"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "audience",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Audience"
         },
         {
           "admits": null,
@@ -8149,6 +8189,68 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "addressed",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "AudienceName"
+            }
+          ],
+          "emits": [
+            "AudienceAddressed"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "addressed",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!addressed.value.to_s.empty?",
+              "description": "an audience is named"
+            }
+          ],
+          "goal": "Name an audience this command is listed for",
+          "idempotent": false,
+          "mutations": [
+            {
+              "fields": {
+                "name": ":addressed"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "audience"
+            }
+          ],
+          "name": "Address",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "fact",
               "optional": false,
               "pattern": null,
@@ -8409,6 +8511,28 @@
 
           ],
           "name": "Permission"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Audience"
         },
         {
           "attributes": [
@@ -8832,6 +8956,28 @@
           "members": [
 
           ],
+          "name": "AudienceName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
           "name": "FactName"
         },
         {
@@ -8996,6 +9142,36 @@
               [
                 "fills",
                 "goal"
+              ]
+            ],
+            [
+              [
+                "word",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "calls",
+                "audience_impl"
               ]
             ],
             [
@@ -9611,6 +9787,40 @@
               [
                 "coerce",
                 "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [

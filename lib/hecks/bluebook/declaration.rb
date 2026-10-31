@@ -104,11 +104,17 @@ module Hecks
         @classification    = @classification&.to_s
         @formerly_known_as = @formerly_known_as&.to_s
         @namespace         = @namespace&.to_s
-        @attaches_to       = Array(@attaches_to).map(&:to_s)
-        @provides          = Array(@provides).map { |row| Provision.from(row) }
-        @modules           = Array(@modules).map { |row| ModuleRow.from(row) }
+        coerce_rows
       end
       private :coerce_fields
+
+      # Holds every row-valued field as the rows its reader answers.
+      def coerce_rows
+        @attaches_to = Array(@attaches_to).map(&:to_s)
+        @provides    = Array(@provides).map { |row| Provision.from(row) }
+        @modules     = Array(@modules).map { |row| ModuleRow.from(row) }
+      end
+      private :coerce_rows
     end
   end
 end

@@ -285,6 +285,8 @@ Hecks.bluebook "Bluebook", version: "1" do
 
       member keyword: "provides", context: "Bluebook", at: "", named: "live_transitions", kind: "text", required: "false", fills: "provides"
 
+      member keyword: "aggregate", context: "Bluebook", at: "", named: "kind", kind: "text", required: "false", fills: "kind"
+
       member keyword: "domain_module", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name"
     end
   end

@@ -152,6 +152,7 @@ RSpec.describe "the declared syntax" do
       acknowledges_impl:  "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       needs_impl:         "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       idempotent_impl:    "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
+      audience_impl:      "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
       identified_by_impl: "IdentityDeclaration's own real implementation, called by GenericDispatch's calls:",
       lifecycle_impl:     "the owning builder's own real implementation, called by GenericDispatch's calls:",
       entity_impl:        "the owning builder's own real implementation, called by GenericDispatch's calls:",

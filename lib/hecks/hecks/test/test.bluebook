@@ -6,11 +6,9 @@ Hecks.bluebook "Hecks" do
     # job runs are pure reads; refreshing the committed timings, rewriting the persistence fixtures
     # and writing the committed spec list change tracked files and need --confirm; a stress run
     # and a single example only run specs and write nothing tracked.
-    aggregate "TestSuiteRun" do
+    aggregate "TestSuiteRun", kind: "Run" do
       description "One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite."
 
-      attribute :run,         RunKey
-      attribute :operation,   Operation, optional: true
       # The folder the specs live in; this checkout when none is named.
       attribute :root,        FilePath, optional: true
       # The git ref the changed-file run compares against.
@@ -36,28 +34,6 @@ Hecks.bluebook "Hecks" do
       attribute :groups,      Count, optional: true
       attribute :runtime_log, FilePath, optional: true
       attribute :check,       FilePath, optional: true
-      attribute :checkout,    Switch, optional: true
-      attribute :report,      Report, optional: true
-      attribute :refusal,     Report, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-
-        invariant("a run is named") { !value.to_s.empty? }
-      end
-
-      value_object "Operation" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
-
-      value_object "Report" do
-        attribute :value, String
-      end
 
       # How many, always at least one.
       value_object "Count" do
@@ -109,14 +85,6 @@ Hecks.bluebook "Hecks" do
       # or the JSON parse fuzzer of the root crate.
       value_object "CrateName" do
         attribute :value, String, pattern: '^(host|parser|json)$'
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
-        transition "Accept"   => "accepted",  from: "requested"
-        transition "Complete" => "completed", from: "accepted"
-        transition "Fault"    => "faulted",   from: %w[requested accepted]
-        mark :terminal, "completed", "faulted"
       end
 
       command "RefreshRuntimeBaseline" do
@@ -276,56 +244,6 @@ Hecks.bluebook "Hecks" do
         emits WriteIoParallelSpecListRequested
       end
 
-      # What the tree reported about itself, held against every request: nothing here runs
-      # outside a hecks checkout (hecks.gemspec beside lib/).
-      command "Accept" do
-        role "System"
-        goal "Let a request through only when the working tree is a hecks checkout"
-
-        reference_to TestSuiteRun
-        attribute :checkout, Switch, sets: true
-
-        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-
-
-        emits TestSuiteAccepted
-      end
-
-      command "Complete" do
-        role "System"
-        goal "Record that the request was carried out, and what it reported"
-
-        reference_to TestSuiteRun
-        attribute :report, Report, sets: true
-
-
-        emits TestSuiteCompleted
-      end
-
-      command "Fault" do
-        role "System"
-        goal "Record that the request was refused or could not be carried out, and why"
-
-        reference_to TestSuiteRun
-        attribute :refusal, Report, sets: true
-
-
-        emits TestSuiteFaulted
-      end
-
-      query "TestSuiteOutcome" do
-        description "How one request ended: its status, and what it reported or why it failed."
-        attribute :run, RunKey
-        where(run: :run)
-        order_by :run
-      end
-
-      query "TestSuiteFaulted" do
-        description "Every request that was refused or could not be carried out."
-        where(status: "faulted")
-        order_by :run
-      end
-
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
         attribute :text, String
@@ -401,32 +319,6 @@ Hecks.bluebook "Hecks" do
     policy "ExamineWhenWriteIoParallelSpecListRequested" do
       on      "TestSuiteRun.WriteIoParallelSpecListRequested"
       ask     :examine, with: { run: :run }
-    end
-
-    policy "AcceptTestSuiteWhenExamined" do
-      on      "TestSuiteRun.TestSuiteExamined"
-      trigger TestSuiteRun::Accept, with: { checkout: :checkout }
-    end
-
-    policy "FaultTestSuiteWhenNotAccepted" do
-      on      "TestSuiteRun.TestSuiteExamined"
-      where   { !checkout.value }
-      trigger TestSuiteRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
-    end
-
-    policy "PerformTestSuiteWhenAccepted" do
-      on      "TestSuiteRun.TestSuiteAccepted"
-      ask     :perform, with: { run: :run }
-    end
-
-    policy "RecordTestSuiteOutcome" do
-      on      "TestSuiteRun.TestSuiteAnswered"
-      trigger TestSuiteRun::Complete, with: { report: :report }
-    end
-
-    policy "RecordTestSuiteFault" do
-      on      "TestSuiteRun.TestSuiteRefused"
-      trigger TestSuiteRun::Fault, with: { refusal: :refusal }
     end
 
     # Named for the run, as ModelCheckRun is: `Hecks::Fuzzing` is the fuzzing toolkit's own module,

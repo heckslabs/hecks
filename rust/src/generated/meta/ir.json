@@ -4502,9 +4502,83 @@
           "pattern": null,
           "admits": null,
           "relationship": null
+        },
+        {
+          "name": "modules",
+          "type": "ModuleMembership",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
+        {
+          "name": "ModuleMembership",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "ModuleText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
         {
           "name": "Provision",
           "attributes": [
@@ -5443,6 +5517,32 @@
               [
                 "opens",
                 "ProcessManager"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Bluebook"
+              ],
+              [
+                "opens",
+                "Bluebook"
               ],
               [
                 "fills",
@@ -6401,6 +6501,66 @@
                 "fills",
                 "provides"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "aggregate"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "kind"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "kind"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
             ]
           ]
         }
@@ -6691,6 +6851,71 @@
           "idempotent": false
         },
         {
+          "name": "Group",
+          "role": "Language",
+          "goal": "Declare that an aggregate belongs to a module",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "modules",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":name",
+                "vision": ":vision",
+                "aggregate": ":aggregate"
+              }
+            }
+          ],
+          "emits": [
+            "AggregateGrouped"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
           "name": "Normalise",
           "role": "Language",
           "goal": "Attach one canonical-form rule to the bluebook",
@@ -6877,6 +7102,16 @@
         {
           "name": "roles",
           "type": "Permission",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "audience",
+          "type": "Audience",
           "list": true,
           "default": null,
           "optional": false,
@@ -7136,6 +7371,28 @@
         },
         {
           "name": "Permission",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Audience",
           "attributes": [
             {
               "name": "name",
@@ -7559,6 +7816,28 @@
           ]
         },
         {
+          "name": "AudienceName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
           "name": "FactName",
           "attributes": [
             {
@@ -7743,6 +8022,36 @@
               [
                 "fills",
                 "goal"
+              ]
+            ],
+            [
+              [
+                "word",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "calls",
+                "audience_impl"
               ]
             ],
             [
@@ -8358,6 +8667,40 @@
               [
                 "coerce",
                 "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -10635,6 +10978,68 @@
           ],
           "emits": [
             "RoleAllowed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Address",
+          "role": "Language",
+          "goal": "Name an audience this command is listed for",
+          "references": null,
+          "attributes": [
+            {
+              "name": "addressed",
+              "type": "AudienceName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "an audience is named",
+              "canonical": "!addressed.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "addressed",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "audience",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":addressed"
+              }
+            }
+          ],
+          "emits": [
+            "AudienceAddressed"
           ],
           "from": null,
           "provenance": null,

@@ -296,39 +296,15 @@ Hecks.bluebook "Hecks" do
     # Regeneration: rebuilding every corpus domain's committed output, which only this repository has.
     # A check projects into a scratch crate and never writes the tree; without --confirm the run is
     # that check, so the tracked generated files change only when the regeneration is confirmed.
-    aggregate "RegenerationRun" do
+    aggregate "RegenerationRun", kind: "Run" do
       description "One regeneration of every corpus domain's committed Rust output, or the check that it is current."
 
-      attribute :run,       RunKey
-      attribute :operation, Operation, optional: true
       attribute :confirm,   Switch, optional: true
       attribute :check,     Switch, optional: true
       attribute :live,      Switch, optional: true
       attribute :gate,      GateName, optional: true
       attribute :domains,   DomainList, optional: true
       attribute :workers,   Count, optional: true
-      attribute :checkout,  Switch, optional: true
-      attribute :report,    Report, optional: true
-      attribute :refusal,   Report, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-
-        invariant("a run is named") { !value.to_s.empty? }
-      end
-
-      value_object "Operation" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
-
-      value_object "Report" do
-        attribute :value, String
-      end
 
       # A `CiGate` row of the Vocabulary bluebook, by name.
       value_object "GateName" do
@@ -345,14 +321,6 @@ Hecks.bluebook "Hecks" do
         attribute :value, Integer
 
         invariant("a count is positive") { value > 0 }
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
-        transition "Accept"   => "accepted",  from: "requested"
-        transition "Complete" => "completed", from: "accepted"
-        transition "Fault"    => "faulted",   from: %w[requested accepted]
-        mark :terminal, "completed", "faulted"
       end
 
       command "RegenerateCorpus" do
@@ -437,56 +405,6 @@ Hecks.bluebook "Hecks" do
 
         emits DecideCiGateRequested
       end
-
-      # What the tree reported about itself, held against every request: nothing here runs
-      # outside a hecks checkout (hecks.gemspec beside lib/).
-      command "Accept" do
-        role "System"
-        goal "Let a request through only when the working tree is a hecks checkout"
-
-        reference_to RegenerationRun
-        attribute :checkout, Switch, sets: true
-
-        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-
-
-        emits RegenerationAccepted
-      end
-
-      command "Complete" do
-        role "System"
-        goal "Record that the request was carried out, and what it reported"
-
-        reference_to RegenerationRun
-        attribute :report, Report, sets: true
-
-
-        emits RegenerationCompleted
-      end
-
-      command "Fault" do
-        role "System"
-        goal "Record that the request was refused or could not be carried out, and why"
-
-        reference_to RegenerationRun
-        attribute :refusal, Report, sets: true
-
-
-        emits RegenerationFaulted
-      end
-
-      query "RegenerationOutcome" do
-        description "How one request ended: its status, and what it reported or why it failed."
-        attribute :run, RunKey
-        where(run: :run)
-        order_by :run
-      end
-
-      query "RegenerationFaulted" do
-        description "Every request that was refused or could not be carried out."
-        where(status: "faulted")
-        order_by :run
-      end
     end
 
     policy "ExamineWhenRegenerateCorpusRequested" do
@@ -519,70 +437,12 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
-    policy "AcceptRegenerationWhenExamined" do
-      on      "RegenerationRun.RegenerationExamined"
-      trigger RegenerationRun::Accept, with: { checkout: :checkout }
-    end
-
-    policy "FaultRegenerationWhenNotAccepted" do
-      on      "RegenerationRun.RegenerationExamined"
-      where   { !checkout.value }
-      trigger RegenerationRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
-    end
-
-    policy "PerformRegenerationWhenAccepted" do
-      on      "RegenerationRun.RegenerationAccepted"
-      ask     :perform, with: { run: :run }
-    end
-
-    policy "RecordRegenerationOutcome" do
-      on      "RegenerationRun.RegenerationAnswered"
-      trigger RegenerationRun::Complete, with: { report: :report }
-    end
-
-    policy "RecordRegenerationFault" do
-      on      "RegenerationRun.RegenerationRefused"
-      trigger RegenerationRun::Fault, with: { refusal: :refusal }
-    end
-
     # The Rust kernel: the capability enums the hand-written kernel is matched against, and the check
     # that every attribute shape and expression-operator category the grammar admits has its file.
-    aggregate "KernelRun" do
+    aggregate "KernelRun", kind: "Run" do
       description "One projection of the Rust kernel's capability enums, or one measure of their coverage."
 
-      attribute :run,       RunKey
-      attribute :operation, Operation, optional: true
       attribute :confirm,   Switch, optional: true
-      attribute :checkout,  Switch, optional: true
-      attribute :report,    Report, optional: true
-      attribute :refusal,   Report, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-
-        invariant("a run is named") { !value.to_s.empty? }
-      end
-
-      value_object "Operation" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
-
-      value_object "Report" do
-        attribute :value, String
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
-        transition "Accept"   => "accepted",  from: "requested"
-        transition "Complete" => "completed", from: "accepted"
-        transition "Fault"    => "faulted",   from: %w[requested accepted]
-        mark :terminal, "completed", "faulted"
-      end
 
       command "ProjectKernelCapabilities" do
         role "Maintainer"
@@ -606,56 +466,6 @@ Hecks.bluebook "Hecks" do
 
         emits MeasureKernelCoverageRequested
       end
-
-      # What the tree reported about itself, held against every request: nothing here runs
-      # outside a hecks checkout (hecks.gemspec beside lib/).
-      command "Accept" do
-        role "System"
-        goal "Let a request through only when the working tree is a hecks checkout"
-
-        reference_to KernelRun
-        attribute :checkout, Switch, sets: true
-
-        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-
-
-        emits KernelAccepted
-      end
-
-      command "Complete" do
-        role "System"
-        goal "Record that the request was carried out, and what it reported"
-
-        reference_to KernelRun
-        attribute :report, Report, sets: true
-
-
-        emits KernelCompleted
-      end
-
-      command "Fault" do
-        role "System"
-        goal "Record that the request was refused or could not be carried out, and why"
-
-        reference_to KernelRun
-        attribute :refusal, Report, sets: true
-
-
-        emits KernelFaulted
-      end
-
-      query "KernelOutcome" do
-        description "How one request ended: its status, and what it reported or why it failed."
-        attribute :run, RunKey
-        where(run: :run)
-        order_by :run
-      end
-
-      query "KernelFaulted" do
-        description "Every request that was refused or could not be carried out."
-        where(status: "faulted")
-        order_by :run
-      end
     end
 
     policy "ExamineWhenProjectKernelCapabilitiesRequested" do
@@ -668,43 +478,15 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
-    policy "AcceptKernelWhenExamined" do
-      on      "KernelRun.KernelExamined"
-      trigger KernelRun::Accept, with: { checkout: :checkout }
-    end
-
-    policy "FaultKernelWhenNotAccepted" do
-      on      "KernelRun.KernelExamined"
-      where   { !checkout.value }
-      trigger KernelRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
-    end
-
-    policy "PerformKernelWhenAccepted" do
-      on      "KernelRun.KernelAccepted"
-      ask     :perform, with: { run: :run }
-    end
-
-    policy "RecordKernelOutcome" do
-      on      "KernelRun.KernelAnswered"
-      trigger KernelRun::Complete, with: { report: :report }
-    end
-
-    policy "RecordKernelFault" do
-      on      "KernelRun.KernelRefused"
-      trigger KernelRun::Fault, with: { refusal: :refusal }
-    end
-
     # Corpus: what this repository's committed domains are, and what the language's own IR holds.
     # Every question about them is a pure read, answered by the SourceTree port: which domains carry
     # a Rust feature, the order they regenerate in, whether each generated module is covered, and the
     # structural queries over the IR. Two commands open a long-running server: the query MCP server
     # on stdio and the forms app on a local port; each is recorded, runs until it is closed, and
     # answers when it ends.
-    aggregate "CorpusRun" do
+    aggregate "CorpusRun", kind: "Run" do
       description "One look at the corpus and the language's IR, or one server opened on them."
 
-      attribute :run,       RunKey
-      attribute :operation, Operation, optional: true
       attribute :confirm,   Switch, optional: true
       attribute :names,     NameList, optional: true
       attribute :domains,   PathList, optional: true
@@ -715,38 +497,16 @@ Hecks.bluebook "Hecks" do
       attribute :port,      Port, optional: true
       attribute :agent,     AgentName, optional: true
       attribute :directory, Directory, optional: true
-      attribute :checkout,  Switch, optional: true
-      attribute :report,    Report, optional: true
-      attribute :refusal,   Report, optional: true
-      identified_by :run
 
       # One directory of files, named by a path.
       value_object "Directory" do
         attribute :value, String, matches: :present
       end
 
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-
-        invariant("a run is named") { !value.to_s.empty? }
-      end
-
       # Which agent drives the Composer's assistant: the real `claude`, or a scripted `fake` for
       # trying the editor without a model.
       value_object "AgentName" do
         attribute :value, String, pattern: '^(claude|fake)$'
-      end
-
-      value_object "Operation" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
-
-      value_object "Report" do
-        attribute :value, String
       end
 
       # Construct names, comma separated.
@@ -774,14 +534,6 @@ Hecks.bluebook "Hecks" do
         attribute :value, Integer
 
         invariant("a port is 1 to 65535") { value >= 1 && value <= 65535 }
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
-        transition "Accept"   => "accepted",  from: "requested"
-        transition "Complete" => "completed", from: "accepted"
-        transition "Fault"    => "faulted",   from: %w[requested accepted]
-        mark :terminal, "completed", "faulted"
       end
 
       command "ServeQueryIrMcp" do
@@ -832,56 +584,6 @@ Hecks.bluebook "Hecks" do
         sets :operation, to: "preview"
 
         emits PreviewRequested
-      end
-
-      # What the tree reported about itself, held against every request: nothing here runs
-      # outside a hecks checkout (hecks.gemspec beside lib/).
-      command "Accept" do
-        role "System"
-        goal "Let a request through only when the working tree is a hecks checkout"
-
-        reference_to CorpusRun
-        attribute :checkout, Switch, sets: true
-
-        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
-
-
-        emits CorpusAccepted
-      end
-
-      command "Complete" do
-        role "System"
-        goal "Record that the request was carried out, and what it reported"
-
-        reference_to CorpusRun
-        attribute :report, Report, sets: true
-
-
-        emits CorpusCompleted
-      end
-
-      command "Fault" do
-        role "System"
-        goal "Record that the request was refused or could not be carried out, and why"
-
-        reference_to CorpusRun
-        attribute :refusal, Report, sets: true
-
-
-        emits CorpusFaulted
-      end
-
-      query "CorpusOutcome" do
-        description "How one request ended: its status, and what it reported or why it failed."
-        attribute :run, RunKey
-        where(run: :run)
-        order_by :run
-      end
-
-      query "CorpusFaulted" do
-        description "Every request that was refused or could not be carried out."
-        where(status: "faulted")
-        order_by :run
       end
 
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
@@ -952,30 +654,5 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
-    policy "AcceptCorpusWhenExamined" do
-      on      "CorpusRun.CorpusExamined"
-      trigger CorpusRun::Accept, with: { checkout: :checkout }
-    end
-
-    policy "FaultCorpusWhenNotAccepted" do
-      on      "CorpusRun.CorpusExamined"
-      where   { !checkout.value }
-      trigger CorpusRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
-    end
-
-    policy "PerformCorpusWhenAccepted" do
-      on      "CorpusRun.CorpusAccepted"
-      ask     :perform, with: { run: :run }
-    end
-
-    policy "RecordCorpusOutcome" do
-      on      "CorpusRun.CorpusAnswered"
-      trigger CorpusRun::Complete, with: { report: :report }
-    end
-
-    policy "RecordCorpusFault" do
-      on      "CorpusRun.CorpusRefused"
-      trigger CorpusRun::Fault, with: { refusal: :refusal }
-    end
   end
 end

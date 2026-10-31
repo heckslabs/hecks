@@ -12,7 +12,7 @@ between them is hand-written and survives regeneration.*
 Most of these run against `examples/banking`, whose `Account` commands
 carry roles, goals, givens, ensures, multi-fact `emits`, and `sets`
 for real. A command-level `provenance` is written nowhere in the
-corpus, and so is `idempotent`, so they get a bluebook of their own:
+corpus, and so are `idempotent` and `audience`, so they get a bluebook of their own:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
@@ -54,6 +54,8 @@ Hecks.bluebook "CommandReference" do
     command "Advance" do
       # A COMMAND'S OWN PROVENANCE, one level below the aggregate's.
       provenance from: { source: "HecksCanonical", source_id: "command:meter-advance", source_version: "1.0" }
+      # LISTED for an agent and a CI step, not for a person at a keyboard.
+      audience :agent, :ci
 
       reference_to Meter
       attribute :units, Reading
@@ -192,6 +194,38 @@ freeze = runtime.registry.bluebook("Banking").aggregate("Account").commands.find
 freeze.goal  # => "Stop an account moving while something is investigated"
 freeze.role  # => "Compliance officer"
 ```
+
+## audience
+
+<!-- generated:begin word=audience -->
+`audience audience` — fills `audience`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | audience |
+<!-- generated:end -->
+
+Names who a launcher lists the command for: `:person` (someone at a keyboard), `:agent`
+(through the MCP door), `:ci` (a step of a pipeline) and `:record` (a run's own bookkeeping,
+which a person never types). Name one or several. A command that names none is listed for a
+person and an agent, and a launcher also leaves out a `System`-role command, as it always did.
+
+```ruby
+advance = runtime.registry.bluebook("CommandReference").aggregate("Meter").commands.find { |c| c.hecks_name == "Advance" }
+advance.audience  # => ["agent", "ci"]
+```
+
+A command that does not say it names no audience:
+
+```ruby
+install = runtime.registry.bluebook("CommandReference").aggregate("Meter").commands.find { |c| c.hecks_name == "Install" }
+install.audience  # => []
+```
+
+The audience decides what a launcher lists, never who may run the command: `role` still does
+that. Bare `hecks` lists the commands whose audience includes `:person`, and `hecks --all` adds
+the rest. Naming an audience the language does not know, naming none, or naming one twice is
+refused. It is carried on the IR as a list of names, and absent from a command that names none.
 
 ## provenance
 

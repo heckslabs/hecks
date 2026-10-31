@@ -36,6 +36,7 @@ module Hecks
           ["Bluebook", "provides"] => :provides_impl,
           ["Bluebook", "aggregate"] => :aggregate_impl,
           ["Command", "role"] => :role_impl,
+          ["Command", "audience"] => :audience_impl,
           ["Command", "provenance"] => :provenance_impl,
           ["Command", "idempotent"] => :idempotent_impl,
           ["Command", "reference_to"] => :reference_to_impl,

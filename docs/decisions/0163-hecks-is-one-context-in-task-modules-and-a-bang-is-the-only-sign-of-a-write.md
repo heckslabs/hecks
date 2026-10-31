@@ -1,7 +1,8 @@
 # Hecks is one context in task modules, and a bang is the only sign of a write
 
 **Status:** Proposed. Date: 2026-10-30. Supersedes [ADR 0096](0096-hecks-bluebooks-sit-in-four-modules.md).
-Planned for 7.0.0.
+Planned for 7.0.0. The `hecks-rust` split of [ADR 0164](0164-hecks-distills-to-a-core-that-no-satellite-is-needed-to-build.md)
+ships in 7.1.0, not with this record.
 
 ## Context
 
@@ -41,12 +42,12 @@ operating a domain into a grouping, where an audience says it better.
 ## Decision
 
 1. **The Hecks domain is one bounded context, grouped in DDD modules.** Its aggregates share one
-   language, so the trouble is grouping, not boundaries. A module is a block inside the one
-   `"Hecks"` bluebook, and each module is a folder:
+   language, so the trouble is grouping, not boundaries. A module is a `domain_module` block
+   inside the one `"Hecks"` bluebook, and each module is a folder:
 
    ```ruby
    Hecks.bluebook "Hecks" do
-     module "Deliver" do
+     domain_module "Deliver" do
        vision "Take finished work into the shared line."
        aggregate "Landing" do
          # …
@@ -56,7 +57,9 @@ operating a domain into a grouping, where an audience says it better.
    ```
 
    Aggregates keep their constants and stored shapes when they move into a module; the context
-   map is unchanged. `module` means only this: a grouping inside one bluebook.
+   map is unchanged. `domain_module` means only this: a grouping inside one bluebook. The word is
+   not `module`, and the audience word below is not `for`, because a bluebook is read by Ruby and
+   both are Ruby keywords that cannot open a line.
 
 2. **A folder means one thing.** `lib/hecks/hecks/<module>/` holds that module's `.bluebook`.
    `hecks.bluebook` opens the context and declares nothing else; `hecks.hecksagon`, the worlds,
@@ -88,16 +91,16 @@ operating a domain into a grouping, where an audience says it better.
    `fuzz_conformance` move from `Build` to `ConformanceRun`; `clear_caches` moves from
    `TestSuiteRun` to `Build`.
 
-4. **Who a command is for is declared.** A command says `for :person`, `:agent`, `:ci` or
-   `:record`, one or several; it defaults to `:person, :agent`. `for:` decides listing only; `role`
-   still decides who may issue it. Bare `hecks` lists `:person`, the MCP door lists `:agent`, and
+4. **Who a command is for is declared.** A command says `audience :person`, `:agent`, `:ci` or
+   `:record`, one or several; it defaults to `:person, :agent`. `audience` decides listing only;
+   `role` still decides who may issue it. Bare `hecks` lists `:person`, the MCP door lists `:agent`, and
    `:ci` and `:record` are listed only by `--all`. The world's `maintainer` setting names modules
    (`evolve`, `release`) instead of aggregates, so a client project never lists how Hecks
    maintains itself; this is where ADR 0096's maintenance line now lives.
 
 5. **A run is a declared kind.** The `*Run` aggregates repeat one lifecycle, one set of bookkeeping
    commands (`accept`, `perform`, `complete`, `fault`, `examine`) and one pair of queries. An
-   aggregate declared `kind: "Run"` gets them once, marked `for :record`.
+   aggregate declared `kind: "Run"` gets them once, marked `audience :record`.
 
 6. **A bang is the only sign of a write.** `Name!` dispatches a command and `Name` asks a query,
    in every spelling, the verb form included (`Hecks::Landing.Land!`). A command named without
@@ -128,30 +131,112 @@ operating a domain into a grouping, where an audience says it better.
 
 ## What the language needs
 
-- A `module` block in the Bluebook language, admitted through `LanguageRun` (`propose`, then
-  `admit`), and a loader that reads one bluebook from its module folders.
+- A `domain_module` block in the Bluebook language, admitted through `LanguageRun` (`propose`,
+  then `admit`), and a loader that reads one bluebook from its module folders.
 - `formerly_known_as` on an aggregate; the bluebook has it today.
-- `for:` on a command.
-- `kind:` on an aggregate, and the `Run` kind.
+- `audience` on a command.
+- `kind:` on an aggregate, and the `Run` kind. A kind is a text in the bluebook's own words,
+  `lib/hecks/language/kinds/<kind>.kind`, evaluated around the aggregate's body with the aggregate's
+  name and stem filled in; `aggregate` admits `kind:` as an argument row, and the built IR is the
+  one the hand-written aggregate had. The Run kind covers the seven codebase runs whose lifecycle,
+  bookkeeping commands, queries and policies match word for word (`LanguageRun`, `KernelRun`,
+  `ConformanceRun`, `RegenerationRun`, `CodemodRun`, `TestSuiteRun`, `CorpusRun`); `GateRun`,
+  `StyleRun`, `InspectionRun` and `ScriptRun` differ in the wording of their bookkeeping goals,
+  and the runs of other modules differ in lifecycle.
 - A command attribute whose closed set of values binds each value to a port operation.
 - The adapter-word check in `model_check`.
 
 ## Plan
 
-0. **Planned work in the Tickets bluebook.** Tickets holds `Finding` and `Adr`; a plan step is
-   neither. Add a `Work` aggregate (planned, started, done, linked to an `Adr`) and record this
-   plan's steps through the push train's copy, which persists them. Until then this list is the
-   plan.
-1. **`everyday` in the world's `launcher` setting**, listed first inside a checkout too. Data only.
-2. **`for:`**, and the record-only verbs marked `:record`.
-3. **`kind: "Run"`.**
-4. **`module`**, and the loader reading module folders. The aggregates move into their folders
+The plan is the `Work` rows under this record in the Tickets bluebook; each step's state lives
+there, not here (`hecks tickets Work.under adr=0163`). The steps, by the part of the command line
+they settle:
+
+### The language and the listing
+
+0. Planned work in the Tickets bluebook: a `Work` aggregate, and Tickets in a database of their
+   own, apart from the push train.
+1. `everyday` in the world's `launcher` setting, listed first inside a checkout too. Data only.
+2. `audience` on a command, and the record-only verbs marked `:record`.
+3. `kind: "Run"`.
+4. `domain_module`, and the loader reading module folders. The aggregates move into their folders
    with no shape change.
-5. **The 7.0.0 change**, one diff and one era: `Server` and `Codebase`, the moved commands, the
+5. The 7.0.0 change, one diff and one era: `Server` and `Codebase`, the moved commands, the
    collapsed families, the renames, the bang rule (a codemod adds `!` to every caller in the
    repository: hooks, workflows, the Guardfile, docs and specs), and the retired `Hecks::CLI`
    table. Rehearsed against a copy of the train's data before the push.
-6. **The adapter-word check** joins the gate, green from its first run.
+6. The adapter-word check joins the gate, green from its first run.
+
+### The command line as a contract
+
+7. Tab completion generated from the same projection as the listing.
+8. `--plan` on every bang command: prints what it would write, and writes nothing.
+9. `--json` on the listing, so the MCP door, the docs and scripts read one projection.
+10. A refusal names the command that creates the missing record.
+11. Calls to retired forms are logged during the warning window, so what still calls old names
+    shows before the refusal ships.
+12. The help header names the release. Version only, no counts.
+
+### Environment and safety
+
+13. `hecks doctor`: database reachable, role present, overlay files readable, and which store each
+    aggregate uses.
+14. `hecks config` shows each bluebook's store, not only the root database.
+15. A warning when a worktree lacks the main checkout's overlay files, so a command does not
+    silently write to Memory.
+16. One rule for destructive commands: every delete, publish or lane move needs `--confirm`, in
+    the same words.
+17. One rule for the flags every command takes.
+18. Documented, tested exit codes.
+
+### Output and behaviour
+
+19. Long commands stream stage lines as they happen.
+20. `hecks search <word>` finds commands and queries by name or description.
+21. A snapshot test of bare `hecks` and each module's help.
+22. `-q` and `-v` verbosity flags.
+29. Results on stdout, messages on stderr.
+30. A bang repeated with the same run key returns the recorded result instead of writing again.
+31. `hecks resume <run>` continues an interrupted saga from the failed step.
+32. Ctrl-C records the run as interrupted.
+33. A refusal carries a stable code beside its text.
+34. Plain output when not a terminal, and `NO_COLOR` respected.
+
+### MCP
+
+23. The MCP agent scope comes from `audience :agent`, replacing ADR 0089's hand-kept list.
+24. A destructive MCP tool refuses without confirmation, by the rule of step 16.
+25. Long runs send progress over MCP, matching step 19.
+
+### Migration
+
+26. A rename table projected from `formerly` entries on command declarations, mapping each old
+    name and its arguments to the new; old names warn in 7.0 and refuse from 8.0.
+27. Every command's first line states its context: checkout, store, audience and environment.
+28. `hecks where` explains the resolved context, and a bang that would write to an unexpected store
+    refuses.
+
+### Polish
+
+35. Measure and budget cold start.
+36. A concept page and worked examples per module.
+37. The command line names the undo for every write.
+38. A written compatibility promise.
+39. The command line tested as a product: golden output, exit codes, a sample session in CI.
+40. `hecks tour`: a first run that works.
+
+### Gaps
+
+41. This Plan kept in step with the Tickets rows.
+42. Success measures for the command line.
+43. The other surfaces that use command names: the Composer, the Rails bridge, the generated
+    launchers, the Rust host's HTTP API.
+44. Consumers beyond the searched repositories.
+45. Secrets kept out of refusals, logs and progress lines.
+46. Local, opt-out usage counts.
+47. How a bad 7.0 is rolled back: fix forward or revert, and who decides.
+48. Linux shells and Windows.
+49. A gate check that every `everyday` name resolves to a listed command.
 
 ## Consequences
 

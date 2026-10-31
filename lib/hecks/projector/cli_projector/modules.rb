@@ -10,7 +10,12 @@ module Hecks
         # @param word [String, nil] a word of the command line
         # @return [String, nil] the module's name, or nil when the bluebook has none by that word
         def module_named(bluebook, word)
-          bluebook.modules.map(&:name).uniq.find { |name| Naming.snake(name) == word }
+          module_names(bluebook).find { |name| Naming.snake(name) == word }
+        end
+
+        # Each module's name once, in declaration order.
+        def module_names(bluebook)
+          bluebook.modules.map(&:name).uniq
         end
 
         # The specs of the aggregates `name` groups; every spec when no module is asked for.

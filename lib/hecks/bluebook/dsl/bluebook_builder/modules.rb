@@ -29,24 +29,28 @@ module Hecks
           # One row per aggregate a module groups, in declaration order, each carrying its module's
           # vision (empty when the module names none).
           def module_rows
-            @module_members.map do |name, aggregate|
-              Declaration::ModuleRow.new(name: name, vision: @module_visions[name].to_s, aggregate: aggregate)
+            module_members.map do |name, aggregate|
+              Declaration::ModuleRow.new(name: name, vision: module_visions[name].to_s, aggregate: aggregate)
             end
           end
 
+          # Each `[module, aggregate]` pair declared so far, in declaration order.
+          def module_members = @module_members ||= []
+
+          # Each module's vision by its name, for the modules that declared one.
+          def module_visions = @module_visions ||= {}
+
           # Records an aggregate under the open module, if one is open.
           def note_in_open_module(name)
-            @module_members << [@open_module, name.to_s] if @open_module
+            module_members << [@open_module, name.to_s] if @open_module
           end
 
           # Records the open module's vision.
           def module_vision(value)
-            held = @module_visions[@open_module]
-            if held && held != value
-              raise Malformed, "domain_module #{@open_module.inspect} declares two visions"
-            end
+            held = module_visions[@open_module]
+            raise Malformed, "domain_module #{@open_module.inspect} declares two visions" if held && held != value
 
-            @module_visions[@open_module] = value
+            module_visions[@open_module] = value
           end
 
           # Refuses a bluebook-wide word written inside a module block.
@@ -65,7 +69,7 @@ module Hecks
           end
 
           def refuse_empty_module!(name)
-            return if @module_members.any? { |held, _| held == name }
+            return if module_members.any? { |held, _| held == name }
 
             raise Malformed, "domain_module #{name.inspect} holds no aggregate"
           end
