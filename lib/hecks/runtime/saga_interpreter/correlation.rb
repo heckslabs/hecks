@@ -29,7 +29,7 @@ module Hecks
         # Strings respond to `[]`, so test for Hash/Value explicitly rather than
         # `respond_to?(:[])`.
         def payload_correlation(process_manager, event)
-          path = process_manager.correlates_by.to_s.split(".")
+          path = own_correlation_path(process_manager, event)
           path.reduce(event.payload) do |held, segment|
             held.is_a?(Hash) || held.is_a?(Value) ? held[segment.to_sym] : held
           end
@@ -42,12 +42,24 @@ module Hecks
           event.correlation && event.correlation[process_manager.correlation_head.to_s]
         end
 
+        # `Message.id` (what a bare `correlates_by Message` resolves to) names the emitting
+        # aggregate's own id: the path is walked without its leading aggregate name.
+        def own_correlation_path(process_manager, event)
+          path = process_manager.correlates_by.to_s.split(".")
+          own_name = event.aggregate.to_s.split("::", 2).last
+          path.size > 1 && path.first == own_name ? path.drop(1) : path
+        end
+
         def self_identified?(process_manager, event)
           domain, bare_name = event.aggregate.to_s.split("::", 2)
           return false unless bare_name
 
           construct = @registry.bluebook(domain)&.aggregate(bare_name)
           return false unless construct
+
+          head, *rest = process_manager.correlates_by.to_s.split(".")
+          # The emitting aggregate's own id, spelled with its name: `Message.id`.
+          return rest == ["id"] if head == bare_name
 
           construct.identity_heads.map(&:to_s).include?(process_manager.correlation_head.to_s)
         end

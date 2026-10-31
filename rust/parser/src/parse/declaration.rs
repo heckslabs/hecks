@@ -147,6 +147,9 @@ pub fn parse_bluebook(
     bluebook.policies = aggregate_policies;
     bluebook.policies.extend(bluebook_policies);
 
+    // A bare `correlates_by Message` resolves to an aggregate's identity once the aggregates exist.
+    crate::build::correlation_keys::resolve_bare(&files[0].0, &mut bluebook)?;
+
     // Reference-hop query tails resolve only once the whole aggregate graph exists.
     crate::build::query_inference::apply(&files[0].0, &mut bluebook)?;
 

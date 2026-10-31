@@ -17,6 +17,15 @@ module Hecks
           @handlers = []
         end
 
+        # Records the key that ties one instance's events together. A dotted path or symbol is
+        # kept as written; a bare aggregate name (`correlates_by Message`) is kept as its bare
+        # name, which `BluebookBuilder` resolves to `"Message.<identity>"` once every aggregate
+        # is known.
+        #
+        # @param key [Symbol, String, Module] the dotted path, or a bare aggregate name
+        # @return [void]
+        def correlates_by_impl(key) = @correlates_by = key
+
         # Records the event that begins a fresh instance of this process manager.
         #
         # `starts_on Transfer::TransferRequested`: a bare constant, stored as the bare event
@@ -160,13 +169,19 @@ module Hecks
                                          "nothing would tie its events to one instance"
           end
 
-          # Names a scalar (`:"end_to_end.value"`), never a whole field or value object.
-          # A syntactic check: the dotted spelling leaves no question about the key's type.
-          return if @correlates_by.to_s.include?(".")
+          # A bare name is not checked here: it may name an aggregate, which only the bluebook
+          # can see. `BluebookBuilder` resolves it to `"<Aggregate>.<identity>"`, or refuses it
+          # with `bare_correlation_message`. A dotted path is a scalar by its spelling.
+        end
 
-          raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
-                                       "field rather than one of its scalars — say which one, e.g. " \
-                                       "#{@correlates_by}.value"
+        # The refusal for a bare name that does not name an aggregate of the bluebook.
+        #
+        # @param name [String] the process manager's name
+        # @param key [String] the bare name, as written
+        # @return [String] the message the refusal raises with
+        def self.bare_correlation_message(name, key)
+          "#{name} correlates_by #{key}, which names a whole field rather than one of its scalars — " \
+            "say which one, e.g. #{key}.value (or name an aggregate of this bluebook, which correlates by its identity)"
         end
 
         # A leg is selected by (event, current state), so two legs on the same pair would

@@ -84,6 +84,12 @@ module Hecks
       #
       # @return [Array<String>] the ending events, never empty when `ends_on` is set
       def ending_events = endings.empty? ? [ends_on].compact : endings
+
+      # Replaces a bare aggregate name with the dotted path the bluebook resolved it to.
+      #
+      # @param key [String] the `"<Aggregate>.<identity>"` path
+      # @return [String] the path now held
+      def correlate_by!(key) = @correlates_by = key
     end
   end
 end
