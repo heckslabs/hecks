@@ -67,7 +67,7 @@ Hecks.world "Hecks" do
                        everyday: %w[operation.run operation.open_console gate_run.gate
                                     test_suite_run.run_changed test_suite_run.run_spec_example
                                     build.build_host shipment.ship landing.land push_train.board
-                                    checkout.status inspection_run.search],
+                                    checkout.status codebase.search],
                        bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],
