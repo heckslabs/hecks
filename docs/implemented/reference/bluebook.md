@@ -311,14 +311,17 @@ runtime.registry.bluebook("BluebookReference").classification  # => "generic"
 ## aggregate
 
 <!-- generated:begin word=aggregate -->
-`aggregate name do ... end` — opens a `Aggregate` body
+`aggregate name, kind: do ... end` — opens a `Aggregate` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| `kind:` | text | false | kind |
 <!-- generated:end -->
 
 Opens the thing with identity in this domain — `identified_by`, its `attribute`s, `command`s, and lifecycle. See the Aggregate reference page for the full vocabulary inside.
+
+`kind:` names a kind, a text in `lib/hecks/language/kinds/` written in these same words. The aggregate's body is evaluated inside it, so the aggregate states what is its own and takes the rest from the kind. `aggregate "GateRun", kind: "Run"` takes the run lifecycle, its `Accept`, `Complete` and `Fault` commands, the two queries that read how requests ended and the policies that carry a request through, all named for the stem `Gate`.
 
 Every aggregate a bluebook opens becomes an entry point of its own, named after
 the bluebook:
