@@ -1,0 +1,8 @@
+# Binds the `MainMaintenance` port to `MainMaintenance` for any boot that loads the QualityControl bluebook.
+# The implementation is required by name, not relative to this file, so a copy of this directory shares
+# the one implementation already loaded.
+require "hecks/quality_control/adapters/main_maintenance"
+
+Hecks.adapter "MainMaintenance" do
+  port "MainMaintenance"
+end

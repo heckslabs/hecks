@@ -1,6 +1,6 @@
 # The anti-corruption layer between QualityControl and Coder. Named to load after
 # quality_control.hecksagon (hecksagons load in filename order), which loads the QualityControl
-# bluebook a `translates` names, and after context_map.hecksagon, which attaches Coder.
+# bluebook a `translates` names and attaches Coder.
 
 # QualityControl receives a merged fix: a merged Patch is the commit that makes a bug's `Fix` true.
 Hecks.hecksagon "QualityControl" do
@@ -14,6 +14,7 @@ end
 # back on it. Each translation names the QA event it listens to.
 Hecks.hecksagon "Coder" do
   attaches "QualityControl"
+  attaches "Governance"
 
   translates "OfferLoggedBug" do
     on Bug::BugLogged
