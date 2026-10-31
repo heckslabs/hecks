@@ -1,0 +1,4 @@
+# The 7.0 renames move the shape's names and no field: Workspace, Revision, SendTrain and ReviewRequest
+# keep their stored tables (storage_name uses the former name) and their fields, so no row is rewritten.
+Hecks.data_translation "Hecks", from: "c16350", to: "35350c" do
+end
