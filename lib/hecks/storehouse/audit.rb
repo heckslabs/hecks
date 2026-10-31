@@ -27,13 +27,18 @@ module Hecks
       def record!(domain_name, tool:, outcome:, **entry)
         return unless domain_name
 
-        line = { time: Time.now.utc.iso8601, tool: tool }.merge(AUDIT_FIELDS.to_h { |field| [field, entry[field]] })
-                                                         .merge(outcome.slice(:ok, :id, :error, :events))
-                                                         .merge(entry.slice(:duration_ms, :refusal)).compact
         FileUtils.mkdir_p(log_root)
-        File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(line)) }
+        File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(audit_line(tool, outcome, entry))) }
       rescue StandardError
         nil
+      end
+
+      # The JSON-shaped line for one call: time, tool, the caller's fields, and what the outcome says.
+      # :nodoc:
+      def audit_line(tool, outcome, entry)
+        fields = AUDIT_FIELDS.to_h { |field| [field, entry[field]] }
+        { time: Time.now.utc.iso8601, tool: tool, **fields, **outcome.slice(:ok, :id, :error, :events),
+          **entry.slice(:duration_ms, :refusal) }.compact
       end
 
       # Tails this bus's own dispatch/query/state audit log — a pull-based

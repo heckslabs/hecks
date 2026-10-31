@@ -68,6 +68,12 @@ RSpec.describe Hecks::Storehouse do
      { command: "order.create_pizza", args: pizza_args.merge(name: { value: "Diavola" }) }]
   end
 
+  def follow_after_success_and_refusal
+    create_pizza
+    described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
+    described_class.follow(runtime: runtime)[:entries]
+  end
+
   def follow_after_three_calls
     create_pizza(summary: "one", source: "operator")
     available(summary: "two")
@@ -120,9 +126,7 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "logs each call with its duration, and a refusal's kind", :aggregate_failures do
-      create_pizza
-      described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
-      created, refused = described_class.follow(runtime: runtime)[:entries]
+      created, refused = follow_after_success_and_refusal
 
       expect(created).to include(duration_ms: be_a(Integer), tool: "dispatch")
       expect(created).not_to have_key(:refusal)

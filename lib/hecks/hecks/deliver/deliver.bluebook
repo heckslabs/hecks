@@ -147,7 +147,7 @@ Hecks.bluebook "Hecks" do
     # A linked worktree opened on a new branch from main: asked of the git port, then recorded or declined. The
     # path is the one the caller names, or a directory under the checkout's `.claude/worktrees`. `Landing` and
     # `Landing.retire!` take it from there, so a session that cannot run `git worktree add` itself can still open one.
-    aggregate "Worktree" do
+    aggregate "LinkedTree" do
       description "A linked worktree opened on a new branch from main, or declined with the reason."
 
       attribute :run,      RunKey
@@ -199,7 +199,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record the worktree a checkout opened, by the sha it stands on"
 
-        reference_to Worktree
+        reference_to LinkedTree
         attribute :sha,    Word,   sets: true
         attribute :report, Report, sets: true
 
@@ -210,7 +210,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record why a worktree could not be opened"
 
-        reference_to Worktree
+        reference_to LinkedTree
         attribute :refusal, Report, sets: true
 
         emits AddDeclined
@@ -218,18 +218,18 @@ Hecks.bluebook "Hecks" do
     end
 
     policy "AddWorktreeWhenRequested" do
-      on      "Worktree.AddRequested"
+      on      "LinkedTree.AddRequested"
       ask     :create, with: { run: :run }
     end
 
     policy "RecordTheWorktree" do
-      on      "Worktree.CreateAnswered"
-      trigger Worktree::Record, with: { sha: :sha, report: :report }
+      on      "LinkedTree.CreateAnswered"
+      trigger LinkedTree::Record, with: { sha: :sha, report: :report }
     end
 
     policy "DeclineTheWorktree" do
-      on      "Worktree.CreateRefused"
-      trigger Worktree::Decline, with: { refusal: :refusal }
+      on      "LinkedTree.CreateRefused"
+      trigger LinkedTree::Decline, with: { refusal: :refusal }
     end
 
     # Lands a branch on main after its mechanical gate work: comment style is fixed, the shape
