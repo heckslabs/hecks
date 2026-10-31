@@ -1,4 +1,5 @@
 Hecks — What this install is, what version it runs, and whether its grammar cache can be trusted.
+  hecks 6.0.0
 
   hecks <command>! [name=value …]       do something
   hecks query <query> [name=value …]    read something
@@ -12,8 +13,8 @@ everyday:
   Build.build_host!               Build the Rust host for a domain, with its wasm and IR, ready to copy…
   Shipment.ship!                  Start the gate-and-board saga for a branch: fix comment style, check…
   Landing.land!                   Merge a worktree's branch onto local main: fast-forward when it can be,…
-  PushTrain.board!                Push this checkout's branch once the push ahead of it lands, unless…
-  Checkout.status                 The checkout's branch, whether it is a linked worktree, where it stands…
+  SendTrain.board!                Push this checkout's branch once the push ahead of it lands, unless…
+  Workspace.status                The checkout's branch, whether it is a linked worktree, where it stands…
   Codebase.search                 The lines of the checkout's text files that match a pattern, as…
 
 commands:
@@ -74,24 +75,24 @@ commands:
     dispatch!                     Hand one brief to a background Claude session working in a directory
     check!                        Ask whether a started session is still working
     tidy!                         Remove the finished session of one run, unless it is unfinished or a person took it over
-  Commit:
+  Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!                         Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
     retire!                       Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
-  PushTrain:
+  SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
     survey!                       List every checkout under a directory whose branch has commits its remote does not
   Shipment:
     One request to fix, gate, land and board a branch: the gate-and-board saga starts on it.
     ship!                         Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
-  PullRequest:
+  ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     open!                         Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
-    merge!                        Squash-merge an open pull request by its number; never with an admin override
+    take!                         Squash-merge an open pull request by its number; never with an admin override
   LanguageRun:
     One change to the language's own tables, or one reading of where its words stand.
     project_model!                Project the model's holding half from the language that declares it
@@ -211,18 +212,18 @@ queries (nothing here changes anything):
     One check or fix of comment style, or one document written with its keys in order.
     report_comments         The Ruby comment violations, as summary tables, a list or JSON.
     report_rust_comments    The Rust comment violations, as summary tables, a list or JSON.
-  Checkout:
+  Workspace:
     A look at a checkout: its branch, what it changed and what it committed.
     status                  The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
     changes                 What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
-    log                     The commits in a range, newest first (the last 20 when none is named).
+    history                 The commits in a range, newest first (the last 20 when none is named).
     settings                What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
     doctor                  Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
     where                   Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     unlanded                Every branch with commits that are not on main, or with uncommitted work, and where its worktree is.
-  PullRequest:
+  ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     status                  The state of one pull request on GitHub: its number, state, URL and checks, as text.
   LanguageRun:

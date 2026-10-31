@@ -105,9 +105,9 @@ current list of what this repo can do.
   says what one wants and how it refuses.
 - `exe/hecks <command>! name=value …` does something;
   `exe/hecks query <query> name=value …` reads something.
-- A command is named by its aggregate and verb, as the bluebook spells them: `PushTrain.board!`,
-  `Hecks::PushTrain.board!` and `Hecks::PushTrain.Board` all reach it, and so does the older
-  snake-case `push_train.board!`. The listing and `--help` print `PushTrain.board!`; the heading
+- A command is named by its aggregate and verb, as the bluebook spells them: `SendTrain.board!`,
+  `Hecks::SendTrain.board!` and `Hecks::SendTrain.Board` all reach it, and so does the older
+  snake-case `send_train.board!`. The listing and `--help` print `SendTrain.board!`; the heading
   over a group of commands is the aggregate, so each line under it completes the call.
 - Before writing a script, look for the command that already does it
   (projections, regeneration, style checks, model_check, smoke tests).
@@ -174,12 +174,12 @@ commit must pass as `RequiredCheck` rows beside them.
 
 - **`main` has no guard.** Agents land work on it with `hecks landing.land`
   (fast-forward or merge commit, never squashed) and then
-  `hecks push_train.board!`; do not open a pull request for it. No check is required
+  `hecks send_train.board!`; do not open a pull request for it. No check is required
   to land, so run the pre-push gate yourself before you push anything that
   is not trivial: `hecks gate_run.gate stage=quick --wait` runs the seconds-long checks (shape
   ledger, rubocop, comment style) and is worth running before every commit. A push of `main` runs
   those first, then only the `unguarded_push` stage of
-  the Vocabulary gate rows, and `hecks push_train.board! full_gate.value=true` runs the
+  the Vocabulary gate rows, and `hecks send_train.board! full_gate.value=true` runs the
   whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push

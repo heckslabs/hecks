@@ -11,7 +11,7 @@ green suite by itself, and a change that skips them is one someone else
 has to re-verify by hand.
 
 Agents land work on `main` with `hecks landing.land` and then
-`hecks push_train.board!`; they do not open pull requests for it. A pull
+`hecks send_train.board!`; they do not open pull requests for it. A pull
 request is for outside authors, and for a change that needs a reviewer's
 eyes before it lands.
 
@@ -84,7 +84,7 @@ codegen-drift checks, and rustfmt), concurrently, and reports the results in a f
 and say why in the push (or the PR).
 
 `main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `quick` checks (shape ledger, rubocop, the
-comment-style checks; run them yourself with `hecks gate_run.gate stage=quick --wait`) and then `spec/fuzzing`; `hecks push_train.board! full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
+comment-style checks; run them yourself with `hecks gate_run.gate stage=quick --wait`) and then `spec/fuzzing`; `hecks send_train.board! full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
 lanes are unguarded is the `Lane` rows of the Vocabulary bluebook, not this file.
 
 ### Fast local iteration
@@ -184,11 +184,11 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   from one source shape, which the mint and CI refuse. The second to merge rebases, regenerates
   their edge from the merged shape, and moves the ledger again.
 - **The push train is optional.** `~/.claude/hecks-train` in the maintainer's setup is a detached
-  checkout that pushes through `hecks push_train.board!` so several agents' pushes run one at a
+  checkout that pushes through `hecks send_train.board!` so several agents' pushes run one at a
   time. A person can push with plain `git push`; the hook runs the same gate. To run a train of
   your own, make a detached checkout of this repository, give it an `environments/local.world`
   naming a database on your own Postgres, and push from it with
-  `exe/hecks push_train.board! checkout=<your clone> remote=origin branch=main --wait`. It merges
+  `exe/hecks send_train.board! checkout=<your clone> remote=origin branch=main --wait`. It merges
   commits that reached `origin/main` meanwhile and retries, as a plain push would not.
 
 ## Verification beyond the suite
@@ -373,7 +373,7 @@ above:
 ### What the pre-push hook is and is not
 
 `.githooks/pre-push` can be bypassed with `git push --no-verify`, and a push of
-only `main` skips it unless the push asks for the full gate (`hecks push_train.board! full_gate.value=true`). When it
+only `main` skips it unless the push asks for the full gate (`hecks send_train.board! full_gate.value=true`). When it
 runs and a signing key is present in the keychain, it writes an HMAC
 attestation note keyed by the tree hash, and CI uses that note to skip the
 checks the note names. The note is evidence that someone holding the key
