@@ -110,17 +110,6 @@ module Hecks
           end
         RUBY
 
-        # The lines that hand the legacy commands to `Hecks::CLI`.
-        LEGACY_HANDOFF = <<~RUBY.freeze
-
-          # The names the gem has always shipped keep their positional forms.
-          LEGACY = %w[{{commands}}].freeze
-          if LEGACY.include?(ARGV.first)
-            require "hecks/cli"
-            exit Hecks::CLI.start(ARGV) unless Hecks::CLI.launcher_form?(ARGV)
-          end
-        RUBY
-
         # Fills a template's `{{name}}` placeholders.
         #
         # @param template [String] the template text
