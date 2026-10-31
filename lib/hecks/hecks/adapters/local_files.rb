@@ -3,8 +3,8 @@
 require "fileutils"
 require_relative "console_capture"
 require_relative "rails_app_files"
-require "hecks/cli/project_cli"
-require "hecks/cli/domain_stub"
+require "hecks/tools/project_cli"
+require "hecks/tools/domain_stub"
 
 module Hecks
   module Adapters
@@ -21,7 +21,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
       # Writes a command-line launcher beside each domain of the current directory, or beside the
-      # named ones, through `Hecks::CLI::ProjectCli`. A launcher is a generated file that only
+      # named ones, through `Hecks::Tools::ProjectCli`. A launcher is a generated file that only
       # points at its domain, so an existing one is replaced and nothing else is touched.
       #
       # @param held [Hash] the `Launch` record: `domains` (comma separated paths under the current
@@ -31,7 +31,7 @@ module Hecks
       def write(**held)
         domains = Text.comma_list(plain(held[:domains]))
         text = ConsoleCapture.answer do
-          CLI::ProjectCli.call(domains, program: "hecks project_cli", root: Dir.pwd, remove_stale_bin: false)
+          Tools::ProjectCli.call(domains, program: "hecks project_cli", root: Dir.pwd, remove_stale_bin: false)
         end
         unless text.include?("->")
           reason = text.strip.empty? ? "no domain found" : text.strip
@@ -79,7 +79,7 @@ module Hecks
       # The directory the stub is written into: the named one, or the snake-cased name under the
       # current directory.
       def stub_target(held)
-        File.expand_path(plain(held[:dir]) || CLI::DomainStub.directory(plain(held[:name])), Dir.pwd)
+        File.expand_path(plain(held[:dir]) || Tools::DomainStub.directory(plain(held[:name])), Dir.pwd)
       end
 
       # Warns that a service written inside the hecks clone is not one to deploy from there.
@@ -101,7 +101,7 @@ module Hecks
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
       def stub_files(name, adapter)
-        CLI::DomainStub.files(name: name, adapter: adapter)
+        Tools::DomainStub.files(name: name, adapter: adapter)
       rescue ArgumentError => e
         raise ConsoleCapture::Failure, e.message
       end

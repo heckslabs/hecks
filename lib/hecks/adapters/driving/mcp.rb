@@ -1,6 +1,6 @@
 require "json"
 require_relative "../.."
-require_relative "../../cli/mcp"
+require_relative "../../tools/mcp"
 require_relative "mcp/tool_definitions"
 require_relative "mcp/tool_calls"
 require_relative "mcp/progress_sink"
@@ -43,7 +43,7 @@ module Hecks
         # Read once, so a bad setting refuses to start the server before anything is
         # written to stdout.
         def scope
-          @scope ||= McpScope.start!(server: CLI::Mcp::SERVER)
+          @scope ||= McpScope.start!(server: Tools::Mcp::SERVER)
         end
 
         # The standing notes, then what this server's scope says about `domain:`.
@@ -52,7 +52,7 @@ module Hecks
         end
 
         def serve
-          McpStdioGuard.warn!(server: CLI::Mcp::SERVER, notes: warning_notes)
+          McpStdioGuard.warn!(server: Tools::Mcp::SERVER, notes: warning_notes)
           $stdout.sync = true
 
           $stdin.each_line { |line| answer_line(line.strip) }
@@ -139,7 +139,7 @@ module Hecks
 
         def initialize_result(_params)
           { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} },
-            serverInfo: { name: CLI::Mcp::SERVER, version: "1.1.0" } }
+            serverInfo: { name: Tools::Mcp::SERVER, version: "1.1.0" } }
         end
 
         # The tools this server's scope permits, each presented with the command guide.

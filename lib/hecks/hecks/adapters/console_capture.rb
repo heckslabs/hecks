@@ -6,7 +6,7 @@ require "stringio"
 module Hecks
   module Adapters
     # Runs a command-line entry point that prints and exits, and hands back what it said and how
-    # it ended, so an adapter can reuse `Hecks::CLI::*` unchanged.
+    # it ended, so an adapter can reuse `Hecks::Tools::*` unchanged.
     #
     # It is the shared base for every Custodian adapter that wraps an existing CLI: the entry
     # point keeps its own printing, `exit` and `abort`, and the adapter turns the outcome into a

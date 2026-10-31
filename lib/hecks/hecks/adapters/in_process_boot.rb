@@ -5,9 +5,9 @@ require "hecks"
 # A domain wired to PostgresEra needs this plugin loaded explicitly, and the `:shape` projection
 # reads `Runtime::StorageShape` from it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
-require_relative "../../cli/stores"
-require_relative "../../cli/shape"
-require_relative "../../cli/history"
+require_relative "../../tools/stores"
+require_relative "../../tools/shape"
+require_relative "../../tools/history"
 require_relative "../../projections/context_map_diagram"
 require_relative "in_process_operations"
 require_relative "in_process_undo"
@@ -58,7 +58,7 @@ module Hecks
       #   one `<Domain> <label>` line per domain for a directory
       # @raise [Runtime::NotFound] if the path does not exist or holds no bluebook
       def shape(domain:)
-        report(CLI::Shape.render(plain(domain)))
+        report(Tools::Shape.render(plain(domain)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -70,8 +70,8 @@ module Hecks
       # @raise [Runtime::NotFound] if the domain, aggregate or record cannot be found
       def stores(domain:, aggregate: nil, record: nil, flat: nil)
         registry = boot(domain).registry
-        CLI::PersistenceNotice.announce(registry, program: "hecks stores")
-        report(JSON.generate(CLI::Stores.read(registry, plain(aggregate), plain(record), flat: plain(flat) == true)))
+        Tools::PersistenceNotice.announce(registry, program: "hecks stores")
+        report(JSON.generate(Tools::Stores.read(registry, plain(aggregate), plain(record), flat: plain(flat) == true)))
       end
 
       # @param domain [Hash, String] a domain directory
@@ -80,8 +80,8 @@ module Hecks
       # @raise [Runtime::NotFound] if the domain cannot be found
       def history(domain:)
         registry = boot(domain).registry
-        CLI::PersistenceNotice.announce(registry, program: "hecks history")
-        report(JSON.generate(CLI::History.document(registry)))
+        Tools::PersistenceNotice.announce(registry, program: "hecks history")
+        report(JSON.generate(Tools::History.document(registry)))
       end
 
       # @param domain [Hash, String] a domain directory

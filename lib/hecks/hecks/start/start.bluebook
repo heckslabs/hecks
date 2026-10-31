@@ -38,7 +38,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :capitalized
       end
 
-      # A persistence adapter a stub can be bound to; `Hecks::CLI::DomainStub` names the ones it knows.
+      # A persistence adapter a stub can be bound to; `Hecks::Tools::DomainStub` names the ones it knows.
       value_object "AdapterName" do
         attribute :value, String, pattern: '[A-Za-z]+'
       end

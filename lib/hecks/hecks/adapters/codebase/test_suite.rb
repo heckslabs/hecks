@@ -45,11 +45,11 @@ module Hecks
         # Loads the command a `Hecks::CLI` file defines, the first time an ask needs it: several
         # read the checkout's specs or need a development gem, which an installed gem lacks.
         #
-        # @param file [String] the command's file under `lib/hecks/cli/`, without the extension
+        # @param file [String] the command's file under `lib/hecks/tools/`, without the extension
         # @return [Module] the command, named as the file is, in camel case
         def command(file)
-          require "hecks/cli/#{file}"
-          Hecks::CLI.const_get(file.split("_").map(&:capitalize).join)
+          require "hecks/tools/#{file}"
+          Hecks::Tools.const_get(file.split("_").map(&:capitalize).join)
         end
 
         # Carries out one operation.
