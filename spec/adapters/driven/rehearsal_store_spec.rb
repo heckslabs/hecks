@@ -214,4 +214,47 @@ RSpec.describe Hecks::Adapters::RehearsalStore, :io do
       db&.close
     end
   end
+
+  describe "a readonly copy whose era has no digest on file" do
+    before do
+      ENV[server_variable] = "postgres:///#{source}"
+      RehearsalSourceDatabase.build(shop: shop, source: source, dump: dump)
+      clear_digests
+      rehearsed_by(readonly_block)
+    end
+
+    after { RehearsalSourceDatabase.drop(source) }
+
+    def readonly_block
+      "rehearsed_by(\"Postgres\") do\n    connection_env \"#{server_variable}\"\n    mode \"readonly_copy\"\n  end"
+    end
+
+    def clear_digests
+      db = PG.connect(dbname: source)
+      db.exec("UPDATE hecks_eras SET held_digest = NULL")
+    ensure
+      db&.close
+    end
+
+    # The eras, their texts and the journal rows as the copy holds them, so a write shows.
+    def copy_state
+      db = PG.connect(dbname: source)
+      db.exec(<<~SQL).first
+        SELECT (SELECT md5(string_agg(e::text, '|' ORDER BY ordinal)) FROM hecks_eras e) AS eras,
+               (SELECT count(*) FROM hecks_era_texts) AS texts,
+               (SELECT md5(string_agg(j::text, '|' ORDER BY ordinal)) FROM hecks_journal_shop j) AS journal
+      SQL
+    ensure
+      db&.close
+    end
+
+    it "writes nothing to the copy while it reads it", :aggregate_failures do
+      before_state = copy_state
+      survey(run)
+      facts = examine(run)
+
+      expect(copy_state).to eq(before_state)
+      expect(facts[:audited]).to eq(value: true)
+    end
+  end
 end

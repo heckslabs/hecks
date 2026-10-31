@@ -51,7 +51,7 @@ Hecks.bluebook "QualityControl" do
     # Comma-joined mode names recorded at release from what the runner inferred. Stored so
     # `EligibleFor` can answer why a mode never ran; inference at sweep time still decides.
     attribute :capabilities, Capabilities
-    attribute :reason,     TargetReason
+    attribute :reason,     TargetReason, optional: true
 
     value_object "TargetReference" do
       attribute :value, String, matches: :present
@@ -352,7 +352,7 @@ Hecks.bluebook "QualityControl" do
     attribute :reference, SweepReference
     attribute :engineer,  Engineer
     attribute :made,      CheckCount
-    attribute :notes,     SweepNotes
+    attribute :notes,     SweepNotes, optional: true
     # A counter, not a flag (a sweep can bend several gates) or a list (`where` cannot test
     # emptiness).
     attribute :waived,    WaiverCount
@@ -747,12 +747,12 @@ Hecks.bluebook "QualityControl" do
     attribute :submitter,     Submitter
     attribute :order,         BugOrder
     attribute :tags,          list_of(Tag)
-    attribute :site,          BugSite
-    attribute :cause,         BugCause
-    attribute :commit,        CommitRef
-    attribute :verification,  Verification
-    attribute :reason,        BugReason
-    attribute :next_step,     NextStep
+    attribute :site,          BugSite, optional: true
+    attribute :cause,         BugCause, optional: true
+    attribute :commit,        CommitRef, optional: true
+    attribute :verification,  Verification, optional: true
+    attribute :reason,        BugReason, optional: true
+    attribute :next_step,     NextStep, optional: true
     attribute :waived,        WaiverCount
     # The same signature as `Sweep.waived_by`; absent until a person waives.
     attribute :waived_by,     WaivedBy, optional: true
@@ -1233,8 +1233,8 @@ Hecks.bluebook "QualityControl" do
     attribute :citation,    AngleCitation
     attribute :proposer,    Proposer
     attribute :proposed_at, Instant
-    attribute :resolution,  AngleResolution
-    attribute :reason,      AngleReason
+    attribute :resolution,  AngleResolution, optional: true
+    attribute :reason,      AngleReason, optional: true
 
     value_object "AngleReference" do
       attribute :value, String, matches: :present
@@ -1833,7 +1833,7 @@ Hecks.bluebook "QualityControl" do
     attribute :number, ImprovementNumber
     attribute :url,    ImprovementUrl
     attribute :branch, ImprovementBranch
-    attribute :commit, CommitRef
+    attribute :commit, CommitRef, optional: true
     attribute :title,  ImprovementTitle
     # See `Patch.opened_at`.
     attribute :opened_at, Instant
