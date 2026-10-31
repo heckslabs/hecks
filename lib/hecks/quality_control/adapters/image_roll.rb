@@ -78,7 +78,8 @@ module Hecks
       end
 
       # Classifies one green commit: `image` when every changed path is a container input, `infra`
-      # otherwise. Refuses unless the quick gate on record for the commit is green.
+      # otherwise. The classifier reads no quick gate: an image-only commit rolls on its green
+      # remote CI alone, and an infra commit is held for a person.
       #
       # @param commit [Hash, String] the commit
       # @param branch [Hash, String] the branch; only main rolls
@@ -86,19 +87,20 @@ module Hecks
       # @return [Hash] `commit`, `app`, `kind` and `paths`
       def classify(commit:, branch:, repo:, **)
         sha = value_of(commit)
-        refuse_unless_rollable(sha, value_of(branch), value_of(repo))
+        refuse_unless_rollable(value_of(branch), value_of(repo))
         paths = changed_paths(sha)
-        kind = paths.all? { |path| self.class.image_path?(path) } ? "image" : "infra"
+        kind = image_only?(paths) ? "image" : "infra"
         { commit: wrap(sha), app: wrap(APP), kind: wrap(kind), paths: wrap(paths.join("\n")) }
       end
 
-      # Builds the console image and rolls it. A failed build refuses; a failed roll answers
-      # `failed`.
+      # Builds the console image and rolls it. An infra commit rolls only when the quick gate on
+      # record for it is green; a failed build refuses; a failed roll answers `failed`.
       #
       # @param commit [Hash, String] the commit being rolled
       # @param app [Hash, String] the service; only the console rolls
       # @return [Hash] `commit`, `app` and `status` (`done` or `failed`)
       def roll(commit:, app:, **)
+        refuse_infra_without_gate(value_of(commit))
         output, built = @commands.docker_build(@platform_root)
         raise Refused, "the console image did not build: #{tail(output)}" unless built
 
@@ -109,11 +111,21 @@ module Hecks
 
       private
 
-      def refuse_unless_rollable(sha, branch, repo)
+      def refuse_unless_rollable(branch, repo)
         raise Refused, "only main rolls, not #{branch}" unless branch == "main"
         raise Refused, "only #{PLATFORM_REPO} rolls, not #{repo}" unless repo == PLATFORM_REPO
-        raise Refused, "the quick gate on record for #{sha[0, 7]} is not green" unless gate_green?(sha)
       end
+
+      # An infra commit is the fail-closed case: its roll needs the quick gate on record green. An
+      # image-only commit rolls on remote CI's green verdict alone.
+      def refuse_infra_without_gate(sha)
+        return if image_only?(changed_paths(sha))
+        return if gate_green?(sha)
+
+        raise Refused, "#{sha[0, 7]} changes paths outside the console image and the quick gate on record for it is not green"
+      end
+
+      def image_only?(paths) = paths.all? { |path| self.class.image_path?(path) }
 
       def changed_paths(sha)
         output, status = Open3.capture2e("gh", "api", "repos/#{PLATFORM_REPO}/commits/#{sha}",

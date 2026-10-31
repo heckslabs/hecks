@@ -2524,8 +2524,9 @@ Hecks.bluebook "QualityControl" do
   end
 
   # The image roll's chain. A green remote CI on embryonaut_platform's main is classified by the
-  # `ImageRoll` port: the answer is `ImageClassified`, and a refusal (the quick gate not green on
-  # record, or the change set unreadable) ends the chain. Only the classifier's verdict decides.
+  # `ImageRoll` port: the answer is `ImageClassified`, and a refusal (the change set unreadable)
+  # ends the chain. Only the classifier's verdict decides; an infra commit is held, and its roll
+  # needs a green quick gate on record.
   policy "RollImages" do
     on      "Head.CiGreen"
     where   { repo.value == "heckslabs/embryonaut_platform" }

@@ -10,8 +10,15 @@ Hecks.behaviors "QualityControl" do
     tests "Green", on: "Head"
     input commit: { value: "c" * 40 }, branch: { value: "main" }, repo: { value: "heckslabs/embryonaut_platform" },
           color: { value: "green" }
-    # The chain goes on: the classifier has no quick gate on record for this commit, so it refuses.
+    # The chain goes on: no adapter answers the classifier in this boot, so it refuses.
     expect emits: ["CiGreen", "RollConsidered", "ClassifyRefused"]
+  end
+
+  test "A red verdict on embryonaut_platform's main starts no image roll" do
+    tests "Red", on: "Head"
+    input commit: { value: "c" * 40 }, repo: { value: "heckslabs/embryonaut_platform" }, color: { value: "red" },
+          failing_jobs: { value: "rspec" }
+    expect emits: ["CiRed"]
   end
 
   test "Green refuses a red verdict" do
@@ -37,8 +44,10 @@ Hecks.behaviors "QualityControl" do
   test "Request starts an idle roll once" do
     tests "Request", on: "ImageRoll"
     input commit: { value: "d" * 40 }, app: { value: "console" }
-    # The chain runs through the roll's ask and its finish in this boot.
-    expect emits: ["RollRequested", "RollAnswered", "RollDone"]
+    # The chain runs through the roll's ask and its finish in this boot. The commit is no real
+    # embryonaut_platform commit, so its change set is unreadable and the roll is refused before
+    # any build; the refusal still finishes the roll.
+    expect emits: ["RollRequested", "RollRefused", "RollDone"]
   end
 
   test "A second Request for a commit already requested does nothing" do
