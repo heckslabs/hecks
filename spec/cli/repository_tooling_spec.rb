@@ -13,7 +13,7 @@ require "hecks/tools/rspec_shard_files"
 require "hecks/tools/seed_semantics_corpus"
 require "hecks/tools/stress_concurrency_specs"
 
-# The bodies of the repository's small `bin/` scripts live in `Hecks::CLI`; each returns its
+# The bodies of the repository's small `bin/` scripts live in `Hecks::Tools`; each returns its
 # exit status and takes the streams it writes to.
 RSpec.describe "the repository tooling commands" do
   def expect_abort_with(message, &block)

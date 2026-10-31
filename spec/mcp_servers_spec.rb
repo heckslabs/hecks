@@ -301,7 +301,7 @@ RSpec.describe "the stdio MCP servers" do
   SPEC_EXAMPLE_RUNS = [
     ["spec/driving_adapters/cli_runner_spec.rb", "hands back the domain's own wording, and a non-zero status"],
     ["spec/exe_hecks_spec.rb", "is executable"],
-    ["spec/exe_hecks_spec.rb", "no longer hands the retired positional names to Hecks::CLI"]
+    ["spec/exe_hecks_spec.rb", "refuses a retired positional name with the launcher's own refusal"]
   ].freeze
 
   # Commands mode (ADR 0089): reader mode plus `dispatch` for a closed list of commands.
@@ -338,7 +338,7 @@ RSpec.describe "the stdio MCP servers" do
     end
 
     def check_comments_results
-      args = { paths: "lib/hecks/cli", run: "server-settled-#{Process.pid}" }
+      args = { paths: "lib/hecks/adapters/driving/exit_status.rb", run: "server-settled-#{Process.pid}" }
       call = tool_call(1, "dispatch", { command: "style_run.check_comments", summary: "spec", role: "Maintainer", args: args })
       server_results([call], env: repository_server_env("style_run.check_comments"))
     end

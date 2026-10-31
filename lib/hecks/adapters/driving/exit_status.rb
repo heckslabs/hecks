@@ -2,7 +2,7 @@ module Hecks
   module Adapters
     module Driving
       # The statuses a launcher exits with, which a script branches on: `CliRunner` answers them
-      # beside its text, `Hecks::CLI` returns them, and every generated launcher passes them to
+      # beside its text, the runner returns them, and every generated launcher passes them to
       # `exit`. Three suffice: the line was answered, the domain said no, or the line could not
       # be read. A crash and a domain that cannot be opened both end as `REFUSED`, because the
       # launcher distinguishes neither from a refusal.

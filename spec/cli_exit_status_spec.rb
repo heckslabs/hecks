@@ -1,9 +1,8 @@
 require "spec_helper"
-require "hecks/cli"
 require "stringio"
 
 # The statuses a launcher exits with (`ExitStatus`): one set, pinned where each is produced, so a
-# script can branch on them. The runner runs against pizzas and the positional table in-process;
+# script can branch on them. The runner runs against pizzas in-process;
 # neither prints or exits.
 RSpec.describe Hecks::Adapters::Driving::ExitStatus do
   let(:runtime) { boot_in_memory }
@@ -13,7 +12,7 @@ RSpec.describe Hecks::Adapters::Driving::ExitStatus do
   def status(*argv) = answer(*argv).last
   def create(name) = status("order.create_pizza!", "name=#{name}", "pizza.price_cents.cents=900", "pizza.size.value=large")
   def purchase(id) = status("order.purchase!", "id=#{id}", "customer_name=Chris", "amount.cents=900")
-  def positional(*argv) = Hecks::CLI.start(argv, out: StringIO.new, err: StringIO.new)
+  def usage_of(*argv) = status(*argv)
 
   describe "answered" do
     it("is 0") { expect(described_class::ANSWERED).to eq(0) }
@@ -22,7 +21,7 @@ RSpec.describe Hecks::Adapters::Driving::ExitStatus do
     it("a command's help") { expect(status("order.create_pizza!", "--help")).to eq(0) }
     it("a command that ran") { expect(create("A")).to eq(0) }
     it("a query") { expect(status("order.available")).to eq(0) }
-    it("the positional table's --help") { expect(positional("--help")).to eq(0) }
+    it("the launcher's --help") { expect(usage_of("--help")).to eq(0) }
 
     it "a stream that ended" do
       allow(runtime).to receive(:query).and_return([{ events: [], cursor: nil }])
@@ -51,9 +50,9 @@ RSpec.describe Hecks::Adapters::Driving::ExitStatus do
     it("a word the command does not take") { expect(status("order.create_pizza!", "nope=1")).to eq(2) }
     it("a value its type cannot hold") { expect(status("order.create_pizza!", "pizza.price_cents.cents=lots")).to eq(2) }
     it("a flag the command lacks") { expect(status("order.create_pizza!", "name=X", "--wait")).to eq(2) }
-    it("the positional table given no subcommand") { expect(positional).to eq(2) }
-    it("the positional table's unknown subcommand") { expect(positional("frobnicate")).to eq(2) }
-    it("the positional table's refused word") { expect(positional("docs", "domain=/nowhere/at/all")).to eq(2) }
+    it("the launcher given no word answers its listing") { expect(usage_of).to eq(0) }
+    it("the launcher's unknown word") { expect(usage_of("frobnicate")).to eq(2) }
+    it("the launcher's retired word") { expect(usage_of("docs", "domain=/nowhere/at/all")).to eq(2) }
   end
 
   describe "the table" do

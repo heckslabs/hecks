@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/cli"
 require "hecks/tools/project_cli"
 
 # `exe/hecks` is written by `hecks project_cli` from the Hecks bluebook and its world's `launcher`
@@ -24,10 +23,6 @@ RSpec.describe "exe/hecks" do
     expect(File.executable?(File.join(root, "exe/hecks"))).to be(true)
   end
 
-  it "no longer hands the retired positional names to Hecks::CLI" do
-    expect(File.read(File.join(root, "exe/hecks"))).not_to include("LEGACY")
-  end
-
   it "refuses a retired positional name with the launcher's own refusal", :aggregate_failures do
     %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli].each do |name|
       _out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: [name], program: "hecks")
@@ -35,9 +30,9 @@ RSpec.describe "exe/hecks" do
     end
   end
 
-  # The names, outside the shipped ones, whose `--help` the launcher does not answer.
+  # The names whose `--help` the launcher does not answer.
   def unanswered(names)
-    (names - Hecks::CLI::COMMANDS.keys).reject do |name|
+    names.reject do |name|
       _out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: [name, "--help"], program: "hecks")
       status.zero?
     end
@@ -48,13 +43,5 @@ RSpec.describe "exe/hecks" do
 
     expect(names).not_to be_empty
     expect(unanswered(names)).to eq([])
-  end
-
-  it "answers --help for the shipped names through Hecks::CLI", :aggregate_failures do
-    Hecks::CLI::COMMANDS.each_key do |name|
-      out = StringIO.new
-      expect(Hecks::CLI.start([name, "--help"], out: out)).to eq(0)
-      expect(out.string).to start_with("usage: hecks #{name}")
-    end
   end
 end

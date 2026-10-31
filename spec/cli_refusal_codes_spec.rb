@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/cli"
 
 # Each refusal the launcher prints leads with a stable code, so a script branches on the code and
 # not on wording. The codes are the refusal classes' own names in snake case; the runner runs
