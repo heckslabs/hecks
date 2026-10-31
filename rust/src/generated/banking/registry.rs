@@ -5190,6 +5190,18 @@ pub fn check_query_args(
             }
             Ok(())
         }
+        "Banking::Account.OpenForCustomer" => {
+            if let Some(x) = args.get("reference") {
+                x.expect_scalar_shape("Account", "reference", "String")?;
+            }
+            Ok(())
+        }
+        "Banking::ATMCard.LiveForAccount" => {
+            if let Some(x) = args.get("number") {
+                x.expect_scalar_shape("ATMCard", "number", "String")?;
+            }
+            Ok(())
+        }
         _ => Ok(()),
     }
 }

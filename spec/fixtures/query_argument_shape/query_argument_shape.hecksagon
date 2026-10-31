@@ -1,0 +1,3 @@
+Hecks.hecksagon "QueryArgumentShape" do
+  QueryArgumentShape::Note.persisted_by("Memory")
+end

@@ -9,10 +9,11 @@ module Hecks
       module Arguments
         private
 
-        # Coerces with `boundary: false`: a query's declared argument types are not a
-        # runtime shape check. The exception is a nil for a required value-object-typed
-        # argument, which must refuse as a command argument does; passing it through
-        # would run an unfiltered query (a Ruby/Rust divergence).
+        # Coerces a query's arguments exactly as a command's are: a bare scalar of the wrong
+        # type refuses with TypeMismatch before any store is read, and so does a nil for a
+        # required value-object-typed argument, which would otherwise run an unfiltered query
+        # (a Ruby/Rust divergence). The Postgres query builder checks the same shapes
+        # (`Value.check_query_arguments!`), so both engines refuse the same way.
         #
         # It does not use `Value::Coercion#nil_argument`, which builds a null value object
         # from field defaults and only refuses when a field has none. `null_vo_argument!`
@@ -29,7 +30,7 @@ module Hecks
         def coerce_argument(aggregate, attribute, value)
           return null_vo_argument!(aggregate, attribute) if checked_vo?(aggregate, attribute, value)
 
-          Value.for_attribute(aggregate, attribute, value, boundary: false)
+          Value.for_attribute(aggregate, attribute, value)
         end
 
         def checked_vo?(aggregate, attribute, value)
