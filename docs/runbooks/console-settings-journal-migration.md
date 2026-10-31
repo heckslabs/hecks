@@ -34,8 +34,9 @@ The SQL for steps 1–4 is the transaction run on the scratch copy (`cs_label_sc
 
 ## Preconditions (stop if any fails)
 
-- [ ] Live journal count equals the count in the dump used for the rehearsal (237), and max ordinal is 99
-      or higher exactly as dumped. If rows were added since, re-dump and re-rehearse first.
+- [ ] Live journal count equals the dump used for the rehearsal: 237 rows, and the numeric maximum ordinal
+      is 237 (`SELECT count(*), max(ordinal::bigint) FROM hecks_journal_console_settings`). Note that
+      `max()` on the text column returns 99; use the cast. If rows were added since, re-dump and re-rehearse.
 - [ ] `hecks_eras` for `ConsoleSettings` has ordinal 1 with `label IS NULL` in production.
 - [ ] Console upgrade image (hecks 6, with the translation edge) built, pushed to ECR, and passing its own
       smoke test against the scratch copy.
@@ -50,33 +51,59 @@ The SQL for steps 1–4 is the transaction run on the scratch copy (`cs_label_sc
 Run all database commands on the platform box through SSM, using the database settings already in the
 console's environment. Do not print or copy the secret. Do not run these from a laptop.
 
-1. **Pause writes.** Put the console into read-only mode for ConsoleSettings, or stop the console
-   container. Record the time. Confirm no writes by comparing the journal count before and after.
-2. **Re-check the count.** Stop if it differs from the dump.
-3. **Migrate.** Run the transaction from `docs/runbooks/...` section "What the migration changes" as one
-   `psql` script with `ON_ERROR_STOP=1`. Keep the output.
-4. **Label the era** (step 5 above), in the same transaction.
-5. **Verify** (all must pass before continuing):
+1. **Pause writes.** Stop the console container (`docker stop embryonaut-platform-console-1`) so nothing
+   writes ConsoleSettings. Record the time. Caddy stays up and returns the site's error page.
+2. **Re-check the count** (precondition 1). Stop if it differs from the dump.
+3. **Migrate.** Save this as `migrate.sql` on the box and run
+   `psql -v ON_ERROR_STOP=1 -1 -f migrate.sql` (one transaction). Keep the output.
+
+   ```sql
+   ALTER TABLE hecks_journal_console_settings RENAME TO hecks_journal_console_settings_text_legacy;
+   ALTER TABLE hecks_journal_console_settings_era_1 RENAME TO hecks_journal_console_settings_era_1_text_legacy;
+   CREATE SEQUENCE IF NOT EXISTS hecks_journal_console_settings_ordinal;
+   CREATE TABLE hecks_journal_console_settings (
+     ordinal      bigint NOT NULL DEFAULT nextval('hecks_journal_console_settings_ordinal'),
+     era          int    NOT NULL,
+     aggregate    text   NOT NULL,
+     aggregate_id text   NOT NULL,
+     operation    text   NOT NULL DEFAULT 'save',
+     state        jsonb,
+     mirrors      jsonb
+   ) PARTITION BY LIST (era);
+   CREATE TABLE hecks_journal_console_settings_era_1 (LIKE hecks_journal_console_settings INCLUDING DEFAULTS);
+   ALTER TABLE hecks_journal_console_settings ATTACH PARTITION hecks_journal_console_settings_era_1 FOR VALUES IN (1);
+   INSERT INTO hecks_journal_console_settings (ordinal, era, aggregate, aggregate_id, operation, state, mirrors)
+   SELECT ordinal::bigint, era::int, aggregate, aggregate_id, operation, state::jsonb, mirrors::jsonb
+   FROM hecks_journal_console_settings_text_legacy ORDER BY ordinal::bigint;
+   SELECT setval('hecks_journal_console_settings_ordinal', (SELECT max(ordinal) FROM hecks_journal_console_settings));
+   UPDATE hecks_eras SET hash = '20d28eea7766b9e25c16d2e7ba22b6c77e94b1807416aa30f2abf9c468da884d',
+          label = '20d28e'
+    WHERE domain = 'ConsoleSettings' AND ordinal::text = '1' AND label IS NULL;
+   ```
+
+   The six `hecks_tr_*` functions: if `SELECT count(*) FROM pg_proc WHERE proname LIKE 'hecks_tr_%'`
+   returns 0, install them with `TransformSql::ALL` (the owner's provisioning does this on boot).
+   The scratch rehearsal confirmed the functions must exist before the mint.
+4. **Verify** (all must pass before step 5):
    - `SELECT count(*), count(DISTINCT ordinal) FROM hecks_journal_console_settings` returns 237, 237.
-   - `SELECT label FROM hecks_eras WHERE domain='ConsoleSettings' AND ordinal=1` returns `20d28e`.
-   - The six `hecks_tr_*` functions exist.
-6. **Mint the edge** through hecks, not by hand:
-   `hecks RehearsalRun.request!` is the rehearsal and must return `would_mint` first. Then the mint runs
-   from the deploy path for the console upgrade (ADR 0166 branch, `journal_store/edge_audit.rb`
-   and `coverage_check.rb` in the mint's audit). Record the era created.
-7. **Deploy the console upgrade** through the service roll: `hecks deploy service_roll.run!` with the
-   new tag, not a raw `docker` command. Confirm the container reports `shape 2`.
-8. **Resume writes** and check the site: `https://platform.embryonaut.ai/` returns 302 to sign-in, and
-   the presentation config loads (collections render).
+   - `SELECT label FROM hecks_eras WHERE domain = 'ConsoleSettings' AND ordinal::text = '1'` returns `20d28e`.
+   - `SELECT count(*) FROM pg_proc WHERE proname LIKE 'hecks_tr_%'` returns 6.
+5. **Mint the edge** through hecks. Run `hecks RehearsalRun.request!` against the production copy first and
+   confirm `would_mint`. The mint command itself is not yet confirmed for this repo: find it with
+   `hecks --help` before running, and do not run the mint by hand.
+6. **Deploy the console upgrade** through the service roll: `hecks deploy service_roll.run!` with the new
+   tag. Use the deploy path, not a raw `docker` command.
+7. **Resume writes:** the service roll starts the container. Check `https://platform.embryonaut.ai/`
+   returns 302 to sign-in, then check that a ConsoleSettings collection renders.
 
 ## Rollback
 
-- **Before step 7 (console still on the old image):** rename back:
+- **Before step 6 (console still on the old image):** rename back:
   `ALTER TABLE hecks_journal_console_settings RENAME TO hecks_journal_console_settings_failed;`
   then `ALTER TABLE hecks_journal_console_settings_text_legacy RENAME TO hecks_journal_console_settings;`
   and the same for `_era_1`. Restore the `hecks_eras` label to NULL. Resume writes. The old console reads
   its text journal again.
-- **After step 7:** roll the console back to `console-20261027203026` with the service roll, then do the
+- **After step 6:** roll the console back to `console-20261027203026` with the service roll, then do the
   rename above. If the journal itself is damaged, restore from the snapshot in the precondition list.
 - **Full restore:** RDS point-in-time restore to the time recorded in step 1 is the last resort, and it
   discards every write after that time.
