@@ -140,7 +140,7 @@ module Hecks
       # directory's own (see ModuleFolders).
       def files_matching(directory, pattern)
         found = Dir[File.join(directory, pattern)]
-        pattern == "*.bluebook" ? found + ModuleFolders.bluebooks(directory) : found
+        found + ModuleFolders.files(directory, pattern.delete_prefix("*"))
       end
 
       # Resolves a domain path to the directory that actually holds its bluebook files.

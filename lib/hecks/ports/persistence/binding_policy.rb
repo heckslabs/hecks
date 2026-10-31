@@ -80,7 +80,9 @@ module Hecks
         # @return [Bluebook::Bind] the authoritative bind
         # @raise [Runtime::WiringError] if the roleless count is not one, or a role is present
         def authoritative_among(bindings, domain, aggregate)
-          authoritative = bindings.select { |bind| bind.role.nil? || bind.role.empty? }
+          # The same adapter declared again, by a hecksagon that another domain also attaches, is one
+          # binding, not an ambiguous second one.
+          authoritative = bindings.select { |bind| bind.role.nil? || bind.role.empty? }.uniq(&:adapter)
           raise ambiguous_binding(domain, aggregate, authoritative) unless authoritative.size == 1
 
           roled = bindings - authoritative
