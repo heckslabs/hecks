@@ -54,6 +54,12 @@ pub fn parse_body(
                 pm.ends_on.get_or_insert_with(|| event.clone());
                 pm.endings.push(event);
             }
+            // Each `resumes` is one `stage=command` entry, kept in declaration order; the
+            // runtime does not read the stage map yet.
+            "resumes" => {
+                let entry = super::positional_text(file, line, "resumes", &gated.args, 1)?;
+                pm.resumes.push(entry);
+            }
             "transition" => {
                 for handler in parse_transition(file, lines, pos, line, &gated)? {
                     // Two legs on one (event, state) pair would be picked by declaration order;

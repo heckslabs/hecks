@@ -1302,6 +1302,28 @@ RSpec.describe "the DSL surface" do
       expect(several_endings_process_manager.ends_on).to eq("OrderCompleted")
     end
 
+    # The checkout saga with a stage map: each stage names the command that resumes it.
+    def resumable_process_manager
+      transition = checkout_transition
+      build_bluebook("Converse") do
+        process_manager "Checkout" do
+          correlates_by :"order.id"
+          starts_on "OrderPlaced"
+          resumes "gated=GateRun.Gate"
+          resumes "checking=ConformanceRun.CheckShapeLedger"
+          instance_eval(&transition)
+        end
+      end.process_managers.first
+    end
+
+    it "process_manager carries its stage map in declaration order" do
+      expect(resumable_process_manager.resumes).to eq(["gated=GateRun.Gate", "checking=ConformanceRun.CheckShapeLedger"])
+    end
+
+    it "process_manager without resumes carries an empty stage map" do
+      expect(checkout_process_manager.resumes).to eq([])
+    end
+
     it "process_manager keeps what a transition dispatches", :aggregate_failures do
       handler = checkout_process_manager.handler_for("PaymentAuthorized")
 

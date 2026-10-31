@@ -10582,6 +10582,9 @@
         }
       ],
       "name": "Onboarding",
+      "resumes": [
+
+      ],
       "starts_on": "OnboardingOpened",
       "states": [
         "screening",
@@ -10734,6 +10737,9 @@
         }
       ],
       "name": "Settlement",
+      "resumes": [
+
+      ],
       "starts_on": "TransferRequested",
       "states": [
         "requested",
@@ -10785,6 +10791,9 @@
         }
       ],
       "name": "ExternalSettlement",
+      "resumes": [
+
+      ],
       "starts_on": "ExternalTransferRequested",
       "states": [
         "requested",

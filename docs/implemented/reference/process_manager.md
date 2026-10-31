@@ -127,6 +127,18 @@ carries what happened:
 runtime.registry.saga_log.map { |row| row[:on] }.compact  # => ["OnboardingOpened", "OnboardingCleared", "AccountOpened"]
 ```
 
+## resumes
+
+<!-- generated:begin word=resumes -->
+`resumes resumes`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | resumes |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
 ## transition
 
 <!-- generated:begin word=transition -->
