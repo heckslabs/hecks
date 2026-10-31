@@ -160,6 +160,12 @@ Hecks.bluebook "Hecks" do
       correlates_by :"run.value"
       starts_on Shipment::ShipRequested
 
+      # The command a caller dispatches to resume each stage of a faulted run (`hecks resume`).
+      resumes "gated=GateRun.Gate"
+      resumes "checking=ConformanceRun.CheckShapeLedger"
+      resumes "landing=Landing.Land"
+      resumes "boarding=SendTrain.Board"
+
       # Each step records itself and waits. The caller dispatches the next command at top level:
       # ConformanceRun.CheckShapeLedger, then GateRun.Gate, then Landing.Land, then SendTrain.Board.
       # A dispatch made from inside this saga would run past the reaction depth bound.
