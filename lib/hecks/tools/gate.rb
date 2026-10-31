@@ -3,6 +3,7 @@
 require "open3"
 require "hecks/vocabulary"
 require_relative "../tools"
+require_relative "stage_progress"
 
 module Hecks
   module Tools
@@ -45,8 +46,9 @@ module Hecks
 
       # @param argv [Array<String>] a stage name and optionally `only=a,b`, or `--list`
       # @param root [String] the checkout the checks run in
+      # @param progress [StageProgress] where each check's start and end lines go
       # @return [Integer] 0 when every check passed, 1 when one failed, 2 on bad usage
-      def main(argv, root: Tools::ROOT, **)
+      def main(argv, root: Tools::ROOT, progress: StageProgress.new, **)
         stages = self.stages
         return list(stages) if argv == ["--list"]
 
@@ -57,7 +59,7 @@ module Hecks
         checks = select(stage.fetch("checks"), only)
         return unknown(stage, only) if checks.nil?
 
-        report(name, checks, run_all(stage, checks, root))
+        report(name, checks, run_all(stage, checks, root, progress))
       end
 
       # @param argv [Array<String>] the command line words
@@ -83,13 +85,24 @@ module Hecks
       # @param stage [Hash] the stage: its `env` and `checks`
       # @param checks [Array<Hash>] the checks to run
       # @param root [String] the directory they run in
+      # @param progress [StageProgress] told when each check starts and ends
       # @return [Hash{String => Array}] each check's id, and its output and whether it passed
-      def run_all(stage, checks, root)
+      def run_all(stage, checks, root, progress)
         env = stage.fetch("env", {}).reject { |key, _| ENV.key?(key) }
         threads = checks.map do |check|
-          Thread.new { [check["id"], run_one(check, env, root)] }
+          progress.start(check["id"])
+          Thread.new { [check["id"], run_timed(check, env, root, progress)] }
         end
         threads.to_h(&:value)
+      end
+
+      # @return [Array(String, Boolean)] what the check printed, and whether it exited 0; the end
+      #   line is written as the check finishes
+      def run_timed(check, env, root, progress)
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        output, passed = run_one(check, env, root)
+        progress.finish(check["id"], passed, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started)
+        [output, passed]
       end
 
       # @return [Array(String, Boolean)] what the check printed, and whether it exited 0
