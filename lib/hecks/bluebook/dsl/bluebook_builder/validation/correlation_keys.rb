@@ -8,6 +8,36 @@ module Hecks
           module CorrelationKeys
             private
 
+            # A bare name (`correlates_by Message`) naming an aggregate of this bluebook means
+            # that aggregate's identity, `"Message.id"`. Any other bare name is refused here,
+            # with the message the builder used to give. Runs before the other correlation
+            # checks, so they only ever see the dotted form.
+            def resolve_bare_correlation_keys!(bluebook)
+              bluebook.process_managers.each do |process_manager|
+                key = process_manager.correlates_by.to_s
+                next if key.empty? || key.include?(".")
+
+                aggregate = bluebook.aggregates.find { |candidate| candidate.name.to_s == Naming.demodulise(key) }
+                unless aggregate
+                  raise ProcessManagerBuilder::InvalidProcessManager,
+                        ProcessManagerBuilder.bare_correlation_message(process_manager.name, key)
+                end
+
+                process_manager.correlate_by!("#{aggregate.name}.#{identity_path(process_manager, aggregate)}")
+              end
+            end
+
+            # The one field an aggregate is correlated by: its identity, or `id` when it declares none.
+            def identity_path(process_manager, aggregate)
+              paths = aggregate.identity_paths.map(&:to_s)
+              return "id" if paths.empty?
+              return paths.first if paths.one?
+
+              raise ProcessManagerBuilder::InvalidProcessManager,
+                    "#{process_manager.name} correlates_by #{aggregate.name}, but #{aggregate.name} has a " \
+                    "composite identity — name the one field, e.g. #{aggregate.name}.#{paths.first}"
+            end
+
             # `correlates_by` must land on a scalar: the dotted path is walked against each
             # command that emits an event the process manager reacts to. A command lacking the
             # first segment is skipped, since correlation has fallback tiers

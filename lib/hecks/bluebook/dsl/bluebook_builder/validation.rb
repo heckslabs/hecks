@@ -35,6 +35,7 @@ module Hecks
           # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a
           #   `correlates_by` resolves to something other than a scalar field
           def validate_assembled!(bluebook)
+            resolve_bare_correlation_keys!(bluebook)
             validate_not_the_gem_module!(bluebook)
             validate_declarations!(bluebook)
             validate_owner_stamped!(bluebook)

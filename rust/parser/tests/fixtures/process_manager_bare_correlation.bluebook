@@ -1,0 +1,34 @@
+# A bare aggregate name in `correlates_by` resolves to that aggregate's identity; the
+# dotted symbol beside it is left as written.
+Hecks.bluebook "FixtureBareCorrelation" do
+  aggregate "Message" do
+    identified_by :id
+    attribute :id, MessageId
+
+    value_object "MessageId" do
+      attribute :value, String
+    end
+
+    command "Schedule" do
+      emits "Scheduled"
+    end
+  end
+
+  process_manager "ScheduledSend" do
+    correlates_by Message
+    starts_on "Message.Scheduled"
+
+    transition "Message.Scheduled" => "scheduled", from: "start" do
+      dispatch Message::Schedule
+    end
+  end
+
+  process_manager "Dotted" do
+    correlates_by :"Message.id"
+    starts_on "Message.Scheduled"
+
+    transition "Message.Scheduled" => "scheduled", from: "start" do
+      dispatch Message::Schedule
+    end
+  end
+end

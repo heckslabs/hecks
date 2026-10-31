@@ -13,6 +13,7 @@ require:
   - ./lib/rubocop/cop/hecks/monotonic_duration
   - ./lib/rubocop/cop/hecks/raw_shell_interpolation
   - ./lib/rubocop/cop/hecks/env_dump
+  - ./lib/rubocop/cop/hecks/value_object_shorthand
   - ./lib/rubocop/cop/hecks/untyped_raise
   - ./lib/rubocop/cop/hecks/swallowed_rescue
   - ./lib/rubocop/cop/hecks/symbol_string_key_mix
@@ -21,9 +22,52 @@ require:
   - ./lib/rubocop/cop/hecks/train_wreck
   - ./lib/rubocop/cop/hecks/unnamed_pipeline
   - ./lib/rubocop/cop/hecks/inline_regexp
+  - ./lib/rubocop/cop/hecks/no_id_string_attribute
+  - ./lib/rubocop/cop/hecks/invariant_expression_language
+  - ./lib/rubocop/cop/hecks/lifecycle_needs_attribute
+  - ./lib/rubocop/cop/hecks/one_terminal_mark_per_lifecycle
+  - ./lib/rubocop/cop/hecks/bare_event_and_query_names
+  - ./lib/rubocop/cop/hecks/correlates_by_aggregate
+  - ./lib/rubocop/cop/hecks/creating_command_sets
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
+  Enabled: true
+
+# A bluebook attribute that stores another record's id as a string is a reference the domain
+# should hold: `reference_to`, not `attribute :x_id, String`. A query argument is exempt.
+Hecks/NoIdStringAttribute:
+  Enabled: true
+
+# A single-value `value_object` block with no invariant says the same as the one-line shorthand.
+Hecks/ValueObjectShorthand:
+  Enabled: true
+
+# The bluebook expression language cannot evaluate `include?`, `length`, `to_s`, `empty?`,
+# `between?` or a `%w[...]` list; the check fails at boot, so the cop names the spelling to use.
+Hecks/InvariantExpressionLanguage:
+  Enabled: true
+
+# A lifecycle moves a value its owner holds; with no `attribute :x` the lifecycle has nothing to move.
+Hecks/LifecycleNeedsAttribute:
+  Enabled: true
+
+# A lifecycle names its terminal states on one `mark :terminal` line, so the set reads in one place.
+Hecks/OneTerminalMarkPerLifecycle:
+  Enabled: true
+
+# An event or query named by its string fails only at run time; its constant fails when the
+# bluebook loads. Quoted state names in transition targets and `from:` are left alone.
+Hecks/BareEventAndQueryNames:
+  Enabled: true
+
+# A bare aggregate name in `correlates_by` correlates by the aggregate's identity; the dotted
+# `"Aggregate.id"` path says the same thing. A dotted path into a field is left alone.
+Hecks/CorrelatesByAggregate:
+  Enabled: true
+
+# A creating command makes a new aggregate, so each attribute it accepts must be `sets` onto it.
+Hecks/CreatingCommandSets:
   Enabled: true
 
 # Memoized class-level state is the codebase's norm; only the runtime shared across threads
@@ -382,6 +426,10 @@ RSpec/ExampleLength:
     - "spec/entity_attribute_type_resolution_spec.rb"
     - "spec/rust_conformance_fuzz_spec.rb"
     - "spec/world_binding_settings_spec.rb"
+    # each example carries a whole bluebook fragment as its expect_offense source
+    - "spec/rubocop/cop/hecks/lifecycle_needs_attribute_spec.rb"
+    - "spec/rubocop/cop/hecks/one_terminal_mark_per_lifecycle_spec.rb"
+    - "spec/rubocop/cop/hecks/creating_command_sets_spec.rb"
 
 # the spec exercises console output
 RSpec/Output:

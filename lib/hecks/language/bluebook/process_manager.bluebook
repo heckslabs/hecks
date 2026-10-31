@@ -215,7 +215,8 @@ Hecks.bluebook "Bluebook" do
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
 
-      member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
+      # correlates_by takes a dotted path or a bare aggregate name, so it routes through a hand-written impl.
+      member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "correlates_by_impl"
       # starts_on and ends_on accept a bare constant or text; they route through hand-written impls
       # because COERCE_BY_KIND has no "constant" entry and Naming.event_ref must resolve it.
       member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "starts_on_impl"
@@ -248,6 +249,8 @@ Hecks.bluebook "Bluebook" do
       attribute :blank_message,    String
 
       member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
+      # A bare aggregate name (`correlates_by Message`), which the bluebook resolves to its identity.
+      member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "correlates_by"
       member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "starts_on"
       member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
       member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "ends_on"

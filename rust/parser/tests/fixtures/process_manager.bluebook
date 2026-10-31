@@ -3,7 +3,7 @@
 # a nested class rather than a standalone one).
 Hecks.bluebook "FixtureProcessManager" do
   process_manager "WidgetSetup" do
-    correlates_by :widget_id
+    correlates_by :"widget.id"
     starts_on "Widget.Created"
 
     transition "Widget.Created" => "started", from: "start" do

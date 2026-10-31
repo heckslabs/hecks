@@ -31,10 +31,11 @@ pub fn parse_body(
         let line = gated.line.number;
 
         match gated.row.word {
-            // A dotted symbol (`:"reference.value"`), which only `positional_symbol` can spell.
+            // A dotted symbol (`:"reference.value"`), or a bare aggregate name (`Message`), which
+            // `build::correlation_keys` resolves once every aggregate is known.
             "correlates_by" => {
-                pm.correlates_by =
-                    super::positional_symbol(file, line, "correlates_by", &gated.args, 1)?;
+                let raw = super::positional_raw(file, line, "correlates_by", &gated.args, 1)?.trim();
+                pm.correlates_by = super::symbol_text(raw).unwrap_or_else(|| raw.to_string());
             }
             // Event references keep only the bare final segment (`Naming.event_name_ref`);
             // `SagaInterpreter` matches them against a bare `event.name`.
