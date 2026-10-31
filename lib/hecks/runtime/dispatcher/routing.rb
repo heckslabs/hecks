@@ -2,6 +2,7 @@ require_relative "../errors"
 require_relative "../refusal_wording"
 require_relative "../invocation"
 require_relative "../../naming"
+require_relative "value_routing"
 
 module Hecks
   module Runtime
@@ -9,6 +10,8 @@ module Hecks
       # Finds what a verb names and runs it through the interpreter that owns it. Mixed into
       # {Dispatcher}, which holds the interpreters and the registry these read.
       module Routing
+        include ValueRouting
+
         # One dispatch request as the caller spelled it: the verb, its receiver and facts, and
         # the saga correlation to stamp on emitted events.
         Call = Struct.new(:verb, :to, :with, :saga_correlation, :dispatch_key, :flat, keyword_init: true)
@@ -57,6 +60,9 @@ module Hecks
 
         def route_aggregate(call, domain, aggregate, aggregate_name, command_name)
           command = command_of(aggregate, aggregate_name, command_name)
+          handler = value_handler(domain, aggregate, command, call)
+          return route_port(call, domain, aggregate, handler) if handler
+
           invocation = Invocation.from_call(call.verb, to: call.to, with: call.with, flat: call.flat) { command }
           @commands.call(domain, aggregate, command, invocation, call.saga_correlation, dispatch_key: call.dispatch_key)
         end
