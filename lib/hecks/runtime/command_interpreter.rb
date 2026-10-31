@@ -4,6 +4,7 @@ require_relative "command_interpreter/mutation_applier"
 require_relative "command_interpreter/enforcement"
 require_relative "command_interpreter/hydration"
 require_relative "command_interpreter/persisting"
+require_relative "dry_run_plan"
 require_relative "command_interpreter/delegation"
 require_relative "../rendering"
 require_relative "errors"
@@ -180,7 +181,7 @@ module Hecks
       # `dry_run:` skips this too — nothing was committed, so `ctx.result`
       # stays nil.
       def step_emit(ctx)
-        return if ctx.dry_run
+        return DryRunPlan.emits(ctx.command) if ctx.dry_run
 
         ctx.result = step(:emit) { emit_events(ctx) }
       end

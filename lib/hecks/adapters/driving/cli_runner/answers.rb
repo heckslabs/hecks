@@ -9,10 +9,13 @@ module Hecks
         module Answers
           # What a dispatch needs beyond the spec: the parsed arguments, whether `--wait` was given,
           # and the bluebook and launcher setting the command belongs to.
-          Invocation = Struct.new(:args, :wait, :bluebook, :launcher, :text)
+          Invocation = Struct.new(:args, :wait, :bluebook, :launcher, :text, :plan)
 
           # The flag that asks for a command's recorded output as plain text and nothing else.
           TEXT = "--text".freeze
+
+          # The flag that asks what a command would write and announce, writing nothing.
+          PLAN = "--plan".freeze
 
           # Parses one resolved command's arguments, runs it as a query or command, and turns the
           # outcome, or the domain's refusal, into `[json_or_message, status]`. A word the command
@@ -25,8 +28,9 @@ module Hecks
           # @param launcher [Hash, nil] the bluebook's `launcher` world setting; nil when not opted
           #   in
           def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
-            args, wait, text = command_line(spec, rest, launcher)
-            run(runtime, spec, Invocation.new(args, wait, bluebook, launcher, text), name, program, asking)
+            plan = rest.include?(PLAN)
+            args, wait, text = command_line(spec, plan ? rest - [PLAN] : rest, launcher)
+            run(runtime, spec, Invocation.new(args, wait, bluebook, launcher, text, plan), name, program, asking)
           rescue Runtime::NotFound, Runtime::TypeMismatch => e
             [help_pointer(e, name, program, asking), ExitStatus::USAGE]
           end
@@ -34,6 +38,7 @@ module Hecks
           # Runs a parsed line as a query or a command, and shapes the domain's refusal.
           # @api private
           def run(runtime, spec, invocation, name, program, asking)
+            return plan_or_refuse(runtime, spec, invocation, name) if invocation.plan
             return answer_query(runtime, spec, invocation.args, invocation.wait, invocation.launcher) if spec[:kind] == :query
 
             run_command(runtime, spec, invocation)
@@ -74,6 +79,30 @@ module Hecks
           def tool_refusal?(error)
             ancestor_names = error.class.ancestors.map(&:name)
             ancestor_names.include?(CliRunner::TOOL_REFUSAL)
+          end
+
+          # Answers `--plan`: a command's plan, or usage for a query, which writes nothing to plan.
+          # @api private
+          def plan_or_refuse(runtime, spec, invocation, name)
+            return plan_refused_for_query(name) if spec[:kind] == :query
+
+            plan_answer(runtime, spec, invocation)
+          end
+
+          # Lists what a command would write and announce, writing nothing. A refusal the real run
+          # would give is answered as that refusal.
+          # @api private
+          def plan_answer(runtime, spec, invocation)
+            lines = runtime.plan_flat(spec[:command], **normalized_request(spec, invocation.args))
+            [lines.empty? ? "would not write or announce anything" : lines.join("\n"), ExitStatus::ANSWERED]
+          rescue *Runtime::DOMAIN_REFUSALS, Runtime::NotFound, Runtime::TypeMismatch => e
+            [coded(e), ExitStatus::REFUSED]
+          end
+
+          # A query has nothing to write, so `--plan` on one is a usage mistake.
+          # @api private
+          def plan_refused_for_query(name)
+            ["hecks: #{name} is a query and writes nothing, so --plan has nothing to show", ExitStatus::USAGE]
           end
 
           # Runs a command and answers its outcome, settled when `--wait` asks for it.
