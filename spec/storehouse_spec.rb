@@ -118,6 +118,16 @@ RSpec.describe Hecks::Storehouse do
       expect(sold[:ok]).to be true
       expect(purchase_again).to include(ok: false, error: be_a(String))
     end
+
+    it "logs each call with its duration, and a refusal's kind", :aggregate_failures do
+      create_pizza
+      described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
+      created, refused = described_class.follow(runtime: runtime)[:entries]
+
+      expect(created).to include(duration_ms: be_a(Integer), tool: "dispatch")
+      expect(created).not_to have_key(:refusal)
+      expect(refused).to include(refusal: "not_found", duration_ms: be_a(Integer))
+    end
   end
 
   describe ".query" do
