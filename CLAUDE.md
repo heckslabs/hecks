@@ -172,14 +172,14 @@ The branches are data: the `Lane` rows of the Vocabulary bluebook
 (`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
 commit must pass as `RequiredCheck` rows beside them.
 
-- **`main` has no guard.** Agents land work on it with `hecks landing.land!`
+- **`main` has no guard.** Agents land work on it with `hecks landing.land! --confirm`
   (fast-forward or merge commit, never squashed) and then
-  `hecks send_train.board!`; do not open a pull request for it. No check is required
+  `hecks send_train.board! --confirm`; do not open a pull request for it. No check is required
   to land, so run the pre-push gate yourself before you push anything that
   is not trivial: `hecks gate_run.gate! stage=quick --wait` runs the seconds-long checks (shape
   ledger, rubocop, comment style) and is worth running before every commit. A push of `main` runs
   those first, then only the `unguarded_push` stage of
-  the Vocabulary gate rows, and `hecks send_train.board! full_gate.value=true` runs the
+  the Vocabulary gate rows, and `hecks send_train.board! --confirm full_gate.value=true` runs the
   whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push

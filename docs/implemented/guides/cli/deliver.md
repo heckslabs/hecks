@@ -18,7 +18,7 @@ Prints the checkout's branch, whether it is a linked worktree, and where it stan
 **Example: land a branch on local main**
 
 ```sh
-hecks Landing.land! checkout.value=/path/to/worktree branch.value=my-branch
+hecks Landing.land! --confirm checkout.value=/path/to/worktree branch.value=my-branch
 ```
 
 Fast-forwards main when it can, and makes a merge commit when main has moved.

@@ -65,13 +65,13 @@ Hecks.behaviors "Custodian" do
 
   test "Board keeps a checkout that is not there as a faulted push" do
     tests "Board", on: "SendTrain"
-    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }, confirm: { value: true }
     expect emits: %w[BoardingRequested TrainRefused PushFaulted]
   end
 
   test "Land keeps a checkout that is not there as a refused landing" do
     tests "Land", on: "Landing"
-    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }, confirm: { value: true }
     expect emits: %w[LandingRequested MergeRefused LandingRefused]
   end
 
@@ -91,7 +91,7 @@ Hecks.behaviors "Custodian" do
 
   test "Retire keeps a checkout that is not there as a declined retirement" do
     tests "Retire", on: "Landing"
-    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }, confirm: { value: true }
     expect emits: %w[RetirementRequested RemovalRefused RetirementDeclined]
   end
 
