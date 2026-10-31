@@ -233,7 +233,7 @@ Hecks.behaviors "Codebase" do
   end
 
   test "ServeQueryIrMcp refuses a run that is not named" do
-    tests "ServeQueryIrMcp", on: "CorpusRun"
+    tests "ServeQueryIrMcp", on: "Server"
     input run: { value: "" }
     expect refused: "must match"
   end

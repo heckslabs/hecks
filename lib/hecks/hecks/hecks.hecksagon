@@ -279,13 +279,15 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::Launch.port "Terminal" do
-    asks "Serve", to: Launch do
-      attribute :run, LaunchKey
-      answers "LaunchAnswered"
-      refuses "LaunchRefused"
+  Hecks::Server.port "Terminal" do
+    asks "Serve", to: Server do
+      attribute :run, RunKey
+      answers "ServerAnswered"
+      refuses "ServerRefused"
     end
+  end
 
+  Hecks::Launch.port "Terminal" do
     asks "Converse", to: Launch do
       attribute :run, LaunchKey
       answers "LaunchAnswered"

@@ -9,6 +9,7 @@ Hecks.bluebook "Hecks" do
       attribute :domains,   PathList, optional: true
       attribute :agent,     AgentName, optional: true
       attribute :directory, Directory, optional: true
+      attribute :stdio,     Switch, optional: true
 
       # One directory of files, named by a path.
       value_object "Directory" do
@@ -71,6 +72,31 @@ Hecks.bluebook "Hecks" do
 
         emits PreviewRequested
       end
+
+      command "ServeQueryIrMcp" do
+        role "Maintainer"
+        goal "Serve the IR queries to an MCP client over stdio until it closes"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "serve_query_ir_mcp"
+
+        emits ServeQueryIrMcpRequested
+      end
+
+      # A stdio server runs until its client closes stdin, so it cannot be asked and answered
+      # quickly. The command records that the server was started; the Terminal adapter hands the
+      # process over and answers when it closes. The launcher spells it `serve_mcp`; the `mcp`
+      # spelling is the launcher's alias for it.
+      command "ServeMcp" do
+        role "Operator"
+        goal "Serve the storehouse bus to an MCP client over stdio until it closes"
+
+        attribute :run,   RunKey, sets: true
+        attribute :stdio, Switch, optional: true, sets: true
+
+        emits McpRequested
+      end
     end
 
     policy "ExamineWhenPresentRequested" do
@@ -86,6 +112,16 @@ Hecks.bluebook "Hecks" do
     policy "ExamineWhenPreviewRequested" do
       on      "Server.PreviewRequested"
       ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenServeQueryIrMcpRequested" do
+      on      "Server.ServeQueryIrMcpRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ServeWhenMcpRequested" do
+      on      "Server.McpRequested"
+      ask     :serve, with: { run: :run }
     end
   end
 end

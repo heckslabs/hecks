@@ -515,17 +515,6 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :snake_name
       end
 
-      command "ServeQueryIrMcp" do
-        role "Maintainer"
-        goal "Serve the IR queries to an MCP client over stdio until it closes"
-
-        attribute :run, RunKey, sets: true
-
-        sets :operation, to: "serve_query_ir_mcp"
-
-        emits ServeQueryIrMcpRequested
-      end
-
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
         attribute :text, String
@@ -572,11 +561,6 @@ Hecks.bluebook "Hecks" do
         attribute :field, FieldName
         returns Document
       end
-    end
-
-    policy "ExamineWhenServeQueryIrMcpRequested" do
-      on      "CorpusRun.ServeQueryIrMcpRequested"
-      ask     :examine, with: { run: :run }
     end
 
   end
