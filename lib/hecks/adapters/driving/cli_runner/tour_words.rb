@@ -1,6 +1,5 @@
 require "fileutils"
 require "stringio"
-require_relative "../../../cli/domain_stub"
 require_relative "../../../../hecks"
 
 module Hecks
@@ -33,7 +32,8 @@ module Hecks
 
           # Writes each stub file of the sample domain under `target`.
           def write_tour(target)
-            CLI::DomainStub.files(name: TOUR_NAME).each do |path, text|
+            require_relative "../../../tools/domain_stub"
+            Tools::DomainStub.files(name: TOUR_NAME).each do |path, text|
               full = File.join(target, path)
               FileUtils.mkdir_p(File.dirname(full))
               File.write(full, text)

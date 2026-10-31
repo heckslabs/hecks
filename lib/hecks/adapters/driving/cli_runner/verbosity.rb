@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "../../../tools/stage_progress"
-
 module Hecks
   module Adapters
     module Driving
@@ -34,6 +32,7 @@ module Hecks
           # @yield the answer the line gets at that level
           # @return [Object] the block's value
           def with_verbosity(level)
+            require_relative "../../../tools/stage_progress"
             previous = Thread.current[:hecks_verbosity]
             Thread.current[:hecks_verbosity] = level
             Tools::StageProgress.quiet = level == :quiet
