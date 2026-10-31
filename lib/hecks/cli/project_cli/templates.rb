@@ -22,6 +22,8 @@ module Hecks
           {{encoding}}$LOAD_PATH.unshift File.expand_path("{{up}}lib", __dir__)
           {{handoff}}
           require "hecks"
+          # Every secret a world hands an adapter is masked in whatever this process prints.
+          Hecks::Secrets.guard!
 
           {{entry}}
           {{ending}}
