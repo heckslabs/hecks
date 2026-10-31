@@ -67,12 +67,11 @@ module Hecks
         # @param name [String] the bluebook's name
         # @param program [String] the generator's invocation, named in the header
         # @param executable [String, nil] the file's path under the root when not beside the domain
-        # @param legacy [Array<String>, nil] commands an executable hands to `Hecks::CLI` first
         # @param memory_commands [Array<String>, nil] commands that default to Memory
         # @param opted [Boolean] whether the bluebook's world declares a `launcher` setting
         # @return [String] the Ruby source
-        # @raise [ArgumentError] if a name, path, executable or legacy command is not plain
-        def launcher(path, name, program, executable: nil, legacy: nil, memory_commands: nil, opted: !executable.nil?)
+        # @raise [ArgumentError] if a name, path, executable or memory command is not plain
+        def launcher(path, name, program, executable: nil, memory_commands: nil, opted: !executable.nil?)
           plain!("bluebook name", name, NAME)
           plain!("domain path", path, PATH)
           site = executable ? executable_site(path, executable) : plain_site(path, name, program)
@@ -80,18 +79,18 @@ module Hecks
 
           render(LAUNCHER, name: name, program: site.program, where: site.where, up: site.up,
                            encoding: opted ? ENCODING : "",
-                           handoff: handoff_for(executable, legacy, memory_commands, site),
+                           handoff: handoff_for(executable, memory_commands, site),
                            ending: ending_for(opted, executable && quiet),
                            entry: entry(name, site.boot, site.shown, opted, quiet: quiet))
         end
 
         # @api private
         # @return [String] what an executable launcher does before it boots, or nothing: it takes
-        #   the gems the checkout's Gemfile pins, hands legacy commands on, defaults Memory ones
-        def handoff_for(executable, legacy, memory_commands, site)
+        #   the gems the checkout's Gemfile pins, and defaults Memory ones
+        def handoff_for(executable, memory_commands, site)
           return "" unless executable
 
-          render(PINNED_GEMS, up: site.up) + legacy_handoff(Array(legacy)) + memory_default(Array(memory_commands))
+          render(PINNED_GEMS, up: site.up) + memory_default(Array(memory_commands))
         end
 
         # @api private
@@ -166,15 +165,6 @@ module Hecks
 
           commands.each { |command| plain!("memory command", command, VERB) }
           render(MEMORY_DEFAULT, commands: commands.join(" "))
-        end
-
-        # @api private
-        # @return [String] the lines that hand the legacy commands to `Hecks::CLI`, or nothing
-        def legacy_handoff(legacy)
-          return "" if legacy.empty?
-
-          legacy.each { |command| plain!("legacy command", command, VERB) }
-          render(LEGACY_HANDOFF, commands: legacy.join(" "))
         end
       end
     end

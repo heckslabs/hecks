@@ -120,7 +120,7 @@ module Hecks
         snake      = Naming.snake(name)
         executable = setting[:executable]
         label      = executable || "#{path}/#{snake}"
-        text       = launcher(path, name, program, executable: executable, legacy: setting[:legacy],
+        text       = launcher(path, name, program, executable: executable,
                                                    memory_commands: setting[:memory_commands], opted: !setting.empty?)
         Target.new(name, label, File.join(root, label), text, snake, executable)
       end
