@@ -41,6 +41,8 @@ ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_
 ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
 
 require "hecks"
+# Every secret a world hands an adapter is masked in whatever this process prints.
+Hecks::Secrets.guard!
 
 # Usage is answered from the projected bluebook alone: no adapter is bound and no
 # database is opened. Only a line that runs a command boots the domain,
