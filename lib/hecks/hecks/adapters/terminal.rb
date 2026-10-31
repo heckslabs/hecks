@@ -49,13 +49,15 @@ module Hecks
       # only once the client is gone.
       #
       # @param held [Hash] the `Launch` record: `stdio` (whether `--stdio` was given)
-      # @return [Hash{Symbol => Hash}] `output:` a one-line note that the server closed
+      # @return [Hash{Symbol => Hash}] `report:` a one-line note that the server closed, which the
+      #   run records as its outcome; `output:` carries the same note for the launcher's answer
       # @raise [ConsoleCapture::Failure] when the process is not set up for stdio: the server
       #   refused to start, and said why on stderr
       def serve(**held)
         run_server(plain(held[:stdio]) ? ["--stdio"] : [])
 
-        { output: { value: "mcp server closed" } }
+        note = { value: "mcp server closed" }
+        { report: note, output: note }
       rescue SystemExit => e
         raise ConsoleCapture::Failure, "the mcp server refused to start (status #{e.status}); see stderr"
       end
