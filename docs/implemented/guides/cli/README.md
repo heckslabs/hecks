@@ -43,3 +43,13 @@ without its bang is refused, with the bang spelling in the reply.
 - [serve](serve.md): open something on a port or stdio
 - [find](find.md): read the code
 - [delegate](delegate.md): hand work to a background session
+
+## Flags
+
+Two kinds of flag exist, and each has one home.
+
+A launcher flag is accepted by every command, whatever its bluebook declares: `--wait`, `--confirm`, `--plan`, `--json`, `-q`, `-v` and `--help`. A command that has nothing to wait for accepts `--wait` and ignores it, so a script can pass it everywhere.
+
+A command's own flag is a Boolean argument its bluebook declares, and it appears in that command's `--help`. The launcher gives it no meaning of its own.
+
+A flag that no command declares is refused with exit 2, and the message names the flag and points at the command's help.
