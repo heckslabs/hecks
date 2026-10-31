@@ -113,10 +113,22 @@ module Hecks
         end
 
         # Names the table, file or key persistence adapters store this aggregate
-        # under.
+        # under. A renamed aggregate keeps the name its rows were written under, so
+        # its stored records stay where they are.
         #
-        # @return [String] the aggregate's name, snake-cased
-        def storage_name = Naming.snake(@name)
+        # @return [String] the aggregate's former name when it declares one, else its
+        #   own name, snake-cased
+        def storage_name = Naming.snake(former_name || @name)
+
+        # The name this aggregate carried before its rename, from `formerly_known_as`.
+        #
+        # @return [String, nil] the former name, or nil when the aggregate was never renamed
+        def former_name
+          held = formerly_known_as
+          return nil if held.nil?
+
+          (held.respond_to?(:value) ? held.value : held).to_s
+        end
       end
     end
   end

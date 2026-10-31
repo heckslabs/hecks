@@ -144,8 +144,10 @@ module Hecks
             name   = argv.first
             return [asking, nil, argv] if name.nil?
 
-            bang = name.end_with?("!")
-            name = canonical_name(cli, name.chomp("!"))
+            bang  = name.end_with?("!")
+            typed = name.chomp("!")
+            name  = canonical_name(cli, typed)
+            note_former_name(cli, typed, name)
             [asking || (!bang && query_only?(cli, name)), name, argv]
           end
 
