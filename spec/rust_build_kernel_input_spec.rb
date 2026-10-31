@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/rust_build/kernel_input"
+require "hecks/rust_build/conformance"
 require_relative "support/generated_rust"
 require_relative "support/kernel_input_fixtures"
 
@@ -19,6 +20,12 @@ RSpec.describe Hecks::RustBuild::KernelInput do
   def steps = [{ "verb" => "LeaseClock::Lease.Register", "args" => { "key" => { "value" => "a" } } }]
 
   def board = "NestedPieces::Workspace.Board"
+
+  def script_file
+    path = File.join(rust_dir, "script.json")
+    File.write(path, JSON.generate("steps" => steps))
+    path
+  end
 
   def write_ir(feature, document)
     dir = File.join(rust_dir, "src", "generated", feature)
@@ -64,6 +71,13 @@ RSpec.describe Hecks::RustBuild::KernelInput do
 
     expect(input["steps"]).to eq(steps)
     expect(input["defaults"]).to eq("LeaseClock::Lease.Reap" => { "grace" => { "value" => 0 } })
+  end
+
+  it "gives a conformance run the script's steps beside the same tables", :aggregate_failures do
+    input = JSON.parse(Hecks::RustBuild::Conformance.kernel_input(domain, script_file))
+
+    expect(input["steps"]).to eq(steps)
+    expect(input["needs"]).to eq(described_class.tables_for(domain)["needs"])
   end
 
   it "renders the same input as JSON for a binary's stdin" do
