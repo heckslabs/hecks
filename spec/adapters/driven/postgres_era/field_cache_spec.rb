@@ -3,10 +3,12 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/thread_parking"
+require_relative "../../../support/mint_request_support"
 
 # Field cache and resumable backfill against a throwaway Postgres database:
 # correctness before and after a mint, crash resumability, and non-blocking writes.
 RSpec.describe "PostgresEra field cache — Track C validation", :io do
+  include MintRequestSupport
   include EraRegistryLoading
 
   FIELD_CACHE_DB = "hecks_field_cache_spec".freeze
@@ -129,7 +131,8 @@ RSpec.describe "PostgresEra field cache — Track C validation", :io do
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source, settings: { database: owner_url, mint_eras: true }
+      registry: registry, bluebook: bluebook, current_text: source,
+      settings: with_mint_request({ database: owner_url, mint_eras: true }, domain: bluebook.name)
     )
     registry
   end

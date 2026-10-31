@@ -4,12 +4,14 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
 require_relative "../../../support/thread_parking"
+require_relative "../../../support/mint_request_support"
 
 # Lineage in the PostgresEra adapter: partitioned journal, era rows, the one-transaction mint,
 # and the head compiled as a chain of edges. Needs a reachable Postgres (see postgres_probe.rb).
 RSpec.describe "lineage in the PostgresEra adapter", :io do
   include EraRegistryLoading
   include EraAppRole
+  include MintRequestSupport
 
   LINEAGE_DB = "hecks_lineage_spec".freeze
 
@@ -187,7 +189,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     settings[:mint_eras] = mint_eras unless mint_eras.nil?
     settings[:role] = role if role
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source, settings: settings
+      registry: registry, bluebook: bluebook, current_text: source,
+      settings: with_mint_request(settings, domain: bluebook.name)
     )
     registry
   end
@@ -239,7 +242,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   def check_loaded!(registry, text)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: text,
-      settings: { database: owner_url, mint_eras: true }
+      settings: with_mint_request({ database: owner_url, mint_eras: true },
+                                  domain: registry.bluebooks.values.first.name)
     )
   end
 
@@ -736,14 +740,24 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       end
     end
 
+    # A mint whose rehearsal read the ledger before the writer started is refused by name: the
+    # watermark moved, so the mint never reaches its lock. The writer must keep writing through it.
     def mint_while_probing
       probe = LineageWriterProbe.new(0, 0, 0, false)
       writer = probing_writer(probe)
       ThreadParking.wait_for { probe.ok >= 3 } # a few writes in before the mint starts
-      mint_v2!
-      probe.stop = true
-      writer.join
+      @refusal = mint_refusal
       probe
+    ensure
+      probe.stop = true
+      writer&.join
+    end
+
+    def mint_refusal
+      mint_v2!
+      nil
+    rescue Hecks::Runtime::WiringError => e
+      e.message
     end
 
     before do
@@ -756,7 +770,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect(@probe.ok).to be > 0
     end
 
-    it "never waits on advance_era!'s AccessExclusiveLock, held for the commit and not the matview build" do
+    it "refuses the mint by name, since the watermark moved after the rehearsal" do
+      expect(@refusal).to match(/watermark moved from \d+ to \d+ since the rehearsal/)
+    end
+
+    it "never waits on a lock while the mint is refused" do
       expect(@probe.lock_blocked).to eq(0)
     end
   end
@@ -790,7 +808,10 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   def merge_tail!(registry, **extra)
     Hecks::Adapters::PostgresEra::LineageManager.merge!(
-      registry: registry, bluebook: registry.bluebooks.values.first, settings: { database: LINEAGE_DB, mint_eras: true }, **extra
+      registry: registry, bluebook: registry.bluebooks.values.first,
+      settings: with_mint_request({ database: LINEAGE_DB, mint_eras: true },
+                                  domain: registry.bluebooks.values.first.name),
+      **extra
     )
   end
 
@@ -1254,7 +1275,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     registry = load_registry(source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
-      settings: { database: LINEAGE_DB, mint_eras: true }.merge(extra_settings)
+      settings: with_mint_request({ database: LINEAGE_DB, mint_eras: true }.merge(extra_settings),
+                                  domain: registry.bluebooks.values.first.name)
     )
     registry
   end

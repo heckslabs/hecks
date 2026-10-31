@@ -21,6 +21,7 @@ module Hecks
           # @return [Integer] the ordinal of the era minted
           # @raise [Runtime::WiringError] if the edge, its coverage or its audit refuses
           def mint!(context)
+            refuse_unrehearsed_mint!(context)
             ensure_named!(context.lineage, context.latest)
             context = context.with(latest: context.held_eras.last)
             edge = verified_edge!(context)

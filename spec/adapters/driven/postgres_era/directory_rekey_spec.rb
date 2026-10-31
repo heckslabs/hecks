@@ -3,10 +3,12 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
+require_relative "../../../support/mint_request_support"
 
 # Mints examples/directory's committed rekey edge against a real Postgres, seeded with
 # several distinct records (a `backfill` default could fit at most one, hence `derive`).
 RSpec.describe "the Directory example's real rekey edge (examples/directory)", :io do
+  include MintRequestSupport
   include EraRegistryLoading
 
   DIRECTORY_DB = "hecks_directory_rekey_spec".freeze
@@ -63,7 +65,8 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     bluebook = registry.bluebooks.values.first
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source,
-      settings: { database: FencedOwner.url(DIRECTORY_DB), mint_eras: true }
+      settings: with_mint_request({ database: FencedOwner.url(DIRECTORY_DB), mint_eras: true },
+                                  domain: bluebook.name)
     )
     registry
   end
