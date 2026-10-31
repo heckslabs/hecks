@@ -132,7 +132,14 @@ operating a domain into a grouping, where an audience says it better.
   `admit`), and a loader that reads one bluebook from its module folders.
 - `formerly_known_as` on an aggregate; the bluebook has it today.
 - `for:` on a command.
-- `kind:` on an aggregate, and the `Run` kind.
+- `kind:` on an aggregate, and the `Run` kind. A kind is a text in the bluebook's own words,
+  `lib/hecks/language/kinds/<kind>.kind`, evaluated around the aggregate's body with the aggregate's
+  name and stem filled in; `aggregate` admits `kind:` as an argument row, and the built IR is the
+  one the hand-written aggregate had. The Run kind covers the seven codebase runs whose lifecycle,
+  bookkeeping commands, queries and policies match word for word (`LanguageRun`, `KernelRun`,
+  `ConformanceRun`, `RegenerationRun`, `CodemodRun`, `TestSuiteRun`, `CorpusRun`); `GateRun`,
+  `StyleRun`, `InspectionRun` and `ScriptRun` differ in the wording of their bookkeeping goals,
+  and the runs of other modules differ in lifecycle.
 - A command attribute whose closed set of values binds each value to a port operation.
 - The adapter-word check in `model_check`.
 
