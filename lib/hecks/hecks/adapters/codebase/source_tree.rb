@@ -76,6 +76,8 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no family carries the operation out, or it refuses
       def perform(**held)
         operation = plain(held[:operation])
+        return handed_off(operation) if HANDED_OFF.include?(operation)
+
         family = FAMILIES.find { |candidate| candidate::OPERATIONS.include?(operation) }
         raise ConsoleCapture::Failure, "no task carries out #{operation.inspect}" unless family
 
@@ -192,6 +194,11 @@ module Hecks
         Codebase::Style.report(operation, plain_args, tree, shell: self.class.shell)
       end
 
+      # Operations the Terminal adapter carries out itself: the run records that the server was
+      # started and answers when the process hands back, so nothing here runs them.
+      HANDED_OFF = %w[serve_mcp].freeze
+      private_constant :HANDED_OFF
+
       # The task families, each carrying out the operations it lists.
       FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
                   Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
@@ -203,6 +210,12 @@ module Hecks
       def promotion_facts(held)
         facts = tree.checkout? ? Codebase::Promotion.facts(held, tree) : Codebase::Promotion.no_facts
         { operation: held[:operation], alert_key: held[:alert_key] }.compact.merge(facts)
+      end
+
+      # @return [Hash{Symbol => Hash}] `report:` the note that the terminal carries the operation
+      def handed_off(operation)
+        note = { value: "#{operation} handed to the terminal" }
+        { report: note, output: note }
       end
 
       def tree = Codebase::Tree.new

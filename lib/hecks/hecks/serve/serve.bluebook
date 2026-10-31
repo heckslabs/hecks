@@ -95,6 +95,8 @@ Hecks.bluebook "Hecks" do
         attribute :run,   RunKey, sets: true
         attribute :stdio, Switch, optional: true, sets: true
 
+        sets :operation, to: "serve_mcp"
+
         emits McpRequested
       end
     end
