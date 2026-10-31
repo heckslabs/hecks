@@ -6,6 +6,7 @@ Hecks::FrameworkBluebooks.load!("QualityControl")
 
 Hecks.hecksagon "QualityControl" do
   attaches "Governance"
+  attaches "Coder"
 
   QualityControl::Target.persisted_by("PostgresEra")
   QualityControl::Sweep.persisted_by("PostgresEra")

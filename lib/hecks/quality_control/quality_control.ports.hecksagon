@@ -52,4 +52,23 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::Clearance.port "ClearanceTools" do
     answers_query "CheckPullRequests"
   end
+
+  # Answered by `adapters/main_maintenance`: the quick gate on main, the reconcile, and the push through the
+  # train. Each answers the event its policy waits for, or refuses with a named event and stops the run.
+  QualityControl::Maintenance.port "MainMaintenance" do
+    asks "Gate", to: Maintenance do
+      answers "GateVerdict"
+      refuses "GateRefused"
+    end
+
+    asks "Reconcile", to: Maintenance do
+      answers "ReconcileDone"
+      refuses "ReconcileRefused"
+    end
+
+    asks "Push", to: Maintenance do
+      answers "Pushed"
+      refuses "PushRefused"
+    end
+  end
 end

@@ -234,7 +234,9 @@ module Hecks
         {"name"=>"mutation_files", "type"=>"Array", "meaning"=>"Rust files `hecks quality_control target.mutate --from-dials` mutates, and so the files one `hecks quality_control sweep.tick` mutation-tests after the generated domains; empty skips the step."}.freeze,
         {"name"=>"mutation_equivalent", "type"=>"Array", "meaning"=>"Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors."}.freeze,
         {"name"=>"structural_refusal_boundary", "type"=>"Array", "meaning"=>"Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."}.freeze,
-        {"name"=>"red_main_check", "type"=>"Boolean", "meaning"=>"Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."}.freeze
+        {"name"=>"red_main_check", "type"=>"Boolean", "meaning"=>"Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."}.freeze,
+        {"name"=>"main_maintenance", "type"=>"Boolean", "meaning"=>"Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."}.freeze,
+        {"name"=>"maintenance_confirm", "type"=>"Boolean", "meaning"=>"Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."}.freeze
       ].freeze,
       "QueryComparator" => [
         {"name"=>"eq"}.freeze,
