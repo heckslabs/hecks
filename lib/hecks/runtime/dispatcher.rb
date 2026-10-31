@@ -71,7 +71,8 @@ module Hecks
       def sagas = @registry.saga_log
 
       # The interpreter that moves sagas through their stages, for `resume` and redelivery.
-      attr_reader :saga_interpreter
+      # @return [SagaInterpreter]
+      def saga_interpreter = @sagas
 
       # Exposes the raw inputs each saga dispatch bound its arguments from (Ruby-only).
       #
