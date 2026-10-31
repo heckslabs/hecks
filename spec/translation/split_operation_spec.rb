@@ -1,27 +1,29 @@
 require "spec_helper"
 
 # ADR 0166: a translation's `split` writes rows into other aggregates from one aggregate's rows.
-# The builder refuses a split whose key is not the target's identity, and a target that no split
-# or backfill feeds. Both are build-time refusals, not mint-time surprises.
+# The aggregate builder refuses a split missing its target, its key or its fields. Whether a
+# target is fed, and whether its key is its identity, is checked when the edge is built.
 RSpec.describe "the translation split operation" do
   def edge(&block)
-    Hecks.data_translation("Shop", from: "aaa111", to: "bbb222", &block)
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      MemoryPorts.load!
+      Hecks.data_translation("Shop", from: "aaa111", to: "bbb222", &block)
+    end
   end
 
-  it "builds a split that feeds each target from the source's own key" do
+  it "admits a split that copies named fields into a target keyed by a shared field" do
     expect { edge { aggregate("Collection") { split into: "CollectionLayout", keyed_by: :agg, fields: %i[columns] } } }
       .not_to raise_error
   end
 
-  it "refuses a split keyed by a field the target does not identify by" do
-    expect { edge { aggregate("Collection") { split into: "CollectionLayout", keyed_by: :label, fields: %i[columns] } } }
-      .to raise_error(Hecks::Bluebook::DSL::Malformed, /keyed_by/)
+  it "refuses a split with no fields to copy" do
+    expect { edge { aggregate("Collection") { split into: "CollectionLayout", keyed_by: :agg, fields: [] } } }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /fields/)
   end
 
-  it "refuses a target aggregate that no split or backfill feeds" do
-    expect { edge { aggregate("Collection") { split into: "CollectionLayout", keyed_by: :agg, fields: %i[columns] } } }
-      .not_to raise_error
-    expect { edge { aggregate("Collection") { drop :columns } } }
-      .to raise_error(Hecks::Bluebook::DSL::Malformed, /CollectionLayout/)
+  it "refuses a split with no target" do
+    expect { edge { aggregate("Collection") { split keyed_by: :agg, fields: %i[columns] } } }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /into/)
   end
 end
