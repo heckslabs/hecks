@@ -13,6 +13,7 @@ require_relative "cli_runner/answers"
 require_relative "cli_runner/resolution"
 require_relative "cli_runner/run_replay"
 require_relative "cli_runner/search_words"
+require_relative "cli_runner/completion_words"
 require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
@@ -36,6 +37,7 @@ module Hecks
 
         extend Resolution
         extend SearchWords
+        extend CompletionWords
         extend Suggestions
         extend VerbNames
         extend Answers
