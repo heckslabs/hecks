@@ -80,7 +80,11 @@ module Hecks
 
     # The alias table CliRunner resolves against, for one bluebook.
     # :nodoc:
-    def cli_for(bluebook) = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
+    def cli_for(runtime, bluebook)
+      launcher = Adapters::Driving::LauncherOptions.settings(runtime, bluebook.name)
+      options = Adapters::Driving::LauncherOptions.projection(launcher, "mcp")
+      Projector.call(:cli, bluebook: bluebook, options: options)
+    end
 
     # The same alias table CliRunner resolves against, kept here so dispatch
     # and query never drift from what a human typing hecks run sees.
@@ -116,7 +120,7 @@ module Hecks
     # @param names [Array<String, nil>] short or qualified command names
     # @return [Array<String, nil>] one verb or nil per name, in order
     def verbs_for(runtime, names)
-      cli = cli_for(bluebook_for(runtime))
+      cli = cli_for(runtime, bluebook_for(runtime))
       names.map do |name|
         resolve!(cli, name.to_s, asking: false)[:command]
       rescue Runtime::NotFound

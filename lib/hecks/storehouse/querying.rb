@@ -24,7 +24,7 @@ module Hecks
       # :nodoc:
       def perform_query(request)
         validate_caller_fields!(request)
-        spec = resolve!(cli_for(request.bluebook), request.name, asking: true)
+        spec = resolve!(cli_for(request.runtime, request.bluebook), request.name, asking: true)
         rows = with_caller(request.role, request.actor_id) { answer(request, spec) }
 
         ok(summary: request.summary, rows: rows.map do |row|

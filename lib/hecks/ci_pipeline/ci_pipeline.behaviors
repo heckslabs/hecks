@@ -190,7 +190,7 @@ Hecks.behaviors "CiPipeline" do
   # A job with several needs queues only after all of them are met. One met need is not enough.
   test "Queue refuses a job until every edge into it is met" do
     tests "Queue", on: "Job"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
           required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
@@ -200,7 +200,7 @@ Hecks.behaviors "CiPipeline" do
 
   test "Queue admits a job once both of its needs are met" do
     tests "Queue", on: "Job"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
           required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
@@ -214,7 +214,7 @@ Hecks.behaviors "CiPipeline" do
   # are the edges into rspec_shard.
   test "A skipped gate leaves its dependents runnable" do
     tests "Skip", on: "Job"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "ci_attestation_rspec" },
           required: { value: false }, gate: { value: "attestation" }, needs_total: { value: 0 }
@@ -229,7 +229,7 @@ Hecks.behaviors "CiPipeline" do
 
   test "Queue admits rspec_shard once its skipped gate and its corpus hit both settled it" do
     tests "Queue", on: "Job"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "ci_attestation_rspec" },
           required: { value: false }, gate: { value: "attestation" }, needs_total: { value: 0 }
@@ -247,7 +247,7 @@ Hecks.behaviors "CiPipeline" do
 
   test "A gated job is not skipped when the change touches its gate" do
     tests "Skip", on: "Job"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "ci_attestation_rspec" },
           required: { value: false }, gate: { value: "attestation" }, needs_total: { value: 0 }
@@ -258,7 +258,7 @@ Hecks.behaviors "CiPipeline" do
   # A cache miss regenerates the corpus once, and the job that needs it waits for that.
   test "A cache miss forces Materialize before a job that needs the corpus can start" do
     tests "Miss", on: "Corpus"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
           required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
@@ -270,7 +270,7 @@ Hecks.behaviors "CiPipeline" do
 
   test "A cache hit does not regenerate the corpus" do
     tests "Hit", on: "Corpus"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
           required: { value: true }, gate: { value: "" }, needs_total: { value: 2 }
@@ -281,37 +281,37 @@ Hecks.behaviors "CiPipeline" do
   end
 
   test "Build passes once every required job has passed" do
-    tests "CountPass", on: "Build"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    tests "CountPass", on: "CiRun"
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
-    setup "CiPipeline::Build.Start", build: "b1"
+    setup "CiPipeline::CiRun.Start", build: "b1"
     input build: "b1"
     expect emits: ["PassCounted", "BuildPassed"]
   end
 
   test "Build does not pass while a required job is still unsettled" do
-    tests "Pass", on: "Build"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    tests "Pass", on: "CiRun"
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 2 }
-    setup "CiPipeline::Build.Start", build: "b1"
+    setup "CiPipeline::CiRun.Start", build: "b1"
     input build: "b1"
     expect refused: "every required job passed or was skipped by its gate"
   end
 
   test "Build fails when one required job fails" do
-    tests "CountFailure", on: "Build"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    tests "CountFailure", on: "CiRun"
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 2 }
-    setup "CiPipeline::Build.Start", build: "b1"
+    setup "CiPipeline::CiRun.Start", build: "b1"
     input build: "b1"
     expect emits: ["FailureCounted", "BuildFailed"]
   end
 
   test "A required job's pass counts toward its build, which then passes" do
     tests "Pass", on: "Job"
-    setup "CiPipeline::Build.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
+    setup "CiPipeline::CiRun.Open", build: { value: "b1" }, commit: { value: "93f8e68c6" },
           required_total: { value: 1 }
-    setup "CiPipeline::Build.Start", build: "b1"
+    setup "CiPipeline::CiRun.Start", build: "b1"
     setup "CiPipeline::Job.Declare", build: "b1", name: { value: "rspec_shard" },
           required: { value: true }, gate: { value: "" }, needs_total: { value: 0 }
     setup "CiPipeline::Job.Queue", job: "rspec_shard", touched: { value: false }
