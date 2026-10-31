@@ -8,6 +8,7 @@ require_relative "../../projector"
 require_relative "../../ports/clock"
 require_relative "cli_runner/answers"
 require_relative "cli_runner/resolution"
+require_relative "cli_runner/search_words"
 require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
@@ -25,6 +26,7 @@ module Hecks
         QUERY_WORDS = %w[query ask].freeze
 
         extend Resolution
+        extend SearchWords
         extend Suggestions
         extend VerbNames
         extend Answers
