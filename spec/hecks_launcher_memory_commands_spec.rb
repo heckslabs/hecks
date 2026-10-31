@@ -35,7 +35,7 @@ RSpec.describe "the launcher's memory commands" do
                       "HECKS_ENVIRONMENT" => nil }.freeze
 
   it "opens the console with no database reachable and no environment variable", :aggregate_failures, :process do
-    _out, err, status = Open3.capture3(NO_DATABASE_ENV, RbConfig.ruby, "exe/hecks", "console",
+    _out, err, status = Open3.capture3(NO_DATABASE_ENV, RbConfig.ruby, "exe/hecks", "console!",
                                        stdin_data: "exit\n", chdir: InMemoryDomain::ROOT)
 
     expect(status).to be_success, err
