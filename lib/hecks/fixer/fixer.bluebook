@@ -1,0 +1,156 @@
+# The fixer: the work of taking a logged bug to a verified fix. QualityControl finds and records
+# bugs; this domain holds the attempts at them, and says what happened through its events.
+# A bug is never written here. QualityControl records each step from the events below.
+
+Hecks.bluebook "Fixer" do
+  vision "A logged bug gets one attempt at a time, each claimed, investigated, fixed and verified on the record, and the bug itself is only ever written by the quality ledger."
+
+  # One attempt at one logged bug. The attempt is keyed by the bug's reference, so there is at most
+  # one attempt for each bug the ledger has logged.
+  aggregate "Attempt" do
+    description "One attempt at one logged bug: who holds it, where the fault is, the commit that fixes it, and what verified it."
+
+    identified_by :reference
+
+    attribute :reference,    BugReference
+    attribute :held_by,      Engineer
+    attribute :claimed_at,   Instant
+    attribute :window,       StaleAfter
+    attribute :site,         BugSite, optional: true
+    attribute :cause,        BugCause, optional: true
+    attribute :commit,       CommitRef, optional: true
+    attribute :verification, Verification, optional: true
+
+    value_object "BugReference" do
+      attribute :value, String, matches: :present
+      invariant("a bug is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "BugSite" do
+      attribute :value, String, matches: :present
+      invariant("an investigation names where the bug lives") { !value.to_s.empty? }
+    end
+
+    value_object "BugCause" do
+      attribute :value, String, matches: :present
+      invariant("an investigation says why the code is wrong") { !value.to_s.empty? }
+    end
+
+    # 7 to 40 hex: a fix that lives only in a working tree is not a fix.
+    value_object "CommitRef" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    # What was actually run, e.g. "rspec --order random, 1335 examples, 0 failures, seed 12345":
+    # a count and a seed are checkable, "tests pass" is not.
+    value_object "Verification" do
+      attribute :value, String, matches: :present
+      invariant("a verification says what was actually run") { !value.to_s.empty? }
+    end
+
+    value_object "Engineer" do
+      attribute :value, String, default: "nobody"
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    value_object "StaleAfter" do
+      attribute :value, Integer, default: 900
+      invariant("a staleness window is positive") { value.positive? }
+    end
+
+    # A bug is born logged; each step moves the attempt along the same edges QualityControl uses.
+    lifecycle :status, default: "logged" do
+      transition "Investigate" => "investigating", from: "logged"
+      transition "Fix"         => "fixed",         from: "investigating"
+      transition "Verify"      => "verified",      from: "fixed"
+      mark :terminal, "verified"
+    end
+
+    # The attempt is opened by the ledger's `BugLogged`, and nothing else creates one.
+    command "Open" do
+      role "Fixer"
+      goal "Start an attempt at a bug the ledger has logged, so it can be claimed"
+
+      attribute :reference, BugReference
+
+      emits "AttemptOpened"
+    end
+
+    # Same rule as QualityControl's `Bug.Claim`: held by nobody, or stale.
+    command "Claim" do
+      role "Fixer"
+      goal "Take the attempt, or one whose holder has gone quiet"
+
+      reference_to Attempt
+      attribute :reference, BugReference
+      attribute :held_by,   Engineer, sets: true
+      attribute :now,       Instant
+      needs :now
+
+      given("a live claim is not taken from the agent holding it") do
+        held_by.value == "nobody" || claimed_at.value + window.value <= now.value
+      end
+
+      sets :claimed_at, to: :now
+
+      emits "AttemptClaimed"
+    end
+
+    command "Investigate" do
+      role "Fixer"
+      goal "Name the code that is wrong and say why"
+
+      reference_to Attempt
+      attribute :reference, BugReference
+      attribute :site,      BugSite,  sets: true
+      attribute :cause,     BugCause, sets: true
+
+      emits "AttemptInvestigated"
+    end
+
+    # `FixReady` carries the commit that makes the bug stop happening. The ledger records the fixed
+    # state from it, and the commit is what the Clearance check and the saga correlate on.
+    command "Fix" do
+      role "Fixer"
+      goal "Record the commit that makes it stop happening"
+
+      reference_to Attempt
+      attribute :reference, BugReference
+      attribute :commit,    CommitRef, sets: true
+
+      emits "FixReady"
+    end
+
+    # `FixVerified` restates the reference and commit so the ledger can record the verified state
+    # against the bug it names.
+    command "Verify" do
+      role "Fixer"
+      goal "Record that the fix was actually verified, and exactly how"
+
+      reference_to Attempt
+      attribute :reference, BugReference
+      attribute :commit,    CommitRef
+      attribute :evidence,  Verification
+
+      sets :verification, to: :evidence
+
+      emits "FixVerified"
+    end
+  end
+
+  # The ledger logged a bug: the attempt at it is opened, ready to be claimed.
+  policy "OpenOnBugLogged" do
+    on      "Bug.BugLogged"
+    trigger Attempt::Open, with: { reference: :reference }
+  end
+
+  # A merged patch is the commit that makes a bug's fix true, so the attempt at it records the fix.
+  policy "FixOnPatchMerged" do
+    on      "Patch.PatchMerged"
+    trigger Attempt::Fix, with: { reference: :bug, commit: :commit }
+  end
+end
