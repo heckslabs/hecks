@@ -19,7 +19,12 @@ module Hecks
           ctx.instance = step(:hydrate_parent) { parent_record(ctx) }
         end
 
+        # A validation records `hydrate_parent`'s refusal and goes on within the stage, so the
+        # parent may be missing here: then there is nothing to locate in, and the one refusal
+        # already recorded is the answer a dispatch raises.
         def step_locate_element(ctx)
+          return unless ctx.instance
+
           ctx.element = step(:locate_element) do
             EntityElement.locate_chain(ctx.aggregate, ctx.chain, ctx.instance, ctx.args, ctx.command_name, ctx.route)
           end
