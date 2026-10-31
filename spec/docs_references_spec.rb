@@ -147,7 +147,7 @@ module DocReferences
 
   # Every module and class name some Ruby file under lib/ declares, for constants that load lazily
   # and so are not defined until something requires them, and every aggregate some bluebook there
-  # declares, which the launcher's verb form names as `Hecks::PushTrain.board!`.
+  # declares, which the launcher's verb form names as `Hecks::SendTrain.board!`.
   def declared_names
     @declared_names ||= Dir[File.join(ROOT, "lib/**/*.{rb,bluebook}")].flat_map { |file| names_in(file) }.to_set
   end

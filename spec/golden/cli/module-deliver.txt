@@ -6,42 +6,42 @@ deliver — Take finished work into the shared line.
 everyday:
   Shipment.ship!    Start the gate-and-board saga for a branch: fix comment style, check…
   Landing.land!     Merge a worktree's branch onto local main: fast-forward when it can be,…
-  PushTrain.board!  Push this checkout's branch once the push ahead of it lands, unless…
-  Checkout.status   The checkout's branch, whether it is a linked worktree, where it stands…
+  SendTrain.board!  Push this checkout's branch once the push ahead of it lands, unless…
+  Workspace.status  The checkout's branch, whether it is a linked worktree, where it stands…
 
 commands:
-  Commit:
+  Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!    Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!    Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
     retire!  Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
-  PushTrain:
+  SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!   Push this checkout's branch once the push ahead of it lands, unless that push already carried it
     survey!  List every checkout under a directory whose branch has commits its remote does not
   Shipment:
     One request to fix, gate, land and board a branch: the gate-and-board saga starts on it.
     ship!    Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
-  PullRequest:
+  ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     open!    Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
-    merge!   Squash-merge an open pull request by its number; never with an admin override
+    take!    Squash-merge an open pull request by its number; never with an admin override
 
 queries (nothing here changes anything):
-  Checkout:
+  Workspace:
     A look at a checkout: its branch, what it changed and what it committed.
     status    The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
     changes   What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
-    log       The commits in a range, newest first (the last 20 when none is named).
+    history   The commits in a range, newest first (the last 20 when none is named).
     settings  What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
     doctor    Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
     where     Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     unlanded  Every branch with commits that are not on main, or with uncommitted work, and where its worktree is.
-  PullRequest:
+  ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     status    The state of one pull request on GitHub: its number, state, URL and checks, as text.
 
@@ -64,5 +64,5 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 24 internal commands and queries
   hecks --maintainer           also list the 356 commands and queries for working on hecks itself
-  a command is called with its aggregate — Commit.make!
+  a command is called with its aggregate — Revision.make!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

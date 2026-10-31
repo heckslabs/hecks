@@ -10,7 +10,7 @@ behind whatever was pushed before it.
 **Example: see where your work stands**
 
 ```sh
-hecks Checkout.status
+hecks Workspace.status
 ```
 
 Prints the checkout's branch, whether it is a linked worktree, and where it stands against main.

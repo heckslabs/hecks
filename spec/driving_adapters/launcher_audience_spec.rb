@@ -55,10 +55,10 @@ RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
     end
 
     it "passes the everyday names on, to every audience", :aggregate_failures do
-      daily = setting.merge(everyday: %i[operation.run checkout.status])
+      daily = setting.merge(everyday: %i[operation.run workspace.status])
 
-      expect(described_class.audience(daily, false)).to include(everyday: %w[operation.run checkout.status])
-      expect(described_class.audience(daily, true)).to include(everyday: %w[operation.run checkout.status])
+      expect(described_class.audience(daily, false)).to include(everyday: %w[operation.run workspace.status])
+      expect(described_class.audience(daily, true)).to include(everyday: %w[operation.run workspace.status])
     end
 
     it "leaves a bluebook that did not opt in whole" do

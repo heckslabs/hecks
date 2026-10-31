@@ -136,7 +136,7 @@ RSpec.describe "the Checkout and Landing adapters", :io do
   it "reports the commits of a range, and refuses what is not one", :aggregate_failures do
     commit("second", dir: feature_tree)
 
-    expect(checkout.log(checkout: { value: feature_tree }, range: "main..HEAD")[:text]).to match(/\A\h+ second\n\z/)
-    expect { checkout.log(checkout: { value: feature_tree }, range: "--all") }.to raise_error(Hecks::Runtime::NotFound)
+    expect(checkout.history(checkout: { value: feature_tree }, range: "main..HEAD")[:text]).to match(/\A\h+ second\n\z/)
+    expect { checkout.history(checkout: { value: feature_tree }, range: "--all") }.to raise_error(Hecks::Runtime::NotFound)
   end
 end
