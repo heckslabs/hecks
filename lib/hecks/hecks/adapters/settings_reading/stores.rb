@@ -38,7 +38,13 @@ module Hecks
         end
 
         def bound_here?(registry, domain, aggregate)
-          registry.hecksagon(domain)&.binds&.any? { |bind| bind.aggregate == aggregate.hecks_name && bind.verb == VERB } || false
+          registry.hecksagon(domain)&.binds&.any? { |bind| named?(bind, aggregate) && bind.verb == VERB } || false
+        end
+
+        # A bind names its aggregate bare or qualified by its bluebook (`Tickets::Work`), as the
+        # hecksagon wrote it.
+        def named?(bind, aggregate)
+          bind.aggregate.to_s.split("::").last == aggregate.hecks_name
         end
 
         def default_store_source(registry, name)
