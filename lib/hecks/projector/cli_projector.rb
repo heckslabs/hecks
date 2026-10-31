@@ -9,6 +9,7 @@ require_relative "cli_projector/everyday"
 require_relative "cli_projector/command_help"
 require_relative "cli_projector/modules"
 require_relative "cli_projector/search"
+require_relative "cli_projector/completion"
 require_relative "cli_projector/json_listing"
 
 module Hecks
@@ -59,6 +60,7 @@ module Hecks
       extend CommandHelp
       extend Modules
       extend Search
+      extend Completion
       extend JsonListing
     end
   end
