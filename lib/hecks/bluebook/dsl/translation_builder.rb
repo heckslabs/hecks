@@ -124,11 +124,24 @@ module Hecks
         # Assembles the declared rules into a `TranslationAggregate`.
         #
         # @return [Bluebook::TranslationAggregate] the built per-aggregate translation
+# ADR 0166: writes rows into `into` from this aggregate's rows, keyed by `keyed_by`.
+#
+# @param into [String, Symbol] the aggregate that receives the rows
+# @param keyed_by [Symbol] the field both aggregates carry, which the target identifies by
+# @param fields [Array<Symbol>] the fields copied into the target
+# @raise [Bluebook::DSL::Malformed] if any of the three is missing or empty
+def split_impl(into: nil, keyed_by: nil, fields: nil)
+  raise Malformed, "a split needs a target aggregate (into:)" if into.to_s.empty?
+  raise Malformed, "a split needs a key field (keyed_by:)" if keyed_by.to_s.empty?
+  raise Malformed, "a split needs at least one field (fields:)" if Array(fields).empty?
+
+  @splits << TranslationSplit.new(into.to_s, keyed_by.to_sym, Array(fields).map(&:to_sym))
+end
         def build
           TranslationAggregate.new(
             name: @name, was: @was, renames: @renames, moves: @moves, converts: @converts,
             drops: @drops, retypes: @retypes, derives: @derives, rekeys: @rekeys,
-            backfills: @backfills
+            backfills: @backfills, splits: @splits
           )
         end
 
@@ -142,6 +155,7 @@ module Hecks
           @retypes   = []
           @derives   = []
           @rekeys    = []
+          @splits    = []
           @backfills = []
         end
 
