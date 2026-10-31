@@ -241,6 +241,7 @@
           "role": "Branch clerk"
         }
       ],
+      "created_by": null,
       "description": "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing.",
       "entities": [
 
@@ -1631,6 +1632,7 @@
           "role": "Back office"
         }
       ],
+      "created_by": null,
       "description": "A balance belonging to one customer, and the ledger that explains how it got there.",
       "entities": [
         {
@@ -3051,6 +3053,7 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A stop the bank puts on an account or on a card while something is looked into.",
       "entities": [
 
@@ -3493,6 +3496,7 @@
           "role": "Compliance officer"
         }
       ],
+      "created_by": null,
       "description": "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.",
       "entities": [
 
@@ -4138,6 +4142,7 @@
           "role": "Back office"
         }
       ],
+      "created_by": null,
       "description": "A card issued against an account, and the cash taken with it.",
       "entities": [
         {
@@ -5594,6 +5599,7 @@
           "role": "Compliance officer"
         }
       ],
+      "created_by": null,
       "description": "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute.",
       "entities": [
 
@@ -6373,6 +6379,7 @@
           "role": "Vault officer"
         }
       ],
+      "created_by": null,
       "description": "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face.",
       "entities": [
         {
@@ -7353,6 +7360,7 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A snapshot of one account's activity over one period, generated once and never revised.",
       "entities": [
 
@@ -8198,6 +8206,7 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "Money leaving one account for another. Two movements that must both happen, or neither.",
       "entities": [
 
@@ -8985,6 +8994,7 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome.",
       "entities": [
 
@@ -9963,6 +9973,7 @@
           "role": "Back office"
         }
       ],
+      "created_by": null,
       "description": "An instruction held for a future date, which may execute once or be cancelled before it does.",
       "entities": [
 

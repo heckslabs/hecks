@@ -392,6 +392,7 @@ args.name.check_invariants()?;
 if let Some(v) = &args.description { v.check_invariants()?; }
 if let Some(v) = &args.provenance { v.check_invariants()?; }
 if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
+if let Some(v) = &args.created_by { v.check_invariants()?; }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::aggregate::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?;
                 if let Some(route) = route {
@@ -407,6 +408,7 @@ args.name.check_invariants()?;
 if let Some(v) = &args.description { v.check_invariants()?; }
 if let Some(v) = &args.provenance { v.check_invariants()?; }
 if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
+if let Some(v) = &args.created_by { v.check_invariants()?; }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::aggregate::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?
             };
@@ -8575,6 +8577,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "description",
             "provenance",
             "formerly_known_as",
+            "created_by",
             "position",
         ],
         "Bluebook::Aggregate.Identify" => &["path"],

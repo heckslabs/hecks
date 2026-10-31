@@ -218,6 +218,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
         ),
         // `formerly_known_as` is admitted but the parser does not build it yet, so it is null.
         ("formerly_known_as".to_string(), JsonValue::Null),
+        ("created_by".to_string(), JsonValue::opt_str(a.created_by.as_ref())),
         (
             "acknowledgements".to_string(),
             JsonValue::Array(

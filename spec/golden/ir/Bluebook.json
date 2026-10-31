@@ -58,6 +58,16 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "created_by",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "AggregateCreatedBy"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "identified_by",
           "optional": false,
@@ -233,6 +243,16 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "created_by",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "AggregateCreatedBy"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -297,6 +317,15 @@
                 "name": "formerly_known_as"
               },
               "target": "formerly_known_as"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "created_by"
+              },
+              "target": "created_by"
             },
             {
               "op": "set",
@@ -1400,6 +1429,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One aggregate inside a bluebook — the head a domain's declarations attach to.",
       "entities": [
 
@@ -1574,6 +1604,46 @@
 
           ],
           "name": "AggregateFormerlyKnownAs"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "an aggregate's created_by says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AggregateCreatedBy"
         },
         {
           "attributes": [
@@ -2309,6 +2379,36 @@
               [
                 "calls",
                 "formerly_known_as_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "created_by"
+              ],
+              [
+                "calls",
+                "created_by_impl"
               ]
             ],
             [
@@ -3174,6 +3274,36 @@
               [
                 "fills",
                 "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "created_by"
               ]
             ],
             [
@@ -5073,6 +5203,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One .bluebook file — the root a domain declaration hangs from.",
       "entities": [
 
@@ -8439,6 +8570,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One command declared on an aggregate — its arguments, its rules, and what it announces.",
       "entities": [
 
@@ -12374,6 +12506,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down.",
       "entities": [
 
@@ -14829,6 +14962,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One policy — the event it watches, the command it fires, and the domain that command belongs to.",
       "entities": [
 
@@ -16118,6 +16252,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
       "entities": [
         {
@@ -18826,6 +18961,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One read model — the aggregate heads it gathers and the reference it hangs from.",
       "entities": [
 
@@ -21287,6 +21423,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One query declared on an aggregate — what it filters on, how it orders, and how many it returns.",
       "entities": [
 
@@ -23316,6 +23453,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can.",
       "entities": [
         {
@@ -25262,6 +25400,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "How a bluebook is SPELLED — every word the surface admits, the body it may open, and the field it fills. The layer every other file in this directory does not have.",
       "entities": [
         {
@@ -26352,6 +26491,7 @@
       "commands": [
 
       ],
+      "created_by": null,
       "description": "The closed sets the language admits — the whole of what any runtime may accept, declared once.",
       "entities": [
 

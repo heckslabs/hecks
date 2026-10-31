@@ -27,7 +27,8 @@ module Hecks
               identified_by: identity_paths(row),
               attributes:    Array(row[:attributes]).map { |field| attribute(field, id) }
             }.merge(aggregate_rules(row)).merge(lifecycle: lifecycle(row), provenance: provenance(row),
-                                                formerly_known_as: row[:formerly_known_as])
+                                                formerly_known_as: row[:formerly_known_as],
+                                                created_by: row[:created_by])
           end
 
           # The rules and projected fields an aggregate row holds.

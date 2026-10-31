@@ -35,6 +35,7 @@ module Hecks
             projected_fields:  [:projected_fields, [:each, :projected_field]],
             provenance:        [:provenance, :plain],
             formerly_known_as: [:formerly_known_as, :plain],
+            created_by:        [:created_by, :plain],
             acknowledgements:  [:acknowledgements, [:each, :acknowledgement]]
           },
           rows: { transitions: :transition_rows, marks: :mark_rows, value_objects: :value_object_names,

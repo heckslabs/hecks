@@ -111,10 +111,11 @@ module Hecks
         end
 
         def raise_record_missing(aggregate, id)
-          raise(NotFound, RefusalWording.render_site("NotFound", "record_missing",
-                                                     aggregate: aggregate.hecks_name,
-                                                     identity:  identity_reading(aggregate),
-                                                     offered:   Rendering.describe(id)))
+          message = RefusalWording.render_site("NotFound", "record_missing",
+                                               aggregate: aggregate.hecks_name,
+                                               identity:  identity_reading(aggregate),
+                                               offered:   Rendering.describe(id))
+          raise(NotFound, RefusalWording.with_creator_hint(message, aggregate))
         end
 
         def raise_creating_no_identity(command, aggregate)

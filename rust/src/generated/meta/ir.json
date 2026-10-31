@@ -66,6 +66,16 @@
           "relationship": null
         },
         {
+          "name": "created_by",
+          "type": "AggregateCreatedBy",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "identified_by",
           "type": "IdentityPath",
           "list": true,
@@ -284,6 +294,46 @@
           "invariants": [
             {
               "description": "an aggregate's formerly_known_as says something",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "AggregateCreatedBy",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an aggregate's created_by says something",
               "canonical": "!value.to_s.empty?",
               "ast": {
                 "op": "not",
@@ -1042,6 +1092,36 @@
               [
                 "calls",
                 "formerly_known_as_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "created_by"
+              ],
+              [
+                "calls",
+                "created_by_impl"
               ]
             ],
             [
@@ -1907,6 +1987,36 @@
               [
                 "fills",
                 "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "created_by"
               ]
             ],
             [
@@ -3318,6 +3428,16 @@
               "relationship": null
             },
             {
+              "name": "created_by",
+              "type": "AggregateCreatedBy",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "position",
               "type": "Position",
               "list": false,
@@ -3381,6 +3501,15 @@
               "source": {
                 "kind": "argument",
                 "name": "formerly_known_as"
+              }
+            },
+            {
+              "target": "created_by",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "created_by"
               }
             },
             {
@@ -4532,6 +4661,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -7178,6 +7308,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -11287,6 +11418,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -14416,6 +14548,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -15757,6 +15890,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -17674,6 +17808,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -20614,6 +20749,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -22837,6 +22973,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -24793,6 +24930,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -26332,6 +26470,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -38623,6 +38762,7 @@
       ],
       "provenance": null,
       "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
         {
           "finding": "no_command_surface",

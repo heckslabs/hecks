@@ -55,6 +55,15 @@ module Hecks
         render_with(template(refusal, site), specs, arguments)
       end
 
+      # Appends the command that creates an aggregate's records, when the bluebook declares one.
+      # The message is returned unchanged for an aggregate that declares no creator.
+      def with_creator_hint(message, aggregate)
+        creator = aggregate.created_by
+        return message if creator.nil? || creator.to_s.empty?
+
+        "#{message}: run #{creator} first"
+      end
+
       def refuse_wrong_arguments!(refusal, site, declared, offered)
         missing = declared - offered
         extra   = offered - declared
