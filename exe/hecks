@@ -49,7 +49,7 @@ program = "hecks"
 described = begin
   Hecks.describe(domain)
 rescue StandardError => e
-  abort "cannot open Hecks: #{e.message.lines.first.strip}"
+  abort "cannot open Hecks: #{e.message.strip}"
 end
 
 # `hecks usage` reads the local record of what this launcher ran; it boots nothing.
@@ -66,7 +66,7 @@ unless text
   runtime = begin
     Hecks::Adapters::Driving::LauncherOptions.quietly(hold: MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))) { Hecks.boot_described(described, install_driving: false) }
   rescue StandardError => e
-    abort "cannot open Hecks: #{e.message.lines.first.strip}"
+    abort "cannot open Hecks: #{e.message.strip}"
   end
   # A question the world lists under `streams`, given `--stream`, tails until interrupted.
   streamed = Hecks::Adapters::Driving::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
