@@ -1,0 +1,215 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Start" do
+    vision "Begin a domain or a project."
+
+    # A run record for one launch onto the framework, not an adapter: the driving adapters live in `Hecks::Adapters::Driving`.
+    aggregate "Launch" do
+      description "A way into the framework opened for a project: its launchers, or an MCP server."
+
+      attribute :run,     LaunchKey
+      attribute :domains, DomainList, optional: true
+      attribute :stdio,   Switch,     optional: true
+      attribute :name,    DomainName, optional: true
+      attribute :adapter, AdapterName, optional: true
+      attribute :dir,     TargetDir,  optional: true
+      attribute :expert,  ExpertName, optional: true
+      attribute :no_ai,   Switch,     optional: true
+      attribute :output,  Note,       optional: true
+      attribute :refusal, Note,       optional: true
+      identified_by :run
+
+      value_object "LaunchKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a launch is named") { !value.to_s.empty? }
+      end
+
+      # Domain directories under the project, comma separated.
+      value_object "DomainList" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      # What a new domain is called, as its bluebook spells it: a capital and then letters and digits.
+      value_object "DomainName" do
+        attribute :value, String, matches: :capitalized
+      end
+
+      # A persistence adapter a stub can be bound to; `Hecks::CLI::DomainStub` names the ones it knows.
+      value_object "AdapterName" do
+        attribute :value, String, pattern: '[A-Za-z]+'
+      end
+
+      # Where the new domain goes; the domain's snake-cased name under the current directory when absent.
+      value_object "TargetDir" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # Who is interviewed; asked for at the terminal when absent.
+      value_object "ExpertName" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Note" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "stopped"
+        transition "Finish" => "finished", from: "requested"
+        transition "Stop"   => "stopped",  from: "requested"
+        mark :terminal, "finished", "stopped"
+      end
+
+      # Writes a launcher beside each domain. It replaces the generated launcher already there and
+      # deletes nothing, so it runs without `confirm` (`hecks project_cli` never asked for one).
+      command "ProjectCli" do
+        role "Operator"
+        goal "Write a command-line launcher beside each domain of this project"
+
+        attribute :run,     LaunchKey, sets: true
+        attribute :domains, DomainList, optional: true, sets: true
+
+
+        emits LaunchersRequested
+      end
+
+      # Writes the stub files of a new domain (ADR 0087). It asks nothing and replaces nothing: a
+      # directory that already holds any file it would write is refused, with that file named.
+      command "Init" do
+        role "Operator"
+        goal "Write the stub files of a new domain"
+
+        attribute :run,     LaunchKey, sets: true
+        attribute :name,    DomainName, sets: true
+        attribute :adapter, AdapterName, optional: true, sets: true
+        attribute :dir,     TargetDir,   optional: true, sets: true
+
+
+        emits StubRequested
+      end
+
+      # Writes the files a Rails app needs to drive its domain through hecks-rails: a controller per
+      # aggregate and the routes file, read from the `bluebook/` under `dir` (the current directory
+      # when absent). Models are generated at boot and need no file. A file already there is the
+      # app's own and is left alone, so it runs without `confirm`.
+      command "ProjectRails" do
+        role "Operator"
+        goal "Write the controllers and routes a Rails app drives its domain through"
+
+        attribute :run, LaunchKey, sets: true
+        attribute :dir, TargetDir, optional: true, sets: true
+
+
+        emits RailsRequested
+      end
+
+      # Holds an interview with a subject matter expert and drafts a first domain from it (ADR 0088).
+      # The Terminal adapter runs the conversation, as it runs a console; the journal records that one
+      # was held and how it ended, not what was said. `--no-ai` leaves the model out.
+      command "Interview" do
+        role "Operator"
+        goal "Hold an interview with a subject matter expert and draft a first domain from it"
+
+        attribute :run,     LaunchKey, sets: true
+        attribute :name,    DomainName, sets: true
+        attribute :adapter, AdapterName, optional: true, sets: true
+        attribute :dir,     TargetDir,   optional: true, sets: true
+        attribute :expert,  ExpertName,  optional: true, sets: true
+        attribute :no_ai,   Switch,      optional: true, sets: true
+
+
+        emits InterviewRequested
+      end
+
+      # A stdio server runs until its client closes stdin, so it cannot be asked and answered
+      # quickly like the others. The command records that the launch was started; the Terminal
+      # adapter hands the process over to the launch and answers when it closes, as OpenConsole
+      # does for a console. The launcher spells it `serve_mcp`; the `mcp` spelling exe/hecks ships
+      # today stays with its router until the launcher is generated.
+      command "ServeMcp" do
+        role "Operator"
+        goal "Serve the storehouse bus to an MCP client over stdio until it closes"
+
+        attribute :run,   LaunchKey, sets: true
+        attribute :stdio, Switch, optional: true, sets: true
+
+
+        emits McpRequested
+      end
+
+      command "Finish" do
+        role "System"
+        goal "Record that the launch did its work, or was closed, and what it said"
+
+        reference_to Launch
+        attribute :output, Note, sets: true
+
+
+        emits LaunchFinished
+      end
+
+      command "Stop" do
+        role "System"
+        goal "Record that the launch could not be opened, and why"
+
+        reference_to Launch
+        attribute :refusal, Note, sets: true
+
+
+        emits LaunchStopped
+      end
+
+      query "Ended" do
+        description "How one launch ended: its status, and what it said or why it stopped."
+        attribute :run, LaunchKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Stopped" do
+        description "Every launch that could not be opened."
+        where(status: "stopped")
+        order_by :run
+      end
+    end
+
+    policy "WriteWhenRequested" do
+      on      "Launch.LaunchersRequested"
+      ask     :write, with: { run: :run }
+    end
+
+    policy "ScaffoldWhenRequested" do
+      on      "Launch.StubRequested"
+      ask     :scaffold, with: { run: :run }
+    end
+
+    policy "ProjectRailsWhenRequested" do
+      on      "Launch.RailsRequested"
+      ask     :write_rails, with: { run: :run }
+    end
+
+    policy "ConverseWhenRequested" do
+      on      "Launch.InterviewRequested"
+      ask     :converse, with: { run: :run }
+    end
+
+    policy "ServeWhenRequested" do
+      on      "Launch.McpRequested"
+      ask     :serve, with: { run: :run }
+    end
+
+    policy "RecordTheLaunch" do
+      on      "Launch.LaunchAnswered"
+      trigger Launch::Finish, with: { output: :output }
+    end
+
+    policy "RecordTheStoppedLaunch" do
+      on      "Launch.LaunchRefused"
+      trigger Launch::Stop, with: { refusal: :refusal }
+    end
+  end
+end

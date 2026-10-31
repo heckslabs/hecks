@@ -1,7 +1,7 @@
 # Bluebook
 
 <!-- generated:begin id=page -->
-Words available inside `bluebook do ... end`.
+Words available inside `bluebook do ... end` / `domain_module do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
@@ -387,5 +387,23 @@ Opens a stateful saga spanning several events and commands — `correlates_by`, 
 
 ```ruby
 runtime.registry.bluebook("Banking").process_managers.map(&:name)  # => ["Onboarding", "Settlement", "ExternalSettlement"]
+```
+
+## domain_module
+
+<!-- generated:begin word=domain_module -->
+`domain_module name do ... end` — opens a `Bluebook` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+Groups aggregates in a module named for the task a person comes to do (ADR 0163). The block takes the words a bluebook body takes, so its aggregates are declared exactly as they are outside it; `vision` inside it describes the module. Policies, read models and process managers written inside the block stay the bluebook's own. A module changes no aggregate, its name, its stored shape or the context map, it names where the aggregate belongs. A second file may reopen a module of the same name and add aggregates to it. The words that describe the whole bluebook (`namespace`, `formerly_known_as`, `attaches_to`, `provides`, `core`, `supporting`, `generic`) refuse inside a module, modules do not nest, and a module that holds no aggregate refuses.
+
+The bluebook reads its modules back in declaration order:
+
+```ruby
+Hecks::Bluebook::Declaration.new(name: "Workbench", modules: [{ name: "Deliver", vision: "Take finished work into the shared line.", aggregates: ["Landing"] }]).modules.map(&:name)  # => ["Deliver"]
 ```
 

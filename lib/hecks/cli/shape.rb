@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "../../hecks"
+require_relative "../module_folders"
 # The `:shape` projection reads `Runtime::StorageShape`, which lives in the era persistence plugin
 # core does not load by default (ADR 0033).
 require_relative "../ports/persistence/plugins/era"
@@ -36,7 +37,7 @@ module Hecks
         raise Runtime::NotFound, "#{target} does not exist" unless File.exist?(target)
 
         directory = File.directory?(target)
-        files = directory ? Dir[File.join(target, "*.bluebook")] : [target]
+        files = directory ? ModuleFolders.all(target) : [target]
         raise Runtime::NotFound, "no *.bluebook files in #{target}" if files.empty?
 
         registry = load_files(files)
