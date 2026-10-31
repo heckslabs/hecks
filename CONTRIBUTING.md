@@ -10,7 +10,7 @@ it explains the four tools this project uses instead of trusting a
 green suite by itself, and a change that skips them is one someone else
 has to re-verify by hand.
 
-Agents land work on `main` with `hecks landing.land` and then
+Agents land work on `main` with `hecks landing.land!` and then
 `hecks send_train.board!`; they do not open pull requests for it. A pull
 request is for outside authors, and for a change that needs a reviewer's
 eyes before it lands.
@@ -21,11 +21,11 @@ eyes before it lands.
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-bundle exec hecks console   # boots the pizzas example, drops you into IRB with its Ruby adapter installed
+bundle exec hecks console!   # boots the pizzas example, drops you into IRB with its Ruby adapter installed
 ```
 
 Postgres is optional for most of the codebase — the suite and
-`hecks console` both default to the in-memory adapter. You only need a
+`hecks console!` both default to the in-memory adapter. You only need a
 local Postgres for `PostgresEra`-flavored specs and the schema-evolution
 guide's own live example; those specs check their own reachability and
 skip themselves quietly if nothing answers on `localhost`.
@@ -84,7 +84,7 @@ codegen-drift checks, and rustfmt), concurrently, and reports the results in a f
 and say why in the push (or the PR).
 
 `main` takes pushes with no gate, so a push of only `main` skips the suite but still runs the `quick` checks (shape ledger, rubocop, the
-comment-style checks; run them yourself with `hecks gate_run.gate stage=quick --wait`) and then `spec/fuzzing`; `hecks send_train.board! full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
+comment-style checks; run them yourself with `hecks gate_run.gate! stage=quick --wait`) and then `spec/fuzzing`; `hecks send_train.board! full_gate.value=true` runs the whole suite for it (the train pushes with `git -c hecks.fullGate=true`, which the hook reads; `git config hecks.fullGate true` keeps it on). A push that names no ref on `main` (a branch for a pull request) skips every local check; CI is its gate. Which
 lanes are unguarded is the `Lane` rows of the Vocabulary bluebook, not this file.
 
 ### Fast local iteration
@@ -165,7 +165,7 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   never committed. Two people must not name the same database.
 - **A change to a persisted bluebook's storage shape** needs a translation edge under that
   bluebook's `translations/` and a move of the committed ledger `lib/hecks/hecks/shapes.json`.
-  `exe/hecks conformance_run.check_shape_ledger --wait` runs with no database, fails when a shape
+  `exe/hecks conformance_run.check_shape_ledger! --wait` runs with no database, fails when a shape
   moved without an edge, and prints the edge to commit for a change that only adds.
   `--confirm --additive` writes that empty edge and moves the ledger in one step (the mint audits
   every edge against the records it migrates, and refuses one that would lose data), and
@@ -200,11 +200,11 @@ IR:
 ```sh
 bundle exec hecks model_check           # static analysis over the IR — unreachable states,
                                         # dead transitions, sagas nothing reaches
-bundle exec hecks fuzz_run.fuzz                  # generated command/query sequences, checked against
+bundle exec hecks fuzz_run.fuzz!                  # generated command/query sequences, checked against
                                         # declared properties and interpreter crashes
-bundle exec hecks fuzz_run.mutate examples/pizzas  # mutates the domain's rules and lists every change the
+bundle exec hecks fuzz_run.mutate! examples/pizzas  # mutates the domain's rules and lists every change the
                                         # properties, corpus script and behaviors tests let through
-bundle exec hecks conformance_run.measure_doc_coverage  # every live DSL word ships with a running example
+bundle exec hecks conformance_run.measure_doc_coverage!  # every live DSL word ships with a running example
 bundle exec hecks run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
 ```
 
@@ -214,7 +214,7 @@ attached bluebooks add theirs (`hecks deploy recipe.project`, `hecks quality_con
 …`); `hecks` lists them and `hecks <verb> --help` prints one's usage.
 `run`, `model_check`, `docs`, `narrate`, `ir`, `stores`, `smoke_test`,
 `project_diagrams`, `project_cli` and `mcp` ship in the installed gem; the
-Codebase verbs (`regeneration_run.regenerate_corpus`, `style_run.check_comments`, `conformance_run.measure_doc_coverage`,
+Codebase verbs (`regeneration_run.regenerate_corpus!`, `style_run.check_comments!`, `conformance_run.measure_doc_coverage!`,
 `publish` and the rest) need a checkout of this repository and refuse
 without one. The logic lives under `lib/hecks/cli/` and `lib/hecks/tools/`,
 so a change to a command goes there; there is no `bin/` directory. The fuzzing, bench,
@@ -226,7 +226,7 @@ without `target/`, `rust/tests/` or `rust/src/generated/`; `Build` copies it to
 
 `rust/src/generated/` is not committed, except `pizzas/` (its translations carry SQL that only the Ruby
 toolchain compiles) and `mod.rs`, which lists the domains beside the Cargo features. A fresh checkout
-materializes it with `exe/hecks regeneration_run.regenerate_corpus --confirm --wait`, about a minute with
+materializes it with `exe/hecks regeneration_run.regenerate_corpus! --confirm --wait`, about a minute with
 `HECKS_ENVIRONMENT=memory`, before `cargo build` or any spec that reads it. CI does the same through the
 `generated-rust` action, which caches the result on the bluebooks and generator sources it reads.
 
@@ -247,18 +247,18 @@ you the prose lied.
 
 **Rust.** `rust/` is a second dispatch runtime, generated from the same
 canonical IR and checked against Ruby continuously
-(`hecks regeneration_run.regenerate_corpus --check`, `spec/rust_conformance_spec.rb`). You
+(`hecks regeneration_run.regenerate_corpus! --check`, `spec/rust_conformance_spec.rb`). You
 don't need a Rust toolchain to contribute Ruby-only changes — your pull
 request's own CI builds and runs the conformance suite, and CI runs it again
 on every push to `main`; `stable` moves onto a commit only after that run is
 green. If you do touch anything
 that changes what gets generated (`rust/codegen/src/*.rs`,
-`hecks build.project_rust`, the kernel's hand-written half under
+`hecks build.project_rust!`, the kernel's hand-written half under
 `rust/src/kernel/`), and you have `cargo` installed, run it yourself
 before you find out from CI:
 
 ```sh
-bundle exec hecks build.project_rust examples/banking
+bundle exec hecks build.project_rust! examples/banking
 cd rust && cargo build --release && cargo test --lib
 ```
 
@@ -266,7 +266,7 @@ Every Rust crate (`rust/`, `rust/parser`, `rust/codegen`, `rust/lsp`, `rust/host
 `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`. The lint set is the `[lints.clippy]` table in each
 crate's `Cargo.toml` (clippy's pedantic and nursery groups plus `unwrap_used`, `expect_used` and `panic`; the same table
 in every crate, so change them together), with `clippy.toml` letting tests unwrap. CI runs both in the
-`checks` job; `hecks gate_run.gate stage=ci only=rust_fmt,rust_clippy` runs them here, after `hecks regeneration_run.regenerate_corpus
+`checks` job; `hecks gate_run.gate! stage=ci only=rust_fmt,rust_clippy` runs them here, after `hecks regeneration_run.regenerate_corpus!
 --confirm` on a fresh checkout (the main crate needs the generated modules). Generated Rust is laid out by its
 generators (`Hecks::RustFormat`) and is clippy-clean by the same route, so fix a warning in a generated file in the
 generator, never in the output. `rust/src/exemplar` is text templates, so it is neither formatted nor linted as code.
@@ -316,13 +316,13 @@ shows it now.
   on every push to `main` (`.github/workflows/ci.yml`, header comment).
   `.github/workflows/promote.yml` then fast-forwards `stable` onto a commit
   only when every required check passed on it, through
-  `hecks promotion_run.promote`; the ruleset on `stable` refuses deleting or
+  `hecks promotion_run.promote!`; the ruleset on `stable` refuses deleting or
   rewinding it and takes only a commit on which every required check has already
   passed, with no bypass actor (`.github/rulesets/stable.json`). Releases and the `edge` tag
   come from `stable`. `.github/workflows/lane-watch.yml` runs hourly and, through
-  `hecks promotion_run.watch`, files an issue (one a day) when `stable` has stood
+  `hecks promotion_run.watch!`, files an issue (one a day) when `stable` has stood
   behind `main` for longer than its `Lane` row's `alert_after` hours.
-  `hecks regeneration_run.project_lanes` writes these
+  `hecks regeneration_run.project_lanes!` writes these
   files from the rows, and with `--live` compares the rulesets GitHub holds
   with them.
 - **The repository's rulesets require no approving review.** The committed
@@ -330,7 +330,7 @@ shows it now.
   rule and the required status checks, and no pull-request review rule. There
   is no CODEOWNERS file. Branch protection and any review setting GitHub
   holds beyond these files are not in the repository; compare them with
-  `hecks regeneration_run.project_lanes --live`.
+  `hecks regeneration_run.project_lanes! --live`.
 - **Merged pull requests may carry no recorded reviews.** Check the recent
   ones with
   `gh pr list --state merged --limit 60 --json number,reviews,reviewDecision`.
@@ -362,7 +362,7 @@ above:
 - the whole suite, and the fuzzing specs;
 - the Postgres and Rust `io` specs, against real databases and a real Rust
   build;
-- `hecks model_check`, the engine-agreement check, `hecks conformance_run.measure_doc_coverage` and
+- `hecks model_check`, the engine-agreement check, `hecks conformance_run.measure_doc_coverage!` and
   `rubocop`;
 - the Ruby/Rust parity specs and the golden IR (`spec/codegen_planted_gaps_spec.rb`,
   `spec/parser_parity_spec.rb`, `spec/rust_conformance_spec.rb`,
@@ -387,7 +387,7 @@ code.
 - `bundle exec rubocop -c .rubocop.yml` clean.
 - If you touched a `.bluebook` file that ships as part of the
   language's own definition (`lib/hecks/language/`) or added a DSL
-  word: `hecks conformance_run.measure_doc_coverage` clean, and a real prose section in
+  word: `hecks conformance_run.measure_doc_coverage!` clean, and a real prose section in
   `docs/implemented/reference/` — not the `TODO` sentinel — with a
   runnable example.
 - If you touched a lifecycle, saga, policy, or an attribute that copies another aggregate's key: `hecks model_check` clean (a `key_by_value` warning means `reference_to` fits better).
@@ -438,19 +438,19 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    break on the command line and how a removal is announced.
 2. Once that PR merges to `main`, wait for `stable` to contain it (the
    `Promote` workflow moves it after CI is green on the merge commit; rehearse
-   with `hecks promotion_run.promote lane=stable` to see what is still red or
+   with `hecks promotion_run.promote! lane=stable` to see what is still red or
    running). Then check out `stable`, pull, and run
-   `hecks publishing_run.publish` (no `--confirm`) to see every check and build pass with
-   nothing tagged or published. Then run `hecks publishing_run.publish --confirm`. It refuses unless the
+   `hecks publishing_run.publish!` (no `--confirm`) to see every check and build pass with
+   nothing tagged or published. Then run `hecks publishing_run.publish! --confirm`. It refuses unless the
    checkout is a clean `stable` (the release lane: the `Lane` row that feeds a tag) equal to `origin/stable`, the gem and
    `packages/hecks-client` are at one version, and `CHANGELOG.md` has a
    heading for it. It asks RubyGems and npm what is already published and
    skips that, so if a run stops partway, run it again. In order, it:
    - creates the annotated tag `vX.Y.Z` on the merge commit and pushes it;
-   - runs `hecks publishing_run.publish_gem` to build the gem and push it to rubygems.org;
+   - runs `hecks publishing_run.publish_gem!` to build the gem and push it to rubygems.org;
    - waits for CI to publish `@hecks/client`. Pushing the tag starts
      `.github/workflows/publish-client.yml`, which publishes the package
-     with npm trusted publishing (no token, no code). `hecks publishing_run.publish` says
+     with npm trusted publishing (no token, no code). `hecks publishing_run.publish!` says
      so, then checks npm every 15 seconds for up to 10 minutes and reports
      success, or the timeout with the run to look at
      (`gh run list --workflow publish-client.yml`). `--no-wait` skips the
@@ -472,7 +472,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    organization or user `heckslabs`, repository `hecks`, workflow filename
    `publish-client.yml`, environment blank.
 
-   `--npm-local` (an option of `hecks publishing_run.publish`) is the fallback, and how the first publish is made
+   `--npm-local` (an option of `hecks publishing_run.publish!`) is the fallback, and how the first publish is made
    (before a trusted publisher can exist): it publishes `@hecks/client`
    from this machine with a token from 1Password instead of leaving it to
    CI (with `--npm-only` it publishes only the package). The token is the
@@ -487,7 +487,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    does ask for a passkey or security key, it prints an approval link and
    waits.
 
-   `hecks publishing_run.publish` does not create the GitHub Release. Once the tag is
+   `hecks publishing_run.publish!` does not create the GitHub Release. Once the tag is
    pushed, create it with the version's own `CHANGELOG.md` section as its
    notes, so the Releases page lists every tag. Mark it Latest only when it
    is the newest version:
@@ -497,7 +497,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    gh release create vX.Y.Z --title "hecks X.Y.Z" --notes-file notes.md --verify-tag --latest
    ```
 
-   Manual fallback, if `hecks publishing_run.publish` cannot be used: tag the merge commit
+   Manual fallback, if `hecks publishing_run.publish!` cannot be used: tag the merge commit
    (`git tag -a vX.Y.Z <sha>` and push it, which starts the CI publish),
-   run `hecks publishing_run.publish_gem --confirm`, and if CI cannot publish, run
+   run `hecks publishing_run.publish_gem! --confirm`, and if CI cannot publish, run
    `npm publish --access public` in `packages/hecks-client`.

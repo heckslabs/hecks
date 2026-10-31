@@ -41,7 +41,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HECKS_FINDINGS_REPO: ${{ github.repository }}
         run: >-
-          bundle exec exe/hecks promotion_run.watch lane=stable
+          bundle exec exe/hecks promotion_run.watch! lane=stable
           run=watch-stable-${{ github.run_id }}-${{ github.run_attempt }}
           alert_key=stable-lag-$(date -u +%Y-%m-%d) --wait
       - name: Ask Promote to try stable again

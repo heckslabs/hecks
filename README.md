@@ -93,11 +93,11 @@ only). `hecks` lists them and `hecks <command> --help` prints one's
 usage. Every launcher exits 0 when answered, 1 when the domain refused or the run failed, and 2
 when the line could not be read ([the promise](docs/compatibility.md) has the table). In a clone
 of this repository, the same launcher also answers the
-maintainer commands (`hecks publishing_run.publish`, `hecks regeneration_run.regenerate_corpus`,
-`hecks conformance_run.measure_doc_coverage`, and the rest of the Codebase bluebook).
+maintainer commands (`hecks publishing_run.publish!`, `hecks regeneration_run.regenerate_corpus!`,
+`hecks conformance_run.measure_doc_coverage!`, and the rest of the Codebase bluebook).
 
 The gem carries the pizzas example the quickstart uses, so once it is installed
-`hecks console` opens it. A clone adds the rest of the repository: the guides, the
+`hecks console!` opens it. A clone adds the rest of the repository: the guides, the
 other examples and the sources.
 
 ## Quickstart
@@ -108,7 +108,7 @@ installing fails building the `pg` gem, install Postgres's client library
 
 ```sh
 gem install hecks
-hecks console
+hecks console!
 ```
 
 Or from a clone, which is how you work on hecks itself:
@@ -117,7 +117,7 @@ Or from a clone, which is how you work on hecks itself:
 git clone https://github.com/heckslabs/hecks
 cd hecks
 bundle install
-bundle exec hecks console
+bundle exec hecks console!
 ```
 
 `console` boots the `examples/pizzas` domain on the in-memory adapter
@@ -161,10 +161,10 @@ So does every other `ruby`-fenced example in this README and in
 Next, [Getting started](docs/implemented/guides/getting-started.md) walks
 through the pizzas bluebook you just dispatched against, and
 [Your own domain](docs/implemented/guides/your-own-domain.md) has you write
-a bluebook of your own (starting from `hecks init`), run it, and deploy it
+a bluebook of your own (starting from `hecks init!`), run it, and deploy it
 to AWS Lambda. The
 [Glossary](#glossary) at the end of this page defines the project's own
-words. `bundle exec hecks console subject=<domain>` boots any other domain
+words. `bundle exec hecks console! subject=<domain>` boots any other domain
 directory as that directory is wired.
 
 ## Why
@@ -471,7 +471,7 @@ stateDiagram-v2
     frozen --> closed: CloseAccount
 ```
 
-To drive the full domain by hand, `bundle exec hecks console subject=examples/banking` boots it
+To drive the full domain by hand, `bundle exec hecks console! subject=examples/banking` boots it
 as wired. Banking is bound to [Heki](#heki), which keeps its records in
 the git-tracked `examples/banking/data/`, so a dispatch there shows up in
 `git status`; `git checkout -- examples/banking/data` and
@@ -504,7 +504,7 @@ Only what this repository actually does today, checked, not aspired to:
   over a domain's own IR — unreachable lifecycle states, transitions
   nothing can fire, saga states no handler chain reaches — before
   anything boots against real data.
-- **Property-based fuzzing, including determinism.** `hecks fuzz_run.fuzz`
+- **Property-based fuzzing, including determinism.** `hecks fuzz_run.fuzz!`
   generates random-but-valid command/query sequences from a domain's
   own IR and checks a battery of properties — declared lifecycle values,
   saga advances that follow declared handlers, query answers that match
@@ -515,7 +515,7 @@ Only what this repository actually does today, checked, not aspired to:
   steps against a fresh boot produces byte-identical history.** This
   runs against the Memory adapter by default, can steer seeds by real
   runtime line coverage (`runtime_coverage_feedback`, off by default), and against real Sqlite
-  and Postgres with `hecks fuzz_run.fuzz adapter=sqlite` (or `adapter=postgres`, `adapter=postgres_era`) (see
+  and Postgres with `hecks fuzz_run.fuzz! adapter=sqlite` (or `adapter=postgres`, `adapter=postgres_era`) (see
   [Project status](#project-status)).
 - **A corpus that checks its own refusals.** `spec/corpus/*.json`
   scripts real command/query sequences — successes and refusals both —
@@ -649,7 +649,7 @@ hecksagon names, such as a database URL (`examples/pizzas/bluebook/pizzas.world`
 An adapter that reaches in to a domain from outside. The Ruby one is the surface a boot installs: one top-level module per booted
 bluebook and one per aggregate, so `Order.create_pizza!(…)` dispatches the
 `CreatePizza` command. Each boot re-installs it. The MCP server
-`hecks mcp` is a driving adapter of the same kind, for an agent over stdio. The CLI, JSON and webhook adapters are the others.
+`hecks mcp!` is a driving adapter of the same kind, for an agent over stdio. The CLI, JSON and webhook adapters are the others.
 
 ### Heki
 
@@ -684,7 +684,7 @@ holds the scripted command and query sequences replayed against them.
 
 `Hecks::Storehouse` (`lib/hecks/storehouse.rb`): one bus that dispatches,
 queries and inspects every booted domain, requiring a `summary` on every
-call and a caller role on a role-gated command. `hecks mcp`
+call and a caller role on a role-gated command. `hecks mcp!`
 serves it over MCP. See [AI-native
 development](docs/implemented/guides/ai-native-development.md).
 
@@ -702,7 +702,7 @@ Issues, examples, and runtime/adapter work are all welcome — the gaps
 in [Project status](docs/implemented/guides/project-status.md) are real
 starting points, not a formality.
 Before sending a change: `bundle exec rspec`, `hecks model_check`, and
-`hecks fuzz_run.fuzz` are what CI runs, and every `ruby`-fenced example in a guide
+`hecks fuzz_run.fuzz!` are what CI runs, and every `ruby`-fenced example in a guide
 or this README not tagged `skip` or `excerpt` is expected to execute exactly as shown
 (`spec/guides_spec.rb`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
 the full checklist. To check the whole claim, not just the demo:
@@ -710,7 +710,7 @@ the full checklist. To check the whole claim, not just the demo:
 ```sh
 bundle exec rspec       # the whole suite
 bundle exec hecks model_check   # static analysis over a domain's IR
-bundle exec hecks fuzz_run.fuzz          # generated sequences, checked against declared properties
+bundle exec hecks fuzz_run.fuzz!          # generated sequences, checked against declared properties
 ```
 
 ## License

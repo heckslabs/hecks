@@ -20,7 +20,7 @@ module Hecks
     LABEL = 6
 
     # What a problem line tells the reader to do.
-    REWRITE = "rewrite the ledger with `hecks conformance_run.check_shape_ledger --confirm --wait`".freeze
+    REWRITE = "rewrite the ledger with `hecks conformance_run.check_shape_ledger! --confirm --wait`".freeze
 
     # Raised with every problem found, or when the ledger cannot be rewritten.
     class Failure < StandardError; end
@@ -105,7 +105,7 @@ module Hecks
         "Data that is renamed or reshaped needs rules: `hecks query era.scaffold_translation " \
         "domain.value=<directory>` writes them, reading the eras from the database the domain's " \
         "own world names. A change that only adds is settled in one step " \
-        "by `hecks conformance_run.check_shape_ledger --confirm --additive --wait`"
+        "by `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`"
     end
 
     def rewrite(path, shapes, edges, directory, additive)

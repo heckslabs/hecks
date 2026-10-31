@@ -1,5 +1,5 @@
 # Hecks's own workflows as rows: the client of the CiPipeline bluebook. Each workflow file listed
-# here is written by `hecks regeneration_run.project_ci_pipeline` from these rows and is never
+# here is written by `hecks regeneration_run.project_ci_pipeline!` from these rows and is never
 # edited by hand; the other files under .github/workflows are still hand-written and move here one
 # at a time.
 #

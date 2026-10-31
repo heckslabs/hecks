@@ -87,7 +87,7 @@ jobs:
 
       - name: Refresh the committed baselines
         if: steps.find_run.outputs.run_id != ''
-        run: bundle exec exe/hecks test_suite_run.refresh_runtime_baseline from_run=${{ steps.find_run.outputs.run_id }} --confirm --wait
+        run: bundle exec exe/hecks test_suite_run.refresh_runtime_baseline! from_run=${{ steps.find_run.outputs.run_id }} --confirm --wait
 
       # Merged at once (main takes pushes with no gate), not a human-reviewed PR — this is a scoped, mechanical, data-only change
       # (two generated log files, no code or spec content), the same class of change a

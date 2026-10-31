@@ -9,7 +9,7 @@ case "$FILE" in
 esac
 [ -f "$FILE" ] || exit 0
 cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
-OUT=$(HECKS_ENVIRONMENT=memory exe/hecks style_run.check_comments "paths=$FILE" --wait 2>&1)
+OUT=$(HECKS_ENVIRONMENT=memory exe/hecks style_run.check_comments! "paths=$FILE" --wait 2>&1)
 printf '%s' "$OUT" | grep -q StyleCompleted && exit 0
 VIOLATIONS=$(printf '%s' "$OUT" | grep -oE '[^ "]+:[0-9]+: \[[a-z_]+\][^"\\]*' | sort -u)
 [ -n "$VIOLATIONS" ] || exit 0

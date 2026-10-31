@@ -48,7 +48,7 @@ jobs:
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch anything rspec_postgres_io_parallel covers?'
-        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=postgres_io_relevant_changed --wait
+        run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=postgres_io_relevant_changed --wait
   # END GENERATED ci_gate postgres_io_relevant_changed
 
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see

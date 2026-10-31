@@ -236,7 +236,7 @@ Hecks.bluebook "Hecks" do
         emits SmokeHttpRequested
       end
 
-      # `hecks operation.bootstrap_admin <domain> email=<email> [name=<name>] [role=<role>]`. A
+      # `hecks operation.bootstrap_admin! <domain> email=<email> [name=<name>] [role=<role>]`. A
       # domain whose bluebook `provides "membership"` has nobody who may grant access until someone is
       # granted it. This admits the person and grants them the role the grant command is gated to
       # (or `role`), as a caller that names that role and binds no `actor_id`: Governance checks that

@@ -400,7 +400,7 @@ Hecks.bluebook "Hecks" do
     # adapter reads the facts (does the lane exist, where its head stands, where each check stands
     # against the commit) and `Accept` holds the rules, so what makes a commit fit for the lane is
     # decided here and in the Lane and RequiredCheck rows, never by the workflow that runs
-    # `hecks promotion_run.promote`. Without --confirm the run is a rehearsal: it names the move it
+    # `hecks promotion_run.promote!`. Without --confirm the run is a rehearsal: it names the move it
     # would make and makes none. A real run fast-forwards the lane (never forces it) and moves the
     # tag the lane `feeds`, forward only; a lane that already holds the commit still has its tag
     # brought up to the lane's head, so a half-finished run is finished by the next.

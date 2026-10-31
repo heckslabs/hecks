@@ -23,15 +23,15 @@ module Hecks
         EDGES = "lib/hecks/hecks/translations"
 
         # The ledger's own command for an additive change, run from the checkout.
-        SETTLE = %w[bundle exec exe/hecks conformance_run.check_shape_ledger --confirm --additive --wait].freeze
+        SETTLE = %w[bundle exec exe/hecks conformance_run.check_shape_ledger! --confirm --additive --wait].freeze
 
         # The drift checks CI runs after a push lands, run here in check mode before the push: the
         # generated Rust must match a regeneration, and the reserved-name tables and the CI gate rows
         # must match their projections. Each only compares; none rewrites a file.
         DRIFT = [
-          %w[bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait],
-          %w[bundle exec exe/hecks gate_run.gate stage=ci only=vocabulary_drift --wait],
-          %w[bundle exec exe/hecks gate_run.gate stage=ci only=ci_gates --wait]
+          %w[bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait],
+          %w[bundle exec exe/hecks gate_run.gate! stage=ci only=vocabulary_drift --wait],
+          %w[bundle exec exe/hecks gate_run.gate! stage=ci only=ci_gates --wait]
         ].freeze
 
         # How many rebase steps are tried before the rebase is given up as stuck.

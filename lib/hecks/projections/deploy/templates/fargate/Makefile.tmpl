@@ -35,7 +35,7 @@ build:
 # generator the Lambda deploy path already uses to produce
 # rust/dist/@@domain_name@@.wasm/.ir.json from this domain's own
 # .bluebook.
-	cd $(ROOT) && HECKS_ENVIRONMENT=memory ruby exe/hecks build.build_wasm domain=$(DOMAIN) --wait
+	cd $(ROOT) && HECKS_ENVIRONMENT=memory ruby exe/hecks build.build_wasm! domain=$(DOMAIN) --wait
 	cd $(HOST_DIR) && CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc rustup run stable cargo build --release --target aarch64-unknown-linux-gnu --bin bootstrap
 	cp $(HOST_DIR)/target/aarch64-unknown-linux-gnu/release/bootstrap @@domain_name@@-host
 	cp $(ROOT)/rust/dist/@@domain_name@@.wasm @@domain_name@@.wasm
