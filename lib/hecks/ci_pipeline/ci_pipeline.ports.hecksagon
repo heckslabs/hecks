@@ -4,7 +4,7 @@
 Hecks.hecksagon "CiPipeline" do
   # The runner answers what happened in a build, and the critical path through it. GitHub
   # Actions and a local run are each an adapter behind this port.
-  CiPipeline::Build.port "Runner" do
+  CiPipeline::CiRun.port "Runner" do
     answers_query "Reading"
     answers_query "CriticalPath"
   end
