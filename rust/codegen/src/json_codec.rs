@@ -517,9 +517,10 @@ pub fn emit_from_json_flat(
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(scalar_error_name, &key, scalar, crate::attr::default(attr))
             } else if let Some(default_rhs) = crate::attr::default(attr).and_then(|_| crate::bridging::creation_default_rhs(attr, value_objects_by_name)) {
-                // A composite argument the caller leaves out, or sends as null, takes its declared
-                // default, as Ruby's `fill_defaults` gives it.
-                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => {default_rhs}, Some(x) => {} }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
+                // A composite argument the caller leaves out takes its declared default, as Ruby's
+                // `fill_defaults` gives it. A null the caller sends is a value, not an omission:
+                // it builds the composite from its own fields, as a required composite does.
+                format!("match v.get({}) {{ None => {default_rhs}, Some(x) => {} }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if absent_argument_check {
                 // The argument entry point only; see `required_composite_argument_expr`.
                 required_composite_argument_expr(error_name, &key, attr, value_objects_by_name)

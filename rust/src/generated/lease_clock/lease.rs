@@ -1501,7 +1501,7 @@ impl ReapArgs {
         )?;
         now.check_invariants()?;
         let grace = match v.get("grace") {
-            Some(crate::kernel::Json::Null) | None => LeaseInstant { value: 0 },
+            None => LeaseInstant { value: 0 },
             Some(x) => LeaseInstant::from_json(&x.coerce_single_field("value"))?,
         };
         grace.check_invariants()?;
