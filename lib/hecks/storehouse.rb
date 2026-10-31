@@ -27,12 +27,6 @@ module Hecks
     # than guessed.
     SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
 
-    # Where a camel-case name breaks between a lowercase or digit and an uppercase letter.
-    CAMEL_BOUNDARY = /([a-z\d])([A-Z])/
-
-    # The last segment of a qualified class name.
-    CLASS_BASENAME = /\w+\z/
-
     # The root every domain path resolves under; HECKS_STOREHOUSE_ROOT widens it.
     # Hecks.boot Kernel.loads Ruby files here, so an unconfined path is
     # arbitrary code execution, not just a wrong-directory mistake.
@@ -40,7 +34,10 @@ module Hecks
 
     # One dispatch or query call: the booted domain, what it is asked, and who is asking.
     Request = Struct.new(:runtime, :bluebook, :name, :summary, :args, :source, :dry_run, :role, :actor_id,
-                         keyword_init: true)
+                         keyword_init: true) do
+      # @return [String, nil] the name of the bluebook the call asks, or nil when none is booted
+      def bluebook_name = bluebook&.name
+    end
 
     extend Callers
     extend Audit
@@ -144,32 +141,18 @@ module Hecks
     def audited(request, tool)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       outcome = yield
-      record_outcome(request, tool, outcome, started)
+      record_call!(request, tool, started, verb: outcome[:verb], outcome: outcome)
       outcome.except(:verb)
     rescue *refusal_classes => e
       outcome = refused(e, summary: request.summary)
-      record_outcome(request, tool, outcome, started, refusal: refusal_kind(e))
+      record_call!(request, tool, started, outcome: outcome, refusal: refusal_kind(e))
       outcome
     end
 
-    # Writes one audit line for an outcome, timed from `started`.
+    # Writes the audit line for one audited call, timed from `started`.
     # :nodoc:
-    def record_outcome(request, tool, outcome, started, **extra)
-      bluebook = request.bluebook
-      record!(bluebook&.name, tool: tool, verb: outcome[:verb], outcome: outcome,
-                                      duration_ms: elapsed_ms(started), **extra, **audit_fields(request))
-    end
-
-    # Whole milliseconds since `started`, a CLOCK_MONOTONIC reading.
-    # :nodoc:
-    def elapsed_ms(started)
-      ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
-    end
-
-    # The refusal's class as a snake_case kind, such as `type_mismatch`.
-    # :nodoc:
-    def refusal_kind(error)
-      error.class.to_s[CLASS_BASENAME].gsub(CAMEL_BOUNDARY, '\\1_\\2').downcase
+    def record_call!(request, tool, started, **fields)
+      record!(request.bluebook_name, tool: tool, duration_ms: elapsed_ms(started), **audit_fields(request), **fields)
     end
 
     # :nodoc:
