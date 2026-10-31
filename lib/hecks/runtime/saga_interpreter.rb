@@ -27,6 +27,11 @@ module Hecks
       # The trigger lives on the declaration it triggers — see ProcessManager::REFUSED.
       REFUSED = Bluebook::ProcessManager::REFUSED
 
+      # The state a saga parks in when a stage faults, and the memory key that records the state it
+      # faulted from.
+      NEEDS_HUMAN = "needs_human".freeze
+      FAULTED_FROM_KEY = :__hecks_saga_faulted_from__
+
       # A crash gets this many retries before it's treated as something to
       # compensate for, instead of unwinding on the first failure.
       MAX_DEFECT_RETRIES = 3
@@ -54,14 +59,25 @@ module Hecks
         # @return [Array] the dispatches the taken handler declares
         def dispatches = handler.dispatches
 
-        # Moves the instance into the handler's state, remembering the state it left.
+        # Moves the instance into the handler's state, remembering the state it left. A move into
+        # `needs_human` also records that state in the instance's memory, so a resume knows the
+        # stage that faulted.
         #
         # @param leg_handler [Bluebook::ProcessManager::Handler] the leg being taken
         # @return [void]
         def take(leg_handler)
           self.handler   = leg_handler
           self.pre_state = instance[:state]
-          instance[:state] = leg_handler.to_state
+          to_state = leg_handler.to_state
+          instance[:state] = to_state
+          remember_fault_origin if to_state == NEEDS_HUMAN
+        end
+
+        # Records the state the instance faulted from, under the saga's memory.
+        #
+        # @return [void]
+        def remember_fault_origin
+          (instance[:memory] ||= {})[FAULTED_FROM_KEY] = pre_state
         end
 
         # The identity the leg stamps on the dispatch it is delivering.
@@ -114,7 +130,35 @@ module Hecks
         end
       end
 
+      # Puts a faulted saga instance back in the stage it faulted from, so the caller can dispatch
+      # that stage again with the arguments the saga started with. Dispatches nothing itself.
+      #
+      # @param domain [String, Symbol] the domain whose saga is resumed
+      # @param process_manager [String] the declared saga's name
+      # @param correlation [String] the instance's correlation key
+      # @return [Hash{Symbol => Object}] `:resumed` true with the `:stage` to dispatch and the
+      #   saved `:arguments`, or `:resumed` false with a `:reason`
+      def resume(domain, process_manager, correlation)
+        instance = @registry.saga_instances.dig(process_manager, correlation)
+        return { resumed: false, reason: "no saga #{process_manager} with #{correlation}" } unless instance
+        unless instance[:state] == NEEDS_HUMAN
+          return { resumed: false, reason: "saga is #{instance[:state]}, not #{NEEDS_HUMAN}" }
+        end
+
+        restore_faulted_stage(domain, process_manager, correlation, instance)
+      end
+
       private
+
+      # Moves a needs_human instance back to the stage it faulted from, forgets that record, and
+      # checkpoints the move.
+      def restore_faulted_stage(domain, process_manager, correlation, instance)
+        stage = instance[:memory].delete(FAULTED_FROM_KEY)
+        instance[:state] = stage
+        definition = @registry.bluebook(domain).process_managers.find { |pm| pm.name == process_manager }
+        checkpoint(definition, correlation, instance, domain)
+        { resumed: true, stage: stage, arguments: instance[:memory].dup }
+      end
 
       # Holds `saga_mutex` across both the in-memory mutation and the
       # persistence write, never just the mutation — otherwise two threads

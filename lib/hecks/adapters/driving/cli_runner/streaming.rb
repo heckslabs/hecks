@@ -20,7 +20,7 @@ module Hecks
           # @param max_polls [Integer, nil] stop after this many asks; unbounded when nil
           # @return [Integer, nil] the stream's `ExitStatus`, nil when `call` should run the line
           def stream(runtime:, argv:, program: "hecks run", out: $stdout, err: $stderr, max_polls: nil)
-            plan  = resolve(runtime, argv, program)
+            plan  = resolve(runtime, split_verbosity(argv).last, program)
             words = stream_words(plan)
             return unless words
 
