@@ -21,6 +21,9 @@ module Hecks
         # @return [String] the held domain's name
         def domain_name = bluebook.name
 
+        # @return [Array<String>] the names of every bluebook the registry loaded
+        def bluebook_names = registry.bluebooks.keys
+
         # @return [Array<Bluebook::Aggregate>] the held domain's aggregates
         def aggregates = bluebook.aggregates
 
@@ -79,11 +82,15 @@ module Hecks
 
         # @param registry [Runtime::Registry] the loaded registry
         # @param directory [String] the domain's bluebook directory
+        # @param name [String, nil] the bluebook to hold, by name; the registry's first when absent
         # @raise [Runtime::NotFound] if the registry holds no bluebook, or a bluebook no aggregate
-        def initialize(registry, directory)
+        def initialize(registry, directory, name = nil)
           @registry = registry
           @directory = directory
-          @bluebook = registry.first_bluebook or raise Runtime::NotFound, "no bluebook in #{directory}"
+          @bluebook = name ? registry.bluebooks[name] : registry.first_bluebook
+
+          raise Runtime::NotFound, "no bluebook in #{directory}" unless @bluebook
+
           first = @bluebook.aggregates.first or raise Runtime::NotFound, "#{@bluebook.name} declares no aggregates"
           @adapter_name = Ports::Persistence::BindingPolicy.resolve(registry, @bluebook.name, first).adapter
         end
