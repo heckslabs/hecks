@@ -178,6 +178,12 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Command.Address",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Command.Need",
     "generated": true,
     "routed": true

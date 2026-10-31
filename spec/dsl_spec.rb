@@ -2914,6 +2914,29 @@ RSpec.describe "the DSL surface" do
       expect(build_command("CmdPlain") { goal "feed people" }.idempotent?).to be(false)
     end
 
+    it "audience names who a launcher lists the command for" do
+      expect(build_command("CmdAudience") { audience :agent, :ci }.audience).to eq(%w[agent ci])
+    end
+
+    it "names no audience unless it says so" do
+      expect(build_command("CmdUnlisted") { goal "feed people" }.audience).to eq([])
+    end
+
+    it "refuses an audience the language does not know" do
+      expect_refusal(:command, "CmdBadAudience", /names robot as an audience/) { audience :robot }
+    end
+
+    it "refuses an audience named twice" do
+      expect_refusal(:command, "CmdTwiceAudience", /names an audience twice/) { audience :ci, :ci }
+    end
+
+    it "refuses a second audience declaration" do
+      expect_refusal(:command, "CmdAudienceAgain", /declares its audience twice/) do
+        audience :ci
+        audience :agent
+      end
+    end
+
     it "attribute adds a payload field" do
       expect(build_command("CmdAttr") { attribute :size, Size }.attribute(:size).type).to eq("Size")
     end

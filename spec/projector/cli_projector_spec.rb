@@ -47,6 +47,35 @@ RUNS_JOB_COMMAND = proc do
   end
 end
 
+# The commands of the Desk aggregate below: what each declares about its role and its audience.
+AUDIENCE_DESK_COMMANDS = {
+  "Open"  => { role: "Maintainer", event: "DeskOpened" },
+  "Note"  => { audience: [:record], event: "DeskNoted" },
+  "Probe" => { audience: [:agent], event: "DeskProbed" },
+  "Sweep" => { audience: %i[person ci], event: "DeskSwept" },
+  "Fault" => { role: "System", event: "DeskFaulted" }
+}.freeze
+
+# A bluebook whose commands name who a launcher lists them for, and some that name nobody.
+AUDIENCE_BLUEBOOK = proc do
+  vision "Audiences"
+  aggregate "Desk" do
+    description "One desk."
+    attribute :name, DeskName
+    identified_by :name
+    value_object("DeskName") { attribute :value, String }
+    AUDIENCE_DESK_COMMANDS.each do |verb, facts|
+      command verb do
+        role facts[:role] if facts[:role]
+        goal "#{verb} a desk"
+        audience(*facts[:audience]) if facts[:audience]
+        sets :name
+        emits facts[:event]
+      end
+    end
+  end
+end
+
 RUNS_JOB_QUESTIONS = proc do
   query "JobOutcome" do
     description "How one job ended."
@@ -208,10 +237,36 @@ RSpec.describe Hecks::Projector::CliProjector do
   # One journaled run: a system-role command, the pair of questions every run has, and two real
   # questions on the same aggregate. Defined here rather than as a fixture file, which the
   # corpus accounting spec would ask to be accounted for.
+  def audience_bluebook
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) { Hecks.bluebook("Audiences", &AUDIENCE_BLUEBOOK) }
+    registry.bluebook("Audiences")
+  end
+
   def journaled_runs
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) { Hecks.bluebook("Runs", &RUNS_BLUEBOOK) }
     registry
+  end
+
+  describe "a command's audience" do
+    let(:desk) { described_class.call(bluebook: audience_bluebook)[:commands].transform_values { |spec| spec[:internal] } }
+
+    it "leaves out a command that does not list a person", :aggregate_failures do
+      expect(desk.values_at("desk.note", "desk.probe")).to eq([true, true])
+    end
+
+    it "lists a command that names a person among its audience" do
+      expect(desk["desk.sweep"]).to be(false)
+    end
+
+    it "lists a command that names none, unless its role is System", :aggregate_failures do
+      expect(desk.values_at("desk.open", "desk.fault")).to eq([false, true])
+    end
+
+    it "says in --help who a command is listed for" do
+      expect(command_help(audience_bluebook, "desk.sweep")).to include("listed for person, ci")
+    end
   end
 
   describe "the help" do
