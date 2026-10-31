@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/cli"
 require "hecks/tools/project_cli"
 require "json"
 require "open3"
@@ -241,10 +240,9 @@ RSpec.describe "client launcher smoke" do
       expect(results[:bad_word][:err]).not_to be_empty
     end
 
-    it "refuses --wait and --confirm, as flags the command lacks, when the domain did not opt in", :aggregate_failures do
+    it "accepts --wait on every command, and refuses --confirm when the domain did not opt in", :aggregate_failures do
+      expect(results[:wait_unset][:status]).to eq(0)
       expect(results[:confirm_unset][:status]).to eq(1)
-      expect(results[:wait_unset][:status]).to eq(1)
-      expect(results[:wait_unset][:err]).to include("--wait is a flag, but this command has no Boolean argument")
     end
   end
 
