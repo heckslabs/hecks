@@ -116,6 +116,10 @@ Hecks.hecksagon "Hecks" do
     answers_query "Doctor"
   end
 
+  Hecks::Checkout.port "Where" do
+    answers_query "Where"
+  end
+
   Hecks::Commit.port "Committing" do
     asks "Commit", to: Commit do
       attribute :run, RunKey

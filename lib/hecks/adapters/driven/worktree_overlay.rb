@@ -35,13 +35,22 @@ module Hecks
       # @param directory [String] a directory inside a checkout
       # @return [String, nil]
       def warning_for(directory)
+        _main, files = gap(directory)
+        message(files)
+      end
+
+      # The main checkout a linked worktree was made from, and the overlay files that checkout
+      # holds and this worktree lacks. Nothing is returned for a checkout that is not a worktree.
+      #
+      # @param directory [String] a directory inside a checkout
+      # @return [Array(String, Array<String>), Array(nil, Array)] the main checkout's root, then the
+      #   relative paths of the overlay files it holds and the worktree lacks
+      def gap(directory)
         worktree = checkout_root(directory)
-        return unless worktree
+        main = worktree && main_checkout(worktree)
+        return [nil, []] unless main
 
-        main = main_checkout(worktree)
-        return unless main
-
-        message(missing(overlay_files(main), overlay_files(worktree)))
+        [main, missing(overlay_files(main), overlay_files(worktree))]
       end
 
       # Relative paths of the overlay files that a checkout holds.

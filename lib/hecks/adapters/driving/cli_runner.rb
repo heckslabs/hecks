@@ -2,6 +2,7 @@ require "json"
 require_relative "cli"
 require_relative "command_request"
 require_relative "context_line"
+require_relative "write_guard"
 require_relative "json"
 require_relative "launcher_options"
 require_relative "newcomer"
@@ -52,18 +53,28 @@ module Hecks
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
 
-          announce_command(plan, err)
+          refused = guard_command(plan, err)
+          return [refused, 1] if refused
+
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
           UsageLog.record(argv: argv, resolved: plan[:name], status: answer[1], started: started) if usage_log
           answer
         end
 
-        # Prints the context line before a command (not a query) runs.
+        # Before a command (not a query) runs: refuses a write that would land in Memory from a
+        # worktree whose main checkout stores it elsewhere, else prints the context line.
         #
         # @api private
-        def announce_command(plan, err)
-          ContextLine.announce(err) unless plan[:asking]
+        # @return [String, nil] the refusal, or nil when the command may run
+        def guard_command(plan, err)
+          return if plan[:asking]
+
+          refusal = WriteGuard.refusal(Dir.pwd, plan[:bluebook]&.name)
+          return refusal if refusal
+
+          ContextLine.announce(err)
+          nil
         end
 
         # The names a person can type at the launcher, as the projection names them: commands and
