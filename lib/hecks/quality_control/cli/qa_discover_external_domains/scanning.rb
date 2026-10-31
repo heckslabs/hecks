@@ -86,7 +86,7 @@ module Hecks
                            "pass --known-path <path> ... to run without the ledger", usage: false
           end
 
-          JSON.parse(out).filter_map { |row| row.dig("path", "value") }
+          JSON.parse(out).filter_map { |row| row["path"] }
         end
 
         # The sibling directories under `projects_dir`, leaving out this repo (already fully covered
