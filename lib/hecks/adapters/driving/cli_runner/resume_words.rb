@@ -12,12 +12,18 @@ module Hecks
           # The answer to `resume <run>`, or nil when the line is not a resume.
           def resume(scope, argv)
             return unless argv.first == "resume"
-            return { answer: [resume_usage, ExitStatus::USAGE] } unless argv[1]
+            return { answer: [resume_usage, ExitStatus::USAGE] } unless argv[1] && booted?(scope)
 
             outcome = scope[:runtime].saga_interpreter.resume(scope[:bluebook].name, SAGA, argv[1])
             return { answer: [resume_refusal(outcome), ExitStatus::REFUSED] } unless outcome[:resumed]
 
             resume_stage(scope, outcome)
+          end
+
+          # Whether the line runs against a booted domain: a describe-only runtime (the usage path)
+          # has no saga interpreter, so a resume there answers its usage rather than failing.
+          def booted?(scope)
+            scope[:runtime].respond_to?(:saga_interpreter)
           end
 
           # Dispatches the stage's resume command with the saved arguments, or refuses when the
