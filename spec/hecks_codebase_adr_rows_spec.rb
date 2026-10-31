@@ -110,7 +110,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
   # The maintainer aggregates of the evolve, check, test, build and release modules: each holds
   # commands a maintainer runs in a checkout.
   CODEBASE_RECORDS = %w[LanguageRun KernelRun ConformanceRun RegenerationRun StyleRun CodemodRun TestSuiteRun
-                        CorpusRun PublishingRun PromotionRun].freeze
+                        CorpusRun Server PublishingRun PromotionRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
@@ -132,10 +132,10 @@ RSpec.describe "the Codebase rows of the ADR table" do
 
   # The record queries every Codebase aggregate shares, which no row of the table names.
   ADR_OUTCOME_VERBS = %w[language_outcome kernel_outcome conformance_outcome regeneration_outcome style_outcome
-                         codemod_outcome test_suite_outcome corpus_outcome publishing_outcome
+                         codemod_outcome test_suite_outcome corpus_outcome server_outcome publishing_outcome
                          promotion_outcome].freeze
   ADR_FAULTED_VERBS = %w[language_faulted kernel_faulted conformance_faulted regeneration_faulted style_faulted
-                         codemod_faulted test_suite_faulted corpus_faulted publishing_faulted
+                         codemod_faulted test_suite_faulted corpus_faulted server_faulted publishing_faulted
                          promotion_faulted].freeze
 
   # The launcher's name for each verb: its aggregate, snake-cased, then the verb

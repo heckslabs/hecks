@@ -80,7 +80,7 @@ RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
 
     it "hides exactly the Codebase aggregates and the release ones, nothing a project runs", :aggregate_failures do
       expect(hidden).to include(*codebase)
-      expect(hidden - codebase).to contain_exactly("Release", "SyntaxBootCache")
+      expect(hidden - codebase).to contain_exactly("Release", "Server", "SyntaxBootCache")
     end
   end
 end
