@@ -1,3 +1,4 @@
+require_relative "adapters/driving/exit_status"
 require_relative "cli/command_table"
 require_relative "cli/launcher_words"
 
@@ -23,8 +24,9 @@ module Hecks
           It's all about the specs
     BANNER
 
-    # Exit status for a missing or unknown subcommand.
-    USAGE_STATUS = 2
+    # Exit status for a line that could not be read: a missing or unknown subcommand, or a word
+    # the subcommand refuses. The launcher answers the same status for the same mistakes.
+    USAGE_STATUS = Adapters::Driving::ExitStatus::USAGE
 
     include LauncherWords
     extend LauncherWords
@@ -48,9 +50,9 @@ module Hecks
     # @param argv [Array<String>] the command line, subcommand first
     # @param out [#puts] where help goes
     # @param err [#puts] where usage errors go
-    # @return [Integer] the process exit status: 2 for a bad command, 1 for a bad word, the
-    #   subcommand's own Integer when it returns one, else 0; a subcommand that fails exits
-    #   the process itself
+    # @return [Integer] the process exit status: `USAGE_STATUS` for a bad command or a bad
+    #   word, the subcommand's own Integer when it returns one, else 0; a subcommand that fails
+    #   exits the process itself
     def start(argv, out: $stdout, err: $stderr)
       Encoding.default_external = Encoding::UTF_8
       Encoding.default_internal = Encoding::UTF_8
@@ -85,10 +87,10 @@ module Hecks
 
     # Says why a subcommand's words were refused.
     # @api private
-    # @return [Integer] 1
+    # @return [Integer] the usage status
     def refuse_words(name, problem, err)
       err.puts "hecks #{name}: #{problem}"
-      1
+      USAGE_STATUS
     end
 
     # Whether the words ask for a subcommand's usage: a lone flag for `run`, whose other words are

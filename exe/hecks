@@ -87,4 +87,5 @@ if reason
   exit status
 end
 exit 0 if status.zero? && MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
-status.zero? ? puts(text) : abort(text)
+status.zero? ? puts(text) : warn(text)
+exit status

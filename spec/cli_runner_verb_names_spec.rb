@@ -36,6 +36,6 @@ RSpec.describe "the launcher's verb-form command names" do
     text, status = help("PushTrain.nope!")
 
     expect(text).to include("no such command: PushTrain.nope")
-    expect(status).to eq(1)
+    expect(status).to eq(2)
   end
 end

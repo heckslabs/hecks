@@ -14,7 +14,7 @@ module Hecks
           #   bluebook:, launcher:}` for a command to dispatch
           def resolve(runtime, argv, program)
             refused = Admission.refusal(runtime.registry, "Cli")
-            return { answer: [refused, 1] } if refused
+            return { answer: [refused, ExitStatus::REFUSED] } if refused
 
             bluebook, argv, program = bluebook_for(runtime, argv, program)
             launcher = LauncherOptions.settings(runtime, bluebook.name)
@@ -27,24 +27,25 @@ module Hecks
 
           # The answer to a line that is only a request for usage, or nil.
           def usage_answer(scope, name)
-            return { answer: [scope[:cli][:usage], 0] } if name.nil? || HELP_WORDS.include?(name)
-            return { answer: [all_usage(*scope.values_at(:runtime, :bluebook, :launcher, :options)), 0] } if name == "--all"
-            return unless name == "--maintainer"
+            return { answer: [scope[:cli][:usage], ExitStatus::ANSWERED] } if name.nil? || HELP_WORDS.include?(name)
+            return unless %w[--all --maintainer].include?(name)
 
-            { answer: [maintainer_usage(*scope.values_at(:runtime, :bluebook, :launcher, :options)), 0] }
+            shown = scope.values_at(:runtime, :bluebook, :launcher, :options)
+            { answer: [name == "--all" ? all_usage(*shown) : maintainer_usage(*shown), ExitStatus::ANSWERED] }
           end
 
-          # The command a line names, or the answer when it names none or asks for its help.
+          # The command a line names, or the answer when it names none or asks for its help. A
+          # line that names nothing, or something the bluebook does not declare, could not be read.
           def command_plan(scope, argv)
             cli = scope[:cli]
             asking, name, argv = entry_word(cli, argv)
-            return { answer: [cli[:usage], 1] } if name.nil?
+            return { answer: [cli[:usage], ExitStatus::USAGE] } if name.nil?
 
             spec = find_spec(cli, asking, name)
-            return { answer: [unknown(cli, name, asking, scope[:program]), 1] } unless spec
+            return { answer: [unknown(cli, name, asking, scope[:program]), ExitStatus::USAGE] } unless spec
 
             rest = argv[1..]
-            return { answer: [command_help(scope, name, asking), 0] } if rest.include?("--help")
+            return { answer: [command_help(scope, name, asking), ExitStatus::ANSWERED] } if rest.include?("--help")
 
             { spec: spec, name: name, rest: rest, asking: asking, program: scope[:program],
               bluebook: scope[:bluebook], launcher: scope[:launcher] }
