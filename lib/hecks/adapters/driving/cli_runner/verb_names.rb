@@ -9,6 +9,10 @@ module Hecks
           # A realm written before the aggregate: `Hecks::`.
           REALM = /\A(?:[A-Z]\w*::)+/
 
+          # The spelling notices this process has already printed, keyed by the spelling typed, so each
+          # prints once.
+          NOTED = Set.new
+
           # The name the projection indexes a typed name under: the name itself when it is one,
           # else its verb form read into snake case, else the name as typed, for the refusal to
           # name.
@@ -30,9 +34,8 @@ module Hecks
           def note_former_name(cli, typed, name)
             spec = indexed_spec(cli, name)
             return unless former_spelling?(spec, typed)
-            return if cli[:former_noted]&.key?(spec[:command])
+            return unless NOTED.add?("spelling #{typed}")
 
-            (cli[:former_noted] ||= {})[spec[:command]] = true
             warn "hecks: #{typed} is the former name of #{spec[:command]}; use that spelling (this notice prints once)"
           end
 

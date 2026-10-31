@@ -20,6 +20,7 @@ require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
 require_relative "cli_runner/verb_names"
+require_relative "cli_runner/renamed_names"
 require_relative "cli_runner/verbosity"
 
 module Hecks
@@ -44,6 +45,7 @@ module Hecks
         extend JsonWords
         extend Suggestions
         extend VerbNames
+        extend RenamedNames
         extend Answers
         extend Settling
         extend Streaming

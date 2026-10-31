@@ -87,3 +87,10 @@ A release follows the lane rules in `CLAUDE.md`: a version bump lands on `main`,
 promoted onto it once every required check passed, and the release is cut from `stable`. A
 bump ships only when the commit that set the version carries the owner's `Release-Approved-By`
 line. Nothing here changes that; this page says what the number means once it is cut.
+
+## Renamed commands
+
+A renamed command keeps its old spelling, through the launcher's `renamed` table in the Hecks world's
+`launcher` setting. The old name runs the new command and prints the new spelling once on standard
+error; an argument renamed by the table translates. The table resolves through 8.0 and is removed in
+8.0, when an old spelling becomes an unknown command.
