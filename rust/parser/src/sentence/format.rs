@@ -48,6 +48,9 @@ pub fn sentences(declaration: &ir::Bluebook) -> Result<String, String> {
         out.push_str(&format!("  It attaches to {}\n", join_and(&contexts)));
     }
     provides_text(&mut out, &declaration.provides)?;
+    if !declaration.modules.is_empty() {
+        return Err("the sentence form cannot say modules".to_string());
+    }
     for aggregate in &declaration.aggregates {
         out.push('\n');
         aggregate_text(&mut out, aggregate)?;

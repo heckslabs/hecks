@@ -4493,6 +4493,16 @@
           "pattern": null,
           "relationship": null,
           "type": "Provision"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "modules",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "ModuleMembership"
         }
       ],
       "commands": [
@@ -4786,6 +4796,71 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ModuleText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "vision",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ModuleText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ModuleText"
+            }
+          ],
+          "emits": [
+            "AggregateGrouped"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Declare that an aggregate belongs to a module",
+          "idempotent": false,
+          "mutations": [
+            {
+              "fields": {
+                "aggregate": ":aggregate",
+                "name": ":name",
+                "vision": ":vision"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "modules"
+            }
+          ],
+          "name": "Group",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "strategy",
               "optional": false,
               "pattern": null,
@@ -4918,6 +4993,70 @@
         }
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "vision",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ModuleMembership"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ModuleText"
+        },
         {
           "attributes": [
             {
@@ -5855,6 +5994,32 @@
               [
                 "opens",
                 "ProcessManager"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Bluebook"
+              ],
+              [
+                "opens",
+                "Bluebook"
               ],
               [
                 "fills",
@@ -6812,6 +6977,36 @@
               [
                 "fills",
                 "provides"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
               ]
             ]
           ],

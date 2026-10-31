@@ -1,0 +1,673 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Test" do
+    vision "Run the specs and fuzzers."
+
+    # TestSuite: the tooling around this repository's specs. Listings of which files a shard or a
+    # job runs are pure reads; refreshing the committed timings, rewriting the persistence fixtures
+    # and writing the committed spec list change tracked files and need --confirm; a stress run
+    # and a single example only run specs and write nothing tracked.
+    aggregate "TestSuiteRun" do
+      description "One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite."
+
+      attribute :run,         RunKey
+      attribute :operation,   Operation, optional: true
+      # The folder the specs live in; this checkout when none is named.
+      attribute :root,        FilePath, optional: true
+      # The git ref the changed-file run compares against.
+      attribute :base,        FilePath, optional: true
+      attribute :confirm,     Switch, optional: true
+      attribute :workers,     Count, optional: true
+      attribute :from_run,    RunId, optional: true
+      attribute :file,        FilePath, optional: true
+      attribute :example,     ExampleText, optional: true
+      attribute :runs,        Count, optional: true
+      attribute :parallel,    Count, optional: true
+      attribute :seed_start,  Count, optional: true
+      attribute :fixture,     FixtureName, optional: true
+      attribute :exclude,     ExcludePattern, optional: true
+      attribute :tags,        TagArguments, optional: true
+      attribute :strict,      Switch, optional: true
+      attribute :seeds,       Count, optional: true
+      attribute :environment, EnvironmentName, optional: true
+      attribute :declaration_cache, Switch, optional: true
+      attribute :crate,       CrateName, optional: true
+      attribute :write,       FilePath, optional: true
+      attribute :group,       Count, optional: true
+      attribute :groups,      Count, optional: true
+      attribute :runtime_log, FilePath, optional: true
+      attribute :check,       FilePath, optional: true
+      attribute :checkout,    Switch, optional: true
+      attribute :report,      Report, optional: true
+      attribute :refusal,     Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # How many, always at least one.
+      value_object "Count" do
+        attribute :value, Integer
+
+        invariant("a count is positive") { value > 0 }
+      end
+
+      # A CI run's number.
+      value_object "RunId" do
+        attribute :value, String, matches: :digits
+      end
+
+      # A file, relative to the checkout or absolute.
+      value_object "FilePath" do
+        attribute :value, String, matches: :not_empty
+
+        invariant("a file is named") { !value.to_s.empty? }
+      end
+
+      # Part of an example's description.
+      value_object "ExampleText" do
+        attribute :value, String, matches: :not_empty
+
+        invariant("an example is named") { !value.to_s.empty? }
+      end
+
+      # The name of a semantics-corpus fixture.
+      value_object "FixtureName" do
+        attribute :value, String, pattern: '^[a-z0-9_]+$'
+      end
+
+      # A regular expression naming the specs to leave out.
+      value_object "ExcludePattern" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # The tag filter, as the test runner spells it.
+      value_object "TagArguments" do
+        attribute :value, String, pattern: '^[^\t\n\r]+$'
+      end
+
+      # An environment overlay's name, as `environments/<name>.world` spells it.
+      value_object "EnvironmentName" do
+        attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+      end
+
+      # A Rust test target whose fuzzers take their seed counts as arguments: the host, the parser,
+      # or the JSON parse fuzzer of the root crate.
+      value_object "CrateName" do
+        attribute :value, String, pattern: '^(host|parser|json)$'
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Complete" => "completed", from: "accepted"
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "RefreshRuntimeBaseline" do
+        role "Maintainer"
+        goal "Regenerate the committed runtime baselines the sharded jobs group from"
+
+        attribute :workers,  Count, default: 6, sets: true
+        attribute :from_run, RunId, optional: true, sets: true
+        attribute :run,      RunKey, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        sets :operation, to: "refresh_runtime_baseline"
+
+        emits RefreshRuntimeBaselineRequested
+      end
+
+      command "RunSpecExample" do
+        role "Maintainer"
+        goal "Run one spec file filtered to one example, through the test runner in this process"
+
+        attribute :file,        FilePath, sets: true
+        attribute :example,     ExampleText, sets: true
+        attribute :run,         RunKey, sets: true
+        # Run the specs as CI does: the slow io, process and fuzzing groups included, and a Postgres
+        # that is not reachable a failure, not a skip.
+        attribute :strict,      Switch, optional: true, sets: true
+        # How many seeds the property specs try, where they default to a few.
+        attribute :seeds,       Count, optional: true, sets: true
+        # The environment overlay the example boots its domains on, such as `memory`.
+        attribute :environment, EnvironmentName, optional: true, sets: true
+        # RSpec tag filters, such as `cloudfront` for the examples that call a real AWS account.
+        attribute :tags, TagArguments, optional: true, sets: true
+        # Whether specs share the loaded declarations of an unchanged domain directory; false loads each
+        # boot afresh.
+        attribute :declaration_cache, Switch, default: true, sets: true
+        attribute :root, FilePath, optional: true, sets: true
+
+        sets :operation, to: "run_spec_example"
+
+        emits RunSpecExampleRequested
+      end
+
+      # Every spec of a folder, in one process: the project's own suite, or this checkout's when no folder is named.
+      command "RunSuite" do
+        role "Maintainer"
+        goal "Run every spec of a folder through the test runner in this process"
+
+        attribute :root,        FilePath, optional: true, sets: true
+        attribute :strict,      Switch, optional: true, sets: true
+        attribute :seeds,       Count, optional: true, sets: true
+        attribute :environment, EnvironmentName, optional: true, sets: true
+        attribute :tags,        TagArguments, optional: true, sets: true
+        attribute :run,         RunKey, sets: true
+
+        sets :operation, to: "run_suite"
+
+        emits RunSuiteRequested
+      end
+
+      # The specs the files changed since a git ref map to, found by name: a changed spec runs itself, and a changed
+      # source file runs the spec of the same name. A change that maps to no spec runs nothing and says so.
+      command "RunChanged" do
+        role "Maintainer"
+        goal "Run the specs that the files changed since a git ref map to, in a folder"
+
+        attribute :root,        FilePath, optional: true, sets: true
+        attribute :base,        FilePath, default: "origin/main", sets: true
+        attribute :strict,      Switch, optional: true, sets: true
+        attribute :seeds,       Count, optional: true, sets: true
+        attribute :environment, EnvironmentName, optional: true, sets: true
+        attribute :tags,        TagArguments, optional: true, sets: true
+        attribute :run,         RunKey, sets: true
+
+        sets :operation, to: "run_changed"
+
+        emits RunChangedRequested
+      end
+
+      command "StressConcurrency" do
+        role "Maintainer"
+        goal "Rerun the thread-safety specs under many seeds, several processes at a time"
+
+        attribute :runs,       Count, default: 30, sets: true
+        # The machine's own core count when none is named, which no fixed default can say.
+        attribute :parallel,   Count, optional: true, sets: true
+        attribute :seed_start, Count, default: 1, sets: true
+        attribute :run,        RunKey, sets: true
+
+        sets :operation, to: "stress_concurrency"
+
+        emits StressConcurrencyRequested
+      end
+
+      command "RunCargoTests" do
+        role "Maintainer"
+        goal "Run the cargo tests of the host, the parser or the JSON fuzzer, with the seed counts their fuzzers take"
+
+        attribute :crate,       CrateName, sets: true
+        attribute :seeds,       Count, optional: true, sets: true
+        attribute :seed_start,  Count, optional: true, sets: true
+        attribute :run,         RunKey, sets: true
+
+        sets :operation, to: "run_cargo_tests"
+
+        emits RunCargoTestsRequested
+      end
+
+      # The caches key on a digest of what they were built from, so a stale entry is never read; this
+      # is for ruling a cache out as the cause of a surprise, which turning it off used to do.
+      command "ClearCaches" do
+        role "Maintainer"
+        goal "Delete the on-disk syntax-boot and verdict caches, so the next boot builds and judges afresh"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "clear_caches"
+
+        emits ClearCachesRequested
+      end
+
+      command "RegenerateLegacyFixtures" do
+        role "Maintainer"
+        goal "Regenerate the persistence legacy fixtures through the real adapters"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "regenerate_legacy_fixtures"
+
+        emits RegenerateLegacyFixturesRequested
+      end
+
+      command "SeedSemanticsCorpus" do
+        role "Maintainer"
+        goal "Fill the expected outcome of every semantics fixture that lacks one, or re-seed one"
+
+        attribute :fixture, FixtureName, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+
+        sets :operation, to: "seed_semantics_corpus"
+
+        emits SeedSemanticsCorpusRequested
+      end
+
+      command "WriteIoParallelSpecList" do
+        role "Maintainer"
+        goal "Write the committed list of the spec files a tag filter selects"
+
+        attribute :exclude, ExcludePattern, sets: true
+        attribute :tags,    TagArguments, optional: true, sets: true
+        attribute :write,   FilePath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "write_io_parallel_spec_list"
+
+        emits WriteIoParallelSpecListRequested
+      end
+
+      # What the tree reported about itself, held against every request: nothing here runs
+      # outside a hecks checkout (hecks.gemspec beside lib/).
+      command "Accept" do
+        role "System"
+        goal "Let a request through only when the working tree is a hecks checkout"
+
+        reference_to TestSuiteRun
+        attribute :checkout, Switch, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+        emits TestSuiteAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the request was carried out, and what it reported"
+
+        reference_to TestSuiteRun
+        attribute :report, Report, sets: true
+
+
+        emits TestSuiteCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the request was refused or could not be carried out, and why"
+
+        reference_to TestSuiteRun
+        attribute :refusal, Report, sets: true
+
+
+        emits TestSuiteFaulted
+      end
+
+      query "TestSuiteOutcome" do
+        description "How one request ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "TestSuiteFaulted" do
+        description "Every request that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "ShardSpecs" do
+        description "The spec files one group of a runtime-balanced split runs."
+        attribute :group, Count
+        attribute :groups, Count
+        attribute :runtime_log, FilePath, optional: true
+        returns Document
+      end
+
+      query "ListIoParallelSpecs" do
+        description "The spec files with an example a tag filter selects."
+        attribute :exclude, ExcludePattern
+        attribute :tags, TagArguments, optional: true
+        attribute :check, FilePath, optional: true
+        returns Document
+      end
+
+      query "RecordPatternCases" do
+        description "The expected match results of the pattern cases, as JSON."
+        returns Document
+      end
+    end
+
+    policy "ExamineWhenRefreshRuntimeBaselineRequested" do
+      on      "TestSuiteRun.RefreshRuntimeBaselineRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRunSpecExampleRequested" do
+      on      "TestSuiteRun.RunSpecExampleRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRunSuiteRequested" do
+      on      "TestSuiteRun.RunSuiteRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRunChangedRequested" do
+      on      "TestSuiteRun.RunChangedRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenStressConcurrencyRequested" do
+      on      "TestSuiteRun.StressConcurrencyRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRunCargoTestsRequested" do
+      on      "TestSuiteRun.RunCargoTestsRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenClearCachesRequested" do
+      on      "TestSuiteRun.ClearCachesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRegenerateLegacyFixturesRequested" do
+      on      "TestSuiteRun.RegenerateLegacyFixturesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenSeedSemanticsCorpusRequested" do
+      on      "TestSuiteRun.SeedSemanticsCorpusRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenWriteIoParallelSpecListRequested" do
+      on      "TestSuiteRun.WriteIoParallelSpecListRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "AcceptTestSuiteWhenExamined" do
+      on      "TestSuiteRun.TestSuiteExamined"
+      trigger TestSuiteRun::Accept, with: { checkout: :checkout }
+    end
+
+    policy "FaultTestSuiteWhenNotAccepted" do
+      on      "TestSuiteRun.TestSuiteExamined"
+      where   { !checkout.value }
+      trigger TestSuiteRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+    end
+
+    policy "PerformTestSuiteWhenAccepted" do
+      on      "TestSuiteRun.TestSuiteAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "RecordTestSuiteOutcome" do
+      on      "TestSuiteRun.TestSuiteAnswered"
+      trigger TestSuiteRun::Complete, with: { report: :report }
+    end
+
+    policy "RecordTestSuiteFault" do
+      on      "TestSuiteRun.TestSuiteRefused"
+      trigger TestSuiteRun::Fault, with: { refusal: :refusal }
+    end
+
+    # Named for the run, as ModelCheckRun is: `Hecks::Fuzzing` is the fuzzing toolkit's own module,
+    # so a hecksagon could not spell an aggregate of that name.
+    aggregate "FuzzRun" do
+      description "One fuzz sweep or benchmark, and how it ended; and the generated sequences it replays."
+
+      acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                   of: :domain
+
+      attribute :domain,     DomainPath,  optional: true
+      attribute :run,        FuzzKey
+      attribute :seeds,      Count,       optional: true
+      attribute :steps,      Count,       optional: true
+      attribute :workers,    Count,       optional: true
+      attribute :budget,     Count,       optional: true
+      attribute :adapter,    Persistence, optional: true
+      attribute :persist_regressions, RegressionSwitch, optional: true
+      attribute :shard,      ShardOf,     optional: true
+      attribute :list_shards, Count,      optional: true
+      attribute :domains,    NameList,    optional: true
+      attribute :targets,    NameList,    optional: true
+      attribute :iterations, Count,       optional: true
+      attribute :warmup,     Warmup,      optional: true
+      attribute :runs,       Count,       optional: true
+      attribute :rust_binary, BinaryPath, optional: true
+      attribute :format,     Format,      optional: true
+      attribute :output,     OutputPath,  optional: true
+      attribute :report,     Report,      optional: true
+      attribute :refusal,    Report,      optional: true
+      identified_by :run
+
+      value_object "FuzzKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a sweep is named") { !value.to_s.empty? }
+      end
+
+      # A domain directory; a sweep with none covers every domain of a hecks checkout.
+      value_object "DomainPath" do
+        attribute :value, String, matches: :not_empty
+
+        invariant("a domain is named by its path") { !value.to_s.empty? }
+      end
+
+      value_object "Count" do
+        attribute :value, Integer
+
+        invariant("a count is positive") { value > 0 }
+      end
+
+      value_object "Warmup" do
+        attribute :value, Integer
+
+        invariant("a warmup is not negative") { value >= 0 }
+      end
+
+      # Which persistence every ephemeral boot of a sweep uses.
+      value_object "Persistence" do
+        attribute :value, String, pattern: '^(memory|sqlite|postgres)$'
+      end
+
+      # Whether each distinct finding's minimized repro is also kept under `spec/corpus/regressions/`.
+      value_object "RegressionSwitch" do
+        attribute :value, Boolean
+      end
+
+      # One share of a sweep, as `I/N`: shard I of N, which sweeps only its own domains so that N
+      # jobs together sweep every domain once. The sweep refuses an I past N.
+      value_object "ShardOf" do
+        attribute :value, String, pattern: '^[1-9][0-9]*/[1-9][0-9]*$'
+      end
+
+      # Names, comma separated: benchmark domains, or the targets to measure.
+      value_object "NameList" do
+        attribute :value, String, matches: :csv_list
+      end
+
+      value_object "BinaryPath" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Format" do
+        attribute :value, String, pattern: '^(markdown|json)$'
+      end
+
+      value_object "OutputPath" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "halted"
+        transition "Conclude" => "concluded", from: "requested"
+        transition "Halt"     => "halted",    from: "requested"
+        mark :terminal, "concluded", "halted"
+      end
+
+      # A sweep replays generated command and query sequences and checks properties over each.
+      # A finding is shrunk and saved under `tmp/fuzz-failures/`, and ends the run as halted, with
+      # what was found. Sweeping every domain of a checkout needs a hecks checkout; a client names
+      # the domain. The sweep runs in child processes started through the ProcessPool adapter, so an
+      # interrupt reaches the workers. `shard` sweeps one share of the domains, as `I/N`;
+      # `list_shards` sweeps nothing and answers which shard of that many each domain falls in,
+      # one line each.
+      command "Fuzz" do
+        role "Operator"
+        goal "Fuzz a domain with generated sequences and keep whether anything broke a property"
+
+        attribute :domain,  DomainPath,  optional: true, sets: true
+        attribute :run,     FuzzKey, sets: true
+        attribute :seeds,   Count,       optional: true, sets: true
+        attribute :steps,   Count,       optional: true, sets: true
+        attribute :workers, Count,       optional: true, sets: true
+        attribute :adapter, Persistence, optional: true, sets: true
+        attribute :persist_regressions, RegressionSwitch, optional: true, sets: true
+        attribute :shard,   ShardOf,     optional: true, sets: true
+        attribute :list_shards, Count,   optional: true, sets: true
+
+
+        emits FuzzRequested
+      end
+
+      # Mutation-tests a domain's own checks: changes its bluebooks in small ways and keeps which
+      # changes the fuzz properties, the corpus script and the domain's behaviors tests let through.
+      # A survivor is a hole in those checks. `budget` caps how many mutants are tried. The run is a
+      # child process started through the ProcessPool adapter, as a sweep is.
+      command "Mutate" do
+        role "Operator"
+        goal "Mutate a domain's rules and keep whether its checks noticed each change"
+
+        attribute :domain, DomainPath, sets: true
+        attribute :run,    FuzzKey, sets: true
+        attribute :seeds,  Count, optional: true, sets: true
+        attribute :steps,  Count, optional: true, sets: true
+        attribute :budget, Count, optional: true, sets: true
+
+
+        emits MutateRequested
+      end
+
+      # Measures each persistence adapter, and the Rust binary when there is one to build or use.
+      # The report is kept in this record, which the Hecks domain binds to Memory: keeping a
+      # domain's benchmark history beside it, in Sqlite under the project's `.hecks/`, is decided
+      # with the persistence binding for Custodian, not here. `output` also writes the full JSON.
+      command "Bench" do
+        role "Operator"
+        goal "Measure command throughput and latency for each target, and keep the report"
+
+        attribute :run,         FuzzKey, sets: true
+        attribute :domains,     NameList,   optional: true, sets: true
+        attribute :targets,     NameList,   optional: true, sets: true
+        attribute :iterations,  Count,      optional: true, sets: true
+        attribute :warmup,      Warmup,     optional: true, sets: true
+        attribute :runs,        Count,      optional: true, sets: true
+        attribute :rust_binary, BinaryPath, optional: true, sets: true
+        attribute :format,      Format,     optional: true, sets: true
+        attribute :output,      OutputPath, optional: true, sets: true
+
+
+        emits BenchRequested
+      end
+
+      command "Conclude" do
+        role "System"
+        goal "Record that the sweep or benchmark ended well, and what it reported"
+
+        reference_to FuzzRun
+        attribute :report, Report, sets: true
+
+
+        emits FuzzConcluded
+      end
+
+      command "Halt" do
+        role "System"
+        goal "Record that the sweep found something or the benchmark could not run, and what it said"
+
+        reference_to FuzzRun
+        attribute :refusal, Report, sets: true
+
+
+        emits FuzzHalted
+      end
+
+      query "Conclusion" do
+        description "How one sweep or benchmark ended: its status, and what it reported or found."
+        attribute :run, FuzzKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Halted" do
+        description "Every sweep that found something and every benchmark that could not run."
+        where(status: "halted")
+        order_by :run
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      # The generator `hecks fuzz` draws from, on its own: one valid dispatch sequence as a
+      # replayable script. `adversarial` is the fraction of steps mutated to be refused; 0 is off.
+      query "GenerateSequence" do
+        description "One generated, valid dispatch sequence for a domain, as a script `hecks run` replays."
+        attribute :domain,      DomainPath
+        attribute :seed,        Integer,    optional: true
+        attribute :steps,       Integer,    optional: true
+        attribute :adversarial, Float,      optional: true
+        returns Document
+      end
+    end
+
+    policy "SweepWhenRequested" do
+      on      "FuzzRun.FuzzRequested"
+      ask     :sweep, with: { run: :run }
+    end
+
+    policy "MutateWhenRequested" do
+      on      "FuzzRun.MutateRequested"
+      ask     :probe, with: { run: :run }
+    end
+
+    policy "MeasureWhenRequested" do
+      on      "FuzzRun.BenchRequested"
+      ask     :measure, with: { run: :run }
+    end
+
+    policy "RecordTheSweep" do
+      on      "FuzzRun.FuzzAnswered"
+      trigger FuzzRun::Conclude, with: { report: :report }
+    end
+
+    policy "RecordTheFinding" do
+      on      "FuzzRun.FuzzRefused"
+      trigger FuzzRun::Halt, with: { refusal: :refusal }
+    end
+  end
+end

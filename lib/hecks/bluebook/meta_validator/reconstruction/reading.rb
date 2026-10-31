@@ -65,6 +65,12 @@ module Hecks
             end
           end
 
+          def memberships(row)
+            Array(row[:modules]).map do |part|
+              { name: text(part[:name]).to_s, vision: text(part[:vision]).to_s, aggregate: text(part[:aggregate]).to_s }
+            end
+          end
+
           # Every cell of the meta-domain is a single-field value object, so a row
           # arrives holding Values rather than Strings.
           def text(cell)

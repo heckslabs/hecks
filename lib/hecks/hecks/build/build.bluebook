@@ -1,0 +1,981 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Build" do
+    vision "Compile and regenerate."
+
+    aggregate "Build" do
+      description "One build of a domain for the Rust host, or a check of that build against Ruby."
+
+      acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                   of: :domain
+
+      attribute :run,      BuildKey
+      attribute :domain,   DomainPath, optional: true
+      attribute :script,   ScriptPath, optional: true
+      attribute :artifact, Artifact,   optional: true
+      attribute :target,   TargetTriple, optional: true
+      attribute :stage_dir, StagePath, optional: true
+      attribute :profile,  WasmProfile, optional: true
+      attribute :prebuilt, Switch,     optional: true
+      attribute :seeds,    Count,      optional: true
+      attribute :steps,    Count,      optional: true
+      attribute :output,   Report,     optional: true
+      attribute :refusal,  Report,     optional: true
+      identified_by :run
+
+      value_object "BuildKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a build is named") { !value.to_s.empty? }
+      end
+
+      # A domain directory. Its last part is also a Rust module and a Cargo feature, so it is a
+      # lowercase identifier; the toolchain refuses the reserved words the pattern cannot.
+      value_object "DomainPath" do
+        attribute :value, String, pattern: '(^|/)[a-z][a-z0-9_]*/?$'
+      end
+
+      # A generated module: the directory name a domain was built as.
+      value_object "ModuleName" do
+        attribute :value, String, matches: :snake_name
+      end
+
+      # A JSON file of steps for a domain to replay.
+      value_object "ScriptPath" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # What a build is replayed through: `native`, `build` (the domain's own feature), a `.wasm`
+      # module, or a binary.
+      value_object "Artifact" do
+        attribute :value, String, matches: :present
+      end
+
+      # A Rust target triple: `<arch>-<vendor>-<os>` with an optional `-<env>`. The toolchain
+      # refuses the triples a host cannot be built for (a wasm target) and the ones not installed.
+      value_object "TargetTriple" do
+        attribute :value, String, pattern: '^[a-z0-9_]+(-[a-z0-9_.]+){2,3}$'
+      end
+
+      # The directory a host build stages its files in.
+      value_object "StagePath" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Count" do
+        attribute :value, Integer
+
+        invariant("a count is positive") { value > 0 }
+      end
+
+      # The Cargo profile a wasm module is built with: `dev` compiles much faster, for tests that only
+      # run the module, not for one that ships.
+      value_object "WasmProfile" do
+        attribute :value, String, pattern: '^(release|dev)$'
+      end
+
+      # Whether the host build may download a published binary instead of compiling it.
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "CodegenName" do
+        attribute :value, String, pattern: '^(ruby|rust)$'
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Complete" => "completed", from: "requested"
+        transition "Fault"    => "faulted",   from: "requested"
+        mark :terminal, "completed", "faulted"
+      end
+
+      # Writes the domain's Rust source and a Cargo feature for it into the build workspace: the
+      # checkout's own `rust/`, or a copy of the packaged workspace under `.hecks/rust/<version>/`.
+      # Nothing is ever written into the installed gem.
+      command "ProjectRust" do
+        role "Operator"
+        goal "Generate a domain's Rust source for the Rust host"
+
+        attribute :domain, DomainPath, sets: true
+        attribute :run,    BuildKey, sets: true
+
+
+        emits RustProjectionRequested
+      end
+
+      command "BuildWasm" do
+        role "Operator"
+        goal "Compile a domain to a WASI module a runtime such as wasmtime can run"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     BuildKey, sets: true
+        attribute :profile, WasmProfile, default: "release", sets: true
+
+
+        emits WasmBuildRequested
+      end
+
+      command "BuildParser" do
+        role "Operator"
+        goal "Build the hecks-parse binary the bluebook parser specs run, from rust/parser"
+
+        attribute :run, BuildKey, sets: true
+
+        emits ParserBuildRequested
+      end
+
+      # Compiles the host binary from the installed gem's workspace for the target and stages it with
+      # the domain's `.wasm` and `.ir.json` (in `.hecks/host/<target>/` unless `stage_dir` names a
+      # directory), the files a container image copies in.
+      command "BuildHost" do
+        role "Operator"
+        goal "Build the Rust host for a domain, with its wasm and IR, ready to copy into an image"
+
+        attribute :domain, DomainPath, sets: true
+        attribute :run,    BuildKey, sets: true
+        attribute :target, TargetTriple, optional: true, sets: true
+        attribute :stage_dir, StagePath, optional: true, sets: true
+        attribute :prebuilt, Switch, default: true, sets: true
+
+
+        emits HostBuildRequested
+      end
+
+      command "BuildBrowserWasm" do
+        role "Operator"
+        goal "Compile a domain to an ES module a browser can import"
+
+        attribute :domain, DomainPath, sets: true
+        attribute :run,    BuildKey, sets: true
+
+
+        emits BrowserWasmBuildRequested
+      end
+
+      # Without an artifact it answers Ruby's own result, which saved to a file becomes a pinned
+      # expectation; with one it compares Ruby's result with that artifact's.
+      command "CheckConformance" do
+        role "Operator"
+        goal "Replay a script through Ruby and a Rust build of the domain and compare what each did"
+
+        attribute :domain,   DomainPath, sets: true
+        attribute :script,   ScriptPath, sets: true
+        attribute :run,      BuildKey, sets: true
+        attribute :artifact, Artifact, optional: true, sets: true
+
+
+        emits ConformanceRequested
+      end
+
+      command "FuzzConformance" do
+        role "Operator"
+        goal "Replay generated sequences through Ruby and a Rust build of the domain and compare them"
+
+        attribute :domain,   DomainPath, sets: true
+        attribute :artifact, Artifact, sets: true
+        attribute :run,      BuildKey, sets: true
+        attribute :seeds,    Count, optional: true, sets: true
+        attribute :steps,    Count, optional: true, sets: true
+
+
+        emits ConformanceFuzzRequested
+      end
+
+      command "CheckCoverageAllowlist" do
+        role "Operator"
+        goal "Check that every rule excusing a Rust coverage gap still excuses a real one"
+
+        attribute :run, BuildKey, sets: true
+
+
+        emits CoverageAllowlistRequested
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the build or check ended well, and what it reported"
+
+        reference_to Build
+        attribute :output, Report, sets: true
+
+
+        emits BuildCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the build or check was refused or found a difference, and what it said"
+
+        reference_to Build
+        attribute :refusal, Report, sets: true
+
+
+        emits BuildFaulted
+      end
+
+      query "Result" do
+        description "How one build or check ended: its status, and what it reported or why it failed."
+        attribute :run, BuildKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Faulted" do
+        description "Every build or check that was refused or found a difference."
+        where(status: "faulted")
+        order_by :run
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "RustCoverage" do
+        description "Whether each construct of a generated module has a routed Rust implementation."
+        attribute :module_name, ModuleName
+        attribute :codegen,     CodegenName, optional: true
+        returns Document
+      end
+    end
+
+    policy "GenerateWhenRequested" do
+      on      "Build.RustProjectionRequested"
+      ask     :generate, with: { run: :run }
+    end
+
+    policy "CompileWasmWhenRequested" do
+      on      "Build.WasmBuildRequested"
+      ask     :wasm, with: { run: :run }
+    end
+
+    policy "BuildParserWhenRequested" do
+      on      "Build.ParserBuildRequested"
+      ask     :parser, with: { run: :run }
+    end
+
+    policy "BuildHostWhenRequested" do
+      on      "Build.HostBuildRequested"
+      ask     :host, with: { run: :run }
+    end
+
+    policy "CompileBrowserWasmWhenRequested" do
+      on      "Build.BrowserWasmBuildRequested"
+      ask     :browser_wasm, with: { run: :run }
+    end
+
+    policy "ConformWhenRequested" do
+      on      "Build.ConformanceRequested"
+      ask     :conform, with: { run: :run }
+    end
+
+    policy "ReplayWhenRequested" do
+      on      "Build.ConformanceFuzzRequested"
+      ask     :replay, with: { run: :run }
+    end
+
+    policy "AuditWhenRequested" do
+      on      "Build.CoverageAllowlistRequested"
+      ask     :audit, with: { run: :run }
+    end
+
+    policy "RecordTheBuild" do
+      on      "Build.BuildAnswered"
+      trigger Build::Complete, with: { output: :output }
+    end
+
+    policy "RecordTheFault" do
+      on      "Build.BuildRefused"
+      trigger Build::Fault, with: { refusal: :refusal }
+    end
+
+    # Regeneration: rebuilding every corpus domain's committed output, which only this repository has.
+    # A check projects into a scratch crate and never writes the tree; without --confirm the run is
+    # that check, so the tracked generated files change only when the regeneration is confirmed.
+    aggregate "RegenerationRun" do
+      description "One regeneration of every corpus domain's committed Rust output, or the check that it is current."
+
+      attribute :run,       RunKey
+      attribute :operation, Operation, optional: true
+      attribute :confirm,   Switch, optional: true
+      attribute :check,     Switch, optional: true
+      attribute :live,      Switch, optional: true
+      attribute :gate,      GateName, optional: true
+      attribute :domains,   DomainList, optional: true
+      attribute :workers,   Count, optional: true
+      attribute :checkout,  Switch, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # A `CiGate` row of the Vocabulary bluebook, by name.
+      value_object "GateName" do
+        attribute :value, String, matches: :present
+      end
+
+      # The features of corpus domains, comma separated, such as `lease_clock,nested_pieces`.
+      value_object "DomainList" do
+        attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
+      end
+
+      # How many domains are generated at once, always at least one.
+      value_object "Count" do
+        attribute :value, Integer
+
+        invariant("a count is positive") { value > 0 }
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Complete" => "completed", from: "accepted"
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "RegenerateCorpus" do
+        role "Maintainer"
+        goal "Regenerate the Rust output of every corpus domain or the ones named, or with check only compare it"
+
+        attribute :check,   Switch, optional: true, sets: true
+        attribute :domains, DomainList, optional: true, sets: true
+        attribute :workers, Count, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "regenerate_corpus"
+
+        emits RegenerateCorpusRequested
+      end
+
+      command "ProjectCiGates" do
+        role "Maintainer"
+        goal "Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them"
+
+        attribute :check,   Switch, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "project_ci_gates"
+
+        emits ProjectCiGatesRequested
+      end
+
+      command "ProjectCiPipeline" do
+        role "Maintainer"
+        goal "Project the CiWorkflows rows into their workflow files, or with check only compare them"
+
+        attribute :check,   Switch, optional: true
+        attribute :run,     RunKey
+        attribute :confirm, Switch, optional: true
+
+        sets :check
+        sets :run
+        sets :confirm
+        sets :operation, to: "project_ci_pipeline"
+
+        emits ProjectCiPipelineRequested
+      end
+
+      command "ProjectLanes" do
+        role "Maintainer"
+        goal "Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets"
+
+        attribute :check,   Switch, optional: true, sets: true
+        attribute :live,    Switch, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "project_lanes"
+
+        emits ProjectLanesRequested
+      end
+
+      command "ProjectToolsDoc" do
+        role "Maintainer"
+        goal "Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them"
+
+        attribute :check,   Switch, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "project_tools_doc"
+
+        emits ProjectToolsDocRequested
+      end
+
+      command "DecideCiGate" do
+        role "Maintainer"
+        goal "Say whether this run's change touches what a CiGate row guards, as the gated job's detector"
+
+        attribute :gate, GateName, sets: true
+        attribute :run,  RunKey, sets: true
+
+        sets :operation, to: "decide_ci_gate"
+
+        emits DecideCiGateRequested
+      end
+
+      # What the tree reported about itself, held against every request: nothing here runs
+      # outside a hecks checkout (hecks.gemspec beside lib/).
+      command "Accept" do
+        role "System"
+        goal "Let a request through only when the working tree is a hecks checkout"
+
+        reference_to RegenerationRun
+        attribute :checkout, Switch, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+        emits RegenerationAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the request was carried out, and what it reported"
+
+        reference_to RegenerationRun
+        attribute :report, Report, sets: true
+
+
+        emits RegenerationCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the request was refused or could not be carried out, and why"
+
+        reference_to RegenerationRun
+        attribute :refusal, Report, sets: true
+
+
+        emits RegenerationFaulted
+      end
+
+      query "RegenerationOutcome" do
+        description "How one request ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "RegenerationFaulted" do
+        description "Every request that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+    end
+
+    policy "ExamineWhenRegenerateCorpusRequested" do
+      on      "RegenerationRun.RegenerateCorpusRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenProjectCiGatesRequested" do
+      on      "RegenerationRun.ProjectCiGatesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenProjectCiPipelineRequested" do
+      on      "RegenerationRun.ProjectCiPipelineRequested"
+      trigger RegenerationRun::SourceTree::Examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenProjectLanesRequested" do
+      on      "RegenerationRun.ProjectLanesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenProjectToolsDocRequested" do
+      on      "RegenerationRun.ProjectToolsDocRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenDecideCiGateRequested" do
+      on      "RegenerationRun.DecideCiGateRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "AcceptRegenerationWhenExamined" do
+      on      "RegenerationRun.RegenerationExamined"
+      trigger RegenerationRun::Accept, with: { checkout: :checkout }
+    end
+
+    policy "FaultRegenerationWhenNotAccepted" do
+      on      "RegenerationRun.RegenerationExamined"
+      where   { !checkout.value }
+      trigger RegenerationRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+    end
+
+    policy "PerformRegenerationWhenAccepted" do
+      on      "RegenerationRun.RegenerationAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "RecordRegenerationOutcome" do
+      on      "RegenerationRun.RegenerationAnswered"
+      trigger RegenerationRun::Complete, with: { report: :report }
+    end
+
+    policy "RecordRegenerationFault" do
+      on      "RegenerationRun.RegenerationRefused"
+      trigger RegenerationRun::Fault, with: { refusal: :refusal }
+    end
+
+    # The Rust kernel: the capability enums the hand-written kernel is matched against, and the check
+    # that every attribute shape and expression-operator category the grammar admits has its file.
+    aggregate "KernelRun" do
+      description "One projection of the Rust kernel's capability enums, or one measure of their coverage."
+
+      attribute :run,       RunKey
+      attribute :operation, Operation, optional: true
+      attribute :confirm,   Switch, optional: true
+      attribute :checkout,  Switch, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Complete" => "completed", from: "accepted"
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "ProjectKernelCapabilities" do
+        role "Maintainer"
+        goal "Project the capability enums the hand-written Rust kernel is matched against"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "project_kernel_capabilities"
+
+        emits ProjectKernelCapabilitiesRequested
+      end
+
+      command "MeasureKernelCoverage" do
+        role "Maintainer"
+        goal "Check that every capability the grammar admits has its hand-written kernel file"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "measure_kernel_coverage"
+
+        emits MeasureKernelCoverageRequested
+      end
+
+      # What the tree reported about itself, held against every request: nothing here runs
+      # outside a hecks checkout (hecks.gemspec beside lib/).
+      command "Accept" do
+        role "System"
+        goal "Let a request through only when the working tree is a hecks checkout"
+
+        reference_to KernelRun
+        attribute :checkout, Switch, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+        emits KernelAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the request was carried out, and what it reported"
+
+        reference_to KernelRun
+        attribute :report, Report, sets: true
+
+
+        emits KernelCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the request was refused or could not be carried out, and why"
+
+        reference_to KernelRun
+        attribute :refusal, Report, sets: true
+
+
+        emits KernelFaulted
+      end
+
+      query "KernelOutcome" do
+        description "How one request ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "KernelFaulted" do
+        description "Every request that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+    end
+
+    policy "ExamineWhenProjectKernelCapabilitiesRequested" do
+      on      "KernelRun.ProjectKernelCapabilitiesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenMeasureKernelCoverageRequested" do
+      on      "KernelRun.MeasureKernelCoverageRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "AcceptKernelWhenExamined" do
+      on      "KernelRun.KernelExamined"
+      trigger KernelRun::Accept, with: { checkout: :checkout }
+    end
+
+    policy "FaultKernelWhenNotAccepted" do
+      on      "KernelRun.KernelExamined"
+      where   { !checkout.value }
+      trigger KernelRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+    end
+
+    policy "PerformKernelWhenAccepted" do
+      on      "KernelRun.KernelAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "RecordKernelOutcome" do
+      on      "KernelRun.KernelAnswered"
+      trigger KernelRun::Complete, with: { report: :report }
+    end
+
+    policy "RecordKernelFault" do
+      on      "KernelRun.KernelRefused"
+      trigger KernelRun::Fault, with: { refusal: :refusal }
+    end
+
+    # Corpus: what this repository's committed domains are, and what the language's own IR holds.
+    # Every question about them is a pure read, answered by the SourceTree port: which domains carry
+    # a Rust feature, the order they regenerate in, whether each generated module is covered, and the
+    # structural queries over the IR. Two commands open a long-running server: the query MCP server
+    # on stdio and the forms app on a local port; each is recorded, runs until it is closed, and
+    # answers when it ends.
+    aggregate "CorpusRun" do
+      description "One look at the corpus and the language's IR, or one server opened on them."
+
+      attribute :run,       RunKey
+      attribute :operation, Operation, optional: true
+      attribute :confirm,   Switch, optional: true
+      attribute :names,     NameList, optional: true
+      attribute :domains,   PathList, optional: true
+      attribute :meta,      Switch, optional: true
+      attribute :files,     Switch, optional: true
+      attribute :name,      ConstructName, optional: true
+      attribute :field,     FieldName, optional: true
+      attribute :port,      Port, optional: true
+      attribute :agent,     AgentName, optional: true
+      attribute :directory, Directory, optional: true
+      attribute :checkout,  Switch, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      # One directory of files, named by a path.
+      value_object "Directory" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      # Which agent drives the Composer's assistant: the real `claude`, or a scripted `fake` for
+      # trying the editor without a model.
+      value_object "AgentName" do
+        attribute :value, String, pattern: '^(claude|fake)$'
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # Construct names, comma separated.
+      value_object "NameList" do
+        attribute :value, String, pattern: '^[A-Za-z][A-Za-z0-9_]*(,[A-Za-z][A-Za-z0-9_]*)*$'
+      end
+
+      # Domain directories, comma separated.
+      value_object "PathList" do
+        attribute :value, String, matches: :csv_list
+      end
+
+      # The name of one IR construct.
+      value_object "ConstructName" do
+        attribute :value, String, matches: :identifier
+      end
+
+      # The name of one field of a construct.
+      value_object "FieldName" do
+        attribute :value, String, matches: :snake_name
+      end
+
+      # A local port a server listens on.
+      value_object "Port" do
+        attribute :value, Integer
+
+        invariant("a port is 1 to 65535") { value >= 1 && value <= 65535 }
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Complete" => "completed", from: "accepted"
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "ServeQueryIrMcp" do
+        role "Maintainer"
+        goal "Serve the IR queries to an MCP client over stdio until it closes"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "serve_query_ir_mcp"
+
+        emits ServeQueryIrMcpRequested
+      end
+
+      command "Present" do
+        role "Maintainer"
+        goal "Serve the banking example's rendered forms and views on a local port until stopped"
+
+        attribute :port, Port, optional: true, sets: true
+        attribute :run,  RunKey, sets: true
+
+        sets :operation, to: "present"
+
+        emits PresentRequested
+      end
+
+      command "Compose" do
+        role "Maintainer"
+        goal "Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped"
+
+        attribute :port,    Port, optional: true, sets: true
+        attribute :domains, PathList, optional: true, sets: true
+        attribute :agent,   AgentName, default: "claude", sets: true
+        attribute :run,     RunKey, sets: true
+
+        sets :operation, to: "compose"
+
+        emits ComposeRequested
+      end
+
+      command "Preview" do
+        role "Maintainer"
+        goal "Serve one directory of static files, such as a website, on a local port until stopped"
+
+        attribute :directory, Directory, sets: true
+        attribute :port,      Port, optional: true, sets: true
+        attribute :run,       RunKey, sets: true
+
+        sets :operation, to: "preview"
+
+        emits PreviewRequested
+      end
+
+      # What the tree reported about itself, held against every request: nothing here runs
+      # outside a hecks checkout (hecks.gemspec beside lib/).
+      command "Accept" do
+        role "System"
+        goal "Let a request through only when the working tree is a hecks checkout"
+
+        reference_to CorpusRun
+        attribute :checkout, Switch, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+        emits CorpusAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the request was carried out, and what it reported"
+
+        reference_to CorpusRun
+        attribute :report, Report, sets: true
+
+
+        emits CorpusCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the request was refused or could not be carried out, and why"
+
+        reference_to CorpusRun
+        attribute :refusal, Report, sets: true
+
+
+        emits CorpusFaulted
+      end
+
+      query "CorpusOutcome" do
+        description "How one request ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "CorpusFaulted" do
+        description "Every request that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "RustDomains" do
+        description "The feature and directory of every domain with a Rust feature."
+        returns Document
+      end
+
+      query "RegenOrder" do
+        description "The directories regeneration walks, in the order it walks them."
+        returns Document
+      end
+
+      query "CorpusRustCoverage" do
+        description "Whether every generated Rust module is routed by its domain."
+        returns Document
+      end
+
+      query "GeneratedKey" do
+        description "The content hash of what regenerating the named domains reads: the generator and each domain's own sources."
+        attribute :domains, PathList, optional: true
+        attribute :files, Switch, optional: true
+        returns Document
+      end
+
+      query "IrConstructs" do
+        description "The structural diff of each IR construct from its meta-domain."
+        attribute :names, NameList, optional: true
+        returns Document
+      end
+
+      query "IrDuplicates" do
+        description "The rules declared more than once across the corpus."
+        attribute :domains, PathList, optional: true
+        attribute :meta, Switch, optional: true
+        returns Document
+      end
+
+      query "IrImpact" do
+        description "Which propagation touchpoints of a construct's field already show it."
+        attribute :name, ConstructName
+        attribute :field, FieldName
+        returns Document
+      end
+    end
+
+    policy "ExamineWhenServeQueryIrMcpRequested" do
+      on      "CorpusRun.ServeQueryIrMcpRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenPresentRequested" do
+      on      "CorpusRun.PresentRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenComposeRequested" do
+      on      "CorpusRun.ComposeRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenPreviewRequested" do
+      on      "CorpusRun.PreviewRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "AcceptCorpusWhenExamined" do
+      on      "CorpusRun.CorpusExamined"
+      trigger CorpusRun::Accept, with: { checkout: :checkout }
+    end
+
+    policy "FaultCorpusWhenNotAccepted" do
+      on      "CorpusRun.CorpusExamined"
+      where   { !checkout.value }
+      trigger CorpusRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+    end
+
+    policy "PerformCorpusWhenAccepted" do
+      on      "CorpusRun.CorpusAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "RecordCorpusOutcome" do
+      on      "CorpusRun.CorpusAnswered"
+      trigger CorpusRun::Complete, with: { report: :report }
+    end
+
+    policy "RecordCorpusFault" do
+      on      "CorpusRun.CorpusRefused"
+      trigger CorpusRun::Fault, with: { refusal: :refusal }
+    end
+  end
+end

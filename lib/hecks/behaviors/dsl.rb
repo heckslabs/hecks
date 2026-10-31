@@ -1,4 +1,5 @@
 require_relative "ir"
+require_relative "../module_folders"
 
 # The authoring surface for `Hecks.behaviors "Name" do ... end`, built with `instance_eval`.
 module Hecks
@@ -132,9 +133,12 @@ module Hecks
       #
       # @param paths [Array<String>] paths to the files this suite's domain boots
       #   from, relative to the `.behaviors` file
+      # @param modules [Symbol, nil] `:all` adds the bluebook of every module folder beside the
+      #   `.behaviors` file (see ModuleFolders)
       # @return [void]
-      def loads(*paths)
+      def loads(*paths, modules: nil)
         @loads = paths.map { |path| File.expand_path(path, @source_dir) }
+        @loads.concat(ModuleFolders.bluebooks(@source_dir)) if modules == :all
       end
 
       # Builds and records one test case.

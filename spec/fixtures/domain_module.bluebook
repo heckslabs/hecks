@@ -1,0 +1,52 @@
+# Two `domain_module` blocks grouping a bluebook's aggregates by task, one holding a policy of
+# its own. Held by spec/domain_module_spec.rb and the parser parity corpus.
+Hecks.bluebook "Workshop" do
+  vision "A bench where parts are made and then handed on."
+  core
+
+  domain_module "Make" do
+    vision "Turn raw parts into finished ones."
+
+    aggregate "Part" do
+      attribute :code, Code
+      attribute :finished, Finished, optional: true
+      identified_by :code
+      value_object("Code") { attribute :value, String }
+      value_object("Finished") { attribute :value, String }
+
+      command("Cut") do
+        attribute :code, Code
+        sets :code
+        emits "PartCut"
+      end
+
+      command("Finish") do
+        reference_to Part
+        attribute :finished, Finished
+        sets :finished
+        emits "PartFinished"
+      end
+    end
+
+    policy "HandOnWhenFinished" do
+      on PartFinished
+      trigger Parcel::Pack
+    end
+  end
+
+  domain_module "Hand on" do
+    vision "Send finished parts to whoever ordered them."
+
+    aggregate "Parcel" do
+      attribute :label, Label
+      identified_by :label
+      value_object("Label") { attribute :value, String }
+
+      command("Pack") do
+        attribute :label, Label
+        sets :label
+        emits "ParcelPacked"
+      end
+    end
+  end
+end

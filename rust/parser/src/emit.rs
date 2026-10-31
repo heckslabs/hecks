@@ -59,7 +59,7 @@ fn canonical_form_table() -> JsonValue {
 
 /// `IR::Bluebook#to_h`; field order is pinned there.
 pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut fields = vec![
         (
             "ir_version".to_string(),
             JsonValue::Number(bb.ir_version.to_string()),
@@ -126,7 +126,31 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
             ),
         ),
         ("canonical_form".to_string(), canonical_form_table()),
-    ])
+    ];
+    // Left out when the bluebook declares no module, as `IR::Bluebook#to_h` leaves it out.
+    if !bb.modules.is_empty() {
+        let at = fields.len() - 1;
+        fields.insert(at, ("modules".to_string(), modules_json(&bb.modules)));
+    }
+    JsonValue::Object(fields)
+}
+
+/// `IR::Bluebook::ModuleRow#to_h`, one row per aggregate a module groups.
+fn modules_json(rows: &[ir::ModuleRow]) -> JsonValue {
+    JsonValue::Array(
+        rows.iter()
+            .map(|row| {
+                JsonValue::Object(vec![
+                    ("name".to_string(), JsonValue::str(row.name.clone())),
+                    ("vision".to_string(), JsonValue::str(row.vision.clone())),
+                    (
+                        "aggregate".to_string(),
+                        JsonValue::str(row.aggregate.clone()),
+                    ),
+                ])
+            })
+            .collect(),
+    )
 }
 
 /// `IR::Aggregate#to_h` (lib/hecks/bluebook/ir/aggregate.rb).
