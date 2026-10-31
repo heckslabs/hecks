@@ -49,6 +49,7 @@ module Hecks
         # The spec of one query of an aggregate or of one of its entities.
         def query_spec(bluebook, aggregate, entity, query)
           { command: fqn(bluebook, aggregate, query, entity), kind: :query, group: aggregate.hecks_name,
+            formerly: aggregate.former_name,
             internal: entity.nil? && bookkeeping_query?(aggregate, query),
             summary: query.description, arguments: query_arguments(query, aggregate, entity),
             returns: query.returns }
