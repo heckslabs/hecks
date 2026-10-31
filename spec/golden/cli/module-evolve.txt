@@ -1,0 +1,66 @@
+evolve — Change the language and rewrite to match.
+
+  hecks <Aggregate.command>! [name=value …]    do something
+  hecks <Aggregate.query> [name=value …]       read something
+
+commands:
+  LanguageRun:
+    One change to the language's own tables, or one reading of where its words stand.
+    project_model!                Project the model's holding half from the language that declares it
+    project_vocabulary!           Project the language's closed sets into the vocabulary
+    project_rust_vocabulary!      Project the vocabulary tables into the Rust kernel, one enum a table
+    project_refusal_wording!      Project the refusal template table, a second name of ProjectRustVocabulary
+    project_reserved_names!       Project the Rust and Cargo reserved words into the codegen and build crates
+    project_parser_table!         Project the Rust parser's keyword table
+    project_phrase_table!         Project the Rust parser's sentence table from the Sentence bluebook's phrase rows
+    project_bootstrap_table!      Project the DSL's bootstrap-window fallbacks from the keyword rows
+    project_field_hints!          Project the host's form-field hints
+    project_expression_tables!    Project the expression machinery's operator and normalisation tables
+    project_reference!            Regenerate the DSL reference from the Syntax bluebook, keeping the committed prose
+    propose!                      Enter a keyword row, proposed: it reaches no projection until admitted
+    admit!                        Move a proposed keyword row to admitted
+    deprecate!                    Move an admitted keyword row to deprecated
+    retire!                       Move a deprecated or admitted keyword row to retired
+    rename!                       Respell a keyword row; the old spelling keeps parsing
+    propose_argument!             Enter an argument row of a keyword, proposed
+    admit_argument!               Move a proposed argument row to admitted
+    deprecate_argument!           Move an admitted argument row to deprecated
+    retire_argument!              Move a deprecated or admitted argument row to retired
+  CodemodRun:
+    One rewrite of the example bluebooks by a codemod, or the rehearsal of it.
+    hoist_local_givens!           Hoist a given that several commands of one owner repeat into one owner-level given
+    drop_implicit_append_fields!  Drop an attribute line that only repeats what an append target element declares
+  ScriptRun:
+    One named one-off script the checkout runs, planned or applied; the body is a tool.
+    plan_script!                  Show what a named one-off script would change, writing nothing
+    apply_script!                 Carry out a named one-off script's changes, only when confirmed
+
+queries (nothing here changes anything):
+  LanguageRun:
+    One change to the language's own tables, or one reading of where its words stand.
+    word_status  Where every word of the language stands: the ones not simply admitted, and the renamed.
+  SyntaxBootCache:
+    The grammar bluebooks' on-disk boot cache, keyed by a digest of the bluebooks it was built from.
+    stale        Every cache whose grammar changed under it and is not yet rebuilt.
+
+bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
+  governance       Organizational authority is explicit, reviewable, and historically explainable.
+  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
+  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
+  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
+  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
+  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
+  bluebook         The bluebook language, declared in itself.
+  hecksagon
+  world
+  adapter          The .adapter language, declared in itself.
+  port             The .port language, declared in itself.
+  translation
+  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+
+  hecks <command> --help       what one command wants, and every way it refuses
+  hecks --all                  also list the 22 internal commands and queries
+  hecks --maintainer           also list the 348 commands and queries for working on hecks itself
+  a command is called with its aggregate — LanguageRun.project_model!
+  exit status: 0 answered, 1 refused or failed, 2 a line it could not read
