@@ -80,6 +80,9 @@
               "type": "Checkout"
             }
           ],
+          "audience": [
+            "record"
+          ],
           "emits": [
             "Tagged"
           ],
@@ -133,6 +136,9 @@
           "attributes": [
 
           ],
+          "audience": [
+            "record"
+          ],
           "emits": [
             "Published"
           ],
@@ -159,6 +165,9 @@
         {
           "attributes": [
 
+          ],
+          "audience": [
+            "record"
           ],
           "emits": [
             "Verified"
@@ -198,6 +207,9 @@
               "relationship": null,
               "type": "FindingKey"
             }
+          ],
+          "audience": [
+            "record"
           ],
           "emits": [
             "FindingsClosed"
@@ -429,6 +441,9 @@
               "type": "Digest"
             }
           ],
+          "audience": [
+            "record"
+          ],
           "emits": [
             "CacheRecorded"
           ],
@@ -464,6 +479,9 @@
           "attributes": [
 
           ],
+          "audience": [
+            "record"
+          ],
           "emits": [
             "CacheInvalidated"
           ],
@@ -490,6 +508,9 @@
         {
           "attributes": [
 
+          ],
+          "audience": [
+            "record"
           ],
           "emits": [
             "CacheRebuilt"

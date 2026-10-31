@@ -311,6 +311,10 @@ fn command_json(c: &ir::Command) -> JsonValue {
     if c.roles.len() > 1 {
         fields.push(("roles".to_string(), JsonValue::strings(&c.roles)));
     }
+    // Only a command that names an audience says so, so every other command emits as it always did.
+    if !c.audience.is_empty() {
+        fields.push(("audience".to_string(), JsonValue::strings(&c.audience)));
+    }
     fields.extend(command_json_rest(c));
     JsonValue::Object(fields)
 }

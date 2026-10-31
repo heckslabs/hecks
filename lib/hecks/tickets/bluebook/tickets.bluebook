@@ -180,6 +180,7 @@ Hecks.bluebook "Tickets" do
 
     command "RecordIssue" do
       goal "Record the GitHub issue number once the issue is opened"
+      audience :record
 
       reference_to Finding
       attribute :issue_number, Number, sets: true
@@ -190,6 +191,7 @@ Hecks.bluebook "Tickets" do
 
     command "RecordSyncFailure" do
       goal "Record that GitHub could not be driven, so a later run retries"
+      audience :record
 
       reference_to Finding
       attribute :sync_failure, Body, sets: true

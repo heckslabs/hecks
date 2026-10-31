@@ -6885,6 +6885,16 @@
           "relationship": null
         },
         {
+          "name": "audience",
+          "type": "Audience",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "goal",
           "type": "Goal",
           "list": false,
@@ -7136,6 +7146,28 @@
         },
         {
           "name": "Permission",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Audience",
           "attributes": [
             {
               "name": "name",
@@ -7559,6 +7591,28 @@
           ]
         },
         {
+          "name": "AudienceName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
           "name": "FactName",
           "attributes": [
             {
@@ -7743,6 +7797,36 @@
               [
                 "fills",
                 "goal"
+              ]
+            ],
+            [
+              [
+                "word",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "calls",
+                "audience_impl"
               ]
             ],
             [
@@ -8358,6 +8442,40 @@
               [
                 "coerce",
                 "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -10635,6 +10753,68 @@
           ],
           "emits": [
             "RoleAllowed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Address",
+          "role": "Language",
+          "goal": "Name an audience this command is listed for",
+          "references": null,
+          "attributes": [
+            {
+              "name": "addressed",
+              "type": "AudienceName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "an audience is named",
+              "canonical": "!addressed.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "addressed",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "audience",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":addressed"
+              }
+            }
+          ],
+          "emits": [
+            "AudienceAddressed"
           ],
           "from": null,
           "provenance": null,
