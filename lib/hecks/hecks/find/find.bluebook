@@ -1,0 +1,81 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Find" do
+    vision "Read the code: search the checkout's text, read a file, outline what it declares, find where a name is declared."
+
+    aggregate "Codebase" do
+      description "A read of the checkout's text files, answered without changing anything."
+      acknowledges :no_command_surface, "a read of the checkout's files, answered without changing anything"
+
+      attribute :root, CheckoutRoot
+      identified_by :root
+
+      value_object "CheckoutRoot" do
+        attribute :value, String, matches: :present
+      end
+
+      # A regular expression, matched against one line of text at a time.
+      value_object "Pattern" do
+        attribute :value, String, matches: :present
+      end
+
+      # An answer that is one document of text, one `path:line: text` row to a match.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "Search" do
+        description "The lines of the checkout's text files that match a pattern, as path:line: text."
+        attribute :pattern, Pattern
+        attribute :paths, PathList, optional: true
+        attribute :top, Top, optional: true
+        returns Document
+      end
+
+      # A file of the checkout, named from its root.
+      value_object "SourcePath" do
+        attribute :value, String, matches: :present
+      end
+
+      # A line of a file, counted from 1.
+      value_object "LineNumber" do
+        attribute :value, Integer
+
+        invariant("a line is counted from 1") { value > 0 }
+      end
+
+      # The name a construct is declared under, as it stands between the quotes.
+      value_object "DeclaredName" do
+        attribute :value, String, matches: :present
+      end
+
+      # What a declaration is: aggregate, command, query, policy and the rest.
+      value_object "DeclaredKind" do
+        attribute :value, String, pattern: '^[a-z_]+$'
+      end
+
+      query "ReadSource" do
+        description "The numbered lines of one file of the checkout, whole or from one line to another."
+        attribute :path, SourcePath
+        attribute :from, LineNumber, optional: true
+        attribute :to,   LineNumber, optional: true
+        attribute :top,  Top, optional: true
+        returns Document
+      end
+
+      query "Outline" do
+        description "What a file declares, by line: each construct of a bluebook, each definition of Ruby."
+        attribute :path, SourcePath
+        returns Document
+      end
+
+      query "Declaration" do
+        description "Where a named construct is declared across the corpus, as path:from-to, with its text on request."
+        attribute :name,  DeclaredName
+        attribute :kind,  DeclaredKind, optional: true
+        attribute :paths, PathList, optional: true
+        attribute :show,  Switch, optional: true
+        returns Document
+      end
+    end
+  end
+end

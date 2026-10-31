@@ -493,6 +493,9 @@ Hecks.hecksagon "Hecks" do
       refuses "InspectionRefused"
     end
 
+  end
+
+  Hecks::Codebase.port "SourceTree" do
     answers_query "Search"
     answers_query "ReadSource"
     answers_query "Outline"
