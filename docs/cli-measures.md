@@ -43,3 +43,19 @@ The everyday list is reviewed against `hecks usage` before each release: a name 
 
 Correctness is the suite's job and the gate's, not this page's. A faster command that
 answers wrongly is a bug, and no measure here excuses it.
+
+## Startup budget
+
+Measured on the maintainer's machine (Apple silicon, Ruby 3.3, YJIT off), the warm median of five
+runs of `ruby -I lib` that loads `hecks` and answers bare `hecks` from the help cache is 0.49
+seconds. A cold run (caches cleared) takes about 7.5 seconds, nearly all of it the grammar boot,
+which is not measured by the budget.
+
+The budget is a ceiling of three times that baseline, 1.5 seconds on the same machine. The check
+`spec/cli_cold_start_budget_spec.rb` runs in the default test job, not the Postgres io shards,
+takes the median of five warm runs, and fails above the ceiling. A slower machine changes the
+baseline and the ceiling together, so the check compares a machine with itself.
+
+The first in-process help call after a cache clear costs about one second. The 0.66-second
+shell figure earlier was a warm run; the breakdown that suggested a larger figure ran straight
+after the clear and measured that cold help call.
