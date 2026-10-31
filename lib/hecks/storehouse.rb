@@ -136,15 +136,30 @@ module Hecks
     # @yieldreturn [Hash] the call's outcome
     # :nodoc:
     def audited(request, tool)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       outcome = yield
       bluebook = request.bluebook
-      record!(bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome, **audit_fields(request))
+      record!(bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome,
+                             duration_ms: elapsed_ms(started), **audit_fields(request))
       outcome.except(:verb)
     rescue *refusal_classes => e
       outcome = refused(e, summary: request.summary)
       asked_of = request.bluebook
-      record!(asked_of&.name, tool: tool, outcome: outcome, **audit_fields(request))
+      record!(asked_of&.name, tool: tool, outcome: outcome, refusal: refusal_kind(e),
+                              duration_ms: elapsed_ms(started), **audit_fields(request))
       outcome
+    end
+
+    # Whole milliseconds since `started`, a CLOCK_MONOTONIC reading.
+    # :nodoc:
+    def elapsed_ms(started)
+      ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
+    end
+
+    # The refusal's class as a snake_case kind, such as `type_mismatch`.
+    # :nodoc:
+    def refusal_kind(error)
+      error.class.name.split("::").last.gsub(/([a-z\d])([A-Z])/, '\\1_\\2').downcase
     end
 
     # :nodoc:

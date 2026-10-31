@@ -28,7 +28,8 @@ module Hecks
         return unless domain_name
 
         line = { time: Time.now.utc.iso8601, tool: tool }.merge(AUDIT_FIELDS.to_h { |field| [field, entry[field]] })
-                                                         .merge(outcome.slice(:ok, :id, :error, :events)).compact
+                                                         .merge(outcome.slice(:ok, :id, :error, :events))
+                                                         .merge(entry.slice(:duration_ms, :refusal)).compact
         FileUtils.mkdir_p(log_root)
         File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(line)) }
       rescue StandardError
