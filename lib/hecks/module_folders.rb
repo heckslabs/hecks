@@ -9,7 +9,11 @@ module Hecks
     # @return [Array<String>] the bluebook of each module folder directly under `directory`,
     #   sorted by path
     def bluebooks(directory)
-      Dir.glob(File.join(directory, "*", "*.bluebook")).select { |path| module_bluebook?(path) }.sort
+      files(directory, ".bluebook")
+    end
+
+    def files(directory, extension)
+      Dir.glob(File.join(directory, "*", "*#{extension}")).select { |path| module_file?(path, extension) }.sort
     end
 
     # @param directory [String] a domain directory
@@ -20,8 +24,8 @@ module Hecks
 
     # Whether a bluebook is named for the folder it sits in.
     # @api private
-    def module_bluebook?(path)
-      File.basename(path, ".bluebook") == File.basename(File.dirname(path))
+    def module_file?(path, extension)
+      File.basename(path, extension) == File.basename(File.dirname(path))
     end
   end
 end
