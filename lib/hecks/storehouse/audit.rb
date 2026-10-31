@@ -9,6 +9,13 @@ module Hecks
       # A character a log file's name may not carry.
       UNSAFE_NAME_CHARACTER = /[^A-Za-z0-9_-]/
 
+      # The boundary between a lowercase or digit character and an uppercase one, where a
+      # CamelCase word takes an underscore.
+      CAMEL_CASE_BOUNDARY = /([a-z\d])([A-Z])/
+
+      # The last segment of a qualified constant name, such as `TypeMismatch` in `Runtime::TypeMismatch`.
+      UNQUALIFIED_NAME = /[^:]+\z/
+
       # Kept under Hecks::CacheDir, not the domain directory (part of the domain's
       # own state) or the gem directory (read-only once installed).
       # :nodoc:
@@ -27,14 +34,36 @@ module Hecks
       def record!(domain_name, tool:, outcome:, **entry)
         return unless domain_name
 
-        line = { time: Time.now.utc.iso8601, tool: tool }.merge(AUDIT_FIELDS.to_h { |field| [field, entry[field]] })
-                                                         .merge(outcome.slice(:ok, :id, :error, :events))
-                                                         .merge(entry.slice(:duration_ms, :refusal)).compact
         FileUtils.mkdir_p(log_root)
-        File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(line)) }
+        File.open(log_path(domain_name), "a") { |f| f.puts(JSON.generate(audit_line(tool, outcome, entry))) }
       rescue StandardError
         nil
       end
+
+      # One audit line as a hash: when, the tool, the caller's fields, the outcome's fields, then
+      # the call's duration and refusal kind, with absent values left out.
+      # :nodoc:
+      def audit_line(tool, outcome, entry)
+        fields = AUDIT_FIELDS.to_h { |field| [field, entry[field]] }
+        { time: Time.now.utc.iso8601, tool: tool, **fields, **outcome.slice(:ok, :id, :error, :events),
+          **entry.slice(:duration_ms, :refusal) }.compact
+      end
+
+      # Whole milliseconds since `started`, a CLOCK_MONOTONIC reading.
+      # :nodoc:
+      def elapsed_ms(started)
+        ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
+      end
+
+      # The refusal's class as a snake_case kind, such as `type_mismatch`.
+      # :nodoc:
+      def refusal_kind(error)
+        snake_case(error.class.name[UNQUALIFIED_NAME])
+      end
+
+      # The word with an underscore at each CamelCase boundary, in lowercase.
+      # :nodoc:
+      def snake_case(word) = word.gsub(CAMEL_CASE_BOUNDARY, '\\1_\\2').downcase
 
       # Tails this bus's own dispatch/query/state audit log — a pull-based
       # substitute for a push subscription, since a stdio server answers one

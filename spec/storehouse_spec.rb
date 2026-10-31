@@ -120,13 +120,18 @@ RSpec.describe Hecks::Storehouse do
     end
 
     it "logs each call with its duration, and a refusal's kind", :aggregate_failures do
-      create_pizza
-      described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
-      created, refused = described_class.follow(runtime: runtime)[:entries]
+      created, refused = logged_create_and_refusal
 
       expect(created).to include(duration_ms: be_a(Integer), tool: "dispatch")
       expect(created).not_to have_key(:refusal)
       expect(refused).to include(refusal: "not_found", duration_ms: be_a(Integer))
+    end
+
+    # The audit entries of one successful create and one refused unknown command, in that order.
+    def logged_create_and_refusal
+      create_pizza
+      described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
+      described_class.follow(runtime: runtime)[:entries]
     end
   end
 
