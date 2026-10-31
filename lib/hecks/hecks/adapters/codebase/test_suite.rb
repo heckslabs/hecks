@@ -16,7 +16,7 @@ module Hecks
       # What Codebase's `TestSuiteRun` asks of the working tree: the tooling around this
       # repository's specs.
       #
-      # The tooling owns its options, so each ask runs one of the `Hecks::CLI` commands in this
+      # The tooling owns its options, so each ask runs one of the `Hecks::Tools` commands in this
       # process from the checkout's root, except a single example (the `TestRunner` adapter runs it)
       # and the persistence fixtures (the `SqliteFixture` adapter). A listing is a pure read.
       # Refreshing the committed timings, regenerating the fixtures and writing the committed spec
@@ -42,7 +42,7 @@ module Hecks
 
         module_function
 
-        # Loads the command a `Hecks::CLI` file defines, the first time an ask needs it: several
+        # Loads the command a `Hecks::Tools` file defines, the first time an ask needs it: several
         # read the checkout's specs or need a development gem, which an installed gem lacks.
         #
         # @param file [String] the command's file under `lib/hecks/tools/`, without the extension

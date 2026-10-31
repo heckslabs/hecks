@@ -33,8 +33,7 @@
 # by the process that made it, so `request` waits and prints the whole outcome), `executable` is where `hecks project_cli` writes this bluebook's launcher (the
 # gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
 # the commands that launcher runs on the Memory environment unless `HECKS_ENVIRONMENT` is set (so
-# `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
-# positional forms ADR 0066 shipped (none remain: the legacy forms are retired). `maintainer` names the aggregates only someone working on a hecks
+# `hecks console` needs no database), and the retired positional forms (ADR 0066) are refused by name, so no `legacy` list remains. `maintainer` names the aggregates only someone working on a hecks
 # checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
 # `--maintainer` lists them; `bluebooks` names the attached bluebooks the help points at, one line each
 # (`hecks deploy`), and `maintainer_bluebooks` the language's own, added inside a checkout.

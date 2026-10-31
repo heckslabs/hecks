@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/cli"
 require "open3"
 require_relative "doc_banners_spec"
 
@@ -40,8 +39,9 @@ module DocReferences
 
   HISTORICAL = %w[docs/migrating-2-to-3.md].freeze
 
-  # Words exe/hecks hands to Hecks::CLI before the launcher; they are not qualified names.
-  UNQUALIFIED = (Hecks::CLI::COMMANDS.keys.map(&:to_s) + %w[console init interview version help]).freeze
+  # Words the launcher took unqualified before it retired them; they are not qualified names.
+  RETIRED = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
+  UNQUALIFIED = (RETIRED + %w[console init interview version help]).freeze
 
   # Launchers that take a verb of their own after them: `hecks deploy recipe.project`.
   BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control].freeze
