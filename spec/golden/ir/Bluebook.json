@@ -48,6 +48,16 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "formerly_known_as",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "AggregateFormerlyKnownAs"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "identified_by",
           "optional": false,
@@ -213,6 +223,16 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "formerly_known_as",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "AggregateFormerlyKnownAs"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -268,6 +288,15 @@
                 "name": "provenance"
               },
               "target": "provenance"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "formerly_known_as"
+              },
+              "target": "formerly_known_as"
             },
             {
               "op": "set",
@@ -1375,6 +1404,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -1504,6 +1534,46 @@
 
           ],
           "name": "Description"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "an aggregate's formerly_known_as says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AggregateFormerlyKnownAs"
         },
         {
           "attributes": [
@@ -2209,6 +2279,36 @@
               [
                 "calls",
                 "provenance_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ],
+              [
+                "calls",
+                "formerly_known_as_impl"
               ]
             ],
             [
@@ -3044,6 +3144,36 @@
               [
                 "fills",
                 "provenance"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "formerly_known_as"
               ]
             ],
             [
@@ -4947,6 +5077,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -8312,6 +8443,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "owner_id",
         "name.value"
@@ -12246,6 +12378,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "aggregate",
         "name.value"
@@ -14700,6 +14833,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -16332,6 +16466,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -18695,6 +18830,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -21155,6 +21291,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "owner_id",
         "name.value"
@@ -23299,6 +23436,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "aggregate",
         "name.value"
@@ -25603,6 +25741,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -26217,6 +26356,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -34146,6 +34286,58 @@
             [
               [
                 "name",
+                "everyday_names"
+              ],
+              [
+                "id",
+                "everyday_names"
+              ],
+              [
+                "title",
+                "everyday names, every name in the launcher's everyday setting shown in the help"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/everyday_names_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a name in the world's `everyday` setting is not shown in the help's everyday section: it does not resolve to a command, it is internal, or it is not listed for people. The failure names each one; fix the spelling in hecks.world or the command's audience."
+              ]
+            ],
+            [
+              [
+                "name",
+                "secret_output"
+              ],
+              [
+                "id",
+                "secret_output"
+              ],
+              [
+                "title",
+                "secret output, no value a world hands an adapter as a secret reaches what a launcher prints"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/secret_output_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_fmt"
               ],
               [
@@ -34807,7 +34999,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names"
               ]
             ],
             [
@@ -34821,7 +35013,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
               ]
             ],
             [

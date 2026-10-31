@@ -255,6 +255,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "world.value",
         "verb.value"
@@ -516,6 +517,7 @@
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "domain.value"
       ],

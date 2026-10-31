@@ -391,6 +391,7 @@ pub fn dispatch_by_name(
 args.name.check_invariants()?;
 if let Some(v) = &args.description { v.check_invariants()?; }
 if let Some(v) = &args.provenance { v.check_invariants()?; }
+if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::aggregate::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?;
                 if let Some(route) = route {
@@ -405,6 +406,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
 args.name.check_invariants()?;
 if let Some(v) = &args.description { v.check_invariants()?; }
 if let Some(v) = &args.provenance { v.check_invariants()?; }
+if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::aggregate::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?
             };
@@ -8567,9 +8569,14 @@ pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static st
 
 pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
-        "Bluebook::Aggregate.Declare" => {
-            &["bluebook", "name", "description", "provenance", "position"]
-        }
+        "Bluebook::Aggregate.Declare" => &[
+            "bluebook",
+            "name",
+            "description",
+            "provenance",
+            "formerly_known_as",
+            "position",
+        ],
         "Bluebook::Aggregate.Identify" => &["path"],
         "Bluebook::Aggregate.Attribute" => &[
             "type",
