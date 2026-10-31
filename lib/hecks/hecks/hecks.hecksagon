@@ -128,8 +128,8 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::Worktree.port "WorktreeAdding" do
-    asks "Create", to: Worktree do
+  Hecks::LinkedTree.port "WorktreeAdding" do
+    asks "Create", to: LinkedTree do
       attribute :run, RunKey
       answers "CreateAnswered"
       refuses "CreateRefused"

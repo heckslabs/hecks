@@ -29,15 +29,23 @@ module Hecks
       # @raise [ConsoleCapture::Failure] on a missing branch, a branch named main, or a directory outside a repository
       def create(**held)
         repo = settle(held)
-        branch = plain(held[:branch]).to_s.strip
-        raise ConsoleCapture::Failure, "a worktree needs a branch" if branch.empty?
-        raise ConsoleCapture::Failure, "a worktree is not opened on main" if branch == "main"
-
+        branch = branch_named(held)
         path = plain(held[:path]).to_s.strip
         path = File.join(repo, ".claude", "worktrees", branch) if path.empty?
         read("worktree", "add", "-b", branch, path, "main")
         sha = read("rev-parse", "--short", "HEAD", dir: path)
         { sha: { value: sha }, report: { value: "opened #{path} on #{branch}" } }
+      end
+
+      private
+
+      # The branch a worktree is cut on: a name, and never main.
+      def branch_named(held)
+        branch = plain(held[:branch]).to_s.strip
+        raise ConsoleCapture::Failure, "a worktree needs a branch" if branch.empty?
+        raise ConsoleCapture::Failure, "a worktree is not opened on main" if branch == "main"
+
+        branch
       end
     end
   end
