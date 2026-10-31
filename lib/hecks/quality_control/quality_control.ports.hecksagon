@@ -66,9 +66,9 @@ Hecks.hecksagon "QualityControl" do
     end
   end
 
-  # Answered by `adapters/image_roll`: the classifier reads remote CI's green commit's change set
-  # and the
-  # quick gate on record, and the roll runs the console image's deploy. A refusal ends the chain.
+  # Answered by `adapters/image_roll`: the classifier reads remote CI's green commit's change set,
+  # and the roll runs the console image's deploy; an infra roll also needs the quick gate on record
+  # green. A refusal ends the chain.
   QualityControl::ImageRoll.port "ImageRoll" do
     asks "Classify", to: ImageRoll do
       attribute :branch, RollBranch

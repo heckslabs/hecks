@@ -56,18 +56,19 @@ RSpec.describe Hecks::Adapters::ImageRoll do
       expect(classify).to include(kind: { value: "infra" }, paths: { value: include("deploy-aws/box-generated/Makefile") })
     end
 
-    it "refuses a commit whose quick gate on record is red" do
-      changed_files("deploy/console/health.rb")
-      rows.replace([{ reference: { value: sha }, verdict: { value: "red" } }])
-
-      expect { classify }.to raise_error(described_class::Refused, /not green/)
-    end
-
-    it "refuses a commit with no quick gate on record" do
+    it "classifies an image-only commit without a MainCheck on record", :aggregate_failures do
       changed_files("deploy/console/health.rb")
       rows.clear
 
-      expect { classify }.to raise_error(described_class::Refused, /not green/)
+      expect(classify).to include(kind: { value: "image" })
+      expect(Open3).to have_received(:capture2e).once
+    end
+
+    it "classifies an infra commit as infra even with no MainCheck on record" do
+      changed_files("deploy-aws/box-generated/Makefile")
+      rows.clear
+
+      expect(classify).to include(kind: { value: "infra" })
     end
 
     it "refuses a branch other than main" do
@@ -76,7 +77,30 @@ RSpec.describe Hecks::Adapters::ImageRoll do
   end
 
   describe "#roll" do
+    before { changed_files("deploy/console/health.rb") }
+
     it "builds the console image, then rolls it, and answers done" do
+      allow(commands).to receive_messages(docker_build: ["built", true], deploy_service: ["rolled", true])
+
+      expect(classifier.roll(commit: sha, app: "console")).to include(status: { value: "done" })
+    end
+
+    it "rolls an image-only commit with no MainCheck on record" do
+      allow(commands).to receive_messages(docker_build: ["built", true], deploy_service: ["rolled", true])
+      rows.clear
+
+      expect(classifier.roll(commit: sha, app: "console")).to include(status: { value: "done" })
+    end
+
+    it "refuses an infra roll whose quick gate on record is not green" do
+      changed_files("deploy-aws/box-generated/Makefile")
+      rows.clear
+
+      expect { classifier.roll(commit: sha, app: "console") }.to raise_error(described_class::Refused, /not green/)
+    end
+
+    it "rolls an infra commit whose quick gate on record is green" do
+      changed_files("deploy-aws/box-generated/Makefile")
       allow(commands).to receive_messages(docker_build: ["built", true], deploy_service: ["rolled", true])
 
       expect(classifier.roll(commit: sha, app: "console")).to include(status: { value: "done" })
