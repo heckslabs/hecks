@@ -20,6 +20,35 @@ module Hecks
             [typed, *verb_form_names(typed)].find { |name| indexed?(cli, name) } || typed
           end
 
+          # Says once, on standard error, that a line used an aggregate's former name and names the
+          # spelling to use. Short-name aliases stay silent.
+          #
+          # @param cli [Hash] the projection
+          # @param typed [String] the word typed, without its `!`
+          # @param name [String] the name the index resolved the word to
+          # @return [void]
+          def note_former_name(cli, typed, name)
+            spec = indexed_spec(cli, name)
+            return unless former_spelling?(spec, typed)
+            return if cli[:former_noted]&.key?(spec[:command])
+
+            (cli[:former_noted] ||= {})[spec[:command]] = true
+            warn "hecks: #{typed} is the former name of #{spec[:command]}; use that spelling (this notice prints once)"
+          end
+
+          # The command or query a name in the index resolves to, or nil.
+          def indexed_spec(cli, name)
+            target = cli[:names][:command][name] || cli[:names][:question][name]
+            cli[:commands][target] || cli[:questions][target]
+          end
+
+          # Whether the word typed begins with the former name of the aggregate its spec belongs to.
+          def former_spelling?(spec, typed)
+            return false unless spec && spec[:formerly]
+
+            snake_form(typed).start_with?("#{Naming.snake(spec[:formerly])}.")
+          end
+
           # A typed name as the projection spells it, to match what was typed against the names it
           # indexes: `Hecks::PushTrain.bord` as `push_train.bord`.
           #
