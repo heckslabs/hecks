@@ -233,7 +233,8 @@ module Hecks
         {"name"=>"generated_domain_seeds", "type"=>"Integer", "meaning"=>"Generated sequences run per generated domain."}.freeze,
         {"name"=>"mutation_files", "type"=>"Array", "meaning"=>"Rust files `hecks quality_control target.mutate --from-dials` mutates, and so the files one `hecks quality_control sweep.tick` mutation-tests after the generated domains; empty skips the step."}.freeze,
         {"name"=>"mutation_equivalent", "type"=>"Array", "meaning"=>"Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors."}.freeze,
-        {"name"=>"structural_refusal_boundary", "type"=>"Array", "meaning"=>"Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."}.freeze
+        {"name"=>"structural_refusal_boundary", "type"=>"Array", "meaning"=>"Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."}.freeze,
+        {"name"=>"red_main_check", "type"=>"Boolean", "meaning"=>"Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."}.freeze
       ].freeze,
       "QueryComparator" => [
         {"name"=>"eq"}.freeze,
@@ -606,6 +607,8 @@ module Hecks
         {"script"=>"qa_discover_external_domains", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"discover_external_domains", "passes"=>"--projects-dir ~/Projects --max-depth 3 --known-path PATH …"}.freeze,
         {"script"=>"qa_postgres_migrate", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"migrate_ledger_from_heki", "passes"=>"[aggregate …] --force", "note"=>"a dry run without --force"}.freeze,
         {"script"=>"qa_postgres_role", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"create_ledger_role"}.freeze,
+        {"script"=>"qa_main_gate", "section"=>"QualityControl", "aggregate"=>"MainCheck", "verb"=>"check_main"}.freeze,
+        {"script"=>"qa_fix_main_bug", "section"=>"QualityControl", "aggregate"=>"Bug", "verb"=>"fix_and_land", "passes"=>"--bug BUG#n"}.freeze,
         {"script"=>"qa_concurrency_racer", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"race", "note"=>"not user-facing; ProcessPool starts it"}.freeze
       ].freeze,
       "RustReservedWord" => [

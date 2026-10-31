@@ -1207,6 +1207,14 @@ Hecks.bluebook "QualityControl" do
       order_by :sequence
     end
 
+    # `hecks quality_control bug.fix_and_land --bug BUG#n` is the script. It is a query because the
+    # records it writes are the Bug commands above, and the branch, commit, landing and push live
+    # outside the ledger. It stops, and writes nothing, on a bug triaged bigger.
+    query "FixAndLand" do
+      description "Takes one self-contained bug through a fix on a fresh branch, the quick gate on that exact commit, a landing on local main and a push through the push train. A bigger bug stops here, untouched."
+      order_by :sequence
+    end
+
     query "All" do
       description "Every bug ever logged — what a runner mints the next reference from."
       order_by :sequence
@@ -1964,6 +1972,58 @@ Hecks.bluebook "QualityControl" do
     query "All" do
       description "Every improvement ever landed — what a runner reads back to reconcile against GitHub's own list."
       order_by :number
+    end
+  end
+
+  # The quick gate run on local main, in a temporary worktree of it. One record per commit checked, so a
+  # tick that finds the same commit again does not log the same red checks twice.
+  aggregate "MainCheck" do
+    description "One run of the quick gate on local main at one commit, and whether every one of its checks came back green."
+
+    identified_by :reference
+
+    attribute :reference,  MainCommit
+    attribute :verdict,    one_of("green", "red")
+    attribute :red_checks, RedCount
+
+    value_object "MainCommit" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    value_object "RedCount" do
+      attribute :value, Integer, default: 0
+      invariant("a count of red checks is not negative") { !value.negative? }
+    end
+
+    # Written as soon as the gate has answered, before any red check is logged or fixed, so the record
+    # says what the gate said even when what follows fails.
+    command "Record" do
+      role "QA engineer"
+      goal "Write down what the quick gate said about one commit of main"
+
+      attribute :reference,  MainCommit
+      attribute :verdict,    one_of("green", "red")
+      attribute :red_checks, RedCount
+
+      given("a red verdict names a red check, and a green one names none") do
+        (verdict.value == "red" && red_checks.value.positive?) || (verdict.value == "green" && red_checks.value == 0)
+      end
+
+      emits "MainCheckRecorded"
+    end
+
+    # `hecks quality_control main_check.check_main` is the tick's step. It answers from the record when the
+    # commit has one; otherwise it runs the gate, logs each red check as a bug and fixes the self-contained
+    # ones. It is a query because it reads the commit and runs the gate; every write it makes is a
+    # command of the Bug and Sweep aggregates.
+    query "CheckMain" do
+      description "Runs the quick gate on local main in a temporary worktree of it and records the verdict, logging each red check as a bug."
+      order_by :reference
+    end
+
+    query "All" do
+      description "Every commit of main the quick gate has been run on, with its verdict."
+      order_by :reference
     end
   end
 

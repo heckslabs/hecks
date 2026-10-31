@@ -24,6 +24,7 @@ module QaLedgerFixture
       QualityControl::Improvement.persisted_by("PostgresEra")
       QualityControl::DailyQuota.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
+      QualityControl::MainCheck.persisted_by("PostgresEra")
     end
   RUBY
 
