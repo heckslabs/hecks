@@ -98,7 +98,7 @@ module Hecks
 
           # The refusal for a key held with other arguments.
           def different_text(args)
-            "refused: run #{run_key(args)} is already recorded with other arguments: nothing written"
+            "[already_recorded] refused: run #{run_key(args)} is already recorded with other arguments: nothing written"
           end
 
           # The refusal for a key held in Memory, which does not remember runs across processes.
@@ -106,7 +106,7 @@ module Hecks
 
           # The text naming Memory and the persisting stores that would answer the repeat.
           def refusal_text(args)
-            "refused: run #{run_key(args)} is held in Memory, which does not remember runs across " \
+            "[memory_store] refused: run #{run_key(args)} is held in Memory, which does not remember runs across " \
               "processes: nothing written. A persisting store (SQLite or Postgres) answers a repeat " \
               "with the first outcome."
           end
