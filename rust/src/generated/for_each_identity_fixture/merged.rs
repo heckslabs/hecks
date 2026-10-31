@@ -369,6 +369,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
     target_verb: "ForEachIdentityFixture::Refund.Settle",
     for_each: Some("ForEachIdentityFixture::Refund.Tracking"),
     for_each_key: Some("refund"),
+    for_each_heads: &[],
     with_spec: &[],
     where_expr: None,
 }];
