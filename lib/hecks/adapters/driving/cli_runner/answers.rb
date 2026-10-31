@@ -42,7 +42,7 @@ module Hecks
             [help_pointer(e, name, program, asking), ExitStatus::REFUSED]
           rescue *Runtime::DOMAIN_REFUSALS => e
             # The refusal is the bluebook's own sentence, verbatim.
-            [e.message, ExitStatus::REFUSED]
+            [coded(e), ExitStatus::REFUSED]
           rescue StandardError => e
             # So is a wrapped tool's, when a question's adapter refuses to answer.
             raise unless tool_refusal?(e)
@@ -50,10 +50,14 @@ module Hecks
             [e.message, ExitStatus::REFUSED]
           end
 
+          # A refusal's text, led by its stable code so a script can branch on it.
+          # @api private
+          def coded(error) = "[#{error.code}] #{error.message}"
+
           # An error's message, then the line that prints the command's help.
           # @api private
           def help_pointer(error, name, program, asking)
-            "#{error.message}\n\n  #{program} #{"query " if asking}#{name} --help"
+            "#{coded(error)}\n\n  #{program} #{"query " if asking}#{name} --help"
           end
 
           # The parsed arguments of a command line, whether to wait for the reactions, and whether
