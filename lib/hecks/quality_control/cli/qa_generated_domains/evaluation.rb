@@ -86,7 +86,7 @@ module Hecks
 
         def sync_scratch!
           FileUtils.mkdir_p(@scratch)
-          sources = %w[Cargo.toml Cargo.lock src].map { |entry| File.join(@root, "rust", entry) }
+          sources = %w[Cargo.toml Cargo.lock src expr].map { |entry| File.join(@root, "rust", entry) }
           system("rsync", "-a", "--delete", "--exclude", "target", *sources, "#{@scratch}/") or
             abort "rsync into #{@scratch} failed"
         end
