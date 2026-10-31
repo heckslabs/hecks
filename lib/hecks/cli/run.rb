@@ -88,10 +88,17 @@ module Hecks
       # No fall-through: reached only when the argument is not script-shaped, so a
       # near miss deserves the runner's "did you mean" rather than the step-list
       # form's "no such script".
+      # A verb always writes, so its word carries the bang the launcher requires.
+      def writing(argv)
+        return argv if argv.empty? || argv.first.end_with?("!")
+
+        ["#{argv.first}!", *argv.drop(1)]
+      end
+
       def cli_form(domain, argv, program)
         runtime = Hecks.boot(domain, install_driving: false)
         Assembly.bind_ported_runtime(runtime)
-        text, status = Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv, program: program)
+        text, status = Adapters::Driving::CliRunner.call(runtime: runtime, argv: writing(argv), program: program)
         status.zero? ? puts(text) : abort(text)
         exit 0
       end

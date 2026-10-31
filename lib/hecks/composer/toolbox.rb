@@ -157,11 +157,18 @@ module Hecks
         Hecks.boot(File.join(Parse::ROOT, "lib/hecks/hecks"), install_driving: false, environment: "memory")
       end
 
+      # A safe-listed command writes through the runner only with its bang; the list names bare commands.
+      def writing(argv)
+        return argv unless argv.first && SAFE_COMMANDS.include?(argv.first)
+
+        ["#{argv.first}!", *argv.drop(1)]
+      end
+
       # @api private
       def invoke(argv)
         rt = runtime
         @lock.synchronize do
-          Hecks::Adapters::Driving::CliRunner.call(runtime: rt, program: "hecks", argv: argv)
+          Hecks::Adapters::Driving::CliRunner.call(runtime: rt, program: "hecks", argv: writing(argv))
         end
       end
     end
