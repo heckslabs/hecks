@@ -37,21 +37,49 @@ module Hecks
         # Coerces `value` for a single, already-resolved `attribute`, branching on
         # its declared shape (list, reference, composite, or bare scalar).
         #
-        # `boundary: false` is the query entry point, where a declared type documents the
-        # argument for callers/generators rather than naming a shape to enforce.
         # `argument: true` is the command/entity/port dispatch entry point, where a nil for
         # a required attribute is a left-empty argument (C3.7), not ordinary state nil.
+        # A query's arguments are coerced here too, so a bare scalar of the wrong type refuses
+        # for a query exactly as it does for a command.
         #
         # @raise [Runtime::TypeMismatch] if `value` cannot be coerced, or a required
         #   reference/attribute is a wrong-shaped value
         # @raise [Runtime::UnknownArgument] if `value` is a Hash naming an undeclared field
         # @raise [Runtime::InvariantViolation] if a coerced value object breaks an invariant
-        def for_attribute(aggregate, attribute, value, boundary: true, argument: false)
+        def for_attribute(aggregate, attribute, value, argument: false)
           return nil_or_missing(aggregate, attribute, value, argument) if attribute.nil? || value.nil?
           return reference_or_list(aggregate, attribute, value) if attribute.list? || attribute.reference?
           return value unless aggregate.respond_to?(:value_object)
 
-          coerce_scalar(aggregate, attribute, value, boundary)
+          coerce_scalar(aggregate, attribute, value)
+        end
+
+        # Refuses a query argument whose bare value does not match its declared scalar type, with
+        # the refusal a command argument of that type gets. A nil, a list, a reference and a value
+        # object are left to `for_attribute`, which owns their shape.
+        #
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the queried construct
+        # @param attribute [Bluebook::Attribute] the query's declared argument
+        # @param value [Object] the offered value
+        # @raise [Runtime::TypeMismatch] if `value` is not of the attribute's declared scalar type
+        def check_query_argument!(aggregate, attribute, value)
+          return if value.nil? || attribute.list? || attribute.reference?
+          return unless aggregate.respond_to?(:value_object) && value_object_for(aggregate, attribute.type).nil?
+
+          check_bare_primitive(aggregate, attribute, value)
+        end
+
+        # Shape-checks every declared argument of `declared` that `args` offers, before any store
+        # is read. The Postgres query builder calls it so its own path refuses what the query
+        # interpreter refuses.
+        #
+        # @param aggregate [Bluebook::Aggregate, Bluebook::Entity] the queried construct
+        # @param declared [Bluebook::Query] the declared query whose `attributes` are its arguments
+        # @param args [Hash{Symbol => Object}] the offered argument values
+        # @raise [Runtime::TypeMismatch] if an offered bare scalar does not match its declared type
+        def check_query_arguments!(aggregate, declared, args)
+          attributes = declared.respond_to?(:attributes) ? declared.attributes : []
+          attributes.each { |attribute| check_query_argument!(aggregate, attribute, args[attribute.name.to_sym]) }
         end
 
         # Resolves the value-object class `type` names: `aggregate`'s own
@@ -150,9 +178,9 @@ module Hecks
         # A bare scalar or a value object. `admits:` is checked here, where the attribute is
         # known — `build` only sees the value object. Checked after coercion: a scalar arrives
         # wrapped in its type's own holder, and checking the raw payload would be wrong.
-        def coerce_scalar(aggregate, attribute, value, boundary)
+        def coerce_scalar(aggregate, attribute, value)
           value_object = value_object_for(aggregate, attribute.type)
-          return bare_primitive(aggregate, attribute, value, boundary) if value_object.nil?
+          return bare_primitive(aggregate, attribute, value) if value_object.nil?
 
           coerced = if value.is_a?(self) && value.type_name == value_object.hecks_name
                       value
@@ -195,8 +223,8 @@ module Hecks
         # A bare primitive is boundary-checked too (C3.8) — wrong-typed input
         # refuses here as a TypeMismatch, never later as a broken predicate.
         # Its `admits:` set is still checked, exactly as a value object's is.
-        def bare_primitive(aggregate, attribute, value, boundary)
-          check_bare_primitive(aggregate, attribute, value) if boundary
+        def bare_primitive(aggregate, attribute, value)
+          check_bare_primitive(aggregate, attribute, value)
           admit_declared_set(aggregate, attribute, value)
           value
         end

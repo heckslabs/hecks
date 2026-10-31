@@ -1,0 +1,7 @@
+{
+  "note": "Writes a note about the empty subject, then asks About with a Hash where the String argument goes. Both engines must refuse the query with TypeMismatch.",
+  "steps": [
+    { "verb": "QueryArgumentShape::Note.Write", "args": { "slug": "d", "subject_id": "" } },
+    { "query": "QueryArgumentShape::Note.About", "args": { "subject_id": { "cents": 0 } } }
+  ]
+}

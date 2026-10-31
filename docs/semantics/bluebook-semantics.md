@@ -133,8 +133,9 @@ it, except for one law they must uphold (C8.4).
   field that fails its pattern is a `TypeMismatch`, never an
   `InvariantViolation` from an invariant that happens to read it. A
   named query's declared value-object arguments are built the same
-  way before the query runs; its bare-scalar arguments are not typed
-  (C3.8). (fixtures: `vo_argument_type_refused.json`,
+  way before the query runs, and its bare-scalar arguments are
+  type-checked as a command's are (C3.8), before any store is read.
+  (fixtures: `vo_argument_type_refused.json`,
   `vo_field_null_refused.json`, `vo_pattern_before_invariant.json`,
   `query_argument_typed.json`)
 - **C3.8 (settled)** Every declared argument is type-checked at the
