@@ -134,7 +134,7 @@ module Hecks
           # declare a command and a query of one name. A trailing `!` says the word is a command and
           # is not part of the name. A query answers to its bare name too; `query` is needed only
           # when a command shares it. The name may be written in the bluebook's verb form
-          # (`Hecks::PushTrain.board!`), which reaches the same command (see `VerbNames`).
+          # (`Hecks::SendTrain.board!`), which reaches the same command (see `VerbNames`).
           #
           # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent),
           #   `argv`

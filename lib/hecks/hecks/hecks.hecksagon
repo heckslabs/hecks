@@ -80,48 +80,48 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::PushTrain.port "Train" do
-    asks "Carry", to: PushTrain do
+  Hecks::SendTrain.port "Train" do
+    asks "Carry", to: SendTrain do
       attribute :run, RunKey
       answers "TrainAnswered"
       refuses "TrainRefused"
     end
 
-    asks "Tally", to: PushTrain do
+    asks "Tally", to: SendTrain do
       attribute :run, RunKey
       answers "SurveyAnswered"
       refuses "SurveyRefused"
     end
   end
 
-  Hecks::PushTrain.port "Alerts" do
-    asks "Announce", to: PushTrain do
+  Hecks::SendTrain.port "Alerts" do
+    asks "Announce", to: SendTrain do
       attribute :run, RunKey
       answers "DeployReadyAnnounced"
       refuses "AnnouncementRefused"
     end
   end
 
-  Hecks::Checkout.port "Reading" do
+  Hecks::Workspace.port "Reading" do
     answers_query "Status"
     answers_query "Changes"
-    answers_query "Log"
+    answers_query "History"
   end
 
-  Hecks::Checkout.port "Settings" do
+  Hecks::Workspace.port "Settings" do
     answers_query "Settings"
   end
 
-  Hecks::Checkout.port "Doctor" do
+  Hecks::Workspace.port "Doctor" do
     answers_query "Doctor"
   end
 
-  Hecks::Checkout.port "Where" do
+  Hecks::Workspace.port "Where" do
     answers_query "Where"
   end
 
-  Hecks::Commit.port "Committing" do
-    asks "Commit", to: Commit do
+  Hecks::Revision.port "Committing" do
+    asks "Commit", to: Revision do
       attribute :run, RunKey
       answers "CommitAnswered"
       refuses "CommitRefused"
@@ -144,14 +144,14 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unlanded"
   end
 
-  Hecks::PullRequest.port "GitHubPullRequests" do
-    asks "Create", to: PullRequest do
+  Hecks::ReviewRequest.port "GitHubPullRequests" do
+    asks "Create", to: ReviewRequest do
       attribute :run, RunKey
       answers "OpenAnswered"
       refuses "OpenRefused"
     end
 
-    asks "Squash", to: PullRequest do
+    asks "Squash", to: ReviewRequest do
       attribute :run, RunKey
       answers "SquashAnswered"
       refuses "SquashRefused"
@@ -195,8 +195,8 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::PushTrain.port "Launcher" do
-    asks "Refresh", to: PushTrain do
+  Hecks::SendTrain.port "Launcher" do
+    asks "Refresh", to: SendTrain do
       attribute :run, RunKey
       answers "LauncherRefreshed"
       refuses "LauncherRefreshRefused"

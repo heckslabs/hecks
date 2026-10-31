@@ -63,7 +63,7 @@ module Hecks
       # @param held [Hash] `checkout`; `range` (default: the last 20 commits)
       # @return [Hash{Symbol => String}] `text:` the commits
       # @raise [Runtime::NotFound] when the checkout or the range is not found
-      def log(**held)
+      def history(**held)
         answering(held) do
           range = plain(held[:range])
           read("log", "--format=%h %s", *(range ? [checked_range(range)] : ["-n", RECENT.to_s]))

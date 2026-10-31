@@ -51,10 +51,10 @@ Hecks.world "Hecks" do
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
-                                  handover.clear rehearsal_run.request push_train.board
+                                  handover.clear rehearsal_run.request send_train.board
                                   landing.land landing.retire agent_run.dispatch agent_run.check],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
-                       names: { "config" => "checkout.settings", "doctor" => "checkout.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
+                       names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
@@ -66,8 +66,8 @@ Hecks.world "Hecks" do
                        newcomer: %w[launch.init launch.interview operation.open_console],
                        everyday: %w[operation.run operation.open_console gate_run.gate
                                     test_suite_run.run_changed test_suite_run.run_spec_example
-                                    build.build_host shipment.ship landing.land push_train.board
-                                    checkout.status codebase.search],
+                                    build.build_host shipment.ship landing.land send_train.board
+                                    workspace.status codebase.search],
                        bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview],

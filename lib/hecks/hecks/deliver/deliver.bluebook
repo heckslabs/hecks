@@ -4,7 +4,8 @@ Hecks.bluebook "Hecks" do
 
     # A checkout's state, read and never written: nothing needs a raw `git status`, `git diff` or
     # `git log`. The `Reading` port's adapter answers each query; the aggregate keeps no record.
-    aggregate "Checkout" do
+    aggregate "Workspace" do
+      formerly_known_as "Checkout"
       description "A look at a checkout: its branch, what it changed and what it committed."
       acknowledges :no_command_surface, "a look at a checkout: it answers the state of a checkout and changes nothing"
 
@@ -38,7 +39,7 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
 
-      query "Log" do
+      query "History" do
         description "The commits in a range, newest first (the last 20 when none is named)."
         attribute :checkout, Place, optional: true
         attribute :range,    Word,  optional: true
@@ -66,8 +67,9 @@ Hecks.bluebook "Hecks" do
 
     # A commit made in a checkout under a message: asked of the git port, then recorded or declined. It commits
     # what is staged, or the named paths, and never pushes, amends, forces, or commits onto main. Those go
-    # through `Landing` and `PushTrain`.
-    aggregate "Commit" do
+    # through `Landing` and `SendTrain`.
+    aggregate "Revision" do
+      formerly_known_as "Commit"
       description "One commit made in a checkout, or declined with the reason: what it says and what it is on."
 
       attribute :run,      RunKey
@@ -124,7 +126,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record the commit a checkout made, by the sha it has"
 
-        reference_to Commit
+        reference_to Revision
         attribute :sha,    Word,   sets: true
         attribute :report, Report, sets: true
 
@@ -135,7 +137,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record why a commit could not be made"
 
-        reference_to Commit
+        reference_to Revision
         attribute :refusal, Report, sets: true
 
         emits CommitDeclined
@@ -159,21 +161,21 @@ Hecks.bluebook "Hecks" do
       starts_on Shipment::ShipRequested
 
       # Each step records itself and waits. The caller dispatches the next command at top level:
-      # ConformanceRun.CheckShapeLedger, then GateRun.Gate, then Landing.Land, then PushTrain.Board.
+      # ConformanceRun.CheckShapeLedger, then GateRun.Gate, then Landing.Land, then SendTrain.Board.
       # A dispatch made from inside this saga would run past the reaction depth bound.
       transition StyleRun::StyleCompleted => "checking", from: "fixing"
       transition ConformanceRun::ConformanceAccepted => "gated", from: %w[checking needs_human]
       transition GateRun::GateCompleted => "landing", from: "gated"
       transition Landing::BranchLanded => "boarding", from: "landing"
 
-      transition PushTrain::BranchPushed => "boarded", from: "boarding"
-      transition PushTrain::CarriedByEarlierPush => "boarded", from: "boarding"
+      transition SendTrain::BranchPushed => "boarded", from: "boarding"
+      transition SendTrain::CarriedByEarlierPush => "boarded", from: "boarding"
 
       transition StyleRun::StyleFaulted => "needs_human", from: "fixing"
       transition ConformanceRun::ConformanceFaulted => "needs_human", from: "checking"
       transition GateRun::GateFaulted => "needs_human", from: "gated"
       transition Landing::LandingRefused => "needs_human", from: "landing"
-      transition PushTrain::PushFaulted => "needs_human", from: "boarding"
+      transition SendTrain::PushFaulted => "needs_human", from: "boarding"
     end
 
     # Agents merge straight to local main and clean up what they merged. A landing merges a worktree's
@@ -340,31 +342,32 @@ Hecks.bluebook "Hecks" do
 
     # A commit that was asked for is made by the git port, which answers with its sha or refuses with why.
     policy "CommitWhenMade" do
-      on      "Commit.CommitRequested"
+      on      "Revision.CommitRequested"
       ask     :commit, with: { run: :run }
     end
 
     policy "RecordTheCommit" do
-      on      "Commit.CommitAnswered"
-      trigger Commit::Record, with: { sha: :sha, report: :report }
+      on      "Revision.CommitAnswered"
+      trigger Revision::Record, with: { sha: :sha, report: :report }
     end
 
     policy "DeclineTheCommit" do
-      on      "Commit.CommitRefused"
-      trigger Commit::Decline, with: { refusal: :refusal }
+      on      "Revision.CommitRefused"
+      trigger Revision::Decline, with: { refusal: :refusal }
     end
 
     # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the
     # records it keeps run the code that landed, not the code that was there when it was set up.
     policy "KeepTheLauncherCurrent" do
-      on      "PushTrain.BranchPushed"
+      on      "SendTrain.BranchPushed"
       ask     :refresh, with: { run: :run }
     end
 
     # Many agents finish together and each would push, running every pre-push check at once. A
     # boarding waits its turn behind the push in flight from the same repository, then pushes the
     # local branch with whatever else has landed on it, or finds an earlier push already carried it.
-    aggregate "PushTrain" do
+    aggregate "SendTrain" do
+      formerly_known_as "PushTrain"
       description "One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused."
 
       attribute :run,      RunKey
@@ -438,7 +441,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record what a survey found waiting to push"
 
-        reference_to PushTrain
+        reference_to SendTrain
         attribute :report, Report, sets: true
 
 
@@ -447,11 +450,11 @@ Hecks.bluebook "Hecks" do
 
       # The branch was pushed: every commit on it reached the remote, what this boarding carried and
       # whatever landed on it while it waited.
-      command "Push" do
+      command "Send" do
         role "System"
         goal "Record the commit a boarding pushed"
 
-        reference_to PushTrain
+        reference_to SendTrain
         attribute :checkout, Word, sets: true
         attribute :boarded,  Word, sets: true
         attribute :pushed,   Word, sets: true
@@ -466,7 +469,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record that an earlier push already carried the boarded commit"
 
-        reference_to PushTrain
+        reference_to SendTrain
         attribute :checkout, Word, sets: true
         attribute :boarded,  Word, sets: true
         attribute :report,   Report, sets: true
@@ -479,7 +482,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record why a boarding could not push"
 
-        reference_to PushTrain
+        reference_to SendTrain
         attribute :refusal, Report, sets: true
 
 
@@ -495,45 +498,45 @@ Hecks.bluebook "Hecks" do
     end
 
     policy "CarryWhenBoarded" do
-      on      "PushTrain.BoardingRequested"
+      on      "SendTrain.BoardingRequested"
       ask     :carry, with: { run: :run }
     end
 
     policy "RecordThePush" do
-      on      "PushTrain.TrainAnswered"
+      on      "SendTrain.TrainAnswered"
       where   { outcome.value == "pushed" }
-      trigger PushTrain::Push, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
+      trigger SendTrain::Send, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
     end
 
     policy "RecordTheRide" do
-      on      "PushTrain.TrainAnswered"
+      on      "SendTrain.TrainAnswered"
       where   { outcome.value == "carried" }
-      trigger PushTrain::Ride, with: { checkout: :checkout, boarded: :boarded, report: :report }
+      trigger SendTrain::Ride, with: { checkout: :checkout, boarded: :boarded, report: :report }
     end
 
     policy "RecordTheRefusedPush" do
-      on      "PushTrain.TrainRefused"
-      trigger PushTrain::Fault, with: { refusal: :refusal }
+      on      "SendTrain.TrainRefused"
+      trigger SendTrain::Fault, with: { refusal: :refusal }
     end
 
     policy "SurveyWhenAsked" do
-      on      "PushTrain.SurveyRequested"
+      on      "SendTrain.SurveyRequested"
       ask     :tally, with: { run: :run }
     end
 
     policy "RecordTheSurvey" do
-      on      "PushTrain.SurveyAnswered"
-      trigger PushTrain::Summarize, with: { report: :report }
+      on      "SendTrain.SurveyAnswered"
+      trigger SendTrain::Summarize, with: { report: :report }
     end
 
     policy "RecordTheRefusedSurvey" do
-      on      "PushTrain.SurveyRefused"
-      trigger PushTrain::Fault, with: { refusal: :refusal }
+      on      "SendTrain.SurveyRefused"
+      trigger SendTrain::Fault, with: { refusal: :refusal }
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
     policy "AnnounceWhenPushed" do
-      on      "PushTrain.BranchPushed"
+      on      "SendTrain.BranchPushed"
       ask     :announce, with: { run: :run }
     end
 
@@ -570,7 +573,8 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    aggregate "PullRequest" do
+    aggregate "ReviewRequest" do
+      formerly_known_as "PullRequest"
       description "One pull request opened or squash-merged on GitHub, and what GitHub answered."
 
       attribute :run,     RunKey
@@ -618,7 +622,7 @@ Hecks.bluebook "Hecks" do
         emits "PullRequestRequested"
       end
 
-      command "Merge" do
+      command "Take" do
         role "Operator"
         goal "Squash-merge an open pull request by its number; never with an admin override"
 
@@ -632,7 +636,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record the number and URL GitHub gave an opened pull request"
 
-        reference_to PullRequest
+        reference_to ReviewRequest
         attribute :number, Word, sets: true
         attribute :url,    Word, sets: true
         attribute :report, Report, sets: true
@@ -644,7 +648,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record that GitHub squash-merged a pull request"
 
-        reference_to PullRequest
+        reference_to ReviewRequest
         attribute :number, Word, sets: true
         attribute :report, Report, sets: true
 
@@ -655,7 +659,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Record why GitHub refused a pull request"
 
-        reference_to PullRequest
+        reference_to ReviewRequest
         attribute :refusal, Report, sets: true
 
         emits "PullRequestRefused"
@@ -669,33 +673,33 @@ Hecks.bluebook "Hecks" do
     end
 
     policy "CreatePullRequestWhenRequested" do
-      on      "PullRequest.PullRequestRequested"
+      on      "ReviewRequest.PullRequestRequested"
       ask     :create, with: { run: :run }
     end
 
     policy "RecordTheOpenedPullRequest" do
-      on      "PullRequest.OpenAnswered"
-      trigger PullRequest::Record, with: { number: :number, url: :url, report: :report }
+      on      "ReviewRequest.OpenAnswered"
+      trigger ReviewRequest::Record, with: { number: :number, url: :url, report: :report }
     end
 
     policy "RecordTheRefusedOpen" do
-      on      "PullRequest.OpenRefused"
-      trigger PullRequest::Refuse, with: { refusal: :refusal }
+      on      "ReviewRequest.OpenRefused"
+      trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
     policy "SquashWhenMergeRequested" do
-      on      "PullRequest.PullRequestMergeRequested"
+      on      "ReviewRequest.PullRequestMergeRequested"
       ask     :squash, with: { run: :run }
     end
 
     policy "RecordTheMergedPullRequest" do
-      on      "PullRequest.SquashAnswered"
-      trigger PullRequest::Confirm, with: { number: :number, report: :report }
+      on      "ReviewRequest.SquashAnswered"
+      trigger ReviewRequest::Confirm, with: { number: :number, report: :report }
     end
 
     policy "RecordTheRefusedMerge" do
-      on      "PullRequest.SquashRefused"
-      trigger PullRequest::Refuse, with: { refusal: :refusal }
+      on      "ReviewRequest.SquashRefused"
+      trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
   end
 end
