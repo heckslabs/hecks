@@ -3,6 +3,7 @@ require_relative "../.."
 require_relative "../../cli/mcp"
 require_relative "mcp/tool_definitions"
 require_relative "mcp/tool_calls"
+require_relative "mcp/progress_sink"
 
 module Hecks
   module Adapters
@@ -149,8 +150,27 @@ module Hecks
         end
 
         def tools_call(params)
-          tool_result(answer_tool(params["name"], params["arguments"] || {}))
+          token = params.dig("_meta", "progressToken")
+          return tool_result(answer_tool(params["name"], params["arguments"] || {})) if token.nil?
+
+          with_progress(token) { tool_result(answer_tool(params["name"], params["arguments"] || {})) }
         end
+
+        # Runs the block with a progress seam for this call's stages, so their lines reach the client as
+        # notifications. The seam is per thread and removed when the call ends.
+        # @param token [Object] the client's progress token
+        # @return [Object] the block's value
+        def with_progress(token)
+          previous = Thread.current[:mcp_progress]
+          Thread.current[:mcp_progress] = Tools::StageProgress.new(ProgressSink.new(token, out: $stdout))
+          yield
+        ensure
+          Thread.current[:mcp_progress] = previous
+        end
+
+        # The progress seam of the call on this thread: nil when the client sent no progress token.
+        # @return [Tools::StageProgress, nil]
+        def progress = Thread.current[:mcp_progress]
 
         def ping_result(_params) = {}
       end
