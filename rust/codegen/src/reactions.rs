@@ -542,10 +542,21 @@ pub fn emit_command_attributes_table(exemplar: &Exemplar, aggregates: &[Aggregat
     )
 }
 
+// The policy's `for_each` source with a bare `Aggregate::Query` rewritten to `Aggregate.Query`, so the
+// query is the same declared query either spelling names. A read model name has neither separator
+// and is returned as it is, and a cross-domain `Domain::Aggregate.Query` already has its dot.
+fn dotted_for_each(policy: &Json) -> String {
+    let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
+    match for_each.rsplit_once("::") {
+        Some((path, query)) if !for_each.contains('.') => format!("{path}.{query}"),
+        _ => for_each,
+    }
+}
+
 // Qualifies the bare "Aggregate.query" `for_each` spelling against the policy's own domain
 // here, not in the kernel, as `Behaviour::Policy#for_each_route` does.
 fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
-    let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
+    let for_each = dotted_for_each(policy);
     if for_each.is_empty() {
         return "None".to_string();
     }
@@ -560,7 +571,7 @@ fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
 // The name a matched row's ID is minted under, per `Behaviour::Command#addressing_key_for`
 // read off the exported IR; `spec/codegen_parity_spec.rb` holds it identical to the Ruby side.
 fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
-    let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
+    let for_each = dotted_for_each(policy);
     // A bare name is a read model, whose row keys come from `fan_out_heads_expr` instead.
     if for_each.is_empty() || !for_each.contains('.') {
         return "None".to_string();

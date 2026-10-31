@@ -1,0 +1,102 @@
+# A `for_each` policy whose query takes `section`, a reference the emitting Message declares. Sent
+# carries an empty payload, so the query's section is lent from the Message's stored reference;
+# Redirected carries its own `section` in the payload, which must win. Held by
+# spec/runtime/policy_fan_out_emitter_reference_spec.rb.
+Hecks.bluebook "EmitterReference" do
+  vision "A message reaches the enrollments of the section it was written for."
+  core
+
+  aggregate "Section" do
+    attribute :code, Code
+    identified_by :code
+    value_object("Code") { attribute :value, String }
+
+    command("Open") do
+      attribute :code, Code
+      sets :code
+      emits "SectionOpened"
+    end
+  end
+
+  aggregate "Enrollment" do
+    attribute :code, Code
+    attribute :group, Group, optional: true
+    reference_to Section
+    identified_by :code
+    value_object("Code") { attribute :value, String }
+    value_object("Group") { attribute :value, String }
+
+    command("Enroll") do
+      attribute :code, Code
+      reference_to Section
+      sets :code
+      emits "Enrolled"
+    end
+
+    query("ForSection") do
+      reference_to Section
+      where(section: :section)
+    end
+
+    query("ForGroup") do
+      attribute :group, Group
+      where(group: :group)
+    end
+  end
+
+  aggregate "Message" do
+    attribute :code, Code
+    reference_to Section
+    identified_by :code
+    value_object("Code") { attribute :value, String }
+
+    command("Compose") do
+      attribute :code, Code
+      reference_to Section
+      sets :code
+      emits "Composed"
+    end
+
+    command("Send") do
+      reference_to Message
+      emits "Sent"
+    end
+
+    command("Redirect") do
+      reference_to Message
+      reference_to Section
+      emits "Redirected"
+    end
+  end
+
+  aggregate "Delivery" do
+    reference_to Message
+    reference_to Enrollment
+    identified_by :message, :enrollment
+
+    command("Queue") do
+      reference_to Message
+      reference_to Enrollment
+      emits "Queued"
+    end
+  end
+
+  policy "QueueOnSend" do
+    on "Sent"
+    for_each "Enrollment::ForSection"
+    trigger Delivery::Queue
+  end
+
+  # `group` names no reference of Message, so nothing is lent to it.
+  policy "QueueOnGroup" do
+    on "Sent"
+    for_each "Enrollment::ForGroup"
+    trigger Delivery::Queue
+  end
+
+  policy "QueueOnRedirect" do
+    on "Redirected"
+    for_each "Enrollment::ForSection"
+    trigger Delivery::Queue
+  end
+end

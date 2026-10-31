@@ -12,7 +12,7 @@ use super::{
 use crate::generated::active::{
     command_attributes_for_verb, command_creates, dispatch_by_name, entity_identity_head_for_path,
     identity_head_for_aggregate, reference_key_for_aggregate, Store, CROSS_DOMAIN_POLICIES,
-    POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS,
+    POLICIES, PROCESS_MANAGERS, QUERIES, READ_MODELS, REFERENCE_TABLE,
 };
 use std::collections::HashMap;
 
@@ -303,6 +303,7 @@ pub fn run(input: &str) -> String {
             identity_head_fn: identity_head_for_aggregate,
             command_attributes_fn: command_attributes_for_verb,
             entity_identity_head_fn: entity_identity_head_for_path,
+            reference_table: REFERENCE_TABLE,
         };
         if let Err(refusal) = orchestrate(
             &mut store,
@@ -535,6 +536,7 @@ fn tables() -> Tables<'static> {
         identity_head_fn: identity_head_for_aggregate,
         command_attributes_fn: command_attributes_for_verb,
         entity_identity_head_fn: entity_identity_head_for_path,
+        reference_table: REFERENCE_TABLE,
     }
 }
 
