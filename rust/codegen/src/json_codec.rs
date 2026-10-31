@@ -302,7 +302,8 @@ pub fn command_argument_allowlist(
 }
 
 /// `ArgumentGate#refuse_absent_arguments`, generated: every declared non-optional name the JSON
-/// omits, sorted, refuses as `AbsentArgument` before any field is built.
+/// omits, sorted, refuses as `AbsentArgument` before any field is built. An argument with a
+/// `default:` is not required: Ruby fills the default for an omitted one (`fill_defaults`).
 ///
 /// Goes through the site's `<Variant>Args` struct, so leaving an argument out does not compile.
 ///
@@ -312,7 +313,7 @@ pub fn command_argument_allowlist(
 fn emit_absent_argument_check(command_name: &str, attributes: &[Json], collect: bool) -> String {
     let mut required: Vec<String> = attributes
         .iter()
-        .filter(|a| !crate::attr::optional(a))
+        .filter(|a| !crate::attr::optional(a) && crate::attr::default(a).is_none())
         .map(|a| naming::rust_field(crate::attr::name(a)))
         .collect();
     required.sort();
@@ -515,6 +516,10 @@ pub fn emit_from_json_flat(
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(scalar_error_name, &key, scalar, crate::attr::default(attr))
+            } else if let Some(default_rhs) = crate::attr::default(attr).and_then(|_| crate::bridging::creation_default_rhs(attr, value_objects_by_name)) {
+                // A composite argument the caller leaves out, or sends as null, takes its declared
+                // default, as Ruby's `fill_defaults` gives it.
+                format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => {default_rhs}, Some(x) => {} }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if absent_argument_check {
                 // The argument entry point only; see `required_composite_argument_expr`.
                 required_composite_argument_expr(error_name, &key, attr, value_objects_by_name)
@@ -1210,4 +1215,31 @@ pub fn emit_self_identity(exemplar: &Exemplar, entity: &Json) -> String {
             ("tmpl_identity_body_placeholder()", body),
         ],
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn argument(name: &str, default: Json) -> Json {
+        Json::Object(vec![
+            ("name".to_string(), Json::String(name.to_string())),
+            ("type".to_string(), Json::String("Integer".to_string())),
+            ("optional".to_string(), Json::Bool(false)),
+            ("default".to_string(), default),
+        ])
+    }
+
+    #[test]
+    fn absent_gate_requires_each_argument_without_a_default_and_no_defaulted_one() {
+        let attributes = vec![
+            argument("key", Json::Null),
+            argument("grace", Json::Number("0".to_string())),
+        ];
+        let gate = emit_absent_argument_check("Reap", &attributes, false);
+        assert!(
+            gate.contains("let required: &[&str] = &[\"key\"];"),
+            "{gate}"
+        );
+    }
 }
