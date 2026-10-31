@@ -43,7 +43,7 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   end
 
   context "when the hecksagon binds one aggregate to SQLite" do
-    let(:binds) { [Hecks::Bluebook::Bind.new(aggregate: "Order", verb: "persisted_by", adapter: "SqlitePersistence")] }
+    let(:binds) { [Hecks::Bluebook::Bind.new(aggregate: "Shop::Order", verb: "persisted_by", adapter: "SqlitePersistence")] }
 
     it "shows the aggregate's own store, marked as an aggregate bind" do
       allow(Hecks::Ports::Persistence::BindingPolicy).to receive(:resolve).and_return(binds.first)
