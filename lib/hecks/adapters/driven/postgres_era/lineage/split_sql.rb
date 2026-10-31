@@ -36,6 +36,13 @@ module Hecks
             split_fanout_sql(source_sql, found[:split], names[:storage][found[:index] + 1])
           end
 
+          # A split target's records as its split fans them out of the source, latest per id, or nil when
+          # the aggregate is not a split target: the "before" side of the audit of a split edge.
+          def split_latest(aggregate, edges)
+            tail = split_tail_sql(names_by_era(aggregate, edges), edges)
+            tail && latest_of("SELECT ordinal, era, aggregate_id, operation, state FROM (#{tail}) split_rows")
+          end
+
           private
 
           def split_source_sql(source, edges, index)
@@ -48,13 +55,6 @@ module Hecks
           def split_chain_sql(tail, edges, names)
             chain = edges.each_with_index.map { |edge, i| edge_step_sql(edge, i, names) }
             format(SPLIT_SOURCE_SQL, tail: tail, chain: chain.join(",\n"), last: edges.size)
-          end
-
-          # A split target's records as its split fans them out of the source, latest per id, or nil when
-          # the aggregate is not a split target: the "before" side of the audit of a split edge.
-          def split_latest(aggregate, edges)
-            tail = split_tail_sql(names_by_era(aggregate, edges), edges)
-            tail && latest_of("SELECT ordinal, era, aggregate_id, operation, state FROM (#{tail}) split_rows")
           end
 
           # One row per source row that carries the key: the key becomes the target's id, and the named
