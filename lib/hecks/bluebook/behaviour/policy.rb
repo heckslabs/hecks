@@ -84,8 +84,17 @@ module Hecks
         # @return [Array(String, String, String)] `[domain, aggregate_name, query_name]`
         def for_each_route(default_domain)
           path, query_name = @for_each.to_s.split(".", 2)
+          return same_domain_route(default_domain, path) if query_name.nil? && path.to_s.include?("::")
+
           domain, aggregate = path.to_s.include?("::") ? path.split("::", 2) : [default_domain.to_s, path]
           [domain, aggregate, query_name]
+        end
+
+        # A bare `Aggregate::Query` names a query of the policy's own domain. Without this, the
+        # `::` is read as a domain separator and the query name is lost.
+        def same_domain_route(default_domain, path)
+          aggregate, query_name = path.to_s.split("::", 2)
+          [default_domain.to_s, aggregate, query_name]
         end
 
         # The argument name for each fan-out row's id is not minted here: it depends on the

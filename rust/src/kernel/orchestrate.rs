@@ -4,6 +4,7 @@
 use super::expr::{interpret, EvalContext, Expr, NoFields};
 use super::named_query;
 use super::read_model;
+use super::reference_lookup::{self, ReferenceTable};
 use super::repository::AggregateScan;
 use super::{Event, Json, MutationRecord, Refusal};
 use std::collections::HashMap;
@@ -239,6 +240,9 @@ pub struct Tables<'a> {
     pub command_attributes_fn: fn(&str) -> &'static [&'static str],
     // Keyed by "Domain::Aggregate.Entity".
     pub entity_identity_head_fn: fn(&str) -> Option<&'static str>,
+    // Each aggregate's `reference_to` fields, as `REFERENCE_TABLE` holds them. A `for_each` query
+    // argument named after one is lent the emitting record's stored value for it.
+    pub reference_table: ReferenceTable,
 }
 
 /// The shape of the generated `dispatch` an orchestration step calls into: the store, the verb,
@@ -546,7 +550,7 @@ fn fan_out_rows(
         };
         // The query reads the event, not the projection, with the emitting record's identity lent
         // under its head. No caller role: the policy is system-triggered.
-        let args = for_each_query_args(def, event, tables);
+        let args = for_each_query_args(def, event, tables, store);
         let rows =
             named_query::run(store, def, &args, None).map_err(|refusal| refusal.to_string())?;
         return Ok((rows, policy.for_each_key));
@@ -594,24 +598,79 @@ fn read_model_rows(
 
 /// The arguments a `for_each` query runs with: the event payload, plus the emitting record's id
 /// under its aggregate's identity head when the query reads that name and the payload lacks it, as
-/// Ruby's `for_each_query_args` lends it. A payload value is never overridden. A composite identity
-/// has no single head in the table, so nothing is lent for it.
-fn for_each_query_args(def: &named_query::QueryDef, event: &Event, tables: &Tables) -> Json {
+/// Ruby's `for_each_query_args` lends it, and each `reference_to` value the emitting record holds
+/// under a name the query reads (see `lend_references`). A payload value is never overridden. A
+/// composite identity has no single head in the table, so nothing is lent for it.
+fn for_each_query_args(
+    def: &named_query::QueryDef,
+    event: &Event,
+    tables: &Tables,
+    store: &impl AggregateScan,
+) -> Json {
     let mut args = match &event.payload {
         Json::Object(pairs) => pairs.clone(),
         _ => Vec::new(),
     };
-    let reads = |head: &str| {
-        def.conditions
-            .iter()
-            .any(|c| matches!(c.value, named_query::QueryConditionValue::Arg(name) if name == head))
-    };
     if let Some(head) = (tables.identity_head_fn)(&event.aggregate) {
-        if !event.id.is_empty() && reads(head) && !args.iter().any(|(name, _)| name == head) {
+        let unfilled = !args.iter().any(|(name, _)| name == head);
+        if !event.id.is_empty() && query_reads_arg(def, head) && unfilled {
             args.push((head.to_string(), Json::str(event.id.clone())));
         }
     }
+    lend_references(def, event, tables, store, &mut args);
     Json::Object(args)
+}
+
+/// Lends each `reference_to` the emitting aggregate declares, under its own name, to a query that
+/// reads that name and whose payload lacks it. An event's payload need not carry the record's
+/// references (a command with no attributes emits none), so the stored value is the source. A
+/// stored null lends nothing, and an argument with no matching reference is left alone, as Ruby's
+/// `lent_references` does.
+fn lend_references(
+    def: &named_query::QueryDef,
+    event: &Event,
+    tables: &Tables,
+    store: &impl AggregateScan,
+    args: &mut Vec<(String, Json)>,
+) {
+    let names: Vec<&str> = reference_lookup::specs_for(tables.reference_table, &event.aggregate)
+        .iter()
+        .map(|spec| spec.field)
+        .filter(|&name| query_reads_arg(def, name) && !args.iter().any(|(arg, _)| arg == name))
+        .collect();
+    if names.is_empty() {
+        return;
+    }
+    let Some(record) = emitter_record(store, event) else {
+        return;
+    };
+    for name in names {
+        match record.get(name) {
+            Some(Json::Null) | None => {}
+            Some(value) => args.push((name.to_string(), value.clone())),
+        }
+    }
+}
+
+/// The emitting record as the store holds it, or `None` when the event carries no identity to find it by.
+fn emitter_record(store: &impl AggregateScan, event: &Event) -> Option<Json> {
+    if event.id.is_empty() {
+        return None;
+    }
+    let mut found = None;
+    store.scan_each(&event.aggregate, &mut |id, record| {
+        if id == event.id {
+            found = Some(record.clone());
+        }
+    });
+    found
+}
+
+/// Whether a query binds `name` as one of its arguments.
+fn query_reads_arg(def: &named_query::QueryDef, name: &str) -> bool {
+    def.conditions
+        .iter()
+        .any(|c| matches!(c.value, named_query::QueryConditionValue::Arg(arg) if arg == name))
 }
 
 fn trigger_args_with_row(
@@ -1672,6 +1731,7 @@ mod tests {
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
+            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;
@@ -1781,6 +1841,7 @@ mod tests {
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
+            reference_table: &[],
         };
         SEEN.with(|s| *s.borrow_mut() = None);
         orchestrate(
@@ -1907,6 +1968,7 @@ mod tests {
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
+            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;
@@ -2012,6 +2074,7 @@ mod tests {
             identity_head_fn: routed_identity_head,
             command_attributes_fn: routed_declared_attributes,
             entity_identity_head_fn: routed_entity_identity_head_never_found,
+            reference_table: &[],
         }
     }
 
@@ -2275,6 +2338,7 @@ mod tests {
             identity_head_fn: bug10_identity_head_never_found,
             command_attributes_fn: bug10_declared_attributes,
             entity_identity_head_fn: bug10_entity_identity_head,
+            reference_table: &[],
         }
     }
 
@@ -2410,6 +2474,7 @@ mod tests {
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
+            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;
@@ -2548,6 +2613,7 @@ mod tests {
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
+            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;

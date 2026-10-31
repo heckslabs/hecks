@@ -9,6 +9,12 @@ struct Bus {
     calls: Vec<(String, Json)>,
 }
 
+impl Bus {
+    fn empty() -> Self {
+        Self { calls: Vec::new() }
+    }
+}
+
 impl AggregateScan for Bus {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
         match aggregate {
@@ -334,6 +340,7 @@ fn tables() -> Tables<'static> {
         identity_head_fn: identity_head,
         command_attributes_fn: declared,
         entity_identity_head_fn: entity_head,
+        reference_table: &[],
     }
 }
 
@@ -1037,7 +1044,12 @@ const READS_ORDER_ID: crate::kernel::QueryDef = crate::kernel::QueryDef {
 
 #[test]
 fn a_for_each_query_is_lent_the_emitting_records_id_under_its_identity_head() {
-    let args = for_each_query_args(&READS_ORDER_ID, &order_event(Json::obj(vec![])), &tables());
+    let args = for_each_query_args(
+        &READS_ORDER_ID,
+        &order_event(Json::obj(vec![])),
+        &tables(),
+        &Bus::empty(),
+    );
 
     assert_eq!(args, Json::obj(vec![("order_id", Json::str("o1"))]));
 }
@@ -1048,6 +1060,7 @@ fn a_for_each_query_keeps_a_payload_value_over_the_lent_identity() {
         &READS_ORDER_ID,
         &order_event(Json::obj(vec![("order_id", Json::str("mine"))])),
         &tables(),
+        &Bus::empty(),
     );
 
     assert_eq!(args, Json::obj(vec![("order_id", Json::str("mine"))]));
@@ -1055,7 +1068,12 @@ fn a_for_each_query_keeps_a_payload_value_over_the_lent_identity() {
 
 #[test]
 fn a_for_each_query_that_does_not_read_the_head_is_lent_nothing() {
-    let args = for_each_query_args(&QUERIES[0], &order_event(payload()), &tables());
+    let args = for_each_query_args(
+        &QUERIES[0],
+        &order_event(payload()),
+        &tables(),
+        &Bus::empty(),
+    );
 
     assert_eq!(args, payload());
 }
@@ -1066,6 +1084,105 @@ fn a_for_each_query_is_lent_nothing_for_an_aggregate_without_a_single_head() {
         &READS_ORDER_ID,
         &event("E", "D::Other", "x1", Json::obj(vec![])),
         &tables(),
+        &Bus::empty(),
+    );
+
+    assert_eq!(args, Json::obj(vec![]));
+}
+
+const READS_CUSTOMER: crate::kernel::QueryDef = crate::kernel::QueryDef {
+    verb: "D::Order.ForCustomer",
+    aggregate: "D::Order",
+    conditions: &[crate::kernel::QueryCondition {
+        field: "customer",
+        comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+        value: crate::kernel::QueryConditionValue::Arg("customer"),
+    }],
+    reference_hop_conditions: &[],
+    order_by: None,
+    offset: None,
+    limit: None,
+    cursor: false,
+    authorization: None,
+};
+
+const READS_GROUP: crate::kernel::QueryDef = crate::kernel::QueryDef {
+    verb: "D::Order.ForGroup",
+    aggregate: "D::Order",
+    conditions: &[crate::kernel::QueryCondition {
+        field: "group",
+        comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+        value: crate::kernel::QueryConditionValue::Arg("group"),
+    }],
+    reference_hop_conditions: &[],
+    order_by: None,
+    offset: None,
+    limit: None,
+    cursor: false,
+    authorization: None,
+};
+
+const ORDER_REFERENCES: crate::kernel::reference_lookup::ReferenceTable = &[(
+    "D::Order",
+    &[crate::kernel::reference_lookup::ReferenceSpec {
+        field: "customer",
+        as_name: "customer",
+        target: "D::Customer",
+    }],
+)];
+
+fn referenced_tables() -> Tables<'static> {
+    Tables {
+        reference_table: ORDER_REFERENCES,
+        ..tables()
+    }
+}
+
+// Holds one order, `o1`, whose stored `customer` reference is `c-9`.
+struct StoredOrder;
+
+impl AggregateScan for StoredOrder {
+    fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+        (aggregate == "D::Order").then(|| {
+            vec![(
+                "o1".to_string(),
+                Json::obj(vec![("customer", Json::str("c-9"))]),
+            )]
+        })
+    }
+}
+
+#[test]
+fn a_for_each_query_argument_named_after_a_reference_is_lent_the_emitters_stored_reference() {
+    let args = for_each_query_args(
+        &READS_CUSTOMER,
+        &order_event(Json::obj(vec![])),
+        &referenced_tables(),
+        &StoredOrder,
+    );
+
+    assert_eq!(args, Json::obj(vec![("customer", Json::str("c-9"))]));
+}
+
+#[test]
+fn a_for_each_query_keeps_a_payload_value_over_the_lent_reference() {
+    let args = for_each_query_args(
+        &READS_CUSTOMER,
+        &order_event(Json::obj(vec![("customer", Json::str("mine"))])),
+        &referenced_tables(),
+        &StoredOrder,
+    );
+
+    assert_eq!(args, Json::obj(vec![("customer", Json::str("mine"))]));
+}
+
+#[test]
+fn a_for_each_query_argument_with_no_matching_reference_is_lent_nothing() {
+    let args = for_each_query_args(
+        &READS_GROUP,
+        &order_event(Json::obj(vec![])),
+        &referenced_tables(),
+        &StoredOrder,
     );
 
     assert_eq!(args, Json::obj(vec![]));

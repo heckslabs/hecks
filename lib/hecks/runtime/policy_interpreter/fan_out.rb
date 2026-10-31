@@ -76,8 +76,49 @@ module Hecks
         def for_each_query_args(query, event)
           args = event.payload.transform_keys(&:to_sym)
           construct = query && emitting_construct(event)
-          lent_attributes(query, construct, args).each { |attribute| args[attribute.name] = event.id } if construct
+          if construct
+            lent_attributes(query, construct, args).each { |attribute| args[attribute.name] = event.id }
+            lent_references(query, construct, event, args)
+          end
           unwrap_scalar_arguments(query, args)
+        end
+
+        # A query argument named after a `reference_to` the emitting aggregate declares takes the
+        # emitting record's stored value for that reference, because an event's payload need not
+        # carry it (a command with no attributes emits an empty payload). Never overrides a payload
+        # value, and an argument with no matching reference is left alone.
+        def lent_references(query, construct, event, args)
+          references = unfilled_reference_names(query, construct, args)
+          record = emitter_record(construct, event) if references.any?
+          references.each { |name| lend_reference(args, record, name) } if record
+          args
+        end
+
+        def lend_reference(args, record, name)
+          value = stored_value(record, name)
+          args[name] = value unless value.nil?
+        end
+
+        # The emitting aggregate's reference attributes that the query reads and the payload lacks.
+        def unfilled_reference_names(query, construct, args)
+          queried = query.attributes.map { |attribute| attribute.name.to_sym } - args.keys
+          construct.attributes.select(&:reference?).map { |attribute| attribute.name.to_sym } & queried
+        end
+
+        # The emitting record as stored, or nil when the event carries no identity to load it by.
+        def emitter_record(construct, event)
+          return nil if event.id.to_s.empty?
+
+          @registry.read_repository(event_domain(event), construct).find(event.id)
+        end
+
+        def event_domain(event)
+          domain, _name = event.aggregate.to_s.split("::", 2)
+          domain
+        end
+
+        def stored_value(record, name)
+          record.public_send(name) if record.respond_to?(name)
         end
 
         # A bare-scalar query argument takes the one value its single-field value object carries:
