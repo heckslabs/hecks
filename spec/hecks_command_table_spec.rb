@@ -974,12 +974,12 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(listed("launch.stopped", "run")).to include("launchers-2")
     end
 
-    it "serve_mcp hands the process to the entry point through the Terminal adapter and keeps that it closed",
+    it "serve_mcp hands the process to the entry point through the Terminal adapter and records the handoff",
        :aggregate_failures do
       served = served_by_mcp("mcp-1")
 
       expect(served).to eq([["--stdio"]])
-      expect(JSON.parse(run_verb("server.server_outcome", "run=mcp-1").first).first["report"]).to eq("mcp server closed")
+      expect(JSON.parse(run_verb("server.server_outcome", "run=mcp-1").first).first["report"]).to eq("serve_mcp handed to the terminal")
     end
   end
 
