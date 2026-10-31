@@ -28,8 +28,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     operation.run operation.refresh_projections operation.run_behaviors operation.open_console
     operation.smoke_test operation.smoke_http operation.outcome operation.failed
     operation.follow host.check_era host.recheck host.standing
-    host.drifted push_train.board push_train.outcome landing.land landing.retire landing.outcome
-    landing.unlanded checkout.status checkout.changes checkout.log era.hold_first era.merge_tail era.reattest
+    host.drifted send_train.board send_train.outcome landing.land landing.retire landing.outcome
+    landing.unlanded workspace.status workspace.changes workspace.history era.hold_first era.merge_tail era.reattest
     era.backfill_projections era.compact era.compact_heki
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
@@ -156,7 +156,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
   end
 
-  # `push_train.board` as a command's help prints it: the aggregate as the bluebook spells it, then
+  # `send_train.board` as a command's help prints it: the aggregate as the bluebook spells it, then
   # the command. A query's help keeps the snake-case name.
   def verb_form(verb) = verb.sub(/\A[^.]+/) { |aggregate| aggregate.split("_").map(&:capitalize).join }
 

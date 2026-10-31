@@ -15,7 +15,7 @@ RSpec.describe Hecks::Adapters::Driving::UsageLog do
     end
   end
 
-  def run_once(argv = ["query", "Checkout.status"], resolved: "checkout.status", status: 0)
+  def run_once(argv = ["query", "Workspace.status"], resolved: "workspace.status", status: 0)
     described_class.record(argv: argv, resolved: resolved, status: status, started: Process.clock_gettime(Process::CLOCK_MONOTONIC))
   end
 
@@ -25,7 +25,7 @@ RSpec.describe Hecks::Adapters::Driving::UsageLog do
 
   it "appends the name as typed, the resolved name, the status and the date" do
     run_once
-    expect(entries.last).to include("typed" => "Checkout.status", "resolved" => "checkout.status", "status" => 0)
+    expect(entries.last).to include("typed" => "Workspace.status", "resolved" => "workspace.status", "status" => 0)
   end
 
   it "writes no arguments or values" do
@@ -63,7 +63,7 @@ RSpec.describe Hecks::Adapters::Driving::UsageLog do
 
   it "counts runs in the window and names the known ones that did not run" do
     run_once
-    text = described_class.summary(known: ["checkout.status", "operation.run"])
+    text = described_class.summary(known: ["workspace.status", "operation.run"])
     expect(text).to include("never run in that window:\n  operation.run")
   end
 end
