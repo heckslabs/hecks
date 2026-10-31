@@ -21,7 +21,7 @@ RSpec.describe Hecks::Adapters::SettingsReading do
     @saved = variables.to_h { |name| [name, ENV.fetch(name, nil)] }
     variables.each { |name| ENV.delete(name) }
     registry = instance_double(Hecks::Runtime::Registry, default_database_for: database, first_domain_name: "Shop",
-                                                         binding_settings: declared_settings)
+                                                         binding_settings: declared_settings, bluebooks: {})
     described = instance_double(Hecks::Runtime::Loader::Described, registry: registry)
     allow(Hecks).to receive(:describe).with(directory).and_return(described)
   end

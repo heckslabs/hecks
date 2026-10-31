@@ -34,16 +34,20 @@ RSpec.describe "the IR the builder produces, frozen" do
 
   # Bluebooks that load from a file, name => path.
   LOADABLE = {
-    "Pizzas"     => "examples/pizzas/bluebook/pizzas.bluebook",
+    "Pizzas"          => "examples/pizzas/bluebook/pizzas.bluebook",
     # Composite identity, a command that announces twice, two entities on one head, a second
     # read_model and process_manager: the rare forms the coverage gates exist to catch.
-    "Banking"    => InMemoryDomain::BANKING_BLUEBOOK_DIR,
-    "Expression" => "lib/hecks/grammar/expression.bluebook",
-    "TillRoom"   => "spec/fixtures/till.bluebook",
-    "Wire"       => "spec/fixtures/settlement.bluebook",
-    "Reflex"     => "spec/fixtures/reflex.bluebook",
+    "Banking"         => InMemoryDomain::BANKING_BLUEBOOK_DIR,
+    "Expression"      => "lib/hecks/grammar/expression.bluebook",
+    "TillRoom"        => "spec/fixtures/till.bluebook",
+    "Wire"            => "spec/fixtures/settlement.bluebook",
+    "Reflex"          => "spec/fixtures/reflex.bluebook",
     # The first bluebook to declare `namespace`, so the golden corpus carries that field set.
-    "Hecks"      => "lib/hecks/hecks/hecks.bluebook"
+    "Hecks"           => "lib/hecks/hecks/hecks.bluebook",
+    # Two `domain_module` blocks, so the golden corpus carries the module rows (ADR 0163).
+    "Workshop"        => "spec/fixtures/domain_module.bluebook",
+    # Commands that name one audience, several, and none, so the corpus carries `audience`.
+    "CommandAudience" => "spec/fixtures/command_audience.bluebook"
   }.freeze
 
   # Language bluebooks come from the bootstrap registry: judging one while loading it would recurse.

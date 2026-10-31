@@ -36,6 +36,9 @@ module Hecks
         # One row per declared `provides` capability, in declaration order;
         # present (possibly empty) like `attaches_to`.
         provides:          -> { provides.map(&:to_h) },
+        # One row per aggregate a module groups, in declaration order; left out when the bluebook
+        # declares no module, so a bluebook that never groups emits as it did.
+        modules:           -> { modules.empty? ? Hecks::IR::OMIT : modules.map(&:to_h) },
         canonical_form:    -> { Expression::CanonicalForm.table }
       )
 
@@ -56,14 +59,30 @@ module Hecks
         end
       end
 
+      # One aggregate's membership of a module: the module's name and vision, and the aggregate.
+      ModuleRow = Struct.new(:name, :vision, :aggregate, keyword_init: true) do
+        # Coerces one declared or reconstructed module row into a `ModuleRow`.
+        #
+        # @param row [Bluebook::Declaration::ModuleRow, #to_h] a `ModuleRow` already, or anything
+        #   answering `to_h` with `name`/`vision`/`aggregate` entries
+        # @return [Bluebook::Declaration::ModuleRow] `row` itself if it already is one, else a new one
+        def self.from(row)
+          return row if row.is_a?(self)
+
+          fields = row.to_h.transform_keys(&:to_sym)
+          new(name: fields[:name].to_s, vision: fields[:vision].to_s, aggregate: fields[:aggregate].to_s)
+        end
+      end
+
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
-                  :classification, :read_models, :ports, :formerly_known_as, :namespace, :attaches_to, :provides
+                  :classification, :read_models, :ports, :formerly_known_as, :namespace, :attaches_to, :provides,
+                  :modules
 
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         version: nil, vision: nil, aggregates: [], policies: [], process_managers: [],
         classification: nil, read_models: [], formerly_known_as: nil, namespace: nil,
-        attaches_to: [], provides: []
+        attaches_to: [], provides: [], modules: []
       }.freeze
 
       # @param policies [Array<Bluebook::Policy>] every reaction declared across the
@@ -85,10 +104,17 @@ module Hecks
         @classification    = @classification&.to_s
         @formerly_known_as = @formerly_known_as&.to_s
         @namespace         = @namespace&.to_s
-        @attaches_to       = Array(@attaches_to).map(&:to_s)
-        @provides          = Array(@provides).map { |row| Provision.from(row) }
+        coerce_rows
       end
       private :coerce_fields
+
+      # Holds every row-valued field as the rows its reader answers.
+      def coerce_rows
+        @attaches_to = Array(@attaches_to).map(&:to_s)
+        @provides    = Array(@provides).map { |row| Provision.from(row) }
+        @modules     = Array(@modules).map { |row| ModuleRow.from(row) }
+      end
+      private :coerce_rows
     end
   end
 end

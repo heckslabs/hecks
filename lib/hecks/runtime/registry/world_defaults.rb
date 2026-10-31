@@ -8,9 +8,17 @@ module Hecks
         AGGREGATE_PLACEHOLDER = /\{(name|storage_name)\}/
 
         # The default database only reaches a persistence bind whose adapter declares a
-        # `database` field; a `database` the bluebook's own settings name always wins.
+        # `database` field; a `database` the bluebook's own settings name always wins. Every
+        # value the adapter declares as a secret is held by `Secrets` on the way, so no text the
+        # launcher prints can carry it.
         def binding_settings(domain, verb, adapter)
           declared = world(domain)&.for_binding(verb, adapter) || {}
+          settings = with_default_database(domain, verb, adapter, declared)
+          Secrets.register_settings(@declared.adapters[adapter.to_s], settings)
+          settings
+        end
+
+        def with_default_database(domain, verb, adapter, declared)
           database = default_database_for(domain)
           return declared unless database && default_database_applies?(verb, adapter)
 

@@ -1,0 +1,681 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Operate" do
+    vision "Run a domain and look inside it."
+
+    # Custodian: operating a domain, in the Operations module (ADR 0096). Each aggregate here is a
+    # concern a client runs against a domain that is running (ADR 0080, section 2); the tooling for
+    # building one is in tooling.bluebook.
+
+    aggregate "Operation" do
+      description "One thing an operator ran against a domain, and how it ended."
+
+      acknowledges :key_by_value, "any address an operator checks, not only the address of a recorded Host",
+                   of: :url
+
+      attribute :run,          OperationKey
+      attribute :subject,      Subject,    optional: true
+      attribute :script,       Script,     optional: true
+      attribute :verb,         Verb,       optional: true
+      attribute :arguments,    list_of(Word), optional: true
+      attribute :url,          Address,    optional: true
+      attribute :path,         RoutePath,  optional: true
+      attribute :header,       HeaderName, optional: true
+      attribute :scheme,       Scheme,     optional: true
+      attribute :payload,      Payload,    optional: true
+      attribute :payload_file, PayloadFile, optional: true
+      attribute :health_path,  RoutePath,  optional: true
+      attribute :state_path,   RoutePath,  optional: true
+      attribute :email,        Email,      optional: true
+      attribute :name,         PersonName, optional: true
+      attribute :role,         RoleName,   optional: true
+      attribute :claimed,      Switch,     optional: true
+      attribute :row,          RowId,      optional: true
+      attribute :output,       Output,     optional: true
+      attribute :refusal,      Output,     optional: true
+      identified_by :run
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      # The delivery id an outbox row carries, as the stalled-row warning at boot names it.
+      value_object "RowId" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "OperationKey" do
+        attribute :value, String, matches: :present
+
+        invariant("an operation is named") { !value.to_s.empty? }
+      end
+
+      # What the operation acts on: a domain directory, or a behaviors file or directory.
+      value_object "Subject" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Script" do
+        attribute :value, String
+      end
+
+      value_object "Verb" do
+        attribute :value, String, matches: :present
+      end
+
+      # One `name=value` word of the verb a run dispatches.
+      value_object "Word" do
+        attribute :value, String
+      end
+
+      value_object "Address" do
+        attribute :value, String, matches: :http_scheme
+      end
+
+      value_object "RoutePath" do
+        attribute :value, String, pattern: '^/'
+      end
+
+      value_object "HeaderName" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Scheme" do
+        attribute :value, String, pattern: '^(timestamped|sha256|hex)$'
+      end
+
+      value_object "Payload" do
+        attribute :value, String
+      end
+
+      value_object "PayloadFile" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Output" do
+        attribute :value, String
+      end
+
+      # Who the first administrator is: a person of the domain's membership bluebook.
+      value_object "Email" do
+        attribute :value, String, pattern: '^[^ \t\n\r@]+@[^ \t\n\r@]+$'
+      end
+
+      value_object "PersonName" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "RoleName" do
+        attribute :value, String, matches: :no_whitespace
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "failed"
+        transition "Succeed" => "succeeded", from: "requested"
+        transition "Fail"    => "failed",    from: "requested"
+        mark :terminal, "failed", "succeeded"
+      end
+
+      # Runs one verb, or a JSON step list, against the domain: `hecks run [domain] script=steps.json`
+      # or `hecks run [domain] verb=create_pizza arguments=name.value=Margherita`. The signing secret
+      # for SmokeHttp is never an argument: it is read from SMOKE_WEBHOOK_SECRET.
+      command "Run" do
+        role "Operator"
+        goal "Dispatch a verb or a step list against a domain and keep what it reported"
+
+        attribute :run,     OperationKey, sets: true
+        attribute :subject, Subject,       optional: true, sets: true
+        attribute :script,  Script,        optional: true, sets: true
+        attribute :verb,    Verb,          optional: true, sets: true
+        attribute :arguments, list_of(Word), optional: true, sets: true
+
+        given("exactly one of a script and a verb is named: pass script= or verb=, not both") do
+          (script.set? && verb.unset?) || (script.unset? && verb.set?)
+        end
+
+
+        emits RunRequested
+      end
+
+      command "RefreshProjections" do
+        role "Operator"
+        goal "Bring every read-model projection of a domain up to date now"
+
+        attribute :run,     OperationKey, sets: true
+        attribute :subject, Subject, sets: true
+
+
+        emits ProjectionsRefreshRequested
+      end
+
+      # Redelivers what a domain's outbox left behind. A row never claimed is always safe to redeliver. A
+      # row claimed before a crash and never settled may or may not have run its effect, so it is only
+      # named (on stderr, as at boot) unless `claimed.value=true` says the effect is known not to have run,
+      # for every claimed row, or `row.value=<delivery id>` says it for that one row alone.
+      command "RedriveOutbox" do
+        role "Operator"
+        goal "Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled"
+
+        attribute :run,     OperationKey, sets: true
+        attribute :subject, Subject, sets: true
+        attribute :claimed, Switch, optional: true, sets: true
+        attribute :row,     RowId,  optional: true, sets: true
+
+        given("one claimed row is named, or all of them are: pass row= or claimed=, not both") do
+          row.unset? || claimed.unset?
+        end
+
+
+        emits OutboxRedriveRequested
+      end
+
+      # Settles one stalled claimed row as failed without running its effect, for a row whose effect is
+      # known to have landed or that nobody wants run. It never redelivers; `RedriveOutbox` does that.
+      command "AbandonOutboxRow" do
+        role "Operator"
+        goal "Settle one stalled outbox row as failed, naming it by its delivery id, without running it"
+
+        attribute :run,     OperationKey
+        attribute :subject, Subject
+        attribute :row,     RowId
+
+        sets :run
+        sets :subject
+        sets :row
+
+        emits OutboxRowAbandonRequested
+      end
+
+      command "RunBehaviors" do
+        role "Operator"
+        goal "Run a domain's behavior tests and keep the verdict"
+
+        attribute :run,     OperationKey, sets: true
+        attribute :subject, Subject, sets: true
+
+
+        emits BehaviorsRequested
+      end
+
+      command "OpenConsole" do
+        role "Operator"
+        goal "Open an interactive console on a domain"
+
+        attribute :run,     OperationKey, sets: true
+        attribute :subject, Subject, optional: true, sets: true
+
+
+        emits ConsoleRequested
+      end
+
+      command "SmokeTest" do
+        role "Operator"
+        goal "Dispatch one synthesized call per command and report of a wired domain"
+
+        attribute :run,     OperationKey, sets: true
+        attribute :subject, Subject, optional: true, sets: true
+
+
+        emits SmokeTestRequested
+      end
+
+      command "SmokeHttp" do
+        role "Operator"
+        goal "Check that a running service refuses bad signatures and accepts a good one"
+
+        attribute :run,          OperationKey, sets: true
+        attribute :url,          Address,     optional: true, sets: true
+        attribute :path,         RoutePath, sets: true
+        attribute :header,       HeaderName,  optional: true, sets: true
+        attribute :scheme,       Scheme,      optional: true, sets: true
+        attribute :payload,      Payload,     optional: true, sets: true
+        attribute :payload_file, PayloadFile, optional: true, sets: true
+        attribute :health_path,  RoutePath,   optional: true, sets: true
+        attribute :state_path,   RoutePath,   optional: true, sets: true
+
+
+        emits SmokeHttpRequested
+      end
+
+      # `hecks operation.bootstrap_admin <domain> email=<email> [name=<name>] [role=<role>]`. A
+      # domain whose bluebook `provides "membership"` has nobody who may grant access until someone is
+      # granted it. This admits the person and grants them the role the grant command is gated to
+      # (or `role`), as a caller that names that role and binds no `actor_id`: Governance checks that
+      # caller by the role it states, which is how the first grant gets made (ADR 0025). It is
+      # refused once anyone holds the administrator role (`Admin`, or `Owner`), and the domain's
+      # persistence must be the one the service runs on (`DATABASE_URL`), not Memory.
+      command "BootstrapAdmin" do
+        role "Operator"
+        goal "Admit the first administrator of a domain's membership bluebook and grant them access"
+
+        attribute :run,     OperationKey, sets: true
+        attribute :subject, Subject, sets: true
+        attribute :email,   Email, sets: true
+        attribute :name,    PersonName, optional: true, sets: true
+        attribute :role,    RoleName,   optional: true, sets: true
+
+
+        emits AdminBootstrapRequested
+      end
+
+      command "Succeed" do
+        role "System"
+        goal "Record that the operation ended well, and what it reported"
+
+        reference_to Operation
+        attribute :output, Output, sets: true
+
+
+        emits OperationSucceeded
+      end
+
+      command "Fail" do
+        role "System"
+        goal "Record that the operation was refused or found a problem, and what it said"
+
+        reference_to Operation
+        attribute :refusal, Output, sets: true
+
+
+        emits OperationFailed
+      end
+
+      query "Outcome" do
+        description "How one operation ended: its status, and what it reported or why it failed."
+        attribute :run, OperationKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Failed" do
+        description "Every operation that was refused or found a problem."
+        where(status: "failed")
+        order_by :run
+      end
+
+      # A follow's answer: the count to pass back as `since`, the entries past it, and when it looked.
+      value_object "Tail" do
+        attribute :cursor,   Integer
+        attribute :events,   list_of(FollowedEvent)
+        attribute :taken_at, String
+      end
+
+      # One entry of a persisted event log; the payload is its JSON text, since a value object
+      # holds no free-form map.
+      value_object "FollowedEvent" do
+        attribute :name,        String
+        attribute :aggregate,   String
+        attribute :id,          String
+        attribute :payload,     String
+        attribute :occurred_at, String
+      end
+
+      # A launcher answers once, so a follow is a bounded poll: it answers the entries past `since`
+      # and a `cursor` to pass as the next `since`, waiting up to `wait` seconds for the first one.
+      # `hecks follow <domain> --stream` asks again from each cursor and prints every entry as it
+      # arrives, until interrupted (the world's `launcher` setting lists the question under `streams`).
+      query "Follow" do
+        description "A domain's persisted event log past a cursor, for tailing it call by call."
+        attribute :domain,    Subject
+        attribute :aggregate, Verb,    optional: true
+        attribute :since,     Integer, optional: true
+        attribute :from_now,  Boolean, optional: true
+        attribute :wait,      Integer, optional: true
+        attribute :interval,  Float,   optional: true
+        returns Tail
+      end
+    end
+
+    policy "RunWhenRequested" do
+      on      "Operation.RunRequested"
+      ask     :execute, with: { run: :run }
+    end
+
+    policy "RefreshWhenRequested" do
+      on      "Operation.ProjectionsRefreshRequested"
+      ask     :refresh, with: { run: :run }
+    end
+
+    policy "RedriveWhenRequested" do
+      on      "Operation.OutboxRedriveRequested"
+      ask     :redrive, with: { run: :run }
+    end
+
+    policy "AbandonWhenRequested" do
+      on      "Operation.OutboxRowAbandonRequested"
+      ask     :abandon, with: { run: :run }
+    end
+
+    policy "VerifyWhenRequested" do
+      on      "Operation.BehaviorsRequested"
+      ask     :verify, with: { run: :run }
+    end
+
+    policy "SmokeWhenRequested" do
+      on      "Operation.SmokeTestRequested"
+      ask     :smoke, with: { run: :run }
+    end
+
+    policy "BootstrapWhenRequested" do
+      on      "Operation.AdminBootstrapRequested"
+      ask     :bootstrap, with: { run: :run }
+    end
+
+    policy "OpenWhenRequested" do
+      on      "Operation.ConsoleRequested"
+      ask     :open, with: { run: :run }
+    end
+
+    policy "ProbeWhenRequested" do
+      on      "Operation.SmokeHttpRequested"
+      ask     :probe, with: { run: :run }
+    end
+
+    policy "RecordTheOutput" do
+      on      "Operation.OperationAnswered"
+      trigger Operation::Succeed, with: { output: :output }
+    end
+
+    policy "RecordTheFailure" do
+      on      "Operation.OperationRefused"
+      trigger Operation::Fail, with: { refusal: :refusal }
+    end
+
+    aggregate "Host" do
+      description "A running rust/host, and the version and era it last reported."
+
+      attribute :host,     Address
+      attribute :expected, ExpectedFile,  optional: true
+      attribute :timeout,  Seconds,       optional: true
+      attribute :era,      EraId,         optional: true
+      attribute :version,  VersionText,   optional: true
+      attribute :report,   Report,        optional: true
+      attribute :refusal,  Report,        optional: true
+      identified_by :host
+
+      value_object "Address" do
+        attribute :value, String, matches: :http_scheme
+      end
+
+      # The file listing the eras that should be running, one per line.
+      value_object "ExpectedFile" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Seconds" do
+        attribute :value, Float
+
+        invariant("a timeout is positive") { value > 0 }
+      end
+
+      value_object "EraId" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "VersionText" do
+        attribute :value, String
+      end
+
+      value_object "Verdict" do
+        attribute :value, String, pattern: '^(match|unlisted|mismatch)$'
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "drifted", "unreachable"
+        transition "Recheck" => "requested",   from: %w[observed drifted unreachable]
+        transition "Observe" => "observed",    from: "requested"
+        transition "Drift"   => "drifted",     from: "requested"
+        transition "Lose"    => "unreachable", from: "requested"
+      end
+
+  # `hecks check_era <url> expected=era-file [timeout=]` records the first check of a host under
+  # its URL. A host is one record, and a creating command cannot repeat an identity, so a later
+  # check of the same host is `hecks recheck <url> expected=era-file`. Both are read with
+  # `hecks standing <url>`.
+  command "CheckEra" do
+        role "Operator"
+        goal "Ask a running host which era it reports, and keep whether it is one that should be running"
+
+        attribute :host,     Address, sets: true
+        attribute :expected, ExpectedFile
+        attribute :timeout,  Seconds, default: 10
+
+        sets :expected
+        sets :timeout
+
+        emits EraCheckRequested
+      end
+
+  command "Recheck" do
+    role "Operator"
+    goal "Ask a host already checked which era it reports now"
+
+    reference_to Host
+    attribute :expected, ExpectedFile
+    attribute :timeout,  Seconds, default: 10
+
+    sets :expected
+    sets :timeout
+
+    emits EraRecheckRequested
+  end
+
+  # The host reported an era the list accepts, or a list that names none.
+      command "Observe" do
+        role "System"
+        goal "Record the version and era a running host reported"
+
+        reference_to Host
+        attribute :era,     EraId, sets: true
+        attribute :version, VersionText, sets: true
+        attribute :report,  Report, sets: true
+
+
+        emits EraObserved
+      end
+
+      # The host reported an era that is not on the list: the finding the roll must stop on.
+      command "Drift" do
+        role "System"
+        goal "Record that a running host reports an era that should not be running"
+
+        reference_to Host
+        attribute :era,     EraId, sets: true
+        attribute :version, VersionText, sets: true
+        attribute :report,  Report, sets: true
+
+
+        emits EraDrifted
+      end
+
+      command "Lose" do
+        role "System"
+        goal "Record that the host could not be reached, or answered no era, and what was said"
+
+        reference_to Host
+        attribute :refusal, Report, sets: true
+
+
+        emits HostLost
+      end
+
+      query "Standing" do
+        description "What one check of a host found: its status, era and version, or why it failed."
+        attribute :host, Address
+        where(host: :host)
+        order_by :host
+      end
+
+      query "Drifted" do
+        description "Every host that reported an era that should not be running."
+        where(status: "drifted")
+        order_by :host
+      end
+    end
+
+    policy "FetchWhenChecked" do
+      on      "Host.EraCheckRequested"
+      ask     :fetch, with: { host: :host }
+    end
+
+    policy "FetchWhenRechecked" do
+      on      "Host.EraRecheckRequested"
+      ask     :fetch, with: { host: :host }
+    end
+
+    policy "RecordTheEra" do
+        on      "Host.EraReported"
+        where   { verdict.value != "mismatch" }
+        trigger Host::Observe, with: { era: :era, version: :version, report: :report }
+      end
+
+    policy "RecordTheDrift" do
+      on      "Host.EraReported"
+      where   { verdict.value == "mismatch" }
+      trigger Host::Drift, with: { era: :era, version: :version, report: :report }
+    end
+
+    policy "RecordTheLostHost" do
+      on      "Host.HostRefused"
+      trigger Host::Lose, with: { refusal: :refusal }
+    end
+
+    # Tooling: developer tooling for working with a domain, in the Maintenance module (ADR 0096).
+    # A client runs these while building a domain, not while operating one; the operating half is
+    # in custodian.bluebook.
+
+    aggregate "Introspection" do
+      description "A look at a booted domain, answered by the runtime without changing anything."
+      acknowledges :no_command_surface, "a look at a booted domain, answered by the runtime without changing anything"
+
+      attribute :domain, DomainPath
+      identified_by :domain
+
+      value_object "DomainPath" do
+        attribute :value, String, matches: :not_empty
+
+        invariant("a domain is named by its path") { !value.to_s.empty? }
+      end
+
+      value_object "BluebookName" do
+        attribute :value, String, matches: :present
+
+        invariant("a bluebook is named") { !value.to_s.empty? }
+      end
+
+      value_object "AggregateName" do
+        attribute :value, String, matches: :present
+
+        invariant("an aggregate is named") { !value.to_s.empty? }
+      end
+
+      # Each query below is answered by the DomainRuntime port's adapter: the domain is booted
+      # in-process and the answer is the exact text the matching bin script printed.
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "Ir" do
+        description "The IR a domain's boot produces, as JSON: what golden specs pin and an era hashes."
+        attribute :domain,       DomainPath, optional: true
+        attribute :translations, Boolean,    optional: true
+        attribute :meta,         Boolean,    optional: true
+        returns Document
+      end
+
+      query "Shape" do
+        description "The storage shape an era's label is minted from: a bluebook file or a directory of them."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # The identity one stored record answers to, as the store's `id` column holds it.
+      value_object "RecordId" do
+        attribute :value, String, matches: :present
+
+        invariant("a record is named by its id") { !value.to_s.empty? }
+      end
+
+      # `aggregate` is the storage name the full document keys by (`reflection`, not `Reflection`); with
+      # `record` as well it narrows to that one record, so one row can be read without dumping the rest.
+      query "Stores" do
+        description "Every aggregate's current records, or one aggregate's, or one record: the head, not the journal."
+        attribute :domain,    DomainPath
+        attribute :aggregate, AggregateName, optional: true
+        attribute :record,    RecordId,      optional: true
+        attribute :flat,      Boolean,       optional: true
+        returns Document
+      end
+
+      query "History" do
+        description "Every journal entry a domain's append-only adapters hold: the whole write history."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      query "Statements" do
+        description "A bluebook's declared facts, as plain English sentences."
+        attribute :domain,  DomainPath
+        attribute :bluebook, BluebookName
+        returns Document
+      end
+
+      query "Narrate" do
+        description "A domain read back in English, whole or for one aggregate."
+        attribute :domain,    DomainPath,    optional: true
+        attribute :aggregate, AggregateName, optional: true
+        returns Document
+      end
+
+      query "Relationships" do
+        description "How the contexts a domain holds depend on each other: shared kernel, customer/supplier, anti-corruption layer, subscription."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      query "ContextMap" do
+        description "A domain's declared context map drawn as a Mermaid diagram beside its wiring, with what holding the wiring to the map finds."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      query "WorldSkeleton" do
+        description "A starting .world for a domain: the settings and secrets its bound adapters declare, with no secret's value."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      query "Docs" do
+        description "A domain's usage document, whole or for one aggregate."
+        attribute :domain,    DomainPath,    optional: true
+        attribute :aggregate, AggregateName, optional: true
+        returns Document
+      end
+
+      # One file a projection would have written, held as its name and its text.
+      value_object "ProjectedFile" do
+        attribute :name, String
+        attribute :text, String
+      end
+
+      query "ProjectDiagrams" do
+        description "A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written."
+        attribute :domain,  DomainPath
+        attribute :bluebook, BluebookName
+        returns list_of(ProjectedFile)
+      end
+
+      query "Glossary" do
+        description "A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written."
+        attribute :domain,  DomainPath
+        attribute :bluebook, BluebookName
+        returns list_of(ProjectedFile)
+      end
+    end
+  end
+end

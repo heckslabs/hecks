@@ -8,7 +8,7 @@ survives regeneration.
 - [Aggregate](aggregate.md) — 18 words
 - [Lifecycle](lifecycle.md) — 2 words
 - [File](file.md) — 7 words
-- [Bluebook](bluebook.md) — 12 words
+- [Bluebook](bluebook.md) — 13 words
 - [Command](command.md) — 16 words
 - [Entity](entity.md) — 13 words
 - [Policy](policy.md) — 6 words

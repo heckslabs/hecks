@@ -4502,9 +4502,83 @@
           "pattern": null,
           "admits": null,
           "relationship": null
+        },
+        {
+          "name": "modules",
+          "type": "ModuleMembership",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
+        {
+          "name": "ModuleMembership",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "ModuleText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
         {
           "name": "Provision",
           "attributes": [
@@ -5443,6 +5517,32 @@
               [
                 "opens",
                 "ProcessManager"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Bluebook"
+              ],
+              [
+                "opens",
+                "Bluebook"
               ],
               [
                 "fills",
@@ -6431,6 +6531,36 @@
                 "fills",
                 "kind"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
             ]
           ]
         }
@@ -6715,6 +6845,71 @@
           ],
           "emits": [
             "CapabilityProvided"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false
+        },
+        {
+          "name": "Group",
+          "role": "Language",
+          "goal": "Declare that an aggregate belongs to a module",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "modules",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":name",
+                "vision": ":vision",
+                "aggregate": ":aggregate"
+              }
+            }
+          ],
+          "emits": [
+            "AggregateGrouped"
           ],
           "from": null,
           "provenance": null,
@@ -33929,6 +34124,58 @@
             [
               [
                 "name",
+                "everyday_names"
+              ],
+              [
+                "id",
+                "everyday_names"
+              ],
+              [
+                "title",
+                "everyday names, every name in the launcher's everyday setting shown in the help"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/everyday_names_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a name in the world's `everyday` setting is not shown in the help's everyday section: it does not resolve to a command, it is internal, or it is not listed for people. The failure names each one; fix the spelling in hecks.world or the command's audience."
+              ]
+            ],
+            [
+              [
+                "name",
+                "secret_output"
+              ],
+              [
+                "id",
+                "secret_output"
+              ],
+              [
+                "title",
+                "secret output, no value a world hands an adapter as a secret reaches what a launcher prints"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/secret_output_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_fmt"
               ],
               [
@@ -34590,7 +34837,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names"
               ]
             ],
             [
@@ -34604,7 +34851,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
               ]
             ],
             [

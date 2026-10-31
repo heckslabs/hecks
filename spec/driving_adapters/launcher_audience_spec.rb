@@ -67,8 +67,11 @@ RSpec.describe Hecks::Adapters::Driving::LauncherOptions do
   end
 
   describe "the Hecks bluebook's own setting" do
+    # The aggregates only a maintainer of a hecks checkout runs: the language, its checks and
+    # projections, the test suite, and the publishing of a release.
     let(:codebase) do
-      File.read(File.expand_path("../../lib/hecks/hecks/codebase.bluebook", __dir__)).scan(/^  aggregate "(\w+)"/).flatten
+      %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun ScriptRun InspectionRun CodemodRun
+         TestSuiteRun CorpusRun PublishingRun PromotionRun]
     end
     let(:hidden) do
       world = File.read(File.expand_path("../../lib/hecks/hecks/hecks.world", __dir__))

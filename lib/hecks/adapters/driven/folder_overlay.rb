@@ -24,6 +24,7 @@ module Hecks
       # @param environment [String, nil] the environment name; nil loads no named overlay
       # @return [void]
       def load_overlay(directory, environment)
+        WorktreeOverlay.warn_once(directory)
         load_each(directory, overlay_files(LOCAL_OVERLAY))
         [directory, Dir.pwd].uniq.each { |where| load_each(where, LOCAL_FILES) }
         load_each(directory, overlay_files(environment)) if environment && environment != LOCAL_OVERLAY

@@ -2,6 +2,8 @@ require_relative "../../vocabulary"
 require_relative "../../ports/loading"
 require_relative "../../sentence_form"
 require_relative "folder_overlay"
+require_relative "worktree_overlay"
+require_relative "../../module_folders"
 
 module Hecks
   module Adapters
@@ -130,8 +132,15 @@ module Hecks
         return unless File.directory?(directory)
 
         patterns.each do |pattern|
-          Dir[File.join(directory, pattern)].reject { |file| left_to_overlay?(file, pattern) }.each { |file| load_file(file) }
+          files_matching(directory, pattern).reject { |file| left_to_overlay?(file, pattern) }.each { |file| load_file(file) }
         end
+      end
+
+      # The files `pattern` names under `directory`; the bluebooks of its module folders follow the
+      # directory's own (see ModuleFolders).
+      def files_matching(directory, pattern)
+        found = Dir[File.join(directory, pattern)]
+        pattern == "*.bluebook" ? found + ModuleFolders.bluebooks(directory) : found
       end
 
       # Resolves a domain path to the directory that actually holds its bluebook files.
