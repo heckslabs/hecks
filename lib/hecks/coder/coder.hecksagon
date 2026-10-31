@@ -1,0 +1,3 @@
+Hecks.hecksagon "Coder" do
+  persisted_by "Memory"
+end
