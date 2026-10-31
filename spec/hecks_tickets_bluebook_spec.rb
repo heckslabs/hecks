@@ -96,11 +96,11 @@ RSpec.describe "the Tickets bluebook" do
   it "gives a Work step the commands of its lifecycle" do
     commands = @bluebook.aggregate("Work").commands.map(&:hecks_name)
 
-    expect(commands).to contain_exactly("Plan", "Start", "Finish", "Drop", "Lapse")
+    expect(commands).to contain_exactly("Plan", "Start", "Release", "Finish", "Drop", "Lapse")
   end
 
   it "drives nothing outside from a Work step" do
-    asks = @bluebook.policies.select { |policy| policy.event_name.start_with?("Work") }
+    asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 
     expect(asks).to be_empty
   end
