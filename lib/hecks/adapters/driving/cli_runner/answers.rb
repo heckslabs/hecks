@@ -15,28 +15,45 @@ module Hecks
           TEXT = "--text".freeze
 
           # Parses one resolved command's arguments, runs it as a query or command, and turns the
-          # outcome, or the domain's refusal, into `[json_or_message, status]`. With `--wait`, a
-          # question whose report names a gap (`LauncherOptions.gap_reported?`) answers status 1.
+          # outcome, or the domain's refusal, into `[json_or_message, status]`. A word the command
+          # does not take, a value its type cannot hold or a flag it lacks is a line that could
+          # not be read (`ExitStatus::USAGE`); everything the domain says no to, a missing record
+          # included, is `REFUSED`. With `--wait`, a question whose report names a gap
+          # (`LauncherOptions.gap_reported?`) is refused too.
           #
           # @param bluebook [Bluebook::Declaration] the bluebook the command belongs to
           # @param launcher [Hash, nil] the bluebook's `launcher` world setting; nil when not opted
           #   in
           def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
             args, wait, text = command_line(spec, rest, launcher)
-            return answer_query(runtime, spec, args, wait, launcher) if spec[:kind] == :query
-
-            run_command(runtime, spec, Invocation.new(args, wait, bluebook, launcher, text))
+            run(runtime, spec, Invocation.new(args, wait, bluebook, launcher, text), name, program, asking)
           rescue Runtime::NotFound, Runtime::TypeMismatch => e
-            # A bad argument and a missing record both need the same next step: read the help.
-            ["#{e.message}\n\n  #{program} #{"query " if asking}#{name} --help", 1]
+            [help_pointer(e, name, program, asking), ExitStatus::USAGE]
+          end
+
+          # Runs a parsed line as a query or a command, and shapes the domain's refusal.
+          # @api private
+          def run(runtime, spec, invocation, name, program, asking)
+            return answer_query(runtime, spec, invocation.args, invocation.wait, invocation.launcher) if spec[:kind] == :query
+
+            run_command(runtime, spec, invocation)
+          rescue Runtime::NotFound, Runtime::TypeMismatch => e
+            # A missing record needs the same next step as a bad argument: read the help.
+            [help_pointer(e, name, program, asking), ExitStatus::REFUSED]
           rescue *Runtime::DOMAIN_REFUSALS => e
             # The refusal is the bluebook's own sentence, verbatim.
-            [e.message, 1]
+            [e.message, ExitStatus::REFUSED]
           rescue StandardError => e
             # So is a wrapped tool's, when a question's adapter refuses to answer.
             raise unless tool_refusal?(e)
 
-            [e.message, 1]
+            [e.message, ExitStatus::REFUSED]
+          end
+
+          # An error's message, then the line that prints the command's help.
+          # @api private
+          def help_pointer(error, name, program, asking)
+            "#{error.message}\n\n  #{program} #{"query " if asking}#{name} --help"
           end
 
           # The parsed arguments of a command line, whether to wait for the reactions, and whether
@@ -64,7 +81,7 @@ module Hecks
               return settled(runtime, spec, handle, invocation.bluebook, invocation.launcher, extra, text: invocation.text)
             end
 
-            [JSON.pretty_generate(outcome(handle, extra)), 0]
+            [JSON.pretty_generate(outcome(handle, extra)), ExitStatus::ANSWERED]
           end
 
           # The request a command takes from its parsed arguments.
@@ -93,11 +110,11 @@ module Hecks
           # @return [Array(String, Integer)] the answer and the status
           def answer_query(runtime, spec, args, wait, launcher = nil)
             rows = runtime.query(spec[:command], **args)
-            return [unknown_run(args), 1] if rows.empty? && LauncherOptions.unknown_run?(launcher, spec)
+            return [unknown_run(args), ExitStatus::REFUSED] if rows.empty? && LauncherOptions.unknown_run?(launcher, spec)
 
             text = text_answer(spec, rows)
             [text || JSON.pretty_generate(rows.map { |row| Json.materialize(row) }),
-             wait && LauncherOptions.gap_reported?(text) ? 1 : 0]
+             wait && LauncherOptions.gap_reported?(text) ? ExitStatus::REFUSED : ExitStatus::ANSWERED]
           end
 
           # What a question about one run answers when the process holds no such run, for a
@@ -151,8 +168,8 @@ module Hecks
 
           # Shapes a port operation's outcome, which has no state: each event with its full payload.
           #
-          # The answer lives only in the payloads, so names alone would drop it. Exit status stays 0
-          # for refusal events too, since a healthy no is an answer, not a misuse.
+          # The answer lives only in the payloads, so names alone would drop it. The status stays
+          # `ANSWERED` for refusal events too, since a healthy no is an answer, not a misuse.
           def answered(handle)
             # A port operation hydrates no instance, so the handle's `id` is nil by design.
             { id:     handle.id || handle.events.first&.id,

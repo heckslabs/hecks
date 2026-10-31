@@ -90,7 +90,9 @@ The gem installs a `hecks` command for a domain you supply: `init`
 with someone who knows the business), `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
 `project_diagrams`, `project_cli`, and `mcp` (the MCP server, over stdio
 only). `hecks` lists them and `hecks <command> --help` prints one's
-usage. In a clone of this repository, the same launcher also answers the
+usage. Every launcher exits 0 when answered, 1 when the domain refused or the run failed, and 2
+when the line could not be read ([the promise](docs/compatibility.md) has the table). In a clone
+of this repository, the same launcher also answers the
 maintainer commands (`hecks publishing_run.publish`, `hecks regeneration_run.regenerate_corpus`,
 `hecks conformance_run.measure_doc_coverage`, and the rest of the Codebase bluebook).
 

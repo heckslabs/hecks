@@ -1,4 +1,5 @@
 require_relative "../../naming"
+require_relative "../../adapters/driving/exit_status"
 
 module Hecks
   module Projector
@@ -67,7 +68,15 @@ module Hecks
 
           out.concat(all_hint(program, *shown)) unless options[:all]
           out.concat(CliAudience.maintainer_hint(program, hidden_count))
-          out << "  a command is called with its aggregate — #{example_qualified(shown.first)}"
+          out.concat(closing_lines(shown, options))
+        end
+
+        # The example call and, for a launcher that opted in, the line naming the three exit
+        # statuses. A launcher that did not opt in keeps the text every earlier generator wrote,
+        # which exits 1 for every line it could not read, so it claims nothing.
+        def closing_lines(shown, options)
+          lines = ["  a command is called with its aggregate — #{example_qualified(shown.first)}"]
+          options[:opted] ? lines << "  #{Adapters::Driving::ExitStatus::HELP_LINE}" : lines
         end
 
         # The commands table then the queries table.

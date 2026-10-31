@@ -19,7 +19,9 @@ module Hecks
         # How every launcher ends.
         PLAIN_ENDING = "status.zero? ? puts(text) : abort(text)".freeze
 
-        # How an opted-in launcher ends: a failed `--wait` run still prints its settled record.
+        # How an opted-in launcher ends: a failed `--wait` run still prints its settled record, and
+        # the process exits with the status the runner answered (`ExitStatus`), a refusal and a
+        # line it could not read apart.
         OPTED_ENDING = <<~LAUNCHER_TAIL.chomp.freeze
           # A `--wait` run that failed answers its settled record on stdout, so `| jq` reads it
           # either way, and says why on stderr.
@@ -28,7 +30,8 @@ module Hecks
             warn reason
             exit status
           end
-          status.zero? ? puts(text) : abort(text)
+          status.zero? ? puts(text) : warn(text)
+          exit status
         LAUNCHER_TAIL
 
         # What a Memory command does when refused: say why, from the record's `refusal`.

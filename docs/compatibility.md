@@ -28,6 +28,25 @@ changelog:
 A module's name and which module an aggregate sits in are not part of the contract: a
 command is called by its aggregate and verb, and a module only groups the listing.
 
+## Exit statuses
+
+A launcher exits with one of three statuses: `exe/hecks`, a project launcher `project_cli`
+writes for a bluebook with a `launcher` setting, and the positional forms (`hecks run`,
+`hecks docs` and the rest) alike. A script branches on the status; the text beside it is for a
+person. A launcher of a bluebook with no `launcher` setting keeps the text every earlier
+generator wrote, which exits 1 for every line it could not read as well; opting in gives it the
+three.
+
+| Status | Meaning | When |
+|---|---|---|
+| `0` | answered | a usage or a command's help; a command's outcome; a query's rows; a stream that ended; a port operation's refusal event, which is an answer |
+| `1` | refused, or the run failed | the domain refused; a record is not there; a `--wait` run ended in a failure state, or a reaction of it was refused or crashed; a question reports a gap under `--wait`; the door refused the caller; the domain could not be opened; a crash |
+| `2` | the line could not be read | no command named; a command or query the bluebook does not declare; a word the command does not take; a value its type cannot hold; a flag the command lacks |
+
+A launcher's help ends with the same three in one line. The constants are
+`Hecks::Adapters::Driving::ExitStatus`, which the runner and the positional table both return;
+`spec/cli_exit_status_spec.rb` pins each situation.
+
 ## How long an old name lives
 
 A renamed or moved command keeps answering to its old name for one major. From 7.0.0 the

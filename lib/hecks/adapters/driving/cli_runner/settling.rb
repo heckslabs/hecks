@@ -62,12 +62,12 @@ module Hecks
           end
 
           # The answer of a command the launcher prints as its report: the text it recorded, with
-          # the status 1 when the run failed, and nothing else.
+          # the status `REFUSED` when the run failed, and nothing else.
           def report_of(state, why)
             text = state[why.empty? ? :output : :refusal]
             text = text[:value] if text.is_a?(Hash)
             text = why.join("\n") if text.to_s.strip.empty?
-            [text.to_s, why.empty? ? 0 : 1]
+            [text.to_s, why.empty? ? ExitStatus::ANSWERED : ExitStatus::REFUSED]
           end
 
           # The sentence for a record that ended in a failure state: the state, then the record's
@@ -83,9 +83,10 @@ module Hecks
             "#{sentence}: #{refusal.to_s.strip.sub(QUALIFIED_CLASS_PREFIX, "")}"
           end
 
-          # The answer and its status: 0 when nothing failed, else 1 with the reasons joined.
+          # The answer and its status: `ANSWERED` when nothing failed, else `REFUSED` with the
+          # reasons joined.
           def finish(text, reasons)
-            reasons.empty? ? [text, 0] : [text, 1, reasons.join("\n")]
+            reasons.empty? ? [text, ExitStatus::ANSWERED] : [text, ExitStatus::REFUSED, reasons.join("\n")]
           end
 
           # What the reactions of the run the handle reports did wrong: each refusal that blocks it

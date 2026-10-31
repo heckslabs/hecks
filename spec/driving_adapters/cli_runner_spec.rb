@@ -91,7 +91,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     it "refuses a bare command name, pointing at the one qualified by its aggregate", :aggregate_failures do
       output, code = run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("no such command: create_pizza")
       expect(output).to include("did you mean").and include("Order.create_pizza")
     end
@@ -101,7 +101,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     end
 
     it "refuses a bare command name even with a trailing `!`" do
-      expect(run("create_pizza!", "name=Z").last).to eq(1)
+      expect(run("create_pizza!", "name=Z").last).to eq(2)
     end
 
     it "still takes the aggregate-qualified form" do
@@ -240,7 +240,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     it "refuses a question by its bare name", :aggregate_failures do
       output, code = run("available")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("no such command: available")
     end
 
@@ -266,7 +266,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     it "names an argument the command does not take, and points at its help", :aggregate_failures do
       output, code = run("order.create_pizza", "nmae=Margherita")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include(%(no argument "nmae"))
       expect(output).to include("hecks run order.create_pizza --help")
     end
@@ -274,14 +274,14 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     it "refuses a value the declared type cannot hold", :aggregate_failures do
       output, code = run("order.create_pizza", "name=X", "pizza.price_cents.cents=lots", "pizza.size.value=large")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("is not Integer")
     end
 
     it "suggests what a misspelling nearly named", :aggregate_failures do
       output, code = run("order.create_piza")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("no such command: order.create_piza")
       expect(output).to include("did you mean")
       expect(output).to include("Order.create_pizza")
