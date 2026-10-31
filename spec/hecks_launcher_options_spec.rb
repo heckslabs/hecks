@@ -118,8 +118,8 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "keeps both spellings working", :aggregate_failures do
-      expect(run_verb("launch.serve_mcp", "--help").first).to include("dispatches")
-      expect(run_verb("serve_mcp", "--help").first).to include("no such command: serve_mcp", "Launch.serve_mcp")
+      expect(run_verb("server.serve_mcp", "--help").first).to include("dispatches")
+      expect(run_verb("serve_mcp", "--help").first).to include("no such command: serve_mcp", "Server.serve_mcp")
       expect(run_verb("mcp", "--help").first).to start_with("mcp")
     end
 

@@ -3,7 +3,7 @@ require "hecks/hecks/adapters/codebase/composing"
 require "hecks/hecks/adapters/codebase/tree"
 require "hecks/composer/workbench"
 
-# `corpus_run.compose`: serves the Composer editor with the agent the run names.
+# `server.compose`: serves the Composer editor with the agent the run names.
 RSpec.describe Hecks::Adapters::Codebase::Composing do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
 

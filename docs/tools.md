@@ -136,8 +136,8 @@ still need a checkout.
 | `hecks test_suite_run.record_pattern_cases` | `bin/pattern-cases` |
 | `hecks corpus_run.rust_domains`; `hecks corpus_run.regen_order`; `hecks corpus_run.corpus_rust_coverage` | `bin/corpus` |
 | `hecks corpus_run.ir_constructs [<names>]`; `hecks corpus_run.ir_duplicates [<domains>] [--meta]`; `hecks corpus_run.ir_impact <name> field=` | `bin/query_ir` |
-| `hecks corpus_run.serve_query_ir_mcp` | `bin/hecks_query_ir_mcp` |
-| `hecks corpus_run.present [<port>]` | `bin/present` |
+| `hecks server.serve_query_ir_mcp` | `bin/hecks_query_ir_mcp` |
+| `hecks server.present [<port>]` | `bin/present` |
 | `hecks publishing_run.publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm (without --confirm, the old --dry-run)` | `bin/release` |
 | `hecks publishing_run.publish_gem --confirm` | `bin/release_gem` |
 | `hecks gate_run.gate <stage> [only=]` | (new: no `bin/` script) |
