@@ -59,7 +59,7 @@ module Hecks
         # @param program [String] how the caller was invoked
         # @return [Hash{Symbol => Object}] the options `Projector::CliProjector` reads
         def projection(settings, program)
-          { program: program, names: settings && settings[:names], mint_run_keys: settings && settings[:run_keys] }
+          { program: program, opted: !settings.nil?, names: settings&.dig(:names), mint_run_keys: settings&.dig(:run_keys) }
         end
 
         # Whether the person is working on a hecks checkout: `dir` or a directory above it holds

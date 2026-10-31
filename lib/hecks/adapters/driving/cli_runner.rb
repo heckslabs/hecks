@@ -2,6 +2,7 @@ require "json"
 require_relative "cli"
 require_relative "command_request"
 require_relative "context_line"
+require_relative "exit_status"
 require_relative "write_guard"
 require_relative "json"
 require_relative "launcher_options"
@@ -20,8 +21,11 @@ module Hecks
   module Adapters
     module Driving
       # Parses and dispatches a command line against a `Projector::CliProjector` projection.
-      # Does no IO: it answers `[text, status]` and leaves printing and exiting to its callers.
+      # Does no IO: it answers `[text, status]` (an `ExitStatus`) and leaves printing and exiting
+      # to its callers.
       module CliRunner
+        include ExitStatus
+
         # The class an adapter raises when the tool it wraps refuses.
         TOOL_REFUSAL = "Hecks::Adapters::ConsoleCapture::Failure".freeze
         # The words that open the query namespace; `ask` is the older spelling.
@@ -42,10 +46,10 @@ module Hecks
         #
         # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
         # @param argv [Array<String>] an optional `query` (or `ask`), the command or query name,
-        #   then
-        #   `path=value` pairs; `--help`, `-h`, `help` or nothing answers usage
+        #   then `path=value` pairs; `--help`, `-h`, `help` or nothing answers usage
         # @param program [String] how the caller was invoked, echoed in usage and hints
-        # @return [Array(String, Integer)] the text and the status: 0 answered, 1 refused or misused
+        # @return [Array(String, Integer)] the text and the `ExitStatus`: `ANSWERED`, `REFUSED`
+        #   when the domain said no or the run failed, `USAGE` when the line could not be read
         # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
         # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
         def call(runtime:, argv:, program: "hecks run", usage_log: false, err: $stderr)
