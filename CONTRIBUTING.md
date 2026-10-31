@@ -434,6 +434,8 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    ([What a release number promises](docs/1.0-readiness.md#what-a-release-number-promises)):
    a major carries a `Breaking:` entry, and a minor that changes how a
    running system behaves carries a `Behavior change` entry.
+   [What a hecks release promises](docs/compatibility.md) says what counts as a
+   break on the command line and how a removal is announced.
 2. Once that PR merges to `main`, wait for `stable` to contain it (the
    `Promote` workflow moves it after CI is green on the merge commit; rehearse
    with `hecks promotion_run.promote lane=stable` to see what is still red or
