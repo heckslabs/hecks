@@ -979,7 +979,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       served = served_by_mcp("mcp-1")
 
       expect(served).to eq([["--stdio"]])
-      expect(JSON.parse(run_verb("server.ended", "run=mcp-1").first).first["output"]).to eq("mcp server closed")
+      expect(JSON.parse(run_verb("server.server_outcome", "run=mcp-1").first).first["report"]).to eq("mcp server closed")
     end
   end
 

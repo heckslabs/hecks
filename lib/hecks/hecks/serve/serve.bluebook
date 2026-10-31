@@ -119,6 +119,11 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
+    policy "ExamineWhenMcpRequested" do
+      on      "Server.McpRequested"
+      ask     :examine, with: { run: :run }
+    end
+
     policy "ServeWhenMcpRequested" do
       on      "Server.McpRequested"
       ask     :serve, with: { run: :run }
