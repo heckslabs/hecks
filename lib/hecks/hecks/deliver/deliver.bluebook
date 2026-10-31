@@ -50,6 +50,12 @@ Hecks.bluebook "Hecks" do
         attribute :domain, Place, optional: true
         returns Document
       end
+
+      query "Doctor" do
+        description "Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see."
+        attribute :domain, Place, optional: true
+        returns Document
+      end
     end
 
     # A commit made in a checkout under a message: asked of the git port, then recorded or declined. It commits
