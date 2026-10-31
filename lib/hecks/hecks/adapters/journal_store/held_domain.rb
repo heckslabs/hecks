@@ -162,7 +162,7 @@ module Hecks
         # @return [Object] the block's value
         def reading
           db = PostgresEra.connect_for(bluebook.name, settings)
-          yield PostgresEra::Lineage.new(db, bluebook.name)
+          yield PostgresEra::Lineage.new(db, bluebook.name, reading: true)
         ensure
           db&.close
         end

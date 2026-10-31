@@ -9,8 +9,11 @@ module Hecks
         # CRUD over `hecks_eras`/`hecks_era_texts`: era text
         # integrity, archiving, and once-only era naming.
         module EraStore
-          # Verifies each held text's digest before returning it; a missing digest is backfilled.
+          # Verifies each held text's digest before returning it; a missing digest is backfilled. A
+          # reading lineage verifies without writing.
           def eras
+            return eras_unrecorded if @reading
+
             @db.exec_params(
               "SELECT ordinal, hash, label, held_text, watermark, held_digest, held_projection::text " \
               "FROM hecks_eras WHERE domain = $1 ORDER BY ordinal",
@@ -20,6 +23,30 @@ module Hecks
               { ordinal: row["ordinal"].to_i, hash: row["hash"], label: row["label"],
                 held_text: row["held_text"], watermark: row["watermark"]&.to_i }
             end
+          end
+
+          # The held eras as stored, each text checked against its digest in memory. Unlike `eras`,
+          # nothing is archived or backfilled, so a reading works under a role that may only select.
+          #
+          # @return [Array<Hash>] the eras, as `eras` answers them
+          # @raise [Runtime::WiringError] when a held text no longer matches its digest
+          def eras_unrecorded
+            @db.exec_params(
+              "SELECT ordinal, hash, label, held_text, watermark, held_digest " \
+              "FROM hecks_eras WHERE domain = $1 ORDER BY ordinal",
+              [@domain]
+            ).map { |row| unrecorded_era(row) }
+          end
+
+          def unrecorded_era(row)
+            ordinal = row["ordinal"].to_i
+            stored = row["held_digest"]
+            if stored && stored != Digest::SHA256.hexdigest(row["held_text"])
+              raise Runtime::WiringError, Runtime::EraTamper.refusal(domain: @domain, ordinal: ordinal)
+            end
+
+            { ordinal: ordinal, hash: row["hash"], label: row["label"], held_text: row["held_text"],
+              watermark: row["watermark"]&.to_i }
           end
 
           def current_era

@@ -38,10 +38,13 @@ module Hecks
         #   advisory-lock key derives from it
         # @param formerly_known_as [String, Symbol, nil] the domain's prior name, which makes
         #   `ensure_base!` rename its relations and rows first; nil when there is no prior name
-        def initialize(db, domain, formerly_known_as: nil)
+        # @param reading [Boolean] true for a read: the held eras are verified in memory and never
+        #   archived or backfilled, so the connection needs only SELECT
+        def initialize(db, domain, formerly_known_as: nil, reading: false)
           @db = db
           @domain = domain.to_s
           @formerly_known_as = formerly_known_as&.to_s
+          @reading = reading
         end
 
         # Names the domain's one journal table, the partitioned parent of every era's rows.
