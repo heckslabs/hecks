@@ -5,6 +5,7 @@ require_relative "cli_projector/query_specs"
 require_relative "cli_projector/option_specs"
 require_relative "cli_projector/usage"
 require_relative "cli_projector/listing"
+require_relative "cli_projector/everyday"
 require_relative "cli_projector/command_help"
 
 module Hecks
@@ -51,6 +52,7 @@ module Hecks
       extend OptionSpecs
       extend Usage
       extend Listing
+      extend Everyday
       extend CommandHelp
     end
   end
