@@ -148,6 +148,7 @@ module Hecks
             typed = name.chomp("!")
             name  = canonical_name(cli, typed)
             note_former_name(cli, typed, name)
+            argv = renamed_line(cli, typed, name, argv)
             [asking || (!bang && query_only?(cli, name)), name, argv]
           end
 
