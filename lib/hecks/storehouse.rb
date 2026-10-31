@@ -34,7 +34,10 @@ module Hecks
 
     # One dispatch or query call: the booted domain, what it is asked, and who is asking.
     Request = Struct.new(:runtime, :bluebook, :name, :summary, :args, :source, :dry_run, :role, :actor_id,
-                         keyword_init: true)
+                         keyword_init: true) do
+      # @return [String, nil] the name of the bluebook the call asks, or nil when none is booted
+      def bluebook_name = bluebook&.name
+    end
 
     extend Callers
     extend Audit
@@ -138,28 +141,18 @@ module Hecks
     def audited(request, tool)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       outcome = yield
-      bluebook = request.bluebook
-      record!(bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome,
-                             duration_ms: elapsed_ms(started), **audit_fields(request))
+      record_call!(request, tool, started, verb: outcome[:verb], outcome: outcome)
       outcome.except(:verb)
     rescue *refusal_classes => e
       outcome = refused(e, summary: request.summary)
-      asked_of = request.bluebook
-      record!(asked_of&.name, tool: tool, outcome: outcome, refusal: refusal_kind(e),
-                              duration_ms: elapsed_ms(started), **audit_fields(request))
+      record_call!(request, tool, started, outcome: outcome, refusal: refusal_kind(e))
       outcome
     end
 
-    # Whole milliseconds since `started`, a CLOCK_MONOTONIC reading.
+    # Writes the audit line for one audited call, timed from `started`.
     # :nodoc:
-    def elapsed_ms(started)
-      ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
-    end
-
-    # The refusal's class as a snake_case kind, such as `type_mismatch`.
-    # :nodoc:
-    def refusal_kind(error)
-      error.class.name.split("::").last.gsub(/([a-z\d])([A-Z])/, '\\1_\\2').downcase
+    def record_call!(request, tool, started, **fields)
+      record!(request.bluebook_name, tool: tool, duration_ms: elapsed_ms(started), **audit_fields(request), **fields)
     end
 
     # :nodoc:
