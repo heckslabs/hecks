@@ -395,6 +395,31 @@ RSpec.describe Hecks::Projector::CliProjector do
       end
     end
 
+    # The launcher setting's `everyday` names open the help, each the call a person types.
+    describe "the everyday lines" do
+      let(:query) { banking[:questions].values.first }
+
+      def usage_for(**options)
+        described_class.call(bluebook: banking_bluebook, options: { program: "hecks", **options })[:usage]
+      end
+
+      def everyday_usage = usage_for(everyday: ["customer.register", query[:short], "no.such"])
+
+      it "come before the tables, each spelled in full, command and query alike", :aggregate_failures do
+        expect(everyday_usage.index("everyday:")).to be < everyday_usage.index("commands:")
+        expect(everyday_usage).to match(/^  Customer\.register!\s+\S/)
+        expect(everyday_usage).to match(/^  #{Regexp.escape(described_class.send(:label, query, real: true))}\s+\S/)
+      end
+
+      it "are left out when no name is one the audience is shown" do
+        expect(usage_for(everyday: ["customer.register"], hide: %w[Customer])).not_to include("everyday:")
+      end
+
+      it "are left out of a newcomer's help, which lists only the newcomer commands" do
+        expect(usage_for(everyday: ["customer.register"], only: ["customer.register"])).not_to include("everyday:")
+      end
+    end
+
     it "shows one command's arguments and every way it refuses", :aggregate_failures do
       help = command_help(banking_bluebook, "account.freeze_account")
 

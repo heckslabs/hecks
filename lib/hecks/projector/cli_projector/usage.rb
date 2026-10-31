@@ -35,10 +35,11 @@ module Hecks
           pool[key] || questions[key]
         end
 
-        # The whole help: the two tables, the bluebooks, then the hints.
+        # The whole help: the everyday lines, the two tables, the bluebooks, then the hints.
         def full_usage(bluebook, commands, questions, options, program)
           shown = [commands, questions].map { |specs| CliAudience.audience_specs(specs, options) }
           [usage_header(bluebook, program),
+           everyday_lines(*shown, options),
            tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)),
            CliAudience.bluebook_lines(program, options[:declarations]),
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
