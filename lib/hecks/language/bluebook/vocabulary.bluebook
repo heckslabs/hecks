@@ -1143,6 +1143,10 @@ Hecks.bluebook "Bluebook" do
              meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."
       member name: "red_main_check", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
+      member name: "main_maintenance", type: "Boolean",
+             meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
+      member name: "maintenance_confirm", type: "Boolean",
+             meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."
     end
 
     # What each retired `bin/` script became in hecks 3.0.0 (ADR 0080, section 7): one row per

@@ -2027,6 +2027,85 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # The maintenance of local main as events and policies. A coder's `Submission.WorkSubmitted` starts
+  # a run. Each step's body is an `ask` of a port the `MainMaintenance` adapter answers: the quick gate,
+  # the reconcile, the push through the train. The answer is an event, and a policy turns each event into
+  # the next step. A refusal is a named event, and nothing follows it.
+  aggregate "Maintenance" do
+    description "One run of local main's maintenance: the quick gate on a submitted commit, the reconcile, and the push through the train."
+
+    identified_by :run
+
+    attribute :run,     MaintenanceRun
+    attribute :sha,     MaintenanceSha
+    attribute :color,   one_of("green", "red")
+    attribute :verdict, one_of("reported", "written", "refused")
+
+    value_object "MaintenanceRun" do
+      attribute :value, String, matches: :present
+      invariant("a run names its branch") { !value.to_s.empty? }
+    end
+
+    value_object "MaintenanceSha" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    # Opens a run for a submitted commit of main; the gate is the first step it asks for.
+    command "Start" do
+      role "QA engineer"
+      goal "Open the maintenance of main for one submitted commit"
+
+      attribute :run, MaintenanceRun
+      attribute :sha, MaintenanceSha
+
+      emits "RunStarted"
+    end
+
+    # Refuses a red gate: the policy that reads `GateVerdict` red calls it, and nothing reconciles or pushes.
+    command "RefuseGate" do
+      role "QA engineer"
+      goal "Stop a run whose quick gate on main is red"
+
+      attribute :run,   MaintenanceRun
+      attribute :color, one_of("green", "red")
+
+      given("only a red verdict is refused") { color.value == "red" }
+
+      emits "GateRefused"
+    end
+
+    # Asks for the reconcile once the gate is green.
+    command "RequestReconcile" do
+      role "QA engineer"
+      goal "Ask for the reconcile of a commit whose quick gate is green"
+
+      attribute :run,   MaintenanceRun
+      attribute :sha,   MaintenanceSha
+      attribute :color, one_of("green", "red")
+
+      given("only a green gate is reconciled") { color.value == "green" }
+
+      emits "ReconcileRequested"
+    end
+
+    # Asks for the push once the reconcile has not refused and the gate is green.
+    command "RequestPush" do
+      role "QA engineer"
+      goal "Ask for the push of a commit whose gate is green and whose reconcile did not refuse"
+
+      attribute :run,     MaintenanceRun
+      attribute :sha,     MaintenanceSha
+      attribute :color,   one_of("green", "red")
+      attribute :verdict, one_of("reported", "written", "refused")
+
+      given("the reconcile did not refuse and the gate is green") do
+        verdict.value != "refused" && color.value == "green"
+      end
+
+      emits "PushRequested"
+    end
+  end
+
   # One CI run against one commit. A clearance is minted per commit, so a later commit is stale
   # by simply having none.
   aggregate "Clearance" do
@@ -2243,5 +2322,48 @@ Hecks.bluebook "QualityControl" do
       target: :target,
       reason: { value: "a check surprised — a person releases with hecks quality_control query sweep.run <target> --release --notes" }
     }
+  end
+
+  # The main-maintenance chain, one policy per event. Each `ask` is answered by the `MainMaintenance` port;
+  # each `trigger` is a command above. The events are the contract: `WorkSubmitted(branch, sha)` from the
+  # coder side, `GateVerdict(run, sha, color)`, `ReconcileRequested`, `ReconcileDone(run, sha, color,
+  # verdict)`, `PushRequested`, `Pushed(run, sha, origin_sha)`, and the refusals `GateRefused`,
+  # `ReconcileRefused`, `PushRefused`.
+  policy "StartOnSubmission" do
+    on      "Submission.WorkSubmitted"
+    trigger Maintenance::Start, with: { run: :branch, sha: :sha }
+  end
+
+  policy "GateOnStart" do
+    on      "Maintenance.RunStarted"
+    ask     :gate, with: { run: :run, sha: :sha }
+  end
+
+  policy "RefuseOnRedGate" do
+    on      "Maintenance.GateVerdict"
+    where   { color.value == "red" }
+    trigger Maintenance::RefuseGate, with: { run: :run, color: :color }
+  end
+
+  policy "ReconcileOnGreenGate" do
+    on      "Maintenance.GateVerdict"
+    where   { color.value == "green" }
+    trigger Maintenance::RequestReconcile, with: { run: :run, sha: :sha, color: :color }
+  end
+
+  policy "ReconcileOnRequest" do
+    on      "Maintenance.ReconcileRequested"
+    ask     :reconcile, with: { run: :run, sha: :sha, color: :color }
+  end
+
+  policy "PushOnReconciled" do
+    on      "Maintenance.ReconcileDone"
+    where   { verdict.value != "refused" && color.value == "green" }
+    trigger Maintenance::RequestPush, with: { run: :run, sha: :sha, color: :color, verdict: :verdict }
+  end
+
+  policy "PushOnRequest" do
+    on      "Maintenance.PushRequested"
+    ask     :push, with: { run: :run, sha: :sha }
   end
 end
