@@ -1,6 +1,7 @@
 require "fileutils"
 require_relative "../../hecks"
 require_relative "project_cli/launcher_source"
+require_relative "../corpus"
 
 module Hecks
   module Tools
@@ -121,7 +122,8 @@ module Hecks
         executable = setting[:executable]
         label      = executable || "#{path}/#{snake}"
         text       = launcher(path, name, program, executable: executable,
-                                                   memory_commands: setting[:memory_commands], opted: !setting.empty?)
+                                                   memory_commands: setting[:memory_commands], opted: !setting.empty?,
+                                                   ledgers: executable ? Corpus::ROTATION_LEDGER : {})
         Target.new(name, label, File.join(root, label), text, snake, executable)
       end
 

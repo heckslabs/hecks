@@ -69,17 +69,18 @@ module Hecks
         # @param executable [String, nil] the file's path under the root when not beside the domain
         # @param memory_commands [Array<String>, nil] commands that default to Memory
         # @param opted [Boolean] whether the bluebook's world declares a `launcher` setting
+        # @param ledgers [Hash{String => String}] command word => ledger directory, under the root
         # @return [String] the Ruby source
         # @raise [ArgumentError] if a name, path, executable or memory command is not plain
-        def launcher(path, name, program, executable: nil, memory_commands: nil, opted: !executable.nil?)
+        def launcher(path, name, program, executable: nil, memory_commands: nil, opted: !executable.nil?, ledgers: {})
           plain!("bluebook name", name, NAME)
           plain!("domain path", path, PATH)
-          site = executable ? executable_site(path, executable) : plain_site(path, name, program)
+          site = executable ? executable_site(path, executable, ledgers) : plain_site(path, name, program)
           quiet = !Array(memory_commands).empty?
 
           render(LAUNCHER, name: name, program: site.program, where: site.where, up: site.up,
                            encoding: opted ? ENCODING : "",
-                           handoff: handoff_for(executable, memory_commands, site),
+                           handoff: handoff_for(executable, memory_commands, site, ledgers),
                            ending: ending_for(opted, executable && quiet),
                            entry: entry(name, site.boot, site.shown, opted, quiet: quiet))
         end
@@ -87,10 +88,23 @@ module Hecks
         # @api private
         # @return [String] what an executable launcher does before it boots, or nothing: it takes
         #   the gems the checkout's Gemfile pins, and defaults Memory ones
-        def handoff_for(executable, memory_commands, site)
+        def handoff_for(executable, memory_commands, site, ledgers)
           return "" unless executable
 
-          render(PINNED_GEMS, up: site.up) + memory_default(Array(memory_commands))
+          render(PINNED_GEMS, up: site.up) + memory_default(Array(memory_commands)) + ledger_route(ledgers)
+        end
+
+        # @api private
+        # @return [String] the lines routing each ledger command word to its directory, or nothing
+        def ledger_route(ledgers)
+          return "" if ledgers.empty?
+
+          routes = ledgers.map do |word, dir|
+            plain!("ledger command", word, VERB)
+            plain!("ledger directory", dir, PATH)
+            %("#{word}" => "#{dir}")
+          end
+          render(LEDGER_ROUTE, routes: routes.join(", "))
         end
 
         # @api private
@@ -102,14 +116,17 @@ module Hecks
 
         # @api private
         # @return [Site] where an executable launcher sits, named by its path under the root
-        def executable_site(path, executable)
+        def executable_site(path, executable, ledgers = {})
           plain!("launcher executable", executable, PATH)
           if executable.split("/").include?("..")
             raise ArgumentError, "launcher executable #{executable.inspect} must stay inside the root"
           end
 
           up = "../" * File.dirname(executable).split("/").count { |part| part != "." }
-          Site.new(up, %(File.expand_path("#{up}#{path}", __dir__)), GENERATOR, executable, File.basename(executable))
+          # The boot is a ledger's directory when the route above set `ledger`.
+          named  = %(File.expand_path("#{up}#{path}", __dir__))
+          routed = %(File.expand_path(ledger ? "#{up}\#{ledger}" : "#{up}#{path}", __dir__))
+          Site.new(up, ledgers.empty? ? named : routed, GENERATOR, executable, File.basename(executable))
         end
 
         # @api private
