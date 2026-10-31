@@ -1,0 +1,29 @@
+Hecks.bluebook "Packing" do
+  vision "a build is asked for by target, and each target is handled by its own adapter"
+  supporting
+
+  aggregate "Pack" do
+    identified_by :pack_id
+
+    value_object "PackId" do
+      attribute :value, String
+    end
+
+    value_object "Target" do
+      attribute :value, String
+    end
+
+    attribute :pack_id, PackId
+    attribute :target, Target
+
+    command "Open" do
+      attribute :pack_id, PackId
+      emits "PackOpened"
+    end
+
+    command "Build" do
+      attribute :target, Target
+      emits "PackBuilt"
+    end
+  end
+end
