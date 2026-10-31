@@ -1105,3 +1105,45 @@ fn every_real_world_file_parses_and_prints_no_setting_value() {
     assert!(!out.contains("data/banking"), "a value leaked: {out}");
     assert!(!out.contains("postgres://"), "a value leaked: {out}");
 }
+
+#[test]
+fn a_bare_aggregate_correlates_by_resolves_to_its_identity_and_a_dotted_key_stays() {
+    // `correlates_by Message` means the aggregate's identity (`Message.id.value`, the scalar its
+    // `id` attribute resolves to); the dotted `:"Message.id"` beside it is kept as written.
+    let path = fixture("process_manager_bare_correlation.bluebook");
+    let output = run(&[
+        "bluebook",
+        "--bluebook",
+        "FixtureBareCorrelation",
+        path.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "bare correlates_by fixture should parse cleanly: {stderr}"
+    );
+
+    let compact: String = stdout.split_whitespace().collect();
+    for expected in [r#""correlates_by":"Message.id.value""#, r#""correlates_by":"Message.id""#] {
+        assert!(compact.contains(expected), "missing {expected}: {stdout}");
+    }
+}
+
+#[test]
+fn a_bare_correlates_by_naming_no_aggregate_is_refused() {
+    // A bare value object is not an aggregate, so it gets the whole-field refusal the Ruby builder gives.
+    let path = fixture("process_manager_bare_non_aggregate.bluebook");
+    let output = run(&[
+        "bluebook",
+        "--bluebook",
+        "FixtureBareNonAggregate",
+        path.to_str().unwrap(),
+    ]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "a bare value object should be refused");
+    assert!(
+        stderr.contains("ScheduledSend correlates_by MessageId, which names a whole field"),
+        "expected the whole-field refusal, got: {stderr}"
+    );
+}

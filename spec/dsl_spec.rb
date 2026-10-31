@@ -1413,6 +1413,60 @@ RSpec.describe "the DSL surface" do
       end
     end
 
+    # A bare aggregate name (`correlates_by Thing`) means that aggregate's identity.
+    def bare_key_process_manager(domain_name, &declaration)
+      thing = ref_amount_declaration
+      build_bluebook(domain_name) do
+        instance_eval(&thing)
+        process_manager("Keyed") do
+          instance_eval(&declaration)
+          starts_on "Started"
+          transition("Started" => "b", from: "a") { dispatch Thing::Start }
+        end
+      end.process_managers.first
+    end
+
+    it "process_manager expands a bare aggregate name to its identity field" do
+      keyed = bare_key_process_manager("BareAggregate") { correlates_by Thing }
+
+      expect(keyed.correlates_by).to eq("Thing.id")
+      expect(keyed.correlation_head).to eq(:Thing)
+    end
+
+    it "process_manager expands a bare aggregate name to the identity it declares, not id" do
+      sighting = proc do
+        aggregate "Sighting" do
+          value_object("Code") { attribute :value, String }
+          identified_by :code
+          attribute :code, Code
+          command("Raise") { attribute :code, Code; emits "Started" }
+        end
+      end
+      keyed = build_bluebook("BareIdentity") do
+        instance_eval(&sighting)
+        process_manager("Keyed") do
+          correlates_by Sighting
+          starts_on "Started"
+          transition("Started" => "b", from: "a") { dispatch Sighting::Raise }
+        end
+      end.process_managers.first
+
+      expect(keyed.correlates_by).to eq("Sighting.code.value")
+    end
+
+    it "process_manager refuses a bare name that names no aggregate of its bluebook" do
+      expect do
+        bare_key_process_manager("BareValueObject") { correlates_by ThingId }
+      end.to raise_error(Hecks::Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager,
+                         /Keyed correlates_by ThingId, which names a whole field/)
+    end
+
+    it "process_manager leaves a dotted correlates_by unchanged" do
+      keyed = bare_key_process_manager("DottedKey") { correlates_by "Thing.id" }
+
+      expect(keyed.correlates_by).to eq("Thing.id")
+    end
+
     # `identified_by` reads its own source line via Prism, so it needs a
     # line to itself; sharing a line with the outer block would make
     # `block_node_at` read the wrong source (pre-order walk).
