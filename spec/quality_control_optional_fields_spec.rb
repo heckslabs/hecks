@@ -6,10 +6,10 @@ require "spec_helper"
 RSpec.describe "the QualityControl bluebook's optional fields" do
   def optional_fields
     {
-      "Sweep" => %w[notes],
-      "Bug" => %w[reason next_step cause site verification commit],
-      "Target" => %w[reason],
-      "Angle" => %w[resolution reason],
+      "Sweep"       => %w[notes],
+      "Bug"         => %w[reason next_step cause site verification commit],
+      "Target"      => %w[reason],
+      "Angle"       => %w[resolution reason],
       "Improvement" => %w[commit]
     }
   end
