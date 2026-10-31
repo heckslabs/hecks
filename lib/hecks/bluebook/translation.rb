@@ -26,6 +26,9 @@ module Hecks
     # derive has a value; a record where it has none keeps its id.
     TranslationRekey = Struct.new(:to)
 
+    # ADR 0166: one aggregate's rows fan out into another, keyed by a field both share.
+    TranslationSplit = Struct.new(:into, :keyed_by, :fields)
+
     # A newly added, required attribute with no source in old data.
     # `default` is what an existing record reads until a command writes a real value;
     # applied in-process by `Lineage#translate` on every adapter.
@@ -34,12 +37,12 @@ module Hecks
     # One aggregate's part of a translation between eras.
     # `drops` makes data loss a declared decision.
     class TranslationAggregate
-      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :derives, :rekeys, :backfills
+      attr_reader :name, :was, :renames, :moves, :converts, :drops, :retypes, :derives, :rekeys, :backfills, :splits
 
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         was: nil, renames: {}, moves: [], converts: [], drops: [], retypes: [],
-        derives: [], rekeys: [], backfills: []
+        derives: [], rekeys: [], backfills: [], splits: []
       }.freeze
 
       # @param name [String, Symbol] the aggregate's name in the destination era

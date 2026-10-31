@@ -110,6 +110,7 @@ module Hecks
           ["TranslationAggregate", "retype"] => :retype_impl,
           ["TranslationAggregate", "derive"] => :derive_impl,
           ["TranslationAggregate", "rekey_to"] => :rekey_to_impl,
+          ["TranslationAggregate", "split"] => :split_impl,
           ["TranslationAggregate", "backfill"] => :backfill_impl,
           ["TranslationAggregate", "unresolved"] => :unresolved_impl,
           ["Query", "limit"] => :limit_impl,
