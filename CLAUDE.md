@@ -89,7 +89,7 @@ Comments you write in this repository's Ruby (`lib/`, `spec/`,
   comment says what it is, not what it contains (section 2).
 - Comment lines stay under 100 characters (section 6).
 
-Check a tree with `exe/hecks style_run.check_comments paths=<path> --wait` before
+Check a tree with `exe/hecks style_run.check_comments! paths=<path> --wait` before
 calling comment work done. A hook runs the same check on each Ruby file you edit and reports a
 violation in that turn (`.claude/hooks/comment_style_on_edit.sh`), and the gate's `comment_style`
 check covers `lib/hecks` and `spec`.
@@ -129,7 +129,7 @@ checkout against it.
   `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
 - A change to the shape of a persisted bluebook needs a translation edge under that bluebook's
   `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
-  `exe/hecks conformance_run.check_shape_ledger --wait` (a gate check, no database) fails with the
+  `exe/hecks conformance_run.check_shape_ledger! --wait` (a gate check, no database) fails with the
   edge to commit; `--confirm --additive` writes that empty edge and moves the ledger for a change
   that only adds, and `--confirm` alone moves it once an edge covers the move. Data that is
   renamed or reshaped needs rules: `exe/hecks query era.scaffold_translation domain.value=<dir>`
@@ -172,11 +172,11 @@ The branches are data: the `Lane` rows of the Vocabulary bluebook
 (`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
 commit must pass as `RequiredCheck` rows beside them.
 
-- **`main` has no guard.** Agents land work on it with `hecks landing.land`
+- **`main` has no guard.** Agents land work on it with `hecks landing.land!`
   (fast-forward or merge commit, never squashed) and then
   `hecks send_train.board!`; do not open a pull request for it. No check is required
   to land, so run the pre-push gate yourself before you push anything that
-  is not trivial: `hecks gate_run.gate stage=quick --wait` runs the seconds-long checks (shape
+  is not trivial: `hecks gate_run.gate! stage=quick --wait` runs the seconds-long checks (shape
   ledger, rubocop, comment style) and is worth running before every commit. A push of `main` runs
   those first, then only the `unguarded_push` stage of
   the Vocabulary gate rows, and `hecks send_train.board! full_gate.value=true` runs the
@@ -185,7 +185,7 @@ commit must pass as `RequiredCheck` rows beside them.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
   fast-forwards `stable` onto it through
-  `exe/hecks promotion_run.promote lane=stable --confirm --wait`, onto the newest
+  `exe/hecks promotion_run.promote! lane=stable --confirm --wait`, onto the newest
   commit of `main` that every required check passed on (named `commit=<sha>` it
   judges exactly that commit and no other). Never push
   to `stable` yourself: its ruleset takes only a commit every required check
@@ -204,7 +204,7 @@ commit must pass as `RequiredCheck` rows beside them.
   ruleset (`.github/rulesets/tag-edge.json`) refuses deleting it or pointing it
   at an older commit; moving it forward is allowed.
 - **A late `stable` files a finding.** `lane-watch.yml` runs every hour and asks
-  `exe/hecks promotion_run.watch lane=stable`; when `stable` has stood behind
+  `exe/hecks promotion_run.watch! lane=stable`; when `stable` has stood behind
   `main` for longer than its `Lane` row's `alert_after` hours (4), the run fails
   and files one GitHub issue a day, saying which required check is red or still
   running. Fix `main` forward or revert on it; the issue is yours to close. A failed
@@ -221,7 +221,7 @@ commit must pass as `RequiredCheck` rows beside them.
   line in its message (the `release_trailer` of the `stable` `Lane` row;
   `lib/hecks/release/approval.rb` decides). Without it `release.yml` releases
   nothing after a promotion, and refuses a by-hand run before it tags or
-  pushes; `publishing_run.publish` refuses it too. Write the line only when
+  pushes; `publishing_run.publish!` refuses it too. Write the line only when
   the user has said to release; never add it on your own, and never bump the
   version for a fix that can ride `edge` (the tag at `stable`'s head, which a
   client can pin as "latest certified"). An existing tag counts as approved,
@@ -235,10 +235,10 @@ commit must pass as `RequiredCheck` rows beside them.
   `main`; `stable` does not move until a commit is green. Do not
   cherry-pick onto `stable` unless the user says production is down.
 - **Change a lane or a required check by editing its row**, then run
-  `exe/hecks regeneration_run.project_lanes --wait` to rewrite
+  `exe/hecks regeneration_run.project_lanes! --wait` to rewrite
   `.github/rulesets/` and `.github/workflows/promote.yml`. Applying the
   rulesets to GitHub is a separate, confirmed step
-  (`regeneration_run.project_lanes --live --confirm`); never hand-edit the
+  (`regeneration_run.project_lanes! --live --confirm`); never hand-edit the
   generated files.
 
 ## Keep CI under three minutes
@@ -258,7 +258,7 @@ runs cold. Before adding a spec or a step, check where it runs:
   `checks_codegen_drift` is the one job that sets `regenerate: "true"`, rewrites the whole
   tree and diffs it with the committed one; without that rewrite its `git diff` compares
   the tree with itself, and a stale module goes through green. After you change a bluebook
-  or the generator, run `exe/hecks regeneration_run.regenerate_corpus --confirm --wait` and
+  or the generator, run `exe/hecks regeneration_run.regenerate_corpus! --confirm --wait` and
   commit what it changed; a conflict in the tree is settled by regenerating, never by
   editing. The Vocabulary rows are part of the `meta` module's IR, so changing a gate row
   moves it too. A spec that reads the whole tree is tagged `:generated_all`: the shards run
@@ -280,8 +280,8 @@ runs cold. Before adding a spec or a step, check where it runs:
   worse. A file that parallel_tests cannot split (one spec file) sets a shard's length, so
   split the file.
 - **Refresh the runtime baselines when you add io spec files**:
-  `exe/hecks test_suite_run.refresh_runtime_baseline from_run=<a green CI run id> --confirm --wait`,
-  then `test_suite_run.write_io_parallel_spec_list`. Shards group by these logs, and a
+  `exe/hecks test_suite_run.refresh_runtime_baseline! from_run=<a green CI run id> --confirm --wait`,
+  then `test_suite_run.write_io_parallel_spec_list!`. Shards group by these logs, and a
   file missing from them lands wherever it lands. The specs that need `rust/parser` stay
   in `IO_PARALLEL_EXCLUDE_PATTERN`, or the Postgres shards skip them and the skip backstop
   fails; the file-list check runs only on pull requests, so a stale list shows on a PR first.
@@ -310,6 +310,6 @@ runs cold. Before adding a spec or a step, check where it runs:
   fails the spec that pins it. If a golden fixture's content is wrong,
   fix the generator (or its heredoc-embedded template text) and
   regenerate; never edit the committed fixture by hand.
-- `exe/hecks regeneration_run.regenerate_corpus --check` (and the other regen scripts
+- `exe/hecks regeneration_run.regenerate_corpus! --check` (and the other regen scripts
   `.github/workflows/ci-checks.yml`'s `checks_codegen_drift` job runs)
   catch drift between a generator and its committed output.

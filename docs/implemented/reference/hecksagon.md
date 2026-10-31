@@ -5,7 +5,7 @@ Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -149,7 +149,7 @@ The Hecks domain (ADR 0080) is the main user of the gem form, attaching the lang
 
 ### Vendoring a package
 
-One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
+One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor!`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
 
 ```sh
 bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0 --from ../embryonaut_bluebooks
@@ -210,7 +210,7 @@ Run in the registry repository itself (packages at `<name>/bluebook.yml`, `<name
 
 A package with no release tag yet is a `note`, not a failure. A passing check ends with `versions ok`.
 
-`hecks package.release <package>` tags the version in `bluebook.yml` as `<package>-vX.Y.Z`, with the package's changelog section as the tag message, in the local repository. It never pushes: the report ends in the command that does. It refuses, with exit status 1 and the reason, when the version is not `X.Y.Z`, the tag exists, the version is not newer than the latest release, the changelog has no entry, the package has uncommitted changes, or its bluebook files are identical to the latest release's. The run is kept as a record (`registry.releasing`, `registry.refused`); the report is the `state.report.value` of the answer.
+`hecks package.release! <package>` tags the version in `bluebook.yml` as `<package>-vX.Y.Z`, with the package's changelog section as the tag message, in the local repository. It never pushes: the report ends in the command that does. It refuses, with exit status 1 and the reason, when the version is not `X.Y.Z`, the tag exists, the version is not newer than the latest release, the changelog has no entry, the package has uncommitted changes, or its bluebook files are identical to the latest release's. The run is kept as a record (`registry.releasing`, `registry.refused`); the report is the `state.report.value` of the answer.
 
 `hecks package.digest <package> [root=<dir>]` prints the content digest a consumer records in its lock file, and the package's shape label, without a Ruby one-liner:
 
@@ -221,7 +221,7 @@ shape: Payments d33c23
 
 The digest is `Lock.digest_of` over the package's `bluebook/*.bluebook` files only, sorted by name: `bluebook.yml`, `CHANGELOG.md` and any other file in the package do not count, so a changelog edit leaves it unchanged. `root` is the registry, read at `<root>/<package>/bluebook`, or a project that vendors the package, read at `<root>/vendor/embryonaut_bluebooks/<package>/bluebook`; it defaults to the current directory. It is a read of the files and keeps no record. It refuses, with exit status 1, naming both places it looked, when the package is in neither.
 
-Both verbs are spelled `registry.check` and `registry.release` too, after the `Registry` aggregate that answers them, as is `package.digest` (`registry.digest`).
+Both verbs are spelled `registry.check` and `registry.release!` too, after the `Registry` aggregate that answers them, as is `package.digest` (`registry.digest`).
 
 ## driven_by
 
@@ -233,7 +233,7 @@ Both verbs are spelled `registry.check` and `registry.release` too, after the `R
 | positional 1 | text | true | driving |
 <!-- generated:end -->
 
-Admits one driving adapter to reach this domain: `Ruby` (the module surface a boot installs), `Cli` (the launcher and `hecks run`), `Json` (the forms and storehouse reader) or `Mcp` (`hecks mcp`). A domain that declares none is open to every adapter. Once it declares any, it is reached through those and each adapter it left out refuses it: `Hecks.boot` refuses to install the Ruby module surface, the launcher answers the sentence with status 1, and the MCP server answers the call with an error. Boot refuses a name no adapter answers to.
+Admits one driving adapter to reach this domain: `Ruby` (the module surface a boot installs), `Cli` (the launcher and `hecks run`), `Json` (the forms and storehouse reader) or `Mcp` (`hecks mcp!`). A domain that declares none is open to every adapter. Once it declares any, it is reached through those and each adapter it left out refuses it: `Hecks.boot` refuses to install the Ruby module surface, the launcher answers the sentence with status 1, and the MCP server answers the call with an error. Boot refuses a name no adapter answers to.
 
 ```ruby excerpt
 Hecks.hecksagon "Lending" do

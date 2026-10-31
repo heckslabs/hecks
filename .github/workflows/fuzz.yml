@@ -62,7 +62,7 @@ jobs:
           install-wasmtime: "false"
 
       - name: Build the banking wasm module
-        run: bundle exec exe/hecks build.build_wasm domain=examples/banking profile=dev --wait
+        run: bundle exec exe/hecks build.build_wasm! domain=examples/banking profile=dev --wait
 
       - uses: actions/upload-artifact@v4
         with:

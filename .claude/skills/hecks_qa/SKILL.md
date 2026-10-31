@@ -170,7 +170,7 @@ per-finding subagent's judgments:
 2. **Otherwise:** write the test that kills it, beside the code's other guard tests, and open it
    as an Improvement (`exe/hecks quality_control improvement.open`). Never a Bug.
 
-The step needs `rust/src/generated` (`hecks regeneration_run.regenerate_corpus --confirm`); without it the build
+The step needs `rust/src/generated` (`hecks regeneration_run.regenerate_corpus! --confirm`); without it the build
 fails before any mutant runs, and the step reports an operational error.
 
 ## Mining combinations with an agent (opt-in, never part of a tick)

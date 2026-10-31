@@ -89,7 +89,7 @@ jobs:
       # hecks build_wasm projects and builds in a scratch copy of rust/, so it
       # leaves no tracked file modified.
       - name: Build the checkout fixture wasm
-        run: bundle exec exe/hecks build.build_wasm domain=spec/fixtures/rust_host/checkout_fixture --wait
+        run: bundle exec exe/hecks build.build_wasm! domain=spec/fixtures/rust_host/checkout_fixture --wait
 
       # Built from rust/host, not with --manifest-path from the root: cargo reads .cargo/config.toml
       # from its working directory, and rust/host's rustflags are part of every crate's hash. A build

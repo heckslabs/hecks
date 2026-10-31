@@ -164,7 +164,7 @@ module Hecks
 
         stale = SECTIONS.reject { |section| section_text(text, section) == section_text(fresh, section) }
         warn "tools_doc: #{DOCUMENT} differs from the RetiredScript rows in: #{stale.join(", ")} " \
-             "(run hecks regeneration_run.project_tools_doc --confirm)"
+             "(run hecks regeneration_run.project_tools_doc! --confirm)"
         1
       end
 
@@ -207,7 +207,7 @@ module Hecks
           end
         end
 
-        # `hecks ir`, `hecks console`, `hecks quality_control sweep.run`, `hecks host.check_era`.
+        # `hecks ir`, `hecks console`, `hecks quality_control sweep.run`, `hecks host.check_era!`.
         # The launcher takes a name that is only a query as a query, so no `query` word is needed.
         def words(declaration, name, row)
           route = route_for(Adapters::Driving::LauncherOptions.settings(@runtime, declaration) || {}, declaration, name, row)

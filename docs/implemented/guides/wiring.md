@@ -309,7 +309,7 @@ store's: the world says `projected_by("PostgresProjection") { database
 "banking"; schema "banking_read" }` and the hecksagon says
 `projected_by "PostgresProjection"`.
 Either adapter answers what the in-process loop answers from the
-authoritative records; `hecks fuzz_run.fuzz` checks that on every SQLite
+authoritative records; `hecks fuzz_run.fuzz!` checks that on every SQLite
 or Postgres sweep (ADR 0122).
 
 `deployed_to("AwsLambda")` is read by `hecks deploy recipe.project` (see
@@ -402,10 +402,10 @@ generate.call(hosting) - generate.call("")   # => ["deploy-service.sh", "expecte
 | `deploy-service.sh` | Pushes a local image under a fresh tag, swaps one container's image in the active task definition, and syncs that container's CloudFormation `*ImageTag` parameter, checking that no other parameter changed |
 | `smoke-after-deploy.sh` | Waits for the roll to settle, then dispatches the smoke workflow and reports the result |
 | `hosting.mk` | Included by the `Makefile`: pins the Hecks release (`HECKS_ROOT` is a cached checkout of its tag) and adds `deploy-service`, `smoke-after-deploy` and `check-era` |
-| `expected-era` | The eras `hecks host.check_era` accepts from a host's `GET /version` |
+| `expected-era` | The eras `hecks host.check_era!` accepts from a host's `GET /version` |
 
 The settings, with their defaults, are documented on
-`Hecks::Projections::Deploy::Scripts`. `hecks host.check_era <url> expected=expected-era`
+`Hecks::Projections::Deploy::Scripts`. `hecks host.check_era! <url> expected=expected-era`
 compares the era a running host reports with that file and exits 1 when it
 is not listed. The scripts take their containers, ECR repositories and
 image-tag parameters from the same resolved settings the stack template is
@@ -641,7 +641,7 @@ a `task_definition` without a `hosting_stack`, a `hosting_stack` without a
 | `deploy-service.sh` | Pushes a local image under a fresh tag (`<service>-<UTC timestamp>`, refused if ECR already has it), sets that container's parameter on the hosting stack and checks that no other parameter changed, refuses to roll a task definition that does not carry the pushed image, then runs `deploy-box.sh` on it. Without a `task_definition` it names the new tag for the service and the tag the box runs now for every other one. `EXISTING_TAG=<tag>` redeploys a tag already in ECR |
 | `smoke-after-deploy.sh` | Waits for the box to settle, then dispatches the smoke workflow, finds the run that dispatch created and follows it. Exits 20 (did not settle), 21 (no `gh` or repository), 22 (smoke failed) or 23 (result unknown) |
 | `hosting.mk` | Included by the `Makefile`: `deploy-service SERVICE=<name>` (the `service_roll.run` command), `smoke-after-deploy` and `check-era URL=...` |
-| `expected-era` | The eras `hecks host.check_era` accepts from a host's `GET /version` |
+| `expected-era` | The eras `hecks host.check_era!` accepts from a host's `GET /version` |
 
 Before a roll replaces a container, `deploy-box.sh` saves that container's log on the box, because Docker deletes it with the container. Each running container of the Compose project (with `deploy-service.sh`, only the service being rolled) is written to `/var/log/hecks-captures/<container>-<UTC timestamp>.log`, the newest 14 per container are kept, and the step prints each file's path and size, never its contents. It is skipped with a warning when under 2 GiB is free on `/var/log`, a failure to capture is a warning and never changes the roll's exit status, and `SKIP_LOG_CAPTURE=1` skips it. Read a capture over SSM, for example `grep would_refuse_role /var/log/hecks-captures/*.log`.
 
@@ -792,7 +792,7 @@ What stays with the site is its own `config.js`, which this never writes: the
 pages and flows to assert, the cookie name and the expected-era file. The
 harness owns the rest: the check runner and its summary, HTTP helpers, signed
 claims and session cookies, sandbox guest addresses, the expected-era check
-against `GET /version` (the same allow-list format `hecks host.check_era` reads), and a
+against `GET /version` (the same allow-list format `hecks host.check_era!` reads), and a
 sweep that takes a run's own rows back out. It runs `SMOKE_MODE=safe` by default,
 which tags every guest address with a sandbox mailbox so a run against
 production never mails a real person; `SMOKE_MODE=full` is for a throwaway
@@ -845,7 +845,7 @@ resolution order.
 
 A bluebook can also come from a package of the shared bluebook registry
 instead of hecks's own `lib/`: `attaches "<name>", from: :vendor` in the
-hecksagon loads the package vendored into the project, and `hecks package.vendor` pins
+hecksagon loads the package vendored into the project, and `hecks package.vendor!` pins
 one there. The [hecksagon reference](../reference/hecksagon.md#vendoring-a-package)
 has the command, the `VENDORED_COMMIT` and `bluebook.lock` files it writes, and
 what it refuses. The environment the host itself reads (checkout, payments and

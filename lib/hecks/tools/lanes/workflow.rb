@@ -70,7 +70,7 @@ module Hecks
         def promote_step(name)
           ["      - name: Promote #{name}", "        env:", "          GH_TOKEN: ${{ github.token }}",
            "        run: >-",
-           "          bundle exec exe/hecks promotion_run.promote lane=#{name}",
+           "          bundle exec exe/hecks promotion_run.promote! lane=#{name}",
            "          run=#{name}-${{ github.event.workflow_run.head_sha || github.run_id }} --confirm --wait"]
         end
       end

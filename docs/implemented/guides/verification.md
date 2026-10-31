@@ -14,7 +14,7 @@ paths you didn't.
 These checks each answer a narrower question than "is the suite
 green." `hecks model_check` reads your domain's own declared shape and
 proves facts about every path through it, not just the ones you
-tested. `hecks fuzz_run.fuzz` walks random-but-valid histories through the real
+tested. `hecks fuzz_run.fuzz!` walks random-but-valid histories through the real
 interpreter and checks properties that must hold of ANY of them. The
 corpus under `spec/corpus/` is the fixed list of refusal paths you
 already decided matter, walked end to end by `hecks run`. And the golden
@@ -236,10 +236,10 @@ holds a probe per rule that runs the buggy code and fails when it stops
 misbehaving, naming the rule, its examples and the probe to delete
 together.
 
-## `hecks fuzz_run.fuzz` and the properties that must hold of any run
+## `hecks fuzz_run.fuzz!` and the properties that must hold of any run
 
 `model_check` proves facts about the declared graph before anything
-runs. `hecks fuzz_run.fuzz` proves facts about what actually happens when
+runs. `hecks fuzz_run.fuzz!` proves facts about what actually happens when
 something DOES run — repeatedly, on sequences no one sat down and
 wrote. It draws random-but-valid command and query sequences off the
 domain's own IR, replays each one in process, and checks whether
@@ -300,7 +300,7 @@ or orders what it should not, shows up here — and no adapter spec that
 only asks the adapter about itself could ever have caught it.
 
 A projection is checked the same way, against the loop rather than
-against itself. On a SQLite or Postgres sweep (`hecks fuzz_run.fuzz
+against itself. On a SQLite or Postgres sweep (`hecks fuzz_run.fuzz!
 adapter.value=sqlite`), `projected_read_models_agree_with_loop` boots the
 domain on Memory with every bluebook `projected_by` that adapter's
 projection (`SqliteProjection` or `PostgresProjection`), replays the
@@ -316,7 +316,7 @@ answers the disagreements, empty when there are none.
 once they have already passed — a property violation or a crash is
 cheap to find; proving determinism means replaying the SAME steps
 against a SECOND fresh boot and diffing two full histories, which is
-not cheap, so `hecks fuzz_run.fuzz` only pays for it once a sequence is otherwise
+not cheap, so `hecks fuzz_run.fuzz!` only pays for it once a sequence is otherwise
 clean:
 
 ```ruby
@@ -336,7 +336,7 @@ is nondeterminism the runtime promised not to have, and it is caught
 by two INDEPENDENT replays, not one compared against a cached copy of
 itself, which would only ever agree with its own bug.
 
-When a generated sequence does find something, `hecks fuzz_run.fuzz` does not
+When a generated sequence does find something, `hecks fuzz_run.fuzz!` does not
 hand you thirty random steps and a seed number. It shrinks — removing
 one step at a time, then one argument within a step at a time, keeping
 each removal only while the exact same finding still reproduces — and
@@ -345,7 +345,7 @@ script shaped exactly like the corpus's own, reproducible with the
 tool you already have:
 
 ```sh
-hecks fuzz_run.fuzz examples/banking
+hecks fuzz_run.fuzz! examples/banking
 hecks run examples/banking tmp/fuzz-failures/banking-seed7.json
 ```
 
@@ -353,7 +353,7 @@ After steps and arguments, the shrinker also offers each surviving argument a si
 (empty, zero, the first element) and keeps it while the finding reproduces, so the saved script
 reads as small as it is.
 
-Add `persist_regressions=true` (the `hecks fuzz_run.fuzz` tool's `--persist-regressions`) to also keep each
+Add `persist_regressions=true` (the `hecks fuzz_run.fuzz!` tool's `--persist-regressions`) to also keep each
 distinct finding's minimized repro under `spec/corpus/regressions/<domain>/<id>.json`. The id comes
 from the property, the message with its minted parts (ids, numbers, quoted literals) normalized
 away, and the verbs of the shrunk steps, so two seeds that break the same property the same way
@@ -450,7 +450,7 @@ against the shape you are about to overwrite.
 ## What actually blocks a push
 
 The suite and `hecks model_check` are exactly what `.githooks/pre-push`
-runs before anything leaves your machine — not `hecks fuzz_run.fuzz`, which stays
+runs before anything leaves your machine — not `hecks fuzz_run.fuzz!`, which stays
 out deliberately: a random sweep is not a fast loop, and pre-push is
 supposed to be one. The suite runs first; then the model checker; and
 either one being red blocks the push outright. So the question of

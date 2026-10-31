@@ -31,4 +31,4 @@ runs:
       shell: bash
       env:
         HECKS_ENVIRONMENT: memory
-      run: env -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait
+      run: env -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait

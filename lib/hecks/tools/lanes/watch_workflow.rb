@@ -72,7 +72,7 @@ module Hecks
         def watch_step(name)
           ["      - name: Watch #{name}", "        env:", "          GH_TOKEN: ${{ github.token }}",
            "          HECKS_FINDINGS_REPO: ${{ github.repository }}", "        run: >-",
-           "          bundle exec exe/hecks promotion_run.watch lane=#{name}",
+           "          bundle exec exe/hecks promotion_run.watch! lane=#{name}",
            "          run=watch-#{name}-${{ github.run_id }}-${{ github.run_attempt }}",
            "          alert_key=#{name}-lag-$(date -u +%Y-%m-%d) --wait"]
         end

@@ -11,7 +11,7 @@ module Hecks
     # `.github/workflows`: each `Workflow` row becomes one file, written whole from its rows
     # (`Projections::CiPipeline::Workflows`, the `:ci_workflows` projection).
     #
-    #   hecks regeneration_run.project_ci_pipeline [--confirm]
+    #   hecks regeneration_run.project_ci_pipeline! [--confirm]
     #
     # A workflow with no row is hand-written and left alone. With `--check` nothing is written: the
     # tool answers 1 and names each file that differs from its rows.
@@ -90,7 +90,7 @@ module Hecks
         end
 
         warn "ci_pipeline: out of date: #{stale.map { |path| path.delete_prefix("#{root}/") }.join(", ")} " \
-             "(run hecks regeneration_run.project_ci_pipeline --confirm)"
+             "(run hecks regeneration_run.project_ci_pipeline! --confirm)"
         1
       end
     end

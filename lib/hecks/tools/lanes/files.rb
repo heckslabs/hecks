@@ -77,7 +77,7 @@ module Hecks
           end
 
           warn "lanes: out of date: #{out_of_date.map { |path| relative(path) }.join(", ")} " \
-               "(run hecks regeneration_run.project_lanes)"
+               "(run hecks regeneration_run.project_lanes!)"
           1
         end
 
