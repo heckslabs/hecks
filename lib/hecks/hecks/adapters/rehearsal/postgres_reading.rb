@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "pg"
 require_relative "postgres_census"
 
 module Hecks
@@ -53,12 +54,25 @@ module Hecks
 
         def reading(subject)
           subject.held.read_from(url)
-          db = PostgresEra.connect_for(subject.bluebook_name, subject.settings)
-          db.exec("SET default_transaction_read_only = on") if @declaration.mode == "readonly_copy"
-          yield PostgresEra::Lineage.new(db, subject.bluebook_name)
+          db = connect(subject)
+          yield PostgresEra::Lineage.new(db, subject.bluebook_name, reading: reads_only?)
         ensure
           db&.close
         end
+
+        # A copy somebody else made is opened read-only before any statement runs: the schema is
+        # selected, never created, and a digest the copy lacks is left unwritten. A database the run
+        # made is its own to touch, so it is opened as a PostgresEra boot opens it.
+        def connect(subject)
+          return PostgresEra.connect_for(subject.bluebook_name, subject.settings) unless reads_only?
+
+          PG.connect(url).tap do |db|
+            db.exec("SET default_transaction_read_only = on")
+            db.exec("SET search_path TO #{db.quote_ident(subject.settings[:schema])}") if subject.settings[:schema]
+          end
+        end
+
+        def reads_only? = @declaration.mode == "readonly_copy"
       end
     end
   end
