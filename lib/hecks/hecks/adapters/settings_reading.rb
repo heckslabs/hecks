@@ -2,6 +2,8 @@
 
 require "hecks"
 require_relative "console_capture"
+require_relative "../../ports/persistence/binding_policy"
+require_relative "settings_reading/stores"
 
 module Hecks
   module Adapters
@@ -15,6 +17,12 @@ module Hecks
     class SettingsReading
       # The variables no code reads; one that is set is reported as ignored.
       RETIRED = %w[HECKS_PRE_PUSH_GATE HECKS_EVAL HECKS_FUZZ_SCHEMA].freeze
+
+      # The persistence verb and the store a domain with no bind of its own uses.
+      VERB = Ports::Persistence::VERB
+      DEFAULT = Ports::Persistence::DEFAULT_ADAPTER
+
+      include Stores
 
       # The first line of a message.
       FIRST_LINE = /\A[^\n]*/
@@ -45,7 +53,7 @@ module Hecks
         [environment, database(directory), mint_eras(directory), schema, project_environment,
          variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
          variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),
-         registry_source(directory)]
+         registry_source(directory), *stores(directory)]
       end
 
       def line_of(name, value, source) = "#{name}: #{value} (#{source})"
