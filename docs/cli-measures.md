@@ -35,6 +35,10 @@ is a regression, whichever step moved it.
   Where a measure is read from a transcript, an agent's transcript counts the same as a
   person's.
 
+## Reviewing the everyday list
+
+The everyday list is reviewed against `hecks usage` before each release: a name that did not run in the window is a candidate to drop, and a frequent name missing from the list is a candidate to add.
+
 ## What is not measured here
 
 Correctness is the suite's job and the gate's, not this page's. A faster command that

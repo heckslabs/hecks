@@ -121,7 +121,7 @@ module Hecks
           raise Stopped
         end
 
-        JSON.parse(out).map { |row| row.dig("path", "value") }.compact
+        JSON.parse(out).filter_map { |row| row["path"] }
       end
 
       def normalize(path) = File.expand_path(path, @root)
