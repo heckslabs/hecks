@@ -7,6 +7,35 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased] - planned 7.0.0
 
+### Breaking
+
+- **Bang-less command names are refused.** A command is written with `!` (`Operation.run!`, `GateRun.gate!`), and a query is written without it. A bang-less spelling of a command exits 2 and names the `!` spelling. Queries are unaffected.
+- **The legacy positional forms are refused, and `Hecks::CLI` is removed.** `hecks run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`, `project_diagrams`, `project_cli` and `mcp` exit 2 with the launcher's suggestion. `mcp!` works through the world's `names`. Generated client launchers no longer hand legacy names to the old dispatcher; a client that still runs an old launcher keeps it until it re-runs `project_cli`.
+- **Renames.** `PullRequest` becomes `ReviewRequest` (`merge` becomes `take`), `Commit` becomes `Revision`, `Checkout` becomes `Workspace` (`log` becomes `history`), and `PushTrain` becomes `SendTrain` (`push` becomes `send`). Each renamed aggregate keeps its old name in `formerly_known_as`; the storage table keeps its old name, so stored rows read under the new name. Old spellings such as `push_train.push` resolve through the rename table and print the new spelling once to stderr. The table resolves through 8.0.
+- **Server and Codebase.** `Server` holds `present`, `compose`, `preview`, `serve_query_ir_mcp` and `serve_mcp`, moved from `CorpusRun` and `Launch`. `Codebase` holds `search`, `read_source`, `outline` and `declaration`, moved from `InspectionRun`.
+- **Words.** A bluebook names its modules with `domain_module "Name" do … end`, and a command declares who it is for with `audience :person, :agent, :ci, :record`. An aggregate that is a run declares `kind: "Run"`.
+- **Exit statuses.** The launcher exits 0 when it answers, 1 when a command is refused or fails, and 2 for a usage mistake.
+
+### Added
+
+- `hecks tour` writes a sample domain, runs one command against it and prints the result.
+- `hecks search <word>` finds commands and queries by name or description.
+- `hecks completion bash|zsh|fish` prints a completion script generated from the listing.
+- `hecks doctor` checks the environment, and `Checkout.where` shows each bluebook's store and the reason for it.
+- `--json` on the listing, `--plan` on every bang command (it lists what the command would write and changes nothing), and `-q` and `-v` for the output level.
+- Refusals carry a stable code in brackets (`[not_found]`), and a missing record names the command that creates it.
+- The launcher prints a context line on stderr for a bang command, naming the checkout, the stores and the audience.
+- An old aggregate name resolves to the renamed aggregate at runtime, in the launcher and in the stores.
+- `Introspection.undo` names the command that undoes a command, from the bluebook's declared compensations, or says none is declared.
+- The help output is pinned by snapshots, one per module, and a session spec runs the tour through the real launcher.
+- An adapter-word gate refuses a domain name that equals a technology word such as `git` or `sqlite`.
+
+### Fixed
+
+- A secret in a malformed database URL is no longer printed in an error message; the launcher masks registered secrets in everything it prints.
+- `hecks config` shows the store each bluebook resolves to, including aggregate binds written with a qualified name.
+- A served command completes: the serve handoff records its note, and the command-table spec asserts it.
+
 - **The CiSpeed chapter holds what was learned about where CI loses time: `Finding`.** The `KnownFinding` rows each give the way CI lost time, its cause, the remedy and the run that shows it, with a `status` of `fixed`, `open` or `untried`; the one untried remedy is a timeout on the cache download that stalled once. `Finding.Record` adds one as it is made, and the next effort starts from them.
 - **The host test cache is warmed with both builds the host cargo job makes.** `rspec_rust_host_cargo` runs `cargo test --workspace` and, through `spec/rust_host_query_step_spec.rb`, `cargo test -p rust_host_core --lib`, which resolves the dependencies' features differently. The cache-warm job built only the first, and on `main` it saves first and the key does not change afterwards, so the second rebuilt the dependencies on every run. The warm job builds both, and the cache is named `hosttest2` so a fresh entry is saved.
 - **The called workflows no longer wait for `inherit_certification` (ADR 0107, amended).** Every run used to wait for the `release_only` decision, a checkout, a Ruby setup and a launcher call, before any detector or heavy job could start. They start at once now. A release bump's detectors race the job that writes its attestation note: one that finds it skips its heavy job, one that looks first runs it, and either way the commit is certified by check runs on its own sha. A bump is no longer guaranteed to skip the whole suite. Restoring the wait is the `needs: inherit_certification` line on each call in `ci.yml`.
