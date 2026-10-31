@@ -20,6 +20,7 @@ module Hecks
 
           if ctx.dry_run
             step(:save) { check_dry_run_creates_duplicate(ctx) }
+            DryRunPlan.write(ctx.aggregate, ctx.instance)
           else
             step(:save) { persist_and_check(ctx) }
           end

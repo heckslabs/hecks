@@ -16,6 +16,8 @@ require_relative "dispatcher/routing"
 require_relative "dispatcher/validating"
 require_relative "dispatcher/queries"
 require_relative "declarations"
+require_relative "dry_run_plan"
+require_relative "dispatcher/planning"
 require_relative "../naming"
 
 module Hecks
@@ -27,6 +29,7 @@ module Hecks
       include Validating
       include Queries
       include Declarations
+      include Planning
 
       MAX_REACTION_DEPTH = 5
 
