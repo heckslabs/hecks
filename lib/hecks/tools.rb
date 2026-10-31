@@ -20,6 +20,7 @@ module Hecks
       "standardize_comments_rust"      => ["tools/rust_comment_style", "RustCommentStyle"],
       "regen_codegen_domains"          => ["tools/regeneration_run", "RegenerationRun"],
       "gate"                           => ["tools/gate", "Gate"],
+      "stub_scope"                     => ["tools/stub_scope", "StubScope"],
       "move_disables"                  => ["tools/move_disables", "MoveDisables"],
       "argument_gate_matrix"           => ["tools/argument_gate_matrix", "ArgumentGateMatrix"],
       "project_ci_gates"               => ["tools/ci_gates", "CiGates"],
