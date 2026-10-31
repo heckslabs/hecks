@@ -23,7 +23,12 @@ module Hecks
             cli = Projector.call(:cli, bluebook: bluebook, options: shown)
             scope = { runtime: runtime, bluebook: bluebook, launcher: launcher, options: options,
                       shown: shown, cli: cli, program: program }
-            usage_answer(scope, argv.first) || module_answer(scope, argv.first) || command_plan(scope, argv)
+            answer_for(scope, argv) || command_plan(scope, argv)
+          end
+
+          # The answer a line gets without naming a command, or nil when it names one.
+          def answer_for(scope, argv)
+            usage_answer(scope, argv.first) || module_answer(scope, argv.first) || search_answer(scope, argv)
           end
 
           # The answer to a line that is only a request for usage, or nil.
