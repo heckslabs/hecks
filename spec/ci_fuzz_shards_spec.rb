@@ -76,7 +76,7 @@ RSpec.describe "the sharded fuzz jobs of ci-checks.yml", :aggregate_failures do
 
     expect(counts.uniq.size).to eq(1)
     expect(listing).to include("fuzz_run.fuzz list_shards=#{counts.first} ")
-    expect(static_runs).to include("bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_shards --wait")
+    expect(static_runs).to include("bundle exec exe/hecks gate_run.gate! stage=ci only=fuzz_shards --wait")
   end
 
   # The names an attestation note vouches for: a leg's own name would let one passing shard vouch

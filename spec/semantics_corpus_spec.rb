@@ -28,7 +28,7 @@ RSpec.describe "the semantics corpus" do
     missing = SEMANTICS_FIXTURES.reject { |path| load_fixture(path).key?("expect") }.map { |path| File.basename(path) }
 
     expect(SEMANTICS_FIXTURES).not_to be_empty
-    expect(missing).to be_empty, "no expect in #{missing.join(", ")} — run hecks test_suite_run.seed_semantics_corpus, " \
+    expect(missing).to be_empty, "no expect in #{missing.join(", ")} — run hecks test_suite_run.seed_semantics_corpus!, " \
                                  "review the seed against the clauses, and commit it"
   end
 
@@ -167,7 +167,7 @@ RSpec.describe "the semantics corpus" do
     def gating_rust_answer(fixture)
       feature = fixture_feature(fixture)
       binary = build_rust_for(feature)
-      skip "rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust for it first" unless binary
+      skip "rust/Cargo.toml has no #{feature} feature — run hecks build.project_rust! for it first" unless binary
 
       rust_answer(binary, fixture)
     end

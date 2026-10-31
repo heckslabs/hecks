@@ -48,24 +48,24 @@ RSpec.describe "client launcher smoke" do
     status.zero? ? puts(text) : abort(text)
   RUBY
 
-  CREATE = %w[order.create_pizza name=Margherita pizza.price_cents=900 pizza.size=large].freeze
+  CREATE = %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large].freeze
 
   # Every call the plain and the pre-3.0 launcher answer alike.
   CALLS = {
     usage:         [],
     help:          %w[--help],
-    verb_help:     %w[order.create_pizza --help],
-    refusal_help:  %w[order.purchase --help],
+    verb_help:     %w[order.create_pizza! --help],
+    refusal_help:  %w[order.purchase! --help],
     short:         CREATE,
-    long:          %w[order.create_pizza name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
+    long:          %w[order.create_pizza! name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
     qualified:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large],
     question:      %w[ask order.available],
     bare_question: %w[order.available],
-    invariant:     %w[order.create_pizza name=Margherita pizza.price_cents=900 pizza.size=huge],
-    missing:       %w[order.purchase to=nope amount=5],
+    invariant:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=huge],
+    missing:       %w[order.purchase! to=nope amount=5],
     unknown:       %w[order.create_piza],
     bare:          %w[create_pizza name=Margherita pizza.price_cents=900 pizza.size=large],
-    bad_word:      %w[order.create_pizza nonsense=1],
+    bad_word:      %w[order.create_pizza! nonsense=1],
     wait_unset:    CREATE + %w[--wait],
     confirm_unset: CREATE + %w[--confirm]
   }.freeze
@@ -153,17 +153,17 @@ RSpec.describe "client launcher smoke" do
     )
     capture_stdout { self.class.generate(@opted_root) }
     opted_calls = {
-      alias:      %w[make name=A pizza.price_cents=1 pizza.size=small],
-      alias_help: %w[make --help],
+      alias:      %w[make! name=A pizza.price_cents=1 pizza.size=small],
+      alias_help: %w[make! --help],
       listed:     [],
-      plain:      %w[order.create_pizza name=B pizza.price_cents=1 pizza.size=small],
-      wait:       %w[order.create_pizza name=C pizza.price_cents=1 pizza.size=small --wait],
-      confirm:    %w[order.create_pizza name=D pizza.price_cents=1 pizza.size=small --confirm],
-      run_given:  %w[order.create_pizza name=E pizza.price_cents=1 pizza.size=small run=mine-1],
+      plain:      %w[order.create_pizza! name=B pizza.price_cents=1 pizza.size=small],
+      wait:       %w[order.create_pizza! name=C pizza.price_cents=1 pizza.size=small --wait],
+      confirm:    %w[order.create_pizza! name=D pizza.price_cents=1 pizza.size=small --confirm],
+      run_given:  %w[order.create_pizza! name=E pizza.price_cents=1 pizza.size=small run=mine-1],
       wait_bad:   %w[ask order.available --wait],
       unknown:    %w[order.create_piza],
-      bad_word:   %w[order.create_pizza nonsense=1],
-      invariant:  %w[order.create_pizza name=F pizza.price_cents=900 pizza.size=huge]
+      bad_word:   %w[order.create_pizza! nonsense=1],
+      invariant:  %w[order.create_pizza! name=F pizza.price_cents=900 pizza.size=huge]
     }
     @opted = self.class.launch_all(@opted_root, opted_calls)
   end

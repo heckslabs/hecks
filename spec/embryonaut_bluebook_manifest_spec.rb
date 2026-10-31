@@ -87,7 +87,7 @@ RSpec.describe Hecks::EmbryonautBluebook::Manifest, :io do
   it "refuses a package with no lock" do
     FileUtils.mkdir_p(File.join(package_dir, "bluebook"))
 
-    expect(problems).to eq(["widgets: no bluebook.lock (hecks package.vendor widgets@<version>)"])
+    expect(problems).to eq(["widgets: no bluebook.lock (hecks package.vendor! widgets@<version>)"])
   end
 
   it "refuses a lock missing a field, naming the field" do

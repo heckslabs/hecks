@@ -8,7 +8,7 @@ RSpec.describe "--plan" do
   let(:runner) { Hecks::Adapters::Driving::CliRunner }
 
   def answer(*argv) = runner.call(runtime: runtime, argv: argv, program: "hecks")
-  def create = ["order.create_pizza", "name=C", "pizza.price_cents.cents=900", "pizza.size.value=large"]
+  def create = ["order.create_pizza!", "name=C", "pizza.price_cents.cents=900", "pizza.size.value=large"]
 
   it("lists the write and the event") do
     text, status = answer(*create, "--plan")

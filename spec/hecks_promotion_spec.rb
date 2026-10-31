@@ -2,7 +2,7 @@ require "spec_helper"
 require "fileutils"
 require "tmpdir"
 
-# Promotion through the launcher: `hecks promotion_run.promote` is a journaled run of PromotionRun.
+# Promotion through the launcher: `hecks promotion_run.promote!` is a journaled run of PromotionRun.
 # The adapter reports where the lane, the commit and each RequiredCheck stand; the givens of
 # `Accept` decide; only an accepted run moves the lane, and without --confirm it is a rehearsal.
 # The remote and GitHub are fakes over a scratch checkout, so nothing is fetched, pushed or asked.

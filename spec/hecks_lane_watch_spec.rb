@@ -2,7 +2,7 @@ require "spec_helper"
 require "fileutils"
 require "tmpdir"
 
-# Watching a lane through the launcher: `hecks promotion_run.watch` faults a lane that has stood
+# Watching a lane through the launcher: `hecks promotion_run.watch!` faults a lane that has stood
 # behind the lane it follows for longer than its `Lane` row allows (`stable`: 4 hours), and the
 # fault files a finding, one a day under its alert key. The remote, the checks and the clock are
 # fakes over a scratch checkout, so nothing is fetched, asked or filed on GitHub.

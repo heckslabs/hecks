@@ -5,7 +5,7 @@ require "yaml"
 require "hecks/tools"
 require "hecks/tools/lanes"
 
-# The branches are `Lane` rows of the Vocabulary bluebook. `hecks regeneration_run.project_lanes`
+# The branches are `Lane` rows of the Vocabulary bluebook. `hecks regeneration_run.project_lanes!`
 # writes
 # each guarded lane's ruleset and the workflow that promotes the lanes that follow another, and with
 # `--live` compares (or, confirmed, updates) the rulesets GitHub holds. This spec holds the
@@ -23,7 +23,7 @@ RSpec.describe Hecks::Tools::Lanes do
     it "hold exactly what the Lane rows project" do
       drifted = described_class.projection(root).reject { |path, text| File.exist?(path) && File.read(path) == text }
 
-      expect(drifted.keys).to be_empty, "have drifted from the Lane rows - run hecks regeneration_run.project_lanes"
+      expect(drifted.keys).to be_empty, "have drifted from the Lane rows - run hecks regeneration_run.project_lanes!"
     end
 
     it "leave no ruleset the rows no longer account for" do
@@ -83,7 +83,7 @@ RSpec.describe Hecks::Tools::Lanes do
     it "name no rule of their own: the workflow runs the promote command" do
       run = promote_workflow.dig("jobs", "promote_stable", "steps").last.fetch("run")
 
-      expect(run).to include("exe/hecks promotion_run.promote lane=stable", "--confirm")
+      expect(run).to include("exe/hecks promotion_run.promote! lane=stable", "--confirm")
     end
 
     # A promotion is a question about the whole followed lane, not about the commit whose CI run
@@ -114,7 +114,7 @@ RSpec.describe Hecks::Tools::Lanes do
       run = watch.dig("jobs", "watch_stable", "steps").find { |step| step["name"] == "Watch stable" }.fetch("run")
 
       expect(watch.fetch(true, watch["on"]).dig("schedule", 0, "cron")).to match(/\A\d+ \* \* \* \*\z/)
-      expect(run).to include("exe/hecks promotion_run.watch lane=stable", "alert_key=stable-lag-$(date -u")
+      expect(run).to include("exe/hecks promotion_run.watch! lane=stable", "alert_key=stable-lag-$(date -u")
     end
 
     # A dropped promotion is picked up within the hour; the watch decides nothing about the commit.
