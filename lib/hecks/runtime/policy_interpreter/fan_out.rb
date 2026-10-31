@@ -33,11 +33,39 @@ module Hecks
         # The rows the `for_each` query answers, and the key by which the trigger addresses a row.
         def for_each_rows(policy, event, domain, target)
           query_domain, aggregate_name, query_name = policy.for_each_route(domain)
+          return read_model_rows(event, query_domain, aggregate_name, target) if query_name.nil?
+
           aggregate = row_sweep.query_aggregate(query_domain, aggregate_name, verb: policy.for_each)
           # The query reads the event, never the `with:` projection: it asks which rows.
           query_args = for_each_query_args(aggregate.query(query_name), event)
           rows = row_sweep.rows(query_domain, aggregate, query_name, query_args)
           [rows, row_sweep.addressing_key_for(target, aggregate_name, label: "for_each's own trigger")]
+        end
+
+        # A `for_each` naming a read model fans out over the rows of the head the trigger addresses:
+        # the read model's many-side head whose aggregate the target command takes a reference to.
+        # The read model is answered from the event as a query is, and each row keeps its own `id`.
+        def read_model_rows(event, domain, model_name, target)
+          model = @registry.bluebook(domain)&.read_model(model_name)
+          raise UnknownVerb, "for_each #{model_name.inspect} names no query or read model in #{domain}" unless model
+
+          head = addressed_head(model, target, model_name)
+          answer = ReadModelInterpreter.new(@registry).call(domain, model, for_each_query_args(nil, event))
+          key = row_sweep.addressing_key_for(target, head[:aggregate], label: "for_each's own trigger")
+          [Array(answer.first[head[:as]]), key]
+        end
+
+        # The one many-side head of `model` that `target` addresses. Refused unless exactly one
+        # does, since two candidate row kinds would not say which one the trigger acts on.
+        def addressed_head(model, target, model_name)
+          command = row_sweep.target_command(target, label: "for_each's own trigger")
+          heads = model.aggregate_heads.select do |head|
+            head[:many] && command.addressing_key_for(head[:aggregate])
+          end
+          return heads.first if heads.one?
+
+          raise ArgumentError, "for_each #{model_name} must have exactly one row kind that #{target} can address, " \
+                               "found #{heads.size}"
         end
 
         def row_sweep = @row_sweep ||= RowSweep.new(@registry)
