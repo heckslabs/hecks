@@ -26,6 +26,7 @@ pub mod fuzz_support;
 #[cfg(test)]
 mod hecksagon_boundary_tests;
 mod http;
+pub mod identity;
 #[cfg(test)]
 #[path = "boundary_fuzz/ir.rs"]
 mod ir_fuzz;
