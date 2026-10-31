@@ -625,6 +625,20 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
 
+value_object "CommandName" do
+  attribute :value, String, matches: :not_empty
+
+  invariant("a command is named by its verb form") { !value.to_s.empty? }
+end
+
+query "Undo" do
+  description "The command that undoes a declared command, from the bluebook's compensations, or that none is declared."
+  attribute :domain,   DomainPath
+  attribute :bluebook, BluebookName
+  attribute :command,  CommandName
+  returns Document
+end
+
       query "Narrate" do
         description "A domain read back in English, whole or for one aggregate."
         attribute :domain,    DomainPath,    optional: true
