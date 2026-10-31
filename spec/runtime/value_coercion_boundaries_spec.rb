@@ -63,8 +63,9 @@ RSpec.describe Hecks::Runtime::Value::Coercion do
     expect { coerce(count, "many") }.to raise_error(Hecks::Runtime::TypeMismatch)
   end
 
-  it "leaves a bare primitive alone when boundary is false, as a query argument is" do
-    expect(coerce(count, "many", boundary: false)).to eq("many")
+  it "refuses a wrong-typed bare primitive for a query argument too, as a command argument is" do
+    expect { Hecks::Runtime::Value.check_query_argument!(ledger, count, "many") }
+      .to raise_error(Hecks::Runtime::TypeMismatch)
   end
 
   it "hands back the very value object it was offered when it is already the declared type" do
