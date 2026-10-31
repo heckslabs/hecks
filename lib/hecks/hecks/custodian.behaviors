@@ -157,8 +157,8 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[RailsRequested LaunchRefused LaunchStopped]
   end
 
-  test "ServeMcp refuses a launch that is not named" do
-    tests "ServeMcp", on: "Launch"
+  test "ServeMcp refuses a server run that is not named" do
+    tests "ServeMcp", on: "Server"
     input run: { value: "" }
     expect refused: "must match"
   end

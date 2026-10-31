@@ -125,22 +125,6 @@ Hecks.bluebook "Hecks" do
         emits InterviewRequested
       end
 
-      # A stdio server runs until its client closes stdin, so it cannot be asked and answered
-      # quickly like the others. The command records that the launch was started; the Terminal
-      # adapter hands the process over to the launch and answers when it closes, as OpenConsole
-      # does for a console. The launcher spells it `serve_mcp`; the `mcp` spelling exe/hecks ships
-      # today stays with its router until the launcher is generated.
-      command "ServeMcp" do
-        role "Operator"
-        goal "Serve the storehouse bus to an MCP client over stdio until it closes"
-
-        attribute :run,   LaunchKey, sets: true
-        attribute :stdio, Switch, optional: true, sets: true
-
-
-        emits McpRequested
-      end
-
       command "Finish" do
         role "System"
         goal "Record that the launch did its work, or was closed, and what it said"
@@ -195,11 +179,6 @@ Hecks.bluebook "Hecks" do
     policy "ConverseWhenRequested" do
       on      "Launch.InterviewRequested"
       ask     :converse, with: { run: :run }
-    end
-
-    policy "ServeWhenRequested" do
-      on      "Launch.McpRequested"
-      ask     :serve, with: { run: :run }
     end
 
     policy "RecordTheLaunch" do
