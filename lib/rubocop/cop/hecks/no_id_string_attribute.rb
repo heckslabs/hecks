@@ -1,12 +1,9 @@
 module RuboCop
   module Cop
     module Hecks
-      # Flags a bluebook attribute that stores another record's id as a plain string, such as
-      # `attribute :teacher_id, String`. The domain refers to a record with `reference_to`; the adapter
-      # maps the school's own ids to those records at the boundary.
-      #
-      # A query's argument is exempt: `attribute :author_id, String` inside `query` names the caller's
-      # value for a `where`, not a stored id.
+      # Flags a plain-string attribute that holds another record's id, such as
+      # `attribute :teacher_id, String`. Declare `reference_to` so the domain holds the record.
+      # A query's argument is exempt: `attribute :author_id, String` names a caller's value.
       #
       # @example
       #   attribute :teacher_id, String          # bad

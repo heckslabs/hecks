@@ -46,8 +46,13 @@ module Hecks
         # aggregate's own id: the path is walked without its leading aggregate name.
         def own_correlation_path(process_manager, event)
           path = process_manager.correlates_by.to_s.split(".")
-          own_name = event.aggregate.to_s.split("::", 2).last
-          path.size > 1 && path.first == own_name ? path.drop(1) : path
+          path.size > 1 && path.first == emitting_aggregate_name(event) ? path.drop(1) : path
+        end
+
+        # The emitting aggregate's bare name, without its domain module.
+        def emitting_aggregate_name(event)
+          _domain, bare_name = event.aggregate.to_s.split("::", 2)
+          bare_name
         end
 
         def self_identified?(process_manager, event)

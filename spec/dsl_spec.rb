@@ -1413,6 +1413,39 @@ RSpec.describe "the DSL surface" do
       end
     end
 
+    # The command that takes a sighting's code and emits the event the process manager starts on.
+    def raise_with_code
+      proc do
+        attribute :code, Code
+        emits "Started"
+      end
+    end
+
+    # A sighting identified by a value object, raised by a command that takes its code.
+    def sighting_declaration
+      raise_code = raise_with_code
+      proc do
+        aggregate "Sighting" do
+          value_object("Code") { attribute :value, String }
+          identified_by :code
+          attribute :code, Code
+          command("Raise") { instance_eval(&raise_code) }
+        end
+      end
+    end
+
+    def bare_identity_process_manager
+      sighting = sighting_declaration
+      build_bluebook("BareIdentity") do
+        instance_eval(&sighting)
+        process_manager("Keyed") do
+          correlates_by Sighting
+          starts_on "Started"
+          transition("Started" => "b", from: "a") { dispatch Sighting::Raise }
+        end
+      end.process_managers.first
+    end
+
     # A bare aggregate name (`correlates_by Thing`) means that aggregate's identity.
     def bare_key_process_manager(domain_name, &declaration)
       thing = ref_amount_declaration
@@ -1426,7 +1459,7 @@ RSpec.describe "the DSL surface" do
       end.process_managers.first
     end
 
-    it "process_manager expands a bare aggregate name to its identity field" do
+    it "process_manager expands a bare aggregate name to its identity field", :aggregate_failures do
       keyed = bare_key_process_manager("BareAggregate") { correlates_by Thing }
 
       expect(keyed.correlates_by).to eq("Thing.id")
@@ -1434,22 +1467,7 @@ RSpec.describe "the DSL surface" do
     end
 
     it "process_manager expands a bare aggregate name to the identity it declares, not id" do
-      sighting = proc do
-        aggregate "Sighting" do
-          value_object("Code") { attribute :value, String }
-          identified_by :code
-          attribute :code, Code
-          command("Raise") { attribute :code, Code; emits "Started" }
-        end
-      end
-      keyed = build_bluebook("BareIdentity") do
-        instance_eval(&sighting)
-        process_manager("Keyed") do
-          correlates_by Sighting
-          starts_on "Started"
-          transition("Started" => "b", from: "a") { dispatch Sighting::Raise }
-        end
-      end.process_managers.first
+      keyed = bare_identity_process_manager
 
       expect(keyed.correlates_by).to eq("Sighting.code.value")
     end
@@ -1462,9 +1480,9 @@ RSpec.describe "the DSL surface" do
     end
 
     it "process_manager leaves a dotted correlates_by unchanged" do
-      keyed = bare_key_process_manager("DottedKey") { correlates_by "Thing.id" }
+      keyed = bare_key_process_manager("DottedKey") { correlates_by "Thing.ref.amount" }
 
-      expect(keyed.correlates_by).to eq("Thing.id")
+      expect(keyed.correlates_by).to eq("Thing.ref.amount")
     end
 
     # `identified_by` reads its own source line via Prism, so it needs a
