@@ -33,6 +33,10 @@ MEMORY_COMMANDS = %w[console init interview].freeze
 ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
 ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
 
+# A command a ledger answers boots that ledger's directory, not this domain's.
+ledger = { "quality_control" => "qa/bluebook" }.fetch(ARGV.first, nil)
+ARGV.shift if ledger
+
 require "hecks"
 # Every secret a world hands an adapter is masked in whatever this process prints.
 Hecks::Secrets.guard!
@@ -40,7 +44,7 @@ Hecks::Secrets.guard!
 # Usage is answered from the projected bluebook alone: no adapter is bound and no
 # database is opened. Only a line that runs a command boots the domain,
 # and it boots from what the usage check already loaded.
-domain = File.expand_path("../lib/hecks/hecks", __dir__)
+domain = File.expand_path(ledger ? "../#{ledger}" : "../lib/hecks/hecks", __dir__)
 program = "hecks"
 described = begin
   Hecks.describe(domain)

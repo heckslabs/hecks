@@ -81,6 +81,15 @@ module Hecks
           )
         RUBY
 
+        # The lines that send a command a ledger answers to the ledger's own directory. The ledger's
+        # name is dropped from the command line, and the boot below reads `ledger`.
+        LEDGER_ROUTE = <<~RUBY.freeze
+
+          # A command a ledger answers boots that ledger's directory, not this domain's.
+          ledger = { {{routes}} }.fetch(ARGV.first, nil)
+          ARGV.shift if ledger
+        RUBY
+
         # The lines that default listed commands to Memory.
         MEMORY_DEFAULT = <<~RUBY.freeze
 
