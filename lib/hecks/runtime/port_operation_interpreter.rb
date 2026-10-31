@@ -96,8 +96,16 @@ module Hecks
       def ask(ctx)
         operation = ctx.operation
         announce(ctx, operation.answers, ctx.args.merge(spread(adapter_answer(ctx))))
+      rescue Interrupt
+        announce(ctx, operation.refuses, ctx.args.merge(refusal: { value: interrupted(ctx) }))
       rescue StandardError => e
         announce(ctx, operation.refuses, ctx.args.merge(refusal: { value: "#{e.class}: #{e.message}" }))
+      end
+
+      # The refusal an interrupted ask records: the operation it was in and that it was not finished,
+      # so the run ends faulted with the stage it reached rather than open with no record.
+      def interrupted(ctx)
+        "interrupted during #{ctx.operation_hecks_name}: the run was stopped before it finished"
       end
 
       def adapter_answer(ctx)
