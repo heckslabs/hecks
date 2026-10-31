@@ -115,7 +115,7 @@ module Hecks
             return split if split
             return lineage.ancestor_latest(aggregate, ordinal, chain) unless chain.size > 1
 
-            lineage.translated_latest(aggregate, ordinal, chain[0..-2])
+            lineage.received_latest(aggregate, ordinal, chain)
           end
         end
       end

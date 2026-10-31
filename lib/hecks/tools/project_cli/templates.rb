@@ -40,7 +40,7 @@ module Hecks
           described = begin
             Hecks.describe(domain)
           rescue StandardError => e
-            abort "cannot open {{name}}: #{e.message.lines.first.strip}"
+            abort "cannot open {{name}}: #{e.message.strip}"
           end
 
           # `hecks usage` reads the local record of what this launcher ran; it boots nothing.
@@ -57,7 +57,7 @@ module Hecks
             runtime = begin
               {{started}}
             rescue StandardError => e
-              abort "cannot open {{name}}: #{e.message.lines.first.strip}"
+              abort "cannot open {{name}}: #{e.message.strip}"
             end
             # A question the world lists under `streams`, given `--stream`, tails until interrupted.
             streamed = Hecks::Adapters::Driving::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
@@ -73,10 +73,10 @@ module Hecks
           runtime = begin
             Hecks.boot({{boot}}, install_driving: false)
           rescue StandardError => e
-            abort "cannot open {{name}}: #{e.message.lines.first.strip}"
+            abort "cannot open {{name}}: #{e.message.strip}"
           end
 
-          text, status = Hecks::Adapters::Driving::CliRunner.call(
+          text, status =Hecks::Adapters::Driving::CliRunner.call(
             runtime: runtime, argv: ARGV, program: "{{shown}}"
           )
         RUBY

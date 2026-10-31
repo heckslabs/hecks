@@ -95,7 +95,7 @@ module Hecks
           after = translated(aggregate, era, chain)
           before = @lineage.split_latest(aggregate, chain) ||
                    if chain.size > 1
-                     translated(aggregate, era, chain[0..-2])
+                     @lineage.received_latest(aggregate, era, chain)
                    else
                      @lineage.ancestor_latest(aggregate, era, chain)
                    end

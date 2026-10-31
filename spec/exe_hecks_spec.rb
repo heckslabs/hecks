@@ -23,6 +23,11 @@ RSpec.describe "exe/hecks" do
     expect(File.executable?(File.join(root, "exe/hecks"))).to be(true)
   end
 
+  # A refusal's later lines name what failed, so the launcher prints the whole message.
+  it "prints every line of a boot refusal, not only the first" do
+    expect(File.read(File.join(root, "exe/hecks"))).not_to include("e.message.lines.first")
+  end
+
   it "refuses a retired positional name with the launcher's own refusal", :aggregate_failures do
     %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli].each do |name|
       _out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: [name], program: "hecks")
