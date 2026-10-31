@@ -1,0 +1,65 @@
+{
+  "domain": "qa/stress_domains/ledger_ordering",
+  "note": "BUG#152 (rust-refusal-doubles-backslash) — a second LedgerOrdering::Folder.Open on a reference holding a backslash refuses AlreadyExists in both engines, and the offered value is quoted as Rendering.describe writes it (Ruby's inspect, so the backslash is doubled) by both. Ruby's RefusalWording.substitute inserts each value through gsub's block form: the replacement-string form reads the value's own `\\\\`, `\\0` and `\\&` as escapes and collapsed the quoted backslash to one, which the Rust kernel's literal replace never did.",
+  "steps": [
+    {
+      "verb": "LedgerOrdering::Folder.Open",
+      "args": {
+        "reference": {
+          "value": "with a \\backslash"
+        }
+      }
+    },
+    {
+      "verb": "LedgerOrdering::Folder.Open",
+      "args": {
+        "reference": {
+          "value": "with a \\backslash"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "LedgerOrdering::Folder.Open",
+        "error": "Open creates a Folder that already exists — reference.value \"with a \\\\backslash\"",
+        "kind": "AlreadyExists"
+      }
+    ],
+    "instances": {
+      "LedgerOrdering::Folder#with a \\backslash": {
+        "reference": {
+          "value": "with a \\backslash"
+        },
+        "slips": [
+
+        ]
+      }
+    },
+    "events": [
+      {
+        "name": "FolderOpened",
+        "aggregate": "LedgerOrdering::Folder",
+        "id": "with a \\backslash",
+        "payload": {
+          "reference": {
+            "value": "with a \\backslash"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}

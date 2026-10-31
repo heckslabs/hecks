@@ -84,8 +84,10 @@ module Hecks
         items.empty? ? spec.fetch("when_empty") : items.join(spec.fetch("separator"))
       end
 
+      # The block form inserts each value as written: a replacement string would have `gsub` read
+      # its `\\`, `\0` and `\&` as escapes, so a quoted value's own backslash would collapse.
       def substitute(template, values)
-        values.reduce(template) { |text, (key, value)| text.gsub("{#{key}}", value.to_s) }
+        values.reduce(template) { |text, (key, value)| text.gsub("{#{key}}") { value.to_s } }
       end
 
       def template(refusal, site)
