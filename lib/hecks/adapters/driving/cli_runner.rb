@@ -9,6 +9,7 @@ require_relative "../../projector"
 require_relative "../../ports/clock"
 require_relative "cli_runner/answers"
 require_relative "cli_runner/resolution"
+require_relative "cli_runner/search_words"
 require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
 require_relative "cli_runner/suggestions"
@@ -29,6 +30,7 @@ module Hecks
         QUERY_WORDS = %w[query ask].freeze
 
         extend Resolution
+        extend SearchWords
         extend Suggestions
         extend VerbNames
         extend Answers
@@ -48,12 +50,34 @@ module Hecks
         #   when the domain said no or the run failed, `USAGE` when the line could not be read
         # @raise [Runtime::WiringError] if a repository or the clock adapter cannot be resolved
         # @raise [Runtime::StaleWrite] if concurrent writers beat the command through every retry
-        def call(runtime:, argv:, program: "hecks run")
+        def call(runtime:, argv:, program: "hecks run", usage_log: false)
+          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
 
-          dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
-                   bluebook: plan[:bluebook], launcher: plan[:launcher])
+          answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
+                            bluebook: plan[:bluebook], launcher: plan[:launcher])
+          UsageLog.record(argv: argv, resolved: plan[:name], status: answer[1], started: started) if usage_log
+          answer
+        end
+
+        # The names a person can type at the launcher, as the projection names them: commands and
+        # queries, leaving out the internal steps a run records about itself.
+        #
+        # @param runtime [#registry] a booted domain, or what `Hecks.describe` answers
+        # @param program [String] how the caller was invoked
+        # @return [Array<String>] the sorted names
+        def known_names(runtime:, program: "hecks run")
+          bluebook, = bluebook_for(runtime, [], program)
+          launcher = LauncherOptions.settings(runtime, bluebook.name)
+          options = LauncherOptions.projection(launcher, program)
+          cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
+          public_names(cli[:names][:command], cli[:commands]) + public_names(cli[:names][:question], cli[:questions])
+        end
+
+        # @return [Array<String>] the names whose spec is not internal
+        def public_names(names, specs)
+          names.reject { |_, id| specs.dig(id, :internal) }.keys.sort
         end
 
         # Answers a command line that asks only for usage, from the projection alone.

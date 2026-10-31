@@ -7,17 +7,17 @@ RSpec.describe Hecks::Adapters::Driving::McpScope::ArgumentPolicy do
   let(:label) { "commands mode" }
 
   it "admits a path inside the checkout for a read-only question" do
-    expect { described_class.admit!({ "path" => "lib/hecks/hecks/codebase.bluebook" }, label, "inspection_run.read_source") }
+    expect { described_class.admit!({ "path" => "lib/hecks/hecks/evolve/evolve.bluebook" }, label, "inspection_run.read_source") }
       .not_to raise_error
   end
 
   it "admits the same path for the outline question" do
-    expect { described_class.admit!({ "path" => "lib/hecks/hecks/codebase.bluebook" }, label, "inspection_run.outline") }
+    expect { described_class.admit!({ "path" => "lib/hecks/hecks/evolve/evolve.bluebook" }, label, "inspection_run.outline") }
       .not_to raise_error
   end
 
   it "accepts the Capitalised question name the door also takes" do
-    expect { described_class.admit!({ "path" => "lib/hecks/hecks/codebase.bluebook" }, label, "InspectionRun.read_source") }
+    expect { described_class.admit!({ "path" => "lib/hecks/hecks/evolve/evolve.bluebook" }, label, "InspectionRun.read_source") }
       .not_to raise_error
   end
 
@@ -32,17 +32,18 @@ RSpec.describe Hecks::Adapters::Driving::McpScope::ArgumentPolicy do
   end
 
   it "still refuses path for a command that is not a read-only question" do
-    expect { described_class.admit!({ "path" => "lib/hecks/hecks/codebase.bluebook" }, label, "model_check_run.model_check") }
+    path = { "path" => "lib/hecks/hecks/evolve/evolve.bluebook" }
+    expect { described_class.admit!(path, label, "model_check_run.model_check") }
       .to raise_error(Hecks::Runtime::TypeMismatch, /never passes it on/)
   end
 
   it "still refuses path when no question is named" do
-    expect { described_class.admit!({ "path" => "lib/hecks/hecks/codebase.bluebook" }, label) }
+    expect { described_class.admit!({ "path" => "lib/hecks/hecks/evolve/evolve.bluebook" }, label) }
       .to raise_error(Hecks::Runtime::TypeMismatch, /never passes it on/)
   end
 
   it "admits the line window for a read-only question" do
-    args = { "path" => "lib/hecks/hecks/codebase.bluebook", "from" => 1, "to" => 5, "top" => 20 }
+    args = { "path" => "lib/hecks/hecks/evolve/evolve.bluebook", "from" => 1, "to" => 5, "top" => 20 }
     expect { described_class.admit!(args, label, "inspection_run.read_source") }.not_to raise_error
   end
 

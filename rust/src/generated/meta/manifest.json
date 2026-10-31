@@ -113,6 +113,12 @@
   },
   {
     "kind": "command",
+    "id": "Bluebook::Bluebook.Group",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
     "id": "Bluebook::Bluebook.Normalise",
     "generated": true,
     "routed": true

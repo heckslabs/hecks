@@ -1,0 +1,920 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Release" do
+    vision "Certify, publish and pin versions."
+
+    aggregate "Release" do
+      description "One gem version: the record of what is running and what was shipped."
+
+      attribute :version,    Version
+      attribute :ir_version, Version
+      attribute :ships_from, Checkout, optional: true
+      # The findings the version settled, by the key the Tickets bluebook gives them.
+      attribute :closes,     list_of(FindingKey), optional: true
+
+      identified_by :version
+
+      value_object "FindingKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Version" do
+        attribute :value, String, matches: :version
+
+        invariant("a version is present") { !value.to_s.empty? }
+      end
+
+      value_object "Checkout" do
+        attribute :path, String
+
+        invariant("a checkout is a working tree with hecks.gemspec beside lib/") { !path.to_s.empty? }
+      end
+
+      lifecycle :state, default: "tagged" do
+        transition "MarkPublished" => "published", from: "tagged"
+        transition "Verify"        => "verified",  from: %w[published verified]
+      end
+
+      command "Tag" do
+        role "Maintainer"
+        goal "Record a version as tagged, with the IR version it carries"
+        audience :record
+
+        attribute :version,    Version, sets: true
+        attribute :ir_version, Version, sets: true
+        attribute :ships_from, Checkout, sets: true
+
+
+        emits Tagged
+      end
+
+      command "MarkPublished", from: "tagged" do
+        role "Maintainer"
+        goal "Record that a tagged version reached the gem registry"
+        audience :record
+
+        reference_to Release
+
+        emits Published
+      end
+
+      command "Verify", from: %w[published verified] do
+        role "Maintainer"
+        goal "Record that the published version installs and boots"
+        audience :record
+
+        reference_to Release
+
+        emits Verified
+      end
+
+      command "CloseFindings" do
+        role "Maintainer"
+        goal "Record the findings this version settled"
+        audience :record
+
+        reference_to Release
+        attribute :closes, list_of(FindingKey), sets: true
+
+
+        emits FindingsClosed
+      end
+
+      query "Shipped" do
+        description "Every version that was tagged, published and verified."
+        where(state: "verified")
+        order_by :version
+      end
+    end
+
+    # Publishing: cutting a release of this gem. The run holds the facts the Git adapter surveyed
+    # (branch, tree, versions, changelog, tag), and `Accept` holds the rules that let a release go
+    # ahead: the adapter supplies the facts and the givens decide. Only an accepted run is carried
+    # out, and without --confirm it is the old dry run: every check and build, nothing tagged,
+    # pushed or published. A real run advances the root Release: tagged, published, verified.
+    aggregate "PublishingRun" do
+      description "One release of the gem, or the rehearsal of it: judged by the facts, then carried out."
+
+      acknowledges :key_by_value, "the version this run tags; its Release is made by the run's own Tag, so a reference would require the record the command exists to make",
+                   of: :version
+      acknowledges :key_by_value, "the client package's version, not a gem Release",
+                   of: :client_version
+      acknowledges :key_by_value, "the IR format's version, not a gem Release",
+                   of: :ir_version
+
+      attribute :run,            RunKey
+      attribute :operation,      Operation, optional: true
+      attribute :confirm,        Switch, optional: true
+      attribute :gem_only,       Switch, optional: true
+      attribute :npm_only,       Switch, optional: true
+      attribute :npm_local,      Switch, optional: true
+      attribute :no_wait,        Switch, optional: true
+      attribute :checkout,       Switch, optional: true
+      attribute :branch,         Word, optional: true
+      attribute :release_lane,   Word, optional: true
+      attribute :on_origin,      Switch, optional: true
+      attribute :clean,          Switch, optional: true
+      attribute :version,        Version, optional: true
+      attribute :client_version, Version, optional: true
+      attribute :changelog,      Switch, optional: true
+      attribute :approved,       Switch, optional: true
+      attribute :tag_state,      Word, optional: true
+      attribute :head,           Word, optional: true
+      attribute :ir_version,     Version, optional: true
+      attribute :ships_from,     Checkout, optional: true
+      attribute :tagged,         Switch, optional: true
+      attribute :published,      Switch, optional: true
+      attribute :verified,       Switch, optional: true
+      attribute :report,         Report, optional: true
+      attribute :refusal,        Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # One word of a fact: a branch, a commit, whether a tag stands.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Version" do
+        attribute :value, String, matches: :version
+      end
+
+      # The working tree the release is cut from.
+      value_object "Checkout" do
+        attribute :path, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"     => "accepted",  from: "requested"
+        transition "AcceptGem"  => "accepted",  from: "requested"
+        transition "Complete"   => "completed", from: "accepted"
+        transition "Fault"      => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "Publish" do
+        role "Maintainer"
+        goal "Tag the merged release commit, publish the gem, and get the client package published"
+
+        attribute :gem_only,  Switch, optional: true, sets: true
+        attribute :npm_only,  Switch, optional: true, sets: true
+        attribute :npm_local, Switch, optional: true, sets: true
+        attribute :no_wait,   Switch, optional: true, sets: true
+        attribute :run,       RunKey, sets: true
+        attribute :confirm,   Switch, optional: true, sets: true
+
+        sets :operation, to: "publish"
+
+        emits PublishRequested
+      end
+
+      command "PublishGem" do
+        role "Maintainer"
+        goal "Build the gem and push it to the gem registry, with the key the vault holds"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "publish_gem"
+
+        emits PublishGemRequested
+      end
+
+      # What the tree reported about itself, and the facts the Git adapter surveyed, held against the
+      # rules of a release. Nothing here runs outside a hecks checkout (hecks.gemspec beside lib/).
+      command "Accept" do
+        role "System"
+        goal "Let a release go ahead only in a hecks checkout, and only when the facts satisfy every rule"
+
+        reference_to PublishingRun
+        attribute :checkout,       Switch, sets: true
+        attribute :branch,         Word, sets: true
+        attribute :release_lane,   Word, sets: true
+        attribute :on_origin,      Switch, sets: true
+        attribute :clean,          Switch, sets: true
+        attribute :version,        Version, sets: true
+        attribute :client_version, Version, sets: true
+        attribute :changelog,      Switch, sets: true
+        attribute :approved,       Switch, sets: true
+        attribute :tag_state,      Word, sets: true
+        attribute :head,           Word, sets: true
+        attribute :ir_version,     Version, sets: true
+        attribute :ships_from,     Checkout, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+        given("a release is cut from the release lane (the Lane row that feeds a tag): switch to it first") do
+          branch.value == release_lane.value
+        end
+        given("the release lane is its origin: wait for the release commit to be promoted, then pull") { on_origin.value }
+        given("the working tree is clean: commit or discard changes first") { clean.value }
+        given("the client package is at the gem's version: bump the package first") do
+          client_version.value == version.value
+        end
+        given("CHANGELOG.md has a heading for the version: add the release entry") { changelog.value }
+        given("the commit that set the version carries a Release-Approved-By line: the owner decides when a release happens") do
+          approved.value || tag_state.value == "at_release_commit"
+        end
+        given("a tag for the version points at the release commit, not elsewhere") do
+          tag_state.value != "elsewhere"
+        end
+
+
+        emits PublishingAccepted
+      end
+
+      # release_gem's one rule: the client package is released beside the gem at the same version.
+      command "AcceptGem" do
+        role "System"
+        goal "Let a gem push go ahead only in a hecks checkout, with the client package at the gem's version"
+
+        reference_to PublishingRun
+        attribute :checkout,       Switch, sets: true
+        attribute :version,        Version, sets: true
+        attribute :client_version, Version, sets: true
+        attribute :ir_version,     Version, sets: true
+        attribute :ships_from,     Checkout, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+        given("the client package is at the gem's version: bump the package first") do
+          client_version.value == version.value
+        end
+
+
+        emits GemAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the release was carried out, what it did, and what it reported"
+
+        reference_to PublishingRun
+        attribute :report,    Report, sets: true
+        attribute :tagged,    Switch, sets: true
+        attribute :published, Switch, sets: true
+        attribute :verified,  Switch, sets: true
+
+
+        emits PublishingCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the request was refused or could not be carried out, and why"
+
+        reference_to PublishingRun
+        attribute :refusal, Report, sets: true
+
+
+        emits PublishingFaulted
+      end
+
+      query "PublishingOutcome" do
+        description "How one request ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "PublishingFaulted" do
+        description "Every request that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+    end
+
+    policy "ExaminePublishingWhenPublishRequested" do
+      on      "PublishingRun.PublishRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExaminePublishingWhenPublishGemRequested" do
+      on      "PublishingRun.PublishGemRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "AcceptTheReleaseWhenExamined" do
+      on      "PublishingRun.PublishingExamined"
+      where   { operation.value == "publish" }
+      trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, release_lane: :release_lane,
+                                             on_origin: :on_origin, clean: :clean, version: :version,
+                                             client_version: :client_version,
+                                             changelog: :changelog, approved: :approved, tag_state: :tag_state,
+                                             head: :head, ir_version: :ir_version, ships_from: :ships_from }
+    end
+
+    policy "AcceptTheGemWhenExamined" do
+      on      "PublishingRun.PublishingExamined"
+      where   { operation.value == "publish_gem" }
+      trigger PublishingRun::AcceptGem, with: { checkout: :checkout, version: :version,
+                                                client_version: :client_version, ir_version: :ir_version,
+                                                ships_from: :ships_from }
+    end
+
+    policy "FaultTheReleaseWhenNotAccepted" do
+      on      "PublishingRun.PublishingExamined"
+      where do
+        operation.value == "publish" &&
+          (!checkout.value || branch.value != release_lane.value || !on_origin.value || !clean.value ||
+            client_version.value != version.value || !changelog.value || tag_state.value == "elsewhere" ||
+            (!approved.value && tag_state.value != "at_release_commit"))
+      end
+      trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG, tag and the Release-Approved-By line" }
+    end
+
+    policy "FaultTheGemWhenNotAccepted" do
+      on      "PublishingRun.PublishingExamined"
+      where do
+        operation.value == "publish_gem" && (!checkout.value || client_version.value != version.value)
+      end
+      trigger PublishingRun::Fault, with: { refusal: "a gem push rule is not met: needs a checkout and the client at the gem's version" }
+    end
+
+    policy "PerformPublishingWhenAccepted" do
+      on      "PublishingRun.PublishingAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "PerformPublishingWhenGemAccepted" do
+      on      "PublishingRun.GemAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    # A real run advances the root Release: tagged when the tag was made, published when a registry
+    # took the gem, verified when every registry in scope lists the version.
+    policy "RecordTheTagWhenPublished" do
+      on      "PublishingRun.PublishingAnswered"
+      where   { tagged.value }
+      trigger Release::Tag, with: { version: :version, ir_version: :ir_version, ships_from: :ships_from }
+    end
+
+    policy "RecordThePublishingWhenPublished" do
+      on      "PublishingRun.PublishingAnswered"
+      where   { published.value }
+      trigger Release::MarkPublished, with: { version: :version }
+    end
+
+    policy "RecordTheVerificationWhenPublished" do
+      on      "PublishingRun.PublishingAnswered"
+      where   { verified.value }
+      trigger Release::Verify, with: { version: :version }
+    end
+
+    # A release that stopped after a real step (the tag pushed, the gem published) still records the
+    # steps it took on the root Release, then ends as a fault carrying what the release said.
+    policy "RecordPublishingOutcome" do
+      on      "PublishingRun.PublishingAnswered"
+      where   { succeeded.value }
+      trigger PublishingRun::Complete, with: { report: :report, tagged: :tagged, published: :published,
+                                               verified: :verified }
+    end
+
+    policy "RecordPublishingShortfall" do
+      on      "PublishingRun.PublishingAnswered"
+      where   { succeeded.value == false }
+      trigger PublishingRun::Fault, with: { refusal: :report }
+    end
+
+    policy "RecordPublishingFault" do
+      on      "PublishingRun.PublishingRefused"
+      trigger PublishingRun::Fault, with: { refusal: :refusal }
+    end
+
+    # Promotion: moving a lane forward onto a commit that has passed every `RequiredCheck`. The
+    # adapter reads the facts (does the lane exist, where its head stands, where each check stands
+    # against the commit) and `Accept` holds the rules, so what makes a commit fit for the lane is
+    # decided here and in the Lane and RequiredCheck rows, never by the workflow that runs
+    # `hecks promotion_run.promote`. Without --confirm the run is a rehearsal: it names the move it
+    # would make and makes none. A real run fast-forwards the lane (never forces it) and moves the
+    # tag the lane `feeds`, forward only; a lane that already holds the commit still has its tag
+    # brought up to the lane's head, so a half-finished run is finished by the next.
+    #
+    # A commit is certified by the checks of that exact commit. With `commit` named, that commit is
+    # the one judged, and no other is ever put in its place. Without it, the commit is the newest
+    # one of the followed lane (first-parent, a bounded way back) that every `RequiredCheck` passed
+    # on and that fast-forwards the lane, so the outcome never depends on which push's CI run
+    # started the promotion; when none qualifies the refusal names what the lane's head is
+    # waiting on.
+    aggregate "PromotionRun" do
+      description "One move of a lane onto a commit, or the rehearsal of it: judged by the facts, then carried out."
+
+      attribute :run,        RunKey
+      attribute :operation,  Operation, optional: true
+      attribute :confirm,    Switch, optional: true
+      attribute :lane,       Word
+      attribute :commit,     Word, optional: true
+      attribute :checkout,   Switch, optional: true
+      attribute :lane_known, Switch, optional: true
+      attribute :green,      Switch, optional: true
+      attribute :descends,   Switch, optional: true
+      attribute :head,       Word, optional: true
+      attribute :behind_hours, Hours, optional: true
+      attribute :limit_hours,  Hours, optional: true
+      attribute :alert_key,    Word, optional: true
+      attribute :promoted,   Switch, optional: true
+      attribute :reason,     Report, optional: true
+      attribute :report,     Report, optional: true
+      attribute :refusal,    Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # A branch name, or a commit.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      # How long a lane has stood behind the lane it follows, or how long its row lets it.
+      value_object "Hours" do
+        attribute :value, Integer
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Observe"  => "observed",  from: "requested"
+        transition "Complete" => "completed", from: %w[accepted observed]
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        transition "Lag"      => "faulted",   from: "observed"
+        mark :terminal, "completed", "faulted"
+      end
+
+      # Looks at a lane and moves nothing: faults when it has stood behind the lane it follows for
+      # longer than its `Lane` row allows, which files a finding. A lane whose row allows no lag is
+      # never late.
+      command "Watch" do
+        role "Maintainer"
+        goal "Fault when a lane has stood behind the lane it follows for longer than its Lane row allows"
+
+        attribute :lane,      Word, sets: true
+        attribute :run,       RunKey, sets: true
+        attribute :alert_key, Word, sets: true
+
+        sets :operation, to: "watch"
+
+        emits WatchRequested
+      end
+
+      command "Promote" do
+        role "Maintainer"
+        goal "Move a lane onto a commit that has passed every required check, or with no --confirm rehearse the move"
+
+        attribute :lane,    Word, sets: true
+        attribute :commit,  Word, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "promote"
+
+        emits PromoteRequested
+      end
+
+      # What the tree and the remote reported, held against the rules of a promotion: the adapter
+      # supplies the facts and the givens decide.
+      command "Accept" do
+        role "System"
+        goal "Let a lane move only in a hecks checkout, onto a commit that is green on every required check and contains the lane's head"
+
+        reference_to PromotionRun
+        attribute :checkout,   Switch, sets: true
+        attribute :lane_known, Switch, sets: true
+        attribute :green,      Switch, sets: true
+        attribute :descends,   Switch, sets: true
+        attribute :commit,     Word, sets: true
+        attribute :head,       Word, optional: true, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+        given("the lane is one of the Lane rows, and follows another lane") { lane_known.value }
+        given("every RequiredCheck is green on the commit: wait for the checks, or fix the red one") { green.value }
+        given("the commit is on the lane it follows and contains the lane's head: a lane only moves forward") { descends.value }
+
+
+        emits PromotionAccepted
+      end
+
+      # What the tree and the remote reported about a watched lane, held against the rules of a
+      # watch: it needs a hecks checkout and a lane that follows another.
+      command "Observe" do
+        role "System"
+        goal "Let a lane be judged late or on time only in a hecks checkout, for a lane that follows another"
+
+        reference_to PromotionRun
+        attribute :checkout,     Switch, sets: true
+        attribute :lane_known,   Switch, sets: true
+        attribute :behind_hours, Hours, sets: true
+        attribute :limit_hours,  Hours, sets: true
+        attribute :alert_key,    Word, sets: true
+        attribute :promoted,     Switch, sets: true
+        attribute :reason,       Report, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+        given("the lane is one of the Lane rows, and follows another lane") { lane_known.value }
+
+
+        emits LaneObserved
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the promotion was carried out or rehearsed, or the lane was on time, and what it reported"
+
+        reference_to PromotionRun
+        attribute :report,   Report, sets: true
+        attribute :promoted, Switch, sets: true
+
+
+        emits PromotionCompleted
+      end
+
+      # A lane that has stood behind the lane it follows for longer than its Lane row allows.
+      command "Lag" do
+        role "System"
+        goal "Record that a lane is late, and what it is waiting on, under the alert key that names its finding"
+
+        reference_to PromotionRun
+        attribute :refusal,   Report, sets: true
+        attribute :alert_key, Word, sets: true
+
+
+        emits LaneLagged
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the promotion was refused or could not be carried out, and why"
+
+        reference_to PromotionRun
+        attribute :refusal, Report, sets: true
+
+
+        emits PromotionFaulted
+      end
+
+      query "PromotionOutcome" do
+        description "How one promotion ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "PromotionFaulted" do
+        description "Every promotion that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+    end
+
+    policy "ExamineWhenPromoteRequested" do
+      on      "PromotionRun.PromoteRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenWatchRequested" do
+      on      "PromotionRun.WatchRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ObserveWhenWatchExamined" do
+      on      "PromotionRun.PromotionExamined"
+      where   { operation.value == "watch" }
+      trigger PromotionRun::Observe, with: { checkout: :checkout, lane_known: :lane_known, behind_hours: :behind_hours,
+                                             limit_hours: :limit_hours, alert_key: :alert_key, promoted: :promoted,
+                                             reason: :reason }
+    end
+
+    policy "FaultWhenWatchCannotBeJudged" do
+      on      "PromotionRun.PromotionExamined"
+      where   { operation.value == "watch" && (!checkout.value || !lane_known.value) }
+      trigger PromotionRun::Fault, with: { refusal: :reason }
+    end
+
+    policy "LagWhenLaneLate" do
+      on      "PromotionRun.LaneObserved"
+      where   { behind_hours.value > limit_hours.value }
+      trigger PromotionRun::Lag, with: { refusal: :reason, alert_key: :alert_key }
+    end
+
+    policy "CompleteWhenLaneOnTime" do
+      on      "PromotionRun.LaneObserved"
+      where   { behind_hours.value <= limit_hours.value }
+      trigger PromotionRun::Complete, with: { report: :reason, promoted: :promoted }
+    end
+
+    policy "AcceptPromotionWhenExamined" do
+      on      "PromotionRun.PromotionExamined"
+      where   { operation.value == "promote" }
+      trigger PromotionRun::Accept, with: { checkout: :checkout, lane_known: :lane_known, green: :green,
+                                            descends: :descends, commit: :commit, head: :head }
+    end
+
+    policy "FaultPromotionWhenNotAccepted" do
+      on      "PromotionRun.PromotionExamined"
+      where   { operation.value == "promote" && (!checkout.value || !lane_known.value || !green.value || !descends.value) }
+      trigger PromotionRun::Fault, with: { refusal: :reason }
+    end
+
+    policy "PerformPromotionWhenAccepted" do
+      on      "PromotionRun.PromotionAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "RecordPromotionOutcome" do
+      on      "PromotionRun.PromotionAnswered"
+      trigger PromotionRun::Complete, with: { report: :report, promoted: :promoted }
+    end
+
+    policy "RecordPromotionFault" do
+      on      "PromotionRun.PromotionRefused"
+      trigger PromotionRun::Fault, with: { refusal: :refusal }
+    end
+
+    aggregate "Registry" do
+      description "A bluebook registry repository: packages versioned in it and released as tags."
+
+      attribute :run,     RegistryKey
+      attribute :package, PackageName, optional: true
+      attribute :root,    Location,    optional: true
+      attribute :report,  Report,      optional: true
+      attribute :refusal, Report,      optional: true
+      identified_by :run
+
+      value_object "RegistryKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a release is named") { !value.to_s.empty? }
+      end
+
+      value_object "PackageName" do
+        attribute :value, String, matches: :snake_name
+      end
+
+      # The registry repository: the current directory when absent.
+      value_object "Location" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Complete" => "tagged",  from: "requested"
+        transition "Abandon"  => "refused", from: "requested"
+        mark :terminal, "refused", "tagged"
+      end
+
+      # `hecks package.release <package> [root=path]`. Tags the package's current version as
+      # `<package>-vX.Y.Z` in the local repository and never pushes; the report ends in the command
+      # that does. A refusal says which rule the package broke.
+      command "Release" do
+        role "Operator"
+        goal "Tag a package of this registry at the version its bluebook.yml carries"
+
+        attribute :run,     RegistryKey, sets: true
+        attribute :package, PackageName, sets: true
+        attribute :root,    Location, optional: true, sets: true
+
+
+        emits ReleaseRequested
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the release was tagged, and the command that publishes it"
+
+        reference_to Registry
+        attribute :report, Report, sets: true
+
+
+        emits ReleaseRecorded
+      end
+
+      command "Abandon" do
+        role "System"
+        goal "Record that the release was refused, and why"
+
+        reference_to Registry
+        attribute :refusal, Report, sets: true
+
+
+        emits ReleaseAbandoned
+      end
+
+      # `hecks package.check [root=path]`: a read of the repository's files and tags, so it keeps no
+      # record. A package that changed since its latest release without a version bump and a changelog
+      # entry refuses it, naming each one.
+      query "Check" do
+        description "Judge every package against its latest release: a changed package needs a newer version and a changelog entry."
+        attribute :root, Location, optional: true
+        returns Document
+      end
+
+      # `hecks package.digest <package> [root=path]`: a read of the package's files, so it keeps no
+      # record. The digest is `Lock.digest_of` over `<package>/bluebook/*.bluebook` only (the
+      # `bluebook.lock` digest line), then the package's shape labels; `root` is the registry, or a
+      # project that vendors the package.
+      query "Digest" do
+        description "Print a package's content digest and shape labels, as its bluebook.lock records them."
+        attribute :package, PackageName
+        attribute :root, Location, optional: true
+        returns Document
+      end
+
+      query "Releasing" do
+        description "What releasing one run did: its status, and the report or the refusal."
+        attribute :run, RegistryKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Refused" do
+        description "Every release that was refused."
+        where(status: "refused")
+        order_by :run
+      end
+    end
+
+    policy "TagWhenReleased" do
+      on      "Registry.ReleaseRequested"
+      ask     :tag, with: { run: :run }
+    end
+
+    policy "RecordTheTag" do
+      on      "Registry.ReleaseTagged"
+      trigger Registry::Complete, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedTag" do
+      on      "Registry.ReleaseRefused"
+      trigger Registry::Abandon, with: { refusal: :refusal }
+    end
+
+    aggregate "Package" do
+      description "One package of the bluebook registry, vendored into a project and pinned."
+
+      attribute :package, PackageRef
+      attribute :from,    Location, optional: true
+      attribute :root,    Location, optional: true
+      attribute :report,  Report,   optional: true
+      attribute :refusal, Report,   optional: true
+      identified_by :package
+
+      # `name` for the newest release, `name@1.2.0` for one release, `name@9f2c1ab` for a commit.
+      value_object "PackageRef" do
+        attribute :value, String, pattern: '^[a-z][a-z0-9_]*(@[^ \t\n\r]+)?$'
+
+        invariant("a package is named") { !value.to_s.empty? }
+      end
+
+      # A directory: the source repository (`from`), or the project the files land in (`root`).
+      value_object "Location" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Revendor" => "requested", from: %w[vendored refused]
+        transition "Complete" => "vendored",  from: "requested"
+        transition "Abandon"  => "refused",   from: "requested"
+      end
+
+      # `hecks vendor <package[@version]> [from=path] [root=path]`. The record is named by what was
+      # asked for, so a release is one record; vendoring the same spelling again is `hecks revendor`.
+      # `from` defaults to $EMBRYONAUT_BLUEBOOKS_SRC and `root` to the current directory, both read by
+      # the adapter.
+      command "Vendor" do
+        role "Operator"
+        goal "Pin a package of the bluebook registry into this project, at a release or a commit"
+
+        attribute :package, PackageRef, sets: true
+        attribute :from,    Location, optional: true, sets: true
+        attribute :root,    Location, optional: true, sets: true
+
+
+        emits VendorRequested
+      end
+
+      command "Revendor" do
+        role "Operator"
+        goal "Pin a package that was vendored before again, for the newest release or the same one"
+
+        reference_to Package
+        attribute :from, Location, optional: true, sets: true
+        attribute :root, Location, optional: true, sets: true
+
+
+        emits RevendorRequested
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the package was pinned, and what changed"
+
+        reference_to Package
+        attribute :report, Report, sets: true
+
+
+        emits PackageVendored
+      end
+
+      command "Abandon" do
+        role "System"
+        goal "Record that the package could not be pinned, and why"
+
+        reference_to Package
+        attribute :refusal, Report, sets: true
+
+
+        emits VendoringRefused
+      end
+
+      query "Pinning" do
+        description "What vendoring one package did: its status, and the report or the refusal."
+        attribute :package, PackageRef
+        where(package: :package)
+        order_by :package
+      end
+
+      query "Unpinned" do
+        description "Every package the last vendoring of which was refused."
+        where(status: "refused")
+        order_by :package
+      end
+
+      # `hecks package.verify [root=path]`: a read of the files, so it keeps no record. The manifest
+      # is the answer; a package that disagrees with its lock refuses it, naming each one.
+      query "Verify" do
+        description "Check every vendored package against its bluebook.lock, then describe them as the manifest a client image carries."
+        attribute :root, Location, optional: true
+        returns Document
+      end
+    end
+
+    policy "PinWhenVendored" do
+      on      "Package.VendorRequested"
+      ask     :pin, with: { package: :package }
+    end
+
+    policy "PinWhenRevendored" do
+      on      "Package.RevendorRequested"
+      ask     :pin, with: { package: :package }
+    end
+
+    policy "RecordThePinning" do
+      on      "Package.PackagePinned"
+      trigger Package::Complete, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedPin" do
+      on      "Package.PinRefused"
+      trigger Package::Abandon, with: { refusal: :refusal }
+    end
+  end
+end

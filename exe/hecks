@@ -41,6 +41,8 @@ ENV["HECKS_ENVIRONMENT"] ||= "memory" if MEMORY_COMMANDS.include?(ARGV.first.to_
 ARGV << "--wait" if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!")) && !ARGV.include?("--wait")
 
 require "hecks"
+# Every secret a world hands an adapter is masked in whatever this process prints.
+Hecks::Secrets.guard!
 
 # Usage is answered from the projected bluebook alone: no adapter is bound and no
 # database is opened. Only a line that runs a command boots the domain,
@@ -51,6 +53,13 @@ described = begin
   Hecks.describe(domain)
 rescue StandardError => e
   abort "cannot open Hecks: #{e.message.lines.first.strip}"
+end
+
+# `hecks usage` reads the local record of what this launcher ran; it boots nothing.
+if ARGV.first == "usage"
+  known = Hecks::Adapters::Driving::CliRunner.known_names(runtime: described, program: program)
+  puts Hecks::Adapters::Driving::UsageLog.summary(known: known)
+  exit 0
 end
 
 text, status, reason = Hecks::Adapters::Driving::CliRunner.usage(
@@ -66,7 +75,7 @@ unless text
   streamed = Hecks::Adapters::Driving::CliRunner.stream(runtime: runtime, argv: ARGV, program: program)
   exit streamed unless streamed.nil?
   text, status, reason = Hecks::Adapters::Driving::CliRunner.call(
-    runtime: runtime, argv: ARGV, program: program
+    runtime: runtime, argv: ARGV, program: program, usage_log: true
   )
 end
 # A `--wait` run that failed answers its settled record on stdout, so `| jq` reads it

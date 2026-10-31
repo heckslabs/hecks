@@ -33,6 +33,8 @@ RSpec.describe "client launcher smoke" do
     $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
     require "hecks"
+    # Every secret a world hands an adapter is masked in whatever this process prints.
+    Hecks::Secrets.guard!
 
     runtime = begin
       Hecks.boot(__dir__, install_driving: false)
