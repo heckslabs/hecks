@@ -9,7 +9,7 @@ module Hecks
           # Ranked by shared prefix, which survives a dropped letter where a substring would not.
           def unknown(cli, name, asking, program)
             near  = near_names(cli, snake_form(name), asking)
-            lines = ["no such #{asking ? "query" : "command"}: #{name}"]
+            lines = ["[unknown_#{asking ? "query" : "command"}] no such #{asking ? "query" : "command"}: #{name}"]
             shown = near.first(5).map { |candidate| "  #{shown_name(cli, candidate, asking)}" }
             lines += ["", "did you mean:", *shown] unless near.empty?
             lines += ["", "  #{program}#{" query" if asking}   for the full list"]
