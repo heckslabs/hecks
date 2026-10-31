@@ -1035,7 +1035,7 @@ impl CardRemarkNestedEntityArgs {
             ));
         }
         let note = match v.get("note") {
-            Some(crate::kernel::Json::Null) | None => CardNote {
+            None => CardNote {
                 text: "none".to_string(),
             },
             Some(x) => CardNote::from_json(&x.coerce_single_field("text"))?,
@@ -1668,7 +1668,7 @@ impl BoardRetitleEntityArgs {
             ));
         }
         let label = match v.get("label") {
-            Some(crate::kernel::Json::Null) | None => BoardLabel {
+            None => BoardLabel {
                 value: "untitled".to_string(),
             },
             Some(x) => BoardLabel::from_json(&x.coerce_single_field("value"))?,
