@@ -49,7 +49,7 @@ RSpec.describe Hecks::Adapters::Driving::ExitStatus do
     it("a query the bluebook does not declare") { expect(status("query", "order.nope")).to eq(2) }
     it("a word the command does not take") { expect(status("order.create_pizza!", "nope=1")).to eq(2) }
     it("a value its type cannot hold") { expect(status("order.create_pizza!", "pizza.price_cents.cents=lots")).to eq(2) }
-    it("a flag the command lacks") { expect(status("order.create_pizza!", "name=X", "--wait")).to eq(2) }
+    it("a flag the command lacks") { expect(status("order.create_pizza!", "name=X", "--no-such-flag")).to eq(2) }
     it("the launcher given no word answers its listing") { expect(usage_of).to eq(0) }
     it("the launcher's unknown word") { expect(usage_of("frobnicate")).to eq(2) }
     it("the launcher's retired word") { expect(usage_of("docs", "domain=/nowhere/at/all")).to eq(2) }

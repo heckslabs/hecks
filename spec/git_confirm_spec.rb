@@ -42,8 +42,12 @@ RSpec.describe "exe/hecks git-state confirmation", :io do
     expect(text).not_to include("needs --confirm")
   end
 
-  it "passes the guard for Land with --confirm: git fails on the missing checkout, not the guard" do
-    text, _status = launch("Landing.land!", "--confirm", "branch.value=no-such", "checkout.value=/nonexistent-checkout")
-    expect(text).not_to include("needs --confirm")
+  gated.each do |command, args|
+    it "passes the guard for #{command} with --confirm, and with confirm=true", :aggregate_failures do
+      text, _status = launch(command, "--confirm", *args)
+      expect(text).not_to include("needs --confirm")
+      text, _status = launch(command, "confirm.value=true", *args)
+      expect(text).not_to include("needs --confirm")
+    end
   end
 end

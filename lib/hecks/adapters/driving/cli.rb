@@ -75,7 +75,7 @@ module Hecks
           case type
           when "Integer" then Integer(value)
           when "Float"   then Float(value)
-          when "Boolean" then boolean(value)
+          when "Boolean", "Switch" then boolean(value)
           else value
           end
         rescue ArgumentError
