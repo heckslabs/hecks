@@ -2558,6 +2558,16 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "handles",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "CommandValueHandling"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "answers",
           "optional": false,
@@ -2717,6 +2727,75 @@
 
           ],
           "name": "EmittedEvent"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "command",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "command"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!command.to_s.empty?",
+              "description": "a handled command is named"
+            },
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a handled value is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CommandValueHandling"
         },
         {
           "attributes": [
@@ -3006,6 +3085,36 @@
               [
                 "fills",
                 "refuses"
+              ]
+            ],
+            [
+              [
+                "word",
+                "handles"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "handles"
+              ],
+              [
+                "calls",
+                "handles_impl"
               ]
             ]
           ],
@@ -3557,6 +3666,66 @@
               [
                 "fills",
                 "refuses"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "handles"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "handles"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "value"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "value"
               ]
             ]
           ],

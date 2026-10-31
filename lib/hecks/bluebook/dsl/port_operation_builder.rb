@@ -25,6 +25,7 @@ module Hecks
           @owner     = owner
           @direction = direction
           @emits     = []
+          @handles   = []
         end
 
         # Refuses `reference_to` inside an operation body; a port operation has no self-reference
@@ -47,6 +48,12 @@ module Hecks
         # Names one event an inbound operation records once the external fact has arrived.
         def emits(event_name) = @emits << event_name.to_s
 
+        # Names one value of a command this operation handles, e.g. `handles "Build.build!",
+        # value: "wasm"`. Recorded in the IR only; nothing routes on it yet.
+        def handles_impl(command, value:)
+          @handles << { command: command.to_s, value: value.to_s }
+        end
+
         # `answers`/`refuses`, the two halves of an `asks` — separate words rather than two
         # `emits` so a reader can tell what came back from what the outside refused, without
         # reading the adapter.
@@ -64,7 +71,8 @@ module Hecks
 
           PortOperation.new(
             name: @name, attributes: attributes, emits: @emits,
-            direction: @direction, answers: @answers, refuses: @refuses, to: @to
+            direction: @direction, answers: @answers, refuses: @refuses, to: @to,
+            handles: @handles
           )
         end
 
