@@ -36,7 +36,9 @@ module DoctestNames
     1.0-readiness.md
     architecture-map.md
     benchmarks.md
+    cli-measures.md
     command-form-and-query-form-bluebook.md
+    compatibility.md
     COMMENT_STYLE_GUIDE.md
     COMMENT_STYLE_GUIDE_RUST.md
     dsl-work-slices.md
