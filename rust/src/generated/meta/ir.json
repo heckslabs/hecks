@@ -34229,6 +34229,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "runs_in",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -34248,6 +34258,10 @@
               [
                 "title",
                 "rspec (parallel)"
+              ],
+              [
+                "runs_in",
+                "ci"
               ],
               [
                 "argv",
@@ -35276,7 +35290,21 @@
               ],
               [
                 "checks",
-                "rspec,fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+                "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ci_suite"
+              ],
+              [
+                "env",
+                "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1"
+              ],
+              [
+                "checks",
+                "rspec"
               ]
             ],
             [

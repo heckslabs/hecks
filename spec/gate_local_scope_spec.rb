@@ -21,6 +21,12 @@ RSpec.describe "the local gate scope" do
     expect(check_row("rspec")).to include("runs_in" => "ci")
   end
 
+  it "does not attest the full suite from a local push, since no local stage ran it" do
+    hook = File.read(File.join(InMemoryDomain::ROOT, ".githooks/pre-push"))
+
+    expect(hook[/ATTEST_CHECKS="[^"]*"/]).not_to include("rspec")
+  end
+
   it "holds the full suite in a stage of its own, which no local stage lists" do
     expect(stage_checks("ci_suite")).to eq(["rspec"])
   end
