@@ -2741,14 +2741,23 @@ impl DeclareArgs {
         let aggregate = {
             let x = v.get("aggregate").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Entity.aggregate expects String, got nil".to_string(),
+                    "Declare.aggregate expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Entity.aggregate expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "aggregate",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Aggregate is known by bluebook, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let owner = EntityText::from_json(
@@ -3435,14 +3444,23 @@ impl AttributeArgs {
         let r#type = {
             let x = v.get("type").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Entity.type expects String, got nil".to_string(),
+                    "Attribute.type expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Entity.type expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Attribute",
+                        attribute: "type",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (ValueObject is known by aggregate, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = EntityText::from_json(
@@ -3843,14 +3861,23 @@ impl ReferenceArgs {
         let points_at = {
             let x = v.get("points_at").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Entity.points_at expects String, got nil".to_string(),
+                    "Reference.points_at expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Entity.points_at expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Reference",
+                        attribute: "points_at",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Aggregate is known by bluebook, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = EntityText::from_json(
@@ -4251,14 +4278,23 @@ impl HoldsArgs {
         let holds = {
             let x = v.get("holds").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Entity.holds expects String, got nil".to_string(),
+                    "Holds.holds expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Entity.holds expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Holds",
+                        attribute: "holds",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Entity is known by aggregate, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = EntityText::from_json(

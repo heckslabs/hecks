@@ -521,10 +521,21 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crat
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Label acts on one Line — pass batch.value, sequence.value:"
-                                    .to_string(),
-                            )
+                            if store.venue.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Venue",
+                                        identity: "code.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Label acts on one Line — pass batch.value, sequence.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::composite_line_ledger::venue::Line::extract_wants(

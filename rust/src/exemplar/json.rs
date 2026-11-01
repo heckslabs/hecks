@@ -268,6 +268,23 @@ impl TmplExtractIdType {
 }
 // TMPL:extract_id END
 
+// An entity element is addressed by its declared identity alone: unlike a root aggregate it has
+// no `id` or reference-key fallback, so an argument offering only those names no element.
+struct TmplExtractExactType;
+// TMPL:extract_id_exact BEGIN
+impl TmplExtractExactType {
+    pub fn tmpl_extract_id_name(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
+        (|| -> Option<String> {
+            // TMPL:extract_id_exact:TIER1_LINE BEGIN
+            let c0 = v.dig("tmpl_path")?.tmpl_id_coercion().ok()?;
+            // TMPL:extract_id_exact:TIER1_LINE END
+            Some(tmpl_tier1_join_placeholder())
+        })()
+        .ok_or_else(|| crate::kernel::Refusal::TypeMismatch("tmpl_error_text".to_string()))
+    }
+}
+// TMPL:extract_id_exact END
+
 fn tmpl_tier1_join_placeholder() -> String {
     String::new()
 }

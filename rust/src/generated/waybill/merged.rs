@@ -440,9 +440,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Load
                     let element_id =
                         crate::generated::waybill::manifest::Slot::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Fill acts on one Slot — pass number.value:".to_string(),
-                            )
+                            if store.manifest.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Manifest",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Fill acts on one Slot — pass number.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::waybill::manifest::Slot::extract_wants(facts_json);
@@ -509,9 +520,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Load
                     let element_id =
                         crate::generated::waybill::manifest::Slot::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Clear acts on one Slot — pass number.value:".to_string(),
-                            )
+                            if store.manifest.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Manifest",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Clear acts on one Slot — pass number.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::waybill::manifest::Slot::extract_wants(facts_json);
