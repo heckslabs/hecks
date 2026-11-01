@@ -1,5 +1,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
+require "json"
+require "tmpdir"
 require_relative "../lib/hecks/adapters/driven/postgres_era/lineage_manager"
 
 # The implicit empty edge: a shape change whose scaffold finds no rule, no retirement and no
@@ -9,7 +11,10 @@ module ImplicitEdgeSupport
   MEMO_TYPE = "value_object \"Memo\" do\n      attribute :text, String\n    end".freeze
   OPTIONAL_MEMO = "attribute :memo, Memo, optional: true\n    #{MEMO_TYPE}".freeze
   REQUIRED_MEMO = "attribute :memo, Memo\n    #{MEMO_TYPE}".freeze
-  Ctx = Struct.new(:registry, :bluebook, :latest, :label, :domain_name, :ordinal, :directory)
+  Ctx = Struct.new(:registry, :bluebook, :latest, :label, :domain_name, :ordinal, :directory) do
+    # The ledger watermark the decision reads; the ledger has no era past this one.
+    def watermark = 1
+  end
   # A lineage that answers the audit's reads with nothing and keeps the fields of a mint.
   class FakeLineage
     attr_reader :minted
@@ -62,10 +67,17 @@ module ImplicitEdgeSupport
   def registry = Struct.new(:translations).new([])
 
   # The era check's context, for the minter's edge resolution.
-  def resolve_edge(held_text, current_text)
+  def resolve_edge(held_text, current_text, directory: nil)
     ctx = Ctx.new(registry, declared(current_text), { ordinal: 1, label: "aaaaaa", held_text: held_text },
-                  "bbbbbb", "Ledger", 2, nil)
+                  "bbbbbb", "Ledger", 2, directory)
     host.resolve_edge!(ctx)
+  end
+
+  # Writes the implicit move the shape ledger records for `current_text`, from the held label.
+  def record_implicit(directory, current_text)
+    label = Hecks::Runtime::StorageShape.mint_hash(declared(current_text))[0, Hecks::Runtime::StorageShape::LABEL_LENGTH]
+    moves = { "Ledger" => [{ "from" => "aaaaaa", "to" => label }] }
+    File.write(File.join(directory, Hecks::ShapeLedger::IMPLICIT_FILE), JSON.generate(moves))
   end
 
   # An object carrying every part of the lineage manager a minter path calls.
@@ -128,7 +140,10 @@ RSpec.describe "an implicit translation edge" do
   it "resolves a change that only adds to an implicit edge" do
     current = ledger_text(extra: ImplicitEdgeSupport::OPTIONAL_MEMO)
 
-    expect(resolve_edge(held_text, current)).to be_a(Hecks::Translation::ImplicitEdge)
+    Dir.mktmpdir do |dir|
+      record_implicit(dir, current)
+      expect(resolve_edge(held_text, current, directory: dir)).to be_a(Hecks::Translation::ImplicitEdge)
+    end
   end
 
   it "still fails the audit when the audit finds a violation" do

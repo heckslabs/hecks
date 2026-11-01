@@ -41,7 +41,7 @@ module Hecks
         # @return [Hash] the edge facts, every refused row and its total, what was read, the parity
         #   of the two engines, and what was not checked
         def examine
-          edge = minting == "next" ? @subject.edge_from(before, latest[:held_text]) : nil
+          edge = decided_edge
           refusals, after = edge ? @store.audit(@subject, edge) : [[], {}]
           rust = RustAudit.call(@subject, after)
           report = AuditReport.new(minting: minting, edge: edge, states: after, ruby: refusals, rust: rust)
@@ -51,6 +51,14 @@ module Hecks
         private
 
         def plain(value) = { value: value }
+
+        # The edge a mint would use, as the shared decision names it; nil unless it would mint.
+        def decided_edge
+          return unless minting == "next" && latest[:held_text]
+
+          verdict = @subject.decide(latest, @store.watermark(@subject))
+          verdict.verdict == "would_mint" ? verdict.edge : nil
+        end
 
         def shape
           { booted: flag(true), host_version: plain(Rehearsal.host_version), store: plain(@subject.store_kind),
