@@ -2,17 +2,21 @@
 
 require "open3"
 require_relative "reading"
+require_relative "branch_guard"
 
 module Hecks
   module Adapters
     class GitTrain
       # What a boarding does to a checkout before its carriage carries it: brings the branch up to
-      # its remote, and, when the checkout keeps a shape ledger, settles an additive shape change
-      # into a commit the carriage then pushes.
+      # its remote, and settles an additive shape change into a commit the carriage then pushes.
       #
-      # A rebase stops only on the ledger file, which is regenerated rather than merged: the upstream
-      # copy is taken and the ledger is settled after. Any other conflict aborts the rebase and is
-      # reported by path, so nothing is resolved by guesswork.
+      # It works on the boarded branch only: to change anything, the checkout must have that branch
+      # checked out and clean, and the branch must still name the boarded commit. Its own commit
+      # names the ledger paths it wrote, so nothing already staged is swept in.
+      #
+      # A rebase stops only on the ledger file, which is regenerated rather than merged: the
+      # upstream copy is taken and the ledger is settled after. Any other conflict aborts the
+      # rebase and is reported by path.
       class Settlement
         include Reading
 
@@ -26,8 +30,8 @@ module Hecks
         SETTLE = %w[bundle exec exe/hecks conformance_run.check_shape_ledger! --confirm --additive --wait].freeze
 
         # The drift checks CI runs after a push lands, run here in check mode before the push: the
-        # generated Rust must match a regeneration, and the reserved-name tables and the CI gate rows
-        # must match their projections. Each only compares; none rewrites a file.
+        # generated Rust must match a regeneration, and the reserved-name tables and the CI gate
+        # rows must match their projections. Each only compares; none rewrites a file.
         DRIFT = [
           %w[bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait],
           %w[bundle exec exe/hecks gate_run.gate! stage=ci only=vocabulary_drift --wait],
@@ -49,16 +53,25 @@ module Hecks
           @branch = branch
           @remote = remote
           @drift = drift
+          @guard = BranchGuard.new(git, checkout, branch)
         end
 
-        # @return [void]
-        # @raise [ConsoleCapture::Failure] when the rebase conflicts outside the ledger, or the
-        #   ledger cannot be settled
-        def run
+        # @param boarded [String] the commit the branch named at boarding
+        # @return [String] the commit the branch names now, which the carriage then carries
+        # @raise [ConsoleCapture::Failure] when the branch moved since boarding, the checkout is not
+        #   on the branch or not clean, the rebase conflicts outside the ledger, or the ledger
+        #   cannot be settled
+        def run(boarded)
           fetch
-          rebase_onto_remote unless ancestor?(tracking, @branch)
+          @expected = boarded
+          @guard.unmoved!(boarded)
+          rebasing = !ancestor?(tracking, @branch)
+          @guard.checked_out! if rebasing || ledger? || hecks_checkout?
+          rebase if rebasing
           settle_ledger if ledger?
           check_drift if hecks_checkout?
+          @guard.unmoved!(@expected)
+          @expected
         end
 
         private
@@ -71,12 +84,17 @@ module Hecks
 
         def hecks_checkout? = File.exist?(File.join(@checkout, "exe", "hecks"))
 
-        # Rebases the local branch onto its remote. Stops on the ledger, takes the remote's copy of it,
-        # and continues; any other conflicted path aborts the rebase.
+        # Rebases the local branch onto its remote. Stops on the ledger, takes the remote's copy of
+        # it, and continues; any other conflicted path aborts the rebase.
+        def rebase
+          @guard.clean!
+          rebase_onto_remote
+        end
+
         def rebase_onto_remote
           result = git(["rebase", tracking])
           STEPS.times do
-            return if result.ok?
+            return @expected = @guard.head if result.ok?
 
             conflicted = read("diff", "--name-only", "--diff-filter=U").lines.map(&:strip)
             return abort_rebase!(conflicted) unless conflicted == [LEDGER]
@@ -95,14 +113,22 @@ module Hecks
         end
 
         # Runs the ledger's own settlement for an additive change, and commits what it wrote. A
-        # change that is not additive is refused by the settlement, and the refusal stops the boarding.
+        # change that is not additive is refused by the settlement, and the refusal stops it.
         def settle_ledger
+          ledger_untouched!
           out, err, status = Open3.capture3(*SETTLE, chdir: @checkout)
           refusal = out.lines.find { |line| line.include?('"refusal": "') }
           raise ConsoleCapture::Failure, "the shape ledger was not settled: #{refusal.strip}" if refusal
           raise ConsoleCapture::Failure, "the shape ledger command failed: #{err.strip}" unless status.success?
 
           commit_ledger
+        end
+
+        # The ledger files must hold no edits of anyone's before the settlement writes its own.
+        def ledger_untouched!
+          return if read("status", "--porcelain", "--", LEDGER, EDGES).empty?
+
+          raise ConsoleCapture::Failure, "#{LEDGER} or #{EDGES} has uncommitted changes; commit or discard them before boarding"
         end
 
         # Runs each drift check in check mode. The first that finds drift refuses the boarding and
@@ -126,8 +152,12 @@ module Hecks
           changed = read("status", "--porcelain", "--", LEDGER, EDGES)
           return if changed.empty?
 
-          read("add", "--", LEDGER, EDGES)
-          read("commit", "-q", "-m", "Settle the shape ledger before boarding")
+          @guard.clean!(except: [LEDGER, EDGES])
+
+          written = [LEDGER, EDGES].select { |path| File.exist?(File.join(@checkout, path)) }
+          read("add", "--", *written)
+          read("commit", "-q", "-m", "Settle the shape ledger before boarding", "--", *written)
+          @expected = @guard.head
         end
 
         def git(args) = @git.capture(*args, chdir: @checkout)

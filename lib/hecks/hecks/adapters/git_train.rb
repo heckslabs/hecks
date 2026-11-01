@@ -9,6 +9,7 @@ require_relative "git_train/carriage"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
+require_relative "git_train/launcher_shape"
 
 module Hecks
   module Adapters
@@ -18,8 +19,11 @@ module Hecks
     # every worktree of one repository waits in the same line, and holds it until its push ends.
     # Waiting costs nothing: the pre-push checks of one push run at a time instead of all at once.
     #
-    # Holding the line, a boarding first runs the Hecks mint (`MintStep`), then settles and pushes:
-    # one step after the other, so a refused mint stops the boarding before anything is pushed.
+    # Holding the line, a boarding names the commit the branch holds (`boarded`), checks that the
+    # train runs that commit's shape (`LauncherShape`), runs the Hecks mint (`MintStep`), then
+    # settles and pushes: one step after the other, so a refusal stops the boarding before
+    # anything is pushed. What is pushed is that commit, settled, and nothing else: a branch that
+    # moved meanwhile is refused.
     class GitTrain
       include Reading
 
@@ -32,9 +36,12 @@ module Hecks
       # @param settings [Hash] unused
       # @param root [String, nil] unused
       # @param mint [MintStep, nil] the mint a boarding runs first; the Hecks domain's by default
-      def initialize(aggregate: nil, settings: {}, root: nil, mint: nil)
+      # @param domain [String, nil] the launcher's Hecks domain directory the train's shape is read
+      #   from; the one this code runs from by default
+      def initialize(aggregate: nil, settings: {}, root: nil, mint: nil, domain: nil)
         @git = Git.new
         @mint = mint || MintStep.new
+        @domain = domain || JournalStore::HeldMint::DOMAIN
       end
 
       # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
@@ -42,18 +49,20 @@ module Hecks
       #
       # @param held [Hash] the `SendTrain` record: `run`, `confirm`, `branch`, `remote`, `checkout`
       #   (a directory inside the repository; the current directory when none is named) and
-      #   `full_gate` (the push runs the whole pre-push stage, which the hook reads as
-      #   `hecks.fullGate`)
-      # @return [Hash{Symbol => Hash}] `outcome:` (`pushed` or `carried`), `checkout:`, `boarded:`,
-      #   `pushed:` and `report:`, which opens with what the mint did
-      # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch and the
-      #   remote's conflict, or the push is refused
+      #   `full_gate` (the whole pre-push stage, which the hook reads as `hecks.fullGate`)
+      # @return [Hash{Symbol => Hash}] `outcome:`, `checkout:`, `boarded:` (the commit named at
+      #   boarding), `pushed:` and `report:`, which opens with what the mint did
+      # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch moved
+      #   since boarding, the train is not at the boarded commit, the branch and the remote's
+      #   conflict, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
         in_turn do
+          boarded = boarded_commit(held)
+          LauncherShape.new(@git, @checkout, domain: @domain).check!(boarded)
           minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
-          after_mint(minted, settle_and_carry(held))
+          after_mint(minted, boarded, settle_and_carry(held, boarded))
         end
       end
 
@@ -73,18 +82,32 @@ module Hecks
 
       private
 
-      # Brings the branch up to its remote and settles the shape ledger, then carries what is local.
-      def settle_and_carry(held)
-        branch = plain(held[:branch]) || "main"
-        remote = plain(held[:remote]) || "origin"
-        Settlement.new(@git, @checkout, branch: branch, remote: remote).run
-        carriage = Carriage.new(@git, @checkout, branch: branch, remote: remote, config: gate_config(held))
-        carriage.carry(carriage.local_head)
+      # The commit the branch names as the boarding begins, read once the line is held.
+      def boarded_commit(held)
+        Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
       end
 
-      # The carriage's answer, its report opened with what the mint did.
-      def after_mint(minted, answer)
-        answer.merge(report: { value: "#{minted}, then #{answer.dig(:report, :value)}" })
+      # Brings the branch up to its remote and settles the shape ledger, then carries the settled
+      # commit.
+      def settle_and_carry(held, boarded)
+        branch = branch_of(held)
+        remote = remote_of(held)
+        settled = Settlement.new(@git, @checkout, branch: branch, remote: remote).run(boarded)
+        carriage = Carriage.new(@git, @checkout, branch: branch, remote: remote, config: gate_config(held))
+        [carriage.carry(settled), settled]
+      end
+
+      def branch_of(held) = plain(held[:branch]) || "main"
+
+      def remote_of(held) = plain(held[:remote]) || "origin"
+
+      # The carriage's answer, its report opened with what the mint did and naming the boarded
+      # commit (and the settled one when settlement moved the branch).
+      def after_mint(minted, boarded, carried)
+        answer, settled = carried
+        named = settled == boarded ? "boarded #{boarded[0, 9]}" : "boarded #{boarded[0, 9]}, settled to #{settled[0, 9]}"
+        report = "#{minted}, then #{named}: #{answer.dig(:report, :value)}"
+        answer.merge(boarded: { value: boarded }, report: { value: report })
       end
 
       # A git hook takes no arguments, so the argument reaches the pre-push hook as git

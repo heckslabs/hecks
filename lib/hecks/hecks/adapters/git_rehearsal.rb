@@ -7,6 +7,7 @@ require_relative "git_rehearsal/bench"
 require_relative "git_rehearsal/stages"
 require_relative "git_rehearsal/record"
 require_relative "git_rehearsal/due"
+require_relative "git_rehearsal/line"
 
 module Hecks
   module Adapters
@@ -27,21 +28,22 @@ module Hecks
         @git = Git.new
       end
 
-      # Rehearses the push of a branch.
+      # Rehearses the push of a branch, one rehearsal at a time per repository.
+      #
+      # A land that arrives while one runs marks `pending: rehearse <sha>` and is refused with that
+      # sentence; the running rehearsal then runs once more for the latest commit, however many
+      # landed. Benches a killed rehearsal left registered are removed first.
       #
       # @param held [Hash] the `PushRehearsal` record: `checkout` (a directory inside the
       #   repository; the current directory when none is named) and `branch` (`main` by default)
       # @return [Hash{Symbol => Hash}] `outcome:` (`green` or `red`), `rehearsed:` the commit,
-      #   `report:` one line per stage saying pass or fail and naming the failing check and spec
-      # @raise [ConsoleCapture::Failure] when the checkout is not a repository or has no such branch
+      #   `report:` one line per stage saying pass or fail
+      # @raise [ConsoleCapture::Failure] when the checkout is not a repository, has no such branch,
+      #   or another rehearsal is running
       def trial(**held)
         @checkout = primary(plain(held[:checkout]) || Dir.pwd)
         branch = plain(held[:branch]) || "main"
-        commit = read("rev-parse", "--verify", "refs/heads/#{branch}^{commit}")
-        results = Bench.new(@git, @checkout).rehearse(commit) { |directory| Stages.new(directory).run }
-        verdict = results.all?(&:passed) ? "green" : "red"
-        Record.new(@git, @checkout).write(commit, verdict, results)
-        { outcome: { value: verdict }, rehearsed: { value: commit }, report: { value: report(branch, commit, results) } }
+        in_line(branch, head(branch))
       end
 
       # Says whether a push is due, from what git already holds: nothing is fetched or pushed.
@@ -57,8 +59,52 @@ module Hecks
 
       private
 
-      def report(branch, commit, results)
-        ([heading(branch, commit)] + results.map(&:line)).join("\n")
+      # Rehearses in the repository's line: at once when none runs, else marks the commit pending
+      # and
+      # tries the line once more in case the running rehearsal ended meanwhile.
+      def in_line(branch, commit)
+        answer = queue.running { drain(branch, commit) }
+        return answer unless answer == :busy
+
+        pending = queue.mark(branch, commit)
+        answer = queue.running { drain(branch, queue.take && head(branch)) }
+        answer.is_a?(Hash) ? answer : pending!(pending, branch)
+      end
+
+      def pending!(pending, branch)
+        raise ConsoleCapture::Failure,
+              "#{pending}: a rehearsal is already running in this repository and will run once more for the latest #{branch}"
+      end
+
+      def queue = Line.new(@git, @checkout)
+
+      def head(branch) = read("rev-parse", "--verify", "refs/heads/#{branch}^{commit}")
+
+      # Rehearses the commit, then once more for the latest of the branch for as long as a land has
+      # marked one pending; answers the last rehearsal.
+      def drain(branch, commit)
+        Bench.new(@git, @checkout).sweep
+        answer = nil
+        while commit
+          answer = once(branch, commit)
+          again = queue.take
+          commit = again && head(again)
+          branch = again if again
+        end
+        answer
+      end
+
+      def once(branch, commit)
+        results = Bench.new(@git, @checkout).rehearse(commit) { |directory| Stages.new(directory).run }
+        verdict = results.all?(&:passed) ? "green" : "red"
+        note = Record.new(@git, @checkout).write(commit, verdict, results)
+        { outcome: { value: verdict }, rehearsed: { value: commit }, report: { value: report(branch, commit, results, note) } }
+      end
+
+      def report(branch, commit, results, note)
+        lines = [heading(branch, commit)] + results.map(&:line)
+        lines << note unless note == "recorded"
+        lines.join("\n")
       end
 
       def heading(branch, commit)
