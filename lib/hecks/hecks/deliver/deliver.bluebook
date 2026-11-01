@@ -282,6 +282,8 @@ Hecks.bluebook "Hecks" do
     # `landing` stale window is abandoned and superseded, which the new landing's report says.
     aggregate "Landing" do
       description "One branch landed on local main, or one worktree retired: done, or refused with the reason."
+      acknowledges :key_by_value, "the run id of the LinkedTree this landing takes its checkout and branch from, and a landing whose id names no recorded tree falls back to the explicit checkout and branch, so a reference that refused an unknown tree would break the fallback",
+                   of: :from
       created_by "Landing.land!"
 
       attribute :run,      RunKey
@@ -506,7 +508,7 @@ Hecks.bluebook "Hecks" do
 
       lifecycle :status, default: "requested" do
         mark :failure, "faulted"
-        transition "Push"  => "pushed",  from: "requested"
+        transition "Send"  => "pushed",  from: "requested"
         transition "Ride"  => "carried", from: "requested"
         transition "Fault" => "faulted", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"

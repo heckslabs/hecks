@@ -2804,6 +2804,17 @@ Hecks.bluebook "QualityControl" do
       emits "ClearanceStarted"
     end
 
+    # Start and ask CI in one step: the verdict comes back as `SuitePassed` or `SuiteFailed`, and
+    # `ClearOnPass` and `RefuseOnFail` settle the record. `Start` alone records a verdict CI gave elsewhere.
+    command "Check" do
+      role "QA engineer"
+      goal "Put a commit through CI and record the verdict it gives"
+
+      attribute :commit, CommitRef
+
+      emits "ClearanceChecked"
+    end
+
     command "Passed" do
       role "System"
       goal "Record that the suite went green against this commit"
@@ -2958,6 +2969,11 @@ Hecks.bluebook "QualityControl" do
   policy "CloseWhenClosedUpstream" do
     on      "Ticket.IssueClosedUpstream"
     trigger Ticket::Close
+  end
+
+  policy "RunWhenChecked" do
+    on      "Clearance.ClearanceChecked"
+    ask     :run, with: { commit: :commit }
   end
 
   # The adapter decides by answering or refusing, the only branch a policy can express.
