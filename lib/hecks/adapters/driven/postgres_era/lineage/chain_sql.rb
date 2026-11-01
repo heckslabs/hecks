@@ -3,6 +3,7 @@ require_relative "../../../../ports/persistence/plugins/era/translation/rule_com
 require_relative "sql_templates"
 require_relative "split_sql"
 require_relative "layered_sql"
+require_relative "direct_sql"
 
 module Hecks
   module Adapters
@@ -15,6 +16,7 @@ module Hecks
           include SqlTemplates
           include SplitSql
           include LayeredSql
+          include DirectSql
 
           # Reduces the tail before chaining edges over it, not after: every
           # reader already reduces to latest-per-id, so translating a
@@ -74,10 +76,16 @@ module Hecks
           # (translated_latest) can never approve a branch the real mint
           # doesn't take. `full:` mirrors compile_head!'s own default;
           # tail_merge is the one caller that forces it true.
-          def head_body_sql(aggregate, era, edges, full: false)
-            return chain_sql(aggregate, era, edges) if full
+          def head_body_sql(aggregate, era, edges, full: false, direct: direct_translation?(edges))
+            return walked_sql(aggregate, era, edges, direct) if full
 
-            layered_chain_sql(aggregate, era, edges) || chain_sql(aggregate, era, edges)
+            layered_chain_sql(aggregate, era, edges) || walked_sql(aggregate, era, edges, direct)
+          end
+
+          # The whole chain from the journal: one composed step when `direct` and the chain composes,
+          # otherwise one link per era.
+          def walked_sql(aggregate, era, edges, direct)
+            (direct && direct_chain_sql(aggregate, era, edges)) || chain_sql(aggregate, era, edges)
           end
 
           # Walks `was:` chains backward from the current name, so each
