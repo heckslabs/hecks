@@ -13,18 +13,17 @@ module Hecks
           include DomainRename
 
           # Builds or tops up this domain's lineage schema when the connected role owns the
-          # journal (or none exists yet); any other role only attempts the rename bridge. Also
+          # journal (or none exists yet); any other role skips it. Also
           # creates the event, saga and outbox tables the database shares.
           #
           # Only the mint path and the owner-only tools call it; a boot never does. ALTER TABLE and
           # REVOKE are owner-only, so a non-owner app role must skip them.
           #
           # @return [void]
-          # @raise [Runtime::WiringError] if the `formerly_known_as` rename cannot take
-          #   its locks within 10s or Postgres refuses one of its statements
+          # @raise [Runtime::WiringError] if the domain's `formerly_known_as` rename is still pending
           # @raise [PG::Error] if Postgres refuses a provisioning statement
           def ensure_base!
-            rename_domain! if @formerly_known_as
+            refuse_pending_rename!
             return unless provisioner?
 
             create_lineage_tables!

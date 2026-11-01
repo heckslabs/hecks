@@ -7,15 +7,19 @@ require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
 require_relative "../../../support/first_era_hold"
 require_relative "../../../support/mint_request_support"
+require_relative "../../../support/first_era_hold"
 require_relative "../../../support/thread_parking"
 
-# `formerly_known_as`: the storage layer carries a renamed domain's history forward.
+# `formerly_known_as`: a rename moves a held domain's history to its new name, through the rename
+# entry point (`Lineage#rename_domain!`, which `Era.RenameDomain` applies). A boot under the new
+# name until the rename refuses by name and writes nothing.
 # Runs only when a Postgres server is reachable (support/postgres_probe.rb).
 RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :io do
   include EraRegistryLoading
   include FirstEraHold
   include EraAppRole
   include MintRequestSupport
+  include FirstEraHold
 
   RENAME_DB = "hecks_domain_rename_spec".freeze
   RENAME_ROLE = "hecks_domain_rename_spec_app".freeze
@@ -98,12 +102,28 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     bluebook = registry.bluebooks.values.first
     settings = { database: FencedOwner.url(RENAME_DB) }
     settings[:role] = role if role
-    # The rehearsal reads the watermark of the journal the database holds under the held name.
-    settings = with_mint_request(settings.merge(mint_eras: true), domain: bluebook.formerly_known_as || bluebook.name) if mint
+    # The rehearsal reads the watermark of the journal the database holds under the domain's name.
+    settings = with_mint_request(settings.merge(mint_eras: true), domain: bluebook.name) if mint
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
     )
     registry
+  end
+
+  # Moves the history held under the source's former name to its name, as `Era.RenameDomain` applies
+  # it, on the owner's connection. Answers the count of eras moved.
+  def rename!(source)
+    bluebook = load_registry(source).bluebooks.values.first
+    with_pg(FencedOwner.url(RENAME_DB)) do |db|
+      Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
+                                           .rename_domain!(storage_names: bluebook.aggregates.map(&:storage_name))
+    end
+  end
+
+  # The rename, then a boot under the new name.
+  def rename_and_boot!(source, **options)
+    rename!(source)
+    check!(source, **options)
   end
 
   def hash_of(source)
@@ -124,7 +144,9 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: RENAME_DB, domain: domain })
   end
 
+  # Holds era 1 under the old name, as `hold_first` does, then boots it and writes a record.
   def write_old_record
+    hold_first_era!(url: FencedOwner.url(RENAME_DB), domain: "OldName", source: OLD_SOURCE)
     registry = check!(OLD_SOURCE)
     adapter = adapter_for(registry, "Acct", domain: "OldName")
     adapter.save(Hecks::Runtime::Instance.new(
@@ -143,10 +165,31 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     with_pg(dbname: RENAME_DB) { |db| db.exec("SELECT count(*) FROM #{table} WHERE domain = '#{domain}'")[0]["count"] }
   end
 
+  context "with the old record written, and a boot under the new name ahead of the rename" do
+    before { write_old_record }
+
+    it "refuses by name and points at the rename, starting no fresh history", :aggregate_failures do
+      expect { check!(NEW_SOURCE) }.to raise_error(
+        Hecks::Runtime::WiringError, /NewName.*held under the former name OldName.*era\.rename_domain first/
+      )
+      expect(presence(journal_name("OldName"), journal_name("NewName"))).to eq([true, false])
+    end
+
+    it "refuses a mint request the same way, before it provisions anything", :aggregate_failures do
+      expect { check!(NEW_SOURCE, mint: true) }.to raise_error(Hecks::Runtime::WiringError, /era\.rename_domain first/)
+      expect(presence(journal_name("NewName"))).to eq([false])
+      expect(count_in("hecks_eras", "OldName")).to eq("1")
+    end
+
+    it "moves the one era, and a second rename finds nothing to move", :aggregate_failures do
+      expect([rename!(NEW_SOURCE), rename!(NEW_SOURCE)]).to eq([1, 0])
+    end
+  end
+
   context "with the old record written, and the same shape booted under the new name" do
     before do
       write_old_record
-      @registry = check!(NEW_SOURCE)
+      @registry = rename_and_boot!(NEW_SOURCE)
     end
 
     it "boots as a quiet reboot — same shape under a new name mints no new era" do
@@ -208,13 +251,14 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
   context "with the old domain's bookkeeping tables all in existence" do
     before do
+      hold_first_era!(url: FencedOwner.url(RENAME_DB), domain: "OldName", source: OLD_SOURCE)
       check!(OLD_SOURCE)
       # as the owner: reattest! lazily creates hecks_attestations, which the rename must own
       with_pg(FencedOwner.url(RENAME_DB)) do |db|
         # Forces hecks_attestations into existence.
         Hecks::Adapters::PostgresEra::Lineage.new(db, "OldName").reattest!(1)
       end
-      check!(NEW_SOURCE)
+      rename_and_boot!(NEW_SOURCE)
     end
 
     it "renames the domain column across hecks_eras, hecks_era_texts, and hecks_attestations" do
@@ -244,14 +288,17 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
 
     it "GRANTs and RLS survive the physical rename without any re-grant" do
       # no role: passed, so grant_role! never runs; surviving access is the rename's doing
-      check!(NEW_SOURCE)
+      rename_and_boot!(NEW_SOURCE)
 
       expect(insert_as_app_role("NewName", "granted-after")).to eq(:allowed)
     end
   end
 
   context "with a rename that also changes the shape" do
-    before { write_old_record }
+    before do
+      write_old_record
+      rename!(NEW_SOURCE_CHANGED)
+    end
 
     # An edge that names the aggregate but never backfills the new required `:note`
     # must still hit mint!'s coverage check (ADR 0025), not pass because an edge exists.
@@ -288,7 +335,10 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
   end
 
   it "formerly_known_as pointing at a name with no held history falls through harmlessly" do
-    check!(NEW_SOURCE) # OLD_SOURCE was never booted at all — a plain fresh hold
+    # OLD_SOURCE was never held at all: a plain fresh hold under the new name
+    hold_first_era!(url: FencedOwner.url(RENAME_DB), domain: "NewName", source: NEW_SOURCE)
+    rename!(NEW_SOURCE)
+    check!(NEW_SOURCE)
 
     expect([count_in("hecks_eras", "NewName"), count_in("hecks_eras", "OldName")]).to eq(%w[1 0])
   end
@@ -301,11 +351,11 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
       holder
     end
 
-    # Boots the new name while the lock is held, then releases it; answers whether the boot was
-    # still waiting while the lock was held, and whether it still was after the release.
+    # Renames while the lock is held, then releases it; answers whether the rename was still
+    # waiting while the lock was held, and whether it still was after the release.
     def rename_while_lock_held
       holder = advisory_lock_holder
-      renamed = Thread.new { check!(NEW_SOURCE) }
+      renamed = Thread.new { rename!(NEW_SOURCE) }
       ThreadParking.wait_until_parked(renamed)
       waiting = renamed.alive?
       holder.exec("COMMIT")
@@ -316,7 +366,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     end
 
     it "genuinely blocks the rename, not races past it", :aggregate_failures do
-      check!(OLD_SOURCE)
+      hold_first_era!(url: FencedOwner.url(RENAME_DB), domain: "OldName", source: OLD_SOURCE)
       waiting, still_alive = rename_while_lock_held
 
       expect(waiting).to be(true) # still waiting on the lock; the rename has not happened

@@ -41,7 +41,7 @@ Hecks.bluebook "Hecks" do
 
       value_object "OperationName" do
         attribute :value, String,
-                  pattern: '^(hold_first|merge_tail|reattest|backfill_projections|compact|compact_heki|write_translation|reconcile)$'
+                  pattern: '^(hold_first|rename_domain|merge_tail|reattest|backfill_projections|compact|compact_heki|write_translation|reconcile)$'
       end
 
       # `id:old,id:new`: which world's record wins for each id both worlds touched since the cut.
@@ -108,6 +108,25 @@ Hecks.bluebook "Hecks" do
         sets :operation, to: "hold_first"
 
         emits FirstEraRequested
+      end
+
+      # Moves the history a domain held under its `formerly_known_as` name to its current name, in one
+      # transaction: the eras, their texts and attestations, the journal with its sequence and
+      # partitions. Nothing is copied, so the old name holds nothing after it. A boot under the new
+      # name before this refuses by name; it never starts a fresh history beside the old.
+      command "RenameDomain" do
+        role "Operator"
+        goal "Move a renamed domain's held eras and journal from its former name to its current name"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the rename is confirmed") { confirm.value == true }
+
+        sets :operation, to: "rename_domain"
+
+        emits DomainRenameRequested
       end
 
       command "MergeTail" do
@@ -264,6 +283,9 @@ Hecks.bluebook "Hecks" do
           capable.value || operation.value == "compact" || operation.value == "compact_heki"
         end
         given("no era is held yet") { operation.value != "hold_first" || held.value == 0 }
+        given("the former name holds eras to move, and the current name holds none") do
+          operation.value != "rename_domain" || held.value > 0
+        end
         given("an era beyond the first stands before a tail is merged") do
           operation.value != "merge_tail" || held.value > 1
         end
@@ -413,6 +435,11 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
+    policy "ExamineWhenDomainRenameRequested" do
+      on      "Era.DomainRenameRequested"
+      ask     :examine, with: { run: :run }
+    end
+
     policy "ExamineWhenTailMergeRequested" do
       on      "Era.TailMergeRequested"
       ask     :examine, with: { run: :run }
@@ -472,6 +499,7 @@ Hecks.bluebook "Hecks" do
       where do
         (!capable.value && operation.value != "compact" && operation.value != "compact_heki") ||
           (operation.value == "hold_first" && held.value != 0) ||
+          (operation.value == "rename_domain" && held.value == 0) ||
           (operation.value == "merge_tail" && (held.value <= 1 || forks.value != 0 || contested.value != 0)) ||
           ((operation.value == "compact" || operation.value == "compact_heki") &&
             (candidates.value <= 0 || bound.value != 0)) ||

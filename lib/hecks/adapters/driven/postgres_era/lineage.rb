@@ -41,7 +41,8 @@ module Hecks
         # @param domain [String, Symbol] the domain's declared name; every relation name and
         #   advisory-lock key derives from it
         # @param formerly_known_as [String, Symbol, nil] the domain's prior name, which makes
-        #   `ensure_base!` rename its relations and rows first; nil when there is no prior name
+        #   `ensure_base!` and a read refuse while the history sits under it; `rename_domain!` moves
+        #   the history; nil when there is no prior name
         # @param reading [Boolean] true for a read: the held eras are verified in memory and never
         #   archived or backfilled, so the connection needs only SELECT
         def initialize(db, domain, formerly_known_as: nil, reading: false)
