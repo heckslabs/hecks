@@ -16,6 +16,7 @@ RSpec.describe Hecks::Adapters::MainMaintenance do
   before do
     stub_const("Hecks::Adapters::MainMaintenance::STRANDED_DIR", File.join(state_dir, "state"))
     allow(commands).to receive_messages(auto_mint_facts: { watermark: 7 }, own_rows_after: 0)
+    allow(Hecks::Adapters::QaEraMint).to receive(:disposable?).and_return(false)
   end
 
   def mint(verdict: "would_mint")
