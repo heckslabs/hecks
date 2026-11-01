@@ -2,6 +2,7 @@
 
 require "pg"
 require_relative "qa_era_mint"
+require_relative "../../adapters/driven/postgres_era/lineage_manager/mint_decision"
 
 module Hecks
   module Adapters
@@ -20,17 +21,18 @@ module Hecks
       module_function
 
       # The facts the rule reads from a ledger: its live watermark, the edge leaving its held era
-      # and that
-      # edge's text, and the shape diff between the held era and the current bluebook.
+      # and that edge's text, and the verdict the shared mint decision reaches for the held era.
       #
       # @param ledger [String] the bluebook directory of the ledger
-      # @return [Hash] `watermark`, `from`, `to`, `edge_text`, `diff`, `held` and `current`
+      # @return [Hash] `watermark`, `from`, `to`, `edge_text`, `verdict`, `held` and `current`
       def facts(ledger)
         held = JournalStore::HeldDomain.open(ledger, mode: :translated)
+        registry = held.registry
         latest, watermark = latest_era(held)
-        held_bluebook = shadow_of(latest[:held_text])
-        { watermark: watermark, held: held_bluebook, current: held.bluebook,
-          diff: diff_of(held_bluebook, held.bluebook) }.merge(edge_facts(held, ledger, latest[:label]))
+        verdict = MintDecision.decide_latest(latest, bluebook: held.bluebook, translations: registry.translations,
+                                                     directory: ledger, watermark: watermark)
+        { watermark: watermark, held: shadow_of(latest[:held_text]), current: held.bluebook, verdict: verdict }
+          .merge(edge_facts(held, ledger, latest[:label]))
       end
 
       # @return [Array(Hash, Integer)] the latest held era and the live watermark, read from its
@@ -76,9 +78,12 @@ module Hecks
         nil
       end
 
-      # @return [String, nil] why the shape change is not additive
+      # @return [String, nil] why the shared decision does not take the shape change as additive
       def additive_reason(facts)
-        "the shape change is not additive" unless additive?(facts[:diff], facts[:held], facts[:current])
+        case facts[:verdict].reason
+        when :non_qualifying then "the shape change is not additive"
+        when :unrecorded then "the move from #{facts[:from]} to #{facts[:to]} is not recorded"
+        end
       end
 
       # @return [String, nil] why the rehearsal refused rows
@@ -97,16 +102,10 @@ module Hecks
         body.size == 2 && EDGE_HEADER.match?(body.first) && body.last == "end"
       end
 
-      # Whether no edge file is needed: the shape change qualifies for the implicit empty edge.
+      # Whether no edge file is needed: the shared decision takes the implicit empty edge.
       #
       # @return [Boolean]
-      def implicit?(facts) = Translation::ImplicitEdge.qualifies?(facts[:diff], facts[:held], facts[:current])
-
-      # Whether the shape diff has no rule, no rename and no retirement, and every attribute the
-      # current bluebook adds to an existing aggregate is optional.
-      #
-      # @return [Boolean]
-      def additive?(diff, held, current) = Translation::ImplicitEdge.qualifies?(diff, held, current)
+      def implicit?(facts) = facts[:verdict].verdict == "would_mint" && facts[:verdict].source == "implicit"
 
       # @return [Hash] the edge leaving the held era's label for the current shape's label, and its
       #   text
@@ -125,9 +124,6 @@ module Hecks
 
       # @return [String] the first line of an edge file, where its source and target are named
       def header_of(text) = text.lines.first.to_s
-
-      # @return [Hash] the scaffold's diff of the held era against the current bluebook
-      def diff_of(held, current) = Translation::Scaffold.diff(held, current)
     end
   end
 end

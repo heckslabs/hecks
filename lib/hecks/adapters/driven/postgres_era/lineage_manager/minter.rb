@@ -44,22 +44,6 @@ module Hecks
             refuse_refused_verdict!(context, verdict)
           end
 
-          # The implicit empty edge for a shape change with no edge file, or nil when the scaffold
-          # finds a rule, a retirement or an unresolved name, or the change is not additive. The
-          # audit's edge lookup reads it; a mint decides through `MintDecision`.
-          #
-          # @param bluebook [Bluebook::Declaration] the current bluebook
-          # @param held_text [String] the source of the held era the change starts from
-          # @param from [String] the held era's shape label
-          # @param to [String] the current shape's label
-          # @return [Translation::ImplicitEdge, nil]
-          def implicit_edge_for(bluebook, held_text, from:, to:)
-            held = shadow(held_text)
-            return unless Translation::ImplicitEdge.qualifies?(Translation::Scaffold.diff(held, bluebook), held, bluebook)
-
-            Translation::ImplicitEdge.new(domain: bluebook.name, from: from, to: to)
-          end
-
           # Diffs the held era against the current shape and writes the edge file —
           # confident rules inline, ambiguities as parse-refusing `unresolved` lines.
           def scaffold!(_registry, bluebook, lineage, latest, directory)

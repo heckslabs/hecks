@@ -56,7 +56,7 @@ module Hecks
       def audit(session)
         return hold_first_era(session) if session.no_era?
 
-        audit_edge(session, edge_chain(session.registry, session.bluebook, session.lineage))
+        audit_edge(session, edge_chain(session.registry, session.bluebook, session.lineage, session.directory))
       end
 
       # @param found [Array, nil] the era ordinal and the chain of translations ending in it, or nil

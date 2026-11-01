@@ -47,6 +47,21 @@ module Hecks
             rows.empty? ? found : audit_refusal(found)
           end
 
+          # The decision for the era a mint would leave, reading the held era's source here, so a
+          # caller holding only its label and text reaches the same verdict as a mint does.
+          #
+          # @param latest [Hash] the held era: `ordinal`, `label` and `held_text`
+          # @param bluebook [Bluebook::Declaration] the current bluebook
+          # @param translations [Array<Object>] the edges the registry loaded
+          # @param directory [String, nil] the domain's bluebook directory
+          # @param watermark [Integer] the ledger watermark the decision reads
+          # @return [Verdict]
+          def decide_latest(latest, bluebook:, translations:, directory:, watermark:)
+            held = latest.merge(declaration: LineageManager.shadow(latest[:held_text]))
+            decide(held: [held], bluebook: bluebook, watermark: watermark, rows: [],
+                   edge_source: { translations: translations, recorded: recorded_moves(bluebook.name, directory) })
+          end
+
           # The implicit moves a domain has recorded: beside its own bluebooks, when a directory is
           # given, and in the framework's record. This is the only read the decision's inputs need.
           #

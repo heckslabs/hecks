@@ -10,7 +10,6 @@ module AutoMintSupport
   EMPTY_EDGE = %(Hecks.data_translation "Hecks", from: "5d288c", to: "f30dcb" do\nend\n).freeze
   FILLED_EDGE = %(Hecks.data_translation "Hecks", from: "5d288c", to: "f30dcb" do\n  drop "port"\nend\n).freeze
   NO_DIFF = { aggregates: [], retired: [], unclaimed: [] }.freeze
-  RENAMED = { aggregates: [Struct.new(:name, :was).new("Cart", "Basket")], retired: [], unclaimed: [] }.freeze
   BLUEBOOK = Struct.new(:aggregates).new([]).freeze
 
   Attr = Struct.new(:name, :optional) do
@@ -18,8 +17,18 @@ module AutoMintSupport
   end
   Agg = Struct.new(:name, :attributes)
 
+  # The shared decision's verdict for the held era, as the auto-mint rule reads it.
+  def verdict(kind = "would_mint", reason: nil, source: "file")
+    Hecks::Adapters::PostgresEra::LineageManager::MintDecision::Verdict.new(
+      verdict: kind, reason: reason, edge: nil, edges: [], source: source, diff: NO_DIFF, watermark: 19
+    )
+  end
+
+  # The verdict of a rename, which the decision refuses to take as additive.
+  def held_by_rule = verdict("needs_edge", reason: :non_qualifying)
+
   def clean_facts(**overrides)
-    { watermark: 19, from: "5d288c", to: "f30dcb", edge_text: EMPTY_EDGE, diff: NO_DIFF,
+    { watermark: 19, from: "5d288c", to: "f30dcb", edge_text: EMPTY_EDGE, verdict: verdict,
       held: BLUEBOOK, current: BLUEBOOK }.merge(overrides)
   end
 
@@ -48,8 +57,14 @@ RSpec.describe "the auto-mint rule" do
     end
 
     it "holds a mint whose shape change is a rename" do
-      rename = { aggregates: [Struct.new(:name, :was).new("Cart", "Basket")], retired: [], unclaimed: [] }
-      expect(described_class.held_reason(clean_facts(diff: rename), refusal_total: 0)).to include("not additive")
+      expect(described_class.held_reason(clean_facts(verdict: held_by_rule), refusal_total: 0))
+        .to include("not additive")
+    end
+
+    it "holds a mint whose recorded moves do not reach the shape" do
+      unrecorded = verdict("needs_edge", reason: :unrecorded)
+      expect(described_class.held_reason(clean_facts(verdict: unrecorded), refusal_total: 0))
+        .to include("is not recorded")
     end
 
     it "holds a mint whose rehearsal refused rows" do
@@ -67,7 +82,7 @@ RSpec.describe "the auto-mint rule" do
     end
 
     it "holds a required attribute an existing aggregate gained" do
-      facts = clean_facts(held: held_with_sample, current: current_with_sample_gaining_required)
+      facts = clean_facts(held: held_with_sample, current: current_with_sample_gaining_required, verdict: held_by_rule)
       expect(described_class.held_reason(facts, refusal_total: 0)).to include("not additive")
     end
   end
@@ -99,13 +114,13 @@ RSpec.describe "the auto-mint rule" do
     end
 
     it "holds a mint the rule does not cover for the owner", :aggregate_failures do
-      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil, diff: AutoMintSupport::RENAMED))
+      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil, verdict: held_by_rule))
       expect { mint }.to raise_error(refused, /needs owner approval/)
       expect(commands).not_to have_received(:mint_era)
     end
 
     it "runs a held mint once the owner confirms it" do
-      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil, diff: AutoMintSupport::RENAMED))
+      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil, verdict: held_by_rule))
       expect(mint(confirm: { value: true })).to include(label: { value: "label" })
     end
 
