@@ -181,6 +181,111 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # Filling the Work queue is one run too: the Work rows that may start a session now are chosen
+    # from the queue, the machine's load and the freeze, and without `confirm` that is all it does.
+    # The choosing and the starting are the port's; whether a start is allowed stays with `Work`.
+    aggregate "Dispatch" do
+      description "One filling of the Work queue: the planned rows that start a session now, and why each other waits."
+
+      attribute :run,            DispatchKey
+      attribute :repo,           Directory
+      attribute :confirm,        Switch, optional: true
+      attribute :budget_minutes, Minutes, optional: true
+      attribute :report,         Outcome, optional: true
+      attribute :refusal,        Outcome, optional: true
+      identified_by :run
+
+      value_object "DispatchKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Directory" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Minutes" do
+        attribute :value, Integer
+        invariant("a time budget is positive") { value.positive? }
+      end
+
+      value_object "Outcome" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Record"  => "answered", from: "requested"
+        transition "Decline" => "refused",  from: "requested"
+        mark :terminal, "answered", "refused"
+      end
+
+      command "Fill" do
+        role "Operator"
+        goal "Choose the planned Work rows that start a session now and, with confirm, start them; without it, say what would start"
+
+        attribute :run,            DispatchKey, sets: true
+        attribute :repo,           Directory, sets: true
+        attribute :budget_minutes, Minutes, optional: true, sets: true
+        attribute :confirm,        Switch, optional: true, sets: true
+
+        emits FillRequested
+      end
+
+      command "Settle" do
+        role "Operator"
+        goal "Check the started sessions and finish the row of each that is done, or yield the row of one that stopped"
+
+        attribute :run,  DispatchKey, sets: true
+        attribute :repo, Directory, sets: true
+
+        emits SettleRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record what the filling or settling did"
+
+        reference_to Dispatch
+        attribute :report, Outcome, sets: true
+
+        emits DispatchAnswered
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the queue could not be read"
+
+        reference_to Dispatch
+        attribute :refusal, Outcome, sets: true
+
+        emits DispatchDeclined
+      end
+    end
+
+    policy "ChooseWhenFilling" do
+      on      "Dispatch.FillRequested"
+      ask     :choose, with: { run: :run }
+    end
+
+    policy "ConcludeWhenSettling" do
+      on      "Dispatch.SettleRequested"
+      ask     :conclude, with: { run: :run }
+    end
+
+    policy "RecordTheDispatch" do
+      on      "Dispatch.DispatchReported"
+      trigger Dispatch::Record, with: { report: :report }
+    end
+
+    policy "RecordTheDeclinedDispatch" do
+      on      "Dispatch.DispatchRefused"
+      trigger Dispatch::Decline, with: { refusal: :refusal }
+    end
+
     # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.
     policy "LocateTheRepo" do
       on      "AgentRun.AgentRunRequested"

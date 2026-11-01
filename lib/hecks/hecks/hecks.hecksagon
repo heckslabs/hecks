@@ -172,6 +172,12 @@ Hecks.hecksagon "Hecks" do
       refuses "MergeRefused"
     end
 
+    asks "FinishBranch", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "MergeRefused"
+    end
+
     asks "Remove", to: Landing do
       attribute :run, RunKey
       answers "RemovalAnswered"
@@ -195,6 +201,21 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Status"
+  end
+
+  # The outside a filling of the queue reaches: the Work rows, the machine's load and the freeze.
+  Hecks::Dispatch.port "Dispatching" do
+    asks "Choose", to: Dispatch do
+      attribute :run, DispatchKey
+      answers "DispatchReported"
+      refuses "DispatchRefused"
+    end
+
+    asks "Conclude", to: Dispatch do
+      attribute :run, DispatchKey
+      answers "DispatchReported"
+      refuses "DispatchRefused"
+    end
   end
 
   # The outside an agent run reaches: it finds the directory, starts the background session, and
