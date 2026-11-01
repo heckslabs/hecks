@@ -69,6 +69,11 @@ red_main_check: true
 # cursors. `hecks quality_control event_pump.pump!` runs it by hand whatever this says.
 event_pump: true
 
+# The push check, once per tick: a push of local main that is due beyond the QualityControl world's
+# `push_nudge` thresholds is one `push-due` Work row, revised while due and finished when not. It reads
+# refs git already holds and pushes nothing.
+push_nudge: true
+
 # The main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push
 # through the train when origin is behind. `maintenance_confirm` lets the reconcile write; false keeps it a dry run.
 main_maintenance: true
