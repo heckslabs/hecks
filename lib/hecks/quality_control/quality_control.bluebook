@@ -2511,6 +2511,169 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # One spec file that is red on main, keyed `red-<spec path slug>`. A red run reports each failing
+  # spec file; the first report opens the row and a later one only updates what it knew, so a spec
+  # red for days is one row, and `since` is the day it first went red. A settled run that no longer
+  # fails the file clears it. Tickets mirrors it as a Work row for QA (`PlanWorkWhenSpecWentRed`, `FinishWorkWhenSpecWentGreen`).
+  aggregate "RedSpec" do
+    description "One spec file that is red on main: how many examples fail, the first failure, the run that saw it last, and the day it first went red."
+
+    identified_by :spec
+
+    attribute :spec,          SpecKey
+    attribute :path,          SpecPath
+    attribute :failures,      FailureCount
+    attribute :first_failure, FailureLine, optional: true
+    attribute :examples,      FailureLine, optional: true
+    attribute :last_run,      RunId
+    attribute :commit,        SpecCommit
+    attribute :since,         SeenOn
+    attribute :title,         WorkLine
+    attribute :detail,        WorkLine
+    attribute :cleared_by,    RunId, optional: true
+
+    value_object "SpecKey" do
+      attribute :value, String, pattern: '^red-[a-z0-9_-]+$'
+    end
+
+    value_object "SpecPath" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "FailureCount" do
+      attribute :value, Integer
+      invariant("a red spec has failing examples") { value.positive? }
+    end
+
+    # Text as the failing run printed it, shortened by the reader.
+    value_object "FailureLine" do
+      attribute :value, String, default: ""
+    end
+
+    # A line of the Work row the spec mirrors into.
+    value_object "WorkLine" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "RunId" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SpecCommit" do
+      attribute :value, String, matches: :present
+    end
+
+    # An ISO 8601 date, read from the clock by the run reader, never by the bluebook.
+    value_object "SeenOn" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "red" do
+      transition "Clear" => "green", from: "red"
+      mark :terminal, "green"
+    end
+
+    # Opens the row for a spec file. A spec already red is not reported twice: see `Update`.
+    command "Open" do
+      role "System"
+      goal "Record that a spec file is red on main"
+
+      attribute :spec,          SpecKey, sets: true
+      attribute :path,          SpecPath, sets: true
+      attribute :failures,      FailureCount, sets: true
+      attribute :first_failure, FailureLine, optional: true, sets: true
+      attribute :examples,      FailureLine, optional: true, sets: true
+      attribute :last_run,      RunId, sets: true
+      attribute :commit,        SpecCommit, sets: true
+      attribute :since,         SeenOn, sets: true
+      attribute :title,         WorkLine, sets: true
+      attribute :detail,        WorkLine, sets: true
+
+      emits "SpecWentRed"
+    end
+
+    # A spec still red in a later run: what the latest run saw replaces what the row knew; `since` stays.
+    command "Update" do
+      role "System"
+      goal "Record what a later red run saw of a spec file that was already red"
+
+      reference_to RedSpec
+      attribute :failures,      FailureCount, sets: true
+      attribute :first_failure, FailureLine, optional: true, sets: true
+      attribute :examples,      FailureLine, optional: true, sets: true
+      attribute :last_run,      RunId, sets: true
+      attribute :commit,        SpecCommit, sets: true
+      attribute :detail,        WorkLine, sets: true
+
+      emits "SpecStillRed"
+    end
+
+    # `seen_in` is the run that last saw the file fail; a run that did see it fails to clear it.
+    command "Clear" do
+      role "System"
+      goal "Record that a settled run of main no longer fails a spec file"
+
+      reference_to RedSpec
+      attribute :run,     RunId
+      attribute :seen_in, RunId
+
+      given("a run that still saw the file fail does not clear it") { run.value != seen_in.value }
+
+      sets :cleared_by, to: :run
+
+      emits "SpecWentGreen"
+    end
+
+    query "OnMain" do
+      description "The red specs on main: every spec file still red, with the day it first went red and the run that last saw it fail."
+      where(status: "red")
+      order_by :since
+    end
+  end
+
+  # One CI run of main read for its failing spec files. The Reader port reports each failing file
+  # to `RedSpec` and answers what the run settled to.
+  aggregate "MainRun" do
+    description "One CI run of main, read for the spec files it failed."
+
+    identified_by :run
+
+    attribute :run,     MainRunId
+    attribute :repo,    HeadRepo
+    attribute :commit,  SpecCommit, optional: true
+    attribute :settled, SettledFlag, optional: true
+
+    value_object "MainRunId" do
+      attribute :value, String, matches: :present
+    end
+
+    # "yes" once every job that runs specs finished, so a spec absent from the failures passed.
+    value_object "SettledFlag" do
+      attribute :value, String, default: ""
+    end
+
+    command "Request" do
+      role "CI engineer"
+      goal "Ask for one CI run of main to be read for the spec files it failed"
+
+      attribute :run,  MainRunId, sets: true
+      attribute :repo, HeadRepo, sets: true
+
+      emits "MainRunReadRequested"
+    end
+
+    command "Record" do
+      role "System"
+      goal "Keep how a read run settled"
+
+      reference_to MainRun
+      attribute :commit,  SpecCommit, sets: true
+      attribute :settled, SettledFlag, sets: true
+
+      emits "MainRunRecorded"
+    end
+  end
+
   # The image roll of one commit of embryonaut_platform's main. A commit whose remote CI is green
   # is
   # classified by the paths it changed: only the console container's inputs roll by themselves, and
@@ -2865,6 +3028,26 @@ Hecks.bluebook "QualityControl" do
     on      "Head.HeadChecked"
     where   { color.value == "red" }
     trigger Head::Red, with: { commit: :commit, repo: :repo, color: :color, failing_jobs: :failing_jobs }
+  end
+
+  # A run of main read for its failing spec files. The reader reports each failing file to RedSpec
+  # (opening a row or updating it) before it answers.
+  policy "ReadRunOnRequest" do
+    on      "MainRun.MainRunReadRequested"
+    ask     :read, with: { run: :run, repo: :repo }
+  end
+
+  policy "RecordTheRunRead" do
+    on      "MainRun.MainRunRead"
+    trigger MainRun::Record, with: { commit: :commit, settled: :settled }
+  end
+
+  # A settled run clears every red spec it did not see fail; `Clear` refuses one it did, which stays open.
+  policy "ClearSpecsOnSettledRun" do
+    on       "MainRun.MainRunRead"
+    where    { settled.value == "yes" }
+    for_each "RedSpec.OnMain"
+    trigger  RedSpec::Clear, with: { spec: :spec, run: :run, seen_in: :last_run }
   end
 
   # The image roll's chain. A green remote CI on embryonaut_platform's main is classified by the

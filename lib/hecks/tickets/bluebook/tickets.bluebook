@@ -502,6 +502,19 @@ Hecks.bluebook "Tickets" do
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 
+  # A spec file that went red on main is a step QA picks up: `Work.undone` lists it. The spec's own key is
+  # the step's key, so a second red run, which only updates the spec, plans nothing twice.
+  policy "PlanWorkWhenSpecWentRed" do
+    on      "RedSpec.SpecWentRed"
+    trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail }
+  end
+
+  # The run that no longer fails the file closes its step.
+  policy "FinishWorkWhenSpecWentGreen" do
+    on      "RedSpec.SpecWentGreen"
+    trigger Work::Finish, with: { work: :spec }
+  end
+
   policy "RecordTheIssue" do
     on      "Finding.IssueOpened"
     trigger Finding::RecordIssue, with: { issue_number: :issue_number }
