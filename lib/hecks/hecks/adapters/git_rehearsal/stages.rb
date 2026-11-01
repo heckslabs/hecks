@@ -10,7 +10,7 @@ module Hecks
     class GitRehearsal
       # The stages a rehearsal runs, run in a copy of the commit. Which ones is data: the
       # `RehearsalScope` row of the scope lists `RehearsalStage` rows of the Vocabulary bluebook
-      # (the gate's `quick` and `unguarded_push` stages, the end-to-end push specs, the specs the
+      # (the gate's `quick` stage, the specs the
       # push's changes touch), and this only runs them. Nothing here runs the full spec suite.
       class Stages
         # How one stage ended.
@@ -75,7 +75,6 @@ module Hecks
         def step(row)
           case row["kind"]
           when "gate" then gate(row["argument"])
-          when "specs" then push_specs(row["argument"])
           else impacted
           end
         end
@@ -85,16 +84,6 @@ module Hecks
           return Result.new(stage, true, "") if result.ok?
 
           Result.new(stage, false, failure(result, checks: result.out[RED, 1]))
-        end
-
-        def push_specs(pattern)
-          files = Dir.glob(File.join(@directory, pattern)).map { |path| path.delete_prefix("#{@directory}/") }.sort
-          return Result.new("push specs", true, " (none exist yet)") if files.empty?
-
-          result = capture("bundle", "exec", "rspec", *files, env: { "CI" => "true", "HECKS_ENVIRONMENT" => "memory" })
-          return Result.new("push specs", true, " (#{files.join(", ")})") if result.ok?
-
-          Result.new("push specs", false, failure(result))
         end
 
         def failure(result, checks: nil)

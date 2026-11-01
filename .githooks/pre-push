@@ -14,8 +14,9 @@
 # on `pull_request` and on a push to main, after the push has landed, so this is the one local
 # backstop before it.
 #
-# The suite is opt-in. By default a push runs only the `unguarded_push` stage (rubocop, the
-# comment-style checks and spec/fuzzing); `hecks.fullGate` (git config) runs the whole `pre_push` stage,
+# The suite is opt-in. By default a push runs only the `quick` stage (seconds: shape ledger, rubocop,
+# the comment-style checks, secret output, adapter words); CI and the nightly run hold everything slower
+# and gate `stable`, not `main`. `hecks.fullGate` (git config) runs the whole `pre_push` stage,
 # suite included. A hook takes no arguments, so `hecks send_train.board! --confirm full_gate.value=true` is how a
 # person asks for it: the train pushes with `git -c hecks.fullGate=true` for that push only. A repository
 # can also keep it on with `git config hecks.fullGate true`. No commit hook runs anything: a commit is instant, and a push is where checks run.
@@ -63,15 +64,12 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
-# The slow suite is opt-in: a push runs only the `unguarded_push` stage (rubocop, the comment-style
-# checks and spec/fuzzing, a couple of minutes), since CI runs every other check on the pushed commit. hecks.fullGate runs
-# the whole `pre_push` stage and, when green, writes the attestation note that lets CI skip its checks.
+# The slow suite is opt-in: a push runs only the `quick` stage, seconds long, since CI runs every other
+# check on the pushed commit. hecks.fullGate runs the whole `pre_push` stage and, when green, writes the
+# attestation note that lets CI skip its checks.
 FULL_GATE=$(git config --type=bool --get hecks.fullGate 2>/dev/null)
 if [ "$FULL_GATE" != "true" ]; then
-  printf '[pre-push] running the style checks and spec/fuzzing; CI runs the suite (`hecks send_train.board! --confirm full_gate.value=true` runs it here).\n\n'
-  # The quick checks first: an offense they find fails in seconds, before spec/fuzzing starts.
-  if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick ||
-     ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push only=fuzzing; then
+  if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick; then
     printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
     exit 1
   fi

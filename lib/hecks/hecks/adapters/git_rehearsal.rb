@@ -15,7 +15,7 @@ module Hecks
     # pushing, the stages of a scope, and reports whether a push is due.
     #
     # A scope is a `RehearsalScope` row of the Vocabulary bluebook: `quick` (the gate's quick
-    # stage; a landing asks), `full` (quick, `unguarded_push` and the push specs; a push needs it)
+    # stage; a landing asks), `full` (the quick stage again; a push needs it)
     # or `deep` (full plus the impacted specs; opt-in). Quick has its own line, record and bench, so
     # it runs alongside a full one; deep shares the full one's. A rehearsal checks out a detached
     # copy of `main`, runs the scope's stages in it and removes it. It pushes nothing and writes
