@@ -86,6 +86,11 @@ dependence. `exe/hecks test_suite_run.run_impacted_specs! --wait` runs the specs
 map names for your branch against local `main` (`base.value=`, `cap.value=`, `dry.value=true` lists
 them without running).
 
+**The full spec suite runs only in CI** (the Vocabulary `rspec` check is `runs_in: "ci"`). Locally run the
+quick gate and named specs: `run_suite!` is refused by name, and `run_spec_files!` and `run_impacted_specs!`
+take at most the `spec_files_limit` of the `test_scope` setting in `hecks.world` per call (`hecks config`
+prints it); CI is detected from the environment.
+
 A session isolated in a git worktree has had `bundle exec` with the spec runner
 refused with "too complex to verify that it stays inside the worktree", while
 `cargo test`, `bundle exec ruby`, `git` and `gh` ran. A commit message and a
@@ -178,8 +183,8 @@ Each command's `--help` says what it takes; this names where they live. **Landin
 `landing.finish!` (rebase onto local `main`, quick gate, land, tidy), `landing.land!` and `landing.train!`
 (`lib/hecks/hecks/deliver/deliver.bluebook`) take a place in one first-come, first-served line; the
 world's `landing "Queue"` (`hecks.world`) sets how long a ticket may go without a heartbeat and how long
-a landing waits. `push_rehearsal.rehearse!` runs the push's four stages (quick, `unguarded_push`, push
-specs, the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
+a landing waits. `push_rehearsal.rehearse!` runs the stages of its scope (`RehearsalScope` rows in the Vocabulary
+bluebook: `quick`, `full`, and opt-in `deep` which adds the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
 (`rehearse/rehearse.bluebook`); `test_suite_run.run_spec_files!` and `run_impacted_specs!` run named or
 impacted specs through the launcher. Branch worktrees from local `main`, never `origin/main`.
 **Era inspection:** `era.boot_resolution`, `era.mint_plan` (every guard a mint runs, read-only),
@@ -236,13 +241,14 @@ commit must pass as `RequiredCheck` rows beside them.
   force-push `main`, and never use `--admin`.
   Push small: a rehearsed push per landed slice, or at least per day, is the norm, so a push
   carries little and a red one is found early. Landing asks for a quick rehearsal on its own; a full one runs the
-  quick stage, the `unguarded_push` stage, any push specs and the specs the push's changed files
-  touch (at most 60 files, `impacted_spec_limit`, two at a time, `impacted_spec_width`; a file that fails is
-  run again alone and one that then passes is reported as flaky under parallel load, not failed; a spec
-  already red on `origin/main` is reported, not failed) against local `main` and pushes nothing; its result is the `PushRehearsal` record), and `hecks push_rehearsal.due` says how far
+  quick stage, the `unguarded_push` stage and any push specs, and a deep one (`scope.value=deep`, opt-in)
+  also the specs the push's changed files touch (`impacted_spec_limit`, two at a time,
+  `impacted_spec_width`; a file that fails is run again alone and one that then passes is reported as
+  flaky under parallel load, not failed; a spec already red on `origin/main` is reported, not failed)
+  against local `main` and pushes nothing; its result is the `PushRehearsal` record), and `hecks push_rehearsal.due` says how far
   `main` is ahead of `origin/main`, how old the oldest unpushed commit is and how the last
   rehearsal of each scope ended. A landing triggers a quick rehearsal (the gate's quick stage
-  alone, its own line, so it runs alongside a full one); a push needs a full one, which runs when asked
+  alone, its own line, so it runs alongside a full one); a push needs a green full one, which runs when asked
   (`push_rehearsal.rehearse!`, `scope.value=quick` for the quick one) and before the push. Nothing pushes by itself.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`

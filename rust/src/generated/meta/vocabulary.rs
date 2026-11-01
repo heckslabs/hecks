@@ -5091,6 +5091,191 @@ impl GateStage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct RehearsalStage {
+    pub name: &'static str,
+    pub kind: &'static str,
+    pub argument: &'static str,
+}
+
+pub const REHEARSAL_STAGE: &[RehearsalStage] = &[
+    RehearsalStage {
+        name: "quick",
+        kind: "gate",
+        argument: "quick",
+    },
+    RehearsalStage {
+        name: "unguarded_push",
+        kind: "gate",
+        argument: "unguarded_push",
+    },
+    RehearsalStage {
+        name: "push_specs",
+        kind: "specs",
+        argument: "spec/**/*{push_chain,push_train}*_spec.rb",
+    },
+    RehearsalStage {
+        name: "impacted",
+        kind: "impacted",
+        argument: "",
+    },
+];
+
+impl RehearsalStage {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.to_string()),
+            ),
+            (
+                "kind".to_string(),
+                crate::kernel::Json::Str(self.kind.to_string()),
+            ),
+            (
+                "argument".to_string(),
+                crate::kernel::Json::Str(self.argument.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["name", "kind", "argument"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "RehearsalStage",
+                    unknown: &unknown,
+                    declared: &["name", "kind", "argument"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalStage.name expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("kind"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalStage.kind expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("argument"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalStage.argument expects String, got nil".to_string(),
+            ));
+        }
+        for row in REHEARSAL_STAGE {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
+                && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind)
+                && v.get("argument").and_then(crate::kernel::Json::as_str) == Some(row.argument)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("name")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "RehearsalStage",
+                admitted: &["quick", "unguarded_push", "push_specs", "impacted"],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RehearsalScope {
+    pub name: &'static str,
+    pub stages: &'static str,
+}
+
+pub const REHEARSAL_SCOPE: &[RehearsalScope] = &[
+    RehearsalScope {
+        name: "quick",
+        stages: "quick",
+    },
+    RehearsalScope {
+        name: "full",
+        stages: "quick,unguarded_push,push_specs",
+    },
+    RehearsalScope {
+        name: "deep",
+        stages: "quick,unguarded_push,push_specs,impacted",
+    },
+];
+
+impl RehearsalScope {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.to_string()),
+            ),
+            (
+                "stages".to_string(),
+                crate::kernel::Json::Str(self.stages.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["name", "stages"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "RehearsalScope",
+                    unknown: &unknown,
+                    declared: &["name", "stages"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalScope.name expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("stages"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalScope.stages expects String, got nil".to_string(),
+            ));
+        }
+        for row in REHEARSAL_SCOPE {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
+                && v.get("stages").and_then(crate::kernel::Json::as_str) == Some(row.stages)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("name")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "RehearsalScope",
+                admitted: &["quick", "full", "deep"],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct RequiredCheck {
     pub name: &'static str,
     pub runs: &'static str,

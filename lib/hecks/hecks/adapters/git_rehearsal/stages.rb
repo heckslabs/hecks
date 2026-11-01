@@ -2,14 +2,16 @@
 
 require_relative "../shell"
 require "hecks/vendoring/git_environment"
+require "hecks/vocabulary"
 require_relative "impacted"
 
 module Hecks
   module Adapters
     class GitRehearsal
-      # The stages a real push runs, run in a copy of the commit: the `quick` stage, the
-      # `unguarded_push` stage of the Vocabulary gate rows, the end-to-end push specs, and the specs
-      # the push's changes touch.
+      # The stages a rehearsal runs, run in a copy of the commit. Which ones is data: the
+      # `RehearsalScope` row of the scope lists `RehearsalStage` rows of the Vocabulary bluebook
+      # (the gate's `quick` and `unguarded_push` stages, the end-to-end push specs, the specs the
+      # push's changes touch), and this only runs them. Nothing here runs the full spec suite.
       class Stages
         # How one stage ended.
         #
@@ -33,9 +35,6 @@ module Hecks
         # A failing example as rspec prints it in its summary: `rspec ./spec/a_spec.rb:12 # ...`.
         FAILED_SPEC = %r{^rspec (\./\S+)}
 
-        # The names of the end-to-end push specs.
-        PUSH_SPECS = "spec/**/*{push_chain,push_train}*_spec.rb"
-
         # The variables of the calling process that would point a copy's `bundle exec` at the
         # checkout the rehearsal was asked from.
         BUNDLER = %w[BUNDLE_GEMFILE BUNDLE_BIN_PATH RUBYOPT RUBYLIB].freeze
@@ -44,7 +43,7 @@ module Hecks
         # @param branch [String] the branch pushed; impacted specs compare with `origin/<branch>`
         # @param impacted_limit [Integer, nil] the most impacted spec files to run
         # @param impacted_width [Integer, nil] how many of them run at once
-        # @param scope [String] `full` runs every stage; `quick` only the gate's quick stage
+        # @param scope [String] a `RehearsalScope` row: `quick`, `full` or `deep`
         def initialize(directory, branch: "main", impacted_limit: nil, impacted_width: nil, scope: "full")
           @scope = scope
           @directory = directory
@@ -54,15 +53,32 @@ module Hecks
           @shell = Shell.new
         end
 
-        # @return [Array<Result>] each stage's result, in the order a push runs them (the quick
-        #   stage alone for the `quick` scope)
-        def run
-          return [gate("quick")] if @scope == "quick"
+        # @return [Array<Result>] each stage's result, in the order the scope's row lists them
+        def run = self.class.rows(@scope).map { |row| step(row) }
 
-          [gate("quick"), gate("unguarded_push"), push_specs, impacted]
+        # @param scope [String] a scope's name
+        # @return [Array<Hash>] the scope's `RehearsalStage` rows, in the order it runs them
+        # @raise [KeyError] when no `RehearsalScope` row has that name
+        def self.rows(scope)
+          stages = Vocabulary.rows("RehearsalStage").to_h { |row| [row["name"], row] }
+          scope_row = Vocabulary.rows("RehearsalScope").find { |row| row["name"] == scope }
+          raise KeyError, "no rehearsal scope #{scope.inspect}" unless scope_row
+
+          scope_row["stages"].split(",").map { |name| stages.fetch(name) }
         end
 
+        # @return [Array<String>] the names of the rehearsal scopes
+        def self.scopes = Vocabulary.rows("RehearsalScope").map { |row| row["name"] }
+
         private
+
+        def step(row)
+          case row["kind"]
+          when "gate" then gate(row["argument"])
+          when "specs" then push_specs(row["argument"])
+          else impacted
+          end
+        end
 
         def gate(stage)
           result = capture(*GATE, stage, env: { "HECKS_ENVIRONMENT" => "memory" })
@@ -71,8 +87,8 @@ module Hecks
           Result.new(stage, false, failure(result, checks: result.out[RED, 1]))
         end
 
-        def push_specs
-          files = Dir.glob(File.join(@directory, PUSH_SPECS)).map { |path| path.delete_prefix("#{@directory}/") }.sort
+        def push_specs(pattern)
+          files = Dir.glob(File.join(@directory, pattern)).map { |path| path.delete_prefix("#{@directory}/") }.sort
           return Result.new("push specs", true, " (none exist yet)") if files.empty?
 
           result = capture("bundle", "exec", "rspec", *files, env: { "CI" => "true", "HECKS_ENVIRONMENT" => "memory" })

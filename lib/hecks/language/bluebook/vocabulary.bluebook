@@ -1028,6 +1028,33 @@ Hecks.bluebook "Bluebook" do
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
+    # What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalStage` is one
+    # step: `kind` is `gate` (the `GateStage` named by `argument` runs), `specs` (the spec files
+    # `argument`, a glob, names run) or `impacted` (the specs the push's changes touch, capped by the
+    # local spec limit). A `RehearsalScope` lists, in the order they run, the steps a rehearsal of
+    # that scope runs. `quick` is what a landing asks for; `full` is what a push needs; `deep` adds
+    # the impacted specs and runs only when asked for (`scope.value=deep`). Owner decision: the full
+    # spec suite runs only in CI, so no scope runs it and only `deep` runs any impacted specs.
+    value_object "RehearsalStage" do
+      attribute :name, String
+      attribute :kind, String
+      attribute :argument, String
+
+      member name: "quick", kind: "gate", argument: "quick"
+      member name: "unguarded_push", kind: "gate", argument: "unguarded_push"
+      member name: "push_specs", kind: "specs", argument: "spec/**/*{push_chain,push_train}*_spec.rb"
+      member name: "impacted", kind: "impacted", argument: ""
+    end
+
+    value_object "RehearsalScope" do
+      attribute :name, String
+      attribute :stages, String
+
+      member name: "quick", stages: "quick"
+      member name: "full", stages: "quick,unguarded_push,push_specs"
+      member name: "deep", stages: "quick,unguarded_push,push_specs,impacted"
+    end
+
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
     # is the name of a job in .github/workflows that reports to a commit as a check run; a check
     # that a path gate skipped reports `skipped`, which counts as passed. `hecks PromotionRun.promote!` reads

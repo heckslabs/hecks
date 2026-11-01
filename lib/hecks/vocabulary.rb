@@ -474,6 +474,17 @@ module Hecks
         {"refusal"=>"AttributeAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true"}.freeze,
         {"refusal"=>"ProjectionAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait"}.freeze
       ].freeze,
+      "RehearsalScope" => [
+        {"name"=>"quick", "stages"=>"quick"}.freeze,
+        {"name"=>"full", "stages"=>"quick,unguarded_push,push_specs"}.freeze,
+        {"name"=>"deep", "stages"=>"quick,unguarded_push,push_specs,impacted"}.freeze
+      ].freeze,
+      "RehearsalStage" => [
+        {"name"=>"quick", "kind"=>"gate", "argument"=>"quick"}.freeze,
+        {"name"=>"unguarded_push", "kind"=>"gate", "argument"=>"unguarded_push"}.freeze,
+        {"name"=>"push_specs", "kind"=>"specs", "argument"=>"spec/**/*{push_chain,push_train}*_spec.rb"}.freeze,
+        {"name"=>"impacted", "kind"=>"impacted", "argument"=>""}.freeze
+      ].freeze,
       "ReleaseFile" => [
         {"path"=>"lib/hecks/version.rb", "lines"=>"^\\s*VERSION = \"[0-9]+\\.[0-9]+\\.[0-9]+\"\\.freeze$"}.freeze,
         {"path"=>"CHANGELOG.md", "lines"=>""}.freeze,

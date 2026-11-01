@@ -14,6 +14,7 @@ require_relative "corpus_queries"
 require_relative "generated_keys"
 require_relative "codemods"
 require_relative "test_suite"
+require_relative "test_scope"
 require_relative "corpus_tasks"
 require_relative "composing"
 require_relative "previewing"
@@ -71,7 +72,10 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil); end
+      # @param registry [Runtime::Registry, nil] whose Hecks world declares the `test_scope` limit
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
+        @registry = registry
+      end
 
       # Reports whether the working tree is a hecks checkout. For a release it also reports the
       # facts the Git adapter surveys, since a release's rules are judged with the checkout rule.
@@ -103,7 +107,9 @@ module Hecks
         return handed_off(operation) if HANDED_OFF.include?(operation)
 
         family = family_for(operation)
-        done = family.call(operation, held.except(:operation), working_tree(operation, held), shell: shell)
+        folder = working_tree(operation, held)
+        allowed = Codebase::TestScope.new(@registry).admit(operation, held.except(:operation), folder)
+        done = family.call(operation, allowed, folder, shell: shell)
         done.is_a?(Hash) ? done : { report: { value: done } }
       end
 
