@@ -105,6 +105,13 @@ in order:
    runner worktree; move the bug through `hecks run qa/bluebook
    bug.investigate id=BUG#n …`, `fix id=BUG#n reference.value=BUG#n
    commit.value=<sha>`, `verify id=BUG#n evidence.value="<what ran>"`;
+   The Fixer refuses a fix without a failing reproduction: first run the
+   real entry point the bug is reached through, print what that real path
+   resolves (era, config, route), and record the exact command, its
+   short output and that it failed (`reproduction`, `observed`,
+   `reproduced`); then fix. Verify re-runs that same command and records
+   it passing (`rerun`, `rerun_result`); passing only new tests is not
+   verified.
    then `exe/hecks quality_control patch.open bug=BUG#n title.value="…"`. It asks the ledger
    first, as a dry run of `Patch.Open`, whose `given`s refuse a branch
    off `BRANCH_PREFIX` and a bug that is not `fixed`; the `GitPr` adapter
