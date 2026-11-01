@@ -36,8 +36,8 @@ module Hecks
       # @param only [Array(Bluebook::Policy, String), nil] one `[policy, home_domain]`
       #   pair to run exactly (the outbox relay's consumer), instead of scanning every
       #   loaded bluebook for candidates
-      # @param event_uid [String, nil] the outbox uid every consumer of this event shares, when the
-      #   event was rebuilt from an outbox row; otherwise the event object itself is the identity
+      # @param event_uid [String, nil] the outbox uid every consumer of this event shares; the
+      #   reaction identity only when the event has no id
       # @return [void]
       def react(event, domain, only: nil, event_uid: nil)
         selected = only ? [only] : policies_for(event, domain)
@@ -45,13 +45,19 @@ module Hecks
           result = deliver(policy, event, home_domain)
           next if result.nil?
 
-          # A for_each policy answers an array; Array(...) would explode a record Hash.
-          identity = event_uid || event.object_id
+          # A for_each policy answers an array; Array(...) would explode a record Hash. The identity
+          # is the event's own id: a later run recognises the reaction, whichever path ran it.
+          identity = reaction_identity(event, event_uid)
           (result.is_a?(Array) ? result : [result]).each { |record| @registry.log_reaction(record, event: identity) }
         end
       end
 
       private
+
+      # The identity a reaction is logged under: the event's own id, so a later run can recognise
+      # the reaction whichever path delivered the event; the outbox uid or the object when the event
+      # has no id.
+      def reaction_identity(event, event_uid) = event.id || event_uid || event.object_id
 
       # Scans every loaded bluebook, since a policy commonly lives in a different
       # domain than the event it reacts to. Returns [policy, home_domain] pairs: the

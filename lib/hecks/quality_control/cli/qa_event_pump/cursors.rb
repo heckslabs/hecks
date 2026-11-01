@@ -29,7 +29,22 @@ module Hecks
           @runtime.dispatch_flat("QualityControl::EventCursor.Advance", to: key(log, consumer), position: position)
         end
 
+        # Runs the block in one transaction on the ledger's store where that store has one, so a
+        # reaction and the cursor past it commit together or not at all. A store without
+        # transactions (Memory) yields, and the reaction log is then the only guard against a rerun.
+        #
+        # @yield the reaction and the cursor move, as one unit
+        # @return [Object] the block's own value
+        def transaction(&)
+          repository = @runtime.registry.repository("QualityControl", cursor_aggregate)
+          repository.respond_to?(:transaction) ? repository.transaction(&) : yield
+        end
+
         private
+
+        def cursor_aggregate = ledger_bluebook.aggregates.find { |aggregate| aggregate.hecks_name == "EventCursor" }
+
+        def ledger_bluebook = @runtime.registry.bluebook("QualityControl")
 
         def key(log, consumer) = "#{log}/#{consumer}"
 

@@ -22,6 +22,9 @@ module Hecks
         # @return [Boolean] whether the pump attaches this domain
         def known?(name) = @dirs.key?(name)
 
+        # @return [Array<Hecks::Registry>] the registries of every domain booted so far this run
+        def registries = @runtimes.values.map(&:registry)
+
         # @param name [String] an attached domain name
         # @return [String] the directory that boots it
         def dir(name) = @dirs.fetch(name)
@@ -32,12 +35,29 @@ module Hecks
           @runtimes[name] ||= Hecks.boot(dir(name))
         end
 
+        # Whether a domain booted in this process has already delivered `policy` for `event`. The
+        # reaction log keeps the event id each reaction answered, so a second run of the same event
+        # in this process is skipped whatever the cursor says.
+        #
+        # @param event [Hecks::Runtime::Event] the event, with its id
+        # @param policy [Hecks::Bluebook::Policy] the policy about to run
+        # @return [Boolean] true when a delivered reaction for this event and policy is logged
+        def reacted?(event, policy)
+          registries.any? do |registry|
+            registry.reaction_log.any? do |record|
+              record[:delivered] && record[:policy] == policy.name && record[:on] == event.name &&
+                registry.reaction_event(record) == event.id
+            end
+          end
+        end
+
         private
 
         def default_dirs(root, env)
           {
             "QualityControl" => env.fetch("QA_SWEEP_DOMAIN_DIR", File.join(root, "qa/bluebook")),
             "Fixer"          => File.join(root, "lib/hecks/fixer"),
+            "Coder"          => File.join(root, "lib/hecks/coder"),
             "CiPipeline"     => File.join(root, "lib/hecks/ci_pipeline")
           }
         end
