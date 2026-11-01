@@ -5,6 +5,7 @@ require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
+require_relative "../../../support/mint_request_support"
 require_relative "../../../support/thread_parking"
 
 # `formerly_known_as`: the storage layer carries a renamed domain's history forward.
@@ -12,6 +13,7 @@ require_relative "../../../support/thread_parking"
 RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :io do
   include EraRegistryLoading
   include EraAppRole
+  include MintRequestSupport
 
   RENAME_DB = "hecks_domain_rename_spec".freeze
   RENAME_ROLE = "hecks_domain_rename_spec_app".freeze
@@ -86,11 +88,16 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
   def app_role_database = RENAME_DB
   def app_role_name = RENAME_ROLE
 
-  def check!(source, translation_source: nil, role: nil)
+  # Checks the source as a boot, which carries no mint request. `mint: true` runs the mint entry
+  # point instead: the copy's world allows minting and the request is a confirmed would_mint
+  # rehearsal at the watermark the database holds.
+  def check!(source, translation_source: nil, role: nil, mint: false)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     settings = { database: FencedOwner.url(RENAME_DB) }
     settings[:role] = role if role
+    # The rehearsal reads the watermark of the journal the database holds under the held name.
+    settings = with_mint_request(settings.merge(mint_eras: true), domain: bluebook.formerly_known_as || bluebook.name) if mint
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
     )
@@ -255,14 +262,22 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
       RUBY
     end
 
-    it "still requires a translation edge — it hits mint!, not a silent pass" do
-      expect { check!(NEW_SOURCE_CHANGED) }.to raise_error(
+    # A boot carries no mint request, so the changed shape reads the held era and appends nothing.
+    it "boot reads a changed shape without minting", :aggregate_failures do
+      registry = check!(NEW_SOURCE_CHANGED)
+      expect(count_in("hecks_eras", "NewName")).to eq("1")
+      expect(registry.resolved_eras["NewName"]).to eq(1)
+      expect(adapter_for(registry, "Acct", domain: "NewName").find("a1").balance.to_h).to eq(cents: 500)
+    end
+
+    it "the mint entry point refuses a changed shape with no translation edge by name" do
+      expect { check!(NEW_SOURCE_CHANGED, mint: true) }.to raise_error(
         Hecks::Runtime::WiringError, /cannot boot NewName: the shape changed \(era 2\) and no translation edge covers it/
       )
     end
 
-    it "still hits mint!'s coverage check when an edge exists but covers nothing" do
-      expect { check!(NEW_SOURCE_CHANGED, translation_source: uncovered_edge) }.to raise_error(
+    it "the mint entry point refuses an uncovered edge by name" do
+      expect { check!(NEW_SOURCE_CHANGED, translation_source: uncovered_edge, mint: true) }.to raise_error(
         Hecks::Runtime::WiringError, /:note is new and required, with no default:/
       )
     end
