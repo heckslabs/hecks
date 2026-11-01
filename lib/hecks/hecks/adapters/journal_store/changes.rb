@@ -42,10 +42,8 @@ module Hecks
         def apply_hold_first(held)
           domain = HeldDomain.open(plain(held[:domain]), mode: :bare)
           domain.writing do |lineage|
-            raise Runtime::WiringError, "#{domain.domain_name} already holds an era" unless lineage.eras.empty?
-
-            lineage.hold_first!(domain.source_text, projection: domain.shape)
-            lineage.provision_first_era!(domain.aggregates, role: domain.app_role)
+            lineage.hold_first_era!(domain.source_text, projection: domain.shape, aggregates: domain.aggregates,
+                                                         role: domain.app_role)
           end
           "#{domain.domain_name} holds era 1 now."
         end
@@ -54,7 +52,9 @@ module Hecks
         # failure rolls it back whole, so the old name still holds everything.
         def apply_rename_domain(held)
           domain = HeldDomain.open(plain(held[:domain]), mode: :bare)
-          moved = domain.renaming { |lineage| lineage.rename_domain!(storage_names: domain.aggregates.map(&:storage_name)) }
+          moved = domain.renaming do |lineage|
+            lineage.rename_domain!(storage_names: domain.aggregates.map(&:storage_name), cache_fields: domain.cache_fields)
+          end
           "#{domain.domain_name} holds the #{moved} era#{"s" unless moved == 1} of #{domain.former_name} now."
         end
 

@@ -443,6 +443,14 @@ Hecks.bluebook "Hecks" do
         attribute :database, String,  optional: true
         returns Document
       end
+
+      # Whether each era's stored hash is the hash of its stored projection.
+      query "ProjectionAudit" do
+        description "Every era of each bluebook under a domain directory whose stored hash is not the hash of " \
+                    "its stored projection: domain, ordinal, stored hash and recomputed hash. Writes nothing."
+        attribute :domain, DomainPath
+        returns Document
+      end
     end
 
     policy "ExamineWhenFirstEraRequested" do

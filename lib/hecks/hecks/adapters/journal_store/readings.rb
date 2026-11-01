@@ -11,6 +11,7 @@ require_relative "readings/composition"
 require_relative "readings/boot_status"
 require_relative "readings/sqlite_status"
 require_relative "readings/event_trace"
+require_relative "readings/projection_audit"
 
 module Hecks
   module Adapters
@@ -30,6 +31,7 @@ module Hecks
         include BootStatus
         include SqliteStatus
         include EventTrace
+        include ProjectionAudit
 
         # Words the answer for a domain that holds no era.
         #
