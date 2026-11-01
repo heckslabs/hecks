@@ -1,0 +1,257 @@
+Hecks.bluebook "Swarm" do
+  vision "Run a swarm of agents over a codebase, from reading to a built winner, and record it."
+  supporting
+
+  # The bookkeeping of one run. The agents themselves stay outside this domain; the run records
+  # what each phase produced and the phase it has reached.
+  aggregate "SwarmRun" do
+    description "One swarm run: its brief, proposals, critiques, scores and the winner it builds."
+
+    attribute :name,        RunName
+    attribute :target_repo, RepoPath
+    attribute :phase,       Phase
+    # How many voices and judges the run has, set at StartRun. Judging waits on the voices;
+    # the winner waits on the judges.
+    attribute :voice_count, VoiceCount
+    attribute :judge_count, JudgeCount
+    attribute :winner,      ProposalId, optional: true
+    attribute :branch,      BranchName, optional: true
+    attribute :proposals,   list_of(Proposal)
+    attribute :critiques,   list_of(Critique)
+    attribute :scores,      list_of(Score)
+
+    identified_by :name
+
+    value_object "RunName" do
+      attribute :value, String, matches: :present
+      invariant("a run is named") { !value.to_s.empty? }
+    end
+
+    value_object "RepoPath" do
+      attribute :value, String, matches: :present
+      invariant("a target repo is named") { !value.to_s.empty? }
+    end
+
+    # The phases a run moves through, in order. Each command checks the phase it needs.
+    value_object "Phase" do
+      attribute :value, String, one_of: [
+        "reading", "voicing", "crossing", "judging", "building", "reported"
+      ]
+    end
+
+    value_object "VoiceCount" do
+      attribute :value, Integer
+      invariant("a run has at least one voice") { value.positive? }
+    end
+
+    value_object "JudgeCount" do
+      attribute :value, Integer
+      invariant("a run has at least one judge") { value.positive? }
+    end
+
+    value_object "ProposalId" do
+      attribute :value, String, matches: :present
+      invariant("a proposal is identified") { !value.to_s.empty? }
+    end
+
+    value_object "VoiceLabel" do
+      attribute :value, String, matches: :present
+      invariant("a voice is labelled") { !value.to_s.empty? }
+    end
+
+    value_object "JudgeLabel" do
+      attribute :value, String, matches: :present
+      invariant("a judge is labelled") { !value.to_s.empty? }
+    end
+
+    value_object "LensDigest" do
+      attribute :value, String, matches: :present
+      invariant("a lens digest says something") { !value.to_s.empty? }
+    end
+
+    value_object "BranchName" do
+      attribute :value, String, matches: :present
+      invariant("a branch is named") { !value.to_s.empty? }
+    end
+
+    value_object "Points" do
+      attribute :value, Integer
+    end
+
+    # A voice's labelled proposal. A voice proposes once, so its label appears once in the run.
+    entity "Proposal" do
+      description "A proposal one voice has put forward for an evolution of the target repo."
+
+      attribute :id,    ProposalId
+      attribute :voice, VoiceLabel
+
+      identified_by :id
+    end
+
+    entity "Critique" do
+      description "One voice's critique of one proposal."
+
+      attribute :critic, VoiceLabel
+      attribute :target, ProposalId
+
+      identified_by :critic, :target
+    end
+
+    entity "Score" do
+      description "One judge's score for one proposal."
+
+      attribute :judge,    JudgeLabel
+      attribute :proposal, ProposalId
+      attribute :points,   Points
+
+      identified_by :judge, :proposal
+    end
+
+    command "StartRun" do
+      goal "Open a run over a target repo, with its voices and judges counted"
+
+      attribute :name,        RunName,    sets: true
+      attribute :target_repo, RepoPath,   sets: true
+      attribute :voice_count, VoiceCount, sets: true
+      attribute :judge_count, JudgeCount, sets: true
+
+      sets :phase, to: "reading"
+
+      emits RunStarted
+    end
+
+    command "FileBrief" do
+      goal "File the reader's lens digest, which opens the voicing"
+
+      reference_to SwarmRun
+      attribute :digest, LensDigest
+
+      given("the run is still reading") { phase.value == "reading" }
+
+      sets :phase, to: "voicing"
+
+      emits BriefFiled
+    end
+
+    command "SubmitProposal" do
+      goal "Record one voice's labelled proposal while the run is voicing"
+
+      reference_to SwarmRun
+      attribute :id,    ProposalId
+      attribute :voice, VoiceLabel
+
+      given("the run is voicing") { phase.value == "voicing" }
+      given("no more proposals than voices") { proposals.size < voice_count.value }
+      given("a proposal id is not reused") { proposals.none? { |p| p.id.value == id.value } }
+      given("a voice proposes once") { proposals.none? { |p| p.voice.value == voice.value } }
+
+      sets :proposals, append: { id: :id, voice: :voice }
+
+      emits ProposalSubmitted
+    end
+
+    command "SubmitCritique" do
+      goal "Record one voice's critique of a proposal, once every voice has proposed"
+
+      reference_to SwarmRun
+      attribute :critic, VoiceLabel
+      attribute :target, ProposalId
+
+      given("the run is voicing or crossing") do
+        phase.value == "voicing" || phase.value == "crossing"
+      end
+      given("every voice has proposed") { proposals.size == voice_count.value }
+      given("a critic does not critique its own proposal") do
+        proposals.none? { |p| p.id.value == target.value && p.voice.value == critic.value }
+      end
+      given("the critiqued proposal exists") { proposals.any? { |p| p.id.value == target.value } }
+      given("a critic critiques a proposal once") do
+        critiques.none? { |c| c.critic.value == critic.value && c.target.value == target.value }
+      end
+
+      sets :critiques, append: { critic: :critic, target: :target }
+      sets :phase, to: "crossing"
+
+      emits CritiqueSubmitted
+    end
+
+    # The first score moves the run into judging. Judging cannot start until every voice has a
+    # proposal, so the voice count is checked here as well as on the phase.
+    command "CastScore" do
+      goal "Record one judge's score for one proposal; the first score starts judging"
+
+      reference_to SwarmRun
+      attribute :judge,    JudgeLabel
+      attribute :proposal, ProposalId
+      attribute :points,   Points
+
+      given("the run is crossing or judging") do
+        phase.value == "crossing" || phase.value == "judging"
+      end
+      given("judging waits until every voice has a proposal") do
+        proposals.size == voice_count.value
+      end
+      given("the scored proposal exists") { proposals.any? { |p| p.id.value == proposal.value } }
+      given("a judge scores a proposal once") do
+        scores.none? { |s| s.judge.value == judge.value && s.proposal.value == proposal.value }
+      end
+      given("no more scores than judges times proposals") do
+        scores.size < judge_count.value * proposals.size
+      end
+
+      sets :scores, append: { judge: :judge, proposal: :proposal, points: :points }
+      sets :phase, to: "judging"
+
+      emits ScoreCast
+    end
+
+    # Declared as a phase change rather than a policy: a policy can only trigger a command, and
+    # moving to building is a fact of this command.
+    command "DeclareWinner" do
+      goal "Name the winning proposal once every judge has scored every proposal"
+
+      reference_to SwarmRun
+      attribute :winner, ProposalId
+
+      given("the run is judging") { phase.value == "judging" }
+      given("every judge has scored every proposal") do
+        scores.size == judge_count.value * proposals.size
+      end
+      given("the winner is a submitted proposal") do
+        proposals.any? { |p| p.id.value == winner.value }
+      end
+
+      sets :winner
+      sets :phase, to: "building"
+
+      emits WinnerDeclared
+    end
+
+    command "RecordBuild" do
+      goal "Record the branch the winning proposal was built onto"
+
+      reference_to SwarmRun
+      attribute :branch, BranchName
+
+      given("a winner was declared") { !winner.nil? }
+      given("the run is building") { phase.value == "building" }
+
+      sets :branch
+
+      emits BuildRecorded
+    end
+
+    command "CloseRun" do
+      goal "Close the run as reported, once its build is recorded"
+
+      reference_to SwarmRun
+
+      given("the run is building") { phase.value == "building" }
+      given("a build was recorded") { !branch.nil? }
+
+      sets :phase, to: "reported"
+
+      emits RunClosed
+    end
+  end
+end
