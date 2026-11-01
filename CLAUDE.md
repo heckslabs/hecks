@@ -190,6 +190,12 @@ commit must pass as `RequiredCheck` rows beside them.
   the Vocabulary gate rows, and `hecks send_train.board! --confirm full_gate.value=true` runs the
   whole `pre_push` stage. Never
   force-push `main`, and never use `--admin`.
+  Push small: a rehearsed push per landed slice, or at least per day, is the norm, so a push
+  carries little and a red one is found early. Landing asks for a rehearsal on its own (it runs the
+  quick stage, the `unguarded_push` stage and any push specs against local `main` and pushes
+  nothing; its result is the `PushRehearsal` record), and `hecks push_rehearsal.due` says how far
+  `main` is ahead of `origin/main`, how old the oldest unpushed commit is and how the last
+  rehearsal ended. Nothing pushes by itself.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
   fast-forwards `stable` onto it through
