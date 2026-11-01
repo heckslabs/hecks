@@ -27,15 +27,24 @@ module Hecks
 
           # Moves every journal row of one aggregate, from every era, into a new table named for it
           # and the time, then empties the aggregate's head snapshots, all in one transaction.
+          # The journal is locked against writers for the whole move, so no row can commit between
+          # the copy and the delete, and the delete must remove exactly the rows the copy holds or
+          # the transaction rolls back. A name already taken gets `_2`, `_3`, and so on; an archive
+          # is never overwritten.
           #
           # @param storage_name [String] the aggregate's snake-cased storage name
           # @param stamp [String] the time the archive is named for, as `YYYYMMDDHHMMSS`
           # @return [Array(String, Integer)] the archive table's name and how many rows it holds
           # @raise [PG::Error] if Postgres refuses a statement; nothing is moved then
+          # @raise [Runtime::WiringError] if the delete removed other rows than the copy holds
           def archive_aggregate!(storage_name, stamp)
-            archive = qualified_name("#{storage_name}_archived_#{stamp}")
-            nested_transaction("hecks_ledger_archive") { move_rows!(storage_name, archive) }
-            [archive, @db.exec("SELECT count(*) FROM #{quote(archive)}")[0]["count"].to_i]
+            archive = nil
+            nested_transaction("hecks_ledger_archive") do
+              lock_journal!
+              archive = unused_archive_name(storage_name, stamp)
+              move_rows!(storage_name, archive)
+            end
+            [archive, archived_count(archive)]
           end
 
           # Points an aggregate's head view at its snapshot in `era` alone, with no ancestor tail,
@@ -48,9 +57,11 @@ module Hecks
           # @raise [PG::Error] if Postgres refuses a statement
           def fresh_head!(storage_name, era)
             ensure_head_snapshot!(storage_name, era)
-            @db.exec("DROP VIEW IF EXISTS #{quote(head_view(storage_name))}")
             tokens = { head_view: quote(head_view(storage_name)), snapshot: quote(head_snapshot(storage_name, era)) }
-            @db.exec(format(SqlTemplates::FIRST_HEAD_VIEW_SQL, tokens))
+            nested_transaction("hecks_fresh_head") do
+              @db.exec("DROP VIEW IF EXISTS #{quote(head_view(storage_name))}")
+              @db.exec(format(SqlTemplates::FIRST_HEAD_VIEW_SQL, tokens))
+            end
           end
 
           # Replaces the latest era's held text, digest, projection and name with the booting
@@ -74,12 +85,39 @@ module Hecks
 
           private
 
+          # Blocks every concurrent insert, update and delete on the journal until the transaction
+          # ends; reads go on. A writer that waits here lands its row in the journal after the move.
+          def lock_journal! = @db.exec("LOCK TABLE #{quoted_journal} IN SHARE ROW EXCLUSIVE MODE")
+
           def move_rows!(storage_name, archive)
             @db.exec("CREATE TABLE #{quote(archive)} AS SELECT * FROM #{quoted_journal} " \
                      "WHERE aggregate = #{text_literal(storage_name)}")
             record_archive!(storage_name, archive)
-            delete_journal_rows!(storage_name)
+            verify_moved!(archive, delete_journal_rows!(storage_name))
             empty_head_snapshots!(storage_name)
+          end
+
+          # A delete that removed a row the archive does not hold would lose it; refuse and roll back.
+          def verify_moved!(archive, deleted)
+            return if deleted == archived_count(archive)
+
+            raise Runtime::WiringError, "the ledger archive #{archive} holds #{archived_count(archive)} rows but " \
+                                        "#{deleted} were deleted from the journal; nothing was moved"
+          end
+
+          def archived_count(archive) = @db.exec("SELECT count(*) FROM #{quote(archive)}")[0]["count"].to_i
+
+          # The archive's name, with `_2`, `_3`... appended while a table or a listed archive holds it.
+          def unused_archive_name(storage_name, stamp)
+            @db.exec(ARCHIVES_SQL)
+            base = "#{storage_name}_archived_#{stamp}"
+            (1..).lazy.map { |n| qualified_name(n == 1 ? base : "#{base}_#{n}") }.find { |name| archive_name_free?(name) }
+          end
+
+          def archive_name_free?(name)
+            return false if table_exists?(quote(name))
+
+            @db.exec_params("SELECT 1 FROM hecks_ledger_archives WHERE archive = $1", [name]).ntuples.zero?
           end
 
           def record_archive!(storage_name, archive)
@@ -94,8 +132,9 @@ module Hecks
             aggregate = text_literal(storage_name)
             @db.exec("CREATE POLICY hecks_ledger_archive ON #{quoted_journal} FOR DELETE TO PUBLIC " \
                      "USING (aggregate = #{aggregate})")
-            @db.exec("DELETE FROM #{quoted_journal} WHERE aggregate = #{aggregate}")
+            deleted = @db.exec("DELETE FROM #{quoted_journal} WHERE aggregate = #{aggregate}").cmd_tuples
             @db.exec("DROP POLICY hecks_ledger_archive ON #{quoted_journal}")
+            deleted
           end
 
           def empty_head_snapshots!(storage_name)
