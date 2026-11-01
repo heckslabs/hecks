@@ -2337,7 +2337,7 @@ Hecks.bluebook "QualityControl" do
     attribute :release,   ReleaseVersion
     attribute :branch,    ReleaseBranch
     attribute :sha,       MaintenanceSha
-    attribute :state,     one_of("open", "approved", "refused")
+    attribute :verdict,   one_of("open", "approved", "refused")
 
     value_object "ReleaseBranch" do
       attribute :value, String, matches: :present
