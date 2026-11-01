@@ -759,6 +759,10 @@ Hecks.bluebook "Bluebook" do
     # separated by single spaces, with `{workers}` standing for half the machine's cores, at least
     # one; `script` is a shell script run as `sh -ec` instead, when `argv` is empty; `blocked` is what
     # a red check means and what to do about it.
+    #
+    # `runs_in` says where a check runs. `ci` marks a check that only CI runs: no local stage may
+    # list it, and the owner's decision is that the full spec suite runs in CI on production. Empty
+    # means a local stage may list the check.
     value_object "GateCheck" do
       attribute :name, String
       attribute :id, String
@@ -766,9 +770,11 @@ Hecks.bluebook "Bluebook" do
       attribute :argv, String
       attribute :script, String
       attribute :blocked, String
+      attribute :runs_in, String
 
       member name: "rspec", id: "rspec",
              title: "rspec (parallel)",
+             runs_in: "ci",
              argv: "",
              script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed). CI's committed baseline leaves out the io\n# specs this run includes, so it only seeds the first run; each run then rewrites the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\n[ -f \"$log\" ] || cp .github/rspec_runtime_baseline.log \"$log\"\nbundle exec parallel_rspec spec -n {workers} --group-by runtime --runtime-log \"$log\" --allowed-missing 100 \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n",
              blocked: "the suite is red."
@@ -976,8 +982,13 @@ Hecks.bluebook "Bluebook" do
     # the order they are reported. `env` is `NAME=value` words set only where the caller has not set
     # the name: a push check has no use for the Hecks domain's database, so it runs on Memory, as a
     # pull-request run does in CI. `HECKS_PROCESS_SPECS` keeps the examples tagged `process` (they
-    # start child processes, so a plain `rspec` leaves them out) in the suite `pre_push` runs.
+    # start child processes, so a plain `rspec` leaves them out) in the suite `ci_suite` runs.
 
+    # `ci_suite` is the full spec suite. It is a `runs_in: "ci"` check: CI runs it on production, and
+    # no local stage, hook or push lists it. Owner decision: nobody runs the full suite locally; a
+    # change is checked locally by the quick gate, RuboCop, the shape ledger and the specs named for
+    # that change. A person runs `ci_suite` by hand only by asking for it.
+    #
     # `pre_push` is what a push of a guarded lane runs. `quick` is the checks that finish in seconds
     # and catch the offenses people make most (a storage shape with no edge, a style offense, a comment
     # past the guide): a push runs them first and stops on a red one, so the minutes of spec/fuzzing
@@ -993,7 +1004,8 @@ Hecks.bluebook "Bluebook" do
       attribute :env, String
       attribute :checks, String
 
-      member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec,fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+      member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+      member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words"
       member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
