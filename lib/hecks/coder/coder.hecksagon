@@ -1,4 +1,7 @@
 Hecks.hecksagon "Coder" do
   attaches "Governance"
   persisted_by "Memory"
+
+  # A planned Work row, which ComposeBriefWhenPlanned briefs.
+  subscribe "Tickets.WorkPlanned"
 end

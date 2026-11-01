@@ -1,0 +1,6 @@
+# The Tickets domain's settings. `work_limit` caps how many Work rows may be started at once:
+# a start that would make one more is sent back to the plan, naming the cap, the count and the
+# holders. Without this line the cap is `Hecks::Adapters::WorkLimits::DEFAULT_CAP`, the same number.
+Hecks.world "Tickets" do
+  work_limit "WorkLimits", cap: 8
+end
