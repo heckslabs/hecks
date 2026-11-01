@@ -347,7 +347,7 @@ Hecks.bluebook "Hecks" do
         attribute :branch, Word, sets: true
         attribute :landed, Word, sets: true
         attribute :report, Report, sets: true
-
+        attribute :checkout, Word, optional: true, sets: true
 
         emits BranchLanded
       end
@@ -423,7 +423,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheLanding" do
       on      "Landing.MergeAnswered"
-      trigger Landing::Record, with: { branch: :branch, landed: :landed, report: :report }
+      trigger Landing::Record, with: { branch: :branch, landed: :landed, report: :report, checkout: :checkout }
     end
 
     policy "RecordTheRefusedLanding" do
