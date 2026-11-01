@@ -117,21 +117,101 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     git("config", "core.hooksPath", hooks)
   end
 
-  it "pushes a head that moved on after boarding, even when the boarded commit is already there", :aggregate_failures do
+  def carriage = described_class::Carriage.new(Hecks::Adapters::Git.new, work, branch: "main", remote: "origin")
+
+  it "refuses a branch that moved on after boarding, and pushes nothing", :aggregate_failures do
     boarded = git("rev-parse", "main")
     commit("newer")
-    carriage = described_class::Carriage.new(Hecks::Adapters::Git.new, work, branch: "main", remote: "origin")
 
-    expect(carriage.carry(boarded)[:outcome]).to eq(value: "pushed")
-    expect(git("rev-parse", "origin/main")).to eq(git("rev-parse", "main"))
+    expect { carriage.carry(boarded) }
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /main moved since boarding.*board again/)
+    expect(git("rev-parse", "origin/main")).to eq(boarded)
   end
 
-  it "rides again for commits that landed while the gate ran", :aggregate_failures do
+  it "pushes exactly the boarded commit by its id", :aggregate_failures do
     commit("second")
+    boarded = git("rev-parse", "main")
+
+    expect(carriage.carry(boarded)).to include(outcome: { value: "pushed" }, pushed: { value: boarded })
+    expect(git("rev-parse", "origin/main")).to eq(boarded)
+  end
+
+  it "leaves commits that landed while the gate ran unpushed, and names them", :aggregate_failures do
+    commit("second")
+    boarded = git("rev-parse", "main")
     land_during_first_push
 
-    expect(carry[:report][:value]).to include("pushed").and include(";")
-    expect(git("rev-parse", "origin/main")).to eq(git("rev-parse", "main"))
+    expect(carry).to include(pushed: { value: boarded }, report: { value: /1 commit\(s\) landed meanwhile and were not pushed/ })
+    expect(git("rev-parse", "origin/main")).to eq(boarded)
+  end
+
+  # A mint that lands a commit on the branch after the boarding named its commit.
+  def moving_mint
+    instance_double(described_class::MintStep).tap do |mint|
+      allow(mint).to receive(:run) do
+        git("commit", "-q", "--allow-empty", "-m", "late")
+        "minted"
+      end
+    end
+  end
+
+  it "refuses when the branch moves between boarding and the carry, naming the boarded commit", :aggregate_failures do
+    commit("second")
+    boarded = git("rev-parse", "main")
+    attempt = -> { described_class.new(mint: moving_mint).carry(checkout: { value: work }) }
+
+    expect(&attempt).to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /moved since boarding \(boarded #{boarded[0, 9]}/)
+    expect(git("rev-parse", "origin/main")).not_to eq(git("rev-parse", "main"))
+  end
+
+  it "reports the boarded and pushed commits by name", :aggregate_failures do
+    commit("second")
+    head = git("rev-parse", "main")
+    answer = carry
+
+    expect(answer).to include(boarded: { value: head }, pushed: { value: head })
+    expect(answer[:report][:value]).to include("boarded #{head[0, 9]}")
+  end
+
+  describe "the train's own shape" do
+    let(:domain) { File.join(work, "lib", "hecks", "hecks") }
+
+    before do
+      FileUtils.mkdir_p(domain)
+      File.write(File.join(domain, "a.bluebook"), "one")
+      git("add", ".")
+      git("commit", "-q", "-m", "domain")
+      git("push", "-q", "origin", "main")
+      git("checkout", "-q", "--detach")
+      git("checkout", "-q", "-B", "main")
+    end
+
+    def train_at_domain
+      described_class.new(mint: still_mint, domain: File.join(scratch, "train", "lib", "hecks", "hecks"))
+    end
+
+    def newer_shape
+      File.write(File.join(domain, "a.bluebook"), "two")
+      git("commit", "-q", "-am", "reshape")
+    end
+
+    def train_worktree = git("worktree", "add", "-q", "--detach", File.join(scratch, "train"), git("rev-parse", "main"))
+
+    it "refuses when the running train lacks the boarded commit's bluebooks, pushing nothing", :aggregate_failures do
+      train_worktree
+      newer_shape
+
+      expect { train_at_domain.carry(checkout: { value: work }) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /the train is not at the boarded commit: refresh it first/)
+      expect(git("rev-parse", "origin/main")).not_to eq(git("rev-parse", "main"))
+    end
+
+    it "passes when the train holds the same bluebooks" do
+      train_worktree
+      commit("code-only")
+
+      expect(train_at_domain.carry(checkout: { value: work })[:outcome]).to eq(value: "pushed")
+    end
   end
 
   it "merges a remote that moved and brings the checked-out branch forward", :aggregate_failures do
@@ -159,7 +239,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
   it "opens the report with what the Hecks mint did" do
     commit("second")
 
-    expect(carry[:report][:value]).to start_with("the Hecks shape f30dcb did not move, then pushed")
+    expect(carry[:report][:value]).to start_with("the Hecks shape f30dcb did not move, then boarded").and include("pushed")
   end
 
   # A mint that refuses, as `HeldMint#answer` does, with its reason.

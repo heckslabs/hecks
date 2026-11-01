@@ -129,4 +129,124 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
       end
     end
   end
+
+  describe "the record" do
+    let(:recorder) { Hecks::Adapters::GitRehearsal::Record.new(Hecks::Adapters::Git.new, work) }
+    let(:file) { File.join(work, ".git", Hecks::Adapters::GitRehearsal::Record::FILE) }
+
+    def commit_after(name)
+      commit(name)
+      git("rev-parse", "main")
+    end
+
+    def write_for(commit, verdict = "green") = recorder.write(commit, verdict, [stage("quick", verdict == "green")])
+
+    it "writes through a rename, leaving no temp file", :aggregate_failures do
+      expect(write_for(git("rev-parse", "main"))).to eq("recorded")
+      expect(Dir.children(File.join(work, ".git")).grep(/hecks-push-rehearsal.*tmp/)).to be_empty
+      expect(File.read(file)).to start_with(git("rev-parse", "main"))
+    end
+
+    it "never lets an older commit's result overwrite a newer one, saying it went by ancestry", :aggregate_failures do
+      older = git("rev-parse", "main")
+      newer = commit_after("second")
+      write_for(newer, "red")
+
+      expect(write_for(older, "green")).to include("kept the record for #{newer[0, 9]}").and include("ancestor")
+      expect(recorder.last).to have_attributes(commit: newer, verdict: "red")
+    end
+
+    it "lets a newer commit replace an older result" do
+      older = git("rev-parse", "main")
+      write_for(older)
+      commit("second")
+      write_for(git("rev-parse", "main"), "red")
+
+      expect(recorder.last.verdict).to eq("red")
+    end
+
+    # A side branch whose only commit is dated long ago, parted from main.
+    def parted_from_main
+      base = git("rev-parse", "main")
+      late = commit_after("late-branch")
+      git("checkout", "-q", "-b", "side", base)
+      commit("early-side")
+      long_ago = { "GIT_COMMITTER_DATE" => "2001-01-01T00:00:00" }
+      git("commit", "-q", "--amend", "--no-edit", env: IDENTITY.merge(long_ago))
+      late
+    end
+
+    it "compares by commit time when neither commit descends from the other", :aggregate_failures do
+      late = parted_from_main
+      write_for(late)
+
+      expect(write_for(git("rev-parse", "side"))).to include("by commit time")
+      expect(recorder.last.commit).to eq(late)
+    end
+  end
+
+  describe "the line of rehearsals" do
+    let(:rehearsing) { described_class.new }
+    let(:stage_runs) { [] }
+    let(:during_stage) { nil }
+
+    before do
+      allow(Hecks::Adapters::GitRehearsal::Stages).to receive(:new) do
+        instance_double(Hecks::Adapters::GitRehearsal::Stages).tap do |stages|
+          allow(stages).to receive(:run) do
+            stage_runs << git("rev-parse", "main")
+            during_stage&.call
+            [stage("quick", true)]
+          end
+        end
+      end
+    end
+
+    # Two lands arriving while the first rehearsal's stages run, each refused as pending.
+    def land_twice
+      Array.new(2) do |n|
+        commit("landed#{n}")
+        described_class.new.trial(checkout: { value: work })
+      rescue Hecks::Adapters::ConsoleCapture::Failure => e
+        e.message
+      end
+    end
+
+    context "when a land arrives while a rehearsal runs" do
+      let(:during_stage) { -> { @landings = land_twice if stage_runs.size == 1 } }
+
+      it "marks each pending, and the running rehearsal runs once more for the latest main", :aggregate_failures do
+        first = git("rev-parse", "main")
+        answer = rehearsing.trial(checkout: { value: work })
+
+        expect(@landings).to all(match(/\Apending: rehearse \h{9}/))
+        expect(stage_runs).to eq([first, git("rev-parse", "main")])
+        expect(answer[:rehearsed]).to eq(value: git("rev-parse", "main"))
+      end
+    end
+
+    # A bench a killed rehearsal left registered, and an unrelated worktree.
+    def stale_bench_and_other
+      bench = File.join(Dir.mktmpdir("hecks-push-rehearsal"), "bench")
+      git("worktree", "add", "-q", "--detach", bench, "main")
+      git("worktree", "add", "-q", "--detach", File.join(scratch, "other-worktree"), "main")
+      bench
+    end
+
+    it "removes a bench a killed rehearsal left registered, and only those", :aggregate_failures do
+      bench = stale_bench_and_other
+      rehearsing.trial(checkout: { value: work })
+
+      expect(git("worktree", "list", "--porcelain")).not_to include(bench)
+      expect(git("worktree", "list", "--porcelain")).to include("other-worktree")
+      expect(File.exist?(bench)).to be(false)
+    end
+
+    it "leaves no bench registered after a stage fails", :aggregate_failures do
+      allow(Hecks::Adapters::GitRehearsal::Stages).to receive(:new).and_raise(RuntimeError, "stage blew up")
+
+      expect { rehearsing.trial(checkout: { value: work }) }.to raise_error(RuntimeError, "stage blew up")
+      expect(git("worktree", "list", "--porcelain").scan("worktree ").size).to eq(1)
+    end
+  end
 end

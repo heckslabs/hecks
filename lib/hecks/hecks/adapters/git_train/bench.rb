@@ -7,9 +7,9 @@ require_relative "reading"
 module Hecks
   module Adapters
     class GitTrain
-      # A detached worktree a push is made from, removed once it ends. The local branch is checked
-      # out there and merged with the remote's when the two have parted, so the repository's
-      # pre-push hook checks the very commit that goes out, not whatever a checkout holds.
+      # A detached worktree a push is made from, removed once it ends. The boarded commit is checked
+      # out there and pushed by its own id, so the repository's pre-push hook checks the very commit
+      # that goes out, not whatever a checkout or a moving branch holds.
       class Bench
         include Reading
 
@@ -33,12 +33,13 @@ module Hecks
           @config = config
         end
 
-        # Pushes the local branch, merged with the remote's when they have parted.
+        # Pushes one commit to the remote's branch, as it is.
         #
-        # @param local [String] the commit the local branch names
+        # @param local [String] the commit to push
         # @param tracking [String] the remote-tracking branch, just fetched
         # @return [String, Symbol] the commit pushed, or `:moved` when the remote's branch moved
-        # @raise [ConsoleCapture::Failure] when the two conflict, or the push is refused
+        # @raise [ConsoleCapture::Failure] when the commit is not built on the remote's branch, or
+        #   the push is refused
         def push(local, tracking)
           Dir.mktmpdir("hecks-push-train") do |scratch|
             bench = File.join(scratch, "bench")
@@ -52,21 +53,19 @@ module Hecks
         private
 
         def push_from(bench, local, tracking)
-          merge(bench, tracking) unless ancestor?(tracking, local)
-          pushed = @git.capture(*@config, "push", @remote, "HEAD:refs/heads/#{@branch}", chdir: bench)
-          return read("rev-parse", "HEAD", dir: bench) if pushed.ok?
+          diverged!(local, tracking) unless ancestor?(tracking, local)
+          pushed = @git.capture(*@config, "push", @remote, "#{local}:refs/heads/#{@branch}", chdir: bench)
+          return local if pushed.ok?
           return :moved if pushed.err.match?(MOVED)
 
           raise ConsoleCapture::Failure, "the push of #{@branch} was refused:\n#{tail(pushed)}"
         end
 
-        def merge(bench, tracking)
-          return if @git.capture("merge", "--no-edit", tracking, chdir: bench).ok?
-
-          conflicted = read("diff", "--name-only", "--diff-filter=U", dir: bench).split.join(", ")
-          @git.capture("merge", "--abort", chdir: bench)
+        # A commit not built on the remote's branch would need a merge, which would
+        # push a commit nobody minted for or settled: it is refused.
+        def diverged!(local, tracking)
           raise ConsoleCapture::Failure,
-                "#{@branch} and #{tracking} conflict in #{conflicted}: merge them by hand, then board again"
+                "#{tracking} moved since #{short(local)} was settled: it is not built on it; board again"
         end
 
         def tail(result) = "#{result.out}#{result.err}".lines.last(KEPT_LINES).join
