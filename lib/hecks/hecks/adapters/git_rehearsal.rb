@@ -12,17 +12,14 @@ require_relative "git_rehearsal/line"
 module Hecks
   module Adapters
     # The `Rehearsing` port's adapter for `PushRehearsal`: runs, against local `main` and without
-    # pushing, the stages a real push runs, and reports whether a push is due.
+    # pushing, the stages of a scope, and reports whether a push is due.
     #
-    # A rehearsal has a scope: `quick` (the gate's quick stage alone; a landing asks) or
-    # `full` (every stage; a push needs it). Each scope has its own line, record and bench, so a
-    # quick rehearsal runs alongside a full one rather than waiting behind it or being skipped.
-    #
-    # A rehearsal checks out a detached copy of `main` (as the push train's bench does), runs the
-    # `quick` stage, the `unguarded_push` stage of the Vocabulary gate rows, any end-to-end push
-    # specs and the specs the push's changes touch, and removes the copy. It pushes nothing and
-    # writes only a one-line record of its result in the repository's common git directory, which
-    # the `Due` query reads back.
+    # A scope is a `RehearsalScope` row of the Vocabulary bluebook: `quick` (the gate's quick
+    # stage; a landing asks), `full` (quick, `unguarded_push` and the push specs; a push needs it)
+    # or `deep` (full plus the impacted specs; opt-in). Quick has its own line, record and bench, so
+    # it runs alongside a full one; deep shares the full one's. A rehearsal checks out a detached
+    # copy of `main`, runs the scope's stages in it and removes it. It pushes nothing and writes
+    # only a one-line record in the common git directory, which the `Due` query reads back.
     class GitRehearsal
       include Reading
 
@@ -43,7 +40,7 @@ module Hecks
       # landed. Benches a killed rehearsal left registered are removed first.
       #
       # @param held [Hash] the `PushRehearsal` record: `checkout`, `branch` (`main` by default) and
-      #   `scope` (`full` by default; `quick` runs the gate's quick stage alone, in its own line)
+      #   `scope` (a `RehearsalScope` row: `full` by default, `quick` or `deep`)
       # @return [Hash{Symbol => Hash}] `outcome:` (`green` or `red`), `rehearsed:` the commit,
       #   `report:` one line per stage saying pass or fail
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, has no such branch,
@@ -88,9 +85,9 @@ module Hecks
       def queue = Line.new(@git, @checkout, scope: @scope)
 
       def scope_of(scope)
-        return scope || "full" if [nil, "full", "quick"].include?(scope)
+        return scope || "full" if scope.nil? || Stages.scopes.include?(scope)
 
-        raise ConsoleCapture::Failure, "scope #{scope} is not a rehearsal scope: quick or full"
+        raise ConsoleCapture::Failure, "scope #{scope} is not a rehearsal scope: #{Stages.scopes.join(", ")}"
       end
 
       def head(branch) = read("rev-parse", "--verify", "refs/heads/#{branch}^{commit}")

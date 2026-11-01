@@ -35598,6 +35598,164 @@
           ]
         },
         {
+          "name": "RehearsalStage",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "kind",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "argument",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "kind",
+                "gate"
+              ],
+              [
+                "argument",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "unguarded_push"
+              ],
+              [
+                "kind",
+                "gate"
+              ],
+              [
+                "argument",
+                "unguarded_push"
+              ]
+            ],
+            [
+              [
+                "name",
+                "push_specs"
+              ],
+              [
+                "kind",
+                "specs"
+              ],
+              [
+                "argument",
+                "spec/**/*{push_chain,push_train}*_spec.rb"
+              ]
+            ],
+            [
+              [
+                "name",
+                "impacted"
+              ],
+              [
+                "kind",
+                "impacted"
+              ],
+              [
+                "argument",
+                ""
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "RehearsalScope",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "stages",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "stages",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "full"
+              ],
+              [
+                "stages",
+                "quick,unguarded_push,push_specs"
+              ]
+            ],
+            [
+              [
+                "name",
+                "deep"
+              ],
+              [
+                "stages",
+                "quick,unguarded_push,push_specs,impacted"
+              ]
+            ]
+          ]
+        },
+        {
           "name": "RequiredCheck",
           "attributes": [
             {

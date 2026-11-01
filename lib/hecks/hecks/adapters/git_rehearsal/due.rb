@@ -52,7 +52,8 @@ module Hecks
           entry = Record.new(@git, @checkout).last("full")
           return "" if entry && entry.verdict == "green" && current?(entry)
 
-          "; a push needs a green full rehearsal of the current #{@branch}: push_rehearsal.rehearse!"
+          "; a push needs a green full rehearsal of the current #{@branch}: push_rehearsal.rehearse! " \
+            "(scope.value=deep also runs the impacted specs; opt-in)"
         end
 
         def last_of(scope)

@@ -22,12 +22,14 @@ module Hecks
         # @param area [Array<String>] the areas the session may edit
         # @param held [Array<String>] a line for each area another started row holds
         # @param frozen [Array<String>] the areas and aggregates whose shape may not move
+        # @param limit [Integer, nil] the most spec files a session runs per call, from the world's
+        #   `test_scope` setting; fills `{limit}`
         # @return [String] the whole text
-        def render(key, area: [], held: [], frozen: [])
+        def render(key, area: [], held: [], frozen: [], limit: nil)
           parts = [first_line, labelled("Detail", plain("detail")), labelled("Area", area.join(", "))]
           parts += SECTIONS.map { |name| plain(name) }
           parts += [listed("coordination", held), listed("freeze", frozen)]
-          joined(parts).gsub("{work}", key)
+          joined(parts).gsub("{work}", key).gsub("{limit}", limit&.to_s || "the world's spec_files_limit")
         end
 
         private
