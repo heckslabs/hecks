@@ -90,15 +90,22 @@ module Hecks
           new_attributes_optional?(held, current)
       end
 
-      # Every attribute the current bluebook has that the held one did not is optional.
+      # Every attribute an existing aggregate gained is optional. An aggregate the held era did not
+      # have is new: nothing stored before it, so its attributes may be required.
       #
       # @return [Boolean]
       def new_attributes_optional?(held, current)
         held_names = held.aggregates.to_h { |aggregate| [aggregate.name, attribute_names(aggregate)] }
         current.aggregates.all? do |aggregate|
-          known = held_names.fetch(aggregate.name, [])
-          aggregate.attributes.all? { |attribute| known.include?(attribute.name) || attribute.optional? }
+          !held_names.key?(aggregate.name) || gained_optional?(aggregate, held_names[aggregate.name])
         end
+      end
+
+      # Whether every attribute an aggregate has that its held shape did not is optional.
+      #
+      # @return [Boolean]
+      def gained_optional?(aggregate, known)
+        aggregate.attributes.all? { |attribute| known.include?(attribute.name) || attribute.optional? }
       end
 
       # @return [Array<String>] the names of an aggregate's attributes
