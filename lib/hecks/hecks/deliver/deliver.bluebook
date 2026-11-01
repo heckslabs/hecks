@@ -200,6 +200,7 @@ Hecks.bluebook "Hecks" do
         goal "Record the worktree a checkout opened, by the sha it stands on"
 
         reference_to LinkedTree
+        attribute :path,   Word,   optional: true, sets: true
         attribute :sha,    Word,   sets: true
         attribute :report, Report, sets: true
 
@@ -224,7 +225,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheWorktree" do
       on      "LinkedTree.CreateAnswered"
-      trigger LinkedTree::Record, with: { sha: :sha, report: :report }
+      trigger LinkedTree::Record, with: { path: :path, sha: :sha, report: :report }
     end
 
     policy "DeclineTheWorktree" do
