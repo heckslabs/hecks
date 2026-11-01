@@ -252,6 +252,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Compaction"
     answers_query "BootStatus"
     answers_query "SqliteStatus"
+    answers_query "EventTrace"
     answers_query "BootResolution"
   end
 

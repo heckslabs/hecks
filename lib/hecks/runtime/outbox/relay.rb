@@ -102,9 +102,10 @@ module Hecks
         private
 
         def settle_delivery(row, repository)
-          run_consumer(row)
-          repository.outbox_settle(row.id, status: "delivered")
-          row.status = "delivered"
+          reason = run_consumer(row)
+          row.status = reason ? "refused" : "delivered"
+          repository.outbox_settle(row.id, status: row.status, error: reason)
+          row.error = reason
           true
         rescue StandardError, ScriptError => e
           settle_failed(row, repository, e)
