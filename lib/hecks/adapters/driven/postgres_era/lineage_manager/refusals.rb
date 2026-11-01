@@ -32,14 +32,6 @@ module Hecks
                                        "persisted_by block of its world", minting: false)
           end
 
-          # Refuses a boot that would mint. A boot reads the ledger and never moves it: the only mint is
-          # the Maintenance mint command's, which passes a request this check can see.
-          def refuse_boot_mint!(context)
-            raise era_refusal(context, "era #{context.ordinal} would mint on this boot, and a boot never " \
-                                       "mints: this copy may not mint on boot. Only the Maintenance mint " \
-                                       "command mints, with mint_eras true for that one mint", minting: false)
-          end
-
           # Refuses a mint that the rehearsal does not back: not confirmed, not a would_mint verdict, or a
           # ledger watermark that moved since the rehearsal read it.
           def refuse_unrehearsed_mint!(context)

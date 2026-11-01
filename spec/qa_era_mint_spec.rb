@@ -132,16 +132,18 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
     RUBY
   end
 
-  it "the Mint ask wires through the guard and refuses a moved watermark", :aggregate_failures do
+  it "a moved watermark refuses by name, and the ledger keeps its era", :aggregate_failures do
     expect { mint_with(watermark: 99) }
       .to raise_error(refused, /ledger watermark moved from 99 to \d+ since the rehearsal/)
     expect(era_count).to eq(1)
   end
 
-  it "mints only with a matching would_mint verdict, and names each refusal", :aggregate_failures do
+  it "the entry point mints only with a matching would_mint verdict and watermark", :aggregate_failures do
     expect(Hecks::Adapters::QaEraMint.call(@root, domain: "Ledger", era: 2, request: request(verdict: "would_refuse")))
       .to match([/rehearsal's verdict was would_refuse, not would_mint/, false])
     expect(era_count).to eq(1)
+    expect(Hecks::Adapters::QaEraMint.call(@root, domain: "Ledger", era: 2, request: request))
+      .to eq([label_of(shape("amount")), true])
   end
 
   it "refuses an unconfirmed mint by name, and mints the era once confirmed", :aggregate_failures do
