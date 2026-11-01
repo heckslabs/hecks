@@ -41,7 +41,7 @@ module Hecks
         # @return [Hash] the edge facts, every refused row and its total, what was read, the parity
         #   of the two engines, and what was not checked
         def examine
-          edge = minting == "next" ? @subject.edge_from(before) : nil
+          edge = minting == "next" ? @subject.edge_from(before, latest[:held_text]) : nil
           refusals, after = edge ? @store.audit(@subject, edge) : [[], {}]
           rust = RustAudit.call(@subject, after)
           report = AuditReport.new(minting: minting, edge: edge, states: after, ruby: refusals, rust: rust)
