@@ -150,6 +150,10 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Command#audience"                  => "who a launcher lists a command for, read by the listing and not by the " \
                                            "runtime; spec/driving_adapters/launcher_audience_spec.rb holds the listing. " \
                                            "No fuzzed sequence depends on which audience a command names",
+    "Command#mints_era"                 => "lets the one mint command's own record through a PostgresEra boot whose " \
+                                           "shape no era holds yet; spec/adapters/driven/postgres_era/" \
+                                           "mints_era_write_spec.rb holds it. The fuzzer runs in Memory, which has no " \
+                                           "eras, so no fuzzed sequence can reach what the flag changes",
     "ProcessManager#resumes"            => "the command that resumes each stage of a process manager, read by the saga " \
                                            "recovery path; spec/dsl_spec.rb and spec/syntax_conformance_spec.rb hold its " \
                                            "declaration and parse. The crash-recovery specs drive the resume path itself"
