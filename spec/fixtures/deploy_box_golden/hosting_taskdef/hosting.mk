@@ -16,7 +16,7 @@ URL     ?= https://widgets.example.com
 # the target exits non-zero (24 if it all passed).
 deploy-service:
 	@err=$$(mktemp); run=deploy-$$(date -u +%Y%m%d%H%M%S); \
-	$(HECKS) deploy service_roll.run project="$(CURDIR)" run="$$run" service=$(SERVICE) $(if $(EXISTING_TAG),existing_tag=$(EXISTING_TAG)) $(if $(LOCAL_IMAGE),local_image=$(LOCAL_IMAGE)) \
+	$(HECKS) deploy service_roll.run! project="$(CURDIR)" run="$$run" service=$(SERVICE) $(if $(EXISTING_TAG),existing_tag=$(EXISTING_TAG)) $(if $(LOCAL_IMAGE),local_image=$(LOCAL_IMAGE)) \
 	  $(if $(SKIP_POST_DEPLOY_SMOKE),skip_smoke=true) --wait 2>"$$err"; rc=$$?; \
 	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
 	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
@@ -38,7 +38,7 @@ deploy-service:
 # SKIP_POST_DEPLOY_SMOKE=1 opts out, DRY_RUN=1 dispatches nothing.
 smoke-after-deploy:
 	@err=$$(mktemp); \
-	$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait $(if $(TASKDEF),taskdef=$(TASKDEF)) 2>"$$err"; rc=$$?; \
+	$(HECKS) deploy smoke_run.run! project="$(CURDIR)" --wait $(if $(TASKDEF),taskdef=$(TASKDEF)) 2>"$$err"; rc=$$?; \
 	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
 	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \
 	  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \

@@ -62,7 +62,7 @@ module Hecks
         # exits non-zero (24 when the smoke passed).
         SMOKE_RECIPE = [
           "@err=$$(mktemp); \\",
-          '$(HECKS) deploy smoke_run.run project="$(CURDIR)" --wait $(if $(TASKDEF),taskdef=$(TASKDEF)) 2>"$$err"; rc=$$?; \\',
+          '$(HECKS) deploy smoke_run.run! project="$(CURDIR)" --wait $(if $(TASKDEF),taskdef=$(TASKDEF)) 2>"$$err"; rc=$$?; \\',
           'if [ $$rc -ne 0 ] && grep -q \'^cannot open Hecks\' "$$err"; then \\',
           '  echo "==> the deploy record was NOT written: $$(grep -m1 \'^cannot open Hecks\' "$$err")" >&2; \\',
           *NO_DATABASE_ADVICE,

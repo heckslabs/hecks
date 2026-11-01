@@ -9,7 +9,7 @@ RSpec.describe "policies migrated to ask" do
   ASK_MIGRATED_POLICIES = %w[
     AnalyseWhenRequested RecordTheClean RecordTheFlag PinWhenVendored PinWhenRevendored RecordThePinning
     RecordTheRefusedPin TagWhenReleased RecordTheTag RecordTheRefusedTag WriteWhenRequested ScaffoldWhenRequested
-    ProjectRailsWhenRequested ConverseWhenRequested ServeWhenRequested RecordTheLaunch RecordTheStoppedLaunch
+    ProjectRailsWhenRequested ConverseWhenRequested ServeWhenMcpRequested RecordTheLaunch RecordTheStoppedLaunch
     GenerateWhenRequested CompileWasmWhenRequested BuildParserWhenRequested BuildHostWhenRequested
     CompileBrowserWasmWhenRequested ConformWhenRequested ReplayWhenRequested AuditWhenRequested RecordTheBuild
     RecordTheFault SweepWhenRequested MutateWhenRequested MeasureWhenRequested RecordTheSweep RecordTheFinding
