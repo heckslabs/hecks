@@ -97,7 +97,7 @@ module Hecks
             empty_head_snapshots!(storage_name)
           end
 
-          # A delete that removed a row the archive does not hold would lose it; refuse and roll back.
+          # A delete of a row the archive does not hold would lose it; refuse and roll back.
           def verify_moved!(archive, deleted)
             return if deleted == archived_count(archive)
 
@@ -107,7 +107,7 @@ module Hecks
 
           def archived_count(archive) = @db.exec("SELECT count(*) FROM #{quote(archive)}")[0]["count"].to_i
 
-          # The archive's name, with `_2`, `_3`... appended while a table or a listed archive holds it.
+          # The archive's name, suffixed `_2`, `_3` and on while a table or listed archive has it.
           def unused_archive_name(storage_name, stamp)
             @db.exec(ARCHIVES_SQL)
             base = "#{storage_name}_archived_#{stamp}"
