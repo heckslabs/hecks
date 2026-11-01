@@ -13,6 +13,9 @@ commands:
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!    Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
+  LinkedTree:
+    A linked worktree opened on a new branch from main, or declined with the reason.
+    add!     Open a linked worktree on a new branch from main, never on main itself
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!    Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
@@ -62,7 +65,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 24 internal commands and queries
-  hecks --maintainer           also list the 360 commands and queries for working on hecks itself
+  hecks --all                  also list the 28 internal commands and queries
+  hecks --maintainer           also list the 363 commands and queries for working on hecks itself
   a command is called with its aggregate — Revision.make!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
