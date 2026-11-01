@@ -35,4 +35,10 @@ RSpec.describe "the QualityControl mint chain" do
     expect(commands).to have_received(:mint_era)
     expect(out).to include("Minted").and(not_include("refused_reactions"))
   end
+
+  it "leaves a mint-only run's gate colour and reconcile verdict optional", :aggregate_failures do
+    attributes = qc.bluebook("QualityControl").aggregate("Maintenance").attributes
+    expect(attributes.select { |attribute| %i[color verdict].include?(attribute.name.to_sym) }.map(&:optional?))
+      .to eq([true, true])
+  end
 end
