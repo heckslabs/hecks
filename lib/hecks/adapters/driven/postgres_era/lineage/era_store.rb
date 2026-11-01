@@ -33,7 +33,7 @@ module Hecks
             return [] unless table_exists?("hecks_eras")
 
             @db.exec_params(
-              "SELECT ordinal, hash, label, held_text, watermark, held_digest, edge::text " \
+              "SELECT ordinal, hash, label, held_text, watermark, held_digest, held_projection::text, edge::text " \
               "FROM hecks_eras WHERE domain = $1 ORDER BY ordinal",
               [@domain]
             ).map { |row| unrecorded_era(row) }
@@ -46,14 +46,20 @@ module Hecks
               raise Runtime::WiringError, Runtime::EraTamper.refusal(domain: @domain, ordinal: ordinal)
             end
 
-            { ordinal: ordinal, hash: row["hash"], label: row["label"], held_text: row["held_text"],
-              watermark: row["watermark"]&.to_i, edge: parsed_edge(row["edge"]) }
+            era_from(row)
           end
 
           # @return [Hash] the era a row holds, as `eras` answers it
           def era_from(row)
             { ordinal: row["ordinal"].to_i, hash: row["hash"], label: row["label"], held_text: row["held_text"],
-              watermark: row["watermark"]&.to_i, edge: parsed_edge(row["edge"]) }
+              watermark: row["watermark"]&.to_i, edge: parsed_edge(row["edge"]),
+              projection: parsed_projection(row["held_projection"]) }
+          end
+
+          # @return [Hash, nil] the storage-shape projection the era's mint recorded, string-keyed
+          #   as `StorageShape.project` answers it, or nil for an era minted without one
+          def parsed_projection(text)
+            text && JSON.parse(text)
           end
 
           # @return [Hash, nil] the edge column as symbol-keyed JSON, or nil for an era a written
