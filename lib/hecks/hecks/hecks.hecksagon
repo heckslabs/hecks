@@ -97,6 +97,7 @@ Hecks.hecksagon "Hecks" do
   Hecks::SendTrain.port "Alerts" do
     asks "Announce", to: SendTrain do
       attribute :run, RunKey
+      attribute :pushed, Word
       answers "DeployReadyAnnounced"
       refuses "AnnouncementRefused"
     end
@@ -206,6 +207,7 @@ Hecks.hecksagon "Hecks" do
   Hecks::SendTrain.port "Launcher" do
     asks "Refresh", to: SendTrain do
       attribute :run, RunKey
+      attribute :pushed, Word
       answers "LauncherRefreshed"
       refuses "LauncherRefreshRefused"
     end
