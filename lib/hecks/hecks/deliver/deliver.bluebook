@@ -460,9 +460,13 @@ Hecks.bluebook "Hecks" do
 
     # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the
     # records it keeps run the code that landed, not the code that was there when it was set up.
+    # It reacts to the train's answer, beside RecordThePush, and takes the pushed commit from it:
+    # a push already runs the mint, the clear and the carry first, and one more step past the
+    # recorded push would be past the reaction depth.
     policy "KeepTheLauncherCurrent" do
-      on      "SendTrain.BranchPushed"
-      ask     :refresh, with: { run: :run }
+      on      "SendTrain.TrainAnswered"
+      where   { outcome.value == "pushed" }
+      ask     :refresh, with: { run: :run, pushed: :pushed }
     end
 
     # Many agents finish together and each would push, running every pre-push check at once. A
@@ -672,9 +676,11 @@ Hecks.bluebook "Hecks" do
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
+    # Like KeepTheLauncherCurrent, it reacts to the train's answer and takes the pushed commit from it.
     policy "AnnounceWhenPushed" do
-      on      "SendTrain.BranchPushed"
-      ask     :announce, with: { run: :run }
+      on      "SendTrain.TrainAnswered"
+      where   { outcome.value == "pushed" }
+      ask     :announce, with: { run: :run, pushed: :pushed }
     end
 
     # The request that starts GateAndBoard, under its own identity so the Landing record it leads to
