@@ -1141,7 +1141,10 @@ fn a_bare_correlates_by_naming_no_aggregate_is_refused() {
         path.to_str().unwrap(),
     ]);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success(), "a bare value object should be refused");
+    assert!(
+        !output.status.success(),
+        "a bare value object should be refused"
+    );
     assert!(
         stderr.contains("ScheduledSend correlates_by MessageId, which names a whole field"),
         "expected the whole-field refusal, got: {stderr}"

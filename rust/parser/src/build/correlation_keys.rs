@@ -34,7 +34,11 @@ pub fn resolve_bare(file: &str, bluebook: &mut ir::Bluebook) -> ParseResult<()> 
 }
 
 /// The one field an aggregate is correlated by: its identity, or `id` when it declares none.
-fn identity_path(file: &str, process_manager: &str, aggregate: &ir::Aggregate) -> ParseResult<String> {
+fn identity_path(
+    file: &str,
+    process_manager: &str,
+    aggregate: &ir::Aggregate,
+) -> ParseResult<String> {
     match aggregate.identified_by.as_slice() {
         [] => Ok("id".to_string()),
         [only] => Ok(only.strip_suffix(".value").unwrap_or(only).to_string()),
@@ -105,7 +109,9 @@ mod tests {
 
         let err = resolve_bare("t.bluebook", &mut bluebook).unwrap_err();
 
-        assert!(err.message.contains("ScheduledSend correlates_by Status, which names a whole field"));
+        assert!(err
+            .message
+            .contains("ScheduledSend correlates_by Status, which names a whole field"));
     }
 
     #[test]
