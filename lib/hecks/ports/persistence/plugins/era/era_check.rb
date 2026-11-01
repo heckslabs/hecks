@@ -4,6 +4,7 @@ require_relative "lineage"
 require_relative "../../../../naming"
 require_relative "../../../../framework"
 require_relative "../../../../framework_bluebooks"
+require_relative "../../../../module_folders"
 require_relative "../../../../runtime/registry"
 
 module Hecks
@@ -67,10 +68,10 @@ module Hecks
 
       # Reads the source text one bluebook was declared in, wherever that source lives.
       #
-      # Matched by declared name, not position: a domain directory using
-      # `attaches` may hold more than one file, and a framework
-      # member or vendored bluebook is excluded from the single-file
-      # fallback so its own real source is read, not a sibling's.
+      # Matched by declared name, not position, over the files the loader reads in its order
+      # (ModuleFolders.all): a held era freezes this text, so a domain split into module folders
+      # is held whole. A framework member or vendored bluebook is left out of the single-file
+      # fallback so its own source is read, not a sibling's.
       #
       # @param bluebook [Bluebook::Declaration] the bluebook whose source is wanted
       # @param directory [String] path of the domain's own bluebook directory
@@ -78,7 +79,7 @@ module Hecks
       # @return [String, nil] UTF-8 text of every matching file joined with `"\n"`, or nil
       def source_text_for(bluebook, directory, registry: nil)
         domain_files = Dir[File.join(directory, "*.bluebook")]
-        own = domain_files.select { |path| declares_bluebook?(path, bluebook.name) }
+        own = ModuleFolders.all(directory).select { |path| declares_bluebook?(path, bluebook.name) }
         own = fallback_source_files(bluebook, directory, domain_files, registry) if own.empty?
         return if own.empty?
 

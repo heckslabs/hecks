@@ -32,7 +32,7 @@ module Hecks
         verdict = PostgresEra::LineageManager::MintDecision.decide_latest(
           latest, bluebook: held.bluebook, translations: registry.translations, directory: ledger, watermark: watermark
         )
-        { watermark: watermark, held: shadow_of(latest[:held_text]), current: held.bluebook, verdict: verdict }
+        { watermark: watermark, held: held_declaration(latest), current: held.bluebook, verdict: verdict }
           .merge(edge_facts(held, ledger, latest[:label]))
       end
 
@@ -46,8 +46,9 @@ module Hecks
         db&.close
       end
 
-      # @return [Bluebook::Declaration] the held era's text parsed into a throwaway registry
-      def shadow_of(text) = Object.new.extend(PostgresEra::LineageManager).send(:shadow, text)
+      # @return [Bluebook::Declaration, nil] the declaration the held era holds, or nil when its
+      #   held text does not declare the shape its mint recorded (`MintDecision.held_for_decision`)
+      def held_declaration(latest) = PostgresEra::LineageManager::MintDecision.held_for_decision(latest)[:declaration]
 
       # The bluebook directory a mint is for: the one the request names, or the QualityControl
       # ledger.
@@ -84,6 +85,7 @@ module Hecks
         case facts[:verdict].reason
         when :non_qualifying then "the shape change is not additive"
         when :unrecorded then "the move from #{facts[:from]} to #{facts[:to]} is not recorded"
+        when :partial_held_text then "the held era #{facts[:from]} holds part of its domain's source, so the move needs an edge"
         end
       end
 

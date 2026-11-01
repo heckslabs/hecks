@@ -49,7 +49,7 @@ module Hecks
         # @return [Finding, nil] see `EdgeAudit.call`
         def call
           latest = @held.named(@eras.last)
-          if @held.shape == Runtime::StorageShape.project(@manager.shadow(latest[:held_text]))
+          if @held.shape == @manager.held_shape(latest)
             return nil if latest[:ordinal] == 1
 
             settled(latest)
