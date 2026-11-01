@@ -286,6 +286,7 @@ Hecks.bluebook "Hecks" do
       attribute :checkout, Word,   optional: true
       attribute :branch,   Word,   optional: true
       attribute :onto,     Word,   optional: true
+      attribute :from,     RunKey, optional: true
       attribute :landed,   Word,   optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
@@ -324,6 +325,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
         attribute :branch,   Word, optional: true, sets: true
+        attribute :from,     RunKey, optional: true, sets: true
         attribute :onto,     Word, default: "main", sets: true
         attribute :confirm,  Switch, optional: true, sets: true
 

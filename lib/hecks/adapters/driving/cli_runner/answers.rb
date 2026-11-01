@@ -1,4 +1,5 @@
 require "json"
+require_relative "run_reference"
 
 module Hecks
   module Adapters
@@ -107,7 +108,7 @@ module Hecks
 
           # Runs a command and answers its outcome, settled when `--wait` asks for it.
           def run_command(runtime, spec, invocation)
-            args, minted = LauncherOptions.run_key(runtime, spec, invocation.args, invocation.launcher)
+            args, minted = RunReference.prepare(runtime, spec, invocation.args, invocation.launcher)
             replayed = RunReplay.answer(runtime, spec, args)
             return replayed if replayed
 
