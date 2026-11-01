@@ -289,6 +289,65 @@ Hecks.bluebook "Coder" do
     end
   end
 
+  # The brief a coder session reads for one Work row: the outcome it asks for, the area it may edit,
+  # and the standing rules every brief carries. The rules are set here, once, so no agent prompt
+  # restates them. `area` is optional: a row that names none gets a brief with no area section.
+  aggregate "Brief" do
+    description "What one coder session is told: the outcome, the area it may edit, and the standing rules."
+    created_by "Brief.compose!"
+
+    attribute :work,         BriefWork
+    attribute :outcome,      BriefOutcome
+    attribute :detail,       BriefDetail, optional: true
+    attribute :area,         list_of(AreaWord), optional: true
+    attribute :rules,        BriefRules
+    attribute :verification, BriefVerification
+    identified_by :work
+
+    value_object "BriefWork" do
+      attribute :value, String, matches: :present
+      invariant("a brief names the work it briefs") { !value.to_s.empty? }
+    end
+
+    # The Work row's title: the outcome the session is to reach, not the steps to take.
+    value_object "BriefOutcome" do
+      attribute :value, String, matches: :present
+      invariant("a brief states an outcome") { !value.to_s.empty? }
+    end
+
+    value_object "BriefDetail" do
+      attribute :value, String
+    end
+
+    # One path or module name the session may edit.
+    value_object "AreaWord" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "BriefRules" do
+      attribute :value, String
+    end
+
+    value_object "BriefVerification" do
+      attribute :value, String
+    end
+
+    command "Compose" do
+      role "Coder"
+      goal "Build the brief for a Work row from its outcome and area, with the standing rules"
+
+      attribute :work,    BriefWork, sets: true
+      attribute :outcome, BriefOutcome, sets: true
+      attribute :detail,  BriefDetail, optional: true, sets: true
+      attribute :area,    list_of(AreaWord), optional: true, sets: true
+
+      sets :rules, to: "Map the whole picture before acting. Act on everything within the area. Stop only for (a) a risk of losing data, (b) an action the owner alone may take: a push, a mint, a release, deleting something that is not yours, or (c) a change outside the area. When stopped, report what was stuck first, then finish everything that does not depend on the stuck part."
+      sets :verification, to: "Run named specs through the launcher (exe/hecks test_suite_run.run_spec_example!) and the quick gate. Do not run the full suite."
+
+      emits "BriefComposed"
+    end
+  end
+
   # The one automatic reaction. A fix retires the workaround standing in for it: the stub is only
   # needed while the bug is open, so it is retired by policy rather than inline in `Fix`, which
   # would couple two aggregates in one command. `Assignment.Fix` emits `AssignmentFixed`, and the
