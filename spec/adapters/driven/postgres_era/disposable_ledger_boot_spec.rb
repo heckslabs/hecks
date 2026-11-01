@@ -74,9 +74,9 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
     )
   end
 
-  def write!(registry, state, name = "Acct", id: "acct-1")
-    adapter(registry, name).append(Hecks::Ports::Persistence::Entry.new(operation: "save", id: id, state: state))
-  end
+  def write!(registry, state, name = "Acct", id: "acct-1") = adapter(registry, name).append(entry(state, id:))
+
+  def entry(state, id: "acct-1") = Hecks::Ports::Persistence::Entry.new(operation: "save", id: id, state: state)
 
   def sql(text)
     db = PG.connect(url)
@@ -141,7 +141,7 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
       expect(sql(%(SELECT state->'name'->>'value' AS name FROM "#{archives.first["archive"]}")).first["name"]).to eq("old")
     end
 
-    it "writes at the new shape" do
+    it "writes at the new shape, as the boot's own record would (the train's Board)" do
       write!(@registry, acct(:title, "new"))
       expect(adapter(@registry).find("acct-1").state[:title]["value"]).to eq("new")
     end
@@ -194,6 +194,13 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
 
     it "still boots an additive change unminted, as before" do
       expect(boot(shape_added, disposable: false).unminted_eras["Ledger"]).to eq(1)
+    end
+
+    it "still refuses a write under a moved shape, naming the mint entry point" do
+      registry = boot(shape_renamed, disposable: false)
+      settings = { database: url, domain: "Ledger", era: 1, unminted: registry.unminted_eras.key?("Ledger") }
+      writer = Hecks::Adapters::PostgresEra.new(aggregate: registry.bluebooks.values.first.aggregate("Acct"), settings:)
+      expect { writer.append(entry(acct(:title, "x"))) }.to raise_error(Hecks::Runtime::WiringError, /not minted yet/)
     end
 
     it "still refuses to boot a database that holds no era" do
