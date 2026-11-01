@@ -6,6 +6,7 @@ require_relative "minitest_runs"
 require_relative "run_options"
 require_relative "test_runner"
 require_relative "changed_specs"
+require_relative "batch_runs"
 require_relative "sqlite_fixture"
 require_relative "cargo_tests"
 require_relative "cache_clearing"
@@ -23,13 +24,13 @@ module Hecks
       # list change tracked files, so unconfirmed they report what they would do and write nothing.
       module TestSuite
         # Every operation this family carries out.
-        OPERATIONS = %w[refresh_runtime_baseline run_spec_example run_suite run_changed stress_concurrency
-                        run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
+        OPERATIONS = %w[refresh_runtime_baseline run_spec_example run_spec_files run_impacted_specs run_suite run_changed
+                        stress_concurrency run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
                         write_io_parallel_spec_list].freeze
 
-        # The operations that run specs in a folder of their own: they need that folder to hold specs,
-        # not to be this checkout, so any project's suite runs through them.
-        FOLDER_OPERATIONS = %w[run_spec_example run_suite run_changed].freeze
+        # The operations that run specs in a folder of their own: they need that folder to hold
+        # specs, not to be this checkout, so any project's suite runs through them.
+        FOLDER_OPERATIONS = %w[run_spec_example run_spec_files run_impacted_specs run_suite run_changed].freeze
 
         # The spec directory a folder's whole suite lives in.
         SPEC_DIRECTORY = "spec"
@@ -63,7 +64,7 @@ module Hecks
         def call(operation, held, tree, shell: nil)
           args = plain(held)
           case operation
-          when "run_spec_example" then spec_example(args, tree)
+          when *BatchRuns::OPERATIONS then BatchRuns.call(operation, args, tree)
           when "run_suite" then suite(args, tree)
           when "run_changed" then changed(args, tree)
           when "run_cargo_tests" then CargoTests.run(args, tree, shell)
@@ -84,13 +85,6 @@ module Hecks
           when "seed_semantics_corpus" then seed(args, tree)
           else write_list(args, tree)
           end
-        end
-
-        # @param args [Hash] `file`, `example`, and the arguments that set the specs' variables
-        # @param tree [Tree] the checkout
-        # @return [String] what the runner printed
-        def spec_example(args, tree)
-          TestRunner.new(tree).run(file: args[:file], example: args[:example], env: RunOptions.spec_env(args), tags: args[:tags])
         end
 
         # Runs every spec of the folder's spec directory in one process.
