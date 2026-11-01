@@ -48,6 +48,14 @@ RSpec.describe "a for_each query argument lent from the emitting record's refere
     expect(fan_out("QueueOnSend")).to all(include(delivered: true))
   end
 
+  # Send takes its message as the receiver, not as an argument, so Sent carries an empty payload
+  # and the trigger's own `message` reference must be lent from the emitter's identity.
+  it "lends the emitter's identity to a trigger reference the empty payload lacks" do
+    runtime.dispatch("EmitterReference::Message.Send", to: "m-1")
+
+    expect(fan_out("QueueOnSend").map { |row| row[:delivered] }).to eq([true, true])
+  end
+
   it "keeps a payload value over the emitter's stored reference" do
     redirect_message("s2")
 
