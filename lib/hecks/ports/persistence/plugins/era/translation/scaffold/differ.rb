@@ -1,4 +1,5 @@
 require_relative "../../storage_shape"
+require_relative "../../projected_bluebook"
 require_relative "path_diff"
 
 module Hecks
@@ -9,14 +10,19 @@ module Hecks
       module Differ
         include PathDiff
 
-        # Diffs two bluebook IRs into the edge's declarations.
+        # Diffs two storage shapes into the edge's declarations. Either side is a storage shape, a
+        # `Runtime::ProjectedBluebook` over one, or a declared bluebook, which is projected first.
         #
-        # @param held_bluebook [Bluebook::Declaration] the era being translated from
-        # @param current_bluebook [Bluebook::Declaration] the era being translated to
+        # @param held_bluebook [Hash, Runtime::ProjectedBluebook, Bluebook::Declaration] the era
+        #   being translated from
+        # @param current_bluebook [Hash, Runtime::ProjectedBluebook, Bluebook::Declaration] the era
+        #   being translated to
         # @return [Hash{Symbol => Object}] `:aggregates` (Array<Scaffold::ScaffoldedAggregate>),
         #   `:retired` (Array<String>, vanished names with no successor), `:unclaimed`
         #   (Array<String>, vanished names left ambiguous)
         def diff(held_bluebook, current_bluebook)
+          held_bluebook = Runtime::ProjectedBluebook.wrap(held_bluebook)
+          current_bluebook = Runtime::ProjectedBluebook.wrap(current_bluebook)
           held_shapes = projections(held_bluebook)
           current_shapes = projections(current_bluebook)
 
@@ -40,9 +46,11 @@ module Hecks
           ScaffoldedAggregate.new(name: aggregate.name, was: was, rules: rules)
         end
 
-        # Projects a bluebook's storage shape, indexing its aggregates by name.
+        # A side's storage shape, its aggregates indexed by name: a view's stored shape as it is, a
+        # declared bluebook's as `StorageShape.project` answers it.
         def projections(bluebook)
-          Runtime::StorageShape.project(bluebook)["aggregates"].to_h { |shape| [shape["name"], shape] }
+          shape = bluebook.is_a?(Runtime::ProjectedBluebook) ? bluebook.projection : Runtime::StorageShape.project(bluebook)
+          shape["aggregates"].to_h { |aggregate| [aggregate["name"], aggregate] }
         end
 
         # Pairs vanished aggregates with new ones whose full shape reappears under exactly one
