@@ -15,17 +15,19 @@ module Hecks
     # pushing, the stages a real push runs, and reports whether a push is due.
     #
     # A rehearsal checks out a detached copy of `main` (as the push train's bench does), runs the
-    # `quick` stage, the `unguarded_push` stage of the Vocabulary gate rows and any end-to-end push
-    # specs, and removes the copy. It pushes nothing and writes only a one-line record of its result
-    # in the repository's common git directory, which the `Due` query reads back.
+    # `quick` stage, the `unguarded_push` stage of the Vocabulary gate rows, any end-to-end push
+    # specs and the specs the push's changes touch, and removes the copy. It pushes nothing and
+    # writes only a one-line record of its result in the repository's common git directory, which
+    # the `Due` query reads back.
     class GitRehearsal
       include Reading
 
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] unused
+      # @param settings [Hash] `impacted_spec_limit:` the most impacted spec files run (60)
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil)
         @git = Git.new
+        @impacted_limit = settings[:impacted_spec_limit]
       end
 
       # Rehearses the push of a branch, one rehearsal at a time per repository.
@@ -95,7 +97,7 @@ module Hecks
       end
 
       def once(branch, commit)
-        results = Bench.new(@git, @checkout).rehearse(commit) { |directory| Stages.new(directory).run }
+        results = Bench.new(@git, @checkout).rehearse(commit) { |directory| stages(directory, branch).run }
         verdict = results.all?(&:passed) ? "green" : "red"
         note = Record.new(@git, @checkout).write(commit, verdict, results)
         { outcome: { value: verdict }, rehearsed: { value: commit }, report: { value: report(branch, commit, results, note) } }
@@ -106,6 +108,8 @@ module Hecks
         lines << note unless note == "recorded"
         lines.join("\n")
       end
+
+      def stages(directory, branch) = Stages.new(directory, branch: branch, impacted_limit: @impacted_limit)
 
       def heading(branch, commit)
         "rehearsed #{branch} at #{short(commit)}; nothing was pushed"
