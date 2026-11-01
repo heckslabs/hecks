@@ -10,8 +10,11 @@ module Hecks
     # A durable outbox (ADR 0053): one row per (event, consumer), written in
     # the same transaction as the aggregate save so a reaction is never lost.
     module Outbox
-      # pending -> claimed -> delivered | failed
-      STATUSES = %w[pending claimed delivered failed].freeze
+      # pending -> claimed -> delivered | failed | refused. A reaction the domain refused (its
+      # trigger was declined, its `with:` read a key the event lacked, the cascade was too deep)
+      # is settled `refused` with the reason in `error`: it ran and said no, which is neither
+      # delivery nor a defect, and a trace reads it back.
+      STATUSES = %w[pending claimed delivered failed refused].freeze
 
       # How long a row stays claimed before it counts as stalled: a claim that old was left by a
       # process that is gone, where a younger one is a reaction running in another process. Ten
@@ -26,6 +29,7 @@ module Hecks
         def claimed?   = status == "claimed"
         def delivered? = status == "delivered"
         def failed?    = status == "failed"
+        def refused?   = status == "refused"
 
         # A claimed row is stalled when its age is unknown or past `STALLED_AFTER`; a younger one is
         # a reaction still running.
