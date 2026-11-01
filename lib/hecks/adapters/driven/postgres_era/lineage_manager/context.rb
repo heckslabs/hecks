@@ -4,8 +4,8 @@ module Hecks
       module LineageManager
         # Everything one era check carries from connecting to minting: the booting registry and
         # bluebook, its source text, the open lineage, the role to grant, the bluebook directory,
-        # whether this copy may mint, the mint request the Maintenance mint command made (nil on a boot),
-        # and the latest held era once the held eras were read.
+        # whether this copy may mint, the mint request the Maintenance mint command made (nil on
+        # a boot), and the latest held era once the held eras were read.
         Context = Data.define(:registry, :bluebook, :current_text, :lineage, :role, :directory, :latest,
                               :mint_permitted, :mint_request) do
           def initialize(latest: nil, mint_permitted: false, mint_request: nil, **rest) = super
@@ -15,6 +15,9 @@ module Hecks
 
           # @return [Array<Bluebook::Aggregate>] the aggregates of the bluebook being checked
           def aggregates = bluebook.aggregates
+
+          # @return [Array<Object>] the translation edges the registry loaded
+          def translations = registry.translations
 
           # @return [Array<Hash>] the eras the open lineage holds, oldest first
           def held_eras = lineage.eras
@@ -51,6 +54,13 @@ module Hecks
           # @param ordinal [Integer] the latest held era
           # @return [Integer] `ordinal`
           def record_unminted(ordinal) = registry.unminted_eras[domain_name] = ordinal
+
+          # Records that this boot's shape is one recorded move or edge ahead of the latest
+          # held era.
+          #
+          # @param ordinal [Integer] the latest held era the move leaves
+          # @return [Integer] `ordinal`
+          def record_behind(ordinal) = registry.behind_eras[domain_name] = ordinal
         end
       end
     end

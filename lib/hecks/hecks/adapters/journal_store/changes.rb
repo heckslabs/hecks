@@ -45,6 +45,7 @@ module Hecks
             raise Runtime::WiringError, "#{domain.domain_name} already holds an era" unless lineage.eras.empty?
 
             lineage.hold_first!(domain.source_text, projection: domain.shape)
+            domain.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
           end
           "#{domain.domain_name} holds era 1 now."
         end
