@@ -385,6 +385,16 @@ Hecks.bluebook "Hecks" do
         attribute :domain, DomainPath
         returns Document
       end
+
+      # How each SQLite database a domain's worlds name stands against the aggregates that map onto
+      # it, opened read-only so the adapter's own healing never runs.
+      query "SqliteStatus" do
+        description "The SQLite databases a domain's worlds name, read-only: per aggregate table the columns " \
+                    "the aggregate declares and the table lacks (added on the next open), the columns it keeps " \
+                    "that the aggregate no longer declares, and the tables no aggregate maps to."
+        attribute :domain, DomainPath
+        returns Document
+      end
     end
 
     policy "ExamineWhenFirstEraRequested" do
