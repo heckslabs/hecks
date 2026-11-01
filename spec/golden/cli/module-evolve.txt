@@ -30,6 +30,7 @@ commands:
     One rewrite of the example bluebooks by a codemod, or the rehearsal of it.
     hoist_local_givens!           Hoist a given that several commands of one owner repeat into one owner-level given
     drop_implicit_append_fields!  Drop an attribute line that only repeats what an append target element declares
+    move_former_name!             Move an aggregate's formerly_known_as out of the bluebook into the world's stored_as
   ScriptRun:
     One named one-off script the checkout runs, planned or applied; the body is a tool.
     plan_script!                  Show what a named one-off script would change, writing nothing
@@ -61,6 +62,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 22 internal commands and queries
-  hecks --maintainer           also list the 383 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 386 commands and queries for working on hecks itself
   a command is called with its aggregate — LanguageRun.project_model!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
