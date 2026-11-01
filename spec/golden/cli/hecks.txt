@@ -93,6 +93,7 @@ commands:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!                         Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
     finish!                       Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
+    train!                        Hold the front place in the landing line and land every ready branch behind it, in ticket order
     retire!                       Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
@@ -131,6 +132,7 @@ commands:
     One rewrite of the example bluebooks by a codemod, or the rehearsal of it.
     hoist_local_givens!           Hoist a given that several commands of one owner repeat into one owner-level given
     drop_implicit_append_fields!  Drop an attribute line that only repeats what an append target element declares
+    move_former_name!             Move an aggregate's formerly_known_as out of the bluebook into the world's stored_as
   ScriptRun:
     One named one-off script the checkout runs, planned or applied; the body is a tool.
     plan_script!                  Show what a named one-off script would change, writing nothing
@@ -340,6 +342,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 239 internal commands and queries
+  hecks --all                  also list the 241 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
