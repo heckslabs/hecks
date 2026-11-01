@@ -366,7 +366,8 @@
         "role",
         "schema",
         "allow_superuser",
-        "mint_eras"
+        "mint_eras",
+        "disposable_ledger"
       ],
       "secrets": [
 
