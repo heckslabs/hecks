@@ -39,14 +39,15 @@ module Hecks
         end
 
         # @param subject [Subject] the loaded domain
-        # @param _edge [Bluebook::Translation] the edge leading to the shape
+        # @param subject [Subject] the loaded domain
+        # @param edge [Object] the edge `Subject#decide` named for the shape, the one the mint takes
         # @return [Array(Array<String>, Hash)] what the audit's layers refuse over the stored
         #   records, and the records as translated, by aggregate name and id
-        def audit(subject, _edge)
+        def audit(subject, edge)
           return [[], {}] unless census(subject).present
 
           reading(subject) do |lineage|
-            finding = JournalStore::EdgeAudit.call(subject.held, lineage, subject.held.held_eras(lineage))
+            finding = JournalStore::EdgeAudit.call(subject.held, lineage, subject.held.held_eras(lineage), edge: edge)
             finding ? [finding.refusals, finding.after] : [[], {}]
           end
         end

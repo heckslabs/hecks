@@ -57,9 +57,15 @@ module ImplicitEdgeSupport
     Hecks::Translation::Scaffold.diff(declared(held_text), declared(current_text))
   end
 
+  # The implicit edge the shared decision takes, with the move the shape ledger records.
   def implicit_for(held_text, current_text)
-    Hecks::Adapters::PostgresEra::LineageManager.implicit_edge_for(declared(current_text), held_text,
-                                                                   from: "aaaaaa", to: "bbbbbb")
+    decision = Hecks::Adapters::PostgresEra::LineageManager::MintDecision
+    bluebook = declared(current_text)
+    recorded = [["aaaaaa", decision.label_of(bluebook)]]
+    held = { ordinal: 1, label: "aaaaaa", held_text: held_text, declaration: declared(held_text) }
+    verdict = decision.decide(held: [held], bluebook: bluebook, watermark: 1, rows: [],
+                              edge_source: { translations: [], recorded: recorded })
+    verdict.edge if verdict.verdict == "would_mint"
   end
 
   def implicit(held_text) = implicit_for(held_text, ledger_text(extra: ImplicitEdgeSupport::OPTIONAL_MEMO))
@@ -106,11 +112,18 @@ RSpec.describe "an implicit translation edge" do
 
   let(:held_text) { ledger_text }
 
+  # The label of the bluebook that adds the optional memo, which the implicit edge reaches.
+  def optional_label
+    Hecks::Adapters::PostgresEra::LineageManager::MintDecision.label_of(
+      declared(ledger_text(extra: ImplicitEdgeSupport::OPTIONAL_MEMO))
+    )
+  end
+
   it "is the edge a shape change that only adds carries", :aggregate_failures do
     edge = implicit_for(held_text, ledger_text(extra: ImplicitEdgeSupport::OPTIONAL_MEMO))
 
     expect(edge).to be_a(Hecks::Translation::ImplicitEdge)
-    expect([edge.from, edge.to, edge.implicit?]).to eq(["aaaaaa", "bbbbbb", true])
+    expect([edge.from, edge.to, edge.implicit?]).to eq(["aaaaaa", optional_label, true])
   end
 
   it "takes no part in an aggregate's rules and names none", :aggregate_failures do

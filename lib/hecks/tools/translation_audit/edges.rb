@@ -11,8 +11,9 @@ module Hecks
         # The era the edge leads to and the chain of translations ending in it, or nil when the
         # journal stands at era 1 with nothing to audit.
         #
+        # @param directory [String, nil] the domain's bluebook directory, holding its implicit moves
         # @return [Array, nil] the era ordinal and the chain
-        def edge_chain(registry, bluebook, lineage)
+        def edge_chain(registry, bluebook, lineage, directory = nil)
           eras = lineage.eras
           current_shape = Hecks::Runtime::StorageShape.project(bluebook)
           held_shape = Hecks::Runtime::StorageShape.project(lineage_manager.shadow(eras.last[:held_text]))
@@ -20,7 +21,7 @@ module Hecks
           if held_shape == current_shape
             standing_chain(registry, bluebook, eras)
           else
-            pending_chain(registry, bluebook, lineage, eras)
+            pending_chain(registry, bluebook, lineage, eras, directory)
           end
         end
 
@@ -43,10 +44,10 @@ module Hecks
 
         # The chain when the bluebook has moved past the held journal: audit the pending edge
         # before any mint.
-        def pending_chain(registry, bluebook, lineage, eras)
+        def pending_chain(registry, bluebook, lineage, eras, directory)
           lineage_manager.ensure_named!(lineage, eras.last)
           latest = lineage.eras.last
-          pending = pending_translation(registry, bluebook, latest)
+          pending = pending_translation(registry, bluebook, latest, lineage, directory)
           chain = begin
             lineage_manager.edge_chain(registry, bluebook, eras, latest[:label], target: latest)
           rescue StandardError
@@ -55,24 +56,19 @@ module Hecks
           [latest[:ordinal] + 1, (chain || []) + [{ translation: pending }]]
         end
 
-        # @return [Object] the edge leading from `latest` to the bluebook: a written file, or the
-        #   implicit edge when no file leaves `latest`
-        # @raise [SystemExit] when none is declared
-        def pending_translation(registry, bluebook, latest)
-          to_label = Hecks::Runtime::StorageShape.mint_hash(bluebook)[0, Hecks::Runtime::StorageShape::LABEL_LENGTH]
-          pending = registry.translations.find do |t|
-            t.domain == bluebook.name && t.from == latest[:label] && t.to == to_label
-          end
-          pending || implicit_translation(registry, bluebook, latest, to_label) or
-            abort "no translation edge leads #{latest[:label]} to #{to_label} — run hecks scaffold_translation first"
-        end
+        # The edge the shared decision leads `latest` by, as a mint takes it.
+        #
+        # @return [Object] the edge leading from `latest` to the bluebook
+        # @raise [SystemExit] when the decision names no edge
+        def pending_translation(registry, bluebook, latest, lineage, directory)
+          verdict = lineage_manager::MintDecision.decide_latest(
+            latest, bluebook: bluebook, translations: registry.translations, directory: directory,
+            watermark: lineage.last_ordinal
+          )
+          return verdict.edge if verdict.verdict == "would_mint"
 
-        # @return [Translation::ImplicitEdge, nil] the implicit edge from `latest`, when no file
-        #   leaves it
-        def implicit_translation(registry, bluebook, latest, to_label)
-          return if registry.translations.any? { |t| t.domain == bluebook.name && t.from == latest[:label] }
-
-          lineage_manager.implicit_edge_for(bluebook, latest[:held_text], from: latest[:label], to: to_label)
+          abort "no translation edge leads #{latest[:label]} to the current shape (the decision is " \
+                "#{verdict.verdict}) — run hecks scaffold_translation first"
         end
       end
     end
