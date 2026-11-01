@@ -5,6 +5,7 @@ require_relative "shell"
 require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
+require_relative "dispatching/settings"
 
 module Hecks
   module Adapters
@@ -28,8 +29,10 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `command:` the program that starts sessions (default `claude`)
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil)
+      # @param registry [Runtime::Registry, nil] whose Tickets world names the session environment
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @command = settings[:command] || COMMAND
+        @session = Dispatching::Settings.new(registry)
         @shell = Shell.new
         @transcript = ClaudeTranscript.new(**settings.slice(:projects))
       end
@@ -52,7 +55,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `session:` the id the session is known by
       # @raise [ConsoleCapture::Failure] when the command fails or names no session
       def start(**held)
-        result = @shell.capture(*start_arguments(held), chdir: plain(held[:repo]))
+        result = @shell.capture(*start_arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
         raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}" unless result.ok?
 
         id = result.out[SESSION_ID, 1]
@@ -110,8 +113,10 @@ module Hecks
 
       def start_arguments(held)
         agent = plain(held[:agent])
-        [@command, *(agent ? ["--agent", agent] : []), "--bg", "--", plain(held[:brief])]
+        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", plain(held[:brief])]
       end
+
+      def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

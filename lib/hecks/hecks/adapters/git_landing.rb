@@ -5,6 +5,7 @@ require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
 require_relative "git_landing/in_flight"
+require_relative "git_landing/finisher"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -42,6 +43,27 @@ module Hecks
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
         in_turn(branch) { |superseded| land_alone(branch, onto, superseded) }
+      end
+
+      # Finishes a branch in one step: refuses unsaved work, rebases it onto `onto`, runs the quick
+      # gate in its worktree, lands it through the queue and tidies the worktree.
+      #
+      # @param held [Hash] the `Landing` record, as for {#merge}; `gate:` (a callable) replaces the
+      #   gate run, for a spec
+      # @return [Hash{Symbol => Hash}] the answer {#merge} gives
+      # @raise [ConsoleCapture::Failure] at the first step that fails, naming it: unsaved work,
+      #   conflict, gate red, or the queue busy
+      def finish_branch(**held)
+        settle(held)
+        branch = plain(held[:branch]) || current_branch
+        onto = plain(held[:onto]) || "main"
+        raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
+
+        Finisher.new(@git, @checkout, branch: branch, onto: onto, gate: held[:gate]).prepare
+        @retiring = true
+        merge(**held)
+      ensure
+        @retiring = false
       end
 
       # Removes a linked worktree and deletes its branch, once the branch is on `onto`.
@@ -87,7 +109,7 @@ module Hecks
         claim = queue.claim(branch)
         yield claim.superseded
       rescue InFlight::Busy => e
-        raise ConsoleCapture::Failure, "#{branch} is not landed: #{e.message}; land again when it finishes"
+        raise ConsoleCapture::Failure, "queue busy: #{branch} is not landed: #{e.message}; land again when it finishes"
       ensure
         queue.release(claim) if claim
       end
@@ -114,8 +136,17 @@ module Hecks
       end
 
       def tidy(landed, branch, onto)
-        said = Tidy.new(@git, @checkout, branch: branch, onto: onto).call
+        said = @retiring ? retire_from_primary(branch, onto) : Tidy.new(@git, @checkout, branch: branch, onto: onto).call
         landed.merge(report: { value: "#{landed[:report][:value]}; #{said}" })
+      end
+
+      # A finish runs inside the worktree it retires, so the process leaves it first; a worktree that
+      # holds ignored files is kept and said so.
+      def retire_from_primary(branch, onto)
+        Dir.chdir(primary.path) do
+          kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, retiring: true).retire
+          kept ? "kept #{branch}: #{said}" : said
+        end
       end
 
       def refuse_unsaved(branch)
