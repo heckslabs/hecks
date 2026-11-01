@@ -84,6 +84,7 @@ module Hecks
         # bypasses), to protect a real ledger from stale writes. This is a throwaway
         # schema the caller creates and drops, comparing Memory against PostgresEra's
         # SQL — the era fence isn't under test, so opting in here is safe.
+        # A boot over a schema just created holds no first era, so the ledger is disposable.
         def postgres_era_world(name, database, schema)
           <<~WORLD
             Hecks.world "#{name}" do
@@ -92,6 +93,7 @@ module Hecks
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true
+                disposable_ledger true
               end
             end
           WORLD

@@ -84,6 +84,7 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     scrub.exec("CREATE SCHEMA public")
     scrub.close
     QaLedgerRole.own_public!(QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
+    QaLedgerFixture.hold_eras!(@fixture_dir, QA_SWEEP_PERSISTENCE_PARITY_DATABASE)
   end
 
   def run_qa_sweep(*args)

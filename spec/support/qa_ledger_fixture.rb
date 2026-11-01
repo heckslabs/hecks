@@ -9,6 +9,18 @@ require_relative "first_era_hold"
 # A disposable Postgres-backed `QualityControl` ledger for specs that run the `qa_*` commands
 # as subprocesses; one database per spec file so parallel_rspec workers do not scrub each other.
 module QaLedgerFixture
+  extend FirstEraHold
+
+  # Holds era 1 of every bluebook the fixture directory loads, in `database`, as the app role.
+  # A spec that drops and recreates the schema calls it again, as the held era goes with it.
+  #
+  # @param directory [String] the fixture bluebook directory
+  # @param database [String] the ledger database
+  # @return [void]
+  def self.hold_eras!(directory, database)
+    hold_domain_eras!(directory: directory, url: QaLedgerRole.url(database))
+  end
+
   # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, bluebook ports included.
   HECKSAGON = <<~RUBY.freeze
     Hecks::FrameworkBluebooks.load!("QualityControl")
@@ -50,8 +62,6 @@ module QaLedgerFixture
 
   # A real Postgres database plus a fixture domain directory that symlinks the real bluebook.
   class Ledger
-    include FirstEraHold
-
     attr_reader :database, :dir
 
     def initialize(database:)
@@ -68,7 +78,7 @@ module QaLedgerFixture
       write_fixture_files
       create_database
       QaLedgerRole.provision!(@database)
-      hold_domain_eras!(directory: @dir, url: QaLedgerRole.url(@database))
+      QaLedgerFixture.hold_eras!(@dir, @database)
       self
     end
 
