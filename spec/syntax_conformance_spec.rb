@@ -178,6 +178,11 @@ RSpec.describe "the declared syntax" do
       starts_on_impl:         "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       ends_on_impl:           "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
       resumes_impl:           "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
+      correlates_by_impl:     "ProcessManagerBuilder's own real implementation, called by GenericDispatch's calls:",
+      created_by_impl:        "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
+      mints_era_impl:         "CommandBuilder's own real implementation, called by GenericDispatch's calls:",
+      handles_impl:           "PortOperationBuilder's own real implementation, called by GenericDispatch's calls:",
+      split_impl:             "TranslationAggregateBuilder's own real implementation, called by GenericDispatch's calls:",
       tells_impl:             "DomainPortBuilder's own real implementation, called by GenericDispatch's calls: " \
                               "— also the target for the \"operation\" spelling, a Ruby alias no more",
       asks_impl:              "DomainPortBuilder's own real implementation, called by GenericDispatch's calls:",

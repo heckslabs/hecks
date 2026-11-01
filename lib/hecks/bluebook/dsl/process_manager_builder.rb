@@ -115,6 +115,8 @@ module Hecks
           builder.build
         end
 
+        private
+
         # `from:` is required: the saga's admission check tests `from_state` by plain equality,
         # so a transition with no `from:` would match no instance.
         def refuse_missing_from!(mapping, from)
