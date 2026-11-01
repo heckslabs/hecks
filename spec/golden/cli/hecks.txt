@@ -255,6 +255,7 @@ queries (nothing here changes anything):
     boot_status             The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.
     boot_resolution         What a boot would resolve for each bluebook under a domain directory, from its own database: status, held label, current label, ordinal and reason.
     sqlite_status           The SQLite databases a domain's worlds name, read-only: per aggregate table the columns the aggregate declares and the table lacks (added on the next open), the columns it keeps that the aggregate no longer declares, and the tables no aggregate maps to.
+    projection_audit        Every era of each bluebook under a domain directory whose stored hash is not the hash of its stored projection: domain, ordinal, stored hash and recomputed hash.
   Seal:
     The head a domain's journal chain had when the rows before it were compacted away.
     latest                  The newest seal a domain holds.
