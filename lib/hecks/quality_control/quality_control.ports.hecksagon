@@ -105,12 +105,24 @@ Hecks.hecksagon "QualityControl" do
     # The mint answers `Minted`; a refusal (no would_mint, a stranded landing, the era check's refusal) is
     # `MintRefused`. The landing answers `Landed`, and a landing that fails leaves the ledger ahead of main:
     # that refusal is `MintStranded`, which stops every later mint until the owner resolves it.
+    # The mint's facts: the domain, the era and branch it lands, the rehearsal's verdict and the watermark it
+    # read, and whether the mint was confirmed. They are not attributes of Maintenance, so each is declared here.
     asks "Mint", to: Maintenance do
+      attribute :domain,            String
+      attribute :era,               Integer
+      attribute :sha,               MaintenanceSha
+      attribute :branch,            String
+      attribute :watermark,         Integer
+      attribute :rehearsal_verdict, MintVerdict
+      attribute :confirm,           Confirmation
       answers "Minted"
       refuses "MintRefused"
     end
 
     asks "Land", to: Maintenance do
+      attribute :era,    Integer
+      attribute :sha,    MaintenanceSha
+      attribute :branch, String
       answers "Landed"
       refuses "MintStranded"
     end

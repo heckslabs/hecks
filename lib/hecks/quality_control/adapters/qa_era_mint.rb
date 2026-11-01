@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../../hecks/adapters/journal_store/held_domain"
+
 module Hecks
   module Adapters
     # The mint of the QualityControl ledger's next era, run by the Maintenance mint. The era check
