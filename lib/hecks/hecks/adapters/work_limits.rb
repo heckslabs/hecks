@@ -32,7 +32,7 @@ module Hecks
       # @return [Integer] the declared cap, else {DEFAULT_CAP}
       def self.cap(registry)
         declared = registry&.world("Tickets")&.for_verb(VERB)
-        declared&.key?(:cap) ? Integer(declared[:cap]) : DEFAULT_CAP
+        declared && !declared[:cap].nil? ? Integer(declared[:cap]) : DEFAULT_CAP
       end
 
       # Clears a just-started row against the cap.

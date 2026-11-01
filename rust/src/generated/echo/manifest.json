@@ -17,8 +17,61 @@
     "routed": true
   },
   {
+    "kind": "aggregate",
+    "id": "Echo::Lamp",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Lamp.Install",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Lamp.Light",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Lamp.Flicker",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Lamp.Mark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Lamp.Unmark",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Lamp.Retire",
+    "generated": true,
+    "routed": true
+  },
+  {
     "kind": "policy",
     "id": "Echo::PingAgain",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Echo::FlickerAgain",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "process_manager",
+    "id": "Echo::Watch",
     "generated": true,
     "routed": true
   }

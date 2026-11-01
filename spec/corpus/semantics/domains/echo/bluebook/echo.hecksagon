@@ -1,3 +1,4 @@
 Hecks.hecksagon "Echo" do
   Echo::Beacon.persisted_by("Memory")
+  Echo::Lamp.persisted_by("Memory")
 end
