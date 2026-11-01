@@ -27,10 +27,10 @@ module Hecks
       def path = @text[PATH, 1]
 
       # @return [String] the path without its query
-      def route = path.to_s.split("?").first.to_s
+      def route = path.to_s.partition("?").first
 
       # @return [String] the query of the path
-      def query = path.to_s.split("?", 2)[1].to_s
+      def query = path.to_s.partition("?").last
 
       # @return [String] the lines after the call, where its answer is compared
       def after = @lines[(@index + 1)..(@index + REACH)].to_a.join

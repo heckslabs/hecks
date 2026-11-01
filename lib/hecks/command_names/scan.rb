@@ -43,7 +43,7 @@ module Hecks
         [line, (@lines[index - 1] if index.positive?)].compact.any? { |text| text.include?(Extractor::MARKER) }
       end
 
-      def excused?(fence) = fence && fence.match?(EXCUSED_FENCE)
+      def excused?(fence) = fence&.match?(EXCUSED_FENCE)
 
       # A Ruby comment is prose, so only the launcher's path names a call in it.
       def extractor(fence, line)

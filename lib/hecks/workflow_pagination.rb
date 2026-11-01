@@ -10,7 +10,7 @@ module Hecks
   # the second page.
   #
   # @example
-  #   WorkflowPagination.check(root: ".")  # => "no workflow counts a GitHub list from its first page"
+  #   WorkflowPagination.check(root: ".")
   module WorkflowPagination
     # The files that hold workflow steps.
     GLOBS = %w[.github/workflows/*.yml .github/workflows/*.yaml .github/actions/**/*.yml .github/actions/**/*.yaml].freeze

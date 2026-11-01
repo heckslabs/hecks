@@ -10,6 +10,9 @@ module Hecks
     class Resolution
       RUNNER = Adapters::Driving::CliRunner
 
+      # The marks a name carries that a plain English word does not.
+      NAME_MARKS = /[_.]/
+
       # @param scope [Hash] one scope of `CliRunner.name_index`
       # @param typed [String] the word, with its `!` if it has one
       # @param asking [Boolean] whether `query` came before it
@@ -61,7 +64,7 @@ module Hecks
       end
 
       # A lone word with no underscore, dot or bang is as likely English as a name.
-      def plain? = !@bang && !@typed.match?(/[_.]/)
+      def plain? = !@bang && !@typed.match?(NAME_MARKS)
 
       # Whether the word is the last part of some name, so a launcher once accepted it bare.
       def homed?

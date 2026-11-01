@@ -45,7 +45,7 @@ RSpec.describe "the ci gate stage" do
 
       expect(ci_drift.fetch("run")).to start_with("git", "diff", "--exit-code")
       expect(ci_drift.fetch("run")).to include("rust/src/generated", "rust/Cargo.toml")
-      expect(push_drift.fetch("run")).to include("regeneration_run.regenerate_corpus", "--check")
+      expect(push_drift.fetch("run")).to include("regeneration_run.regenerate_corpus!", "--check")
     end
 
     it "sets no env of its own, so a job's journal choice reaches its checks" do
