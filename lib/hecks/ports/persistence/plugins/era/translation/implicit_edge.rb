@@ -29,6 +29,11 @@ module Hecks
       # @return [Array] always empty
       def aggregates = []
 
+      # An implicit edge retires no aggregate, as a written edge's `retired` lists none it drops.
+      #
+      # @return [Array] always empty
+      def retired = []
+
       # @param _name [String, Symbol] an aggregate name
       # @return [nil] an implicit edge has no rules for any aggregate
       def for_aggregate(_name) = nil
