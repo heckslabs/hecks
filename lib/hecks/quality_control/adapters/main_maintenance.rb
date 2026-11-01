@@ -49,6 +49,13 @@ module Hecks
           QaAutoMint.facts(ledger)
         end
 
+        # The journal rows a run's own record wrote above a watermark.
+        #
+        # @return [Integer]
+        def own_rows_after(ledger, run, watermark)
+          QaAutoMint.own_rows_after(ledger, run, watermark)
+        end
+
         # Lands a minted era's branch on main through the landing command, with confirmation.
         #
         # @return [Array(String, Boolean)]
@@ -135,8 +142,7 @@ module Hecks
       def mint(**request)
         refuse_while_stranded!
         refuse_unrehearsed!(value_of(request[:rehearsal_verdict]))
-        authorize!(request)
-        label = run_mint!(request)
+        label = run_mint!(request, authorize!(request))
         %i[run domain era sha branch].to_h { |key| [key, wrap(request[key])] }.merge(label: wrap(label))
       end
 
@@ -197,16 +203,18 @@ module Hecks
 
       # Lets a mint through when the owner confirmed it, or when the auto-mint rule holds on the
       # ledger's
-      # facts at the live watermark. A stale watermark is a refusal; any other unmet rule holds the
-      # mint.
+      # facts at the live watermark, and answers that watermark. A stale watermark is a refusal; any
+      # other unmet rule holds the mint.
       def authorize!(request)
-        facts = @commands.auto_mint_facts(ledger_of(request))
-        stale = QaAutoMint.stale_watermark(value_of(request[:watermark]), facts[:watermark])
+        ledger = ledger_of(request)
+        facts = @commands.auto_mint_facts(ledger)
+        stale = QaAutoMint.stale_for(@commands, ledger, value_of(request[:run]), value_of(request[:watermark]), facts[:watermark])
         raise Refused, stale if stale
-        return if value_of(request[:confirm]) == true
 
-        reason = QaAutoMint.held_reason(facts, refusal_total: value_of(request[:refusal_total]))
-        raise Refused, "needs owner approval: #{reason}" if reason
+        held = QaAutoMint.hold_reason(facts, value_of(request[:confirm]), value_of(request[:refusal_total]))
+        raise Refused, "needs owner approval: #{held}" if held
+
+        facts[:watermark]
       end
 
       def ledger_of(request) = QaAutoMint.ledger_for(@root, value_of(request[:ledger_dir]))
@@ -214,14 +222,14 @@ module Hecks
       # Runs the era check's mint through the mint command, and answers the label it minted. The
       # mint is
       # confirmed here, because `authorize!` has let it through.
-      def run_mint!(request)
+      def run_mint!(request, watermark)
         output, minted = @commands.mint_era(@root, domain:  value_of(request[:domain]),
                                                    era:     value_of(request[:era]),
                                                    ledger:  ledger_of(request),
                                                    request: {
                                                      confirm:   true,
                                                      verdict:   value_of(request[:rehearsal_verdict]),
-                                                     watermark: value_of(request[:watermark])
+                                                     watermark: watermark
                                                    })
         raise Refused, output.strip unless minted
 
