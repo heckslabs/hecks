@@ -65,6 +65,21 @@ rather than a named fault.
 - A mint outside the cascade is a separate step a person or the train must run; a push that skips
   it must be refused by name, not by a depth limit.
 
+## Known limits
+
+A stored projection leaves out `optional`, and a lifecycle's states, so a comparison of two
+projections cannot see an attribute that became required, or a lifecycle state that was removed.
+Adding them would change every shape hash and every label, so the projection stays as it is.
+
+- Where the held side is a full declaration, `Translation::AdditiveShape` sees both: an optional
+  attribute made required, and a removed lifecycle state, are breaking.
+- Where the held side is only a projection (an era read back from the store), they pass as
+  unchanged. The rows already stored remain readable; a row missing a now-required value is the
+  one a later write rejects.
+- Everything else the projection records is compared exactly in the implicit edge and in the
+  disposable ledger: identity, lifecycle field, each attribute's name, list or scalar form and
+  type with its members. A change those cannot place counts as breaking.
+
 ## Settled question
 
 Point 4 had two readings: a mint per release, or a mint per push. The owner chose the release,

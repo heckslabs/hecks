@@ -1,5 +1,6 @@
 require_relative "../../../../ports/persistence/plugins/era/storage_shape"
 require_relative "../../../../naming"
+require_relative "../../../../ports/persistence/plugins/era/translation/additive_shape"
 
 module Hecks
   module Adapters
@@ -9,8 +10,8 @@ module Hecks
         # with, aggregate by aggregate. `added` names aggregates the held shape did not have,
         # `widened` those that only gained optional attributes, and `replaced` those whose stored
         # rows do not fit the booting shape: removed, or with an attribute renamed, dropped,
-        # retyped or newly required, or a changed identity or lifecycle field. It reads and writes
-        # nothing.
+        # retyped, switched between list and scalar, or a changed identity or lifecycle field. It
+        # reads and writes nothing.
         LedgerChange = Data.define(:added, :widened, :replaced) do
           # @param held_projection [Hash] the held era's storage shape, as `StorageShape.project`
           #   answers it
@@ -35,24 +36,15 @@ module Hecks
           def self.changed_in_both(held, current) = (held.keys & current.keys).reject { |name| held[name] == current[name] }
 
           # Whether an aggregate kept its identity, lifecycle field and every attribute as it was
-          # held, and gained only attributes it declares optional.
+          # held, list or scalar included, and gained only attributes it declares optional
+          # (`Translation::AdditiveShape`). An attribute that became required is not seen: the
+          # held projection does not record `optional`.
           #
           # @return [Boolean]
           def self.widened?(held, current, aggregate)
-            return false unless held.values_at(*keys) == current.values_at(*keys)
-            return false unless (held["attributes"] - current["attributes"]).empty?
-
-            gained = names(current) - names(held)
-            gained.all? { |name| aggregate.attribute(name)&.optional? }
+            Translation::AdditiveShape.widened?(held, current, optional: Translation::AdditiveShape.optional_in(aggregate))
           end
-
-          # @return [Array<String>] the attribute names of a projected aggregate
-          def self.names(projected) = projected["attributes"].map { |attribute| attribute["name"] }
-
-          # @return [Array<String>] the parts of a projected aggregate besides its attributes that
-          #   its stored rows depend on
-          def self.keys = %w[identity lifecycle_field]
-          private_class_method :by_name, :changed_in_both, :widened?, :names, :keys, :missing
+          private_class_method :by_name, :changed_in_both, :widened?, :missing
 
           # @return [Boolean] whether the held shape and the booting shape differ at all
           def changed? = !(added.empty? && widened.empty? && replaced.empty?)
