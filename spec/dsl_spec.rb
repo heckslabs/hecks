@@ -286,6 +286,16 @@ RSpec.describe "the DSL surface" do
       expect([backfilled.name, backfilled.default]).to eq([:tier, "standard"])
     end
 
+    it ".data_translation registers a split naming its target, key and fields" do
+      translation = translating { aggregate("Thing") { split into: "Part", keyed_by: :code, fields: [:size] } }
+
+      expect(translation.for_aggregate("Thing").splits.first.to_a).to eq(["Part", :code, [:size]])
+    end
+
+    it ".data_translation refuses a split with no target" do
+      expect_translation_refusal(/needs a target aggregate/) { aggregate("Thing") { split keyed_by: :code, fields: [:size] } }
+    end
+
     it ".data_translation refuses a backfill with no default:" do
       expect_translation_refusal(/needs a default: value/) { aggregate("Thing") { backfill :tier, default: nil } }
     end
@@ -3019,6 +3029,14 @@ RSpec.describe "the DSL surface" do
       expect(build_command("CmdIdempotent") { idempotent }.idempotent?).to be(true)
     end
 
+    it "mints_era true lets the command write through a boot no era holds" do
+      expect(build_command("CmdMints") { mints_era true }.mints_era?).to be(true)
+    end
+
+    it "mints no era unless it says so" do
+      expect(build_command("CmdNoMint") { goal "feed people" }.mints_era?).to be(false)
+    end
+
     it "is not idempotent unless it says so" do
       expect(build_command("CmdPlain") { goal "feed people" }.idempotent?).to be(false)
     end
@@ -3527,6 +3545,15 @@ RSpec.describe "the DSL surface" do
       end
 
       expect(operation.emits).to eq(["Done"])
+    end
+
+    it "handles records one value of a command the operation handles" do
+      operation = build_operation do
+        handles "Build.build!", value: "wasm"
+        emits "Done"
+      end
+
+      expect(operation.handles).to eq([{ command: "Build.build!", value: "wasm" }])
     end
 
     it "allows an operation with no payload when routing supplies the receiver" do
