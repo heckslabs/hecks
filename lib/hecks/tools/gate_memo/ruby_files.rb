@@ -2,6 +2,7 @@
 
 require "open3"
 require "pathname"
+require "yaml"
 require_relative "../gate_memo"
 
 module Hecks
@@ -71,14 +72,40 @@ module Hecks
 
         # @return [Array(Symbol, Array<String>, String)] the files that changed, or were removed,
         # and the
-        #   files that require them; a full run when none is left to lint
+        #   files that require them, less the ones `AllCops` Exclude names; skipped when only
+        #   excluded files changed, and a full run when a removal leaves nothing to lint
         def incremental(root, was, now)
           changed = now.keys.reject { |rel| was[rel] == now[rel] }
           removed = was.keys - now.keys
-          set = closure(root, changed + removed, now.keys)
-          return [:full, [], "removed files leave nothing to lint"] if set.empty? && removed.any?
+          set = lintable(root, closure(root, changed + removed, now.keys))
+          return nothing_to_lint(removed) if set.empty?
 
           [:incremental, set, "#{set.size} of #{now.size} Ruby files: changed, removed or requiring them"]
+        end
+
+        # @return [Array(Symbol, Array<String>, String)] a full run when a removal left the set
+        #   empty, since an empty file list would make RuboCop lint the whole tree; otherwise a
+        #   skip, because only excluded files changed
+        def nothing_to_lint(removed)
+          return [:full, [], "removed files leave nothing to lint"] if removed.any?
+
+          [:skip, [], "only files the configuration excludes changed"]
+        end
+
+        # @return [Array<String>] the files that `AllCops` Exclude does not name, as RuboCop
+        #   applies it to a full run; an explicit file list would otherwise bypass it
+        def lintable(root, files)
+          globs = excludes(root)
+          files.reject { |rel| globs.any? { |glob| File.fnmatch?(glob, rel, File::FNM_PATHNAME) } }
+        end
+
+        # @return [Array<String>] the `AllCops` Exclude globs of the checkout's `.rubocop.yml`; none
+        #   when the file is absent
+        def excludes(root)
+          path = File.join(root, ".rubocop.yml")
+          return [] unless File.file?(path)
+
+          Array(YAML.safe_load_file(path, permitted_classes: [Symbol]).dig("AllCops", "Exclude"))
         end
 
         # @return [Array<String>] the seeds and every file that requires one, through
