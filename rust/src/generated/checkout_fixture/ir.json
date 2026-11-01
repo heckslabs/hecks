@@ -1907,7 +1907,8 @@
         "schema",
         "allow_superuser",
         "mint_eras",
-        "disposable_ledger"
+        "disposable_ledger",
+        "mints_era"
       ],
       "secrets": [
 

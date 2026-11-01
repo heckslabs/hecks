@@ -9,6 +9,9 @@ Hecks.world "QualityControl" do
   persisted_by("PostgresEra") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
     mint_eras false
+    # The mint command's own record is the one write an unminted boot is let make: the mint starts
+    # from a boot whose shape no era holds yet.
+    mints_era "Maintenance.MintEra"
   end
   # How far local main may drift from origin/main before each tick files the `push-due` Work row:
   # commits ahead, or hours since the oldest unpushed commit. A red last rehearsal on the current main
