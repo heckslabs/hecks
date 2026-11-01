@@ -2,6 +2,7 @@
 
 require "etc"
 require_relative "../work_limits"
+require_relative "../shell"
 
 module Hecks
   module Adapters
@@ -21,13 +22,25 @@ module Hecks
         # Minutes a started row may run when the caller names no budget.
         BUDGET_MINUTES = 90
 
+        # What `uptime` prints before the 1-minute load, on macOS and Linux.
+        UPTIME_LOAD = /load averages?:\s*([0-9]+[.,][0-9]+)/
+
         # @param registry [Runtime::Registry, nil] the booted registry whose Tickets world is read
         # @param load [#call, nil] answers the 1-minute load average; the machine's when nil
         # @param cpus [Integer, nil] the CPU count; the machine's when nil
         def initialize(registry, load: nil, cpus: nil)
           @registry = registry
-          @load = load || -> { Etc.getloadavg.first }
+          @load = load || -> { self.class.uptime_load }
           @cpus = cpus || Etc.nprocessors
+        end
+
+        # Ruby's `Etc` has no load average, so the 1-minute figure is read from `uptime`.
+        #
+        # @param text [String, nil] what `uptime` printed; the machine's when nil
+        # @return [Float] the 1-minute load, 0.0 when `uptime` says none
+        def self.uptime_load(text = nil)
+          text ||= Shell.new.capture("uptime").out
+          text[UPTIME_LOAD, 1].to_s.tr(",", ".").to_f
         end
 
         # @return [Array<String>] the frozen areas and aggregates, empty when none is declared

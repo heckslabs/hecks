@@ -49,6 +49,17 @@ RSpec.describe Hecks::Adapters::Dispatching do
     end
   end
 
+  describe "the load reading" do
+    it "reads the 1-minute load from macOS and Linux uptime lines", :aggregate_failures do
+      expect(described_class::Settings.uptime_load("13:00  up 3 days,  load averages: 23.41 18.00 12.50")).to eq(23.41)
+      expect(described_class::Settings.uptime_load(" 13:00:01 up 3 days, load average: 0.52, 0.58, 0.59")).to eq(0.52)
+    end
+
+    it "reads the machine when no text is given" do
+      expect(described_class::Settings.uptime_load).to be >= 0.0
+    end
+  end
+
   describe "the settings" do
     it "stops at the CPU count when the world names no limit" do
       expect(settings.max_load).to eq(6.0)
