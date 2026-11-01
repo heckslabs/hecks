@@ -94,6 +94,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["canonicalise", "StyleRun", "Canonicalise", "canonicalise", { args: %w[doc.json] }],
     ["codemod_hoist_local_givens", "CodemodRun", "HoistLocalGivens", "hoist_local_givens"],
     ["codemod_implicit_append_fields", "CodemodRun", "DropImplicitAppendFields", "drop_implicit_append_fields"],
+    ["codemod_move_former_name", "CodemodRun", "MoveFormerName", "move_former_name"],
     ["rspec_shard_files", "TestSuiteRun", "ShardSpecs", "shard_specs", { args: %w[group=1 groups=2], query: true }],
     ["rspec_io_parallel_files", "TestSuiteRun", "ListIoParallelSpecs", "list_io_parallel_specs",
      { args: %w[exclude=x], query: true }],

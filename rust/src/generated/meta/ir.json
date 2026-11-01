@@ -38107,6 +38107,24 @@
             [
               [
                 "script",
+                "codemod_move_former_name"
+              ],
+              [
+                "section",
+                "Codebase"
+              ],
+              [
+                "aggregate",
+                "CodemodRun"
+              ],
+              [
+                "verb",
+                "move_former_name"
+              ]
+            ],
+            [
+              [
+                "script",
                 "rspec_shard_files"
               ],
               [

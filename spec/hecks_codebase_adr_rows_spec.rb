@@ -43,6 +43,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "canonicalise", verbs: %w[canonicalise]),
     AdrRow.new(script: "codemod_hoist_local_givens", verbs: %w[hoist_local_givens]),
     AdrRow.new(script: "codemod_implicit_append_fields", verbs: %w[drop_implicit_append_fields]),
+    AdrRow.new(script: "codemod_move_former_name", verbs: %w[move_former_name]),
     AdrRow.new(script: "rspec_shard_files", verbs: %w[shard_specs]),
     AdrRow.new(script: "rspec_io_parallel_files", verbs: %w[list_io_parallel_specs write_io_parallel_spec_list],
                note: "the table's write= is its own confirmed command, since a query never writes"),

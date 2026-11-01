@@ -202,3 +202,33 @@ runtime.registry.default_adapter_for("WorldReference")         # => "Memory"
 runtime.registry.default_adapter_for("WorldReferenceUnpinned") # => "Memory"
 ```
 
+
+Three storage facts are said in the world and never in the bluebook. None is a word of the
+language; each is a setting the adapters read, so a world can carry them without a grammar change.
+
+```text
+Hecks.world "Hecks" do
+  # the table (or key) an aggregate's rows sit under, by the aggregate's current name
+  stored_as Revision: "commit", Workspace: "checkout"
+
+  # commands whose own record an unminted boot may write, for a binding kept in local files
+  minting commands: ["Era.MintHeld"]
+
+  persisted_by("PostgresEra") do
+    formerly "Old"                        # the name this domain's history is held under
+    mints_era "Maintenance.MintEra"       # the same list, said on the binding
+  end
+end
+```
+
+`stored_as` replaces `formerly_known_as` on an aggregate. When both are given they must name the
+same table or the boot refuses, naming the aggregate; the bluebook word still works alone, warns
+once, and names the line that replaces it. A table adapter (Sqlite, Postgres) that finds its
+aggregate's table empty or missing while an earlier name's table holds rows refuses the boot and
+creates nothing, so a wrong or missing `stored_as` cannot start an empty table beside the rows.
+`formerly` replaces a domain's `formerly_known_as` the same way: the world's value is used, and a
+bluebook that names a different one refuses. `mints_era` and `minting` replace a command's
+`mints_era true`; a world that names any command must name every command still saying it.
+`exe/hecks codemod_run.move_former_name!` moves the aggregate lines for you (unconfirmed, it only
+reports what it would change).
+

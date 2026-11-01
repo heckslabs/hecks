@@ -74,6 +74,7 @@
           ],
           "goal": "Start the day with an empty drawer",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -128,6 +129,7 @@
           ],
           "goal": "Add cents to the drawer",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "increment",
@@ -190,6 +192,7 @@
           ],
           "goal": "Take cents out of the drawer",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "decrement",
@@ -234,6 +237,7 @@
           ],
           "goal": "Add the fixed float the branch always starts with",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "increment",

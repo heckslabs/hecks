@@ -1302,6 +1302,7 @@ Hecks.bluebook "Bluebook" do
       member script: "canonicalise", section: "Codebase", aggregate: "StyleRun", verb: "canonicalise"
       member script: "codemod_hoist_local_givens", section: "Codebase", aggregate: "CodemodRun", verb: "hoist_local_givens"
       member script: "codemod_implicit_append_fields", section: "Codebase", aggregate: "CodemodRun", verb: "drop_implicit_append_fields"
+      member script: "codemod_move_former_name", section: "Codebase", aggregate: "CodemodRun", verb: "move_former_name"
       member script: "rspec_shard_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "shard_specs"
       member script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "list_io_parallel_specs"
       member script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "write_io_parallel_spec_list"

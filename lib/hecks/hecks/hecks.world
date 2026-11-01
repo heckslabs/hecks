@@ -48,6 +48,14 @@
 # which a landing honours as the holder while it exists. Landings run one at a time, first come first served.
 Hecks.world "Hecks" do
   realm "Hecks"
+  # The tables the renamed aggregates keep: Workspace was Checkout, Revision was Commit, SendTrain was
+  # PushTrain and ReviewRequest was PullRequest, and their rows stay where they were written.
+  # A boot that found them empty beside the old tables' rows would refuse by name.
+  stored_as Workspace: "checkout", Revision: "commit", SendTrain: "push_train", ReviewRequest: "pull_request"
+  # The command whose own record an unminted boot is let write: a mint cannot start from a boot whose
+  # shape no era holds yet. This domain's PostgresEra binding lives in uncommitted local files, so the
+  # name is said here, where every copy reads it.
+  minting commands: ["Era.MintHeld"]
   landing "Queue", stale_minutes: 30, wait_minutes: 40
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release

@@ -5,7 +5,6 @@ Hecks.bluebook "Hecks" do
     # A checkout's state, read and never written: nothing needs a raw `git status`, `git diff` or
     # `git log`. The `Reading` port's adapter answers each query; the aggregate keeps no record.
     aggregate "Workspace" do
-      formerly_known_as "Checkout"
       description "A look at a checkout: its branch, what it changed and what it committed."
       acknowledges :no_command_surface, "a look at a checkout: it answers the state of a checkout and changes nothing"
 
@@ -69,7 +68,6 @@ Hecks.bluebook "Hecks" do
     # what is staged, or the named paths, and never pushes, amends, forces, or commits onto main. Those go
     # through `Landing` and `SendTrain`.
     aggregate "Revision" do
-      formerly_known_as "Commit"
       description "One commit made in a checkout, or declined with the reason: what it says and what it is on."
 
       attribute :run,      RunKey
@@ -537,7 +535,6 @@ Hecks.bluebook "Hecks" do
     # boarding waits its turn behind the push in flight from the same repository, then pushes the
     # local branch with whatever else has landed on it, or finds an earlier push already carried it.
     aggregate "SendTrain" do
-      formerly_known_as "PushTrain"
       description "One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused."
 
       attribute :run,      RunKey
@@ -754,7 +751,6 @@ Hecks.bluebook "Hecks" do
     end
 
     aggregate "ReviewRequest" do
-      formerly_known_as "PullRequest"
       description "One pull request opened or squash-merged on GitHub, and what GitHub answered."
 
       attribute :run,     RunKey

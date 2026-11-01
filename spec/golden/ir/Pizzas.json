@@ -82,6 +82,7 @@
           ],
           "goal": "Put a new pizza on the menu",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -169,6 +170,7 @@
           ],
           "goal": "Customize a pizza with an ingredient",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -289,6 +291,7 @@
           ],
           "goal": "Buy the pizza",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",

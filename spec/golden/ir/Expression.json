@@ -327,6 +327,7 @@
           ],
           "goal": "Put an operation forward for the sublanguage",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -394,6 +395,7 @@
           ],
           "goal": "Declare how this operator reads in one target",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -453,6 +455,7 @@
           ],
           "goal": "Accept the operation into the sublanguage",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -480,6 +483,7 @@
           ],
           "goal": "Remove an operation from the sublanguage",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -1228,6 +1232,7 @@
           ],
           "goal": "Put a normalisation rule forward for the canonical form",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -1295,6 +1300,7 @@
           ],
           "goal": "Declare how this rule reads in one target",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1354,6 +1360,7 @@
           ],
           "goal": "Accept the rule into the canonical form",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -1381,6 +1388,7 @@
           ],
           "goal": "Remove a rule from the canonical form",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -2056,6 +2064,7 @@
           ],
           "goal": "Lower a real Ruby predicate into the sublanguage",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -2102,6 +2111,7 @@
           ],
           "goal": "Record a name the expression reads",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -2176,6 +2186,7 @@
           ],
           "goal": "Accept the expression as evaluable by every target",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -2212,6 +2223,7 @@
           ],
           "goal": "Refuse a predicate that leaves the sublanguage",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],

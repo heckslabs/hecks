@@ -248,10 +248,6 @@ Hecks.bluebook "Hecks" do
       command "MintHeld" do
         role "Operator"
         goal "Mint the Hecks domain's next era when its shape moved, before the push train writes"
-        # Its own record may pass the unminted-boot guard: a mint cannot start from a boot whose shape
-        # no era holds yet, so this record is the one write that boot is let make.
-        mints_era true
-
         attribute :run,               RunKey, sets: true
         attribute :rehearsal_verdict, MintVerdict, optional: true
         attribute :watermark,         Watermark, optional: true

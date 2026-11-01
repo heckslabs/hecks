@@ -550,6 +550,18 @@ Hecks.bluebook "Hecks" do
 
         emits DropImplicitAppendFieldsRequested
       end
+
+      command "MoveFormerName" do
+        role "Maintainer"
+        goal "Move an aggregate's formerly_known_as out of the bluebook into the world's stored_as"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "move_former_name"
+
+        emits MoveFormerNameRequested
+      end
     end
 
     policy "ExamineWhenHoistLocalGivensRequested" do
@@ -559,6 +571,11 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenDropImplicitAppendFieldsRequested" do
       on      "CodemodRun.DropImplicitAppendFieldsRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenMoveFormerNameRequested" do
+      on      "CodemodRun.MoveFormerNameRequested"
       ask     :examine, with: { run: :run }
     end
 

@@ -582,6 +582,7 @@ module Hecks
         {"script"=>"canonicalise", "section"=>"Codebase", "aggregate"=>"StyleRun", "verb"=>"canonicalise"}.freeze,
         {"script"=>"codemod_hoist_local_givens", "section"=>"Codebase", "aggregate"=>"CodemodRun", "verb"=>"hoist_local_givens"}.freeze,
         {"script"=>"codemod_implicit_append_fields", "section"=>"Codebase", "aggregate"=>"CodemodRun", "verb"=>"drop_implicit_append_fields"}.freeze,
+        {"script"=>"codemod_move_former_name", "section"=>"Codebase", "aggregate"=>"CodemodRun", "verb"=>"move_former_name"}.freeze,
         {"script"=>"rspec_shard_files", "section"=>"Codebase", "aggregate"=>"TestSuiteRun", "verb"=>"shard_specs"}.freeze,
         {"script"=>"rspec_io_parallel_files", "section"=>"Codebase", "aggregate"=>"TestSuiteRun", "verb"=>"list_io_parallel_specs"}.freeze,
         {"script"=>"rspec_io_parallel_files", "section"=>"Codebase", "aggregate"=>"TestSuiteRun", "verb"=>"write_io_parallel_spec_list"}.freeze,
