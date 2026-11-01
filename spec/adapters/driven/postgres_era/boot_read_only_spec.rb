@@ -13,9 +13,6 @@ RSpec.describe "a boot with no mint request in PostgresEra", :io do
   BOOT_READ_ONLY_DB = "hecks_boot_read_only_spec".freeze
   BOOT_READ_ONLY_FRESH_DB = "hecks_boot_read_only_fresh_spec".freeze
   DOMAIN = "Ledger".freeze
-  RETIRED_SELF_EDGE = File.expand_path(
-    "../../../../lib/hecks/hecks/translations/2-5d288c-to-5d288c.bluebook", __dir__
-  ).freeze
 
   scratch_postgres BOOT_READ_ONLY_DB, BOOT_READ_ONLY_FRESH_DB, fenced: true
 
@@ -145,9 +142,5 @@ RSpec.describe "a boot with no mint request in PostgresEra", :io do
     it "needs no edge between the same shape" do
       expect(same_shape_chain).to eq([])
     end
-  end
-
-  it "has no self-loop edge file for the era-12 shape" do
-    expect(File.exist?(RETIRED_SELF_EDGE)).to be(false)
   end
 end

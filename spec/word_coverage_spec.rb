@@ -85,10 +85,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
   TRANSLATION_RULE_GAP =
     "no real translation edge in this corpus exercises this rule kind — " \
     "examples/pizzas/bluebook/translations/2-77625c.bluebook and " \
-    "examples/directory/bluebook/translations/2-632545.bluebook and the Hecks domain's " \
-    "own lib/hecks/hecks/translations/ (the real translations this repository has) only " \
-    "exercise `aggregate ... was:`, `move ... to:`, `derive ... as:`, `rekey_to`, `drop`, " \
-    "`rename` and `retype`. `corpus_uses?`'s " \
+    "examples/directory/bluebook/translations/2-632545.bluebook (the real translations this repository has) only " \
+    "exercise `aggregate ... was:`, `move ... to:`, `derive ... as:`, `rekey_to` and `drop`. `corpus_uses?`'s " \
     "naive whole-token scan reports a false positive for this word regardless " \
     "(see the comment on the first entry in this group), so this exemption " \
     "also stands in for that scanner gap.".freeze
@@ -181,6 +179,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # no exemption while the remaining rule kinds still lack a real edge.
     "retired (Translation)"             => TRANSLATION_RULE_GAP,
     "convert (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
+    "rename (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
+    "retype (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "split (TranslationAggregate)"      =>
                                            "no real translation edge splits one aggregate into another; the one that " \
                                            "does is the invented fixture on docs/implemented/reference/" \
