@@ -2027,6 +2027,89 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # The event pump: each attached domain's policies read the events past their cursors and react to
+  # them. The pump's own writes are the cursors below; it appends to no domain's event log.
+  aggregate "EventCursor" do
+    description "How far one consumer has read one domain's event log, as the count of entries it has reacted to. One row per (log, consumer)."
+
+    identified_by :key
+
+    attribute :key,      CursorKey
+    attribute :log,      CursorDomain
+    attribute :consumer, CursorDomain
+    attribute :position, CursorPosition
+
+    value_object "CursorKey" do
+      attribute :value, String, matches: :present
+      invariant("a cursor is keyed by its log and consumer") { !value.to_s.empty? }
+    end
+
+    value_object "CursorDomain" do
+      attribute :value, String, matches: :present
+      invariant("a cursor names its domain") { !value.to_s.empty? }
+    end
+
+    value_object "CursorPosition" do
+      attribute :value, Integer, default: 0
+      invariant("a position is not negative") { !value.negative? }
+    end
+
+    command "Start" do
+      role "QA engineer"
+      goal "Open a consumer's cursor on one domain's event log, at the start of the log"
+
+      attribute :key,      CursorKey
+      attribute :log,      CursorDomain
+      attribute :consumer, CursorDomain
+
+      emits "CursorStarted"
+    end
+
+    # The pump passes only the position it has just reacted to, so a cursor moves forward in practice.
+    command "Advance" do
+      role "QA engineer"
+      goal "Move one consumer's cursor past the entries it has reacted to"
+
+      attribute :position, CursorPosition, sets: true
+
+      emits "CursorAdvanced"
+    end
+
+    query "All" do
+      description "Every cursor the event pump holds, with the position each consumer has read to."
+      order_by :key
+    end
+  end
+
+  # One run of the event pump, requested as a command and answered by the `PumpTools` port, which runs
+  # `hecks quality_control qa_event_pump`. The QA tick runs the same pump as its last step.
+  aggregate "EventPump" do
+    description "One run of the event pump: every attached domain's policies reacting to the events past their cursors, and what each reaction answered."
+
+    identified_by :run
+
+    attribute :run, PumpRun
+
+    value_object "PumpRun" do
+      attribute :value, String, matches: :present
+      invariant("a pump run is named") { !value.to_s.empty? }
+    end
+
+    command "Pump" do
+      role "QA engineer"
+      goal "Run the event pump once: each attached domain's policies react to the events past their cursors, and every refusal is named"
+
+      attribute :run, PumpRun
+
+      emits "PumpRequested"
+    end
+  end
+
+  policy "PumpOnRequest" do
+    on      "EventPump.PumpRequested"
+    ask     :execute, with: { run: :run }
+  end
+
   # The maintenance of local main as events and policies. A coder's `Submission.WorkSubmitted` starts
   # a run. Each step's body is an `ask` of a port the `MainMaintenance` adapter answers: the quick gate,
   # the reconcile, the push through the train. The answer is an event, and a policy turns each event into

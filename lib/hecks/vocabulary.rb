@@ -235,6 +235,7 @@ module Hecks
         {"name"=>"mutation_equivalent", "type"=>"Array", "meaning"=>"Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors."}.freeze,
         {"name"=>"structural_refusal_boundary", "type"=>"Array", "meaning"=>"Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."}.freeze,
         {"name"=>"red_main_check", "type"=>"Boolean", "meaning"=>"Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."}.freeze,
+        {"name"=>"event_pump", "type"=>"Boolean", "meaning"=>"Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."}.freeze,
         {"name"=>"main_maintenance", "type"=>"Boolean", "meaning"=>"Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."}.freeze,
         {"name"=>"maintenance_confirm", "type"=>"Boolean", "meaning"=>"Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."}.freeze
       ].freeze,
@@ -594,6 +595,7 @@ module Hecks
         {"script"=>"release_gem", "section"=>"Codebase", "aggregate"=>"PublishingRun", "verb"=>"publish_gem"}.freeze,
         {"script"=>"(new)", "section"=>"Codebase", "aggregate"=>"GateRun", "verb"=>"gate"}.freeze,
         {"script"=>"qa_tick", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"tick"}.freeze,
+        {"script"=>"qa_event_pump", "section"=>"QualityControl", "aggregate"=>"EventPump", "verb"=>"pump"}.freeze,
         {"script"=>"qa_sweep", "section"=>"QualityControl", "aggregate"=>"Sweep", "verb"=>"run", "passes"=>"--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"}.freeze,
         {"script"=>"qa_sweep", "section"=>"QualityControl", "aggregate"=>"Target", "verb"=>"release"}.freeze,
         {"script"=>"qa_pr_check", "section"=>"QualityControl", "aggregate"=>"Clearance", "verb"=>"check_pull_requests"}.freeze,

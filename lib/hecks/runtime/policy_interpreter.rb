@@ -69,6 +69,10 @@ module Hecks
         end
       end
 
+      # Answers the policies `event` triggers in `domain`, as `[policy, home_domain]` pairs, in
+      # the order a delivery tries them. The event pump reads this, then runs one of them at a time.
+      public :policies_for
+
       # Evaluated against the event payload alone (a policy has no aggregate state).
       # Not rescued here: an EvaluationError must reach `deliver`'s defect rescue, not
       # read as a policy that declined to fire.
