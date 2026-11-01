@@ -54,6 +54,14 @@ move. Many sessions push to `main`; a stale push is rejected or buries their wor
 Push with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
 model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
 
+## Briefing a session
+
+A brief is an outcome, not a list of stop signs. `Coder::Brief.compose!` (`lib/hecks/coder/coder.bluebook`)
+builds it from a Work row: the title and detail as the outcome, the row's `area` (omitted when the row has
+none), and the standing rules, which live in that bluebook and are not restated in agent prompts. Map the
+whole picture, act on everything in the area, stop only for a risk of losing data, an owner-only action, or
+a change outside the area, and report what was stuck first.
+
 ## Running specs
 
 Run a spec file through the launcher, which is the sanctioned path (see "Use the
