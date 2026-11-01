@@ -190,15 +190,16 @@ module Hecks
         # Returns an Outcome, not a bare Instance, so callers can check `:saved` vs `:stale`;
         # `expected_version:` only triggers CAS on an adapter declaring `:optimistic_concurrency`.
         #
-        # @param instance [Runtime::Instance] the record to persist; its `state` is shallow
-        #   copied into the entry
+        # @param instance [Runtime::Instance] the record to persist; its `state` is shallow copied
         # @param expected_version [Integer, nil] the version the instance was read at, or nil
         #   for an unconditional write
+        # @param mints_era [Boolean] true when the writing command declares `mints_era true`
         # @return [Persistence::Outcome] status `:saved` or `:stale`; `instance` is the
         #   adapter's projected result on `:saved`, else the instance passed in
         # @raise [Runtime::WiringError] when the adapter's `append` or `project` refuses
-        def save(instance, expected_version: nil)
-          entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+        def save(instance, expected_version: nil, mints_era: false)
+          entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup,
+                            mints_era: mints_era)
           append(entry)
           if expected_version && capabilities.include?(:optimistic_concurrency)
             saved = @adapter.project(entry, expected_version: expected_version)

@@ -136,5 +136,33 @@ RSpec.describe "a mints_era command's record through an unminted boot", :io do
       expect(write_error(adapter_for(old, era: 1, superseded_by: 2), entry(mints_era: true)))
         .to include("which era 2 has superseded")
     end
+
+    it "refuses a mints_era command's plain save from the superseded boot, naming the era" do
+      expect(plain_save_error(adapter_for(old, era: 1, superseded_by: 2), mints_era: true))
+        .to include("which era 2 has superseded")
+    end
+  end
+
+  # The same record written through `AppendOnly#save`, the plain path a command takes when its
+  # strategy is not atomic put; `mints_era:` is what the interpreter passes for its command.
+  def plain_save_error(adapter, mints_era:)
+    Hecks::Ports::Persistence::AppendOnly.new(adapter).save(acct_record, mints_era: mints_era)
+    nil
+  rescue Hecks::Runtime::WiringError => e
+    e.message
+  end
+
+  def acct_record
+    Struct.new(:id, :state).new("acct-1", { amount: { "cents" => 5 }, kind: { "label" => "biz" } })
+  end
+
+  it "writes a mints_era command's own record through an unminted boot on the plain save path" do
+    expect(plain_save_error(adapter_for(unminted, era: 1, unminted: true), mints_era: true)).to be_nil
+  end
+
+  it "refuses another command's plain save from the same unminted boot after the mint record went through" do
+    adapter = adapter_for(unminted, era: 1, unminted: true)
+    plain_save_error(adapter, mints_era: true)
+    expect(plain_save_error(adapter, mints_era: false)).to include("the shape is not minted yet")
   end
 end
