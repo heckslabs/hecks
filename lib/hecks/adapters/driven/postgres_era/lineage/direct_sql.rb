@@ -1,5 +1,6 @@
 require_relative "../../../../ports/persistence/plugins/era/translation/compose"
 require_relative "sql_templates"
+require_relative "direct_verified"
 
 module Hecks
   module Adapters
@@ -12,13 +13,9 @@ module Hecks
         module DirectSql
           include SqlTemplates
 
-          # The bluebooks whose composed translations the direct translation spec proves
-          # row-for-row equal to their chains.
-          VERIFIED = %w[Hecks Bluebook Tickets QualityControl Composer Pizzas].freeze
-
           # Overrides the default of reading directly where the chain is verified.
           #
-          # @return [Boolean, nil] true or false to force a path; nil to follow `VERIFIED`
+          # @return [Boolean, nil] true or false to force a path; nil to follow `DirectVerified`
           attr_writer :direct_translation
 
           # @param edges [Array<Hash>] the chain, one `{ translation: edge }` per era
@@ -26,8 +23,7 @@ module Hecks
           def direct_translation?(edges)
             return @direct_translation unless @direct_translation.nil?
 
-            domain = edges.first&.dig(:translation)&.domain
-            VERIFIED.include?(domain)
+            DirectVerified.proven?(edges.map { |edge| edge[:translation] })
           end
 
           # The head SQL as one step, or nil when the chain cannot be composed exactly.

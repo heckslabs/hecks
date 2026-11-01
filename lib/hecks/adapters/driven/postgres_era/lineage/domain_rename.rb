@@ -1,5 +1,6 @@
 require_relative "../../../../naming"
 require_relative "../../../../runtime/errors"
+require_relative "domain_rename_state"
 
 module Hecks
   module Adapters
@@ -10,20 +11,22 @@ module Hecks
         # (`Era.RenameDomain`) moves them; a boot or a provisioning that finds the move pending
         # refuses by name (`refuse_pending_rename!`), so no history starts fresh beside the old.
         module DomainRename
-          # Moves a domain's journal, sequence, partitions and lineage rows from
-          # `formerly_known_as` to the current name, in one transaction.
+          include DomainRenameState
+
+          # Moves a domain's journal, sequence, partitions, lineage rows, heads and field caches
+          # from `formerly_known_as` to the current name, in one transaction.
           #
           # A no-op when `hecks_eras` is missing, the new name has rows, or the former name has
-          # none. Locks go in a fixed order (old before new, eras before ordinal) so nothing
-          # deadlocks. The head views, snapshot tables and translated-tail views carry the domain's
-          # name too, so the aggregates' storage names say which of them move.
+          # none. Locks go in a fixed order (old before new, eras before ordinal).
           #
           # @param storage_names [Array<String>] the storage names of the domain's aggregates
+          # @param cache_fields [Hash{String => Array<String>}] each aggregate's storage name mapped
+          #   to the where-fields its queries cache, whose tables hash the domain
           # @return [Integer] how many eras moved; 0 when nothing was pending
           # @raise [Runtime::WiringError] if the locks are not granted within 10s or Postgres
           #   refuses a statement (prechecks included); both roll back first
-          def rename_domain!(storage_names: [])
-            rename_pending? ? rename_in_transaction!(storage_names) : 0
+          def rename_domain!(storage_names: [], cache_fields: {})
+            rename_pending? ? rename_in_transaction!(storage_names, cache_fields) : 0
           rescue PG::LockNotAvailable
             rollback_quietly
             raise Runtime::WiringError,
@@ -66,18 +69,32 @@ module Hecks
             @db.exec_params("SELECT 1 FROM hecks_eras WHERE domain = $1 LIMIT 1", [domain]).ntuples.positive?
           end
 
-          def rename_in_transaction!(storage_names)
-            old_journal = "hecks_journal_#{Naming.snake(@formerly_known_as)}"
-            eras = former_eras
-
+          # The locks come first and the eras are read after them, so a mint that lands before the
+          # locks are granted has its partition renamed with the rest; the pending check is made
+          # again under the locks for a rename that finished while this one waited.
+          def rename_in_transaction!(storage_names, cache_fields)
             @db.exec("BEGIN")
             @db.exec("SET LOCAL lock_timeout = '10s'")
             rename_lock_keys.each { |key| @db.exec_params("SELECT pg_advisory_xact_lock(hashtext($1))", [key]) }
-            rename_relations!(old_journal, eras.map(&:first))
-            rename_heads!(storage_names, eras)
-            rename_rows!
+            return finish_without_moving unless rename_pending?
+
+            eras = former_eras
+            move_everything!(eras, storage_names, cache_fields)
             @db.exec("COMMIT")
             eras.size
+          end
+
+          def finish_without_moving
+            @db.exec("ROLLBACK")
+            0
+          end
+
+          def move_everything!(eras, storage_names, cache_fields)
+            rename_relations!("hecks_journal_#{Naming.snake(@formerly_known_as)}", eras.map(&:first))
+            rename_heads!(storage_names, eras)
+            rename_catalogue_relations!
+            rename_field_caches!(cache_fields, eras.map(&:first))
+            rename_rows!
           end
 
           # The former name's eras as [ordinal, label] pairs, oldest first.
@@ -118,22 +135,6 @@ module Hecks
           def rename_era_heads!(former, name, ordinal, label)
             rename_relation!(former.head_snapshot(name, ordinal), head_snapshot(name, ordinal))
             rename_relation!(former.matview(name, ordinal, label), matview(name, ordinal, label)) if label
-          end
-
-          def rename_relation!(from, to)
-            return unless @db.exec_params("SELECT to_regclass($1)", [quote(from)])[0]["to_regclass"]
-
-            @db.exec("ALTER TABLE #{quote(from)} RENAME TO #{quote(to)}")
-          end
-
-          def rename_rows!
-            %w[hecks_eras hecks_era_texts].each do |table|
-              @db.exec_params("UPDATE #{table} SET domain = $1 WHERE domain = $2", [@domain, @formerly_known_as])
-            end
-            # hecks_attestations is created lazily on first reattest!, so it may not exist.
-            return unless @db.exec_params("SELECT to_regclass($1)", ["hecks_attestations"])[0]["to_regclass"]
-
-            @db.exec_params("UPDATE hecks_attestations SET domain = $1 WHERE domain = $2", [@domain, @formerly_known_as])
           end
         end
       end

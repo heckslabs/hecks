@@ -254,6 +254,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "SqliteStatus"
     answers_query "EventTrace"
     answers_query "BootResolution"
+    answers_query "ProjectionAudit"
   end
 
   Hecks::Era.port "Ledger" do

@@ -58,10 +58,30 @@ module Hecks
               { "from" => held_label, "to" => current_label }
             end
 
-            # @return [Hash] the answer as a status row, string-keyed for a JSON document
+            # @return [String, nil] a sentence when the read era's stored hash is not the hash
+            #   of its stored projection (a boot still reads it); nil when they agree or the era
+            #   stores only one of them
+            def warning
+              recomputed = projection_hash
+              return if recomputed.nil? || recomputed == resolved[:hash]
+
+              "era #{ordinal} stores hash #{resolved[:hash][0, 6]} but its stored projection hashes to #{recomputed[0, 6]}"
+            end
+
+            # @return [String, nil] the hash of the read era's stored projection; nil when it stores
+            #   no hash or no projection
+            def projection_hash
+              return unless resolved && resolved[:hash] && resolved[:projection]
+
+              Runtime::ProjectedBluebook.new(resolved[:projection]).mint_hash
+            end
+
+            # @return [Hash] the answer as a status row, string-keyed for a JSON document; `warning`
+            #   appears only when `warning` has something to say
             def to_row
-              { "status" => status, "held" => held_label, "current" => current_label, "ordinal" => ordinal,
-                "move" => move, "reason" => reason, "source" => "database" }
+              row = { "status" => status, "held" => held_label, "current" => current_label, "ordinal" => ordinal,
+                      "move" => move, "reason" => reason, "source" => "database" }
+              (note = warning) ? row.merge("warning" => note) : row
             end
           end
 

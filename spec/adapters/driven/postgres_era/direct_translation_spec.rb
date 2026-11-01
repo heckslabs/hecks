@@ -2,13 +2,13 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/scratch_postgres"
+require_relative "../../../support/direct_chains"
 
 # Proves the direct head (one composed step per held era) equals the chain (one link per era)
 # for every committed edge chain, over rows built from each ruled aggregate's held shape.
 # A chain that has no exact composition (a rekey) reads through the chain, and says so.
 RSpec.describe "PostgresEra direct translation against the edge chain", :io do
   DIRECT_DB = "hecks_postgres_era_direct_spec".freeze
-  EDGE_DIRS = %w[lib/hecks/hecks qa/bluebook examples/pizzas/bluebook examples/directory/bluebook].freeze
   Aggregate = Struct.new(:name, :storage_name)
 
   scratch_postgres DIRECT_DB
@@ -23,32 +23,9 @@ RSpec.describe "PostgresEra direct translation against the edge chain", :io do
     def text_literal(text) = "'#{text}'"
   end
 
-  # Every committed edge, grouped by domain.
-  def self.edges_by_domain
-    registry = Hecks::Runtime::Registry.new
-    files = EDGE_DIRS.flat_map { |dir| Dir[File.join(Dir.pwd, dir, "translations", "*.bluebook")] }
-    Hecks.with_registry(registry) { files.each { |file| Kernel.load(file) } }
-    registry.translations.group_by(&:domain)
-  end
+  def self.edges_by_domain = DirectChains.edges_by_domain
 
-  # The edges from `start` to `final`, or nil when no chain walks there.
-  def self.walk(edges, domain, start, final)
-    Hecks::Translation::Compose.chain(edges, domain: domain, from: start, to: final)
-  rescue Hecks::Runtime::WiringError
-    nil
-  end
-
-  # One [domain, start label, final label, edges] per start that walks to a chain end; Directory's
-  # rekey has no exact composition and is covered on its own.
-  def self.chains
-    edges_by_domain.except("Directory").flat_map { |domain, edges| chains_of(domain, edges) }
-  end
-
-  def self.chains_of(domain, edges)
-    pairs = edges.map(&:from).uniq.product(edges.map(&:to) - edges.map(&:from))
-    walked = pairs.map { |start, final| [domain, start, final, walk(edges, domain, start, final)] }
-    walked.select { |*_, chain| chain&.any? }
-  end
+  def self.chains = DirectChains.chains
 
   def database
     @database ||= PG.connect(dbname: DIRECT_DB).tap do |db|

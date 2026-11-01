@@ -24,6 +24,18 @@ module Hecks
             db&.close
           end
 
+          # The where-fields each aggregate's queries narrow by, whose cache tables hash the
+          # domain's name and so are renamed with it. A superset of the fields actually cached:
+          # a table that does not exist is skipped.
+          #
+          # @return [Hash{String => Array<String>}] storage name to field names
+          def cache_fields
+            aggregates.to_h do |aggregate|
+              queries = aggregate.queries + aggregate.entities.flat_map(&:queries)
+              [aggregate.storage_name, queries.flat_map { |query| query.wheres.map { |clause| clause.field.to_s } }.uniq]
+            end
+          end
+
           # @return [String, nil] the name the domain was known by before its rename
           def former_name = bluebook.formerly_known_as
         end

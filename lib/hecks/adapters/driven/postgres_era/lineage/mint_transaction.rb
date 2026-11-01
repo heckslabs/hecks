@@ -54,7 +54,7 @@ module Hecks
           # @return [void]
           # @raise [PG::Error] if Postgres refuses a grant
           def grant_role!(role, aggregates: [], era: nil)
-            return unless provisioner?
+            return if role.to_s.empty? || !provisioner?
 
             quoted_role = quote(role)
             @db.exec("GRANT INSERT, SELECT ON #{quoted_journal} TO #{quoted_role}")
