@@ -228,9 +228,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Cler
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Amend acts on one Slip — pass reference.value:".to_string(),
-                            )
+                            if store.folder.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Folder",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Amend acts on one Slip — pass reference.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::ledger_ordering::folder::Slip::extract_wants(facts_json);

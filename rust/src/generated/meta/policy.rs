@@ -1712,14 +1712,23 @@ impl DeclareArgs {
         let bluebook = {
             let x = v.get("bluebook").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Policy.bluebook expects String, got nil".to_string(),
+                    "Declare.bluebook expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Policy.bluebook expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "bluebook",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Bluebook is known by name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = PolicyName::from_json(

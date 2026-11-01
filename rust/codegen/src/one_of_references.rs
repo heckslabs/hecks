@@ -117,6 +117,7 @@ fn variant_check(
         optional: crate::attr::optional(source),
         list_item: None,
         union_tag: Some(variant.to_string()),
+        settled: false,
         target_mod: crate::naming::aggregate_module(variant),
         target_name: variant.to_string(),
         heads,

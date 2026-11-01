@@ -4251,9 +4251,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Back
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Amend acts on one LedgerEntry — pass sequence.value:".to_string(),
-                            )
+                            if store.account.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Account",
+                                        identity: "number.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Amend acts on one LedgerEntry — pass sequence.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::banking::account::LedgerEntry::extract_wants(facts_json);
@@ -4322,10 +4334,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Back
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Reverse acts on one LedgerEntry — pass sequence.value:"
-                                    .to_string(),
-                            )
+                            if store.account.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Account",
+                                        identity: "number.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Reverse acts on one LedgerEntry — pass sequence.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::banking::account::LedgerEntry::extract_wants(facts_json);
@@ -4394,9 +4417,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Cust
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Dispute acts on one Withdrawal — pass sequence.value:".to_string(),
-                            )
+                            if store.atmcard.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "ATMCard",
+                                        identity: "serial.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Dispute acts on one Withdrawal — pass sequence.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json);
@@ -4464,10 +4499,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Tell
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Reimburse acts on one Withdrawal — pass sequence.value:"
-                                    .to_string(),
-                            )
+                            if store.atmcard.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "ATMCard",
+                                        identity: "serial.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Reimburse acts on one Withdrawal — pass sequence.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json);
@@ -4535,10 +4581,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Tell
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "RejectDispute acts on one Withdrawal — pass sequence.value:"
-                                    .to_string(),
-                            )
+                            if store.atmcard.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "ATMCard",
+                                        identity: "serial.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "RejectDispute acts on one Withdrawal — pass sequence.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::banking::atmcard::Withdrawal::extract_wants(facts_json);
@@ -4600,10 +4657,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Vaul
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Annotate acts on one Visit — pass date.value, sequence.value:"
-                                    .to_string(),
-                            )
+                            if store.safedepositbox.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "SafeDepositBox",
+                                        identity: "branch_code.value, box_number.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Annotate acts on one Visit — pass date.value, sequence.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::banking::safedepositbox::Visit::extract_wants(facts_json);
@@ -4665,9 +4733,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Vaul
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Return acts on one KeyIssuance — pass serial.value:".to_string(),
-                            )
+                            if store.safedepositbox.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "SafeDepositBox",
+                                        identity: "branch_code.value, box_number.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Return acts on one KeyIssuance — pass serial.value:"
+                                        .to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::banking::safedepositbox::KeyIssuance::extract_wants(

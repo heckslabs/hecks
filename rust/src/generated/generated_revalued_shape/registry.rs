@@ -193,7 +193,7 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate
             let args = if invocation.explicit_with() {
                 let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_revalued_shape::hangar::RepointArgs::from_json(v)?;
 args.venue.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::generated_revalued_shape::hangar::RepointArgs| { crate::kernel::check_reference(&store.venue, &args.venue.value, "Venue", "code")?; Ok(()) } })?;
+Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_revalued_shape::hangar::RepointArgs| Ok(()) })?;
                 if let Some(route) = route {
                     route.require_depth(0)?;
                 }
@@ -204,7 +204,7 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate
                 }
                 crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::generated_revalued_shape::hangar::RepointArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::generated_revalued_shape::hangar::RepointArgs::from_json(v)?;
 args.venue.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::generated_revalued_shape::hangar::RepointArgs| { crate::kernel::check_reference(&store.venue, &args.venue.value, "Venue", "code")?; Ok(()) } })?
+Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::generated_revalued_shape::hangar::RepointArgs| Ok(()) })?
             };
             let id = match route {
                 Some(route) => route.aggregate().to_string(),
@@ -222,7 +222,16 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate
                     )
                 })?,
             };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> =
+                (|| -> Result<(), crate::kernel::Refusal> {
+                    crate::kernel::check_reference(
+                        &store.venue,
+                        &args.venue.value,
+                        "Venue",
+                        "code",
+                    )?;
+                    Ok(())
+                })();
             let owner_deref = crate::kernel::owner_deref(
                 &*store,
                 REFERENCE_TABLE,

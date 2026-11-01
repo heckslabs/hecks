@@ -7144,15 +7144,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             Ok(())
                         },
                         resolve_references:
-                            &|args: &crate::generated::meta::syntax::DeclareArgs| {
-                                crate::kernel::check_reference(
-                                    &store.bluebook,
-                                    &args.bluebook.value,
-                                    "Bluebook",
-                                    "name",
-                                )?;
-                                Ok(())
-                            },
+                            &|_args: &crate::generated::meta::syntax::DeclareArgs| Ok(()),
                     },
                 )?;
                 if let Some(route) = route {
@@ -7191,19 +7183,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             Ok(())
                         },
                         resolve_references:
-                            &|args: &crate::generated::meta::syntax::DeclareArgs| {
-                                crate::kernel::check_reference(
-                                    &store.bluebook,
-                                    &args.bluebook.value,
-                                    "Bluebook",
-                                    "name",
-                                )?;
-                                Ok(())
-                            },
+                            &|_args: &crate::generated::meta::syntax::DeclareArgs| Ok(()),
                     },
                 )?
             };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> =
+                (|| -> Result<(), crate::kernel::Refusal> {
+                    crate::kernel::check_reference(
+                        &store.bluebook,
+                        &args.bluebook.value,
+                        "Bluebook",
+                        "name",
+                    )?;
+                    Ok(())
+                })();
             let owner_deref = Vec::new();
             let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
             let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -7726,7 +7719,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                 }
                 None => {
                     let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispatch acts on a ProcessManager's Handler — pass bluebook, name.value:".to_string()))?;
-                    let element_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispatch acts on one Handler — pass event_type.value, from_state.value:".to_string()))?;
+                    let element_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.processmanager.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "ProcessManager", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Dispatch acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
                     let element_wants =
                         crate::generated::meta::processmanager::Handler::extract_wants(facts_json);
                     (parent_id, element_id, element_wants)
@@ -7793,9 +7786,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::valueobject::Member::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Pair acts on one Member — pass position.value:".to_string(),
-                                )
+                                if store.valueobject.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "ValueObject",
+                                            identity: "aggregate, name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Pair acts on one Member — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::valueobject::Member::extract_wants(facts_json);
@@ -7860,10 +7865,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Keyword::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Deprecate acts on one Keyword — pass position.value:"
-                                        .to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Deprecate acts on one Keyword — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Keyword::extract_wants(facts_json);
@@ -7927,9 +7943,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Keyword::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Retire acts on one Keyword — pass position.value:".to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Retire acts on one Keyword — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Keyword::extract_wants(facts_json);
@@ -7994,10 +8022,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Argument::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Deprecate acts on one Argument — pass position.value:"
-                                        .to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Deprecate acts on one Argument — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Argument::extract_wants(facts_json);
@@ -8061,10 +8100,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Argument::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Retire acts on one Argument — pass position.value:"
-                                        .to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Retire acts on one Argument — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Argument::extract_wants(facts_json);

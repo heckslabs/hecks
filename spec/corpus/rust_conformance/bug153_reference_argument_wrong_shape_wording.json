@@ -1,0 +1,85 @@
+{
+  "domain": "qa/stress_domains/generated_reaction_wording",
+  "note": "BUG#153 — a reference argument that arrives as anything but an id string refuses in the reference_wrong_shape wording, naming the command, the argument and how the target is known.",
+  "steps": [
+    {
+      "verb": "GeneratedReactionWording::Parcel.Open",
+      "args": {
+        "code": {
+          "value": "juliet"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedReactionWording::Desk.Open",
+      "args": {
+        "parcel": true,
+        "code": {
+          "value": "golf"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedReactionWording::Desk.Open",
+      "args": {
+        "parcel": 7,
+        "code": {
+          "value": "golf"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedReactionWording::Desk.Open",
+      "args": {
+        "parcel": {
+          "value": "juliet"
+        },
+        "code": {
+          "value": "golf"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "instances": {
+      "GeneratedReactionWording::Parcel#juliet": {
+        "code": {
+          "value": "juliet"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "ParcelOpened",
+        "aggregate": "GeneratedReactionWording::Parcel",
+        "id": "juliet",
+        "payload": {
+          "code": {
+            "value": "juliet"
+          }
+        }
+      }
+    ],
+    "refusals": [
+      {
+        "verb": "GeneratedReactionWording::Desk.Open",
+        "error": "Open refused — a reference is an id, and parcel arrived as true (Parcel is known by code)",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "GeneratedReactionWording::Desk.Open",
+        "error": "Open refused — a reference is an id, and parcel arrived as 7 (Parcel is known by code)",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "GeneratedReactionWording::Desk.Open",
+        "error": "Open refused — a reference is an id, and parcel arrived as an object (Parcel is known by code)",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}

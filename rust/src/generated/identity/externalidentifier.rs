@@ -653,14 +653,23 @@ impl LinkArgs {
         let identity = {
             let x = v.get("identity").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "ExternalIdentifier.identity expects String, got nil".to_string(),
+                    "Link.identity expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "ExternalIdentifier.identity expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Link",
+                        attribute: "identity",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Identity is known by identity_id)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let key = ExternalIdentifierKey::from_json(
