@@ -20,6 +20,9 @@ Hecks.bluebook "Fixer" do
     attribute :cause,        BugCause, optional: true
     attribute :commit,       CommitRef, optional: true
     attribute :verification, Verification, optional: true
+    attribute :reproduction, ReproductionCommand, optional: true
+    attribute :observed,     ReproductionObserved, optional: true
+    attribute :reproduced,   ReproductionResult, optional: true
 
     value_object "BugReference" do
       attribute :value, String, matches: :present
@@ -46,6 +49,24 @@ Hecks.bluebook "Fixer" do
     value_object "Verification" do
       attribute :value, String, matches: :present
       invariant("a verification says what was actually run") { !value.to_s.empty? }
+    end
+
+    # The exact command or entry point that was run, from the real path a user or caller takes.
+    # Verification must re-run this same text, so a fix that passes only new tests is not verified.
+    value_object "ReproductionCommand" do
+      attribute :value, String, matches: :present
+      invariant("a reproduction names the exact command run") { !value.to_s.empty? }
+    end
+
+    # A short fingerprint or the failing line the real path printed.
+    value_object "ReproductionObserved" do
+      attribute :value, String, matches: :present
+      invariant("a reproduction records what the real path printed") { !value.to_s.empty? }
+    end
+
+    value_object "ReproductionResult" do
+      attribute :value, String, matches: :present
+      invariant("a reproduction either failed or passed") { value == "failed" || value == "passed" }
     end
 
     value_object "Engineer" do
@@ -100,14 +121,19 @@ Hecks.bluebook "Fixer" do
       emits "AttemptClaimed"
     end
 
+    # An investigation starts from the real entry point: the command run, what it printed, and
+    # whether it failed. `Fix` is refused until a failing reproduction is on the record.
     command "Investigate" do
       role "Fixer"
-      goal "Name the code that is wrong and say why"
+      goal "Run the real entry point, record its failure, name the code that is wrong and say why"
 
       reference_to Attempt
-      attribute :reference, BugReference
-      attribute :site,      BugSite,  sets: true
-      attribute :cause,     BugCause, sets: true
+      attribute :reference,    BugReference
+      attribute :site,         BugSite,  sets: true
+      attribute :cause,        BugCause, sets: true
+      attribute :reproduction, ReproductionCommand,  sets: true
+      attribute :observed,     ReproductionObserved, sets: true
+      attribute :reproduced,   ReproductionResult,   sets: true
 
       emits "AttemptInvestigated"
     end
@@ -122,6 +148,10 @@ Hecks.bluebook "Fixer" do
       attribute :reference, BugReference
       attribute :commit,    CommitRef, sets: true
 
+      given("no failing reproduction recorded: run the real entry point first") do
+        !reproduction.nil? && !reproduced.nil? && reproduced.value == "failed"
+      end
+
       emits "FixReady"
     end
 
@@ -135,6 +165,16 @@ Hecks.bluebook "Fixer" do
       attribute :reference, BugReference
       attribute :commit,    CommitRef
       attribute :evidence,  Verification
+      attribute :rerun,         ReproductionCommand
+      attribute :rerun_result,  ReproductionResult
+
+      given("the reproduction re-run is not the one recorded: run the recorded command") do
+        !reproduction.nil? && rerun.value == reproduction.value
+      end
+
+      given("the recorded reproduction still fails: a fix that passes only new tests is not verified") do
+        rerun_result.value == "passed"
+      end
 
       sets :verification, to: :evidence
 
