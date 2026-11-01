@@ -172,7 +172,7 @@ module Hecks
         output, minted = @commands.mint_era(@root, domain:  value_of(request[:domain]),
                                                    era:     value_of(request[:era]),
                                                    request: {
-                                                     confirm:   value_of(request[:confirm]) == "yes",
+                                                     confirm:   value_of(request[:confirm]) == true,
                                                      verdict:   value_of(request[:rehearsal_verdict]),
                                                      watermark: value_of(request[:watermark])
                                                    })

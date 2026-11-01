@@ -2124,6 +2124,11 @@ Hecks.bluebook "QualityControl" do
       emits "RehearsalVerdict"
     end
 
+    # The confirmation of a mint: the `--confirm` flag, which the launcher reads as a Boolean.
+    value_object "Confirmation" do
+      attribute :value, Boolean
+    end
+
     # The single entry point for a mint of a domain's next era. It is the only command that asks for a mint:
     # a boot never mints, and the mint names the commit its landing puts on main, so the ledger and main move
     # together. The rehearsal ref and the expected watermark are checked against the live ledger by the era check.
@@ -2139,9 +2144,9 @@ Hecks.bluebook "QualityControl" do
       attribute :rehearsal_ref,  String
       attribute :watermark,      Integer
       attribute :verdict,        MintVerdict
-      attribute :confirm,        one_of("no", "yes")
+      attribute :confirm,        Confirmation, optional: true
 
-      given("only a confirmed mint is requested") { confirm.value == "yes" }
+      given("only a confirmed mint is requested") { confirm.value == true }
 
       emits "MintRequested"
     end

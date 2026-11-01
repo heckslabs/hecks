@@ -105,7 +105,7 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
     { confirm: confirm, verdict: verdict, watermark: watermark }
   end
 
-  def mint_with(verdict: "would_mint", confirm: "yes", watermark: self.watermark, era: 2)
+  def mint_with(verdict: "would_mint", confirm: true, watermark: self.watermark, era: 2)
     port.mint(run: "r1", domain: "Ledger", era: era, sha: sha, branch: "qa/x", watermark: watermark,
               rehearsal_verdict: verdict, confirm: confirm)
   end
@@ -147,7 +147,7 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
   end
 
   it "refuses an unconfirmed mint by name, and mints the era once confirmed", :aggregate_failures do
-    expect { mint_with(confirm: "no") }.to raise_error(refused, /the mint was not confirmed/)
+    expect { mint_with(confirm: false) }.to raise_error(refused, /the mint was not confirmed/)
     expect(mint_with).to include(label: { value: label_of(shape("amount")) })
     expect(era_count).to eq(2)
   end
