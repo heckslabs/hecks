@@ -783,7 +783,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 Json::obj(fields)
             };
 
-            if depth + 1 >= MAX_REACTION_DEPTH {
+            if depth >= MAX_REACTION_DEPTH {
                 self.reaction_log.push(record(vec![
                     ("delivered", Json::Bool(false)),
                     (
@@ -1055,7 +1055,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
             Json::obj(fields)
         };
 
-        if depth + 1 >= MAX_REACTION_DEPTH {
+        if depth >= MAX_REACTION_DEPTH {
             self.saga_log.push(record(vec![
                 ("delivered", Json::Bool(false)),
                 (
@@ -1126,7 +1126,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
             Json::obj(fields)
         };
 
-        if depth + 1 >= MAX_REACTION_DEPTH {
+        if depth >= MAX_REACTION_DEPTH {
             self.saga_log.push(record(vec![
                 ("delivered", Json::Bool(false)),
                 (

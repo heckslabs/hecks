@@ -331,9 +331,14 @@ it, except for one law they must uphold (C8.4).
   selected by the same rule. (fixture: `saga_leg_selected_by_state.json`
   — its domain is corpus-owned, `spec/corpus/semantics/domains/relay`,
   because no example domain declares two legs on one event)
-- **C10.4 (settled)** Reaction depth is bounded (5); a reaction beyond
-  the bound is recorded undelivered, never run.
-  (fixture: `events_and_reactions_order.json`)
+- **C10.4 (settled)** Reaction depth is bounded (5): a command runs at
+  most five nested reactions below the root command, and the sixth is
+  recorded undelivered with `reaction depth 5 reached`, never run. A
+  chain of exactly five runs whole in both runtimes.
+  (fixtures: `events_and_reactions_order.json`, and
+  `reaction_depth_bound.json` — its domain is corpus-owned,
+  `spec/corpus/semantics/domains/echo`, a policy that answers its own
+  event with the same command)
 
 ## Corpus contract
 
