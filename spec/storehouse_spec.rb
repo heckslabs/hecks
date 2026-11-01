@@ -168,6 +168,11 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:records].first[:id]).to eq("Margherita")
     end
 
+    it "names the record it read in its ids" do
+      expect(described_class.state(runtime: runtime, aggregate: "Order", id: "Margherita", summary: "spec")[:ids])
+        .to eq(id: "Margherita")
+    end
+
     it "answers one record when id is given", :aggregate_failures do
       result = described_class.state(runtime: runtime, aggregate: "Order", id: "Margherita", summary: "spec")
 
