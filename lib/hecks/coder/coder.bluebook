@@ -332,6 +332,13 @@ Hecks.bluebook "Coder" do
       attribute :value, String
     end
 
+    # The brief a coder session reads for the next planned row: the Brief keyed by that row.
+    query "For" do
+      description "The brief composed for one Work row, by the row's key."
+      attribute :row, BriefWork
+      where(work: :row)
+    end
+
     command "Compose" do
       role "Coder"
       goal "Build the brief for a Work row from its outcome and area, with the standing rules"
@@ -346,6 +353,13 @@ Hecks.bluebook "Coder" do
 
       emits "BriefComposed"
     end
+  end
+
+  # A planned Work row is briefed when it is planned: the title is the outcome, and the detail and the
+  # area come with it. A session reads the brief of `Work.next_planned` with `Brief.for`.
+  policy "ComposeBriefWhenPlanned" do
+    on      "Work.WorkPlanned"
+    trigger Brief::Compose, with: { work: :work, outcome: :title, detail: :detail, area: :area }
   end
 
   # The one automatic reaction. A fix retires the workaround standing in for it: the stub is only

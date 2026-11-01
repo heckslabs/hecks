@@ -5,6 +5,7 @@ require_relative "console_capture"
 require_relative "../../ports/persistence/binding_policy"
 require_relative "settings_reading/stores"
 require_relative "settings_reading/disposable_ledger"
+require_relative "work_limits"
 
 module Hecks
   module Adapters
@@ -52,7 +53,8 @@ module Hecks
       private
 
       def rows(directory)
-        [environment, database(directory), mint_eras(directory), disposable_ledger(directory), schema, project_environment,
+        [environment, database(directory), mint_eras(directory), disposable_ledger(directory), work_cap(directory),
+         schema, project_environment,
          variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
          variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),
          registry_source(directory), *stores(directory)]
@@ -100,6 +102,15 @@ module Hecks
         ["mint eras", mint_wording(declared), declared.key?(:mint_eras) ? "world" : "default"]
       rescue StandardError => e
         ["mint eras", "could not be read", first_line(e.message)]
+      end
+
+      # How many Work rows may be started at once, and whether the world or the default says.
+      def work_cap(directory)
+        registry = Hecks.describe(directory).registry
+        declared = registry.world("Tickets")&.for_verb(WorkLimits::VERB)&.key?(:cap)
+        ["work cap", WorkLimits.cap(registry), declared ? "world" : "default"]
+      rescue StandardError => e
+        ["work cap", "could not be read", first_line(e.message)]
       end
 
       def mint_wording(declared)
