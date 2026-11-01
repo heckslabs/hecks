@@ -51,11 +51,11 @@ module Hecks
         outcome  = perform_state(runtime, bluebook, aggregate, summary, id)
 
         record!(bluebook.name, tool: "state", summary: summary, **tags.slice(:source, :surface), outcome: outcome)
-        outcome
+        outcome.merge(ids: { id: id }.compact)
       rescue *refusal_classes => e
         outcome = refused(e, summary: summary)
         record!(bluebook&.name, tool: "state", summary: summary, **tags.slice(:source, :surface), outcome: outcome)
-        outcome
+        outcome.merge(ids: { id: id }.compact)
       end
 
       # :nodoc:
