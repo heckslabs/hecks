@@ -19,6 +19,8 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::DailyQuota.persisted_by("PostgresEra")
   QualityControl::Clearance.persisted_by("PostgresEra")
   QualityControl::MainCheck.persisted_by("PostgresEra")
+  # One run of main's maintenance lives for that run only; the ledger keeps the mint, not the run.
+  QualityControl::Maintenance.persisted_by("Memory")
 end
 
 # The Fixer's wiring, declared in the Fixer's own block: its attempts are transient work held in Memory,
