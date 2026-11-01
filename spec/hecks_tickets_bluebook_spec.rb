@@ -43,7 +43,7 @@ RSpec.describe "the Tickets bluebook" do
     allow(Open3).to receive(:capture3)
     stub_const("ENV", ENV.to_h.except("HECKS_FINDINGS_REPO"))
     before = @hecks.registry.reaction_log.size
-    argv = ["tickets", "finding.report", "finding.value=#{key}", "title.value=A gap", "source.value=maintainer"]
+    argv = ["tickets", "finding.report!", "finding.value=#{key}", "title.value=A gap", "source.value=maintainer"]
 
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
     [out, @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }]
@@ -71,7 +71,7 @@ RSpec.describe "the Tickets bluebook" do
   end
 
   it "lists a reported finding among the open ones" do
-    argv = ["tickets", "finding.report", "finding.value=f-open", "title.value=Still open", "source.value=maintainer"]
+    argv = ["tickets", "finding.report!", "finding.value=f-open", "title.value=Still open", "source.value=maintainer"]
     Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
 
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "finding.open"])
@@ -96,13 +96,14 @@ RSpec.describe "the Tickets bluebook" do
   it "gives a Work step the commands of its lifecycle" do
     commands = @bluebook.aggregate("Work").commands.map(&:hecks_name)
 
-    expect(commands).to contain_exactly("Plan", "Start", "Release", "Finish", "Drop", "Lapse")
+    expect(commands).to contain_exactly("Plan", "Start", "Release", "Finish", "Drop", "Lapse", "Yield")
   end
 
-  it "drives nothing outside from a Work step" do
+  # The WorkAreas and WorkLimits ports read Hecks's own rows and clock; nothing leaves the process.
+  it "asks only Hecks's own ports from a Work step" do
     asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 
-    expect(asks).to be_empty
+    expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted")
   end
 
   it "lapses a superseded decision's undone steps" do

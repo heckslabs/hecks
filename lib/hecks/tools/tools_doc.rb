@@ -183,13 +183,14 @@ module Hecks
 
         # @param row [Hash{String => String}] a `RetiredScript` row
         # @return [Array(Hash, Array<String>)] the projected command or query, and the words that
-        #   name it on the command line
+        #   name it on the command line, a command's with the bang the launcher requires
         # @raise [SystemExit] when the row names no command or query
         def spec_for(row)
           declaration = %w[Custodian Codebase].include?(row["section"]) ? "Hecks" : row["section"]
           name = "#{Naming.snake(row["aggregate"])}.#{row["verb"]}"
-          spec = find_spec(projection(declaration), name) or abort "tools_doc: #{declaration} has no command or query #{name}"
-          [spec, words(declaration, name, row)]
+          cli = projection(declaration)
+          spec = find_spec(cli, name) or abort "tools_doc: #{declaration} has no command or query #{name}"
+          [spec, words(declaration, name, row, bang: cli[:names][:command].key?(name))]
         end
 
         private
@@ -207,13 +208,14 @@ module Hecks
           end
         end
 
-        # `hecks ir`, `hecks console`, `hecks quality_control sweep.run`, `hecks host.check_era!`.
+        # `hecks ir`, `hecks console!`, `hecks quality_control sweep.run`, `hecks host.check_era!`.
         # The launcher takes a name that is only a query as a query, so no `query` word is needed.
-        def words(declaration, name, row)
+        def words(declaration, name, row, bang:)
           route = route_for(Adapters::Driving::LauncherOptions.settings(@runtime, declaration) || {}, declaration, name, row)
-          return [route] if route
+          marked = ->(word) { bang ? "#{word}!" : word }
+          return [marked.call(route)] if route
 
-          [*(Naming.snake(declaration) unless declaration == "Hecks"), name]
+          [*(Naming.snake(declaration) unless declaration == "Hecks"), marked.call(name)]
         end
 
         # @return [String, nil] the one word the launcher routes the name by, when it has one

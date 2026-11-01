@@ -403,20 +403,20 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect { check!(V2_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, NO_EDGE_REFUSAL)
     end
 
-    it "refuses a stale edge whose target hash no longer matches the current shape" do
-      stale = edge_source(from: label_of(V1_SOURCE), to: "000000")
+    # The era is its stored projection, so an edge to some other shape is not on this path.
+    it "ignores a stray edge from the held shape to another shape" do
+      from = label_of(V1_SOURCE)
+      stray = edge_source(from: from, to: label_of(V2_SOURCE)) + edge_source(from: from, to: "000000")
 
-      expect { check!(V2_SOURCE, translation_source: stale) }.to raise_error(
-        Hecks::Runtime::WiringError, /the edge is stale; re-run hecks scaffold_translation/
-      )
+      expect { check!(V2_SOURCE, translation_source: stray) }.not_to raise_error
     end
 
-    it "refuses a mechanical fork — two edges leaving one source shape" do
+    it "refuses two edges for one pair, by name" do
       from = label_of(V1_SOURCE)
-      forked = edge_source(from: from, to: label_of(V2_SOURCE)) + edge_source(from: from, to: "111111")
+      twice = edge_source(from: from, to: label_of(V2_SOURCE)) * 2
 
-      expect { check!(V2_SOURCE, translation_source: forked) }.to raise_error(
-        Hecks::Runtime::WiringError, /eras fork mechanically; keep one edge per source shape/
+      expect { check!(V2_SOURCE, translation_source: twice) }.to raise_error(
+        Hecks::Runtime::WiringError, /2 translation edges lead era 1 .* to the current shape .*; keep one/
       )
     end
 

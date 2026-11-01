@@ -33,36 +33,36 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks introspection.docs [<domain>] [aggregate=]` | `bin/docs` |
 | `hecks introspection.project_diagrams <domain> bluebook=` | `bin/project_diagrams` |
 | `hecks introspection.glossary <domain> bluebook=` | `bin/project_glossary` |
-| `hecks model_check_run.model_check [<domains>] [profile=] [--strict]` | `bin/model_check` |
+| `hecks model_check_run.model_check! [<domains>] [profile=] [--strict]` | `bin/model_check` |
 | `hecks run [domain] <verb [name=value …] \| script.json \| - \| '{"steps":[…]}'>` | `bin/run` |
-| `hecks operation.refresh_projections <subject>` | `bin/project` |
-| `hecks operation.run_behaviors <subject>` | `bin/behaviors` |
-| `hecks console [<subject>]` | `bin/console` |
+| `hecks operation.refresh_projections! <subject>` | `bin/project` |
+| `hecks operation.run_behaviors! <subject>` | `bin/behaviors` |
+| `hecks console! [<subject>]` | `bin/console` |
 | `hecks operation.follow <domain> [aggregate=] [since=] [wait=] [interval=] [--from-now]` | `bin/follow` |
-| `hecks operation.smoke_test [<subject>]` | `bin/smoke_test` |
-| `hecks operation.smoke_http [<url>] path= [header=] [scheme=] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
-| `hecks host.check_era <host> expected= [timeout=]` | `bin/check_era` |
-| `hecks era.merge_tail <domain> [winners=] --confirm` | `bin/merge_tail` |
-| `hecks era.reattest <domain> era= --confirm` | `bin/reattest_era` |
-| `hecks era.backfill_projections <domain>` | `bin/backfill_era_projections` |
+| `hecks operation.smoke_test! [<subject>]` | `bin/smoke_test` |
+| `hecks operation.smoke_http! [<url>] path= [header=] [scheme=] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
+| `hecks host.check_era! <host> expected= [timeout=]` | `bin/check_era` |
+| `hecks era.merge_tail! <domain> [winners=] --confirm` | `bin/merge_tail` |
+| `hecks era.reattest! <domain> era= --confirm` | `bin/reattest_era` |
+| `hecks era.backfill_projections! <domain>` | `bin/backfill_era_projections` |
 | `hecks era.scaffold_translation <domain>` | `bin/scaffold_translation` |
 | `hecks era.audit_translation <domain>` | `bin/translation_audit` |
-| `hecks era.compact <domain> [aggregates=] --confirm` | `bin/compact` |
-| `hecks era.compact_heki <domain> [aggregates=] --confirm` | `bin/heki_compact` |
-| `hecks package.vendor <package> [from=] [root=] (waits: a refusal exits 1 with its reason on stderr)` | `bin/vendor_bluebook` |
-| `hecks launch.project_cli [<domains>]` | `bin/project_cli` |
-| `hecks mcp [--stdio]` | `bin/hecks_mcp_door` |
-| `hecks build.project_rust <domain>` | `bin/project_rust` |
-| `hecks build.build_wasm <domain> [profile=]` | `bin/project_wasm` |
-| `hecks build.build_host <domain> [target=] [stage_dir=] [--prebuilt]` | `bin/project_host` |
-| `hecks build.build_browser_wasm <domain>` | `bin/project_wasm_browser` |
-| `hecks build.rust_coverage <module_name> [codegen=]`; `hecks build.check_coverage_allowlist` | `bin/rust_coverage` |
-| `hecks build.check_conformance <domain> script= [artifact=]` | `bin/rust_conformance` |
-| `hecks build.fuzz_conformance <domain> artifact= [seeds=] [steps=]` | `bin/rust_conformance_fuzz` |
-| `hecks fuzz_run.fuzz [<domain>] [seeds=] [steps=] [workers=] [adapter=] [shard=] [list_shards=] [--persist-regressions]` | `bin/fuzz` |
+| `hecks era.compact! <domain> [aggregates=] --confirm` | `bin/compact` |
+| `hecks era.compact_heki! <domain> [aggregates=] --confirm` | `bin/heki_compact` |
+| `hecks package.vendor! <package> [from=] [root=] (waits: a refusal exits 1 with its reason on stderr)` | `bin/vendor_bluebook` |
+| `hecks launch.project_cli! [<domains>]` | `bin/project_cli` |
+| `hecks mcp! [--stdio]` | `bin/hecks_mcp_door` |
+| `hecks build.project_rust! <domain>` | `bin/project_rust` |
+| `hecks build.build_wasm! <domain> [profile=]` | `bin/project_wasm` |
+| `hecks build.build_host! <domain> [target=] [stage_dir=] [--prebuilt]` | `bin/project_host` |
+| `hecks build.build_browser_wasm! <domain>` | `bin/project_wasm_browser` |
+| `hecks build.rust_coverage <module_name> [codegen=]`; `hecks build.check_coverage_allowlist!` | `bin/rust_coverage` |
+| `hecks build.check_conformance! <domain> script= [artifact=]` | `bin/rust_conformance` |
+| `hecks build.fuzz_conformance! <domain> artifact= [seeds=] [steps=]` | `bin/rust_conformance_fuzz` |
+| `hecks fuzz_run.fuzz! [<domain>] [seeds=] [steps=] [workers=] [adapter=] [shard=] [list_shards=] [--persist-regressions]` | `bin/fuzz` |
 | `hecks fuzz_run.generate_sequence <domain> [seed=] [steps=] [adversarial=]` | `bin/generate` |
-| `hecks fuzz_run.bench [<domains>] [targets=] [iterations=] [warmup=] [runs=] [rust_binary=] [format=] [output=]` | `bin/bench` |
-| `hecks fuzz_run.mutate <domain> [seeds=] [steps=] [budget=]`; `hecks era.hold_first <domain> --confirm` | (new: no `bin/` script) |
+| `hecks fuzz_run.bench! [<domains>] [targets=] [iterations=] [warmup=] [runs=] [rust_binary=] [format=] [output=]` | `bin/bench` |
+| `hecks fuzz_run.mutate! <domain> [seeds=] [steps=] [budget=]`; `hecks era.hold_first! <domain> --confirm` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
 ## Deploy, for clients
@@ -70,11 +70,11 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 <!-- generated:begin tools section=Deploy -->
 | launcher | replaces |
 |---|---|
-| `hecks deploy recipe.project <domain> [tenant=] [schema=] [out=] [environment=]` | `bin/project_deploy` |
-| `hecks deploy makefile_check.lint [<makefiles>]` | `bin/lint_deploy_recipes` |
-| `hecks deploy template_comparison.diff <before> after= [--json] [--strict]` | `bin/deploy_template_diff` |
-| `hecks deploy oidc_manifest.project_oidc [<domains>]` | `bin/project_oidc` |
-| `hecks deploy tenant.provision <directory> slug= domain= realm= schema= database= [adapter=]`; `hecks deploy tenant.reprovision <to> directory= database= [adapter=]` | `bin/project_tenant` |
+| `hecks deploy recipe.project! <domain> [tenant=] [schema=] [out=] [environment=]` | `bin/project_deploy` |
+| `hecks deploy makefile_check.lint! [<makefiles>]` | `bin/lint_deploy_recipes` |
+| `hecks deploy template_comparison.diff! <before> after= [--json] [--strict]` | `bin/deploy_template_diff` |
+| `hecks deploy oidc_manifest.project_oidc! [<domains>]` | `bin/project_oidc` |
+| `hecks deploy tenant.provision! <directory> slug= domain= realm= schema= database= [adapter=]`; `hecks deploy tenant.reprovision! <to> directory= database= [adapter=]` | `bin/project_tenant` |
 <!-- generated:end tools -->
 
 ## Site, for clients
@@ -82,7 +82,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 <!-- generated:begin tools section=Site -->
 | launcher | replaces |
 |---|---|
-| `hecks site site_projection.project_site <domain> [out=] [template=] [cms=] [root=] [editor=] [extension=] [--check]` | (new: no `bin/` script) |
+| `hecks site site_projection.project_site! <domain> [out=] [template=] [cms=] [root=] [editor=] [extension=] [--check]` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
 `project_site` has no retired script to point at, so its row names `(new)` for the script; see
@@ -103,44 +103,44 @@ still need a checkout.
 <!-- generated:begin tools section=Codebase -->
 | launcher | replaces |
 |---|---|
-| `hecks language_run.project_model --confirm` | `bin/project_model` |
-| `hecks language_run.project_vocabulary --confirm` | `bin/project_vocabulary` |
-| `hecks language_run.project_rust_vocabulary --confirm` | `bin/project_rust_vocabulary` |
-| `hecks language_run.project_refusal_wording --confirm` | `bin/project_refusal_wording` |
-| `hecks language_run.project_reserved_names --confirm` | `bin/project_reserved_names` |
-| `hecks language_run.project_parser_table --confirm` | `bin/project_parser_table` |
-| `hecks language_run.project_phrase_table --confirm` | `bin/project_phrase_table` |
-| `hecks language_run.project_bootstrap_table --confirm` | `bin/project_bootstrap_table` |
-| `hecks language_run.project_field_hints --confirm` | `bin/project_field_hints` |
-| `hecks language_run.project_expression_tables [--stdout] --confirm` | `bin/expression_projection` |
-| `hecks language_run.project_reference --confirm` | `bin/reference` |
-| `hecks language_run.word_status`; `hecks language_run.propose <word> context= [body=] [inner=] [opens=] [fills=] --confirm`; `hecks language_run.admit <word> context= --confirm`; `hecks language_run.deprecate <word> context= --confirm`; `hecks language_run.retire <word> context= --confirm`; `hecks language_run.rename <word> context= new_name= --confirm`; `hecks language_run.propose_argument <word> context= kind= [required=] [at=] [named=] [fills=] [pairs_shape=] --confirm`; `hecks language_run.admit_argument <word> context= [at=] [named=] --confirm`; `hecks language_run.deprecate_argument <word> context= [at=] [named=] --confirm`; `hecks language_run.retire_argument <word> context= [at=] [named=] --confirm` | `bin/evolve` |
-| `hecks kernel_run.project_kernel_capabilities --confirm` | `bin/project_kernel_capabilities` |
-| `hecks kernel_run.measure_kernel_coverage` | `bin/rust_kernel_coverage` |
-| `hecks conformance_run.check_engine_agreement` | `bin/check_engine_agreement` |
-| `hecks conformance_run.measure_doc_coverage` | `bin/doc_coverage` |
-| `hecks conformance_run.argument_gate_matrix --confirm` | `bin/argument_gate_matrix` |
-| `hecks regeneration_run.regenerate_corpus [domains=] [workers=] [--check] --confirm` | `bin/regen_codegen_domains` |
-| `hecks style_run.report_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_comments <paths> [only=]`; `hecks style_run.fix_comments <paths> [only=] --confirm`; `hecks style_run.write_comment_baseline [<paths>] --confirm`; `hecks style_run.check_comments_unchanged <ref> [paths=]` | `bin/standardize_comments` |
-| `hecks style_run.report_rust_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_rust_comments <paths> [only=]`; `hecks style_run.fix_rust_comments <paths> [only=] --confirm` | `bin/standardize_comments_rust` |
-| `hecks style_run.canonicalise <file>` | `bin/canonicalise` |
-| `hecks codemod_run.hoist_local_givens --confirm` | `bin/codemod_hoist_local_givens` |
-| `hecks codemod_run.drop_implicit_append_fields --confirm` | `bin/codemod_implicit_append_fields` |
+| `hecks language_run.project_model! --confirm` | `bin/project_model` |
+| `hecks language_run.project_vocabulary! --confirm` | `bin/project_vocabulary` |
+| `hecks language_run.project_rust_vocabulary! --confirm` | `bin/project_rust_vocabulary` |
+| `hecks language_run.project_refusal_wording! --confirm` | `bin/project_refusal_wording` |
+| `hecks language_run.project_reserved_names! --confirm` | `bin/project_reserved_names` |
+| `hecks language_run.project_parser_table! --confirm` | `bin/project_parser_table` |
+| `hecks language_run.project_phrase_table! --confirm` | `bin/project_phrase_table` |
+| `hecks language_run.project_bootstrap_table! --confirm` | `bin/project_bootstrap_table` |
+| `hecks language_run.project_field_hints! --confirm` | `bin/project_field_hints` |
+| `hecks language_run.project_expression_tables! [--stdout] --confirm` | `bin/expression_projection` |
+| `hecks language_run.project_reference! --confirm` | `bin/reference` |
+| `hecks language_run.word_status`; `hecks language_run.propose! <word> context= [body=] [inner=] [opens=] [fills=] --confirm`; `hecks language_run.admit! <word> context= --confirm`; `hecks language_run.deprecate! <word> context= --confirm`; `hecks language_run.retire! <word> context= --confirm`; `hecks language_run.rename! <word> context= new_name= --confirm`; `hecks language_run.propose_argument! <word> context= kind= [required=] [at=] [named=] [fills=] [pairs_shape=] --confirm`; `hecks language_run.admit_argument! <word> context= [at=] [named=] --confirm`; `hecks language_run.deprecate_argument! <word> context= [at=] [named=] --confirm`; `hecks language_run.retire_argument! <word> context= [at=] [named=] --confirm` | `bin/evolve` |
+| `hecks kernel_run.project_kernel_capabilities! --confirm` | `bin/project_kernel_capabilities` |
+| `hecks kernel_run.measure_kernel_coverage!` | `bin/rust_kernel_coverage` |
+| `hecks conformance_run.check_engine_agreement!` | `bin/check_engine_agreement` |
+| `hecks conformance_run.measure_doc_coverage!` | `bin/doc_coverage` |
+| `hecks conformance_run.argument_gate_matrix! --confirm` | `bin/argument_gate_matrix` |
+| `hecks regeneration_run.regenerate_corpus! [domains=] [workers=] [--check] --confirm` | `bin/regen_codegen_domains` |
+| `hecks style_run.report_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_comments! <paths> [only=]`; `hecks style_run.fix_comments! <paths> [only=] --confirm`; `hecks style_run.write_comment_baseline! [<paths>] --confirm`; `hecks style_run.check_comments_unchanged! <ref> [paths=]` | `bin/standardize_comments` |
+| `hecks style_run.report_rust_comments <paths> [only=] [top=] [--json]`; `hecks style_run.check_rust_comments! <paths> [only=]`; `hecks style_run.fix_rust_comments! <paths> [only=] --confirm` | `bin/standardize_comments_rust` |
+| `hecks style_run.canonicalise! <file>` | `bin/canonicalise` |
+| `hecks codemod_run.hoist_local_givens! --confirm` | `bin/codemod_hoist_local_givens` |
+| `hecks codemod_run.drop_implicit_append_fields! --confirm` | `bin/codemod_implicit_append_fields` |
 | `hecks test_suite_run.shard_specs <group> groups= [runtime_log=]` | `bin/rspec_shard_files` |
-| `hecks test_suite_run.list_io_parallel_specs <exclude> [tags=] [check=]`; `hecks test_suite_run.write_io_parallel_spec_list <exclude> [tags=] write= --confirm` | `bin/rspec_io_parallel_files` |
-| `hecks test_suite_run.refresh_runtime_baseline [<workers>] [from_run=] --confirm` | `bin/refresh_rspec_runtime_baseline` |
-| `hecks test_suite_run.run_spec_example <file> example= [seeds=] [environment=] [tags=] [root=] [--strict] [--declaration-cache]` | `bin/spec_example` |
-| `hecks test_suite_run.stress_concurrency [<runs>] [parallel=] [seed_start=]` | `bin/stress_concurrency_specs` |
-| `hecks test_suite_run.regenerate_legacy_fixtures --confirm` | `bin/regenerate_persistence_legacy_fixtures` |
-| `hecks test_suite_run.seed_semantics_corpus [<fixture>]` | `bin/seed_semantics_corpus` |
+| `hecks test_suite_run.list_io_parallel_specs <exclude> [tags=] [check=]`; `hecks test_suite_run.write_io_parallel_spec_list! <exclude> [tags=] write= --confirm` | `bin/rspec_io_parallel_files` |
+| `hecks test_suite_run.refresh_runtime_baseline! [<workers>] [from_run=] --confirm` | `bin/refresh_rspec_runtime_baseline` |
+| `hecks test_suite_run.run_spec_example! <file> example= [seeds=] [environment=] [tags=] [root=] [--strict] [--declaration-cache]` | `bin/spec_example` |
+| `hecks test_suite_run.stress_concurrency! [<runs>] [parallel=] [seed_start=]` | `bin/stress_concurrency_specs` |
+| `hecks test_suite_run.regenerate_legacy_fixtures! --confirm` | `bin/regenerate_persistence_legacy_fixtures` |
+| `hecks test_suite_run.seed_semantics_corpus! [<fixture>]` | `bin/seed_semantics_corpus` |
 | `hecks test_suite_run.record_pattern_cases` | `bin/pattern-cases` |
 | `hecks corpus_run.rust_domains`; `hecks corpus_run.regen_order`; `hecks corpus_run.corpus_rust_coverage` | `bin/corpus` |
-| `hecks corpus_run.ir_constructs [<names>]`; `hecks corpus_run.ir_duplicates [<domains>] [--meta]`; `hecks corpus_run.ir_impact <name> field=` | `bin/query_ir` |
-| `hecks server.serve_query_ir_mcp` | `bin/hecks_query_ir_mcp` |
-| `hecks server.present [<port>]` | `bin/present` |
-| `hecks publishing_run.publish [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm (without --confirm, the old --dry-run)` | `bin/release` |
-| `hecks publishing_run.publish_gem --confirm` | `bin/release_gem` |
-| `hecks gate_run.gate <stage> [only=]` | (new: no `bin/` script) |
+| `hecks corpus_run.ir_constructs [<names>]`; `hecks corpus_run.ir_duplicates [<domains>] [meta=]`; `hecks corpus_run.ir_impact <name> field=` | `bin/query_ir` |
+| `hecks server.serve_query_ir_mcp!` | `bin/hecks_query_ir_mcp` |
+| `hecks server.present! [<port>]` | `bin/present` |
+| `hecks publishing_run.publish! [--gem-only] [--npm-only] [--npm-local] [--no-wait] --confirm (without --confirm, the old --dry-run)` | `bin/release` |
+| `hecks publishing_run.publish_gem! --confirm` | `bin/release_gem` |
+| `hecks gate_run.gate! <stage> [only=]` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
 ## Releasing from CI
@@ -169,11 +169,11 @@ publisher at rubygems.org > hecks > Trusted publishers > GitHub Actions (organiz
 | launcher | replaces |
 |---|---|
 | `hecks quality_control sweep.tick` | `bin/qa_tick` |
-| `hecks quality_control event_pump.pump <run>` | `bin/qa_event_pump` |
-| `hecks quality_control sweep.run [<target>] [arguments="--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"]`; `hecks quality_control target.release <to> now= next_streak= capabilities= yield_score=` | `bin/qa_sweep` |
+| `hecks quality_control event_pump.pump! <run>` | `bin/qa_event_pump` |
+| `hecks quality_control sweep.run [<target>] [arguments="--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"]`; `hecks quality_control target.release! <to> now= next_streak= capabilities= yield_score=` | `bin/qa_sweep` |
 | `hecks quality_control clearance.check_pull_requests` | `bin/qa_pr_check` |
-| `hecks quality_control patch.open <bug> number= url= branch= commit= title= now=`; `hecks quality_control improvement.open [<angle>] number= url= branch= title= now=` | `bin/qa_open_pr` |
-| `hecks quality_control bug.log <sweep> reference= sequence= title= demonstration= symptom= expectation= submitter= [tags=] [name=] [reproduced=]` | `bin/qa_log_bug` |
+| `hecks quality_control patch.open! <bug> number= url= branch= commit= title= now=`; `hecks quality_control improvement.open! [<angle>] number= url= branch= title= now=` | `bin/qa_open_pr` |
+| `hecks quality_control bug.log! <sweep> reference= sequence= title= demonstration= symptom= expectation= submitter= [tags=] [name=] [reproduced=]` | `bin/qa_log_bug` |
 | `hecks quality_control angle.seed` | `bin/qa_seed_angles` |
 | `hecks quality_control target.seed` | `bin/qa_seed_targets` |
 | `hecks quality_control target.check_generated_domains [arguments="--domains 3 --start N --forms a,b --seeds 5 --steps 25 --adversarial 0.3 --rust --shrink-budget 200 --domain-shrink-budget 40 --promote dir --name N --from-dials --blueprint F --source F"]` | `bin/qa_generated_domains` |

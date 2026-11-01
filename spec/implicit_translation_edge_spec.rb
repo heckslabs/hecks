@@ -62,7 +62,7 @@ module ImplicitEdgeSupport
     decision = Hecks::Adapters::PostgresEra::LineageManager::MintDecision
     bluebook = declared(current_text)
     recorded = [["aaaaaa", decision.label_of(bluebook)]]
-    held = { ordinal: 1, label: "aaaaaa", held_text: held_text, declaration: declared(held_text) }
+    held = stored_era(held_text).merge(declaration: declared(held_text))
     verdict = decision.decide(held: [held], bluebook: bluebook, watermark: 1, rows: [],
                               edge_source: { translations: [], recorded: recorded })
     verdict.edge if verdict.verdict == "would_mint"
@@ -74,9 +74,13 @@ module ImplicitEdgeSupport
 
   # The era check's context, for the minter's edge resolution.
   def resolve_edge(held_text, current_text, directory: nil)
-    ctx = Ctx.new(registry, declared(current_text), { ordinal: 1, label: "aaaaaa", held_text: held_text },
-                  "bbbbbb", "Ledger", 2, directory)
+    ctx = Ctx.new(registry, declared(current_text), stored_era(held_text), "bbbbbb", "Ledger", 2, directory)
     host.resolve_edge!(ctx)
+  end
+
+  # An era as the lineage answers it: the stored projection of the text it was minted from.
+  def stored_era(held_text)
+    { ordinal: 1, label: "aaaaaa", held_text: held_text, projection: Hecks::Runtime::StorageShape.project(declared(held_text)) }
   end
 
   # Writes the implicit move the shape ledger records for `current_text`, from the held label.
