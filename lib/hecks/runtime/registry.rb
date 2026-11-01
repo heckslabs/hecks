@@ -55,7 +55,8 @@ module Hecks
         @root         = root
         # Recorded at hecksagon-build time (AggregateModule#mark_sensitive), Loader.boot's
         # post-dispatch step turns each pending privacy marking into a real Privacy::Marking.Mark,
-        # idempotently. `resolved_eras` and `superseded_eras` are eager, not lazy, so no two
+        # idempotently. `resolved_eras`, `superseded_eras` and `unminted_eras` are eager, not lazy,
+        # so no two
         # dispatching threads race to create them; all writes still happen at boot,
         # single-threaded (EraResolver.check!).
         @declared     = Declarations.empty
@@ -214,8 +215,10 @@ module Hecks
 
       # `resolved_eras` is {domain name => era ordinal} resolved by the boot-time era gate;
       # `superseded_eras` is the domain name -> the ordinal that superseded this boot's own era,
-      # for an old checkout only. Stood up eagerly; plain readers, not memoizers.
-      def_delegators :@declared, :resolved_eras, :superseded_eras
+      # for an old checkout only. `unminted_eras` is the domain name -> the latest held ordinal, set
+      # when this boot's shape matches no held era and no mint was requested: the copy reads and
+      # refuses writes. Stood up eagerly; plain readers, not memoizers.
+      def_delegators :@declared, :resolved_eras, :superseded_eras, :unminted_eras
 
       # Finds a loaded bluebook by name.
       #

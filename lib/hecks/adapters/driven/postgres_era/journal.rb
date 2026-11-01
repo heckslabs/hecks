@@ -15,10 +15,11 @@ module Hecks
         #
         # @param entry [Ports::Persistence::Entry] the save or delete to journal
         # @return [Ports::Persistence::Entry] the same entry, unchanged
-        # @raise [Runtime::WiringError] if this boot's era has been superseded by a mint
+        # @raise [Runtime::WiringError] if this boot's shape is not minted yet, or its era has been
+        #   superseded by a mint
         # @raise [PG::Error] if Postgres refuses a statement, such as the era fence's RLS
         def append(entry)
-          refuse_superseded_write!
+          refuse_unwritable_boot!
           transaction do
             lock_writes!
             append_and_project!(entry)
@@ -26,19 +27,18 @@ module Hecks
           entry
         end
 
-        # Refuses a write from a checkout whose era a later mint has superseded.
-        # Runs before the transaction so a stale checkout takes no lock; reads stay allowed.
+        # Refuses a write from a checkout whose shape no era holds yet, or whose era a later mint
+        # has superseded. Runs before the transaction so a stale checkout takes no lock; reads stay
+        # allowed.
         #
         # @return [nil] when this boot's era is current
-        # @raise [Runtime::WiringError] if the boot gate marked this era superseded
-        def refuse_superseded_write!
+        # @raise [Runtime::WiringError] if the boot gate left this shape unminted or marked its era
+        #   superseded
+        def refuse_unwritable_boot!
+          raise Runtime::WiringError, unminted_refusal if @unminted
           return unless @superseded_by
 
-          raise Runtime::WiringError,
-                "cannot write #{table} for #{@domain}: this checkout booted era #{@era}, which era " \
-                "#{@superseded_by} has superseded — its shape was replaced by a mint, and a write here would " \
-                "land in a partition no newer head reads. Reads still work; pull the current bluebook and " \
-                "reboot to write again."
+          raise Runtime::WiringError, superseded_refusal
         end
 
         # Saves an entry and reports whether it inserted or replaced, decided under the same lock
@@ -48,10 +48,11 @@ module Hecks
         # @param insert_only [Boolean] when true, an id already in the head is left untouched
         # @return [Symbol] `:inserted`, `:replaced`, or `:conflicted` when `insert_only` hit a
         #   record
-        # @raise [Runtime::WiringError] if this boot's era has been superseded by a mint
+        # @raise [Runtime::WiringError] if this boot's shape is not minted yet, or its era has been
+        #   superseded by a mint
         # @raise [PG::Error] if Postgres refuses a statement
         def atomic_put(entry, insert_only: false)
-          refuse_superseded_write!
+          refuse_unwritable_boot!
           status = nil
           transaction do
             lock_writes!
@@ -92,6 +93,19 @@ module Hecks
         end
 
         private
+
+        def unminted_refusal
+          "cannot write #{table} for #{@domain}: the shape is not minted yet; run the mint entry point. " \
+            "This checkout's shape is held by no era, and a write here would land in era #{@era}, the " \
+            "latest held era, under a shape it does not hold. Reads still work."
+        end
+
+        def superseded_refusal
+          "cannot write #{table} for #{@domain}: this checkout booted era #{@era}, which era " \
+            "#{@superseded_by} has superseded — its shape was replaced by a mint, and a write here would " \
+            "land in a partition no newer head reads. Reads still work; pull the current bluebook and " \
+            "reboot to write again."
+        end
 
         def head_row?(id)
           !@db.exec_params("SELECT 1 FROM #{quoted_head} WHERE id = $1 LIMIT 1", [id.to_s]).ntuples.zero?

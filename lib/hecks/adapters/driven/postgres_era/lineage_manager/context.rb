@@ -45,6 +45,12 @@ module Hecks
           # @param ordinal [Integer] the superseding era
           # @return [Integer] `ordinal`
           def record_superseded(ordinal) = registry.superseded_eras[domain_name] = ordinal
+
+          # Records that this boot's shape is held by no era, with the latest held era it reads.
+          #
+          # @param ordinal [Integer] the latest held era
+          # @return [Integer] `ordinal`
+          def record_unminted(ordinal) = registry.unminted_eras[domain_name] = ordinal
         end
       end
     end

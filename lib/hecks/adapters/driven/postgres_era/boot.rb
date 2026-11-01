@@ -25,14 +25,18 @@ module Hecks
           # Non-nil only for a held-but-superseded boot. `append` and `atomic_put` refuse on it
           # because a superuser walks through the RLS fence.
           @superseded_by = IndifferentKey.read(settings, :superseded_by)
+          # True only for a boot whose shape no held era matches and that carries no mint request.
+          # It reads the latest era and refuses writes until a mint runs.
+          @unminted = IndifferentKey.read(settings, :unminted) == true
         end
 
         def provision!
           # Idempotent self-healing against any boot-ordering surprise.
           @lineage.ensure_head_snapshot!(table, @era)
-          # A superseded boot reads and never reshapes: era 1's head view is not its to restore,
-          # because a mint has already pointed the view at a later era.
-          @lineage.ensure_first_head!(table) if @era == 1 && !@superseded_by
+          # A superseded or unminted boot reads and never reshapes: era 1's head view is not its to
+          # restore once a mint has pointed it at a later era, and an unminted boot restores
+          # nothing.
+          @lineage.ensure_first_head!(table) if @era == 1 && !@superseded_by && !@unminted
           # One row-cache table per where-field the aggregate's queries use; `query` consults it
           # to skip the head reduction.
           @field_caches = ensure_field_caches!
