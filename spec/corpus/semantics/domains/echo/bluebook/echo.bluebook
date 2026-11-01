@@ -1,0 +1,35 @@
+Hecks.bluebook "Echo" do
+  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.4).
+  # One policy that answers its own command's event with the same command, so a single Ping
+  # starts a chain that never ends on its own. The reaction depth bound is the only thing that
+  # stops it: five reactions below the root run, the sixth is recorded undelivered.
+  vision "A ping is answered by another ping, until the reaction depth bound says enough."
+  core
+
+  aggregate "Beacon" do
+    identified_by :name
+
+    attribute :name, Name
+
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    command "Light" do
+      goal "Light a beacon"
+      attribute :name, Name
+      emits "BeaconLit"
+    end
+
+    command "Ping" do
+      goal "Ping a beacon, which makes the beacon ping again"
+      reference_to Beacon
+      emits "Pinged"
+    end
+
+    policy "PingAgain" do
+      on      "Pinged"
+      trigger Beacon::Ping
+    end
+  end
+end

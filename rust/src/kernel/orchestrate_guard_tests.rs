@@ -511,7 +511,7 @@ fn a_cross_domain_policy_honours_its_event_qualifier_and_where_clause() {
 
 #[test]
 fn a_reaction_below_the_depth_ceiling_is_delivered_and_one_at_it_is_logged_undelivered() {
-    for (depth, delivers) in [(0, true), (3, true), (4, false), (5, false)] {
+    for (depth, delivers) in [(0, true), (4, true), (5, false), (6, false)] {
         let mut w = world();
 
         w.react(&event("Placed", "D::Order", "o1", Json::obj(vec![])), depth);
@@ -529,19 +529,19 @@ fn a_reaction_below_the_depth_ceiling_is_delivered_and_one_at_it_is_logged_undel
 }
 
 #[test]
-fn a_policy_that_re_triggers_itself_stops_after_five_dispatches() {
+fn a_policy_that_re_triggers_itself_stops_after_five_reactions() {
     let mut w = world();
 
     w.orchestrate("D::Order.Ping", 0).unwrap();
 
-    assert_eq!(w.verbs(), ["D::Order.Ping"; 5]);
+    assert_eq!(w.verbs(), ["D::Order.Ping"; 6]);
     let delivered: Vec<bool> = w
         .reaction_log
         .iter()
         .map(|entry| reaction(entry).1)
         .collect();
-    // The innermost reaction is logged first: the ceiling, then the four that delivered.
-    assert_eq!(delivered, [false, true, true, true, true]);
+    // The innermost reaction is logged first: the ceiling, then the five that delivered.
+    assert_eq!(delivered, [false, true, true, true, true, true]);
     assert_eq!(reason(&w.reaction_log[0]), Some(DEPTH_REACHED));
 }
 
@@ -549,9 +549,9 @@ fn a_policy_that_re_triggers_itself_stops_after_five_dispatches() {
 fn a_fan_out_dispatches_once_per_row_with_the_row_id_under_the_declared_key_one_level_deeper() {
     let mut w = world();
 
-    w.react(&event("Fan", "D::Order", "o1", Json::obj(vec![])), 3);
+    w.react(&event("Fan", "D::Order", "o1", Json::obj(vec![])), 4);
 
-    // Each row dispatches `Ping` at depth 4, whose own `Pinger` reaction is stopped there.
+    // Each row dispatches `Ping` at depth 5, whose own `Pinger` reaction is stopped there.
     assert_eq!(w.verbs(), ["D::Order.Ping", "D::Order.Ping"]);
     assert_eq!(
         w.bus.calls[0].1,
@@ -586,7 +586,7 @@ fn a_fan_out_over_a_query_nothing_declares_logs_the_missing_query() {
 fn a_saga_leg_stopped_at_the_ceiling_logs_it_and_never_dispatches() {
     let mut w = world();
 
-    assert_eq!(w.deliver_saga(4), None);
+    assert_eq!(w.deliver_saga(5), None);
 
     assert!(w.bus.calls.is_empty());
     assert_eq!(reason(&w.saga_log[0]), Some(DEPTH_REACHED));
@@ -596,9 +596,9 @@ fn a_saga_leg_stopped_at_the_ceiling_logs_it_and_never_dispatches() {
 fn a_saga_leg_just_under_the_ceiling_dispatches_one_level_deeper() {
     let mut w = world();
 
-    assert_eq!(w.deliver_saga(3), Some(true));
+    assert_eq!(w.deliver_saga(4), Some(true));
 
-    // Dispatched at depth 4, so the `Ping` it emits meets the ceiling and is not re-triggered.
+    // Dispatched at depth 5, so the `Ping` it emits meets the ceiling and is not re-triggered.
     assert_eq!(w.verbs(), ["D::Order.Ping"]);
     assert_eq!(reason(&w.reaction_log[0]), Some(DEPTH_REACHED));
 }
@@ -607,7 +607,7 @@ fn a_saga_leg_just_under_the_ceiling_dispatches_one_level_deeper() {
 fn a_derived_compensation_stopped_at_the_ceiling_is_logged_failed_and_never_dispatches() {
     let mut w = world();
 
-    w.deliver_compensation(4);
+    w.deliver_compensation(5);
 
     assert!(w.bus.calls.is_empty());
     assert_eq!(reason(&w.saga_log[0]), Some(DEPTH_REACHED));
@@ -621,7 +621,7 @@ fn a_derived_compensation_stopped_at_the_ceiling_is_logged_failed_and_never_disp
 fn a_derived_compensation_just_under_the_ceiling_dispatches_one_level_deeper() {
     let mut w = world();
 
-    w.deliver_compensation(3);
+    w.deliver_compensation(4);
 
     assert_eq!(w.verbs(), ["D::Order.Ping"]);
     assert_eq!(reason(&w.reaction_log[0]), Some(DEPTH_REACHED));

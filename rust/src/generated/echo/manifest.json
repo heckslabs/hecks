@@ -1,0 +1,25 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "Echo::Beacon",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Beacon.Light",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "Echo::Beacon.Ping",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "Echo::PingAgain",
+    "generated": true,
+    "routed": true
+  }
+]

@@ -1,9 +1,9 @@
 require "spec_helper"
 require "tempfile"
 
-# model_check's finding for a reaction chain as deep as the dispatcher's limit. A command's events
-# start policies, whose triggers and asks emit more events: a chain that reaches the limit has its
-# last reactions refused, which nothing reports at run time.
+# model_check's finding for a reaction chain longer than the dispatcher's limit. A command's events
+# start policies, whose triggers and asks emit more events: a chain past the limit has its last
+# reactions refused, which nothing reports at run time. A chain of exactly the limit runs whole.
 RSpec.describe "model_check over reaction chain depth" do
   ERRAND_FOR_DEPTH = File.join(InMemoryDomain::ROOT, "spec/corpus/asks/domain/bluebook").freeze
 
@@ -61,22 +61,22 @@ RSpec.describe "model_check over reaction chain depth" do
     registry.bluebook("Errand")
   end
 
-  it "warns of a chain that reaches the limit, naming the entry command" do
-    expect(findings_of(chain_of(5)).map { |f| [f.kind, f.severity, f.subject] })
+  it "warns of a chain past the limit, naming the entry command" do
+    expect(findings_of(chain_of(6)).map { |f| [f.kind, f.severity, f.subject] })
       .to eq([[:deep_reaction_chain, :warning, "Chain::Link.Start"]])
   end
 
   it "names each policy and command of the chain in order" do
-    expect(findings_of(chain_of(5)).first.message)
+    expect(findings_of(chain_of(6)).first.message)
       .to include("Chain::Link.Start -> P1 -> Chain::Link.Step1 -> P2 -> Chain::Link.Step2 -> P3")
   end
 
-  it "says which engine refuses which reaction" do
-    expect(findings_of(chain_of(5)).first.message).to include("Rust refuses the 5th, Ruby the 6th")
+  it "says which reaction is the first one refused" do
+    expect(findings_of(chain_of(6)).first.message).to include("the 6th and any after it are refused")
   end
 
-  it "is silent about a chain one short of the limit" do
-    expect(findings_of(chain_of(4))).to be_empty
+  it "is silent about a chain of exactly the limit, which runs whole" do
+    expect(findings_of(chain_of(5))).to be_empty
   end
 
   it "reports the entry command once, not every command along the chain" do
@@ -88,14 +88,14 @@ RSpec.describe "model_check over reaction chain depth" do
   end
 
   it "follows an ask through the hecksagon to the events its port operation answers" do
-    expect(findings_of(errand, limit: 2).map(&:message).join).to include("Job.Worker.Run -> SettleWhenAnswered")
+    expect(findings_of(errand, limit: 1).map(&:message).join).to include("Job.Worker.Run -> SettleWhenAnswered")
   end
 
   it "counts the chain of the same ask as 2 reactions" do
-    expect(findings_of(errand, limit: 3)).to be_empty
+    expect(findings_of(errand, limit: 2)).to be_empty
   end
 
   it "runs with the model check itself" do
-    expect(Hecks::Bluebook::ModelCheck.call(chain_of(5)).map(&:kind)).to include(:deep_reaction_chain)
+    expect(Hecks::Bluebook::ModelCheck.call(chain_of(6)).map(&:kind)).to include(:deep_reaction_chain)
   end
 end
