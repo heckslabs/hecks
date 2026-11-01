@@ -7,6 +7,7 @@ commands:
   Era:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     hold_first!            Hold the first era of a domain that holds none, as its first boot would
+    rename_domain!         Move a renamed domain's held eras and journal from its former name to its current name
     merge_tail!            Interleave the old world's writes since the cut into the live head, by their ordinals
     reattest!              Freeze an era's held text as it now stands, after a person has read it
     backfill_projections!  Store the shape every held era froze with, for the eras that predate it
@@ -31,7 +32,9 @@ queries (nothing here changes anything):
     boot_status           The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.
     boot_resolution       What a boot would resolve for each bluebook under a domain directory, from its own database: status, held label, current label, ordinal and reason.
     sqlite_status         The SQLite databases a domain's worlds name, read-only: per aggregate table the columns the aggregate declares and the table lacks (added on the next open), the columns it keeps that the aggregate no longer declares, and the tables no aggregate maps to.
+    event_trace           Per recorded event: the policies that listen to it and what became of each delivery (delivered, refused with its reason, pending, claimed, failed, or no record), the events nobody listens to, and the policies whose event never occurred.
     projection_audit      Every era of each bluebook under a domain directory whose stored hash is not the hash of its stored projection: domain, ordinal, stored hash and recomputed hash.
+    mint_plan             Runs every guard a mint runs against the live store, read-only and in seconds: the era resolution and decision, the edge checks, the coverage check, the translation audit (Ruby only; parity needs the full rehearsal), the watermark rule, the world's flags and markers, and the freshness of a rehearsal ref when one is passed.
   Seal:
     The head a domain's journal chain had when the rows before it were compacted away.
     latest                The newest seal a domain holds.
@@ -54,6 +57,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 20 internal commands and queries
-  hecks --maintainer           also list the 370 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 387 commands and queries for working on hecks itself
   a command is called with its aggregate — Era.hold_first!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

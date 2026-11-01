@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "stringio"
+require "open3"
+require "rbconfig"
 require_relative "tree"
 require_relative "../console_capture"
 
@@ -13,6 +15,9 @@ module Hecks
       # description for a shell. What the runner prints is captured and comes back as the answer;
       # a run that fails refuses with the same text.
       class TestRunner
+        # The program a fresh process runs: the test runner, on the arguments it is handed.
+        FRESH_RUNNER = 'require "rspec/core"; exit RSpec::Core::Runner.run(ARGV)'
+
         class << self
           # @return [#call, nil] takes `(args, err, out)` and answers the exit status; the test
           #   runner when nil. A spec replaces it so no example has to run to test what is asked.
@@ -61,7 +66,8 @@ module Hecks
         # Runs every spec in the given files or directories, from the checkout's root: a whole suite
         # is one directory, a changed-file run is the specs those files map to.
         #
-        # @param paths [Array<String>] spec files or directories, relative to the checkout or absolute
+        # @param paths [Array<String>] spec files or directories, relative to the checkout or
+        #   absolute
         # @param env [Hash{String => String}] variables the specs read, set for this run only
         # @param tags [String, nil] RSpec tag filters as the runner spells them
         # @return [String] what the runner printed when every spec it ran passed
@@ -76,6 +82,21 @@ module Hecks
           report
         end
 
+        # Runs the runner on the arguments and answers how it ended, whatever the result: a
+        # caller that reports each of several runs reads the status, not a refusal.
+        #
+        # @param args [Array<String>] the runner's arguments
+        # @param env [Hash{String => String}] variables the specs read, set for this run only
+        # @param fresh [Boolean] whether to run it in a new process of its own (nothing a spec
+        #   defined, stubbed or registered carries over) or in this one
+        # @return [Array(Integer, String)] the exit status and what the runner printed
+        def outcome(args, env: {}, fresh: false)
+          return with_env(env) { in_process(args) } unless fresh
+
+          printed, status = Open3.capture2e(env, RbConfig.ruby, "-e", FRESH_RUNNER, "--", *args, chdir: @tree.root)
+          [status.exitstatus || 1, printed.strip]
+        end
+
         private
 
         # What the runner printed for the example, when it passed.
@@ -85,11 +106,17 @@ module Hecks
 
         # What the runner printed for the arguments, when every spec it ran passed.
         def run_args(args)
+          status, printed = in_process(args)
+          raise ConsoleCapture::Failure, printed unless status.zero?
+
+          printed
+        end
+
+        # The runner's exit status and what it printed, for the arguments, in this process.
+        def in_process(args)
           out = StringIO.new
           status = Dir.chdir(@tree.root) { at_reaction_depth_zero { runner.call(args, out, out) } }
-          raise ConsoleCapture::Failure, out.string.strip unless status.zero?
-
-          out.string.strip
+          [status, out.string.strip]
         end
 
         def at_reaction_depth_zero(&) = self.class.at_reaction_depth_zero(&)

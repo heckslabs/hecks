@@ -5,17 +5,19 @@ Hecks — What this install is, what version it runs, and whether its grammar ca
   hecks query <query> [name=value …]    read something
 
 everyday:
-  Operation.run!                  Dispatch a verb or a step list against a domain and keep what it…
-  Operation.open_console!         Open an interactive console on a domain (also: console!)
-  GateRun.gate!                   Run every check of a stage, or the ones named, and keep whether the…
-  TestSuiteRun.run_changed!       Run the specs that the files changed since a git ref map to, in a folder
-  TestSuiteRun.run_spec_example!  Run one spec file filtered to one example, through the test runner in…
-  Build.build_host!               Build the Rust host for a domain, with its wasm and IR, ready to copy…
-  Shipment.ship!                  Start the gate-and-board saga for a branch: fix comment style, check…
-  Landing.land!                   Merge a worktree's branch onto local main: fast-forward when it can be,…
-  SendTrain.board!                Push this checkout's branch once the push ahead of it lands, unless…
-  Workspace.status                The checkout's branch, whether it is a linked worktree, where it stands…
-  Codebase.search                 The lines of the checkout's text files that match a pattern, as…
+  Operation.run!                    Dispatch a verb or a step list against a domain and keep what it…
+  Operation.open_console!           Open an interactive console on a domain (also: console!)
+  GateRun.gate!                     Run every check of a stage, or the ones named, and keep whether the…
+  TestSuiteRun.run_changed!         Run the specs that the files changed since a git ref map to, in a folder
+  TestSuiteRun.run_spec_example!    Run one spec file filtered to one example, through the test runner in…
+  TestSuiteRun.run_spec_files!      Run several spec files in one launcher boot, each in a new process or…
+  TestSuiteRun.run_impacted_specs!  Map the branch's changed files to the specs they touch and run them, or…
+  Build.build_host!                 Build the Rust host for a domain, with its wasm and IR, ready to copy…
+  Shipment.ship!                    Start the gate-and-board saga for a branch: fix comment style, check…
+  Landing.land!                     Merge a worktree's branch onto local main: fast-forward when it can be,…
+  SendTrain.board!                  Push this checkout's branch once the push ahead of it lands, unless…
+  Workspace.status                  The checkout's branch, whether it is a linked worktree, where it stands…
+  Codebase.search                   The lines of the checkout's text files that match a pattern, as…
 
 commands:
   Build:
@@ -51,6 +53,8 @@ commands:
     check_engine_agreement!       Check that the query engines route every comparator through the one shared implementation
     measure_doc_coverage!         Check that every live word of the language has prose and a running example in the reference
     check_shape_ledger!           Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed
+    check_command_names!          Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
+    check_workflow_pagination!    Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
     argument_gate_matrix!         Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
   StyleRun:
     One check or fix of comment style, or one document written with its keys in order.
@@ -75,6 +79,10 @@ commands:
     dispatch!                     Hand one brief to a background Claude session working in a directory
     check!                        Ask whether a started session is still working
     tidy!                         Remove the finished session of one run, unless it is unfinished or a person took it over
+  Dispatch:
+    One filling of the Work queue: the planned rows that start a session now, and why each other waits.
+    fill!                         Choose the planned Work rows that start a session now and, with confirm, start them; without it, say what would start
+    settle!                       Check the started sessions and finish the row of each that is done, or yield the row of one that stopped
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
@@ -84,6 +92,7 @@ commands:
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!                         Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
+    finish!                       Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
     retire!                       Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
@@ -129,6 +138,7 @@ commands:
   Era:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     hold_first!                   Hold the first era of a domain that holds none, as its first boot would
+    rename_domain!                Move a renamed domain's held eras and journal from its former name to its current name
     merge_tail!                   Interleave the old world's writes since the cut into the live head, by their ordinals
     reattest!                     Freeze an era's held text as it now stands, after a person has read it
     backfill_projections!         Store the shape every held era froze with, for the eras that predate it
@@ -155,6 +165,13 @@ commands:
     A running rust/host, and the version and era it last reported.
     check_era!                    Ask a running host which era it reports, and keep whether it is one that should be running
     recheck!                      Ask a host already checked which era it reports now
+  QaQuiesce:
+    One hold or release of the QA quiet marker: held, released, or refused.
+    hold!                         Quiet QA for a mint window: every tick step refuses to start while the marker is fresh
+    release!                      End a mint window: remove the QA quiet marker, which another owner's marker survives without force
+  PushRehearsal:
+    One dry run of the push against local main: green or red per stage, or refused when it could not run.
+    rehearse!                     Run the push's stages against local main without pushing, and say pass or fail for each
   PublishingRun:
     One release of the gem, or the rehearsal of it: judged by the facts, then carried out.
     publish!                      Tag the merged release commit, publish the gem, and get the client package published
@@ -187,6 +204,8 @@ commands:
     One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
     refresh_runtime_baseline!     Regenerate the committed runtime baselines the sharded jobs group from
     run_spec_example!             Run one spec file filtered to one example, through the test runner in this process
+    run_spec_files!               Run several spec files in one launcher boot, each in a new process or all in one, and report each file
+    run_impacted_specs!           Map the branch's changed files to the specs they touch and run them, or list them when dry
     run_suite!                    Run every spec of a folder through the test runner in this process
     run_changed!                  Run the specs that the files changed since a git ref map to, in a folder
     stress_concurrency!           Rerun the thread-safety specs under many seeds, several processes at a time
@@ -255,7 +274,9 @@ queries (nothing here changes anything):
     boot_status             The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.
     boot_resolution         What a boot would resolve for each bluebook under a domain directory, from its own database: status, held label, current label, ordinal and reason.
     sqlite_status           The SQLite databases a domain's worlds name, read-only: per aggregate table the columns the aggregate declares and the table lacks (added on the next open), the columns it keeps that the aggregate no longer declares, and the tables no aggregate maps to.
+    event_trace             Per recorded event: the policies that listen to it and what became of each delivery (delivered, refused with its reason, pending, claimed, failed, or no record), the events nobody listens to, and the policies whose event never occurred.
     projection_audit        Every era of each bluebook under a domain directory whose stored hash is not the hash of its stored projection: domain, ordinal, stored hash and recomputed hash.
+    mint_plan               Runs every guard a mint runs against the live store, read-only and in seconds: the era resolution and decision, the edge checks, the coverage check, the translation audit (Ruby only; parity needs the full rehearsal), the watermark rule, the world's flags and markers, and the freshness of a rehearsal ref when one is passed.
   Seal:
     The head a domain's journal chain had when the rows before it were compacted away.
     latest                  The newest seal a domain holds.
@@ -277,6 +298,12 @@ queries (nothing here changes anything):
     docs                    A domain's usage document, whole or for one aggregate.
     project_diagrams        A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written.
     glossary                A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written.
+  QaQuiesce:
+    One hold or release of the QA quiet marker: held, released, or refused.
+    status                  Whether QA is quiesced: the marker's owner, reason and age, or that it is stale or absent.
+  PushRehearsal:
+    One dry run of the push against local main: green or red per stage, or refused when it could not run.
+    due                     Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last rehearsal's result.
   Release:
     One gem version: the record of what is running and what was shipped.
     shipped                 Every version that was tagged, published and verified.
@@ -313,6 +340,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 233 internal commands and queries
+  hecks --all                  also list the 239 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

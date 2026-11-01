@@ -72,6 +72,7 @@ Hecks.world "Hecks" do
                        newcomer: %w[launch.init launch.interview operation.open_console],
                        everyday: %w[operation.run operation.open_console gate_run.gate
                                     test_suite_run.run_changed test_suite_run.run_spec_example
+                                    test_suite_run.run_spec_files test_suite_run.run_impacted_specs
                                     build.build_host shipment.ship landing.land send_train.board
                                     workspace.status codebase.search],
                        bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],

@@ -54,6 +54,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "run_changed", verbs: %w[run_changed],
                note: "added beyond ADR 0080's table: runs the specs the files changed since a git ref map to, by name, " \
                      "and runs nothing for a change no spec is named after"),
+    AdrRow.new(script: "run_spec_files", verbs: %w[run_spec_files],
+               note: "added beyond ADR 0080's table: runs several spec files in one launcher boot, each in a " \
+                     "new process or all in one"),
+    AdrRow.new(script: "run_impacted_specs", verbs: %w[run_impacted_specs],
+               note: "added beyond ADR 0080's table: runs the specs the push rehearsal's map names for the " \
+                     "branch's changes, or lists them"),
     AdrRow.new(script: "stress_concurrency_specs", verbs: %w[stress_concurrency]),
     AdrRow.new(script: "run_cargo_tests", verbs: %w[run_cargo_tests],
                note: "no bin script: it runs cargo test for the host, the parser or the JSON fuzzer with the " \
