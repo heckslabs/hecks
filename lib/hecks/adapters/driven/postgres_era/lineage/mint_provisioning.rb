@@ -20,16 +20,19 @@ module Hecks
           end
 
           # Holds the read side of the first era: each aggregate's head view over the snapshot the
-          # first era holds, then its field caches.
+          # first era holds, then its field caches, then the app role's privileges on them, as a
+          # mint grants them for a later era.
           #
           # @param aggregates [Array<Bluebook::Aggregate>] the domain's aggregates
+          # @param role [String, nil] the app role to grant, from the world's `role:`; nil grants nothing
           # @return [void]
           # @raise [PG::Error] if Postgres refuses a statement
-          def provision_first_era!(aggregates)
+          def provision_first_era!(aggregates, role: nil)
             aggregates.each do |aggregate|
               ensure_first_head!(aggregate.storage_name)
               provision_read_side!(aggregate, 1)
             end
+            grant_role!(role, aggregates: aggregates, era: 1) if role
           end
         end
       end

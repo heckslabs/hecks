@@ -185,7 +185,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   # Boots the source as a copy that owns the database, so it may mint; `mint_eras: false` boots it
   # as one told not to, and `nil` leaves the world saying nothing.
   def check!(source, translation_source: nil, role: nil, mint_eras: true)
-    hold_first_unless_held!(source)
+    hold_first_unless_held!(source, role: role)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     settings = boot_settings(role: role, mint_eras: mint_eras)
@@ -205,11 +205,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   # A boot never holds an era, so the first boot of a fresh database is preceded by the hold the
   # mint entry point makes, freezing `source` as era 1.
-  def hold_first_unless_held!(source, url: owner_url)
+  def hold_first_unless_held!(source, url: owner_url, role: nil)
     domain = load_registry(source).bluebooks.values.first.name
     return if first_era_held?(domain)
 
-    hold_first_era!(url: url, domain: domain, source: source)
+    hold_first_era!(url: url, domain: domain, source: source, role: role)
   end
 
   def first_era_held?(domain)
@@ -377,10 +377,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect(attestation["attested_at"]).not_to be_nil
     end
 
-    it "boots the edited text once it is attested" do
+    # The held era is its stored projection and the text is audit-only, so attesting the edit
+    # changes no shape: the era still speaks V1, and V2 is still a drift needing an edge.
+    it "boots the held shape once the edit is attested, and still sees V2 as drift", :aggregate_failures do
       reattest_era_one!
 
-      expect { check!(V2_SOURCE) }.not_to raise_error
+      expect { check!(V1_SOURCE) }.not_to raise_error
+      expect { check!(V2_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, NO_EDGE_REFUSAL)
     end
   end
 
