@@ -46,7 +46,8 @@ module Hecks
       "evolve"                         => ["tools/evolve_run", "EvolveRun"],
       "query_ir"                       => ["tools/query_ir_run", "QueryIrRun"],
       "codemod_hoist_local_givens"     => ["tools/hoist_local_givens", "HoistLocalGivens"],
-      "codemod_implicit_append_fields" => ["tools/drop_implicit_append_fields", "DropImplicitAppendFields"]
+      "codemod_implicit_append_fields" => ["tools/drop_implicit_append_fields", "DropImplicitAppendFields"],
+      "codemod_move_former_name"       => ["tools/move_former_name", "MoveFormerName"]
     }.freeze
 
     module_function

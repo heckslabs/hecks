@@ -161,6 +161,7 @@
           ],
           "goal": "Name the adapter one aggregate answers one verb through",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -1408,6 +1409,7 @@
           ],
           "goal": "Open a hecksagon for a domain",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -1452,6 +1454,7 @@
           ],
           "goal": "Take a hecksagon's own event, from outside the domain's own bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1505,6 +1508,7 @@
           ],
           "goal": "Attach a bluebook to this hecksagon, from the gem or from vendor",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1549,6 +1553,7 @@
           ],
           "goal": "Admit a driving adapter to reach this hecksagon's domain; adapters left out refuse it",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {

@@ -74,8 +74,10 @@ module Hecks
         end
       end
 
+      attr_accessor :formerly_known_as
+
       attr_reader :name, :version, :vision, :aggregates, :policies, :process_managers,
-                  :classification, :read_models, :ports, :formerly_known_as, :namespace, :attaches_to, :provides,
+                  :classification, :read_models, :ports, :namespace, :attaches_to, :provides,
                   :modules
 
       # Every optional field and what it holds when the declaration omits it.

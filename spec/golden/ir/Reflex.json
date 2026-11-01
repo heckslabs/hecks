@@ -52,6 +52,7 @@
           ],
           "goal": "Turn the light on",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -89,6 +90,7 @@
           ],
           "goal": "Record that the flip was noticed",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -270,6 +272,7 @@
           ],
           "goal": "Hang a bell that can be rung",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -297,6 +300,7 @@
           ],
           "goal": "Ring the bell, which rings the bell",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -416,6 +420,7 @@
           ],
           "goal": "Raise the beacon and announce it outward",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],

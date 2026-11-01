@@ -52,6 +52,7 @@
           ],
           "goal": null,
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -96,6 +97,7 @@
           ],
           "goal": null,
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -232,6 +234,7 @@
           ],
           "goal": null,
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",

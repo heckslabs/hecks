@@ -175,6 +175,10 @@ The aggregate's previous name, kept when it is renamed. It is a marker for the p
 lookups of the old name, which still find the aggregate; it changes no behaviour of its own. Say
 it once, on the renamed aggregate, and drop it when nothing refers to the old name any more.
 
+It is deprecated: the physical name rows are stored under is a storage fact, so it belongs to the
+world as `stored_as Studio: "producer"` (see the World reference). The word still works as a fallback,
+warns once per boot naming that line, and `exe/hecks codemod_run.move_former_name!` moves it.
+
 `Studio` was once called `Producer`:
 
 ```ruby
