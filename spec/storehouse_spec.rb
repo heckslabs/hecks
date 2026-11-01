@@ -297,6 +297,23 @@ RSpec.describe Hecks::Storehouse do
     end
   end
 
+  describe ".dispatch with surface:" do
+    it "records the surface a call came through on its audit line" do
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
+                               role: "Chef", surface: "mcp")
+
+      expect(described_class.follow(runtime: runtime)[:entries].last[:surface]).to eq("mcp")
+    end
+
+    it "refuses a surface outside the closed set", :aggregate_failures do
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
+                                        args: pizza_args, role: "Chef", surface: "api")
+
+      expect(result[:ok]).to be false
+      expect(result[:error]).to include("surface")
+    end
+  end
+
   describe ".dispatch_batch" do
     it "runs every step and reports ok: true only when all of them succeeded", :aggregate_failures do
       create_pizza

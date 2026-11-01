@@ -27,6 +27,10 @@ module Hecks
     # than guessed.
     SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
 
+    # Which surface a call came in through, so the audit line says what made it: a person at a shell
+    # (`cli`), an agent over the MCP server (`mcp`), or the domain itself (`policy`, `saga`, `reaction`).
+    SURFACES = %w[cli mcp policy saga reaction].freeze
+
     # The root every domain path resolves under; HECKS_STOREHOUSE_ROOT widens it.
     # Hecks.boot Kernel.loads Ruby files here, so an unconfined path is
     # arbitrary code execution, not just a wrong-directory mistake.
@@ -34,7 +38,7 @@ module Hecks
 
     # One dispatch or query call: the booted domain, what it is asked, and who is asking.
     Request = Struct.new(:runtime, :bluebook, :name, :summary, :args, :source, :dry_run, :role, :actor_id,
-                         keyword_init: true) do
+                         :surface, keyword_init: true) do
       # @return [String, nil] the name of the bluebook the call asks, or nil when none is booted
       def bluebook_name = bluebook&.name
     end
@@ -156,7 +160,7 @@ module Hecks
     end
 
     # :nodoc:
-    def audit_fields(request) = request.to_h.slice(:summary, :source, :role, :actor_id)
+    def audit_fields(request) = request.to_h.slice(:summary, :source, :role, :actor_id, :surface)
 
     # dry_run? (Runtime::Dispatcher) only understands the pre-envelope flat
     # args shape; this is the one entry point back into it from dispatch's own envelope.
