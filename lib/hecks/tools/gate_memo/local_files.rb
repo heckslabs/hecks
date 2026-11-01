@@ -16,7 +16,7 @@ module Hecks
                    environments/local.world].freeze
 
         # The checks that boot a domain, so read its local files.
-        BOOTING = %w[rspec fuzzing meta_domain_coverage query_agreement engine_agreement model_check].freeze
+        BOOTING = %w[rspec fuzzing query_agreement engine_agreement model_check].freeze
 
         module_function
 

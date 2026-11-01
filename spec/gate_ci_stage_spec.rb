@@ -76,25 +76,31 @@ RSpec.describe "the ci gate stage" do
     end
   end
 
-  describe "the unguarded_push stage" do
-    it "holds the fuzzing check pre_push holds, since no commit hook runs it" do
-      fuzzing = stages.dig("pre_push", "checks").select { |check| check["id"] == "fuzzing" }
-
-      expect(stages.dig("unguarded_push", "checks")).to include(*fuzzing)
-    end
-  end
-
-  describe "the quick stage" do
+  describe "the push path" do
     def ids(stage) = stages.dig(stage, "checks").map { |check| check["id"] }
 
-    it "is the unguarded_push checks other than fuzzing, so fuzzing is the only work it saves" do
-      expect(ids("quick")).to eq(ids("unguarded_push") - ["fuzzing"])
+    it "runs in the push the seconds-long checks and no others" do
+      expect(ids("quick")).to eq(%w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words])
     end
 
-    it "runs before fuzzing in the hook, which stops on a red quick check" do
+    it "has no unguarded_push stage, so the hook and a rehearsal run the quick stage alone" do
+      expect(stages).not_to include("unguarded_push")
+    end
+
+    it "runs the hook's default push as the quick stage and nothing else", :aggregate_failures do
       hook = File.read(File.join(InMemoryDomain::ROOT, ".githooks/pre-push"))
 
-      expect(hook).to match(/' quick \|\|\s+! .* unguarded_push only=fuzzing/)
+      expect(hook).to include("' quick; then")
+      expect(hook).not_to include("only=fuzzing")
+    end
+
+    it "gives every check a stage, and every check moved out of the push to CI", :aggregate_failures do
+      listed = stages.values.flat_map { |stage| stage.fetch("checks") }.map { |check| check["id"] }
+      rows = Hecks::Vocabulary.rows("GateCheck").map { |row| row["id"] }
+
+      expect(rows - listed).to be_empty
+      expect(ids("ci")).to include("command_names", "workflow_pagination")
+      expect(ids("quick") & ids("ci")).to include("shape_ledger", "rubocop", "comment_style", "comment_blocks")
     end
   end
 
@@ -106,7 +112,7 @@ RSpec.describe "the ci gate stage" do
 
   describe "every hecks command a stage's check names" do
     def launcher_calls
-      checks = stages.values_at("ci", "unguarded_push", "quick", "rust_io").flat_map { |stage| stage.fetch("checks") }
+      checks = stages.values_at("ci", "quick", "rust_io").flat_map { |stage| stage.fetch("checks") }
       checks.flat_map { |check| hecks_calls(check.fetch("run").join(" ")) }.uniq
     end
 

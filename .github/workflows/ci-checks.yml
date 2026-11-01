@@ -205,8 +205,10 @@ jobs:
       # telling the human running it what's about to happen. Generates 3
       # representative fixture domains itself; no real AWS or Postgres
       # touched, so this belongs here rather than in `rspec`.
+      # `command_names` and `workflow_pagination` also run here, not in the push: they read the tree
+      # for launcher names and list calls, and a red one files a Work row, not a blocked push.
       - name: lint generated deploy recipes
-        run: bundle exec exe/hecks gate_run.gate! stage=ci only=lint_deploy_recipes --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=lint_deploy_recipes,command_names,workflow_pagination --wait
 
       # The fuzz sweeps run as shards in checks_fuzz and checks_fuzz_sqlite. This lists the split
       # and refuses one that leaves a domain out or sweeps one twice, so a leg that is missing or
