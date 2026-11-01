@@ -15,13 +15,12 @@ module Hecks
             return eras_unrecorded if @reading
 
             @db.exec_params(
-              "SELECT ordinal, hash, label, held_text, watermark, held_digest, held_projection::text " \
+              "SELECT ordinal, hash, label, held_text, watermark, held_digest, held_projection::text, edge::text " \
               "FROM hecks_eras WHERE domain = $1 ORDER BY ordinal",
               [@domain]
             ).map do |row|
               verify_integrity!(row["ordinal"].to_i, row["held_text"], row["held_digest"], row["held_projection"])
-              { ordinal: row["ordinal"].to_i, hash: row["hash"], label: row["label"],
-                held_text: row["held_text"], watermark: row["watermark"]&.to_i }
+              era_from(row)
             end
           end
 
@@ -32,7 +31,7 @@ module Hecks
           # @raise [Runtime::WiringError] when a held text no longer matches its digest
           def eras_unrecorded
             @db.exec_params(
-              "SELECT ordinal, hash, label, held_text, watermark, held_digest " \
+              "SELECT ordinal, hash, label, held_text, watermark, held_digest, edge::text " \
               "FROM hecks_eras WHERE domain = $1 ORDER BY ordinal",
               [@domain]
             ).map { |row| unrecorded_era(row) }
@@ -46,7 +45,18 @@ module Hecks
             end
 
             { ordinal: ordinal, hash: row["hash"], label: row["label"], held_text: row["held_text"],
-              watermark: row["watermark"]&.to_i }
+              watermark: row["watermark"]&.to_i, edge: parsed_edge(row["edge"]) }
+          end
+
+          # @return [Hash] the era a row holds, as `eras` answers it
+          def era_from(row)
+            { ordinal: row["ordinal"].to_i, hash: row["hash"], label: row["label"], held_text: row["held_text"],
+              watermark: row["watermark"]&.to_i, edge: parsed_edge(row["edge"]) }
+          end
+
+          # @return [Hash, nil] the edge column as symbol-keyed JSON, or nil for an era a written edge reached
+          def parsed_edge(text)
+            text && JSON.parse(text, symbolize_names: true)
           end
 
           def current_era

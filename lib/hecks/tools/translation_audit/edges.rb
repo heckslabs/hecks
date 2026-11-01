@@ -38,7 +38,7 @@ module Hecks
             puts "#{bluebook.name} stands at era 1 — no edge to audit."
             return nil
           end
-          [era, lineage_manager.edge_chain(registry, bluebook, eras, latest[:label])]
+          [era, lineage_manager.edge_chain(registry, bluebook, eras, latest[:label], target: latest)]
         end
 
         # The chain when the bluebook has moved past the held journal: audit the pending edge
@@ -48,22 +48,31 @@ module Hecks
           latest = lineage.eras.last
           pending = pending_translation(registry, bluebook, latest)
           chain = begin
-            lineage_manager.edge_chain(registry, bluebook, eras, latest[:label])
+            lineage_manager.edge_chain(registry, bluebook, eras, latest[:label], target: latest)
           rescue StandardError
             []
           end
           [latest[:ordinal] + 1, (chain || []) + [{ translation: pending }]]
         end
 
-        # @return [Object] the translation leading from `latest` to the bluebook
+        # @return [Object] the edge leading from `latest` to the bluebook: a written file, or the
+        #   implicit edge when no file leaves `latest`
         # @raise [SystemExit] when none is declared
         def pending_translation(registry, bluebook, latest)
           to_label = Hecks::Runtime::StorageShape.mint_hash(bluebook)[0, Hecks::Runtime::StorageShape::LABEL_LENGTH]
           pending = registry.translations.find do |t|
             t.domain == bluebook.name && t.from == latest[:label] && t.to == to_label
           end
-          pending or abort "no translation edge leads #{latest[:label]} to #{to_label} — " \
-                           "run hecks scaffold_translation first"
+          pending || implicit_translation(registry, bluebook, latest, to_label) or
+            abort "no translation edge leads #{latest[:label]} to #{to_label} — run hecks scaffold_translation first"
+        end
+
+        # @return [Translation::ImplicitEdge, nil] the implicit edge from `latest`, when no file
+        #   leaves it
+        def implicit_translation(registry, bluebook, latest, to_label)
+          return if registry.translations.any? { |t| t.domain == bluebook.name && t.from == latest[:label] }
+
+          lineage_manager.implicit_edge_for(bluebook, latest[:held_text], from: latest[:label], to: to_label)
         end
       end
     end

@@ -72,7 +72,7 @@ RSpec.describe Hecks::ShapeLedger do
     moved_without_an_edge
 
     expect { described_class.check(directory) }
-      .to raise_error(described_class::Failure, /Hecks\.data_translation "Shop", from: "\h{6}", to: "\h{6}" do end/)
+      .to raise_error(described_class::Failure, /--confirm --additive/)
   end
 
   it "refuses to rewrite the ledger over a shape no edge covers" do
@@ -89,12 +89,12 @@ RSpec.describe Hecks::ShapeLedger do
     expect(described_class.check(directory, confirm: true)).to start_with("wrote 1 bluebook shapes")
   end
 
-  it "settles a move that only adds in one step: writes the empty edge and moves the ledger", :aggregate_failures do
+  it "settles a move that only adds in one step: moves the ledger and writes no edge file", :aggregate_failures do
     moved_without_an_edge
     now = described_class.label(current)
 
-    expect(described_class.check(directory, confirm: true, additive: true)).to include("1 empty edge(s)")
-    expect(File.read(File.join(directory, "translations", "2-#{now}.bluebook"))).to include(%(to: "#{now}"))
+    expect(described_class.check(directory, confirm: true, additive: true)).to include("1 implicit move(s)")
+    expect(File.exist?(File.join(directory, "translations", "2-#{now}.bluebook"))).to be(false)
   end
 
   it "has nothing left to say once an additive move is settled" do

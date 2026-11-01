@@ -57,7 +57,7 @@ module Hecks
 
         # The shape already minted: the edge that arrives at the latest era.
         def settled(latest)
-          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2], latest[:label])
+          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2], latest[:label], target: latest)
           finding(chain, latest[:ordinal], 1)
         end
 
@@ -66,15 +66,23 @@ module Hecks
           label = Runtime::StorageShape.mint_hash(@bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
           leaving = leaving_edges(latest)
           edge = edge_to(leaving, latest, label)
-          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2] + [latest], label)
+          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2] + [latest], label,
+                                      target: edge.is_a?(Translation::ImplicitEdge) ? edge.record : nil)
           finding(chain, latest[:ordinal] + 1, leaving.size, edge)
         end
 
-        # The leaving edge that arrives at the current shape.
+        # The edge that arrives at the current shape: a written file, or the implicit edge when no
+        # file leaves the latest era.
         def edge_to(leaving, latest, label)
-          leaving.find { |t| t.to == label } or
+          leaving.find { |t| t.to == label } || implicit_edge(leaving, latest, label) or
             raise Runtime::NotFound, "no translation edge leads #{latest[:label]} to #{label} — " \
                                      "run `hecks scaffold_translation` first"
+        end
+
+        def implicit_edge(leaving, latest, label)
+          return unless leaving.empty?
+
+          @manager.implicit_edge_for(@bluebook, latest[:held_text], from: latest[:label], to: label)
         end
 
         # The registered translations that leave the latest era.

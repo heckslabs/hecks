@@ -10,6 +10,7 @@ module AutoMintSupport
   EMPTY_EDGE = %(Hecks.data_translation "Hecks", from: "5d288c", to: "f30dcb" do\nend\n).freeze
   FILLED_EDGE = %(Hecks.data_translation "Hecks", from: "5d288c", to: "f30dcb" do\n  drop "port"\nend\n).freeze
   NO_DIFF = { aggregates: [], retired: [], unclaimed: [] }.freeze
+  RENAMED = { aggregates: [Struct.new(:name, :was).new("Cart", "Basket")], retired: [], unclaimed: [] }.freeze
   BLUEBOOK = Struct.new(:aggregates).new([]).freeze
 
   Attr = Struct.new(:name, :optional) do
@@ -98,13 +99,13 @@ RSpec.describe "the auto-mint rule" do
     end
 
     it "holds a mint the rule does not cover for the owner", :aggregate_failures do
-      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil))
+      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil, diff: AutoMintSupport::RENAMED))
       expect { mint }.to raise_error(refused, /needs owner approval/)
       expect(commands).not_to have_received(:mint_era)
     end
 
     it "runs a held mint once the owner confirms it" do
-      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil))
+      allow(commands).to receive(:auto_mint_facts).and_return(clean_facts(edge_text: nil, diff: AutoMintSupport::RENAMED))
       expect(mint(confirm: { value: true })).to include(label: { value: "label" })
     end
 

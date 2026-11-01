@@ -117,6 +117,9 @@ module Hecks
             # Canonical-form version that minted the name (Runtime::StorageShape::FORM_VERSION);
             # NULL reads as 1.
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS canon_form int")
+            # The edge an era was minted under when no edge file wrote it, as `Translation::ImplicitEdge::RECORD`;
+            # NULL for every era a written edge reached.
+            @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS edge jsonb")
             @db.exec(ERA_TEXTS_SQL)
           end
 

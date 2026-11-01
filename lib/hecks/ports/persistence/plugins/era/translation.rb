@@ -7,6 +7,7 @@ end
 
 require_relative "translation/rule_compiler"
 require_relative "translation/scaffold"
+require_relative "translation/implicit_edge"
 require_relative "translation/audit"
 require_relative "translation/compose"
 require_relative "translation/edge_files"

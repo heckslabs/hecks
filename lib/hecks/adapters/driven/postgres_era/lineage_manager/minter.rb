@@ -27,7 +27,7 @@ module Hecks
             edge = verified_edge!(context)
             refuse_unpermitted_mint!(context) unless context.mint_permitted
             chain = audited_chain!(context, edge)
-            commit_era!(context, chain)
+            commit_era!(context, chain, edge)
           end
 
           # Finds the one translation edge leaving the held era and targeting the current
@@ -35,10 +35,31 @@ module Hecks
           # merge to resolve automatically.
           def resolve_edge!(context)
             edges = edges_leaving(context)
-            refuse_toward_the_scaffold!(context) if edges.empty?
+            if edges.empty?
+              implicit = implicit_edge_for(context.bluebook, context.latest[:held_text],
+                                           from: context.latest[:label], to: context.label)
+              return implicit if implicit
+
+              refuse_toward_the_scaffold!(context)
+            end
             refuse_forked_eras!(context, edges) if edges.size > 1
             refuse_stale_edge!(context, edges.first)
             edges.first
+          end
+
+          # The implicit empty edge for a shape change with no edge file, or nil when the scaffold
+          # finds a rule, a retirement or an unresolved name, or the change is not additive.
+          #
+          # @param bluebook [Bluebook::Declaration] the current bluebook
+          # @param held_text [String] the source of the held era the change starts from
+          # @param from [String] the held era's shape label
+          # @param to [String] the current shape's label
+          # @return [Translation::ImplicitEdge, nil]
+          def implicit_edge_for(bluebook, held_text, from:, to:)
+            held = shadow(held_text)
+            return unless Translation::ImplicitEdge.qualifies?(Translation::Scaffold.diff(held, bluebook), held, bluebook)
+
+            Translation::ImplicitEdge.new(domain: bluebook.name, from: from, to: to)
           end
 
           # Diffs the held era against the current shape and writes the edge file —
@@ -77,7 +98,8 @@ module Hecks
 
           # The edge chain to the current shape, after its audit passes.
           def audited_chain!(context, edge)
-            chain = edge_chain(context.registry, context.bluebook, context.held_eras, context.label)
+            chain = edge_chain(context.registry, context.bluebook, context.held_eras, context.label,
+                               target: minted_record(edge))
             audit!(context.bluebook, context.lineage, chain, context.ordinal, edge)
             chain
           end
@@ -89,13 +111,27 @@ module Hecks
             edge
           end
 
-          def commit_era!(context, chain)
+          # The journal record of the era a mint reaches, when the edge is implicit; nil when a
+          # written edge file leads there.
+          #
+          # @return [Hash, nil] the era record `edge_chain` reads as its last step
+          def minted_record(edge)
+            edge.is_a?(Translation::ImplicitEdge) ? edge.record : nil
+          end
+
+          # @return [Hash, nil] the `edge` column of the minted era: the implicit marker, or nil
+          def implicit_record(edge)
+            edge.is_a?(Translation::ImplicitEdge) ? Translation::ImplicitEdge::RECORD : nil
+          end
+
+          def commit_era!(context, chain, edge)
             hash = context.shape_hash
             bluebook = context.bluebook
             context.lineage.mint_era!(
               ordinal: context.ordinal, hash: hash, label: hash[0, Runtime::StorageShape::LABEL_LENGTH],
               held_text: context.current_text, aggregates: bluebook.aggregates, edges: chain,
-              role: context.role, projection: Runtime::StorageShape.project(context.bluebook)
+              role: context.role, projection: Runtime::StorageShape.project(context.bluebook),
+              edge: implicit_record(edge)
             )
             context.ordinal
           end
