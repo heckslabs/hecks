@@ -121,9 +121,9 @@ module Hecks
         # @param watermark [Integer] the copy's ledger watermark
         # @return [PostgresEra::LineageManager::MintDecision::Verdict]
         def decide(held_era, watermark)
-          declared = PostgresEra::LineageManager.shadow(held_era[:held_text])
           PostgresEra::LineageManager::MintDecision.decide(
-            held: [held_era.merge(declaration: declared)], bluebook: bluebook, watermark: watermark, rows: [],
+            held: [PostgresEra::LineageManager::MintDecision.held_for_decision(held_era)], bluebook: bluebook,
+            watermark: watermark, rows: [],
             edge_source: { translations: registry.translations,
                            recorded:     PostgresEra::LineageManager::MintDecision.recorded_moves(bluebook.name, directory) }
           )
