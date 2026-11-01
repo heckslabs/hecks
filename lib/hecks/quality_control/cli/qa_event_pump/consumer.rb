@@ -12,10 +12,12 @@ module Hecks
         # @param name [String] the consumer's domain name
         # @param attached [Attached] the attached domains
         # @param cursors [Cursors] where the positions are kept
-        def initialize(name, attached:, cursors:)
+        # @param reactions [Reactions] where the reactions already made are kept
+        def initialize(name, attached:, cursors:, reactions:)
           @name = name
           @attached = attached
           @cursors = cursors
+          @reactions = reactions
           @failed = false
         end
 
@@ -55,10 +57,14 @@ module Hecks
           ["#{@name} <- #{producer}: stopped, #{e.class}: #{e.message}"]
         end
 
-        # Runs each policy that reacts to the entry, then moves the cursor past it.
+        # Runs each policy that reacts to the entry and that the ledger holds no reaction for, then
+        # moves the cursor past it. A reaction is recorded as soon as its policy answers, before the
+        # cursor moves, so a stop between the two leaves the policy recorded and the rerun skips it.
         def react(producer, entry, position)
           event = Reader.event(entry)
           lines = runtime.outbox.policies_for(event, producer).flat_map do |policy, home|
+            next [] if @reactions.recorded?(@name, event.id, policy.name)
+
             fire(event, policy, home, producer, position)
           end
           @cursors.advance(producer, @name, position)
@@ -70,7 +76,9 @@ module Hecks
           before = log.size
           runtime.outbox.react_policy(event, policy: policy, home: home, domain: producer,
                                              event_uid: "#{producer}##{position}")
-          log.drop(before).map { |record| describe(record, policy, event, producer) }
+          records = log.drop(before)
+          @reactions.record(@name, event.id, policy.name) if records.any?
+          records.map { |record| describe(record, policy, event, producer) }
         end
 
         def describe(record, policy, event, producer)
