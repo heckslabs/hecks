@@ -4,6 +4,8 @@ require "open3"
 require "hecks/vocabulary"
 require_relative "../tools"
 require_relative "stage_progress"
+require_relative "gate_memo/session"
+require_relative "gate_report"
 
 module Hecks
   module Tools
@@ -15,7 +17,9 @@ module Hecks
     #   hecks gate --list                  # the stages and their checks
     #
     # A green stage prints which checks passed; a red one prints each failing check's whole output
-    # and what its failure means, and answers status 1.
+    # and what its failure means, and answers status 1. A check whose inputs are unchanged since its
+    # last green run is not run: it is printed as skipped, and the verdict counts it as skipped, not
+    # passed (see GateMemo).
     module Gate
       USAGE = "usage: hecks gate <stage> [only=a,b] | hecks gate --list"
 
@@ -59,7 +63,17 @@ module Hecks
         checks = select(stage.fetch("checks"), only)
         return unknown(stage, only) if checks.nil?
 
-        report(name, checks, run_all(stage, checks, root, progress))
+        run_planned(name, stage, checks, root, progress)
+      end
+
+      # Runs the checks the memo does not skip, records the green ones, and reports the stage.
+      #
+      # @return [Integer] the verdict of `report`
+      def run_planned(name, stage, checks, root, progress)
+        session = GateMemo::Session.new(root: root, env: stage.fetch("env", {}))
+        plan = session.plan(checks)
+        results = run_all(stage, plan.run, root, progress)
+        GateReport.report(name, plan, results, session.record(results))
       end
 
       # @param argv [Array<String>] the command line words
@@ -119,30 +133,6 @@ module Hecks
       def workers
         require "etc"
         [Etc.nprocessors / 2, 1].max
-      end
-
-      # @param name [String] the stage name
-      # @param checks [Array<Hash>] the checks that ran
-      # @param results [Hash{String => Array}] each check's output and whether it passed
-      # @return [Integer] 0 when every check passed, 1 otherwise
-      def report(name, checks, results)
-        failed = checks.reject { |check| results.fetch(check["id"]).last }
-        failed.each { |check| print_failure(name, check, results.fetch(check["id"]).first) }
-        return summary(name, "red", failed, 1) unless failed.empty?
-
-        summary(name, "green", checks, 0)
-      end
-
-      # @return [Integer] the given status, after printing the stage's verdict and its check ids
-      def summary(name, verdict, checks, status)
-        puts "[gate #{name}] #{verdict}: #{checks.map { |check| check["id"] }.join(", ")}"
-        status
-      end
-
-      # @return [void] prints a failing check's output and what its failure means
-      def print_failure(name, check, output)
-        puts "\n[gate #{name}] #{check["title"]}\n\n#{output}"
-        puts "\n[gate #{name}] BLOCKED: #{check["blocked"]}\n"
       end
 
       def list(stages)
