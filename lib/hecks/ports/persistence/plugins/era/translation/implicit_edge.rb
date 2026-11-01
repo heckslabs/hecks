@@ -1,4 +1,5 @@
 require_relative "../projected_bluebook"
+require_relative "additive_shape"
 
 module Hecks
   module Translation
@@ -47,40 +48,20 @@ module Hecks
       def record = { label: to, edge: RECORD }
 
       # Whether a storage change needs no edge file: the scaffold finds no rule, no retirement and
-      # no unresolved name, and every attribute an existing aggregate gained is optional.
+      # no unresolved name, and every aggregate both shapes have only adds: same identity and
+      # lifecycle field, every held attribute held exactly as before (list or scalar included),
+      # and every attribute gained optional. Anything this cannot tell is breaking.
       #
       # @param diff [Hash] the scaffold's diff of the held shape against the current one
       # @param held [Hash, Runtime::ProjectedBluebook, Bluebook::Declaration] the held era's storage
-      #   shape, a view over it, or a declared bluebook; only its aggregate and attribute names
-      #   are read
+      #   shape, a view over it, or a declared bluebook
       # @param current [Bluebook::Declaration] the current bluebook, which says which of its
       #   attributes are optional
       # @return [Boolean]
       def self.qualifies?(diff, held, current)
         diff[:aggregates].empty? && diff[:retired].empty? && diff[:unclaimed].empty? &&
-          new_attributes_optional?(Runtime::ProjectedBluebook.wrap(held), current)
+          AdditiveShape.additive?(held, current)
       end
-
-      # An aggregate the held era did not have is new: nothing stored before it, so its attributes
-      # may be required.
-      #
-      # @return [Boolean]
-      def self.new_attributes_optional?(held, current)
-        held_names = held.aggregates.to_h { |aggregate| [aggregate.name, attribute_names(aggregate)] }
-        current.aggregates.all? do |aggregate|
-          !held_names.key?(aggregate.name) || gained_optional?(aggregate, held_names[aggregate.name])
-        end
-      end
-
-      # @return [Boolean] whether every attribute an aggregate has that its held shape did not is
-      #   optional
-      def self.gained_optional?(aggregate, known)
-        aggregate.attributes.all? { |attribute| known.include?(attribute.name) || attribute.optional? }
-      end
-
-      # @return [Array<String>] the names of an aggregate's attributes
-      def self.attribute_names(aggregate) = aggregate.attributes.map(&:name)
-      private_class_method :new_attributes_optional?, :gained_optional?, :attribute_names
     end
   end
 end
