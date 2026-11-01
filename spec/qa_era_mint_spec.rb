@@ -8,6 +8,7 @@ require_relative "support/scratch_postgres"
 require_relative "support/fenced_owner"
 require_relative "support/era_registry_loading"
 require_relative "support/mint_request_support"
+require_relative "support/first_era_hold"
 
 # The Maintenance mint of a ledger, on a disposable database and a temporary ledger directory: the
 # Mint ask runs the era check with the mint request, and each guard refuses by name. The real QA
@@ -15,6 +16,7 @@ require_relative "support/mint_request_support"
 RSpec.describe "the Maintenance mint of the QA ledger", :io do
   include EraRegistryLoading
   include MintRequestSupport
+  include FirstEraHold
 
   MINT_SPEC_DB = "hecks_qa_era_mint_spec".freeze
 
@@ -81,15 +83,6 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
     RUBY
   end
 
-  # Holds era 1 the way a first boot does: no mint, no request.
-  def hold_first!
-    held = Hecks::Adapters::JournalStore::HeldDomain.open(ledger_dir, mode: :translated)
-    held.registry.adapter_class(held.adapter_name).era_check!(
-      registry: held.registry, bluebook: held.bluebook, current_text: File.read(File.join(ledger_dir, "ledger.bluebook")),
-      settings: held.settings, directory: held.directory
-    )
-  end
-
   def era_count
     connection = PG.connect(FencedOwner.url(MINT_SPEC_DB))
     connection.exec("SELECT count(*) AS n FROM hecks_eras WHERE domain = 'Ledger'")[0]["n"].to_i
@@ -115,7 +108,7 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
     stub_const("Hecks::Adapters::MainMaintenance::STRANDED_DIR", File.join(@root, "state"))
     write_files
     write_ledger(shape("cost"))
-    hold_first!
+    hold_first_era!(url: FencedOwner.url(MINT_SPEC_DB), domain: "Ledger", source: shape("cost"))
     write_ledger(shape("amount"), translation: edge_v1_to_v2)
   end
 
@@ -146,8 +139,8 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
       .to eq([label_of(shape("amount")), true])
   end
 
-  it "refuses an unconfirmed mint by name, and mints the era once confirmed", :aggregate_failures do
-    expect { mint_with(confirm: false) }.to raise_error(refused, /the mint was not confirmed/)
+  it "holds an unconfirmed rename for the owner, and mints the era once confirmed", :aggregate_failures do
+    expect { mint_with(confirm: false) }.to raise_error(refused, /needs owner approval/)
     expect(mint_with).to include(label: { value: label_of(shape("amount")) })
     expect(era_count).to eq(2)
   end

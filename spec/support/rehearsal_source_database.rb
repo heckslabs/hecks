@@ -1,6 +1,7 @@
 require "open3"
 require "pg"
 require_relative "fenced_owner"
+require_relative "first_era_hold"
 
 # The shop as its previous release held it, written to a throwaway Postgres database and dumped to
 # a file: era 1 minted and one widget stored. A rehearsal restores that dump.
@@ -8,6 +9,8 @@ require_relative "fenced_owner"
 # `schema:` holds the lineage in that schema instead of `public`, as a shared database does.
 module RehearsalSourceDatabase
   module_function
+
+  extend FirstEraHold
 
   # @param shop [String] a copy of the shop (`RehearsalShop.copy_to`)
   # @param source [String] the name of the database to make, and drop afterwards
@@ -46,6 +49,7 @@ module RehearsalSourceDatabase
     bluebook = registry.bluebooks.values.first
     settings = { database: FencedOwner.url(source), domain: "Shop" }
     settings[:schema] = schema if schema
+    hold_first_era!(url: settings[:database], domain: "Shop", source: text, schema: schema)
     Hecks::Adapters::PostgresEra::LineageManager.check!(registry: registry, bluebook: bluebook,
                                                         current_text: text, settings: settings)
     store(bluebook, settings) if widgets
