@@ -1,0 +1,95 @@
+{
+  "domain": "spec/corpus/semantics/domains/echo",
+  "spec": [
+    "C10.4"
+  ],
+  "note": "The reaction depth bound is five reactions below the root command. Beacon.Ping triggers PingAgain on its own Pinged event, forever; the root Ping and the first five reactions run, and the sixth reaction is recorded undelivered with 'reaction depth 5 reached', never run. A chain of exactly five runs whole in both runtimes; one more is refused.",
+  "steps": [
+    {
+      "verb": "Echo::Beacon.Light",
+      "args": {
+        "name": {
+          "value": "b1"
+        }
+      }
+    },
+    {
+      "verb": "Echo::Beacon.Ping",
+      "args": {
+        "beacon": "b1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Echo::Beacon#b1": {
+        "name": {
+          "value": "b1"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "BeaconLit",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "name": {
+            "value": "b1"
+          }
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      },
+      {
+        "name": "Pinged",
+        "aggregate": "Echo::Beacon",
+        "id": "b1",
+        "payload": {
+          "beacon": "b1"
+        }
+      }
+    ]
+  }
+}
