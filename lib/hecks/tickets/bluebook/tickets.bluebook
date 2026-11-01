@@ -287,8 +287,15 @@ Hecks.bluebook "Tickets" do
     attribute :reason, WorkText, optional: true
     attribute :claimed_by, Claimant, optional: true
     attribute :claimed_at, ClaimedAt, optional: true
+    attribute :area,   list_of(Word), optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :work
+
+    # A path prefix or glob a claim covers. Two areas overlap by `Hecks::Adapters::AreaOverlap`;
+    # a row with no area claims nothing.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
 
     # The session that claimed a started step, named as the session names itself.
     value_object "Claimant" do
@@ -328,6 +335,7 @@ Hecks.bluebook "Tickets" do
     lifecycle :status, default: "planned" do
       transition "Start"   => "started", from: "planned"
       transition "Release" => "planned", from: "started"
+      transition "Yield"   => "planned", from: "started"
       transition "Finish" => "done",    from: %w[planned started]
       transition "Drop"   => "dropped", from: %w[planned started]
       transition "Lapse"  => "dropped", from: %w[planned started]
@@ -357,8 +365,20 @@ Hecks.bluebook "Tickets" do
       reference_to Work
       attribute :claimed_by, Claimant, sets: true
       attribute :claimed_at, ClaimedAt, sets: true
+      attribute :area,       list_of(Word), optional: true, sets: true
 
       emits "WorkStarted"
+    end
+
+    # The claim's area overlapped another started step's: the WorkAreas port refuses it by name, and
+    # the step goes back to the plan with the refusal as its reason.
+    command "Yield" do
+      goal "Return a step whose area another started step holds, with the refusal"
+
+      reference_to Work
+      attribute :reason, WorkText, sets: true
+
+      emits "WorkYielded"
     end
 
     # A claim gone stale returns its step to the plan, so the next session can claim it.
@@ -468,6 +488,17 @@ Hecks.bluebook "Tickets" do
   policy "ReopenIssueWhenReopened" do
     on      "Finding.FindingReopened"
     ask     :reopen_issue, with: { finding: :finding }
+  end
+
+  # A started step with an area asks the WorkAreas port whether another started step holds any of it.
+  policy "CheckAreaWhenStarted" do
+    on      "Work.WorkStarted"
+    ask     :check_area, with: { work: :work }
+  end
+
+  policy "YieldWhenAreaTaken" do
+    on      "Work.AreaRefused"
+    trigger Work::Yield, with: { reason: :refusal }
   end
 
   # A superseded decision takes its undone steps with it.
