@@ -10,6 +10,9 @@ module Hecks
           # The aggregate whose record a landing's `from` names.
           SOURCE = "LinkedTree".freeze
 
+          # The arguments a result names as the ids a command used.
+          IDENTITY = %i[run from checkout branch].freeze
+
           # The command that lands a branch: `Hecks::Landing.Land`, and its qualified forms.
           LANDING = /Landing\.Land\z/
 
@@ -39,6 +42,17 @@ module Hecks
             record = tree[:record]
             args.merge(checkout: args[:checkout] || { value: value_of(record[:path]) },
                        branch:   args[:branch] || { value: value_of(record[:branch]) })
+          end
+
+          # The ids a result names: the run key, the record written, and the references the command used,
+          # with the checkout and branch it resolved. Absent ones are left out.
+          #
+          # @param args [Hash] the arguments the command ran with, after any reference was filled
+          # @param record_id [String, nil] the id of the record the command wrote
+          # @return [Hash] the ids the command used
+          def ids(args, record_id)
+            named = IDENTITY.to_h { |key| [key, value_of(args[key])] }
+            named.merge(id: record_id).compact
           end
 
           # A stored field is its value, or the `{value:}` wrapper a word carries.
