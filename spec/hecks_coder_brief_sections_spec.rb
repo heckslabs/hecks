@@ -24,7 +24,7 @@ RSpec.describe "the Coder brief's standing sections" do
 
   it "tells the session how to set up and clean up its worktree" do
     expect(section(:workflow)).to include("git worktree add .claude/worktrees/{work} -b {work} origin/main",
-                                          "Co-Authored-By", "ignored files")
+                                          "no Claude attribution trailer", "ignored files")
   end
 
   it "tells the session how to land" do
