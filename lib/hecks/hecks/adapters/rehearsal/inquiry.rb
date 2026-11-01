@@ -20,7 +20,6 @@ module Hecks
         ALWAYS = [
           { what: "the mint itself",
             why:  "no era was written: the edge, its approval and the audit were evaluated, nothing minted" },
-          { what: "an edge's coverage of every change in the shape", why: "the mint checks it; the rehearsal does not yet" },
           { what: "commands, policies and requests", why: "no traffic was run: only the stored data and the shape were read" },
           { what: "data written after the copy was made", why: "a copy is a moment; the mint sees the data of its own" }
         ].freeze
@@ -43,6 +42,7 @@ module Hecks
         def examine
           edge = decided_edge
           refusals, after = edge ? @store.audit(@subject, edge) : [[], {}]
+          refusals = coverage_refusals(edge) + refusals
           rust = RustAudit.call(@subject, after)
           report = AuditReport.new(minting: minting, edge: edge, states: after, ruby: refusals, rust: rust)
           answer(edge, report, (refusals + rust.violations).uniq, limits(rust, report))
@@ -58,6 +58,19 @@ module Hecks
 
           verdict = resolution.verdict
           verdict&.verdict == "would_mint" ? verdict.edge : nil
+        end
+
+        # What the mint's coverage check would refuse of the decided edge, in the same words: a
+        # change in the shape that no rule of the edge explains. The mint raises it before it
+        # writes an era.
+        def coverage_refusals(edge)
+          return [] unless edge
+
+          held = PostgresEra::LineageManager.held_bluebook(latest)
+          PostgresEra::LineageManager.check_coverage!(@subject.registry, @subject.bluebook, held, edge)
+          []
+        rescue Runtime::WiringError => e
+          [e.message]
         end
 
         def shape
