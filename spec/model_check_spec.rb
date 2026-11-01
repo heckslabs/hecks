@@ -389,17 +389,35 @@ RSpec.describe "the model checker" do
 
     # Two passes over the same boots, as in hecks model_check: a cross-domain check needs every
     # corpus member's domain name known first. Computed lazily and memoized.
-    def self.domain_names_of(source)
+    def self.registry_of(source)
       registry = Hecks::Runtime::Registry.new
       Hecks.with_registry(registry) do
         MODEL_CHECK_PORT_FILES.each { |file| Kernel.load(file) }
         InMemoryDomain.load_bluebook_files(source)
       end
+      registry
+    end
+
+    def self.domain_names_of(source)
+      registry = registry_of(source)
       registry.bluebooks.keys + registry.hecksagons.keys
     end
 
     def self.known_domains
       @known_domains ||= MODEL_CHECK_CORPUS.flat_map { |_, source| domain_names_of(source) }.to_set.freeze
+    end
+
+    # Every event any corpus member emits, attached bluebooks included, as the command's
+    # `global_emitted_events`: a QualityControl policy on a Fixer event has an emitter in the bundle.
+    def corpus_emitted_events
+      self.class.instance_variable_get(:@corpus_emitted_events) ||
+        self.class.instance_variable_set(:@corpus_emitted_events, collect_emitted_events.freeze)
+    end
+
+    def collect_emitted_events
+      MODEL_CHECK_CORPUS.flat_map do |_, source|
+        boot(source).bluebooks.values.flat_map { |bluebook| Hecks::Bluebook::ModelCheck.emitted_events(bluebook) }
+      end.to_set
     end
 
     # The findings of the corpus member `name`, checked the way hecks model_check checks it.
@@ -409,9 +427,10 @@ RSpec.describe "the model checker" do
       rust_target = Hecks::Fuzzing::TargetCapabilities.rust_feature?(name, File.join(ROOT_DIR, "rust"))
       registry = boot(source)
       bluebook = registry.bluebooks.values.first
-      Hecks::Bluebook::ModelCheck.call(bluebook, hecksagon:     registry.hecksagon(bluebook.name),
-                                                 known_domains: self.class.known_domains,
-                                                 rust_target:   rust_target)
+      Hecks::Bluebook::ModelCheck.call(bluebook, hecksagon:             registry.hecksagon(bluebook.name),
+                                                 known_domains:         self.class.known_domains,
+                                                 global_emitted_events: corpus_emitted_events,
+                                                 rust_target:           rust_target)
     end
 
     # The errors the corpus member `name` raises that its allowlist does not name.

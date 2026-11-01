@@ -79,7 +79,10 @@ module Hecks
 
         def report(steps, reclaimed, log_path)
           banner "tick report"
-          steps.each { |step| puts step_verdict(step) }
+          steps.each do |step|
+            puts step_verdict(step)
+            puts errored_line(step) if step.exit_code != EXIT_OK && step.exit_code != EXIT_FOUND_SOMETHING
+          end
           puts stale_holds_line(reclaimed)
           tick_exit = tick_exit_for(steps.map(&:exit_code))
           puts "tick: #{verdict(tick_exit)} (exit #{tick_exit})"
@@ -91,6 +94,18 @@ module Hecks
         def step_verdict(step)
           verb = step.name.delete_suffix(" --from-dials")
           "hecks quality_control #{verb}: #{verdict(step.exit_code)} (exit #{step.exit_code.inspect})"
+        end
+
+        # What an errored step last said, under its verdict: an abort's refusal (a ledger with no
+        # era held names `hold_first`) ends the output, so the closing report carries it too.
+        def errored_line(step)
+          last = last_said(step.output)
+          last ? "    #{last}" : "    (no output)"
+        end
+
+        def last_said(output)
+          stripped = output.to_s.lines.map(&:strip)
+          stripped.reject(&:empty?).last
         end
 
         def stale_holds_line(reclaimed)

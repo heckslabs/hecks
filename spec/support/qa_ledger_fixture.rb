@@ -4,6 +4,7 @@ require "open3"
 require "hecks/quality_control/cli/child"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
+require_relative "first_era_hold"
 
 # A disposable Postgres-backed `QualityControl` ledger for specs that run the `qa_*` commands
 # as subprocesses; one database per spec file so parallel_rspec workers do not scrub each other.
@@ -49,6 +50,8 @@ module QaLedgerFixture
 
   # A real Postgres database plus a fixture domain directory that symlinks the real bluebook.
   class Ledger
+    include FirstEraHold
+
     attr_reader :database, :dir
 
     def initialize(database:)
@@ -65,6 +68,7 @@ module QaLedgerFixture
       write_fixture_files
       create_database
       QaLedgerRole.provision!(@database)
+      hold_domain_eras!(directory: @dir, url: QaLedgerRole.url(@database))
       self
     end
 
@@ -74,6 +78,9 @@ module QaLedgerFixture
       admin.close
       FileUtils.remove_entry(@root) if @root
     end
+
+    # The held-era tables `stand_up!` fills; `reset!` leaves them, or the next boot finds no era.
+    HELD_ERA_TABLES = %w[hecks_eras hecks_era_texts hecks_attestations].freeze
 
     # Clears rows before every example so none leak between examples, via `truncate`
     # rather than dropping and recreating the schema: dropping it would invalidate
@@ -85,7 +92,7 @@ module QaLedgerFixture
     # any tables yet.
     def reset!
       scrub = PG.connect(dbname: @database)
-      tables = scrub.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").map { |row| row["tablename"] }
+      tables = scrubbable_tables(scrub)
       unless tables.empty?
         quoted = tables.map { |table| scrub.quote_ident(table) }.join(", ")
         scrub.exec("TRUNCATE #{quoted} RESTART IDENTITY CASCADE")
@@ -112,6 +119,11 @@ module QaLedgerFixture
     end
 
     private
+
+    def scrubbable_tables(scrub)
+      rows = scrub.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+      rows.map { |row| row["tablename"] } - HELD_ERA_TABLES
+    end
 
     def write_fixture_files
       QaLedgerFixture.write_files(@dir, @database)

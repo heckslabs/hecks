@@ -6,6 +6,7 @@ require "fileutils"
 require_relative "support/postgres_probe"
 require_relative "support/scratch_postgres"
 require_relative "support/fenced_owner"
+require_relative "support/first_era_hold"
 
 # The Fixer's attempts on a disposable PostgresEra database, booted from a fixture copy of the Fixer
 # domain whose world names that database. Each boot runs in its own process, so an attempt written
@@ -17,6 +18,8 @@ RSpec.describe "the Fixer's durable attempts", :io do
   FIXER_SOURCE = File.join(InMemoryDomain::ROOT, "lib/hecks/fixer").freeze
   FIXER_QA_BLUEBOOK = File.join(InMemoryDomain::ROOT, "qa/bluebook").freeze
 
+  include FirstEraHold
+
   scratch_postgres FIXER_DURABLE_DB, fenced: true
 
   around do |example|
@@ -26,6 +29,8 @@ RSpec.describe "the Fixer's durable attempts", :io do
   ensure
     FileUtils.rm_rf(@dir)
   end
+
+  before { hold_domain_eras!(directory: @dir, url: FencedOwner.url(FIXER_DURABLE_DB)) }
 
   def write_fixture
     FileUtils.cp(File.join(FIXER_SOURCE, "fixer.bluebook"), File.join(@dir, "fixer.bluebook"))
@@ -92,7 +97,7 @@ RSpec.describe "the Fixer's durable attempts", :io do
     expect(run_fresh(%(puts "booted"))).to eq("booted")
   end
 
-  it "gives a fresh Fixer database its own era on first boot" do
+  it "boots a Fixer database whose first era is held, and leaves that era in place" do
     run_fresh(%(puts "booted"))
 
     expect(fixer_database_eras).to include(%w[Fixer 1])
