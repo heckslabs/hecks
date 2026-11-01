@@ -64,11 +64,12 @@ module Hecks
         # @return [void] a check with declared inputs is skipped when its inputs hash as its green
         # run did
         def generic(check, result)
-          inputs = GateMemo.digest(@root, check, @env)
+          tree = GateMemo.tree(@root, check["id"])
+          inputs = GateMemo.digest(@root, check, @env, tree)
           entry = @memo[check["id"]]
           return result.skipped << [check, entry["at"]] if GateMemo.reusable?(entry, inputs)
 
-          run(check, result, inputs ? GateMemo.green(inputs) : nil)
+          run(check, result, inputs ? GateMemo.green(inputs, tree) : nil)
         end
 
         # @return [void] RuboCop runs on the files its green run did not cover, or on all of them
