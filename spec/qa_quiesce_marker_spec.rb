@@ -8,7 +8,8 @@ RSpec.describe Hecks::Adapters::QaQuiesceMarker, :aggregate_failures do
   let(:dir) { Dir.mktmpdir("qa_quiesce") }
   let(:path) { File.join(dir, "quiesce") }
   let(:now) { [Time.utc(2026, 11, 1, 12, 0, 0)] }
-  let(:marker) { described_class.new(path: path, stale_after: 7200, clock: -> { now.first }) }
+  # rubocop:disable-next RSpec/DescribedClass
+  let(:marker) { Hecks::Adapters::QaQuiesceMarker.new(path: path, stale_after: 7200, clock: -> { now.first }) }
 
   after { FileUtils.remove_entry(dir) }
 
