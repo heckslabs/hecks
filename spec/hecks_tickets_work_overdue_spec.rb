@@ -3,7 +3,7 @@ require "spec_helper"
 # A started Work row with a time budget is overdue once its claim time plus the budget is before
 # now, as the clock port reads it. Each example boots its own Memory domain and fixes the clock.
 RSpec.describe "Work.overdue" do
-  let(:hecks) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false) }
+  let(:hecks) { boot_hecks_in_memory }
   let(:claimed) { Time.utc(2026, 11, 1, 9, 0, 0) }
 
   def cli(*argv)

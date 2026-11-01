@@ -43,7 +43,7 @@ module Hecks
       def budgeted_row(record)
         minutes = value(record, :budget_minutes)
         claimed = value(record, :claimed_at)
-        return unless value(record, :status) == "started" && minutes && claimed
+        return unless value(record, :status) == "started" && minutes.to_i.positive? && !claimed.to_s.empty?
 
         { key: value(record, :work).to_s, claimed_by: value(record, :claimed_by).to_s,
           claimed_at: claimed.to_s, budget_minutes: Integer(minutes) }

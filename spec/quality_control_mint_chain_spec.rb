@@ -7,7 +7,7 @@ require_relative "../lib/hecks/quality_control/adapters/main_maintenance"
 RSpec::Matchers.define_negated_matcher :not_include, :include
 
 RSpec.describe "the QualityControl mint chain" do
-  let(:qc) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false) }
+  let(:qc) { boot_hecks_in_memory }
   let(:commands) { Hecks::Adapters::MainMaintenance::Commands }
   let(:state_dir) { Dir.mktmpdir }
   let(:facts) do

@@ -23,6 +23,8 @@ Hecks.bluebook "Fixer" do
     attribute :reproduction, ReproductionCommand, optional: true
     attribute :observed,     ReproductionObserved, optional: true
     attribute :reproduced,   ReproductionResult, optional: true
+    attribute :merged_commit, CommitRef, optional: true
+    attribute :merge_pending, MergePending, optional: true
 
     value_object "BugReference" do
       attribute :value, String, matches: :present
@@ -69,6 +71,11 @@ Hecks.bluebook "Fixer" do
       invariant("a reproduction either failed or passed") { value == "failed" || value == "passed" }
     end
 
+    # "yes" while a merged patch is on the record for an attempt that cannot yet record its fix.
+    value_object "MergePending" do
+      attribute :value, String, default: ""
+    end
+
     value_object "Engineer" do
       attribute :value, String, default: "nobody"
     end
@@ -85,7 +92,7 @@ Hecks.bluebook "Fixer" do
 
     # A bug is born logged; each step moves the attempt along the same edges QualityControl uses.
     lifecycle :status, default: "logged" do
-      transition "Investigate" => "investigating", from: "logged"
+      transition "Investigate" => "investigating", from: %w[logged investigating]
       transition "Fix"         => "fixed",         from: "investigating"
       transition "Verify"      => "verified",      from: "fixed"
       mark :terminal, "verified"
@@ -122,7 +129,9 @@ Hecks.bluebook "Fixer" do
     end
 
     # An investigation starts from the real entry point: the command run, what it printed, and
-    # whether it failed. `Fix` is refused until a failing reproduction is on the record.
+    # whether it failed. `Fix` is refused until a failing reproduction is on the record. An
+    # attempt already investigating can be investigated again, to record the reproduction it lacks
+    # or to replace one that did not fail.
     command "Investigate" do
       role "Fixer"
       goal "Run the real entry point, record its failure, name the code that is wrong and say why"
@@ -153,6 +162,35 @@ Hecks.bluebook "Fixer" do
       end
 
       emits "FixReady"
+    end
+
+    # A merged patch the attempt cannot yet record as its fix (no failing reproduction on the
+    # record) is kept on the attempt and announced, so it is neither dropped nor silent: the
+    # attempt lists under `AwaitingReproduction` until it is investigated and fixed.
+    command "NoteMerge" do
+      role "Fixer"
+      goal "Keep a merged patch that the attempt cannot yet record as its fix"
+
+      reference_to Attempt
+      attribute :reference, BugReference
+      attribute :commit,    CommitRef
+
+      given("a patch the attempt already recorded as its fix is not pending") do
+        reproduction.nil? || reproduced.nil? || reproduced.value != "failed"
+      end
+
+      sets :merged_commit, to: :commit
+      sets :merge_pending, to: "yes"
+
+      emits "MergeAwaitsReproduction"
+    end
+
+    # The attempts holding a merged patch they could not record: the QA tick reads these, investigates
+    # with a failing reproduction, then records the fix with `merged_commit`.
+    query "AwaitingReproduction" do
+      description "Every attempt with a merged patch it could not record as its fix because no failing reproduction is on the record."
+      where(status: { in: "logged,investigating" }, merge_pending: "yes")
+      order_by :claimed_at
     end
 
     # `FixVerified` restates the reference and commit so the ledger can record the verified state
@@ -192,5 +230,11 @@ Hecks.bluebook "Fixer" do
   policy "FixOnPatchMerged" do
     on      "Patch.PatchMerged"
     trigger Attempt::Fix, with: { reference: :bug, commit: :commit }
+  end
+
+  # Declared after the fix: an attempt that could not record it keeps the commit and says so.
+  policy "NoteMergeWhenPatchMerged" do
+    on      "Patch.PatchMerged"
+    trigger Attempt::NoteMerge, with: { reference: :bug, commit: :commit }
   end
 end

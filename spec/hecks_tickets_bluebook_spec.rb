@@ -5,7 +5,7 @@ require "spec_helper"
 # the finding, and a Work step stays inside Hecks.
 RSpec.describe "the Tickets bluebook" do
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = InMemoryDomain.boot_hecks_in_memory
     @bluebook = @hecks.registry.bluebook("Tickets")
   end
 

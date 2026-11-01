@@ -3,7 +3,7 @@ require "spec_helper"
 # The concurrency cap: a start that would make more started rows than the Tickets world's
 # `work_limit` allows goes back to the plan, naming the cap, the count and the holders.
 RSpec.describe "the Work concurrency cap" do
-  let(:hecks) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false) }
+  let(:hecks) { boot_hecks_in_memory }
 
   def cli(*argv)
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: hecks, program: "hecks", argv: ["tickets", *argv])

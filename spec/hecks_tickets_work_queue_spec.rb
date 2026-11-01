@@ -4,7 +4,7 @@ require "spec_helper"
 # branch named for the step finishes it. Each example boots its own Hecks domain, so no claim or
 # step leaks into another.
 RSpec.describe "the Work queue" do
-  let(:hecks) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false) }
+  let(:hecks) { boot_hecks_in_memory }
 
   def cli_text(*argv)
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: hecks, program: "hecks", argv: ["tickets", *argv])

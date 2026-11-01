@@ -5,6 +5,12 @@
       "to": "5f27b9"
     }
   ],
+  "Fixer": [
+    {
+      "from": "93d42b",
+      "to": "cc8494"
+    }
+  ],
   "Hecks": [
     {
       "from": "f30dcb",

@@ -131,6 +131,47 @@ module InMemoryDomain
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
+  # Boots the Hecks domain (`lib/hecks/hecks`) in Memory whatever the checkout's local files say.
+  # The `memory` environment overlay cannot undo an aggregate a gitignored `hecks.local.hecksagon`
+  # binds to a database, so a spec that wrote through it would fill the developer's real ledger
+  # (and read its rows back). For the boot, the loader sees no local overlay: no `*.local.*` file
+  # beside the domain or in the working directory, and no `environments/local.*`.
+  #
+  # @param path [String] the domain directory
+  # @param options [Hash] `install_driving:` (false unless given)
+  # @return [Hecks::Runtime::Dispatcher] the booted dispatcher
+  def boot_hecks_in_memory(path = File.join(ROOT, "lib/hecks/hecks"), **options)
+    without_local_overlay do
+      Hecks.boot(path, install_driving: options.fetch(:install_driving, false), environment: HecksMemoryEnvironment::NAME)
+    end
+  end
+  module_function :boot_hecks_in_memory
+
+  # Runs the block with the folder loader's local overlay files and `local` environment pointing
+  # at nothing, then puts both back.
+  #
+  # @return [Object] the block's value
+  def without_local_overlay
+    overlay = Hecks::Adapters::FolderOverlay
+    saved = { LOCAL_FILES: overlay::LOCAL_FILES, LOCAL_OVERLAY: overlay::LOCAL_OVERLAY }
+    swap_overlay_constants(overlay, LOCAL_FILES: [].freeze, LOCAL_OVERLAY: "no-local-overlay")
+    yield
+  ensure
+    swap_overlay_constants(overlay, **saved) if saved
+  end
+  module_function :without_local_overlay
+
+  # rubocop:disable RSpec/RemoveConst -- the loader reads these constants lexically, so a spec
+  # helper outside an example swaps them in place; `stub_const` needs an example.
+  def swap_overlay_constants(overlay, **values)
+    values.each do |name, value|
+      overlay.send(:remove_const, name)
+      overlay.const_set(name, value)
+    end
+  end
+  # rubocop:enable RSpec/RemoveConst
+  module_function :swap_overlay_constants
+
   # Wires Pizzas' only aggregate to the Memory adapter, attaching the Governance bluebook.
   #
   # `::` on purpose — a real .hecksagon file loads at top level, where an
