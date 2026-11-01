@@ -148,14 +148,14 @@ checkout against it.
   database: a checkout that boots a newer shape against a records database mints an era the
   train's launcher then refuses, and the pushes stop.
   `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
-- A change to the shape of a persisted bluebook needs a translation edge under that bluebook's
-  `translations/`, and the committed ledger `lib/hecks/hecks/shapes.json` moves with it.
-  `exe/hecks conformance_run.check_shape_ledger! --wait` (a gate check, no database) fails with the
-  edge to commit; `--confirm --additive` writes that empty edge and moves the ledger for a change
-  that only adds, and `--confirm` alone moves it once an edge covers the move. Data that is
-  renamed or reshaped needs rules: `exe/hecks query era.scaffold_translation domain.value=<dir>`
-  writes them from the database the domain's own world names (a client domain names it in its
-  world, the Hecks domain in a `hecks.local.world`), and `era.audit_translation` checks them.
+- The shape ledger (`lib/hecks/hecks/shapes.json`) holds only bluebooks whose committed persistence
+  (local overlays left out) is an era adapter, and framework members such as Governance that clients
+  persist. Tooling is Memory by its committed world and needs no ledger entry, edge or `--confirm`.
+  For a held bluebook, a shape change needs a translation edge under its `translations/`:
+  `exe/hecks conformance_run.check_shape_ledger! --wait` (no database) names it, `--confirm --additive`
+  settles a change that only adds, and `--confirm` alone moves the ledger once an edge covers the move.
+  Renamed or reshaped data needs rules: `exe/hecks query era.scaffold_translation domain.value=<dir>`
+  writes them from the database the domain's own world names, and `era.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
   (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
   reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`); the train
