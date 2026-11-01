@@ -1,3 +1,5 @@
+require_relative "../projected_bluebook"
+
 module Hecks
   module Translation
     # The empty edge a shape change needs when no edge file is written.
@@ -43,12 +45,15 @@ module Hecks
       # no unresolved name, and every attribute an existing aggregate gained is optional.
       #
       # @param diff [Hash] the scaffold's diff of the held shape against the current one
-      # @param held [Bluebook::Declaration] the held era's bluebook
-      # @param current [Bluebook::Declaration] the current bluebook
+      # @param held [Hash, Runtime::ProjectedBluebook, Bluebook::Declaration] the held era's storage
+      #   shape, a view over it, or a declared bluebook; only its aggregate and attribute names
+      #   are read
+      # @param current [Bluebook::Declaration] the current bluebook, which says which of its
+      #   attributes are optional
       # @return [Boolean]
       def self.qualifies?(diff, held, current)
         diff[:aggregates].empty? && diff[:retired].empty? && diff[:unclaimed].empty? &&
-          new_attributes_optional?(held, current)
+          new_attributes_optional?(Runtime::ProjectedBluebook.wrap(held), current)
       end
 
       # An aggregate the held era did not have is new: nothing stored before it, so its attributes

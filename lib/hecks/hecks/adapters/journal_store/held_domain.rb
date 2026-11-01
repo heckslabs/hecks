@@ -153,7 +153,7 @@ module Hecks
         def named(era)
           return era if era[:hash]
 
-          hash = Runtime::StorageShape.mint_hash(PostgresEra::LineageManager.held_declaration(era))
+          hash = PostgresEra::LineageManager.held_hash(era)
           era.merge(hash: hash, label: hash[0, Runtime::StorageShape::LABEL_LENGTH])
         end
 

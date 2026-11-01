@@ -55,19 +55,11 @@ module Hecks
                                        "rehearsal; rehearse again")
           end
 
-          def refuse_forked_eras!(context, edges)
+          def refuse_duplicate_edges!(context, edges)
             latest = context.latest
-            raise era_refusal(context, "#{edges.size} translation edges leave era #{latest[:ordinal]} " \
-                                       "(#{latest[:label]}) — eras fork mechanically; keep one edge per source shape",
+            raise era_refusal(context, "#{edges.size} translation edges lead era #{latest[:ordinal]} " \
+                                       "(#{latest[:label]}) to the current shape #{context.label}; keep one",
                               minting: false)
-          end
-
-          def refuse_stale_edge!(context, edge)
-            return if edge.to == context.label
-
-            raise era_refusal(context, "the translation edge from #{context.latest[:label]} targets " \
-                                       "#{edge.to}, but the current shape is #{context.label} — the edge is stale; " \
-                                       "re-run hecks scaffold_translation", minting: false)
           end
 
           # Builds the refusal; a mint's own refusals say "cannot mint era N of X", the

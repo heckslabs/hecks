@@ -53,7 +53,7 @@ module Hecks
             ensure_named!(lineage, latest)
             latest = lineage.eras.last
             label = Runtime::StorageShape.mint_hash(bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
-            diffed = Translation::Scaffold.diff(held_declaration(latest), bluebook)
+            diffed = Translation::Scaffold.diff(held_bluebook(latest), bluebook)
             edge = Translation::Scaffold::Edge.new(
               domain: bluebook.name, from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
               label: label, aggregates: diffed[:aggregates], retired: diffed[:retired]
@@ -67,7 +67,7 @@ module Hecks
           def ensure_named!(lineage, era)
             return if era[:hash]
 
-            hash = Runtime::StorageShape.mint_hash(held_declaration(era))
+            hash = held_hash(era)
             lineage.mint_name!(era[:ordinal], hash, hash[0, Runtime::StorageShape::LABEL_LENGTH])
           end
 
@@ -94,12 +94,8 @@ module Hecks
               recorded:     MintDecision.recorded_moves(context.domain_name, context.directory) }
           end
 
-          # The refusal a decided edge stands for: a fork or a stale edge, each named.
-          def refuse_refused_verdict!(context, verdict)
-            return refuse_forked_eras!(context, verdict.edges) if verdict.reason == :fork
-
-            refuse_stale_edge!(context, verdict.edge)
-          end
+          # The refusal a decided edge stands for: two files declaring the one translation.
+          def refuse_refused_verdict!(context, verdict) = refuse_duplicate_edges!(context, verdict.edges)
 
           # The edge chain to the current shape, after its audit passes.
           def audited_chain!(context, edge)
@@ -112,7 +108,7 @@ module Hecks
           # The edge leaving the held era, once resolved and found to cover the diff.
           def verified_edge!(context)
             edge = resolve_edge!(context)
-            check_coverage!(context.registry, context.bluebook, held_declaration(context.latest), edge)
+            check_coverage!(context.registry, context.bluebook, held_bluebook(context.latest), edge)
             edge
           end
 
