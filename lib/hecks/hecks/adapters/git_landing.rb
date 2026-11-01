@@ -4,6 +4,8 @@ require_relative "git_worktrees"
 require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
+require_relative "git_landing/in_flight"
+require_relative "../../indifferent_key"
 
 module Hecks
   module Adapters
@@ -39,9 +41,7 @@ module Hecks
         onto = plain(held[:onto]) || "main"
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
-        refuse_unsaved(branch)
-        refuse_rival(branch, onto)
-        tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto)
+        in_turn(branch) { |superseded| land_alone(branch, onto, superseded) }
       end
 
       # Removes a linked worktree and deletes its branch, once the branch is on `onto`.
@@ -79,6 +79,34 @@ module Hecks
       end
 
       private
+
+      # Runs the block as the only landing in flight in the repository, refusing by name when a
+      # fresher one is held.
+      def in_turn(branch)
+        queue = InFlight.new(common_git_dir, stale_minutes: stale_minutes)
+        claim = queue.claim(branch)
+        yield claim.superseded
+      rescue InFlight::Busy => e
+        raise ConsoleCapture::Failure, "#{branch} is not landed: #{e.message}; land again when it finishes"
+      ensure
+        queue.release(claim) if claim
+      end
+
+      def land_alone(branch, onto, superseded)
+        refuse_unsaved(branch)
+        refuse_rival(branch, onto)
+        said = tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto)
+        superseded ? said.merge(report: { value: "#{said[:report][:value]}; #{superseded}" }) : said
+      end
+
+      def common_git_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
+
+      # The world's `landing "Queue", stale_minutes: n`, read from the booted Hecks world.
+      def stale_minutes
+        settings = @registry&.world("Hecks")&.settings || {}
+        setting = settings["landing"]
+        setting && IndifferentKey.read(setting, :stale_minutes)
+      end
 
       def refuse_rival(branch, onto)
         clash = Rivals.new(@git, @checkout, @registry).refusal(branch, onto)
