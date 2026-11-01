@@ -196,8 +196,8 @@ and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Wo
 `Dispatch.Settle` finishes the rows of sessions that ended (`delegate/delegate.bluebook`); a landed
 branch finishes the Work row of the same name (or the same name without a leading `qa/`). The Tickets
 world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
-gate checks `command_names`, `workflow_pagination` and `meta_domain_coverage` keep the names in docs,
-workflows and guides resolvable, lists paged and the meta-domain covered.
+CI checks `command_names` and `workflow_pagination` keep the names in docs, workflows and guides
+resolvable and lists paged; the spec suite holds the meta-domain covered.
 
 ## RuboCop is strict: it runs at its defaults
 
@@ -231,25 +231,23 @@ commit must pass as `RequiredCheck` rows beside them.
 
 - **`main` has no guard.** Agents land work on it with `hecks landing.land! --confirm`
   (fast-forward or merge commit, never squashed) and then
-  `hecks send_train.board! --confirm`; do not open a pull request for it. No check is required
-  to land, so run the pre-push gate yourself before you push anything that
-  is not trivial: `hecks gate_run.gate! stage=quick --wait` runs the seconds-long checks (shape
-  ledger, rubocop, comment style) and is worth running before every commit. A push of `main` runs
-  those first, then only the `unguarded_push` stage of
-  the Vocabulary gate rows, and `hecks send_train.board! --confirm full_gate.value=true` runs the
-  whole `pre_push` stage. Never
+  `hecks send_train.board! --confirm`; do not open a pull request for it. A push of `main` runs
+  the gate's `quick` stage and nothing else, seconds long: shape ledger, RuboCop (which also reads
+  every changed Ruby file for syntax errors), comment style, secret output, adapter words.
+  `hecks gate_run.gate! stage=quick --wait` runs it by hand and is worth running before every
+  commit. Everything slower (fuzzing, the engine and model checks, command names, workflow
+  pagination, the spec suite, the push-chain specs) runs after the push, in CI and the nightly run,
+  and blocks promotion to `stable`, never the push; a red one files a Work row. `hecks send_train.board!
+  --confirm full_gate.value=true` runs the whole `pre_push` stage when you ask for it. Never
   force-push `main`, and never use `--admin`.
-  Push small: a rehearsed push per landed slice, or at least per day, is the norm, so a push
-  carries little and a red one is found early. Landing asks for a quick rehearsal on its own; a full one runs the
-  quick stage, the `unguarded_push` stage and any push specs, and a deep one (`scope.value=deep`, opt-in)
-  also the specs the push's changed files touch (`impacted_spec_limit`, two at a time,
-  `impacted_spec_width`; a file that fails is run again alone and one that then passes is reported as
-  flaky under parallel load, not failed; a spec already red on `origin/main` is reported, not failed)
-  against local `main` and pushes nothing; its result is the `PushRehearsal` record), and `hecks push_rehearsal.due` says how far
-  `main` is ahead of `origin/main`, how old the oldest unpushed commit is and how the last
-  rehearsal of each scope ended. A landing triggers a quick rehearsal (the gate's quick stage
-  alone, its own line, so it runs alongside a full one); a push needs a green full one, which runs when asked
-  (`push_rehearsal.rehearse!`, `scope.value=quick` for the quick one) and before the push. Nothing pushes by itself.
+  Push small: a rehearsed push per landed slice, or at least per day, is the norm. A rehearsal
+  (`push_rehearsal.rehearse!`; `scope.value=quick` for a landing's) runs the quick stage against local
+  `main` and pushes nothing; a deep one (`scope.value=deep`, opt-in) adds the specs the push's changed
+  files touch (`impacted_spec_limit`, two at a time, `impacted_spec_width`; a file that fails is run again
+  alone and one that then passes is reported as flaky under parallel load, not failed; a spec already
+  red on `origin/main` is reported, not failed). Its result is the `PushRehearsal` record, and
+  `hecks push_rehearsal.due` says how far `main` is ahead of `origin/main`, how old the oldest
+  unpushed commit is and how the last rehearsal of each scope ended. Nothing pushes by itself.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
   fast-forwards `stable` onto it through

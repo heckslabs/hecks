@@ -4805,9 +4805,7 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "comment_blocks", id: "comment_blocks", title: "comment blocks, no run of comment lines past ADR 0075's cap", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", script: "", blocked: "a comment block ran past the cap; shorten it.", runs_in: "" },
     GateCheck { name: "command_names", id: "command_names", title: "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait", script: "", blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines.", runs_in: "" },
     GateCheck { name: "workflow_pagination", id: "workflow_pagination", title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone", argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", script: "", blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=.", runs_in: "" },
-    GateCheck { name: "everyday_names", id: "everyday_names", title: "everyday names, every name in the launcher's everyday setting shown in the help", argv: "bundle exec rspec spec/everyday_names_spec.rb", script: "", blocked: "a name in the world's `everyday` setting is not shown in the help's everyday section: it does not resolve to a command, it is internal, or it is not listed for people. The failure names each one; fix the spelling in hecks.world or the command's audience.", runs_in: "" },
     GateCheck { name: "secret_output", id: "secret_output", title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints", argv: "bundle exec rspec spec/secret_output_spec.rb", script: "", blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream.", runs_in: "" },
-    GateCheck { name: "meta_domain_coverage", id: "meta_domain_coverage", title: "meta-domain coverage, every language feature with a fuzzer coverage decision", argv: "bundle exec rspec spec/fuzzing/meta_domain_coverage_spec.rb --tag fuzzing", script: "", blocked: "a language feature has no fuzzer coverage decision: a word the language gained is neither covered by a fuzzer property nor listed as left out with its reason. The failure names each one; add the entry in spec/fuzzing/meta_domain_coverage_spec.rb.", runs_in: "" },
     GateCheck { name: "adapter_words", id: "adapter_words", title: "adapter words, no domain name equal to a technology word the adapters are named for", argv: "bundle exec rspec spec/adapter_words_spec.rb", script: "", blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter.", runs_in: "" },
     GateCheck { name: "rust_fmt", id: "rust_fmt", title: "rustfmt, every Rust crate laid out as `cargo fmt` would", argv: "", script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", blocked: "a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output.", runs_in: "" },
     GateCheck { name: "rust_io", id: "rust_io", title: "rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity", argv: "", script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n", blocked: "a Rust io spec failed, or skipped; the crate it built is under rust/target.", runs_in: "" },
@@ -4957,9 +4955,7 @@ impl GateCheck {
                     "comment_blocks",
                     "command_names",
                     "workflow_pagination",
-                    "everyday_names",
                     "secret_output",
-                    "meta_domain_coverage",
                     "adapter_words",
                     "rust_fmt",
                     "rust_io",
@@ -5003,11 +4999,10 @@ pub struct GateStage {
 pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt" },
     GateStage { name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec" },
-    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage,command_names,workflow_pagination" },
-    GateStage { name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing" },
+    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
     GateStage { name: "era_proof", env: "", checks: "era_proof" },
-    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
+    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
 
 impl GateStage {
@@ -5078,7 +5073,6 @@ impl GateStage {
                     "pre_push",
                     "ci_suite",
                     "quick",
-                    "unguarded_push",
                     "rust_io",
                     "era_proof",
                     "ci",
@@ -5102,16 +5096,6 @@ pub const REHEARSAL_STAGE: &[RehearsalStage] = &[
         name: "quick",
         kind: "gate",
         argument: "quick",
-    },
-    RehearsalStage {
-        name: "unguarded_push",
-        kind: "gate",
-        argument: "unguarded_push",
-    },
-    RehearsalStage {
-        name: "push_specs",
-        kind: "specs",
-        argument: "spec/**/*{push_chain,push_train}*_spec.rb",
     },
     RehearsalStage {
         name: "impacted",
@@ -5184,7 +5168,7 @@ impl RehearsalStage {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "RehearsalStage",
-                admitted: &["quick", "unguarded_push", "push_specs", "impacted"],
+                admitted: &["quick", "impacted"],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -5205,11 +5189,11 @@ pub const REHEARSAL_SCOPE: &[RehearsalScope] = &[
     },
     RehearsalScope {
         name: "full",
-        stages: "quick,unguarded_push,push_specs",
+        stages: "quick",
     },
     RehearsalScope {
         name: "deep",
-        stages: "quick,unguarded_push,push_specs,impacted",
+        stages: "quick,impacted",
     },
 ];
 

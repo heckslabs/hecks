@@ -59,21 +59,19 @@ module Hecks
                    bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec].freeze
 
       INPUTS = {
-        "shape_ledger"         => SHAPE,
-        "comment_style"        => STYLE,
-        "comment_blocks"       => STYLE + %w[examples/**/*.rb],
-        "secret_output"        => LIBRARY + SPEC + %w[spec/secret_output_spec.rb],
-        "everyday_names"       => LIBRARY + SPEC + %w[spec/everyday_names_spec.rb],
-        "adapter_words"        => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
-        "rspec"                => SOURCE,
-        "fuzzing"              => FUZZING,
-        "meta_domain_coverage" => LIBRARY + SPEC + %w[spec/fuzzing/**/* Gemfile.lock],
-        "query_agreement"      => SOURCE,
-        "engine_agreement"     => SOURCE,
-        "model_check"          => MODEL,
-        "doc_coverage"         => DOC_COVERAGE,
-        "codegen_drift"        => CODEGEN,
-        "rust_fmt"             => RUST
+        "shape_ledger"     => SHAPE,
+        "comment_style"    => STYLE,
+        "comment_blocks"   => STYLE + %w[examples/**/*.rb],
+        "secret_output"    => LIBRARY + SPEC + %w[spec/secret_output_spec.rb],
+        "adapter_words"    => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
+        "rspec"            => SOURCE,
+        "fuzzing"          => FUZZING,
+        "query_agreement"  => SOURCE,
+        "engine_agreement" => SOURCE,
+        "model_check"      => MODEL,
+        "doc_coverage"     => DOC_COVERAGE,
+        "codegen_drift"    => CODEGEN,
+        "rust_fmt"         => RUST
       }.freeze
 
       # The sha of each file this process has hashed, by path, modification time, size and inode, so
