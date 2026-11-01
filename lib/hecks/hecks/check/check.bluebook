@@ -5,6 +5,18 @@ Hecks.bluebook "Hecks" do
     # Gate: the checks a stage holds a change against before it is let through. The checks are data
     # (the Vocabulary gate rows), run together, and a red one faults the run, so `--wait` fails the
     # push or the build that asked, and the journal keeps when the gate went red.
+    #
+    # Reuse rule (enforced by Tools::GateMemo): a check is skipped only when its inputs hash the
+    # same as the inputs of its last green run, and the skip is reported as "skipped", never as
+    # passed. The inputs are the files the check reads (GateMemo::INPUTS, by content hash), its
+    # command and its environment. A red result is never reused, and an unreadable or unwritable
+    # memo runs every check in full and says so. RuboCop reuses per file: the run is skipped only
+    # when the Ruby files and their hashes match the last green run; otherwise it lints the
+    # changed files and the files that require them, and runs in full when that set cannot be
+    # worked out (GateMemo::RubyFiles).
+    #
+    # The memo is kept outside the checkout, in the file `HECKS_GATE_MEMO` names, or else in
+    # gate_memo.json under the hecks-dev directory of the user's Claude directory.
     aggregate "GateRun" do
       description "One run of a stage's checks: every check of the stage, or the ones named."
 
