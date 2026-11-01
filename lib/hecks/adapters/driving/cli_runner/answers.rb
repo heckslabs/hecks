@@ -1,5 +1,6 @@
 require "json"
 require_relative "run_reference"
+require_relative "read_context"
 
 module Hecks
   module Adapters
@@ -146,7 +147,7 @@ module Hecks
           #   questions that refuse a run they do not hold
           # @return [Array(String, Integer)] the answer and the status
           def answer_query(runtime, spec, args, wait, launcher = nil)
-            rows = runtime.query(spec[:command], **args)
+            rows = runtime.query(spec[:command], **ReadContext.fill(spec, args))
             return [unknown_run(args), ExitStatus::REFUSED] if rows.empty? && LauncherOptions.unknown_run?(launcher, spec)
 
             text = text_answer(spec, rows)
