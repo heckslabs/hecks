@@ -50,4 +50,37 @@ RSpec.describe "Hecks::Adapters::Sqlite columns for attributes added after the t
     again = Hecks::Adapters::Sqlite.new(aggregate: @aggregate, settings: { database: "pizzas.db" }, root: @dir)
     expect(again.instance_variable_get(:@db).execute(%(PRAGMA table_info("order"))).size).to eq(columns.size)
   end
+
+  # The next read of the aggregate's table comes back as it was before another process added
+  # the columns; every other statement runs for real.
+  def stale_table_read!
+    stale = [{ "name" => "id" }]
+    allow(db).to receive(:execute).and_wrap_original do |original, sql, *rest|
+      next original.call(sql, *rest) unless sql.include?("PRAGMA table_info")
+
+      allow(db).to receive(:execute).and_call_original
+      stale
+    end
+  end
+
+  def reopen! = adapter.send(:ensure_aggregate_columns!)
+
+  it "does not raise when another process added the columns after this one read the table" do
+    stale_table_read!
+    expect { reopen! }.not_to raise_error
+  end
+
+  it "leaves one column per name after the stale read", :aggregate_failures do
+    before_columns = columns
+    stale_table_read!
+    reopen!
+    expect(columns).to eq(before_columns)
+    expect(columns.map(&:downcase).uniq.size).to eq(columns.size)
+  end
+
+  it "does not add a column that differs from a declared name only in case" do
+    name = @aggregate.attributes.map { |attribute| attribute.name.to_s }.find { |n| n != "id" }
+    SQLite3::Database.open(File.join(@dir, "pizzas.db")) { |raw| raw.execute(%(ALTER TABLE "order" ADD COLUMN "#{name.upcase}" TEXT)) }
+    expect(columns.count { |column| column.casecmp?(name) }).to eq(1)
+  end
 end
