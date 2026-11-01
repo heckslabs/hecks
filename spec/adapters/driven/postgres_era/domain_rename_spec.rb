@@ -7,7 +7,6 @@ require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
 require_relative "../../../support/first_era_hold"
 require_relative "../../../support/mint_request_support"
-require_relative "../../../support/first_era_hold"
 require_relative "../../../support/thread_parking"
 
 # `formerly_known_as`: a rename moves a held domain's history to its new name, through the rename
@@ -19,7 +18,6 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
   include FirstEraHold
   include EraAppRole
   include MintRequestSupport
-  include FirstEraHold
 
   RENAME_DB = "hecks_domain_rename_spec".freeze
   RENAME_ROLE = "hecks_domain_rename_spec_app".freeze
