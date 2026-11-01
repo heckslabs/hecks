@@ -144,6 +144,15 @@ RSpec.describe "the transactional outbox" do
       expect(runtime.outbox.log.last).to include(outbox: failed.delivery_id, defect: true)
     end
 
+    it "marks a row failed, not claimed, when its consumer is not implemented", :aggregate_failures do
+      allow(runtime.outbox).to receive(:run_consumer).and_raise(NotImplementedError, "no such operation")
+      orphan = pending_copy(row, consumer: "policy:Shop::Absent", delivery_id: "#{row.event_uid}/absent")
+      stored, = order_repository(runtime).outbox_enqueue([orphan])
+
+      expect(runtime.outbox.deliver_row(stored, order_repository(runtime))).to be(false)
+      expect(runtime.outbox.rows(status: "failed").map(&:error)).to eq(["NotImplementedError: no such operation"])
+    end
+
     it "does not enqueue for a dry run, which commits nothing", :aggregate_failures do
       runtime = boot_memory
       expect(runtime.dry_run?("Shop::Order.Place", number: { value: "o-9" })).to be(true)

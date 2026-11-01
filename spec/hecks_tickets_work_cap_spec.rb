@@ -28,6 +28,12 @@ RSpec.describe "the Work concurrency cap" do
     expect(Hecks::Adapters::WorkLimits.cap(instance_double(Hecks::Runtime::Registry, world: nil))).to eq(8)
   end
 
+  it "falls back to 8 when the world declares a cap with no value" do
+    world = instance_double(Hecks::Bluebook::World, for_verb: { adapter: "WorkLimits", cap: nil })
+
+    expect(Hecks::Adapters::WorkLimits.cap(instance_double(Hecks::Runtime::Registry, world: world))).to eq(8)
+  end
+
   it "lets the 8th start through and yields the 9th with its reason", :aggregate_failures do
     eighth = (1..8).map { |n| start("cap/#{n}") }.last
     ninth = start("cap/9")

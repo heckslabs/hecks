@@ -41,7 +41,7 @@ module Hecks
       # @raise [Error] when no complete day has passed since `since`, `aws` fails, or the
       #   rate is over the budget
       def measure(**held)
-        budget = Integer(plain(held[:budget]))
+        budget = whole_dollars(plain(held[:budget]))
         first = Date.iso8601(plain(held[:since]).to_s)
         last = today
         raise Error, "no complete day since #{first}; today (#{last}) is still being billed" if first >= last
@@ -54,6 +54,14 @@ module Hecks
       end
 
       private
+
+      # @return [Integer] the budget as whole dollars
+      # @raise [Error] when none was given
+      def whole_dollars(budget)
+        raise Error, "no budget given: a whole number of dollars a month" if budget.nil?
+
+        Integer(budget)
+      end
 
       # @return [Date] the day the span ends before: today, in UTC
       def today = @today ? Date.iso8601(@today.to_s) : Time.now.utc.to_date

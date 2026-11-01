@@ -77,6 +77,24 @@ RSpec.describe Hecks::Adapters::JournalStore::Readings::SqliteStatus do
     db.close
   end
 
+  def listing = Dir.children(@dir).sort
+
+  # A database in write-ahead-log mode that was closed cleanly, so no `-wal` or `-shm` file
+  # stands beside it.
+  def put_in_wal_mode!
+    db = SQLite3::Database.new(database)
+    db.execute("PRAGMA journal_mode = WAL")
+    db.close
+  end
+
+  # `Pot` holds its columns under other capitals than the aggregate declares them.
+  def recapitalise_pot_columns!
+    db = SQLite3::Database.new(database)
+    db.execute(%(DROP TABLE "pot"))
+    db.execute(%(CREATE TABLE "pot" (id TEXT PRIMARY KEY, "Label" TEXT, "SIZE" TEXT)))
+    db.close
+  end
+
   def status = JSON.parse(store.sqlite_status(domain: @dir)[:text], symbolize_names: true)
 
   def tables = status.first[:tables].to_h { |row| [row[:aggregate], row] }
@@ -100,5 +118,26 @@ RSpec.describe Hecks::Adapters::JournalStore::Readings::SqliteStatus do
     before_time = File.mtime(database)
     status
     expect([File.binread(database), File.mtime(database)]).to eq([before_bytes, before_time])
+  end
+
+  it "creates no file beside a database in WAL mode, not even a -wal or -shm", :aggregate_failures do
+    put_in_wal_mode!
+    before_listing = listing
+    status
+
+    expect(before_listing).to eq(["shop.bluebook", "shop.db", "shop.hecksagon", "shop.world"])
+    expect(listing).to eq(before_listing)
+  end
+
+  it "still reads the drift of a database in WAL mode" do
+    put_in_wal_mode!
+
+    expect(tables["Pot"]).to include(state: "drift", missing: ["size"])
+  end
+
+  it "compares column names without regard to capitals, as the adapter's open does" do
+    recapitalise_pot_columns!
+
+    expect(tables["Pot"]).to include(state: "ok")
   end
 end

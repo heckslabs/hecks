@@ -88,13 +88,16 @@ pub fn scalar_json_accessor(scalar_type: &str) -> &'static str {
 /// `Value.refuse_object_reference` (`reference_wrong_shape`): an object is "an object", any other
 /// value is described as it arrived. `known_by` is the target's `" (X is known by heads)"` tail.
 /// `" (Target is known by heads)"` for a single reference attribute whose target aggregate is
-/// known, or `None` when `attr` is no reference or its target is not in the domain.
+/// known, `""` for one whose target lives in another domain (Ruby words that refusal too, with
+/// no tail), or `None` when `attr` is no reference or no aggregates were given.
 fn reference_known_by(
     attr: &Json,
     aggregates_by_name: Option<&HashMap<String, &Json>>,
 ) -> Option<String> {
     let target_name = naming::reference_target(crate::attr::type_name(attr))?;
-    let target = aggregates_by_name?.get(target_name)?;
+    let Some(target) = aggregates_by_name?.get(target_name) else {
+        return Some(String::new());
+    };
     let mut heads: Vec<String> = Vec::new();
     for path in target.get("identified_by").map_or_default(Json::each) {
         let head = path.to_s().split('.').next().unwrap_or("").to_string();
@@ -1337,6 +1340,20 @@ mod tests {
             gate.contains("let required: &[&str] = &[\"key\"];"),
             "{gate}"
         );
+    }
+
+    #[test]
+    fn a_reference_to_another_domain_is_worded_as_a_reference_with_no_tail() {
+        let attr = Json::Object(vec![
+            ("name".to_string(), Json::String("parcel".to_string())),
+            ("type".to_string(), Json::String("Reference<Parcel>".to_string())),
+        ]);
+        let in_this_domain = HashMap::new();
+        assert_eq!(
+            reference_known_by(&attr, Some(&in_this_domain)),
+            Some(String::new())
+        );
+        assert_eq!(reference_known_by(&attr, None), None);
     }
 
     #[test]

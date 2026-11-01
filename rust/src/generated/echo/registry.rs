@@ -14,12 +14,14 @@ use crate::kernel::Repository;
 #[derive(Clone)]
 pub struct Store {
     pub beacon: crate::kernel::InMemoryRepository<crate::generated::echo::beacon::Beacon>,
+    pub lamp: crate::kernel::InMemoryRepository<crate::generated::echo::lamp::Lamp>,
 }
 
 impl Store {
     pub fn new() -> Self {
         Self {
             beacon: crate::kernel::InMemoryRepository::new(),
+            lamp: crate::kernel::InMemoryRepository::new(),
         }
     }
 
@@ -32,6 +34,9 @@ impl Store {
         let mut instances = Vec::new();
         for (id, record) in self.beacon.entries() {
             instances.push((format!("{}{}", "Echo::Beacon#", id), record.to_json()));
+        }
+        for (id, record) in self.lamp.entries() {
+            instances.push((format!("{}{}", "Echo::Lamp#", id), record.to_json()));
         }
         instances
     }
@@ -51,6 +56,12 @@ impl Store {
                         id,
                         crate::generated::echo::beacon::Beacon::from_json(value)?,
                     );
+                    continue;
+                }
+                if let Some(id) = key.strip_prefix("Echo::Lamp#") {
+                    store
+                        .lamp
+                        .save(id, crate::generated::echo::lamp::Lamp::from_json(value)?);
                     continue;
                 }
             }
@@ -78,6 +89,14 @@ impl crate::kernel::AggregateScan for Store {
                     .collect(),
             );
         }
+        if aggregate == "Echo::Lamp" {
+            return Some(
+                self.lamp
+                    .json_entries(|record| record.to_json())
+                    .map(|(id, json)| (id.clone(), json.clone()))
+                    .collect(),
+            );
+        }
         None
     }
 
@@ -88,6 +107,12 @@ impl crate::kernel::AggregateScan for Store {
     ) -> bool {
         if aggregate == "Echo::Beacon" {
             for (id, json) in self.beacon.json_entries(|record| record.to_json()) {
+                visit(id, json);
+            }
+            return true;
+        }
+        if aggregate == "Echo::Lamp" {
+            for (id, json) in self.lamp.json_entries(|record| record.to_json()) {
                 visit(id, json);
             }
             return true;
@@ -256,6 +281,481 @@ pub fn dispatch_by_name(
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
+        "Echo::Lamp.Install" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::echo::lamp::InstallArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::lamp::InstallArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::lamp::InstallArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::lamp::InstallArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::lamp::InstallArgs| {
+                            Ok(())
+                        },
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::echo::lamp::InstallArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::lamp::InstallArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::lamp::InstallArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::lamp::InstallArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::lamp::InstallArgs| {
+                            Ok(())
+                        },
+                    },
+                )?
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref = Vec::new();
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::lamp::dispatch_install(
+                &mut store.lamp,
+                route,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Lamp.Light" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::lamp::LightArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::lamp::LightArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::lamp::LightArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::lamp::LightArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::lamp::LightArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::lamp::LightArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::lamp::LightArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::lamp::LightArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::lamp::LightArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::lamp::LightArgs| Ok(()),
+                        },
+                    )?
+                };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::lamp::Lamp::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Light",
+                                aggregate: "Lamp",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Lamp", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::lamp::dispatch_light(
+                &mut store.lamp,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Lamp.Flicker" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::echo::lamp::FlickerArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::lamp::FlickerArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::lamp::FlickerArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::lamp::FlickerArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::lamp::FlickerArgs| {
+                            Ok(())
+                        },
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::echo::lamp::FlickerArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::lamp::FlickerArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::lamp::FlickerArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::lamp::FlickerArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::lamp::FlickerArgs| {
+                            Ok(())
+                        },
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::lamp::Lamp::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Flicker",
+                                aggregate: "Lamp",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Lamp", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::lamp::dispatch_flicker(
+                &mut store.lamp,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Lamp.Mark" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::lamp::MarkArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::lamp::MarkArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::lamp::MarkArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::lamp::MarkArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::lamp::MarkArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments: &crate::generated::echo::lamp::MarkArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::echo::lamp::MarkArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::echo::lamp::MarkArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::echo::lamp::MarkArgs::from_json(v)?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| Ok(()),
+                        resolve_references: &|_args: &crate::generated::echo::lamp::MarkArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::lamp::Lamp::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Mark",
+                                aggregate: "Lamp",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Lamp", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::lamp::dispatch_mark(
+                &mut store.lamp,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Lamp.Unmark" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::lamp::UnmarkArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::lamp::UnmarkArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::lamp::UnmarkArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::lamp::UnmarkArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::lamp::UnmarkArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::lamp::UnmarkArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::lamp::UnmarkArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::lamp::UnmarkArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::lamp::UnmarkArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::lamp::UnmarkArgs| Ok(()),
+                        },
+                    )?
+                };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::lamp::Lamp::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Unmark",
+                                aggregate: "Lamp",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Lamp", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::lamp::dispatch_unmark(
+                &mut store.lamp,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Echo::Lamp.Retire" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args =
+                if invocation.explicit_with() {
+                    let args = crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::lamp::RetireArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::lamp::RetireArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::lamp::RetireArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::lamp::RetireArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::lamp::RetireArgs| Ok(()),
+                        },
+                    )?;
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    args
+                } else {
+                    if let Some(route) = route {
+                        route.require_depth(0)?;
+                    }
+                    crate::kernel::decode_aggregate_arguments(
+                        facts_json,
+                        &crate::kernel::ArgumentGates {
+                            decode_arguments:
+                                &crate::generated::echo::lamp::RetireArgs::decode_arguments,
+                            refuse_unknown_arguments:
+                                &crate::generated::echo::lamp::RetireArgs::refuse_unknown_arguments,
+                            refuse_absent_arguments:
+                                &crate::generated::echo::lamp::RetireArgs::refuse_absent_arguments,
+                            normalize_args: &|v: &crate::kernel::Json| {
+                                let args = crate::generated::echo::lamp::RetireArgs::from_json(v)?;
+                                Ok(args)
+                            },
+                            refuse_role_mismatch: &|| Ok(()),
+                            resolve_references:
+                                &|_args: &crate::generated::echo::lamp::RetireArgs| Ok(()),
+                        },
+                    )?
+                };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => {
+                    crate::generated::echo::lamp::Lamp::extract_id(facts_json).map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Retire",
+                                aggregate: "Lamp",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?
+                }
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Echo::Lamp", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::echo::lamp::dispatch_retire(
+                &mut store.lamp,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!(
             "unknown command {other:?}"
         ))),
@@ -290,7 +790,8 @@ fn stamp_payload(
         .collect()
 }
 
-pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[("Echo::Beacon", &[])];
+pub static REFERENCE_TABLE: crate::kernel::ReferenceTable =
+    &[("Echo::Beacon", &[]), ("Echo::Lamp", &[])];
 
 impl crate::kernel::ReferenceLookup for Store {
     fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn crate::kernel::Fielded>> {
@@ -300,28 +801,90 @@ impl crate::kernel::ReferenceLookup for Store {
                 .find(id)
                 .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
         }
+        if target == "Echo::Lamp" {
+            return self
+                .lamp
+                .find(id)
+                .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+        }
         None
     }
 }
 
-pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
-    policy_name: "PingAgain",
-    event_name: "Pinged",
-    event_qualifier: None,
-    target_verb: "Echo::Beacon.Ping",
-    for_each: None,
-    for_each_key: None,
-    with_spec: &[],
-    where_expr: None,
-}];
+pub const POLICIES: &[crate::kernel::PolicyRule] = &[
+    crate::kernel::PolicyRule {
+        policy_name: "PingAgain",
+        event_name: "Pinged",
+        event_qualifier: None,
+        target_verb: "Echo::Beacon.Ping",
+        for_each: None,
+        for_each_key: None,
+        with_spec: &[],
+        where_expr: None,
+    },
+    crate::kernel::PolicyRule {
+        policy_name: "FlickerAgain",
+        event_name: "Flickered",
+        event_qualifier: None,
+        target_verb: "Echo::Lamp.Flicker",
+        for_each: None,
+        for_each_key: None,
+        with_spec: &[],
+        where_expr: None,
+    },
+];
 
 pub const CROSS_DOMAIN_POLICIES: &[crate::kernel::CrossDomainPolicyRule] = &[];
 
-pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] = &[];
+pub const PROCESS_MANAGERS: &[crate::kernel::ProcessManagerDef] =
+    &[crate::kernel::ProcessManagerDef {
+        name: "Watch",
+        correlates_by: "name.value",
+        starts_on: "LampInstalled",
+        ends_on: "LampRetired",
+        initial_state: "installed",
+        handlers: &[
+            crate::kernel::Handler {
+                event_type: "Lit",
+                from_state: "installed",
+                to_state: "lit",
+                dispatches: &[crate::kernel::DispatchSpec {
+                    command_name: "Lamp.Mark",
+                    with: &[("lamp", crate::kernel::WithValue::Ref("name"))],
+                    compensates: Some(&crate::kernel::DispatchSpec {
+                        command_name: "Lamp.Unmark",
+                        with: &[("lamp", crate::kernel::WithValue::Ref("name"))],
+                        compensates: None,
+                    }),
+                }],
+            },
+            crate::kernel::Handler {
+                event_type: "Flickered",
+                from_state: "lit",
+                to_state: "flickering",
+                dispatches: &[crate::kernel::DispatchSpec {
+                    command_name: "Lamp.Mark",
+                    with: &[("lamp", crate::kernel::WithValue::Ref("name"))],
+                    compensates: None,
+                }],
+            },
+            crate::kernel::Handler {
+                event_type: "refused",
+                from_state: "flickering",
+                to_state: "unwound",
+                dispatches: &[crate::kernel::DispatchSpec {
+                    command_name: "Lamp.Retire",
+                    with: &[("lamp", crate::kernel::WithValue::Ref("name"))],
+                    compensates: None,
+                }],
+            },
+        ],
+    }];
 
 pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
         "Echo::Beacon" => Some("beacon"),
+        "Echo::Lamp" => Some("lamp"),
         _ => None,
     }
 }
@@ -330,6 +893,12 @@ pub fn command_creates(verb: &str) -> bool {
     match verb {
         "Echo::Beacon.Light" => true,
         "Echo::Beacon.Ping" => false,
+        "Echo::Lamp.Install" => true,
+        "Echo::Lamp.Light" => false,
+        "Echo::Lamp.Flicker" => false,
+        "Echo::Lamp.Mark" => false,
+        "Echo::Lamp.Unmark" => false,
+        "Echo::Lamp.Retire" => false,
         _ => false,
     }
 }
@@ -337,6 +906,7 @@ pub fn command_creates(verb: &str) -> bool {
 pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
         "Echo::Beacon" => Some("name"),
+        "Echo::Lamp" => Some("name"),
         _ => None,
     }
 }
@@ -351,6 +921,12 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
         "Echo::Beacon.Light" => &["name"],
         "Echo::Beacon.Ping" => &[],
+        "Echo::Lamp.Install" => &["name"],
+        "Echo::Lamp.Light" => &[],
+        "Echo::Lamp.Flicker" => &[],
+        "Echo::Lamp.Mark" => &[],
+        "Echo::Lamp.Unmark" => &[],
+        "Echo::Lamp.Retire" => &[],
         _ => &[],
     }
 }

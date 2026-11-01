@@ -2,6 +2,7 @@
 
 require "sqlite3"
 require_relative "../../../../../adapters/driven/sqlite"
+require_relative "read_only"
 
 module Hecks
   module Adapters
@@ -9,7 +10,7 @@ module Hecks
       module Readings
         module SqliteStatus
           # One SQLite file read against the aggregates bound to it. The file is opened with
-          # `readonly: true` and only `PRAGMA table_info` and `sqlite_master` are read.
+          # read-only (see {ReadOnly}) and only `PRAGMA table_info` and `sqlite_master` are read.
           class DatabaseReading
             ADAPTERS = %w[Sqlite SqlitePersistence].freeze
             # Tables the adapter keeps beside every aggregate's own.
@@ -57,7 +58,7 @@ module Hecks
             def row
               return { database: @path, state: ABSENT, tables: [], orphans: [] } unless File.file?(@path)
 
-              db = SQLite3::Database.new(@path, readonly: true)
+              db = ReadOnly.open(@path)
               present = db.execute("SELECT name FROM sqlite_master WHERE type = 'table'").flatten
               { database: @path, state: "read", tables: @aggregates.map { |a| table_row(db, present, a) },
                 orphans: orphans(present) }
@@ -71,10 +72,17 @@ module Hecks
               base = { aggregate: aggregate.name, table: aggregate.storage_name }
               return base.merge(state: ABSENT) unless present.include?(base[:table])
 
-              held = columns(db, base[:table])
-              wanted = expected(aggregate)
-              drift = { missing: wanted - held, extra: held - wanted - ["id"] }.reject { |_, v| v.empty? }
+              drift = drift_of(columns(db, base[:table]), expected(aggregate))
               base.merge(state: drift.key?(:missing) ? "drift" : "ok", **drift)
+            end
+
+            # Column names compare without regard to capitals, as the adapter's open does.
+            def drift_of(held, wanted)
+              held_names = held.map(&:downcase)
+              wanted_names = wanted.map(&:downcase)
+              missing = wanted.reject { |name| held_names.include?(name.downcase) }
+              extra = held.reject { |name| wanted_names.include?(name.downcase) || name.casecmp?("id") }
+              { missing: missing, extra: extra }.reject { |_, names| names.empty? }
             end
 
             def columns(db, table)

@@ -141,6 +141,253 @@
       "acknowledgements": [
 
       ]
+    },
+    {
+      "name": "Lamp",
+      "description": null,
+      "identified_by": [
+        "name.value"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": "Name",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "Name",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Install",
+          "role": null,
+          "goal": "Install a lamp",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "Name",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "LampInstalled"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Light",
+          "role": null,
+          "goal": "Light a lamp",
+          "references": "Lamp",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Lit"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Flicker",
+          "role": null,
+          "goal": "Flicker a lamp, which makes the lamp flicker again",
+          "references": "Lamp",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Flickered"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Mark",
+          "role": null,
+          "goal": "Mark a flicker as seen",
+          "references": "Lamp",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Marked"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Unmark",
+          "role": null,
+          "goal": "Take back a mark",
+          "references": "Lamp",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "Unmarked"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Retire",
+          "role": null,
+          "goal": "Retire a lamp",
+          "references": "Lamp",
+          "attributes": [
+
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "LampRetired"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
+      "acknowledgements": [
+
+      ]
     }
   ],
   "read_models": [
@@ -159,10 +406,102 @@
 
       ],
       "where_ast": null
+    },
+    {
+      "name": "FlickerAgain",
+      "on_event": "Flickered",
+      "trigger_command": "Lamp.Flicker",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+
+      ],
+      "where_ast": null
     }
   ],
   "process_managers": [
+    {
+      "name": "Watch",
+      "correlates_by": "name.value",
+      "starts_on": "LampInstalled",
+      "ends_on": "LampRetired",
+      "endings": [
+        "LampRetired"
+      ],
+      "resumes": [
 
+      ],
+      "states": [
+        "installed",
+        "lit",
+        "flickering",
+        "unwound"
+      ],
+      "handlers": [
+        {
+          "event_type": "Lit",
+          "from_state": "installed",
+          "to_state": "lit",
+          "dispatches": [
+            {
+              "command_name": "Lamp.Mark",
+              "with_spec": [
+                [
+                  "lamp",
+                  ":name"
+                ]
+              ],
+              "compensates": {
+                "command_name": "Lamp.Unmark",
+                "with_spec": [
+                  [
+                    "lamp",
+                    ":name"
+                  ]
+                ],
+                "compensates": null
+              }
+            }
+          ]
+        },
+        {
+          "event_type": "Flickered",
+          "from_state": "lit",
+          "to_state": "flickering",
+          "dispatches": [
+            {
+              "command_name": "Lamp.Mark",
+              "with_spec": [
+                [
+                  "lamp",
+                  ":name"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        },
+        {
+          "event_type": "refused",
+          "from_state": "flickering",
+          "to_state": "unwound",
+          "dispatches": [
+            {
+              "command_name": "Lamp.Retire",
+              "with_spec": [
+                [
+                  "lamp",
+                  ":name"
+                ]
+              ],
+              "compensates": null
+            }
+          ]
+        }
+      ]
+    }
   ],
   "attaches_to": [
 
@@ -218,6 +557,11 @@
         "name": "Beacon",
         "storage_name": "beacon",
         "adapter": "Memory"
+      },
+      {
+        "name": "Lamp",
+        "storage_name": "lamp",
+        "adapter": "Memory"
       }
     ]
   },
@@ -245,5 +589,5 @@
   "translations": [
 
   ],
-  "source_text": "Hecks.bluebook \"Echo\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.4).\n  # One policy that answers its own command's event with the same command, so a single Ping\n  # starts a chain that never ends on its own. The reaction depth bound is the only thing that\n  # stops it: five reactions below the root run, the sixth is recorded undelivered.\n  vision \"A ping is answered by another ping, until the reaction depth bound says enough.\"\n  core\n\n  aggregate \"Beacon\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    command \"Light\" do\n      goal \"Light a beacon\"\n      attribute :name, Name\n      emits \"BeaconLit\"\n    end\n\n    command \"Ping\" do\n      goal \"Ping a beacon, which makes the beacon ping again\"\n      reference_to Beacon\n      emits \"Pinged\"\n    end\n\n    policy \"PingAgain\" do\n      on      \"Pinged\"\n      trigger Beacon::Ping\n    end\n  end\nend\n"
+  "source_text": "Hecks.bluebook \"Echo\" do\n  # A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.4).\n  # One policy that answers its own command's event with the same command, so a single Ping\n  # starts a chain that never ends on its own. The reaction depth bound is the only thing that\n  # stops it: five reactions below the root run, the sixth is recorded undelivered.\n  vision \"A ping is answered by another ping, until the reaction depth bound says enough.\"\n  core\n\n  aggregate \"Beacon\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    command \"Light\" do\n      goal \"Light a beacon\"\n      attribute :name, Name\n      emits \"BeaconLit\"\n    end\n\n    command \"Ping\" do\n      goal \"Ping a beacon, which makes the beacon ping again\"\n      reference_to Beacon\n      emits \"Pinged\"\n    end\n\n    policy \"PingAgain\" do\n      on      \"Pinged\"\n      trigger Beacon::Ping\n    end\n  end\n\n  # THE SAME BOUND, SEEN FROM A SAGA (C10.4). A lamp flickers into another flicker forever. The\n  # saga marks the lamp when it is lit, and that mark is compensable; the flicker the sixth\n  # reaction announces reaches the saga at the ceiling, so its leg is refused and the saga\n  # unwinds. The compensation is itself a reaction at that depth, so it is refused as well.\n  aggregate \"Lamp\" do\n    identified_by :name\n\n    attribute :name, Name\n\n    value_object \"Name\" do\n      attribute :value, String\n    end\n\n    command \"Install\" do\n      goal \"Install a lamp\"\n      attribute :name, Name\n      emits \"LampInstalled\"\n    end\n\n    command \"Light\" do\n      goal \"Light a lamp\"\n      reference_to Lamp\n      emits \"Lit\"\n    end\n\n    command \"Flicker\" do\n      goal \"Flicker a lamp, which makes the lamp flicker again\"\n      reference_to Lamp\n      emits \"Flickered\"\n    end\n\n    command \"Mark\" do\n      goal \"Mark a flicker as seen\"\n      reference_to Lamp\n      emits \"Marked\"\n    end\n\n    command \"Unmark\" do\n      goal \"Take back a mark\"\n      reference_to Lamp\n      emits \"Unmarked\"\n    end\n\n    command \"Retire\" do\n      goal \"Retire a lamp\"\n      reference_to Lamp\n      emits \"LampRetired\"\n    end\n\n    policy \"FlickerAgain\" do\n      on      \"Flickered\"\n      trigger Lamp::Flicker\n    end\n  end\n\n  process_manager \"Watch\" do\n    correlates_by :\"name.value\"\n    starts_on \"LampInstalled\"\n    ends_on   \"LampRetired\"\n\n    transition \"Lit\" => \"lit\", from: \"installed\" do\n      dispatch Lamp::Mark, with: { lamp: :name } do\n        compensates Lamp::Unmark, with: { lamp: :name }\n      end\n    end\n\n    transition \"Flickered\" => \"flickering\", from: \"lit\" do\n      dispatch Lamp::Mark, with: { lamp: :name }\n    end\n\n    transition :refused => \"unwound\", from: \"flickering\" do\n      dispatch Lamp::Retire, with: { lamp: :name }\n    end\n  end\nend\n"
 }

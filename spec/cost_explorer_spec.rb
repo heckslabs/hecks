@@ -55,6 +55,10 @@ RSpec.describe Hecks::Adapters::CostExplorer do
     expect { check }.to raise_error(RuntimeError, %r{\Aover budget: .*\$3\.00/day, \$91\.31/month against \$75})
   end
 
+  it "refuses a check that names no budget, rather than crashing" do
+    expect { adapter.measure(budget: nil, since: "2026-10-06") }.to raise_error(described_class::Error, /no budget/)
+  end
+
   it "takes a budget and a day given as plain values" do
     stub_aws(rows: [day("2026-10-06", RDS: 1.0)])
 
