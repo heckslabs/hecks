@@ -10,6 +10,7 @@ require_relative "lineage/resumable_backfill"
 require_relative "lineage/head_compiler"
 require_relative "lineage/field_cache"
 require_relative "lineage/transform_installer"
+require_relative "lineage/mint_provisioning"
 require_relative "../../../naming"
 
 module Hecks
@@ -27,6 +28,7 @@ module Hecks
         include HeadCompiler
         include FieldCache
         include TransformInstaller
+        include MintProvisioning
 
         # Longer identifiers are silently truncated by Postgres, so `qualified_name` hashes them.
         POSTGRES_IDENTIFIER_LIMIT = 63
