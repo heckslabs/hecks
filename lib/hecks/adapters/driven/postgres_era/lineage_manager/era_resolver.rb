@@ -126,12 +126,19 @@ module Hecks
           # prior name; only the in-memory shape is normalized, and only on an exact match with
           # the declared prior name.
           def held_shapes(bluebook, held)
-            shapes = held.map { |era| [era, Runtime::StorageShape.project(shadow(era[:held_text]))] }
+            shapes = held.map { |era| [era, held_shape(era)] }
             return shapes unless bluebook.formerly_known_as
 
             shapes.map do |era, shape|
               [era, shape["name"] == bluebook.formerly_known_as ? shape.merge("name" => bluebook.name) : shape]
             end
+          end
+
+          # The storage shape an era holds: the projection its mint recorded, which covers every
+          # file of a domain split across files. The held text is the root file only, so an era
+          # minted without a projection falls back to the shape that text declares.
+          def held_shape(era)
+            era[:projection] || Runtime::StorageShape.project(shadow(era[:held_text]))
           end
         end
       end
