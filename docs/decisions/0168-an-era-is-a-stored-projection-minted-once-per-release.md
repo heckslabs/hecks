@@ -95,18 +95,22 @@ Read from the repository on 2026-11-01.
 
 - Boots are read-only. They no longer mint (`f5c68b489`), and an unminted shape boots as
   unminted rather than superseded.
-- A boot matches a held era by the projection the mint recorded (`98b1a0665`), falling back to
-  the held text's shape only for an era minted without a projection.
+- An era is its stored shape and hash (`a29caebcf`): a boot matches a held era by the projection
+  the mint recorded, and held text decides nothing.
+- Every era tool resolves through one resolution against the domain's own database (`d7ecf4110`);
+  `era.boot_resolution`, `era.mint_plan` (`0eda15d27`), `era.event_trace` (`cb502bbf0`),
+  `era.sqlite_status` (`33ebab78e`) and `era.projection_audit` (`764b77d42`) read without writing.
 - The push chain was shortened (`16ce91812`): the launcher refresh and deploy announcement react
   one step earlier, under the reaction depth limit.
-- The mint decision and the rehearsal's edge decision go through one function (`2f0b27251`,
-  `b7d77cb63`), and the Hecks domain's held era is minted before the push train writes
-  (`6cdccb516`).
+- A world can declare a ledger disposable (`3f07b6c28`); the QA and Fixer ledgers do (`63564bd17`).
+- `Era.RenameDomain` moves a renamed domain's held eras by a proven chain (`bc91143f4`), and the
+  world says stored names and a former name with `stored_as` and `formerly` (`17e11baeb`).
+- The mint decision and the rehearsal's edge decision go through one function, and the Hecks
+  domain's held era is minted as the carry's first step (`7be5045de`), not a reaction chain.
+- A QA quiesce marker makes a mint window quiet (`468b0ff49`).
 
-**In flight.** Other agents are building points 1, 2 and 3, 5 and 6 now, and the first step of point 4: a world setting that
-makes a ledger disposable, decisions made from the stored projection, a sequential mint step, and
-one resolver. This record states their intent only.
+**In flight.** The commit-time block (point 4) has no code on `main`; it is the next step. The
+commands above are listed in `CLAUDE.md` ("Landings, era inspection and the QA dispatcher").
 
-**Decided, not built.** Point 4. The design exists; its first step, making `MintDecision` and
-`Scaffold.diff` read the stored projection, is in flight. The commit-time block and `release.mint`
-are not started.
+**Decided, not built.** Point 4's commit-time block and `release.mint`: one mint per release, the
+single edge computed from the held era to the release's shape.

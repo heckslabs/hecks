@@ -193,6 +193,16 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unlanded"
   end
 
+  # The Tickets row a landed branch was cut for: the port reads the Work rows and answers the open
+  # one the branch names, refusing when there is none.
+  Hecks::Landing.port "LandedWork" do
+    asks "FindLandedWork", to: Landing do
+      attribute :branch, Word
+      answers "LandedWorkFound"
+      refuses "NoLandedWork"
+    end
+  end
+
   Hecks::ReviewRequest.port "GitHubPullRequests" do
     asks "Create", to: ReviewRequest do
       attribute :run, RunKey

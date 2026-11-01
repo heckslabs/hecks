@@ -492,6 +492,15 @@ Hecks.bluebook "Hecks" do
       trigger Landing::Refuse, with: { refusal: :refusal }
     end
 
+    # A landed branch finishes the Work row it was cut for. The LandedWork port finds the open row the
+    # branch names (the whole branch name, else the name without a leading `qa/`) and answers its key;
+    # a branch with no open row is refused by the port and nothing follows. The Tickets bluebook finishes
+    # the row that was found (FinishWorkWhenBranchLanded).
+    policy "FindWorkWhenBranchLanded" do
+      on      "Landing.BranchLanded"
+      ask     :find_landed_work, with: { branch: :branch }
+    end
+
     policy "RemoveWhenRetiring" do
       on      "Landing.RetirementRequested"
       ask     :remove, with: { run: :run }
