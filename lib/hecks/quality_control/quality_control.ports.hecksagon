@@ -25,6 +25,17 @@ Hecks.hecksagon "QualityControl" do
     end
   end
 
+  # Bound by adapters/run_reader. It reads a CI run of main for its failing spec files, reports each
+  # to RedSpec, and answers the commit and whether the run settled.
+  QualityControl::MainRun.port "Reader" do
+    asks "Read", to: MainRun do
+      attribute :run,  MainRunId
+      attribute :repo, HeadRepo
+      answers "MainRunRead"
+      refuses "MainRunReadRefused"
+    end
+  end
+
   # Queries answered from outside the domain. The bluebook declares each question and the value
   # object its answer takes and never says who answers it; each `answers_query` binds it to the
   # `*Tools` port's adapter, which runs the script's own command and answers what it printed.
