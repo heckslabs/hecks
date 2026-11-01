@@ -593,7 +593,7 @@ Hecks.bluebook "Hecks" do
         attribute :remote,    Word, default: "origin", sets: true
         attribute :checkout,  Word, optional: true, sets: true
         # Run the whole `pre_push` stage, the suite included, which also writes the CI attestation
-        # note; without it the push runs only the `unguarded_push` stage.
+        # note; without it the push runs only the `quick` stage.
         attribute :full_gate, Switch, optional: true, sets: true
         attribute :confirm,   Switch, optional: true, sets: true
 
