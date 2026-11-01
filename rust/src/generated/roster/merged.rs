@@ -790,9 +790,20 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crat
                     let element_id =
                         crate::generated::roster::roster::Member::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Retire acts on one Member — pass id.value:".to_string(),
-                                )
+                                if store.roster.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Roster",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Retire acts on one Member — pass id.value:".to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::roster::roster::Member::extract_wants(facts_json);

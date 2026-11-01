@@ -900,25 +900,16 @@ impl Visit {
 
 impl Visit {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("date.value")?.to_id_component_lenient().ok()?;
             let c1 = v.dig("sequence.value")?.to_id_component_lenient().ok()?;
             Some([c0, c1].join(":"))
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("visit")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Visit: no identity found (tried date.value, sequence.value, id, visit)"
-                        .to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Visit: no identity found (tried date.value, sequence.value)".to_string(),
+            )
+        })
     }
 }
 
@@ -1270,24 +1261,15 @@ impl KeyIssuance {
 
 impl KeyIssuance {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("serial.value")?.to_id_component_lenient().ok()?;
             Some(c0)
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("key_issuance")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "KeyIssuance: no identity found (tried serial.value, id, key_issuance)"
-                        .to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "KeyIssuance: no identity found (tried serial.value)".to_string(),
+            )
+        })
     }
 }
 
@@ -2007,14 +1989,23 @@ impl RentArgs {
         let customer = {
             let x = v.get("customer").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "SafeDepositBox.customer expects String, got nil".to_string(),
+                    "Rent.customer expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "SafeDepositBox.customer expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Rent",
+                        attribute: "customer",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Customer is known by reference)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         Ok(Self {

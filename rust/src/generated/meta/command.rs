@@ -4345,23 +4345,41 @@ impl DeclareArgs {
         let aggregate = {
             let x = v.get("aggregate").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Command.aggregate expects String, got nil".to_string(),
+                    "Declare.aggregate expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Command.aggregate expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "aggregate",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Aggregate is known by bluebook, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let entity_id = match v.get("entity_id") {
             Some(crate::kernel::Json::Null) | None => None,
             Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Command.entity_id expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "entity_id",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Entity is known by aggregate, name)",
+                    }
+                    .render_args(),
+                )
             })?),
         };
         let name = CommandName::from_json(
@@ -5177,14 +5195,23 @@ impl ReferenceArgs {
         let points_at = {
             let x = v.get("points_at").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Command.points_at expects String, got nil".to_string(),
+                    "Reference.points_at expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Command.points_at expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Reference",
+                        attribute: "points_at",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Aggregate is known by bluebook, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = ArgName::from_json(

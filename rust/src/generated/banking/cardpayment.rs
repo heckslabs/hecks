@@ -1002,14 +1002,23 @@ impl AuthorizeArgs {
         let account = {
             let x = v.get("account").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "CardPayment.account expects String, got nil".to_string(),
+                    "Authorize.account expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "CardPayment.account expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Authorize",
+                        attribute: "account",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Account is known by number)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let amount = PaymentAmount::from_json(
@@ -1970,14 +1979,23 @@ impl DisputeArgs {
         let disputed_by = {
             let x = v.get("disputed_by").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "CardPayment.disputed_by expects String, got nil".to_string(),
+                    "Dispute.disputed_by expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "CardPayment.disputed_by expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Dispute",
+                        attribute: "disputed_by",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Customer is known by reference)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         Ok(Self { disputed_by })
