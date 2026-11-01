@@ -5,6 +5,7 @@ require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
 require_relative "../../../support/thread_parking"
 require_relative "../../../support/mint_request_support"
+require_relative "../../../support/first_era_hold"
 
 # Lineage in the PostgresEra adapter: partitioned journal, era rows, the one-transaction mint,
 # and the head compiled as a chain of edges. Needs a reachable Postgres (see postgres_probe.rb).
@@ -12,6 +13,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   include EraRegistryLoading
   include EraAppRole
   include MintRequestSupport
+  include FirstEraHold
 
   LINEAGE_DB = "hecks_lineage_spec".freeze
 
@@ -183,16 +185,39 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   # Boots the source as a copy that owns the database, so it may mint; `mint_eras: false` boots it
   # as one told not to, and `nil` leaves the world saying nothing.
   def check!(source, translation_source: nil, role: nil, mint_eras: true)
+    hold_first_unless_held!(source)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
-    settings = { database: owner_url }
-    settings[:mint_eras] = mint_eras unless mint_eras.nil?
-    settings[:role] = role if role
+    settings = boot_settings(role: role, mint_eras: mint_eras)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source,
       settings: with_mint_request(settings, domain: bluebook.name)
     )
     registry
+  end
+
+  def boot_settings(role:, mint_eras:)
+    settings = { database: owner_url }
+    settings[:mint_eras] = mint_eras unless mint_eras.nil?
+    settings[:role] = role if role
+    settings
+  end
+
+  # A boot never holds an era, so the first boot of a fresh database is preceded by the hold the
+  # mint entry point makes, freezing `source` as era 1.
+  def hold_first_unless_held!(source, url: owner_url)
+    domain = load_registry(source).bluebooks.values.first.name
+    return if first_era_held?(domain)
+
+    hold_first_era!(url: url, domain: domain, source: source)
+  end
+
+  def first_era_held?(domain)
+    with_db do |db|
+      next false unless db.exec("SELECT to_regclass('hecks_eras') AS t")[0]["t"]
+
+      db.exec_params("SELECT 1 FROM hecks_eras WHERE domain = $1 LIMIT 1", [domain]).ntuples.positive?
+    end
   end
 
   # A deployment's app role: a non-owner, the only kind of connection the era fence acts on.
@@ -240,6 +265,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   # Checks an already loaded registry against the database as the owner.
   def check_loaded!(registry, text)
+    hold_first_unless_held!(text)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: text,
       settings: with_mint_request({ database: owner_url, mint_eras: true },
@@ -1265,7 +1291,8 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
-  def check_as_ambient!(source, **extra_settings)
+  def check_as_ambient!(source, held: true, **extra_settings)
+    hold_first_unless_held!(source, url: LINEAGE_DB) if held
     registry = load_registry(source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
@@ -1301,7 +1328,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
 
     it "refuses before provisioning anything — a refused boot holds no era", :aggregate_failures do
-      expect { check_as_ambient!(V1_SOURCE) }.to raise_error(Hecks::Runtime::WiringError)
+      expect { check_as_ambient!(V1_SOURCE, held: false) }.to raise_error(Hecks::Runtime::WiringError)
       expect(with_db { |db| db.exec("SELECT to_regclass('hecks_eras') IS NULL AS absent")[0]["absent"] }).to eq("t")
     end
 

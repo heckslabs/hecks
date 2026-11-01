@@ -9,12 +9,14 @@ require_relative "../../support/fenced_owner"
 require_relative "../../support/era_registry_loading"
 require_relative "../../../lib/hecks/hecks/adapters/journal_store"
 require_relative "../../support/mint_request_support"
+require_relative "../../support/first_era_hold"
 
 # The JournalStore port's adapter against a real Postgres: the facts an examination reports, the
 # changes an admitted request makes, and the reads that never write. Needs a reachable Postgres.
 RSpec.describe Hecks::Adapters::JournalStore, :io do
   include MintRequestSupport
   include EraRegistryLoading
+  include FirstEraHold
 
   JS_DB = "hecks_journal_store_spec".freeze
 
@@ -167,8 +169,9 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     adapter.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "a1", state: v1_record_state))
   end
 
-  # Holds era 1 from `JS_V1`, as a first boot of the old checkout does, and saves one record.
+  # Holds era 1 from `JS_V1` through the mint entry point's hold, boots it, and saves one record.
   def hold_v1_with_a_record
+    hold_first_era!(url: url, domain: "Ledger", source: JS_V1)
     registry = load_registry(JS_V1)
     bluebook = registry.bluebooks.values.first
     check_lineage!(registry, bluebook, JS_V1)
