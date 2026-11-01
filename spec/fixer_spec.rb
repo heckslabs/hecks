@@ -43,15 +43,23 @@ RSpec.describe "the fixer" do
     attempt(reference).claim!(reference: { value: reference }, held_by: { value: by }, now: { value: 1_000 })
   end
 
-  def fix(reference = "BUG#1", commit = "4f2a19c")
+  REPRO = "exe/hecks widget.make --wait".freeze
+
+  def investigate(reference = "BUG#1", result: "failed", command: REPRO)
     attempt(reference).investigate!(reference: { value: reference }, site: { value: "lib/x.rb" },
-                                    cause: { value: "c" })
+                                    cause: { value: "c" }, reproduction: { value: command },
+                                    observed: { value: "era resolved nil" }, reproduced: { value: result })
+  end
+
+  def fix(reference = "BUG#1", commit = "4f2a19c")
+    investigate(reference)
     attempt(reference).fix!(reference: { value: reference }, commit: { value: commit })
   end
 
-  def verify(reference = "BUG#1", commit = "4f2a19c")
+  def verify(reference = "BUG#1", commit = "4f2a19c", rerun: REPRO, rerun_result: "passed")
     attempt(reference).verify!(reference: { value: reference }, commit: { value: commit },
-                               evidence: { value: "rspec: 1 example, 0 failures" })
+                               evidence: { value: "rspec: 1 example, 0 failures" },
+                               rerun: { value: rerun }, rerun_result: { value: rerun_result })
   end
 
   it "opens an attempt when the ledger logs a bug, still unclaimed", :aggregate_failures do
@@ -97,5 +105,59 @@ RSpec.describe "the fixer" do
     verify
 
     expect(ledger_bug.status).to eq("verified")
+  end
+
+  describe "the reproduction rule" do
+    it "refuses a fix when no reproduction was recorded" do
+      log_bug
+      claim
+
+      expect { attempt.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" }) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /no failing reproduction recorded: run the real entry point first/)
+    end
+
+    it "refuses a fix when the recorded reproduction did not fail" do
+      log_bug
+      claim
+      investigate(result: "passed")
+
+      expect { attempt.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" }) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /no failing reproduction recorded/)
+    end
+
+    it "accepts a fix once a failing reproduction is recorded", :aggregate_failures do
+      log_bug
+      claim
+      fix
+
+      expect(attempt.status).to eq("fixed")
+      expect(attempt.reproduction.value).to eq(REPRO)
+    end
+
+    it "refuses a verification that re-ran a different command" do
+      log_bug
+      claim
+      fix
+
+      expect { verify(rerun: "rspec spec/new_spec.rb") }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /not the one recorded/)
+    end
+
+    it "refuses a verification whose reproduction still fails" do
+      log_bug
+      claim
+      fix
+
+      expect { verify(rerun_result: "failed") }.to raise_error(Hecks::Runtime::GivenNotMet, /still fails/)
+    end
+
+    it "accepts a verification that re-ran the same command and passed" do
+      log_bug
+      claim
+      fix
+      verify
+
+      expect(attempt.status).to eq("verified")
+    end
   end
 end
