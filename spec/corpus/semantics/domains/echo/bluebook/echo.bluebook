@@ -32,4 +32,79 @@ Hecks.bluebook "Echo" do
       trigger Beacon::Ping
     end
   end
+
+  # THE SAME BOUND, SEEN FROM A SAGA (C10.4). A lamp flickers into another flicker forever. The
+  # saga marks the lamp when it is lit, and that mark is compensable; the flicker the sixth
+  # reaction announces reaches the saga at the ceiling, so its leg is refused and the saga
+  # unwinds. The compensation is itself a reaction at that depth, so it is refused as well.
+  aggregate "Lamp" do
+    identified_by :name
+
+    attribute :name, Name
+
+    value_object "Name" do
+      attribute :value, String
+    end
+
+    command "Install" do
+      goal "Install a lamp"
+      attribute :name, Name
+      emits "LampInstalled"
+    end
+
+    command "Light" do
+      goal "Light a lamp"
+      reference_to Lamp
+      emits "Lit"
+    end
+
+    command "Flicker" do
+      goal "Flicker a lamp, which makes the lamp flicker again"
+      reference_to Lamp
+      emits "Flickered"
+    end
+
+    command "Mark" do
+      goal "Mark a flicker as seen"
+      reference_to Lamp
+      emits "Marked"
+    end
+
+    command "Unmark" do
+      goal "Take back a mark"
+      reference_to Lamp
+      emits "Unmarked"
+    end
+
+    command "Retire" do
+      goal "Retire a lamp"
+      reference_to Lamp
+      emits "LampRetired"
+    end
+
+    policy "FlickerAgain" do
+      on      "Flickered"
+      trigger Lamp::Flicker
+    end
+  end
+
+  process_manager "Watch" do
+    correlates_by :"name.value"
+    starts_on "LampInstalled"
+    ends_on   "LampRetired"
+
+    transition "Lit" => "lit", from: "installed" do
+      dispatch Lamp::Mark, with: { lamp: :name } do
+        compensates Lamp::Unmark, with: { lamp: :name }
+      end
+    end
+
+    transition "Flickered" => "flickering", from: "lit" do
+      dispatch Lamp::Mark, with: { lamp: :name }
+    end
+
+    transition :refused => "unwound", from: "flickering" do
+      dispatch Lamp::Retire, with: { lamp: :name }
+    end
+  end
 end

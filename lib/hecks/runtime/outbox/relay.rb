@@ -106,7 +106,7 @@ module Hecks
           repository.outbox_settle(row.id, status: "delivered")
           row.status = "delivered"
           true
-        rescue StandardError => e
+        rescue StandardError, ScriptError => e
           settle_failed(row, repository, e)
           false
         end

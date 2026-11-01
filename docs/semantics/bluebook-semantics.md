@@ -334,9 +334,11 @@ it, except for one law they must uphold (C8.4).
 - **C10.4 (settled)** Reaction depth is bounded (5): a command runs at
   most five nested reactions below the root command, and the sixth is
   recorded undelivered with `reaction depth 5 reached`, never run. A
-  chain of exactly five runs whole in both runtimes.
-  (fixtures: `events_and_reactions_order.json`, and
-  `reaction_depth_bound.json` — its domain is corpus-owned,
+  chain of exactly five runs whole in both runtimes. A saga's compensation
+  is a reaction like any other: unwinding at the ceiling dispatches nothing.
+  (fixtures: `events_and_reactions_order.json`,
+  `reaction_depth_bound.json` and `reaction_depth_bound_compensation.json`
+  — their domain is corpus-owned,
   `spec/corpus/semantics/domains/echo`, a policy that answers its own
   event with the same command)
 

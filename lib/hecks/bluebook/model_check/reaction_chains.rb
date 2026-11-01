@@ -1,4 +1,6 @@
 require_relative "../ask_resolution"
+require_relative "reaction_cycles"
+require_relative "reaction_walk"
 
 module Hecks
   module Bluebook
@@ -8,9 +10,10 @@ module Hecks
       # hecksagon to its port operation. `from` walks it to the longest chain a verb's events start.
       #
       # A policy already on the path is not followed again: a loop is cut where it closes, so a
-      # chain counts each policy once. A cross-domain (`across`) policy ends a chain, since the
-      # other domain's policies are not in this bluebook. A `where` is not evaluated, so a chain
-      # is the deepest one the declarations allow, not one a run is certain to take.
+      # chain counts each policy once; `cycles` reports the loops themselves. A cross-domain
+      # (`across`) policy ends a chain, since the other domain's policies are not in this
+      # bluebook. A `where` is not evaluated, so a chain is the deepest one the declarations
+      # allow, not one a run is certain to take.
       class ReactionChains
         # One reaction step: the policy that fires and the verb it dispatches.
         Step = Struct.new(:policy, :verb) do
@@ -24,6 +27,7 @@ module Hecks
           @emitted   = emitted_by_verb
           @policies  = bluebook.policies.reject(&:target_domain)
           @dispatch  = @policies.to_h { |policy| [policy, dispatched_by(policy)] }
+          @successors = @policies.to_h { |policy| [policy, @dispatch[policy] ? reacting_to(@dispatch[policy]) : []] }
         end
 
         # @return [Array<Array<String>>] each verb that emits an event, as split_verb parses it
@@ -34,23 +38,30 @@ module Hecks
 
         # @param verb [Array<String>] a verb, as `Naming.split_verb` parses it
         # @return [Array<Step>] the longest chain of reactions the verb's events start, in order
-        def from(verb, path = [])
-          reacting_to(verb, path).map do |policy|
-            [Step.new(policy, @dispatch[policy])] + follow(policy, path)
-          end.max_by(&:size) || []
-        end
+        def from(verb) = walk.longest(reacting_to(verb))
+
+        # @return [Boolean] whether the last `from` stopped searching, so its chain is a lower bound
+        def capped? = walk.capped?
+
+        # @return [Array<Array>] each loop in the graph, as the policies that reach one another
+        def cycles = @cycles ||= ReactionCycles.new(@policies, @successors).groups
+
+        # @param policy [Object] a policy of this bluebook
+        # @return [Step] the policy with the verb it dispatches
+        def step(policy) = Step.new(policy, @dispatch[policy])
+
+        # @param policy [Object] a policy of this bluebook
+        # @return [Array] the policies the verb it dispatches starts
+        def successors(policy) = @successors.fetch(policy)
 
         private
 
-        def follow(policy, path)
-          target = @dispatch[policy]
-          target ? from(target, [*path, policy]) : []
-        end
+        def walk = @walk ||= ReactionWalk.new(self, cycles.flatten)
 
-        # Policies, not yet on the path, that react to an event the verb emits.
-        def reacting_to(verb, path)
+        # Policies that react to an event the verb emits.
+        def reacting_to(verb)
           events = @emitted.fetch(verb, [])
-          (@policies - path).select { |policy| events.any? { |aggregate, event| hears?(policy, aggregate, event) } }
+          @policies.select { |policy| events.any? { |aggregate, event| hears?(policy, aggregate, event) } }
         end
 
         def hears?(policy, aggregate, event)

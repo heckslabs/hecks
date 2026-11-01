@@ -62,6 +62,8 @@ module Hecks
         # One try. Answers nil once the compensation has settled (delivered or refused), or the
         # crash that stopped it.
         def compensate_once(leg, entry, record)
+          return refuse_compensation_at_depth_ceiling(record) if @dispatcher.reaction_depth_reached?
+
           reenter_command(leg, entry[:command_name], entry[:args], explicit: true, source_receiver: nil)
           @registry.saga_log << record.merge(delivered: true, compensation: true)
           nil
@@ -71,6 +73,14 @@ module Hecks
           nil
         rescue StandardError => e
           e
+        end
+
+        # A compensation is a reaction like any other: past the cascade limit it is recorded
+        # undelivered, never run.
+        def refuse_compensation_at_depth_ceiling(record)
+          @registry.saga_log << record.merge(delivered: false, compensation: true, compensation_failed: true,
+                                             reason: "reaction depth #{@dispatcher.max_reaction_depth} reached")
+          nil
         end
 
         def log_compensation_retry(record, error, attempt)

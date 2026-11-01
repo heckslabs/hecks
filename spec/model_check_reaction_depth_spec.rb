@@ -49,6 +49,51 @@ RSpec.describe "model_check over reaction chain depth" do
     "  policy \"Again\" do\n    on \"Stepped#{steps}\"\n    trigger Link::Step1\n  end\n"
   end
 
+  # A bluebook whose commands `Ping1`..`PingN` each emit `PingedK`, answered by a policy that
+  # triggers the next ping, the last one triggering `Ping1` again: a loop of N policies that no
+  # command outside it starts.
+  def ring_of(size)
+    commands = (1..size).map { |n| "command(\"Ping#{n}\") do\n reference_to Bell\n emits \"Pinged#{n}\"\n end\n" }
+    policies = (1..size).map { |n| "policy \"P#{n}\" do\n on \"Pinged#{n}\"\n trigger Bell::Ping#{(n % size) + 1}\n end\n" }
+    loaded_domain("Ring", "aggregate \"Bell\" do\n identified_by :ref\n attribute :ref, Ref\n" \
+                          "value_object(\"Ref\") { attribute :value, String }\n#{commands.join}end\n#{policies.join}")
+  end
+
+  # Layers of two commands each emitting one event, every policy of a layer answering the
+  # previous layer (the first answers `Start`): 2**layers paths from the first layer to the
+  # last. With `loop_back` the last layer's event is also answered by the first layer's commands.
+  def layered(layers, loop_back: false)
+    commands = (0...layers).flat_map { |layer| %w[A B].map { |x| cell_command("#{x}#{layer}", "E#{layer}") } }
+    policies = (0...layers).flat_map { |layer| %w[A B].map { |x| layer_policy(x, layer) } }
+    policies += %w[A B].map { |x| cell_policy("Back#{x}", "E#{layers - 1}", "#{x}0") } if loop_back
+    loaded_domain("Layers", cell_source(commands, policies))
+  end
+
+  def layer_policy(letter, layer)
+    cell_policy("P#{letter}#{layer}", layer.zero? ? "Started" : "E#{layer - 1}", "#{letter}#{layer}")
+  end
+
+  def cell_source(commands, policies)
+    "aggregate \"Cell\" do\n identified_by :ref\n attribute :ref, Ref\n" \
+      "value_object(\"Ref\") { attribute :value, String }\n" \
+      "command(\"Start\") do\n attribute :ref, Ref\n emits \"Started\"\n end\n#{commands.join}end\n#{policies.join}"
+  end
+
+  def cell_command(name, event) = "command(\"#{name}\") do\n reference_to Cell\n emits \"#{event}\"\n end\n"
+
+  def cell_policy(name, event, command) = "policy \"#{name}\" do\n on \"#{event}\"\n trigger Cell::#{command}\n end\n"
+
+  def loaded_domain(name, body)
+    file = Tempfile.new([name.downcase, ".bluebook"])
+    file.write("Hecks.bluebook \"#{name}\" do\n#{body}end\n")
+    file.flush
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) { Kernel.load(file.path) }
+    registry.bluebook(name)
+  ensure
+    file&.close!
+  end
+
   def findings_of(bluebook, **options) = Hecks::Bluebook::ModelCheck.reaction_depth_findings(bluebook, **options)
 
   def errand
@@ -93,6 +138,39 @@ RSpec.describe "model_check over reaction chain depth" do
 
   it "counts the chain of the same ask as 2 reactions" do
     expect(findings_of(errand, limit: 2)).to be_empty
+  end
+
+  it "flags a policy that answers its own command's event, which no command outside it starts" do
+    expect(findings_of(ring_of(1)).map { |f| [f.kind, f.severity, f.subject] })
+      .to eq([[:unbounded_reaction_loop, :warning, "P1"]])
+  end
+
+  it "flags a loop through two policies, naming both" do
+    expect(findings_of(ring_of(2)).map { |f| [f.kind, f.subject] }).to eq([[:unbounded_reaction_loop, "P1, P2"]])
+  end
+
+  it "says the loop is cut by the limit" do
+    expect(findings_of(ring_of(2)).first.message).to include("until the reaction depth limit of 5")
+  end
+
+  it "flags a loop that closes a chain from an entry command beside the chain's own depth" do
+    kinds = findings_of(chain_of(5, loop_back: true)).map(&:kind)
+
+    expect(kinds).to contain_exactly(:deep_reaction_chain, :unbounded_reaction_loop)
+  end
+
+  it "reports a long chain with no loop for its depth only" do
+    expect(findings_of(chain_of(8)).map(&:kind)).to eq([:deep_reaction_chain])
+  end
+
+  it "finds the deepest chain through many paths without walking each of them" do
+    found = findings_of(layered(40)).map { |f| [f.kind, f.message[/chain of \d+/]] }
+
+    expect(found).to eq([[:deep_reaction_chain, "chain of 40"]])
+  end
+
+  it "stops searching a looping graph with many paths, and says the chain is a lower bound" do
+    expect(findings_of(layered(16, loop_back: true)).map(&:kind)).to include(:reaction_chain_search_capped)
   end
 
   it "runs with the model check itself" do

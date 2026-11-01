@@ -1,0 +1,116 @@
+{
+  "domain": "spec/corpus/semantics/domains/echo",
+  "spec": [
+    "C10.4"
+  ],
+  "note": "The reaction depth bound holds for a saga's compensation too. The Watch saga marks a lamp when it is lit, and that mark is compensable. Lamp.Flicker then triggers itself on every Flickered; the flicker the fifth reaction announces reaches the saga at the ceiling, so its leg is refused and the saga unwinds. The compensation (Unmark) and the hand-written refused leg (Retire) are reactions at that depth and are refused as well: the Lit mark stays, no Unmarked, no LampRetired.",
+  "steps": [
+    {
+      "verb": "Echo::Lamp.Install",
+      "args": {
+        "name": {
+          "value": "l1"
+        }
+      }
+    },
+    {
+      "verb": "Echo::Lamp.Light",
+      "args": {
+        "lamp": "l1"
+      }
+    },
+    {
+      "verb": "Echo::Lamp.Flicker",
+      "args": {
+        "lamp": "l1"
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Echo::Lamp#l1": {
+        "name": {
+          "value": "l1"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "LampInstalled",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "name": {
+            "value": "l1"
+          }
+        }
+      },
+      {
+        "name": "Lit",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "lamp": "l1"
+        }
+      },
+      {
+        "name": "Marked",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+        }
+      },
+      {
+        "name": "Flickered",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "lamp": "l1"
+        }
+      },
+      {
+        "name": "Flickered",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "lamp": "l1"
+        }
+      },
+      {
+        "name": "Flickered",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "lamp": "l1"
+        }
+      },
+      {
+        "name": "Flickered",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "lamp": "l1"
+        }
+      },
+      {
+        "name": "Flickered",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "lamp": "l1"
+        }
+      },
+      {
+        "name": "Flickered",
+        "aggregate": "Echo::Lamp",
+        "id": "l1",
+        "payload": {
+          "lamp": "l1"
+        }
+      }
+    ]
+  }
+}
