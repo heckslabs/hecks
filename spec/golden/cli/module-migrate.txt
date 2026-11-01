@@ -14,6 +14,7 @@ commands:
     compact_heki!          Empty a Heki aggregate's journal, keeping the snapshot
     write_translation!     Write the one translation edge that leads the latest held era to the current shape
     reconcile!             Write the translation edges that lead every domain's latest held era to its current shape
+    mint_held!             Mint the Hecks domain's next era when its shape moved, before the push train writes
   RehearsalRun:
     One rehearsal of a domain's next era against a copy of its data: what a mint would do, and what it would refuse.
     request!               Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome
@@ -27,6 +28,7 @@ queries (nothing here changes anything):
     reconcile_plan        The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
     attestation           An era's held text as it now stands, and whether it still matches its digest.
     compaction            What compacting the domain's journals would delete, without deleting it.
+    boot_status           The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason.
   Seal:
     The head a domain's journal chain had when the rows before it were compacted away.
     latest                The newest seal a domain holds.
@@ -48,7 +50,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 19 internal commands and queries
-  hecks --maintainer           also list the 365 commands and queries for working on hecks itself
+  hecks --all                  also list the 20 internal commands and queries
+  hecks --maintainer           also list the 370 commands and queries for working on hecks itself
   a command is called with its aggregate — Era.hold_first!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
