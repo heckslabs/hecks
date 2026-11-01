@@ -13,11 +13,14 @@ RSpec.describe Hecks::Adapters::MainMaintenance do
 
   after { FileUtils.remove_entry(state_dir) }
 
-  before { stub_const("Hecks::Adapters::MainMaintenance::STRANDED_DIR", File.join(state_dir, "state")) }
+  before do
+    stub_const("Hecks::Adapters::MainMaintenance::STRANDED_DIR", File.join(state_dir, "state"))
+    allow(commands).to receive_messages(auto_mint_facts: { watermark: 7 }, own_rows_after: 0)
+  end
 
   def mint(verdict: "would_mint")
     port.mint(run: "r1", domain: "Ledger", era: 2, sha: "a" * 40, branch: "qa/x", watermark: 7,
-              rehearsal_verdict: verdict)
+              rehearsal_verdict: verdict, confirm: { value: true })
   end
 
   def land(stub_result)

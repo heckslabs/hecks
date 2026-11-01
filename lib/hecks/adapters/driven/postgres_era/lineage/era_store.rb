@@ -107,6 +107,17 @@ module Hecks
           def last_ordinal
             @db.exec("SELECT COALESCE(max(ordinal), 0) AS o FROM #{quoted_journal}")[0]["o"].to_i
           end
+
+          # How many journal rows above an ordinal belong to one record of one aggregate.
+          #
+          # @param ordinal [Integer] the ordinal the rows must exceed
+          # @param aggregate [String] the aggregate's storage name
+          # @param id [String] the record's id
+          # @return [Integer]
+          def rows_of_after(ordinal, aggregate, id)
+            sql = "SELECT count(*) AS n FROM #{quoted_journal} WHERE ordinal > $1 AND aggregate = $2 AND aggregate_id = $3"
+            @db.exec_params(sql, [ordinal, aggregate, id])[0]["n"].to_i
+          end
         end
       end
     end
