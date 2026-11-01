@@ -230,6 +230,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "ReconcilePlan"
     answers_query "Attestation"
     answers_query "Compaction"
+    answers_query "BootStatus"
   end
 
   Hecks::Era.port "Ledger" do

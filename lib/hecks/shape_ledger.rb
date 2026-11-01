@@ -1,5 +1,6 @@
 require "json"
 require "hecks"
+require_relative "shape_ledger/status"
 
 module Hecks
   # The committed record of each bluebook's storage shape, held against the shapes the bluebooks

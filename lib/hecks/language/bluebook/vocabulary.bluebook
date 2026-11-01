@@ -961,16 +961,15 @@ Hecks.bluebook "Bluebook" do
              argv: "",
              script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n",
              blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."
-      # The era proof: each domain with a bluebook, a PostgresEra ledger and a `rehearsed_by` copy in its
-      # world rehearses its next era against a copy of that ledger, and the rehearsal must say
-      # would_mint (a mint would go through) or no_change (`would_mint` with `minting` none: the shape
-      # stands). The verdict is read by `.github/era_proof/verdict.jq`. Only CI runs it, against a
-      # disposable copy, so a local run refuses before it reads anything.
+      # The era proof: the boot status of the Hecks domain's bluebooks, read from the committed ledger
+      # (`lib/hecks/hecks/shapes.json` and `implicit_moves.json`) with no database and no mint. Each
+      # bluebook must be `current`, or `behind` by an implicit move the ledger records; the filter
+      # `.github/era_proof/boot_status.jq` names every other one with its reason.
       member name: "era_proof", id: "era_proof",
-             title: "era proof, each domain's next era rehearsed against a copy of its ledger must be would_mint or no_change",
+             title: "era proof, each bluebook's boot status is current or behind by a recorded implicit move",
              argv: "",
-             script: "[ \"${CI:-}\" = \"true\" ] || { echo \"era_proof runs only in CI: a local run reads no ledger\" >&2; exit 1; }\nout=\"${ERA_PROOF_OUT:?ERA_PROOF_OUT names where the rehearsal output is kept}\"\nmkdir -p \"$out\"\n# The domains a rehearsal covers. Today that is QualityControl, whose world names HECKS_QC_REHEARSAL_URL.\nfor domain in qa/bluebook; do\n  run=\"era-proof-$(echo \"$domain\" | tr '/' '-')-${GITHUB_RUN_ID:-local}\"\n  bundle exec exe/hecks rehearsal_run.request! run.value=\"$run\" domain.value=\"$domain\" --wait\n  bundle exec exe/hecks query rehearsal_run.rehearsal_outcome run.value=\"$run\" > \"$out/$run.json\"\n  jq -e -f .github/era_proof/verdict.jq \"$out/$run.json\" > /dev/null || { echo \"era_proof: $domain did not reach would_mint or no_change\" >&2; cat \"$out/$run.json\" >&2; exit 1; }\ndone\n",
-             blocked: "a domain's rehearsal did not say would_mint or no_change: the output names the verdict and every refused row. A mint would refuse, a change needs a translation edge, or the copy is empty or unreadable; the verdict's reason says which."
+             script: "status=\"$(bundle exec exe/hecks query era.boot_status domain.value=lib/hecks/hecks)\" || exit 1\nproblems=\"$(echo \"$status\" | jq -r -f .github/era_proof/boot_status.jq)\" || exit 1\nif [ -n \"$problems\" ]; then\n  echo \"era_proof: a bluebook is neither current nor behind by a recorded implicit move:\" >&2\n  echo \"$problems\" >&2\n  exit 1\nfi\n",
+             blocked: "a bluebook's boot status is superseded, unminted, or behind with no implicit move recorded: the output names each one and its reason. Fix the ledger, the edge or the implicit move that leads the held shape to the current one."
     end
 
     # The stages of the gate: the `checks` a stage runs, as a comma list of `GateCheck` names in

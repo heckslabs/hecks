@@ -1,10 +1,10 @@
 name: Era proof
 
-# Proves each domain's next era before it deploys: the `era_proof` gate check (Vocabulary
-# GateCheck, stage `era_proof`) rehearses the era against a copy of the domain's ledger on a
-# disposable Postgres and requires would_mint or no_change. It runs only when asked, by hand or
-# from another workflow; nothing pushes or opens a pull request into it. Nothing in this repository
-# deploys a domain, so no job here is gated on it yet.
+# Polls each bluebook's boot status before a deploy can gate on it: the `era_proof` gate check
+# (Vocabulary GateCheck, stage `era_proof`) runs `era.boot_status` once against the committed ledger
+# and requires every bluebook to be current, or behind by an implicit move the ledger records. It
+# reads no database and mints nothing. It runs only when asked, by hand or from another workflow;
+# nothing pushes or opens a pull request into it.
 
 on:
   workflow_dispatch: {}
@@ -16,50 +16,15 @@ permissions:
 jobs:
   era_proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    env:
-      # The CI flag the gate check reads: a local run refuses before it reads a ledger.
-      CI: "true"
-      # The copy the QualityControl rehearsal reads, named by its world's `connection_env`.
-      HECKS_QC_REHEARSAL_URL: postgres://hecks_qa@localhost/hecks_qc_rehearsal_copy
-      ERA_PROOF_OUT: ${{ runner.temp }}/era_proof
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
         with:
           rust-toolchain: "false"
-      # Selects Memory for the hecks commands: this job reads a copy and never journals.
+      # Selects Memory for the hecks commands: the status is read from the ledger, never a journal.
       - uses: ./.github/actions/hecks-environment
 
-      # Preinstalled and tuned Postgres, as the postgres io jobs use; the trust rule for
-      # 127.0.0.1 lets the role below connect without a password.
-      - uses: ./.github/actions/postgres
-
-      # The copy is loaded from a ledger snapshot named by LEDGER_SNAPSHOT. No snapshot is checked
-      # in and none is downloaded yet, so this step fails until a source is named; the rehearsal
-      # then never runs against an empty database.
-      - name: Load the QualityControl ledger copy
-        env:
-          LEDGER_SNAPSHOT: qa/era_proof/quality_control_ledger.dump
-        run: |
-          set -eu
-          if [ ! -f "$LEDGER_SNAPSHOT" ]; then
-            echo "era_proof: no ledger snapshot at $LEDGER_SNAPSHOT; name the source of the copy first" >&2
-            exit 1
-          fi
-          sudo -u postgres psql -c "CREATE ROLE hecks_qa LOGIN"
-          createdb -h localhost -U postgres hecks_qc_rehearsal_copy
-          pg_restore --no-owner --no-privileges -h localhost -U postgres -d hecks_qc_rehearsal_copy "$LEDGER_SNAPSHOT"
-
-      - name: Rehearse each domain's era and require would_mint or no_change
+      - name: Poll the boot status and require current or a recorded implicit move
         run: bundle exec exe/hecks gate_run.gate! stage=era_proof --wait
-
-      - name: Keep the rehearsal output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: era-proof
-          path: ${{ runner.temp }}/era_proof
-          if-no-files-found: ignore
