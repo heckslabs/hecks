@@ -4,7 +4,7 @@ module Hecks
     # reading it back as a tail or as the events it announced. Extended onto `Storehouse`.
     module Audit
       # The caller-supplied fields of an audit line, in the order the line spells them.
-      AUDIT_FIELDS = %i[verb summary source role actor_id].freeze
+      AUDIT_FIELDS = %i[verb summary source role actor_id surface].freeze
 
       # A character a log file's name may not carry.
       UNSAFE_NAME_CHARACTER = /[^A-Za-z0-9_-]/

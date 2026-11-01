@@ -51,7 +51,7 @@ module Hecks
             Mcp.scope.admit_arguments!(args["args"], args["question"])
             Storehouse.query(runtime: Mcp.boot(args["domain"]), question: args["question"],
                              summary: args["summary"], args: args["args"] || {}, source: args["source"],
-                             role: args["role"], actor_id: args["actor_id"])
+                             role: args["role"], actor_id: args["actor_id"], surface: "mcp")
           end
 
           # A single command or a batch, once the scope has admitted every command in it.
@@ -62,14 +62,16 @@ module Hecks
             Mcp.scope.admit_command!(runtime, args["command"], args["args"])
             Storehouse.dispatch(runtime: runtime, command: args["command"], summary: args["summary"],
                                 args: args["args"] || {}, source: args["source"],
-                                dry_run: args["dry_run"] == true, role: args["role"], actor_id: args["actor_id"])
+                                dry_run: args["dry_run"] == true, role: args["role"], actor_id: args["actor_id"],
+                                surface: "mcp")
           end
 
           # Several commands in one call.
           def dispatch_steps(runtime, args)
             Mcp.scope.admit_steps!(runtime, args["steps"])
             Storehouse.dispatch_batch(runtime: runtime, steps: args["steps"], summary: args["summary"],
-                                      source: args["source"], role: args["role"], actor_id: args["actor_id"])
+                                      source: args["source"], role: args["role"], actor_id: args["actor_id"],
+                                      surface: "mcp")
           end
 
           def events_tool(args)
@@ -79,7 +81,7 @@ module Hecks
 
           def state_tool(args)
             Storehouse.state(runtime: Mcp.boot(args["domain"]), aggregate: args["aggregate"],
-                             summary: args["summary"], id: args["id"])
+                             summary: args["summary"], id: args["id"], surface: "mcp")
           end
 
           def catalog_tool(args)

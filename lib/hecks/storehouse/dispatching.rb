@@ -142,7 +142,7 @@ module Hecks
       # @return [Hash] :ok (true only if every step's own :ok was true), :results
       # @raise [ArgumentError] for any other keyword
       def dispatch_batch(runtime:, steps:, summary:, **options)
-        check_options!(options, %i[source role actor_id])
+        check_options!(options, %i[source role actor_id surface])
         run_batch(runtime, steps, summary, options)
       end
 
