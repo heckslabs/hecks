@@ -3,6 +3,7 @@
 require_relative "held_domain"
 require_relative "../../../quality_control/adapters/qa_era_mint"
 require_relative "../../../quality_control/adapters/qa_auto_mint"
+require_relative "../../../adapters/driven/postgres_era"
 
 module Hecks
   module Adapters
@@ -23,11 +24,15 @@ module Hecks
         # Reads the facts a mint decides on from a bluebook directory.
         #
         # @param directory [String] the domain's bluebook directory
-        # @return [Hash] `held` (the count of held eras), and when any are held, `next_era`,
+        # @return [Hash] `disposable: true` alone for a world that declares `disposable_ledger
+        #   true`; else `held` (the count of held eras), and when any are held, `next_era`,
         #   `status` (the boot's resolution, `LineageManager::EraResolution`), `watermark`, `from`,
         #   `to` and `verdict` (see `QaAutoMint.facts`)
         def self.read(directory)
-          resolution = HeldDomain.open(directory, mode: :translated).resolution
+          domain = HeldDomain.open(directory, mode: :translated)
+          return { disposable: true } if PostgresEra::LineageManager::DisposableLedger.declared?(domain.settings)
+
+          resolution = domain.resolution
           return { held: 0 } if resolution.status == "unheld"
 
           QaAutoMint.facts(directory).merge(held: resolution.held_count, next_era: resolution.latest[:ordinal] + 1,
@@ -50,17 +55,21 @@ module Hecks
           @minter = minter || ->(era, request) { HeldMint.mint(era, request) }
         end
 
-        # Answers a `MintHeld` request: a minted era, a shape that did not move, or a named refusal.
+        # Answers a `MintHeld` request: a minted era, a shape that did not move, a disposable ledger
+        # that needs no mint, or a named refusal.
         #
         # @param run [String] the run the mint belongs to
         # @param confirm [Boolean, nil] whether the mint was confirmed
         # @param rehearsal_verdict [String, nil] the verdict the caller read, when it read one
         # @param watermark [Integer, nil] the watermark the caller read, when it read one
-        # @return [Hash{Symbol => Hash}] `run`, `outcome` (`minted` or `no_change`) and `label`
+        # @return [Hash{Symbol => Hash}] `run`, `outcome` (`minted`, `no_change` or `disposable`)
+        #   and `label` (empty for `disposable`)
         # @raise [Runtime::WiringError] naming why the mint was refused
         def answer(run:, confirm: nil, rehearsal_verdict: nil, watermark: nil)
           refuse!("the mint needs --confirm") unless confirm == true
           facts = @reader.call(@directory)
+          return disposable(run) if facts[:disposable]
+
           refuse!("the Hecks domain holds no era; hold its first era before a mint") if facts[:held].zero?
           return unchanged(run, facts) if facts[:status] == "current"
 
@@ -87,6 +96,10 @@ module Hecks
 
           refuse!("the rehearsal said #{rehearsal_verdict}, not would_mint")
         end
+
+        # A disposable ledger's boot brings its store to the booting shape itself, so the mint
+        # passes through and mints nothing.
+        def disposable(run) = { run: { value: run }, outcome: { value: "disposable" }, label: { value: "" } }
 
         def unchanged(run, facts)
           { run: { value: run }, outcome: { value: "no_change" }, label: { value: facts[:to] } }
