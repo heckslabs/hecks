@@ -5,6 +5,12 @@
       "to": "5f27b9"
     }
   ],
+  "Coder": [
+    {
+      "from": "abd863",
+      "to": "cce664"
+    }
+  ],
   "Fixer": [
     {
       "from": "93d42b",
@@ -23,6 +29,10 @@
     {
       "from": "b6a912",
       "to": "8318c6"
+    },
+    {
+      "from": "8318c6",
+      "to": "f4b204"
     }
   ],
   "QualityControl": [
