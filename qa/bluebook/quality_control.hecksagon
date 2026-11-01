@@ -24,10 +24,10 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::Maintenance.persisted_by("PostgresEra")
 end
 
-# The Fixer's wiring, declared in the Fixer's own block. Its attempts stay in Memory: binding them to
-# PostgresEra needs the Fixer world to name the ledger's database, and a Fixer era to be minted first.
+# The Fixer's wiring, declared in the Fixer's own block. Its attempts persist through PostgresEra,
+# so the event pump reads them across processes; fixer.world names the database they land in.
 Hecks.hecksagon "Fixer" do
   attaches "Governance"
   persisted_by "Memory"
-  Fixer::Attempt.persisted_by("Memory")
+  Fixer::Attempt.persisted_by("PostgresEra")
 end
