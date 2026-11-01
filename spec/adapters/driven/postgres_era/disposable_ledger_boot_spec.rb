@@ -25,7 +25,7 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
   # Acct gains an optional attribute and the domain gains an aggregate: an additive change.
   def shape_added = shape("attribute :name, Name\n    attribute :note, Name, optional: true", MEMO)
 
-  # Acct's attribute is renamed: its stored rows no longer fit.
+  # Acct's attribute is renamed: the rows it stored do not fit the new shape.
   def shape_renamed = shape("attribute :title, Name")
 
   # An aggregate the additive change adds.
