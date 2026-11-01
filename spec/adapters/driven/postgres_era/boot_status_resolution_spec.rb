@@ -148,6 +148,17 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
     end
   end
 
+  # The row for Governance, a framework member the ledger holds though it commits no era adapter,
+  # so with no database declared the ledger answers for it.
+  def governance_row(source)
+    Dir.mktmpdir do |root|
+      dir = domain_dir(root, source.sub('"Ledger"', '"Governance"'), ledger_source: source, database: false)
+      File.write(File.join(dir, "shapes.json"),
+                 JSON.generate("Governance" => mint_hash_of(source.sub('"Ledger"', '"Governance"'))))
+      JSON.parse(Hecks::Adapters::JournalStore.new.boot_status(domain: dir)[:text])["bluebooks"]["Governance"]
+    end
+  end
+
   before { hold_first_era!(url: url, domain: "Ledger", source: shape_v1) }
 
   it "agrees with the boot on a current shape" do
@@ -183,6 +194,6 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
   end
 
   it "answers from shapes.json, naming the ledger, when no database is declared" do
-    expect(boot_status_row(shape_v3, database: false).values_at("status", "source")).to eq(%w[current ledger])
+    expect(governance_row(shape_v3).values_at("status", "source")).to eq(%w[current ledger])
   end
 end
