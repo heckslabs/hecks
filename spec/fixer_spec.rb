@@ -5,6 +5,8 @@ require "spec_helper"
 RSpec.describe "the fixer" do
   def fixer_root = File.join(InMemoryDomain::ROOT, "lib/hecks/fixer")
 
+  def coder_root = File.join(InMemoryDomain::ROOT, "lib/hecks/coder")
+
   def ledger_root = File.join(InMemoryDomain::ROOT, "lib/hecks/quality_control")
 
   def boot_fixer_beside_ledger
@@ -18,8 +20,9 @@ RSpec.describe "the fixer" do
   def load_ledger_and_fixer
     [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER,
      InMemoryDomain::PRISM_ADAPTER, File.join(ledger_root, "quality_control.bluebook"),
-     File.join(fixer_root, "fixer.bluebook")].each { |file| Kernel.load(file) }
+     File.join(fixer_root, "fixer.bluebook"), File.join(coder_root, "coder.bluebook")].each { |file| Kernel.load(file) }
     Kernel.load(File.join(fixer_root, "fixer.hecksagon"))
+    Kernel.load(File.join(coder_root, "coder.hecksagon"))
   end
 
   let(:runtime) { boot_fixer_beside_ledger }
@@ -159,6 +162,69 @@ RSpec.describe "the fixer" do
       verify
 
       expect(attempt.status).to eq("verified")
+    end
+  end
+
+  describe "an attempt that cannot record its fix yet" do
+    def re_investigate = investigate
+
+    # The coder's patch for the bug merges, which the fixer hears as `PatchMerged`.
+    def merge_patch(commit: "4f2a19c")
+      patch = Coder::Patch.open!(number: { value: 5 }, bug: { value: "BUG#1" }, branch: { value: "qa/x" },
+                                 commit: { value: commit })
+      patch.merge!(bug: { value: "BUG#1" }, commit: { value: commit })
+    end
+
+    def stuck(result: "passed")
+      log_bug
+      claim
+      investigate(result: result)
+    end
+
+    it "is investigated again from investigating, so a reproduction can be recorded", :aggregate_failures do
+      stuck
+      re_investigate
+
+      expect(attempt.status).to eq("investigating")
+      expect(attempt.reproduced.value).to eq("failed")
+    end
+
+    it "is fixed after the second investigation records a failing reproduction" do
+      stuck
+      re_investigate
+      attempt.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" })
+
+      expect(attempt.status).to eq("fixed")
+    end
+
+    it "still refuses a fix while the recorded reproduction did not fail" do
+      stuck
+
+      expect { attempt.fix!(reference: { value: "BUG#1" }, commit: { value: "4f2a19c" }) }
+        .to raise_error(Hecks::Runtime::GivenNotMet, /no failing reproduction/)
+    end
+
+    it "keeps the merged patch on the attempt, pending, when the fix is refused", :aggregate_failures do
+      stuck
+      merge_patch
+
+      expect(attempt.status).to eq("investigating")
+      expect([attempt.merged_commit.value, attempt.merge_pending.value]).to eq(%w[4f2a19c yes])
+    end
+
+    it "lists that attempt as awaiting a reproduction" do
+      stuck
+      merge_patch
+
+      expect(Fixer::Attempt.awaiting_reproduction.map { |row| row[:reference][:value] }).to eq(["BUG#1"])
+    end
+
+    it "records the fix from the merge, and lists nothing, when a failing reproduction is on record", :aggregate_failures do
+      stuck(result: "failed")
+      merge_patch
+
+      expect(attempt.status).to eq("fixed")
+      expect(Fixer::Attempt.awaiting_reproduction).to be_empty
     end
   end
 end
