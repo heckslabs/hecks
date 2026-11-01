@@ -15,8 +15,8 @@ module Hecks
       # A banner in a document's first lines that says it records a moment.
       SNAPSHOT = /\A(?:>\s*)?\*\*Historical snapshot\b/
 
-      # A line in a document's first lines that excuses the whole file, such as a page that lists the
-      # names a rename leaves behind.
+      # A line in a document's first lines that excuses the whole file, such as a page that lists
+      # the names a rename leaves behind.
       SKIP_FILE = "dead-name-check: skip-file".freeze
 
       # How many lines from the top count as "the first lines".
@@ -27,11 +27,17 @@ module Hecks
       # @param root [String] the checkout
       # @return [Array<String>] the paths to scan, relative to `root`, sorted
       def files(root)
-        INCLUDED.flat_map { |glob| Dir.glob(File.join(root, glob), File::FNM_DOTMATCH) }
-                .select { |path| File.file?(path) }
-                .map { |path| path.delete_prefix("#{root}/") }
-                .reject { |path| historical?(root, path) }.uniq.sort
+        scanned(root).reject { |path| historical?(root, path) }
       end
+
+      # @return [Array<String>] every file the globs reach, relative to `root`, sorted
+      def scanned(root)
+        paths = INCLUDED.flat_map { |glob| Dir.glob(File.join(root, glob), File::FNM_DOTMATCH) }
+        relative(root, paths.select { |path| File.file?(path) })
+      end
+
+      # @return [Array<String>] the paths below `root`, once each, sorted
+      def relative(root, paths) = paths.map { |path| path.delete_prefix("#{root}/") }.uniq.sort
 
       # @return [Boolean] whether a path is history: a decision record, the changelog, an archive, a
       #   document whose first lines call it a historical snapshot, or one that excuses itself

@@ -43,6 +43,7 @@ RSpec.describe "the fixer" do
     attempt(reference).claim!(reference: { value: reference }, held_by: { value: by }, now: { value: 1_000 })
   end
 
+  # A command the attempt records and never runs. dead-name-check: skip
   REPRO = "exe/hecks widget.make --wait".freeze
 
   def investigate(reference = "BUG#1", result: "failed", command: REPRO)

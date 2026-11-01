@@ -33,7 +33,7 @@ RSpec.describe "the Site row of the ADR command table" do
   end
 
   # Projects the sample project into `dir` under --wait, with any extra flags.
-  def project_to(dir, *flags) = answer(["site_projection.project_site", PROJECT, "out=#{dir}", *flags, "--wait"])
+  def project_to(dir, *flags) = answer(["site_projection.project_site!", PROJECT, "out=#{dir}", *flags, "--wait"])
 
   # The committed output the projection of the sample project must equal.
   def golden(name) = File.read(File.join(PROJECT, "..", name))
@@ -41,7 +41,7 @@ RSpec.describe "the Site row of the ADR command table" do
   # Projects with the template in `dir` and the routes in `dir/web`, as an .mts module.
   def project_beside(dir)
     FileUtils.cp(File.join(PROJECT, "deploy/template.yaml"), File.join(dir, "infra.yaml"))
-    answer(["site_projection.project_site", PROJECT, "out=#{dir}/web", "template=#{dir}/infra.yaml",
+    answer(["site_projection.project_site!", PROJECT, "out=#{dir}/web", "template=#{dir}/infra.yaml",
             "extension=mts", "--wait"])
   end
 
@@ -51,7 +51,7 @@ RSpec.describe "the Site row of the ADR command table" do
     FileUtils.rm_rf(File.join(dir, "client/generated"))
     FileUtils.mkdir_p(File.join(dir, "infra"))
     FileUtils.cp(File.join(PROJECT, "deploy/template.yaml"), File.join(dir, "infra/stack.yaml"))
-    argv = ["site_projection.project_site", "client", "out=client/web", "template=infra/stack.yaml", "--wait"]
+    argv = ["site_projection.project_site!", "client", "out=client/web", "template=infra/stack.yaml", "--wait"]
     Dir.chdir(dir) { answer(argv).last }
   end
 
@@ -60,7 +60,7 @@ RSpec.describe "the Site row of the ADR command table" do
 
     expect(aggregate.commands.map(&:hecks_name)).to include("ProjectSite", "Complete", "Fault")
 
-    out, status = launch(["site_projection.project_site", "--help"])
+    out, status = launch(["site_projection.project_site!", "--help"])
 
     expect(status).to eq(0)
     expect(out).to start_with("SiteProjection.project_site")
@@ -117,7 +117,7 @@ RSpec.describe "the Site row of the ADR command table" do
 
   it "records a project with no route table as faulted, with the reason", :aggregate_failures do
     FileUtils.mkdir_p(File.join(@dir, "bluebook"))
-    json, status = answer(["site_projection.project_site", @dir, "--wait"])
+    json, status = answer(["site_projection.project_site!", @dir, "--wait"])
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("faulted")
@@ -156,7 +156,7 @@ RSpec.describe "the Site row of the ADR command table" do
   end
 
   it "refuses an extension outside the set, naming the set", :aggregate_failures do
-    out, status = launch(["site_projection.project_site", PROJECT, "extension=cjs", "--wait"])
+    out, status = launch(["site_projection.project_site!", PROJECT, "extension=cjs", "--wait"])
 
     expect(status).to eq(1)
     expect(out).to include('Extension admits "ts", "mts"')

@@ -18,6 +18,9 @@ module Hecks
       # A call that waits for an item to show among those it reads.
       WAITING = /select\(|grep -q|startswith|contains\(/
 
+      # The words that open a loop which polls.
+      LOOP = /\b(?:until|while|seq)\b/
+
       # A comparison to a fixed number, which bounds how many items the call can need.
       BOUNDED = /(?:=|==|-eq|-ge|-gt|-lt|-le)\s*"?\d+"?/
 
@@ -38,7 +41,7 @@ module Hecks
       def reads_items?(call)
         return true if call.text.match?(COUNTING)
 
-        call.text.match?(WAITING) && call.before.match?(/\b(?:until|while|seq)\b/)
+        call.text.match?(WAITING) && call.before.match?(LOOP)
       end
     end
   end

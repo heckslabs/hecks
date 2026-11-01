@@ -1,7 +1,7 @@
 require_relative "command_names/check"
 
 module Hecks
-  # Reads the places that shell out to the launcher for names it no longer accepts.
+  # Reads the places that shell out to the launcher for names the launcher does not accept.
   module CommandNames
     # The clean verdict.
     CLEAN = "every launcher name invoked in workflows, hooks, gate rows, specs and docs is one the launcher accepts".freeze
@@ -15,7 +15,7 @@ module Hecks
     def check(root:, runtime:)
       scopes = Adapters::Driving::CliRunner.name_index(runtime: runtime)
       found = Check.findings(root: root, scopes: scopes)
-      raise Failure, found.map(&:to_s).join("\n") unless found.empty?
+      raise Failure, found.join("\n") unless found.empty?
 
       CLEAN
     end
