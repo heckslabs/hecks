@@ -4,11 +4,11 @@ require "hecks/quality_control/adapters/qa_quiesce_marker"
 require "hecks/hecks/adapters/qa_quiescing"
 
 # The QA quiet marker and the `Quiescing` adapter over it, on a temp path: no tick, no ledger.
-RSpec.describe Hecks::Adapters::QaQuiesceMarker do
+RSpec.describe Hecks::Adapters::QaQuiesceMarker, :aggregate_failures do
   let(:dir) { Dir.mktmpdir("qa_quiesce") }
   let(:path) { File.join(dir, "quiesce") }
   let(:now) { [Time.utc(2026, 11, 1, 12, 0, 0)] }
-  let(:marker) { Hecks::Adapters::QaQuiesceMarker.new(path: path, stale_after: 7200, clock: -> { now.first }) }
+  let(:marker) { described_class.new(path: path, stale_after: 7200, clock: -> { now.first }) }
 
   after { FileUtils.remove_entry(dir) }
 
@@ -66,7 +66,7 @@ RSpec.describe Hecks::Adapters::QaQuiesceMarker do
   end
 
   describe Hecks::Adapters::QaQuiescing do
-    let(:adapter) { Hecks::Adapters::QaQuiescing.new(settings: { marker: marker }) }
+    let(:adapter) { described_class.new(settings: { marker: marker }) }
 
     it "marks, reports and clears through the port's methods" do
       expect(adapter.mark(owner: { value: "a" }, reason: { value: "why" })[:output][:value]).to include("quiesced:")

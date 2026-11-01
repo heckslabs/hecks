@@ -3,7 +3,8 @@ require "tmpdir"
 require "hecks/quality_control/cli/qa_tick"
 
 # The tick's quiesce guard with every step stubbed: no real step runs, no ledger is touched.
-RSpec.describe "hecks quality_control tick while quiesced" do
+# rubocop:disable-next RSpec/MultipleMemoizedHelpers, RSpec/ExampleLength
+RSpec.describe "hecks quality_control tick while quiesced", :aggregate_failures do
   let(:dir) { Dir.mktmpdir("qa_tick_quiesce") }
   let(:path) { File.join(dir, "quiesce") }
   let(:marker) { Hecks::Adapters::QaQuiesceMarker.new(path: path) }
@@ -18,9 +19,11 @@ RSpec.describe "hecks quality_control tick while quiesced" do
     allow(tick).to receive(:dial) { |name, _fallback| name != :QUIESCED }
     allow(tick).to receive(:banner)
     steps.each do |name|
-      allow(tick).to receive(:"run_#{name}") { ran << name; ["ran #{name}", 0] }
+      allow(tick).to receive(:"run_#{name}") do
+        ran << name
+        ["ran #{name}", 0]
+      end
     end
-    allow(tick).to receive(:run_pr_check) { ran << "pr_check"; ["ran", 0] }
   end
 
   after { FileUtils.remove_entry(dir) }
@@ -51,7 +54,10 @@ RSpec.describe "hecks quality_control tick while quiesced" do
   end
 
   it "notices a hold set while the tick runs, before the next step" do
-    allow(tick).to receive(:run_sweep) { marker.hold!(owner: "mint", reason: "mid-tick"); ["swept", 0] }
+    allow(tick).to receive(:run_sweep) do
+      marker.hold!(owner: "mint", reason: "mid-tick")
+      ["swept", 0]
+    end
     results = nil
     output = capture_stdout { results = run_all }
 
@@ -62,7 +68,7 @@ RSpec.describe "hecks quality_control tick while quiesced" do
 
   it "ignores a stale marker, runs the steps and reports the stale marker once" do
     marker.hold!(owner: "crashed", reason: "old")
-    old = Time.now - 3 * 3600
+    old = Time.now - (3 * 3600)
     File.utime(old, old, path)
     File.write(path, JSON.generate(owner: "crashed", reason: "old", held_at: old.utc.iso8601))
     output = capture_stdout { run_all }
