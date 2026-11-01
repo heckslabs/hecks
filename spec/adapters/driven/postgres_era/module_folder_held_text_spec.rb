@@ -5,9 +5,9 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 
-# A domain split into module folders, held as an era and read back: the held text is every file the
-# loader reads, the top-level file and each module folder's, so the era's declaration has the
-# folders' aggregates and a diff from it sees them.
+# A domain split into module folders, held as an era and read back: the held text, kept for audit,
+# is every file the loader reads, the top-level file and each module folder's, so it hashes to the
+# shape the era's mint recorded.
 RSpec.describe "an era held from a domain split into module folders", :io do
   MODULE_FOLDER_DB = "hecks_module_folder_held_text_spec".freeze
 
@@ -67,11 +67,13 @@ RSpec.describe "an era held from a domain split into module folders", :io do
     expect(held_era[:held_text]).to include(%(domain_module "Books"))
   end
 
-  it "answers the held declaration with the module folder's aggregates" do
-    expect(manager.held_declaration(held_era).aggregates.map(&:name)).to eq(["Acct"])
+  it "answers the held era's aggregates, the module folder's included, from its stored shape" do
+    expect(manager.held_bluebook(held_era).aggregates.map(&:name)).to eq(["Acct"])
   end
 
-  it "holds a text that declares the shape its mint recorded" do
-    expect(manager.whole_held_text?(held_era)).to be(true)
+  it "holds a text that hashes to the shape its mint recorded, so it can stand in for a missing one" do
+    era = held_era
+    named = era.merge(projection: nil, hash: Hecks::Runtime::ProjectedBluebook.new(era[:projection]).mint_hash)
+    expect(manager.verified_text_shape(named)).to eq(era[:projection])
   end
 end

@@ -20,15 +20,16 @@ module Hecks
           # What a decision concludes. `verdict` is `would_mint`, `needs_edge` (the change needs
           # a rule) or `refused`; `reason` names why it is not `would_mint`; `edge` is the edge a
           # mint would use and is nil unless `would_mint`; `source` is `file` or `implicit`; `edges`
-          # lists every edge that leaves the held era; `diff` is the shape diff; `watermark` is the
-          # one decided at.
+          # lists the edges that lead the held era to the current shape; `diff` is the shape diff;
+          # `watermark` is the one decided at.
           Verdict = Data.define(:verdict, :reason, :edge, :edges, :source, :diff, :watermark)
 
           module_function
 
           # @param held [Array<Hash>] the held eras, oldest first; the last is the era a mint
           #   leaves.
-          #   Each carries `label`, `held_text` and `declaration`, its source parsed as a bluebook
+          #   Each carries `label` and `declaration`, the storage shape it holds as a bluebook view
+          #   (see `held_for_decision`)
           # @param bluebook [Bluebook::Declaration] the current bluebook
           # @param edge_source [Hash] `translations`, the loaded edges, and `recorded`, the recorded
           #   implicit moves as `[from, to]` pairs (see `recorded_moves`)
@@ -38,7 +39,7 @@ module Hecks
           # @return [Verdict]
           def decide(held:, bluebook:, edge_source:, watermark:, rows:)
             latest = held.last
-            edges = leaving(edge_source[:translations], bluebook.name, latest[:label])
+            edges = leading(edge_source[:translations], bluebook, latest[:label])
             found = if edges.empty?
                       implicit(latest, bluebook, edge_source[:recorded], watermark)
                     else
@@ -47,10 +48,10 @@ module Hecks
             rows.empty? ? found : audit_refusal(found)
           end
 
-          # The decision for the era a mint would leave, reading the held era's source here, so a
-          # caller holding only its label and text reaches the same verdict as a mint does.
+          # The decision for the era a mint would leave, reading the held era's stored shape here,
+          # so a caller holding only the era's record reaches the same verdict as a mint does.
           #
-          # @param latest [Hash] the held era: `ordinal`, `label` and `held_text`
+          # @param latest [Hash] the held era, as `Lineage#eras` answers it
           # @param bluebook [Bluebook::Declaration] the current bluebook
           # @param translations [Array<Object>] the edges the registry loaded
           # @param directory [String, nil] the domain's bluebook directory
@@ -61,17 +62,13 @@ module Hecks
                    edge_source: { translations: translations, recorded: recorded_moves(bluebook.name, directory) })
           end
 
-          # A held era as the decision reads it: with the declaration its held text parses to, or
-          # with none when that text does not declare the shape the era's mint recorded (see
-          # LineageManager::HeldEra). With none, a move without an edge file needs one
-          # (`:partial_held_text`), since nothing can show it is additive; a written edge still
-          # decides on its own.
+          # A held era as the decision reads it: with `declaration`, the storage shape it holds as a
+          # bluebook view (LineageManager::HeldEra). Its held text is not read.
           #
           # @param era [Hash] an era as `Lineage#eras` answers it
-          # @return [Hash] the era with `declaration`, a declaration or nil
-          def held_for_decision(era)
-            era.merge(declaration: (LineageManager.held_declaration(era) if LineageManager.whole_held_text?(era)))
-          end
+          # @return [Hash] the era with `declaration`, a `Runtime::ProjectedBluebook`
+          # @raise [Runtime::WiringError] naming the era, when its shape cannot be known
+          def held_for_decision(era) = era.merge(declaration: LineageManager.held_bluebook(era))
 
           # The implicit moves a domain has recorded: beside its own bluebooks, when a directory is
           # given, and in the framework's record. This is the only read the decision's inputs need.
@@ -89,17 +86,20 @@ module Hecks
           # @return [String]
           def label_of(bluebook) = Runtime::StorageShape.mint_hash(bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
 
-          # @return [Array<Object>] the edges the domain loads from `from`
-          def leaving(translations, domain, from)
-            translations.select { |edge| edge.domain == domain && edge.from == from }
+          # The edges the domain loads that lead the held era straight to the current shape. An edge
+          # from the held era to any other shape plays no part: the translation is from the held
+          # shape to the current one, so other edges neither fork the decision nor make it stale.
+          #
+          # @return [Array<Object>] the edges from `from` to the bluebook's current label
+          def leading(translations, bluebook, from)
+            to = label_of(bluebook)
+            translations.select { |edge| edge.domain == bluebook.name && edge.from == from && edge.to == to }
           end
 
           # The implicit empty edge: the recorded moves must reach the shape from the held label,
           # and the change must qualify as additive by `Translation::ImplicitEdge.qualifies?`.
           def implicit(latest, bluebook, recorded, watermark)
             diff = diff_of(latest, bluebook)
-            return verdict_of("needs_edge", diff, watermark, reason: :partial_held_text) unless latest[:declaration]
-
             to = label_of(bluebook)
             return verdict_of("needs_edge", diff, watermark, reason: :unrecorded) unless reachable?(latest, to, recorded)
             return verdict_of("needs_edge", diff, watermark, reason: :non_qualifying) unless additive?(diff, latest, bluebook)
@@ -109,9 +109,7 @@ module Hecks
           end
 
           # @return [Hash] the scaffold's diff of the held era against the current bluebook
-          def diff_of(latest, bluebook)
-            latest[:declaration] && Translation::Scaffold.diff(latest[:declaration], bluebook)
-          end
+          def diff_of(latest, bluebook) = Translation::Scaffold.diff(latest[:declaration], bluebook)
 
           # @return [Boolean] whether the recorded moves chain from the held label to `to`
           def reachable?(latest, to, recorded) = ShapeLedger.reachable?(latest[:label], to, recorded)
@@ -119,20 +117,13 @@ module Hecks
           # @return [Boolean] whether the change qualifies as additive by the implicit edge's rule
           def additive?(diff, latest, bluebook) = Translation::ImplicitEdge.qualifies?(diff, latest[:declaration], bluebook)
 
-          # A written edge leads on when it is the only one that leaves the held era and targets
-          # the shape.
+          # A written edge from the held shape to the current one leads on. Two files declaring that
+          # same pair disagree about one translation, so neither is taken.
           def written(edges, latest, bluebook, watermark)
             diff = diff_of(latest, bluebook)
-            return verdict_of("refused", diff, watermark, reason: :fork, edges: edges) if edges.size > 1
+            return verdict_of("refused", diff, watermark, reason: :duplicate_edge, edges: edges) if edges.size > 1
 
-            edge = edges.first
-            return stale_edge(diff, watermark, edge, edges) unless edge.to == label_of(bluebook)
-
-            verdict_of("would_mint", diff, watermark, edge: edge, edges: edges, source: "file")
-          end
-
-          def stale_edge(diff, watermark, edge, edges)
-            verdict_of("refused", diff, watermark, reason: :stale_edge, edge: edge, edges: edges)
+            verdict_of("would_mint", diff, watermark, edge: edges.first, edges: edges, source: "file")
           end
 
           # An audit's refusals turn a would_mint into a refusal that names the audit.
