@@ -1,0 +1,7 @@
+# Binds the `Reader` port to `RunReader`, which reads a CI run of main for the spec files it failed.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/quality_control/adapters/run_reader"
+
+Hecks.adapter "RunReader" do
+  port "Reader"
+end
