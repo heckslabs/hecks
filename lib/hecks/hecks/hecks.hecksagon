@@ -178,6 +178,12 @@ Hecks.hecksagon "Hecks" do
       refuses "MergeRefused"
     end
 
+    asks "Convene", to: Landing do
+      attribute :run, RunKey
+      answers "ConveneAnswered"
+      refuses "ConveneRefused"
+    end
+
     asks "Remove", to: Landing do
       attribute :run, RunKey
       answers "RemovalAnswered"

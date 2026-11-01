@@ -277,9 +277,12 @@ Hecks.bluebook "Hecks" do
     # branch onto main, fast-forward first and as a merge commit when main moved; a conflict is
     # reported and never settled, and nothing is forced or pushed. A retirement removes the worktree
     # and its branch once the branch is on main, and refuses while it holds uncommitted work or
-    # commits main lacks, so no unpushed work is deleted. One landing is in flight at a time: the port
-    # refuses a second by name (its branch and how long it has run), and a landing older than the world's
-    # `landing` stale window is abandoned and superseded, which the new landing's report says.
+    # commits main lacks, so no unpushed work is deleted. Landings queue: each takes a ticket in a line kept in
+    # the main checkout's git directory and waits its turn, first come first served, for up to the world's
+    # `landing` wait window, saying its place and the holder. The holder beats a heartbeat while it works; a
+    # ticket silent for the stale window is abandoned and removed, which the next landing's report says. A
+    # train holds the front place and lands every ready branch behind it in order, skipping one that
+    # conflicts, fails the quick gate or overlaps a started row, and telling its waiting landing why.
     aggregate "Landing" do
       description "One branch landed on local main, or one worktree retired: done, or refused with the reason."
       acknowledges :key_by_value, "the run id of the LinkedTree this landing takes its checkout and branch from, and a landing whose id names no recorded tree falls back to the explicit checkout and branch, so a reference that refused an unknown tree would break the fallback",
@@ -320,7 +323,8 @@ Hecks.bluebook "Hecks" do
         transition "Clear"   => "retired", from: "requested"
         transition "Refuse"  => "refused", from: "requested"
         transition "Decline" => "refused", from: "requested"
-        mark :terminal, "landed", "refused", "retired"
+        transition "Convoy"  => "convoyed", from: "requested"
+        mark :terminal, "landed", "refused", "retired", "convoyed"
       end
 
       command "Land" do
@@ -352,6 +356,30 @@ Hecks.bluebook "Hecks" do
         given("rebases, lands and tidies needs --confirm; without it this only reports") { confirm.value == true }
 
         emits FinishRequested
+      end
+
+      command "Train" do
+        role "Operator"
+        goal "Hold the front place in the landing line and land every ready branch behind it, in ticket order"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :onto,     Word, default: "main", sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("lands every ready branch onto local main needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits TrainRequested
+      end
+
+      command "Convoy" do
+        role "System"
+        goal "Record which branches the train landed and which it skipped, with the reasons"
+
+        reference_to Landing
+        attribute :report, Report, sets: true
+
+        emits TrainRan
       end
 
       command "Record" do
@@ -444,6 +472,21 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheLanding" do
       on      "Landing.MergeAnswered"
       trigger Landing::Record, with: { branch: :branch, landed: :landed, report: :report, checkout: :checkout }
+    end
+
+    policy "RunTheTrain" do
+      on      "Landing.TrainRequested"
+      ask     :convene, with: { run: :run }
+    end
+
+    policy "RecordTheTrain" do
+      on      "Landing.ConveneAnswered"
+      trigger Landing::Convoy, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedTrain" do
+      on      "Landing.ConveneRefused"
+      trigger Landing::Refuse, with: { refusal: :refusal }
     end
 
     policy "RecordTheRefusedLanding" do

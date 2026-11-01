@@ -42,11 +42,13 @@
 # `everyday` names the commands and queries the help lists first, under its own heading, each
 # spelled as the call to type, for anyone the aggregate is not hidden from (ADR 0163).
 #
-# **landing** `stale_minutes` is how long a landing may stay in flight before the next one treats it as
-# abandoned and supersedes it (30 when absent). One landing runs at a time; a second is refused by name.
+# **landing** `stale_minutes` is how long a landing's ticket may go without a heartbeat before the next one treats
+# it as abandoned and removes it (30 when absent); `wait_minutes` is how long a landing waits for its turn in the
+# line before it gives up (40 when absent); `shell_lock` names a lock directory an older brief makes by hand,
+# which a landing honours as the holder while it exists. Landings run one at a time, first come first served.
 Hecks.world "Hecks" do
   realm "Hecks"
-  landing "Queue", stale_minutes: 30
+  landing "Queue", stale_minutes: 30, wait_minutes: 40
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
@@ -55,7 +57,7 @@ Hecks.world "Hecks" do
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
                                   handover.clear rehearsal_run.request send_train.board
-                                  landing.land landing.retire agent_run.dispatch agent_run.check],
+                                  landing.land landing.train landing.retire agent_run.dispatch agent_run.check],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
                        renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take", "checkout.log" => "workspace.history" },
                        names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
