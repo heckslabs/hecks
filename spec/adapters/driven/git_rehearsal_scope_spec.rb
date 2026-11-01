@@ -86,7 +86,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, "#trial", :aggregate_failures, :io
   end
 
   it "refuses an unknown scope" do
-    expect { trial(scope: { value: "half" }) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /quick or full/)
+    expect { trial(scope: { value: "half" }) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /quick, full, deep/)
   end
 
   it "runs the quick gate stage alone for the quick scope" do

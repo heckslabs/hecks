@@ -75,7 +75,8 @@ module Hecks
         launcher = launcher_for(held)
         minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
         plan.chosen.each_with_index.map do |row, index|
-          launcher.launch(row, held: holding(plan, index), frozen: machine.frozen, minutes: minutes)
+          launcher.launch(row, held: holding(plan, index), frozen: machine.frozen, minutes: minutes,
+                          limit: machine.spec_files_limit)
         end
       end
 

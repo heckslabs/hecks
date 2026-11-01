@@ -3,6 +3,7 @@
 require "etc"
 require_relative "../work_limits"
 require_relative "../shell"
+require_relative "../codebase/test_scope"
 
 module Hecks
   module Adapters
@@ -57,6 +58,10 @@ module Hecks
 
         # @return [Integer] the cap on started rows
         def cap = WorkLimits.cap(@registry)
+
+        # @return [Integer, nil] the most spec files a session may run per call, from the Hecks
+        #   world's `test_scope` setting; nil when none is declared
+        def spec_files_limit = Codebase::TestScope.limit(@registry)
 
         # @return [Hash{String => String}] the environment every dispatched session starts with
         def session_environment
