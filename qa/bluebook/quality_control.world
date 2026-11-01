@@ -4,14 +4,19 @@ Hecks.world "QualityControl" do
   realm "QA"
   # Connects as the ordinary role hecks_qa: a superuser bypasses the era write-fence
   # (row-level security), so the boot refuses one. hecks_qa owns the database.
-  # `mint_eras` is off: the Maintenance mint command turns it on for the one mint it runs, and a boot
-  # of this world never mints, whatever the setting says.
+  # `mint_eras` is off, and `disposable_ledger` is on: this is a tooling ledger whose rows are worth
+  # keeping, not worth an era, so a boot brings it to the booting shape itself and never refuses as
+  # unminted or superseded. An additive change re-holds the latest era in place; a breaking one moves
+  # that aggregate's rows to a dated `<domain>_<aggregate>_archived_<UTC>` table (listed in
+  # `hecks_ledger_archives`) and starts it empty. A Maintenance mint of this world answers that no
+  # mint is needed.
   persisted_by("PostgresEra") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
     mint_eras false
     # The mint command's own record is the one write an unminted boot is let make: the mint starts
     # from a boot whose shape no era holds yet.
     mints_era "Maintenance.MintEra"
+    disposable_ledger true
   end
   # How far local main may drift from origin/main before each tick files the `push-due` Work row:
   # commits ahead, or hours since the oldest unpushed commit. A red last rehearsal on the current main
