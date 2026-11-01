@@ -1,0 +1,129 @@
+# frozen_string_literal: true
+
+require "pg"
+require_relative "qa_era_mint"
+
+module Hecks
+  module Adapters
+    # The auto-mint rule the Maintenance mint enforces. A mint runs without the owner's confirm only
+    # when
+    # the edge leaving the held era is empty, every change in the shape diff is additive, and the
+    # rehearsal
+    # refused nothing. The rule is declared as `AutoMintAdditive` in quality_control.bluebook; this
+    # module
+    # is its check. The stranded-marker and watermark guards stay in `MainMaintenance#mint`.
+    module QaAutoMint
+      # The edge file's opening line and its closing line, with nothing between them when it is
+      # empty.
+      EDGE_HEADER = /\AHecks\.data_translation\s+"[^"]*",\s+from:\s+"[^"]*",\s+to:\s+"[^"]*"\s+do\z/
+
+      module_function
+
+      # The facts the rule reads from a ledger: its live watermark, the edge leaving its held era
+      # and that
+      # edge's text, and the shape diff between the held era and the current bluebook.
+      #
+      # @param ledger [String] the bluebook directory of the ledger
+      # @return [Hash] `watermark`, `from`, `to`, `edge_text`, `diff`, `held` and `current`
+      def facts(ledger)
+        held = JournalStore::HeldDomain.open(ledger, mode: :translated)
+        latest, watermark = latest_era(held)
+        held_bluebook = shadow_of(latest[:held_text])
+        { watermark: watermark, held: held_bluebook, current: held.bluebook,
+          diff: diff_of(held_bluebook, held.bluebook) }.merge(edge_facts(held, ledger, latest[:label]))
+      end
+
+      # @return [Array(Hash, Integer)] the latest held era and the live watermark, read from its
+      #   database
+      def latest_era(held)
+        db = PostgresEra.connect_for(held.domain_name, held.settings)
+        lineage = PostgresEra::Lineage.new(db, held.domain_name)
+        [lineage.eras.last, lineage.last_ordinal]
+      ensure
+        db&.close
+      end
+
+      # @return [Bluebook::Declaration] the held era's text parsed into a throwaway registry
+      def shadow_of(text) = Object.new.extend(PostgresEra::LineageManager).send(:shadow, text)
+
+      # The bluebook directory a mint is for: the one the request names, or the QualityControl
+      # ledger.
+      #
+      # @return [String]
+      def ledger_for(root, requested) = requested || File.join(root, QaEraMint::LEDGER)
+
+      # @return [String, nil] the reason the live watermark moved from the rehearsed one, or nil
+      def stale_watermark(rehearsed, live)
+        "the ledger watermark moved from #{rehearsed} to #{live} since the rehearsal; rehearse again" unless rehearsed == live
+      end
+
+      # Why the auto-mint rule holds a mint for the owner, or nil when it lets the mint run
+      # unconfirmed.
+      #
+      # @param facts [Hash] what `facts` read from the ledger
+      # @param refusal_total [Integer, nil] the rehearsal's refusal count
+      # @return [String, nil] the reason the owner must approve, or nil when the rule holds
+      def held_reason(facts, refusal_total:)
+        return "no translation edge leaves #{facts[:from]}" if facts[:edge_text].nil?
+        return "the edge from #{facts[:from]} is not empty" unless empty_edge?(facts[:edge_text])
+        return "the shape change is not additive" unless additive?(facts[:diff], facts[:held], facts[:current])
+
+        "the rehearsal refused #{refusal_total.inspect} rows" unless refusal_total.is_a?(Integer) && refusal_total.zero?
+      end
+
+      # Whether an edge file declares nothing: its header and its `end`, with no line between them.
+      #
+      # @param text [String] the edge file's text
+      # @return [Boolean]
+      def empty_edge?(text)
+        body = text.lines.map(&:strip).reject { |line| line.empty? || line.start_with?("#") }
+        body.size == 2 && EDGE_HEADER.match?(body.first) && body.last == "end"
+      end
+
+      # Whether the shape diff has no rule, no rename and no retirement, and every attribute the
+      # current
+      # bluebook adds is optional.
+      #
+      # @return [Boolean]
+      def additive?(diff, held, current)
+        diff[:retired].empty? && diff[:unclaimed].empty? && diff[:aggregates].empty? &&
+          new_attributes_optional?(held, current)
+      end
+
+      # Every attribute the current bluebook has that the held one did not is optional.
+      #
+      # @return [Boolean]
+      def new_attributes_optional?(held, current)
+        held_names = held.aggregates.to_h { |aggregate| [aggregate.name, attribute_names(aggregate)] }
+        current.aggregates.all? do |aggregate|
+          known = held_names.fetch(aggregate.name, [])
+          aggregate.attributes.all? { |attribute| known.include?(attribute.name) || attribute.optional? }
+        end
+      end
+
+      # @return [Array<String>] the names of an aggregate's attributes
+      def attribute_names(aggregate) = aggregate.attributes.map(&:name)
+
+      # @return [Hash] the edge leaving the held era's label for the current shape's label, and its
+      #   text
+      def edge_facts(held, ledger, from)
+        to = Runtime::StorageShape.mint_hash(held.bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
+        { from: from, to: to, edge_text: edge_text(File.join(ledger, "translations"), from, to) }
+      end
+
+      # The text of the edge that leads from `from` to `to`, found by its header.
+      #
+      # @return [String, nil]
+      def edge_text(dir, from, to)
+        header = %(from: "#{from}", to: "#{to}")
+        Dir.glob(File.join(dir, "*.bluebook")).map { |path| File.read(path) }.find { |text| header_of(text).include?(header) }
+      end
+
+      # @return [String] the first line of an edge file, where its source and target are named
+      def header_of(text) = text.lines.first.to_s
+
+      # @return [Hash] the scaffold's diff of the held era against the current bluebook
+      def diff_of(held, current) = Translation::Scaffold.diff(held, current)
+    end
+  end
+end

@@ -5,13 +5,17 @@ require "open3"
 require "fileutils"
 require_relative "../cli/qa_main_gate"
 require_relative "qa_era_mint"
+require_relative "qa_auto_mint"
 
 module Hecks
   module Adapters
-    # The `MainMaintenance` port adapter: the bodies of the three steps a maintenance run asks for. `gate`
-    # runs the quick gate on local main through `QaMainGate`; `reconcile` runs `Era.Reconcile`'s read-only
-    # plan and writes only when the `maintenance_confirm` dial is true; `push` moves the push train's
-    # checkout to main's head and sends it with the full gate and confirmation. Each answers the event its
+    # The `MainMaintenance` port adapter: the bodies of the steps a maintenance run asks for. `gate`
+    # runs the quick gate on local main through `QaMainGate`; `reconcile` runs `Era.Reconcile`'s
+    # read-only
+    # plan and writes only when the `maintenance_confirm` dial is true; `push` moves the push
+    # train's
+    # checkout to main's head and sends it with the full gate and confirmation. Each answers the
+    # event its
     # policy waits for, or raises, which the runtime records as the refusal.
     class MainMaintenance
       # Raised when a step refuses; its message is the refusal's reason.
@@ -20,7 +24,8 @@ module Hecks
       # Where a stranded landing is recorded. The owner resolves it by removing the file.
       STRANDED_DIR = ENV.fetch("HECKS_MINT_STATE", File.expand_path("~/.claude/hecks-dev/mint")).freeze
 
-      # The launcher commands the steps run outside the ledger: the reconcile plan and write, the mint, the
+      # The launcher commands the steps run outside the ledger: the reconcile plan and write, the
+      # mint, the
       # landing, and the push train. A spec injects a stub in their place.
       module Commands
         # The push train's own launcher and its detached checkout.
@@ -33,8 +38,15 @@ module Hecks
         #
         # @return [Array(String, Boolean)] the minted era's label or the refusal, and whether it
         #   minted
-        def mint_era(root, domain:, era:, request:)
-          QaEraMint.call(root, domain: domain, era: era, request: request)
+        def mint_era(root, domain:, era:, request:, ledger: nil)
+          QaEraMint.call(root, domain: domain, era: era, request: request, ledger: ledger)
+        end
+
+        # The auto-mint rule's facts of one ledger: its live watermark, the edge and the shape diff.
+        #
+        # @return [Hash] see `QaAutoMint.facts`
+        def auto_mint_facts(ledger)
+          QaAutoMint.facts(ledger)
         end
 
         # Lands a minted era's branch on main through the landing command, with confirmation.
@@ -59,7 +71,8 @@ module Hecks
           launch(root, root, "era.reconcile!", "run.value=#{run}", "confirm.value=true", "--wait")
         end
 
-        # Moves the train checkout to a commit, detached, and sends the branch through the train with the
+        # Moves the train checkout to a commit, detached, and sends the branch through the train
+        # with the
         # full gate and confirmation.
         #
         # @return [Array(String, Boolean)] the train's output and whether it exited 0
@@ -110,21 +123,35 @@ module Hecks
         { run: wrap(run), sha: wrap(sha), color: wrap(color), verdict: { value: verdict } }
       end
 
-      # Mints one era of a domain. Refuses while a stranded landing is unresolved, and unless the rehearsal
-      # said would_mint; the era check then refuses a watermark that moved since the rehearsal.
+      # Mints one era of a domain. Refuses while a stranded landing is unresolved, and unless the
+      # rehearsal
+      # said would_mint. A mint runs when the owner confirmed it or the auto-mint rule holds
+      # (`authorize!`); a mint the rule does not cover is refused as "needs owner approval".
       #
-      # @param request [Hash] the `MintRequested` attributes: `run`, `domain`, `era`, `sha`, `branch`,
-      #   `watermark` and `rehearsal_verdict`
+      # @param request [Hash] the `MintRequested` attributes: `run`, `domain`, `era`, `sha`,
+      #   `branch`,
+      #   `watermark`, `rehearsal_verdict`, `refusal_total`, `ledger_dir` and `confirm`
       # @return [Hash] `run`, `domain`, `era`, `sha`, `branch` and `label`
       def mint(**request)
         refuse_while_stranded!
         refuse_unrehearsed!(value_of(request[:rehearsal_verdict]))
+        authorize!(request)
         label = run_mint!(request)
         %i[run domain era sha branch].to_h { |key| [key, wrap(request[key])] }.merge(label: wrap(label))
       end
 
-      # Lands the branch that carries a minted era onto main in the same step. A landing that fails leaves
-      # the ledger ahead of main, so the run is stranded: the marker is written, and every later mint
+      # Answers a held mint's approval request: the mint waits for the owner, and nothing follows
+      # it.
+      #
+      # @return [Hash] `domain`, `era` and `reason`
+      def approval(domain:, era:, reason:, **)
+        { domain: wrap(domain), era: wrap(era), reason: wrap(reason) }
+      end
+
+      # Lands the branch that carries a minted era onto main in the same step. A landing that fails
+      # leaves
+      # the ledger ahead of main, so the run is stranded: the marker is written, and every later
+      # mint
       # refuses until the owner removes it.
       #
       # @return [Hash] `run`, `era`, `sha` and `branch`, which `MintStranded` takes on refusal
@@ -134,7 +161,8 @@ module Hecks
         { run: wrap(run), era: wrap(era), sha: wrap(sha), branch: wrap(branch) }
       end
 
-      # Pushes local main through the train, after the most recent gate verdict on this commit is green and
+      # Pushes local main through the train, after the most recent gate verdict on this commit is
+      # green and
       # origin is an ancestor of main.
       #
       # @return [Hash] `run`, `sha` and `origin_sha`
@@ -167,12 +195,31 @@ module Hecks
         raise Refused, "the rehearsal said #{verdict}, not would_mint" unless verdict == "would_mint"
       end
 
-      # Runs the era check's mint through the mint command, and answers the label it minted.
+      # Lets a mint through when the owner confirmed it, or when the auto-mint rule holds on the
+      # ledger's
+      # facts at the live watermark. A stale watermark is a refusal; any other unmet rule holds the
+      # mint.
+      def authorize!(request)
+        facts = @commands.auto_mint_facts(ledger_of(request))
+        stale = QaAutoMint.stale_watermark(value_of(request[:watermark]), facts[:watermark])
+        raise Refused, stale if stale
+        return if value_of(request[:confirm]) == true
+
+        reason = QaAutoMint.held_reason(facts, refusal_total: value_of(request[:refusal_total]))
+        raise Refused, "needs owner approval: #{reason}" if reason
+      end
+
+      def ledger_of(request) = QaAutoMint.ledger_for(@root, value_of(request[:ledger_dir]))
+
+      # Runs the era check's mint through the mint command, and answers the label it minted. The
+      # mint is
+      # confirmed here, because `authorize!` has let it through.
       def run_mint!(request)
         output, minted = @commands.mint_era(@root, domain:  value_of(request[:domain]),
                                                    era:     value_of(request[:era]),
+                                                   ledger:  ledger_of(request),
                                                    request: {
-                                                     confirm:   value_of(request[:confirm]) == true,
+                                                     confirm:   true,
                                                      verdict:   value_of(request[:rehearsal_verdict]),
                                                      watermark: value_of(request[:watermark])
                                                    })

@@ -22,10 +22,12 @@ module Hecks
       #   next
       # @param request [Hash] the mint command's request: `confirm` (a boolean), `verdict` (the
       #   rehearsal's verdict) and `watermark` (the ledger watermark the rehearsal read)
+      # @param ledger [String, nil] the bluebook directory of the ledger; the QualityControl ledger
+      #   under `root` when nil
       # @return [Array(String, Boolean)] the minted era's label or the refusal, and whether it
       #   minted
-      def call(root, domain:, era:, request:)
-        held = JournalStore::HeldDomain.open(File.join(root, LEDGER), mode: :translated)
+      def call(root, domain:, era:, request:, ledger: nil)
+        held = JournalStore::HeldDomain.open(ledger || File.join(root, LEDGER), mode: :translated)
         settings = held.settings.merge(mint_eras: true, mint_request: request)
         refuse_wrong_mint!(held, settings, domain, era)
         mint!(held, settings) ? [Runtime::StorageShape.mint_label(held.bluebook), true] : [unminted, false]
