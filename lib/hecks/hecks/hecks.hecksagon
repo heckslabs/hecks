@@ -2,8 +2,10 @@ Hecks.hecksagon "Hecks" do
   attaches "Governance"
 
   # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
-  # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring their own ports).
-  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl]
+  # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
+  # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
+     Coder Fixer]
     .each { |declaration| attaches declaration }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
@@ -568,18 +570,6 @@ Hecks.hecksagon "Hecks" do
   end
 
   Hecks::CorpusRun.port "SourceTree" do
-    asks "Examine", to: CorpusRun do
-      attribute :run, RunKey
-      answers "CorpusExamined"
-      refuses "CorpusRefused"
-    end
-
-    asks "Perform", to: CorpusRun do
-      attribute :run, RunKey
-      answers "CorpusAnswered"
-      refuses "CorpusRefused"
-    end
-
     answers_query "RustDomains"
     answers_query "RegenOrder"
     answers_query "CorpusRustCoverage"
