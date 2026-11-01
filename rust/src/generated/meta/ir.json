@@ -34535,7 +34535,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks model_check --wait"
+                "bundle exec exe/hecks ModelCheckRun.model_check! --wait"
               ],
               [
                 "script",
@@ -34621,7 +34621,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
               ]
             ],
             [
@@ -34855,7 +34855,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
               ]
             ],
             [
@@ -34881,7 +34881,7 @@
               ],
               [
                 "blocked",
-                "a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
+                "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
               ]
             ],
             [
@@ -34907,7 +34907,7 @@
               ],
               [
                 "blocked",
-                "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
+                "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
               ]
             ],
             [

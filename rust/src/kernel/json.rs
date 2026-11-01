@@ -254,7 +254,12 @@ impl Json {
     /// type cannot hold, worded as a command's numeric field is. Ruby's `Value::FieldChecks#mistyped?`
     /// is the rule: an Integer must be a number, a Float a number, and a String (or boolean) must not
     /// be a composite. A null is absent, so it passes. `owner` is the aggregate's bare name.
-    pub fn expect_scalar_shape(&self, owner: &str, field: &str, type_name: &str) -> Result<(), Refusal> {
+    pub fn expect_scalar_shape(
+        &self,
+        owner: &str,
+        field: &str,
+        type_name: &str,
+    ) -> Result<(), Refusal> {
         if matches!(self, Self::Null) || !self.mistyped_scalar(type_name) {
             return Ok(());
         }
@@ -953,7 +958,9 @@ mod scalar_shape_tests {
     use super::*;
 
     fn refused(value: &Json, type_name: &str) -> bool {
-        value.expect_scalar_shape("Account", "reference", type_name).is_err()
+        value
+            .expect_scalar_shape("Account", "reference", type_name)
+            .is_err()
     }
 
     #[test]

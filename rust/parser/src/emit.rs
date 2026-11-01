@@ -218,7 +218,10 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
         ),
         // `formerly_known_as` is admitted but the parser does not build it yet, so it is null.
         ("formerly_known_as".to_string(), JsonValue::Null),
-        ("created_by".to_string(), JsonValue::opt_str(a.created_by.as_ref())),
+        (
+            "created_by".to_string(),
+            JsonValue::opt_str(a.created_by.as_ref()),
+        ),
         (
             "acknowledgements".to_string(),
             JsonValue::Array(
@@ -311,7 +314,10 @@ fn given_json(g: &ir::Given) -> JsonValue {
 fn acknowledgement_json(a: &ir::Acknowledgement) -> JsonValue {
     JsonValue::Object(vec![
         ("finding".to_string(), JsonValue::str(a.finding.clone())),
-        ("subject".to_string(), JsonValue::opt_str(a.subject.as_ref())),
+        (
+            "subject".to_string(),
+            JsonValue::opt_str(a.subject.as_ref()),
+        ),
         ("reason".to_string(), JsonValue::str(a.reason.clone())),
     ])
 }

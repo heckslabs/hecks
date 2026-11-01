@@ -14,7 +14,7 @@ inputs:
   regenerate:
     description: >-
       "true" rewrites every domain of rust/src/generated and rust/Cargo.toml with
-      `hecks regenerate_corpus --confirm`, for a check that compares them with the committed ones.
+      `hecks regeneration_run.regenerate_corpus! --confirm`, for a check that compares them with the committed ones.
     required: false
     default: "false"
 runs:

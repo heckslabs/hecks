@@ -34,7 +34,8 @@ pub fn parse_body(
             // A dotted symbol (`:"reference.value"`), or a bare aggregate name (`Message`), which
             // `build::correlation_keys` resolves once every aggregate is known.
             "correlates_by" => {
-                let raw = super::positional_raw(file, line, "correlates_by", &gated.args, 1)?.trim();
+                let raw =
+                    super::positional_raw(file, line, "correlates_by", &gated.args, 1)?.trim();
                 pm.correlates_by = super::symbol_text(raw).unwrap_or_else(|| raw.to_string());
             }
             // Event references keep only the bare final segment (`Naming.event_name_ref`);
@@ -51,7 +52,8 @@ pub fn parse_body(
             "ends_on" => {
                 // A process manager can end on several events: `ends_on` is the first, as the
                 // Ruby builder's `ends_on` reads `endings.first`.
-                let event = super::positional_event_name_ref(file, line, "ends_on", &gated.args, 1)?;
+                let event =
+                    super::positional_event_name_ref(file, line, "ends_on", &gated.args, 1)?;
                 pm.ends_on.get_or_insert_with(|| event.clone());
                 pm.endings.push(event);
             }

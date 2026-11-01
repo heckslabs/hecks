@@ -800,7 +800,7 @@ Hecks.bluebook "Bluebook" do
              blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
       member name: "model_check", id: "model_check",
              title: "model check, unreachable states, dead transitions and orphaned handlers",
-             argv: "bundle exec exe/hecks model_check --wait",
+             argv: "bundle exec exe/hecks ModelCheckRun.model_check! --wait",
              script: "",
              blocked: "the model checker found something."
       member name: "doc_coverage", id: "doc_coverage",
@@ -817,7 +817,7 @@ Hecks.bluebook "Bluebook" do
              title: "codegen drift, rust/src/generated/ must match a fresh regeneration",
              argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait",
              script: "",
-             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
       member name: "comment_style", id: "comment_style",
              title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md",
              argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait",
@@ -862,19 +862,19 @@ Hecks.bluebook "Bluebook" do
              title: "codegen drift, the committed generated Rust must match the regeneration this job holds",
              argv: "git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml",
              script: "",
-             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+             blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
       # The rspec shards each hold only the domains they read, so the examples that read the whole
       # generated tree are tagged `generated_all` and left out of them. This job holds every domain.
       member name: "generated_tree", id: "generated_tree",
              title: "whole-tree specs, the examples tagged generated_all against every domain's generated Rust",
              argv: "bundle exec rspec --tag generated_all",
              script: "",
-             blocked: "a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
+             blocked: "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
       member name: "rust_clippy", id: "rust_clippy",
              title: "clippy, every Rust crate with its warnings as errors",
              argv: "",
              script: "for crate in . parser codegen lsp host web build; do\n  cargo clippy --all-targets --manifest-path \"rust/$crate/Cargo.toml\" -- -D warnings\ndone\n",
-             blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
+             blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
       member name: "lint_deploy_recipes", id: "lint_deploy_recipes",
              title: "generated deploy recipes, a command with no checked exit status or no echo",
              argv: "bundle exec exe/hecks deploy makefile_check.lint --wait",

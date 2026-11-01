@@ -272,7 +272,8 @@ pub fn parse_body(
             "idempotent" => command.idempotent = true,
             "mints_era" => {
                 command.mints_era =
-                    super::positional_literal_text(file, line, "mints_era", &gated.args, 1)? == "true";
+                    super::positional_literal_text(file, line, "mints_era", &gated.args, 1)?
+                        == "true";
             }
             "audience" => {
                 super::audience::declare(

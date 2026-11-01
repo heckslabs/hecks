@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
+require_relative "../support/first_era_hold"
 # `pg` is required explicitly; the adapter only requires it lazily in `PostgresEra.connect_for`.
 require "pg"
 
@@ -44,6 +45,8 @@ end
 RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, " \
                "PostgresEra, plain Postgres, and D1",
                :io do
+  include FirstEraHold
+
   # Named for the process, so two runs on one Postgres (parallel sessions) never drop each
   # other's databases mid-spec.
   AGREEMENT_DB = "hecks_query_agreement_spec_#{Process.pid}".freeze
@@ -324,9 +327,33 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
     end
   end
 
-  # Scrubs each database first, then seeds every engine, in that order.
+  # The bluebook the PostgresEra database holds as its first era. A boot never holds an era, so
+  # the scrubbed database holds one before the engine reads it; the journal is named for the
+  # aggregate's storage name, as the bare aggregate boots under.
+  FIRST_ERA_SOURCE = <<~RUBY.freeze
+    Hecks.bluebook "Thing" do
+      aggregate "Thing" do
+        identified_by :name
+
+        attribute :name, Name
+
+        value_object "Name" do
+          attribute :value, String
+        end
+      end
+    end
+  RUBY
+
+  def hold_postgres_first_era
+    return unless postgres_available?
+
+    hold_first_era!(url: AGREEMENT_DB, domain: aggregate.storage_name, source: FIRST_ERA_SOURCE)
+  end
+
+  # Scrubs each database first, holds the first era, then seeds every engine, in that order.
   before do
     scrub_postgres_databases
+    hold_postgres_first_era
     scrub_d1_tables
     seed_records
   end
