@@ -838,21 +838,11 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait",
              script: "",
              blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."
-      member name: "everyday_names", id: "everyday_names",
-             title: "everyday names, every name in the launcher's everyday setting shown in the help",
-             argv: "bundle exec rspec spec/everyday_names_spec.rb",
-             script: "",
-             blocked: "a name in the world's `everyday` setting is not shown in the help's everyday section: it does not resolve to a command, it is internal, or it is not listed for people. The failure names each one; fix the spelling in hecks.world or the command's audience."
       member name: "secret_output", id: "secret_output",
              title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints",
              argv: "bundle exec rspec spec/secret_output_spec.rb",
              script: "",
              blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
-      member name: "meta_domain_coverage", id: "meta_domain_coverage",
-             title: "meta-domain coverage, every language feature with a fuzzer coverage decision",
-             argv: "bundle exec rspec spec/fuzzing/meta_domain_coverage_spec.rb --tag fuzzing",
-             script: "",
-             blocked: "a language feature has no fuzzer coverage decision: a word the language gained is neither covered by a fuzzer property nor listed as left out with its reason. The failure names each one; add the entry in spec/fuzzing/meta_domain_coverage_spec.rb."
       member name: "adapter_words", id: "adapter_words",
              title: "adapter words, no domain name equal to a technology word the adapters are named for",
              argv: "bundle exec rspec spec/adapter_words_spec.rb",
@@ -1004,12 +994,12 @@ Hecks.bluebook "Bluebook" do
     # change is checked locally by the quick gate, RuboCop, the shape ledger and the specs named for
     # that change. A person runs `ci_suite` by hand only by asking for it.
     #
-    # `pre_push` is what a push of a guarded lane runs. `quick` is the checks that finish in seconds
-    # and catch the offenses people make most (a storage shape with no edge, a style offense, a comment
-    # past the guide): a push runs them first and stops on a red one, so the minutes of spec/fuzzing
-    # are not spent on a change that cannot pass. `unguarded_push` is what a push of only unguarded
-    # lanes (`main`) runs in place of `pre_push`: the slow suite is skipped, the style checks are not,
-    # since an offense that lands on `main` is a red CI run. `rust_io` is the Rust io specs
+    # `quick` is what every push of `main` runs, and what a commit should have passed: the checks
+    # that finish in seconds and that only the author can fix cheaply (a storage shape with no edge,
+    # a style offense, a comment past the guide, a leaked secret, a syntax error RuboCop reads).
+    # Everything slower runs after the push, in CI (`ci`, `ci_suite`) and the nightly run, and holds
+    # `stable`, not `main`. `pre_push` is the whole suite for a person who asks for it
+    # (`full_gate.value=true`). `rust_io` is the Rust io specs
     # `ci-rust-io.yml` runs in its `rspec_rust_io` job, for a push that wants their answer first; no
     # hook or workflow runs it. `ci` is the checks `ci-checks.yml` runs, each step with
     # `hecks gate_run.gate! stage=ci only=<ids> --wait`; several of them write generated files and
@@ -1021,17 +1011,15 @@ Hecks.bluebook "Bluebook" do
 
       member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
-      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage,command_names,workflow_pagination"
-      member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
+      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
       member name: "era_proof", env: "", checks: "era_proof"
-      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
     # What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalStage` is one
-    # step: `kind` is `gate` (the `GateStage` named by `argument` runs), `specs` (the spec files
-    # `argument`, a glob, names run) or `impacted` (the specs the push's changes touch, capped by the
-    # local spec limit). A `RehearsalScope` lists, in the order they run, the steps a rehearsal of
+    # step: `kind` is `gate` (the `GateStage` named by `argument` runs) or `impacted` (the specs
+    # the push's changes touch, capped by the local spec limit). A `RehearsalScope` lists, in the order they run, the steps a rehearsal of
     # that scope runs. `quick` is what a landing asks for; `full` is what a push needs; `deep` adds
     # the impacted specs and runs only when asked for (`scope.value=deep`). Owner decision: the full
     # spec suite runs only in CI, so no scope runs it and only `deep` runs any impacted specs.
@@ -1041,8 +1029,6 @@ Hecks.bluebook "Bluebook" do
       attribute :argument, String
 
       member name: "quick", kind: "gate", argument: "quick"
-      member name: "unguarded_push", kind: "gate", argument: "unguarded_push"
-      member name: "push_specs", kind: "specs", argument: "spec/**/*{push_chain,push_train}*_spec.rb"
       member name: "impacted", kind: "impacted", argument: ""
     end
 
@@ -1051,8 +1037,8 @@ Hecks.bluebook "Bluebook" do
       attribute :stages, String
 
       member name: "quick", stages: "quick"
-      member name: "full", stages: "quick,unguarded_push,push_specs"
-      member name: "deep", stages: "quick,unguarded_push,push_specs,impacted"
+      member name: "full", stages: "quick"
+      member name: "deep", stages: "quick,impacted"
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each

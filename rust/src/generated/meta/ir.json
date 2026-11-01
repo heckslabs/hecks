@@ -34731,32 +34731,6 @@
             [
               [
                 "name",
-                "everyday_names"
-              ],
-              [
-                "id",
-                "everyday_names"
-              ],
-              [
-                "title",
-                "everyday names, every name in the launcher's everyday setting shown in the help"
-              ],
-              [
-                "argv",
-                "bundle exec rspec spec/everyday_names_spec.rb"
-              ],
-              [
-                "script",
-                ""
-              ],
-              [
-                "blocked",
-                "a name in the world's `everyday` setting is not shown in the help's everyday section: it does not resolve to a command, it is internal, or it is not listed for people. The failure names each one; fix the spelling in hecks.world or the command's audience."
-              ]
-            ],
-            [
-              [
-                "name",
                 "secret_output"
               ],
               [
@@ -34778,32 +34752,6 @@
               [
                 "blocked",
                 "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
-              ]
-            ],
-            [
-              [
-                "name",
-                "meta_domain_coverage"
-              ],
-              [
-                "id",
-                "meta_domain_coverage"
-              ],
-              [
-                "title",
-                "meta-domain coverage, every language feature with a fuzzer coverage decision"
-              ],
-              [
-                "argv",
-                "bundle exec rspec spec/fuzzing/meta_domain_coverage_spec.rb --tag fuzzing"
-              ],
-              [
-                "script",
-                ""
-              ],
-              [
-                "blocked",
-                "a language feature has no fuzzer coverage decision: a word the language gained is neither covered by a fuzzer property nor listed as left out with its reason. The failure names each one; add the entry in spec/fuzzing/meta_domain_coverage_spec.rb."
               ]
             ],
             [
@@ -35536,21 +35484,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage,command_names,workflow_pagination"
-              ]
-            ],
-            [
-              [
-                "name",
-                "unguarded_push"
-              ],
-              [
-                "env",
-                "HECKS_ENVIRONMENT=memory"
-              ],
-              [
-                "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
               ]
             ],
             [
@@ -35592,7 +35526,7 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
               ]
             ]
           ]
@@ -35648,34 +35582,6 @@
               [
                 "argument",
                 "quick"
-              ]
-            ],
-            [
-              [
-                "name",
-                "unguarded_push"
-              ],
-              [
-                "kind",
-                "gate"
-              ],
-              [
-                "argument",
-                "unguarded_push"
-              ]
-            ],
-            [
-              [
-                "name",
-                "push_specs"
-              ],
-              [
-                "kind",
-                "specs"
-              ],
-              [
-                "argument",
-                "spec/**/*{push_chain,push_train}*_spec.rb"
               ]
             ],
             [
@@ -35740,7 +35646,7 @@
               ],
               [
                 "stages",
-                "quick,unguarded_push,push_specs"
+                "quick"
               ]
             ],
             [
@@ -35750,7 +35656,7 @@
               ],
               [
                 "stages",
-                "quick,unguarded_push,push_specs,impacted"
+                "quick,impacted"
               ]
             ]
           ]

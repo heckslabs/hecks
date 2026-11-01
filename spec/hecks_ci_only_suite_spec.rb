@@ -65,18 +65,16 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
       expect(listing.map { |row| row["name"] }).to eq(["ci_suite"])
     end
 
-    it "gives quick the gate's quick stage, full no impacted stage, and deep the impacted stage" do
+    it "gives quick and full the gate's quick stage alone, and deep the impacted stage as well" do
       expect(stage_names("quick")).to eq(%w[quick])
-      expect(stage_names("full")).to eq(%w[quick unguarded_push push_specs])
-      expect(stage_names("deep")).to eq(%w[quick unguarded_push push_specs impacted])
+      expect(stage_names("full")).to eq(%w[quick])
+      expect(stage_names("deep")).to eq(%w[quick impacted])
     end
 
-    it "points the gate stages at GateStage rows and the push specs at the push-chain files" do
+    it "points the gate stages at GateStage rows" do
       gates = Hecks::Adapters::GitRehearsal::Stages.rows("deep").select { |row| row["kind"] == "gate" }
-      specs = Hecks::Adapters::GitRehearsal::Stages.rows("full").find { |row| row["kind"] == "specs" }
 
       expect(gates.map { |row| row["argument"] }).to all(satisfy { |name| rows("GateStage").any? { |s| s["name"] == name } })
-      expect(specs["argument"]).to eq("spec/**/*{push_chain,push_train}*_spec.rb")
     end
 
     it "asks for a quick rehearsal after a land" do
