@@ -271,7 +271,7 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     JSON.parse(stdout)
   end
 
-  # Rust holds the first era with the storage shape Ruby projects, so Ruby reads it without the text path.
+  # Rust holds the first era with the shape Ruby projects, so Ruby reads it without the text.
   it "holds a Rust-minted era with the projection Ruby computes, read back without the held text",
      :aggregate_failures do
     result = rust_minted_projection
