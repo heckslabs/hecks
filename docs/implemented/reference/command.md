@@ -64,6 +64,12 @@ Hecks.bluebook "CommandReference" do
       sets :marks,   append: { note: :note }
       emits "MeterAdvanced"
     end
+
+    command "Calibrate" do
+      mints_era true
+      sets :serial
+      emits "MeterCalibrated"
+    end
   end
 
   # A SEPARATE AGGREGATE, purely for `delegates_to` — it needs a NESTED
@@ -291,6 +297,11 @@ held era could not persist its request without this. `Era.MintHeld` says `mints_
 journal lets that one record through and refuses every other write from the same boot, and a
 superseded boot refuses the record too. It is carried on the IR as a boolean, `false` when not
 declared.
+
+```ruby
+meter = runtime.registry.bluebook("CommandReference").aggregate("Meter")
+meter.commands.find { |c| c.hecks_name == "Calibrate" }.mints_era  # => true
+```
 
 ## reference_to
 

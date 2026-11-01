@@ -32,6 +32,11 @@ Hecks.bluebook "PortOperationReference" do
       sets :holder
       emits "LicenceGranted"
     end
+
+    command "Renew" do
+      sets :serial
+      emits "LicenceRenewed"
+    end
   end
 end
 ```
@@ -59,6 +64,18 @@ Hecks.hecksagon("PortOperationReference") do
       attribute :serial, Hecks::Bluebook::Reference.new("Licence")
       attribute :inspector, Holder
       emits "InspectionRecorded"
+    end
+
+    tells "RenewByPost" do
+      attribute :serial, Hecks::Bluebook::Reference.new("Licence")
+      emits "RenewalPosted"
+      handles "Licence.renew!", value: "post"
+    end
+
+    tells "RenewInPerson" do
+      attribute :serial, Hecks::Bluebook::Reference.new("Licence")
+      emits "RenewalRecorded"
+      handles "Licence.renew!", value: "counter"
     end
 
     asks "Check" do
@@ -271,5 +288,12 @@ word for "this did not happen", and it is in the record.
 | `value:` | text | true | value |
 <!-- generated:end -->
 
-<!-- TODO: document this word -->
+Binds an operation to one value of a command, so that one command can be answered by several operations, each for its own value. `handles "Licence.renew!", value: "post"` says: when `Licence.renew!` is dispatched carrying the string `"post"`, this operation is the one that runs. A command that has any such binding refuses a value no operation names, listing the values that are handled.
+
+`Licence.renew!` is handled by two operations, one per way of renewing:
+
+```ruby
+operations = PortOperationReference::Licence.ir.ports.flat_map(&:operations)
+operations.flat_map(&:handles).map { |held| held[:value] }  # => ["post", "counter"]
+```
 
