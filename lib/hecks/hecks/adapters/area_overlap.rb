@@ -1,23 +1,30 @@
 # frozen_string_literal: true
 
+require "pathname"
+
 module Hecks
   module Adapters
     # When two file areas overlap: the one rule behind a Work row's `area` claim and a Landing's
-    # changed files. An area is a path prefix (`lib/hecks/tickets`) or a glob (`lib/**/*.rb`),
-    # compared by whole segments, so `lib/hecks` holds `lib/hecks/a` and not `lib/hecks_extra`.
+    # changed files. An area is a path prefix (`lib/hecks`) or a glob (`lib/**/*.rb`), compared by
+    # whole segments, so `lib/hecks` holds `lib/hecks/a` and not `lib/hecks_extra`.
     #
-    # - Two prefixes overlap when one equals or holds the other.
-    # - A glob and a prefix overlap when the glob matches the prefix or a directory above it, or
-    #   the prefix holds the glob's literal stem (`lib` holds `lib/a/*.rb`).
-    # - Two globs overlap when either's literal stem (the segments before the first wildcard)
-    #   holds the other's: conservative, it never misses an overlap.
+    # It never misses a real overlap; it may report one that is not real. Areas are normalized
+    # first (`//`, `.`, `..`, a trailing `/`, absolute paths made repository-relative, case folded
+    # where the filesystem folds it). Then they overlap unless a segment proves them apart: a
+    # prefix holds everything beneath it, the empty area is the whole repository, `**` stands for
+    # any depth, and a glob without a `/` matches at any depth. A file holds nothing beneath it.
     module AreaOverlap
       # Characters that make a segment a glob.
       WILDCARD = /[*?\[{]/
 
-      # A leading `./` and a trailing `/`, which name no segment.
-      LEADING_DOT = %r{\A(\./)+}
-      TRAILING_SLASH = %r{/+\z}
+      # A brace group that holds a `/`, which splitting on `/` would tear apart.
+      SLASHED_BRACE = /\{[^}]*\/[^}]*\}/
+
+      # The segment that stands for any number of directories.
+      ANY = "**"
+
+      # How a single segment glob is matched.
+      MATCHING = File::FNM_EXTGLOB | File::FNM_DOTMATCH
 
       module_function
 
@@ -25,59 +32,125 @@ module Hecks
       #
       # @param one [String] a path prefix or glob
       # @param other [String] a path prefix or glob
+      # @param root [String, nil] the repository's top level, to make absolute paths relative
+      # @param file [Boolean] whether `other` is known to be a file, which holds nothing beneath it
       # @return [Boolean]
-      def overlap?(one, other)
-        left = clean(one)
-        right = clean(other)
-        return holds?(left, right) || holds?(right, left) unless glob?(left) || glob?(right)
-        return stems_overlap?(left, right) if glob?(left) && glob?(right)
+      def overlap?(one, other, root: nil, file: false)
+        folded = fold_case?(root)
+        left = segments(one, root, folded)
+        right = segments(other, root, folded)
+        return true if left.nil? || right.nil?
 
-        glob, path = glob?(left) ? [left, right] : [right, left]
-        glob_covers?(glob, path)
+        file ? meet?(left, right, leaf: true) : meet?(left, right)
       end
 
       # The first pair of paths, one from each list, that overlap.
       #
       # @param mine [Array<String>] areas or file paths
       # @param theirs [Array<String>] areas or file paths
+      # @param root [String, nil] the repository's top level
       # @return [Array(String, String), nil] the pair, or nil when none overlap
-      def first_overlap(mine, theirs)
+      def first_overlap(mine, theirs, root: nil)
         mine.each do |one|
-          theirs.each { |other| return [one, other] if overlap?(one, other) }
+          theirs.each { |other| return [one, other] if overlap?(one, other, root: root) }
         end
         nil
       end
 
-      # @return [String] the path without a leading `./` or a trailing `/`
-      def clean(path) = trimmed(path.to_s.strip)
+      # @return [Array<String>, nil] the normalized segments, nil when the path may be anywhere
+      def segments(path, root, folded)
+        text = path.to_s.strip
+        text = text.downcase if folded
+        return [ANY] if text.match?(SLASHED_BRACE)
 
-      def trimmed(path) = path.sub(LEADING_DOT, "").sub(TRAILING_SLASH, "")
-
-      # @return [Boolean] whether `outer` is `inner` or a directory above it
-      def holds?(outer, inner) = inner == outer || inner.start_with?("#{outer}/")
-
-      # @return [Boolean] whether the path has a wildcard segment
-      def glob?(path) = path.match?(WILDCARD)
-
-      # @return [String] the segments of a glob before its first wildcard
-      def stem(glob) = glob.split("/").take_while { |segment| !segment.match?(WILDCARD) }.join("/")
-
-      def stems_overlap?(one, other)
-        left = stem(one)
-        right = stem(other)
-        holds?(left, right) || holds?(right, left)
+        relative = relative_to(text, root, folded)
+        relative && anywhere(collapse(relative.split("/")), relative)
       end
 
-      def glob_covers?(glob, path)
-        return true if holds?(path, stem(glob))
-
-        ancestors(path).any? { |above| File.fnmatch?(glob, above, File::FNM_PATHNAME | File::FNM_EXTGLOB | File::FNM_DOTMATCH) }
+      # A glob without a `/` matches at any depth, as it does in a git pathspec.
+      def anywhere(parts, text)
+        parts.size == 1 && wild?(parts.first) && !text.include?("/") ? [ANY, parts.first] : parts
       end
 
-      def ancestors(path)
-        parts = path.split("/")
-        (1..parts.size).map { |count| parts.take(count).join("/") }
+      # @return [String, nil] the path under the repository; nil when it is absolute and could be
+      #   anywhere (no root known); a path outside the root gets a segment no area has
+      def relative_to(text, root, folded)
+        return text unless text.start_with?("/")
+        return nil unless root
+
+        inside = under(text, folded ? root.downcase : root)
+        inside.start_with?("..") ? "/outside/#{text}" : inside
       end
+
+      # @return [String] the path from `root`; empty for the root itself
+      def under(text, root)
+        found = cleaned(text).relative_path_from(cleaned(root)).to_s
+        found == "." ? "" : found
+      end
+
+      def cleaned(text) = Pathname.new(text).cleanpath
+
+      # @return [Array<String>] the segments without empty and `.` ones, `..` applied
+      def collapse(parts)
+        parts.each_with_object([]) do |part, kept|
+          next if part.empty? || part == "."
+
+          part == ".." ? up(kept) : kept << part
+        end
+      end
+
+      def up(kept)
+        return kept << ".." if kept.empty? || kept.last == ".."
+
+        kept << ANY if kept.pop == ANY
+      end
+
+      # @return [Boolean] whether the filesystem under `root` treats `A` and `a` alike
+      def fold_case?(root)
+        base = root || Dir.pwd
+        swapped = base.swapcase
+        swapped != base && File.exist?(swapped) && File.identical?(swapped, base)
+      rescue SystemCallError
+        false
+      end
+
+      # @param leaf [Boolean] whether `right` is a file, so it holds nothing beneath it
+      # @return [Boolean] whether two segment lists can name a common path
+      def meet?(left, right, leaf: false)
+        return exhausted?(left, right, leaf) if left.empty? || right.empty?
+        return meet?(right, left) if swap?(left, right, leaf)
+        return reaches?(left, right, leaf) if left.first == ANY
+
+        segments_meet?(left.first, right.first) && meet?(left.drop(1), right.drop(1), leaf: leaf)
+      end
+
+      # One list ran out: its path holds the rest, unless that is a file's.
+      def exhausted?(left, right, leaf) = left.empty? || (right.empty? && (!leaf || left.all?(ANY)))
+
+      # Puts a leading `**` on the left.
+      def swap?(left, right, leaf) = !leaf && right.first == ANY && left.first != ANY
+
+      # A leading `**` matches no segment or swallows one of the other list's.
+      def reaches?(left, right, leaf)
+        meet?(left.drop(1), right, leaf: leaf) || meet?(left, right.drop(1), leaf: leaf)
+      end
+
+      def segments_meet?(one, other)
+        return one == other unless wild?(one) || wild?(other)
+        return File.fnmatch?(other, one, MATCHING) if wild?(other) && !wild?(one)
+        return File.fnmatch?(one, other, MATCHING) unless wild?(other)
+
+        beginnings_agree?(one, other)
+      end
+
+      def beginnings_agree?(one, other)
+        left = one.split(WILDCARD, 2).first.to_s
+        right = other.split(WILDCARD, 2).first.to_s
+        left.start_with?(right) || right.start_with?(left)
+      end
+
+      # @return [Boolean] whether the segment is a glob
+      def wild?(segment) = segment.match?(WILDCARD)
     end
   end
 end

@@ -25,7 +25,7 @@ RSpec.describe Hecks::Adapters::AreaOverlap do
 
   it "overlaps a glob and a file it matches", :aggregate_failures do
     expect(overlap?("lib/**/*.bluebook", "lib/hecks/tickets/tickets.bluebook")).to be(true)
-    expect(overlap?("lib/**/*.bluebook", "lib/hecks/tickets/tickets.rb")).to be(false)
+    expect(described_class.overlap?("lib/**/*.bluebook", "lib/hecks/tickets/tickets.rb", file: true)).to be(false)
   end
 
   it "overlaps a glob and a directory it matches, or one above its stem", :aggregate_failures do

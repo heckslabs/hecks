@@ -76,7 +76,7 @@ module Hecks
         end
 
         def answer(outcome, landed, report)
-          { outcome: { value: outcome }, checkout: { value: @checkout }, branch: { value: @branch },
+          { outcome: { value: outcome }, checkout: { value: primary.path }, branch: { value: @branch },
             landed: { value: landed }, report: { value: report } }
         end
       end
