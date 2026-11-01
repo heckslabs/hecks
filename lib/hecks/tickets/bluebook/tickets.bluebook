@@ -298,24 +298,24 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, matches: :present
     end
 
-    # The session that claimed a started step, named as the session names itself.
+    # The session that claimed a started step, named as the session names itself. A step back in the
+    # plan holds the empty claimant; `Start` refuses one that names nobody.
     value_object "Claimant" do
-      attribute :value, String, matches: :present
-
-      invariant("a claim names its claimant") { !value.to_s.empty? }
+      attribute :value, String, default: ""
     end
 
-    # When the claim was taken, as the caller reads the clock: an ISO 8601 instant.
+    # When the claim was taken, as the caller reads the clock: an ISO 8601 instant. Empty while the
+    # step is unclaimed.
     value_object "ClaimedAt" do
-      attribute :value, String, matches: :present
+      attribute :value, String, default: ""
     end
 
-    # How long a claim may run before `Work.overdue` lists it, in whole minutes. A row with none is
-    # never overdue.
+    # How long a claim may run before `Work.overdue` lists it, in whole minutes. A row with none, or
+    # zero, is never overdue; a step back in the plan holds zero.
     value_object "Minutes" do
       attribute :value, Integer
 
-      invariant("a time budget is positive") { value.positive? }
+      invariant("a time budget is not negative") { !value.negative? }
     end
 
     # What a query answered from outside the domain returns: its lines.
@@ -353,7 +353,7 @@ Hecks.bluebook "Tickets" do
       transition "Finish" => "done",    from: %w[planned started]
       transition "Drop"   => "dropped", from: %w[planned started]
       transition "Lapse"  => "dropped", from: %w[planned started]
-      mark :terminal, "done", "dropped"
+      transition "Reopen" => "planned", from: %w[done dropped]
     end
 
     command "Plan" do
@@ -395,6 +395,9 @@ Hecks.bluebook "Tickets" do
       attribute :area,       list_of(Word), optional: true, sets: true
       attribute :budget_minutes, Minutes, optional: true, sets: true
 
+      given("a claim names its claimant") { !claimed_by.value.to_s.empty? }
+      given("a claim records when it was taken") { !claimed_at.value.to_s.empty? }
+
       emits "WorkStarted"
     end
 
@@ -407,6 +410,11 @@ Hecks.bluebook "Tickets" do
       reference_to Work
       attribute :reason, WorkText, sets: true
 
+      sets :claimed_by, to: ""
+      sets :claimed_at, to: ""
+      sets :area, to: []
+      sets :budget_minutes, to: 0
+
       emits "WorkYielded"
     end
 
@@ -415,6 +423,11 @@ Hecks.bluebook "Tickets" do
       goal "Return a started step to planned, releasing its claim"
 
       reference_to Work
+
+      sets :claimed_by, to: ""
+      sets :claimed_at, to: ""
+      sets :area, to: []
+      sets :budget_minutes, to: 0
 
       emits "WorkReleased"
     end
@@ -436,6 +449,18 @@ Hecks.bluebook "Tickets" do
       attribute :reason, WorkText, sets: true
 
       emits "WorkDropped"
+    end
+
+    # A step whose cause came back (a spec red again after it was cleared) is planned again, with
+    # the new title and detail.
+    command "Reopen" do
+      goal "Return a finished or dropped step to planned because its cause returned"
+
+      reference_to Work
+      attribute :title,  WorkTitle, sets: true
+      attribute :detail, WorkText, optional: true, sets: true
+
+      emits "WorkReopened"
     end
 
     # A superseded decision's plan no longer stands, so its undone steps are dropped with it.
@@ -586,6 +611,12 @@ Hecks.bluebook "Tickets" do
   policy "PlanWorkWhenSpecWentRed" do
     on      "RedSpec.SpecWentRed"
     trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail }
+  end
+
+  # A file that fails again after it was cleared plans its finished step again.
+  policy "ReopenWorkWhenSpecWentRedAgain" do
+    on      "RedSpec.SpecWentRedAgain"
+    trigger Work::Reopen, with: { work: :spec, title: :title, detail: :detail }
   end
 
   # The run that no longer fails the file closes its step.

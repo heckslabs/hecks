@@ -2573,9 +2573,10 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String, matches: :present
     end
 
+    # A cleared file that fails again goes back to red: the row reopens, it is never filed twice.
     lifecycle :status, default: "red" do
-      transition "Clear" => "green", from: "red"
-      mark :terminal, "green"
+      transition "Clear"  => "green", from: "red"
+      transition "Reopen" => "red",   from: "green"
     end
 
     # Opens the row for a spec file. A spec already red is not reported twice: see `Update`.
@@ -2611,6 +2612,25 @@ Hecks.bluebook "QualityControl" do
       attribute :detail,        WorkLine, sets: true
 
       emits "SpecStillRed"
+    end
+
+    # A spec that was cleared and failed again: what the new red run saw replaces what the row knew,
+    # and `since` is the day it went red this time.
+    command "Reopen" do
+      role "System"
+      goal "Record that a spec file cleared earlier is red on main again"
+
+      reference_to RedSpec
+      attribute :failures,      FailureCount, sets: true
+      attribute :first_failure, FailureLine, optional: true, sets: true
+      attribute :examples,      FailureLine, optional: true, sets: true
+      attribute :last_run,      RunId, sets: true
+      attribute :commit,        SpecCommit, sets: true
+      attribute :since,         SeenOn, sets: true
+      attribute :title,         WorkLine, sets: true
+      attribute :detail,        WorkLine, sets: true
+
+      emits "SpecWentRedAgain"
     end
 
     # `seen_in` is the run that last saw the file fail; a run that did see it fails to clear it.

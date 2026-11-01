@@ -73,6 +73,20 @@ RSpec.describe "Hecks::Tools::GateMemo inputs" do
     expect(ran_green).to eq([])
   end
 
+  it "reruns fuzzing, the code generator and the whole-tree checks when a file under qa/ changes" do
+    write("qa/settings.yml", "one\n")
+    ran_green
+    write("qa/settings.yml", "two\n")
+    expect(ran_green).to include("fuzzing", "rspec", "codegen_drift")
+  end
+
+  it "leaves doc coverage and the style checks skipped when a file under qa/ changes" do
+    write("qa/settings.yml", "one\n")
+    ran_green
+    write("qa/settings.yml", "two\n")
+    expect(ran_green & %w[doc_coverage comment_style rust_fmt]).to eq([])
+  end
+
   describe "in a git checkout" do
     before do
       write(".gitignore", "data/\n")
@@ -183,4 +197,30 @@ RSpec.describe "Hecks::Tools::GateMemo inputs" do
     end
   end
   # rubocop:enable RSpec/MultipleExpectations, RSpec/MultipleMemoizedHelpers, RSpec/ExampleLength
+
+  describe "a gitignored local world" do
+    before do
+      write(".gitignore", "*.local.world\n")
+      write("lib/hecks/hecks/hecks.local.world", "one\n")
+      _, status = Open3.capture2("git", "-C", root, "init", "-q")
+      raise "git init failed" unless status.success?
+
+      ran_green
+    end
+
+    it "reruns the checks that boot the domain when it is edited" do
+      write("lib/hecks/hecks/hecks.local.world", "two\n")
+      expect(ran_green & %w[rspec fuzzing model_check query_agreement engine_agreement]).to have_attributes(size: 5)
+    end
+
+    it "leaves the checks that do not boot the domain skipped" do
+      write("lib/hecks/hecks/hecks.local.world", "two\n")
+      expect(ran_green & %w[comment_style doc_coverage rust_fmt shape_ledger]).to eq([])
+    end
+
+    it "reruns the checks that boot the domain when it is removed" do
+      FileUtils.rm(File.join(root, "lib/hecks/hecks/hecks.local.world"))
+      expect(ran_green).to include("fuzzing", "rspec", "model_check")
+    end
+  end
 end

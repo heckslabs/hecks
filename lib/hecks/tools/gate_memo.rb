@@ -5,6 +5,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "time"
+require_relative "gate_memo/local_files"
 
 module Hecks
   module Tools
@@ -35,7 +36,7 @@ module Hecks
       STYLE = %w[lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md].freeze
       SPEC = %w[spec/spec_helper.rb spec/support/**/*.rb].freeze
       LIBRARY = %w[lib/**/*].freeze
-      SOURCE = %w[lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/*
+      SOURCE = %w[lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/*
                   Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml].freeze
       RUST = %w[rust/**/*.rs rust/**/Cargo.toml rust/**/Cargo.lock rust/rust-toolchain.toml
                 rust-toolchain.toml].freeze
@@ -45,8 +46,9 @@ module Hecks
       # except prose, workflows and lint settings.
       CODE = %w[lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec].freeze
       # `spec/fuzzing` runs the specs and the corpus against the library and the rust tree
-      # (`rust/` is read for the target capabilities). No spec in it reads `docs/` or `.github/`.
-      FUZZING = CODE
+      # (`rust/` is read for the target capabilities), and boots the stress domains, the QA bluebook
+      # and the settings under `qa/`. No spec in it reads `docs/` or `.github/`.
+      FUZZING = CODE + %w[qa/**/*]
       # The reference-docs check reads the words of the language (`lib/`) against the pages of
       # `docs/implemented/reference/` and nothing else.
       DOC_COVERAGE = %w[lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec].freeze
@@ -145,9 +147,11 @@ module Hecks
 
       # @param root [String] the checkout
       # @param globs [Array<String>] the files to fingerprint
+      # @param local [Boolean] whether the checkout's local worlds are read too
       # @return [String] one digest of each file's path and content, in path order
-      def fingerprint(root, globs)
+      def fingerprint(root, globs, local: false)
         rows = files(root, globs).map { |rel| "#{rel} #{sha(root, rel)}" }
+        rows += LocalFiles.files(root).map { |rel| "#{rel} #{sha(root, rel)}" } if local
         Digest::SHA256.hexdigest(rows.join("\n"))
       end
 
@@ -170,7 +174,7 @@ module Hecks
       #   nil when it has no declared inputs or one of them cannot be read
       def tree(root, id)
         globs = INPUTS[id]
-        globs && fingerprint(root, globs)
+        globs && fingerprint(root, globs, local: LocalFiles::BOOTING.include?(id))
       rescue SystemCallError
         nil
       end
