@@ -1,5 +1,6 @@
 require_relative "base_sql"
 require_relative "domain_rename"
+require_relative "../shared_tables"
 
 module Hecks
   module Adapters
@@ -12,9 +13,11 @@ module Hecks
           include DomainRename
 
           # Builds or tops up this domain's lineage schema when the connected role owns the
-          # journal (or none exists yet); any other role only attempts the rename bridge.
+          # journal (or none exists yet); any other role only attempts the rename bridge. Also
+          # creates the event, saga and outbox tables the database shares.
           #
-          # ALTER TABLE and REVOKE are owner-only, so a non-owner app role must skip them to boot.
+          # Only the mint path and the owner-only tools call it; a boot never does. ALTER TABLE and
+          # REVOKE are owner-only, so a non-owner app role must skip them.
           #
           # @return [void]
           # @raise [Runtime::WiringError] if the `formerly_known_as` rename cannot take
@@ -30,6 +33,7 @@ module Hecks
             revoke_journal_mutation!
             force_row_security!
             install_transforms!
+            SharedTables.new(@db).provision!
           end
 
           # Refuses to boot on a connection whose role Postgres exempts from row-level security
