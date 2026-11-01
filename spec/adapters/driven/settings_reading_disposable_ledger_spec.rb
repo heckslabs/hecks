@@ -1,10 +1,13 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/settings_reading"
+require_relative "../../support/registry_double"
 
 # `hecks config`'s `disposable ledger` row: whether the world declares its PostgresEra store a
 # disposable tooling ledger, and which source said so.
 RSpec.describe Hecks::Adapters::SettingsReading, "#settings" do
+  include RegistryDouble
+
   let(:directory) { Dir.mktmpdir("settings-disposable") }
   let(:declared_settings) { {} }
 
@@ -14,8 +17,7 @@ RSpec.describe Hecks::Adapters::SettingsReading, "#settings" do
   end
 
   before do
-    registry = instance_double(Hecks::Runtime::Registry, default_database_for: nil, first_domain_name: "Shop",
-                                                         binding_settings: declared_settings, bluebooks: {}, world: nil)
+    registry = registry_double(first_domain_name: "Shop", binding_settings: declared_settings)
     allow(Hecks).to receive(:describe).with(directory)
                                       .and_return(instance_double(Hecks::Runtime::Loader::Described, registry: registry))
   end
