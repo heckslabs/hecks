@@ -75,6 +75,12 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[LandingRequested MergeRefused LandingRefused]
   end
 
+  test "Rehearse keeps a checkout that is not there as a declined rehearsal" do
+    tests "Rehearse", on: "PushRehearsal"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
+    expect emits: %w[PushRehearsalRequested PushRehearsalRefused PushRehearsalDeclined]
+  end
+
   test "Make keeps a checkout that is not there as a declined commit" do
     tests "Make", on: "Revision"
     input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },

@@ -94,6 +94,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::PushRehearsal.port "Rehearsing" do
+    asks "Trial", to: PushRehearsal do
+      attribute :run, RunKey
+      answers "PushRehearsalAnswered"
+      refuses "PushRehearsalRefused"
+    end
+
+    answers_query "Due"
+  end
+
   Hecks::SendTrain.port "Alerts" do
     asks "Announce", to: SendTrain do
       attribute :run, RunKey
