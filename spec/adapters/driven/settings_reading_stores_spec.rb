@@ -1,10 +1,13 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/settings_reading"
+require_relative "../../support/registry_double"
 
 # `hecks config` shows the store each bluebook resolves to, and the aggregate binds that
 # override it.
 RSpec.describe Hecks::Adapters::SettingsReading do
+  include RegistryDouble
+
   let(:binds) { [] }
 
   def reading = described_class.new
@@ -16,9 +19,8 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   def hecksagon = instance_double(Hecks::Bluebook::Hecksagon, binds: binds, default_binds: [])
 
   def registry(default_adapter: nil, database: nil)
-    instance_double(Hecks::Runtime::Registry, bluebooks: { "Shop" => shop }, hecksagon: hecksagon,
-                                              default_adapter_for: default_adapter, default_database_for: database,
-                                              first_domain_name: "Shop", binding_settings: {}, world: nil)
+    registry_double(bluebooks: { "Shop" => shop }, hecksagon: hecksagon, default_adapter_for: default_adapter,
+                    default_database_for: database, first_domain_name: "Shop")
   end
 
   def stores(text) = text.lines.map(&:chomp).select { |line| line.start_with?("store ") }
