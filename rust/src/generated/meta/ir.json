@@ -34731,6 +34731,32 @@
             [
               [
                 "name",
+                "meta_domain_coverage"
+              ],
+              [
+                "id",
+                "meta_domain_coverage"
+              ],
+              [
+                "title",
+                "meta-domain coverage, every language feature with a fuzzer coverage decision"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/fuzzing/meta_domain_coverage_spec.rb --tag fuzzing"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a language feature has no fuzzer coverage decision: a word the language gained is neither covered by a fuzzer property nor listed as left out with its reason. The failure names each one; add the entry in spec/fuzzing/meta_domain_coverage_spec.rb."
+              ]
+            ],
+            [
+              [
+                "name",
                 "adapter_words"
               ],
               [
@@ -35458,7 +35484,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage"
               ]
             ],
             [
