@@ -4,12 +4,14 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/mint_request_support"
+require_relative "../../../support/first_era_hold"
 
 # Mints examples/directory's committed rekey edge against a real Postgres, seeded with
 # several distinct records (a `backfill` default could fit at most one, hence `derive`).
 RSpec.describe "the Directory example's real rekey edge (examples/directory)", :io do
   include MintRequestSupport
   include EraRegistryLoading
+  include FirstEraHold
 
   DIRECTORY_DB = "hecks_directory_rekey_spec".freeze
   DOMAIN_ROOT = File.expand_path("../../../../examples/directory", __dir__).freeze
@@ -84,6 +86,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
 
   # Era 1 with several distinct records saved, so the rekey is proven on more than one row.
   def seed_era_one!
+    hold_first_era!(url: FencedOwner.url(DIRECTORY_DB), domain: "Directory", source: ERA_1_SOURCE)
     registry = check!(ERA_1_SOURCE)
     adapter = adapter_for(registry)
     member = registry.bluebooks.values.first.aggregate("Member")

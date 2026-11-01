@@ -120,7 +120,8 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
     it "passes the mint straight through and records the push", :aggregate_failures do
       outcome = board!
       expect(outcome[:status]).to eq("pushed")
-      expect(outcome[:report][:value]).to start_with("the Hecks shape").and include("did not move, then pushed")
+      expect(outcome[:report][:value]).to start_with("the Hecks shape").and include("did not move")
+      expect(outcome[:report][:value]).to include("boarded #{local_head[0, 9]}", "pushed #{local_head[0, 9]}")
       expect([pushed?, era_count]).to eq([true, 1])
     end
 

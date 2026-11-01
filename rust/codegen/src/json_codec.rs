@@ -1346,7 +1346,10 @@ mod tests {
     fn a_reference_to_another_domain_is_worded_as_a_reference_with_no_tail() {
         let attr = Json::Object(vec![
             ("name".to_string(), Json::String("parcel".to_string())),
-            ("type".to_string(), Json::String("Reference<Parcel>".to_string())),
+            (
+                "type".to_string(),
+                Json::String("Reference<Parcel>".to_string()),
+            ),
         ]);
         let in_this_domain = HashMap::new();
         assert_eq!(

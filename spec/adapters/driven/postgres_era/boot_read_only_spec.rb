@@ -66,14 +66,6 @@ RSpec.describe "a boot with no mint request in PostgresEra", :io do
     db&.close
   end
 
-  # Strips the digest and frozen projection a legacy era lacks: a boot that backfills writes.
-  def make_legacy!(url)
-    db = Hecks::Adapters::PostgresEra.connect_for(DOMAIN, { database: url })
-    db.exec("UPDATE hecks_eras SET held_digest = NULL, held_projection = NULL")
-  ensure
-    db&.close
-  end
-
   # The edge chain from the held era to the same shape, which needs no edge.
   def same_shape_chain
     registry = registry_of(held_source)
@@ -115,8 +107,6 @@ RSpec.describe "a boot with no mint request in PostgresEra", :io do
   before { hold_first!(held_source, held_url) }
 
   context "with a held shape" do
-    before { make_legacy!(held_url) }
-
     it "writes no row to the journal or the era tables, byte for byte", :aggregate_failures do
       before_rows = lineage_rows
       boot!(held_source)

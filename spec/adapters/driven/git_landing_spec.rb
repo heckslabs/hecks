@@ -105,7 +105,7 @@ RSpec.describe "the Checkout and Landing adapters", :io do
 
   it "refuses to retire the primary worktree" do
     expect { landing.remove(checkout: { value: main_tree }, branch: "main") }
-      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /primary worktree/)
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /its worktree is the main checkout/)
   end
 
   it "lists the branches whose commits are not on main", :aggregate_failures do
