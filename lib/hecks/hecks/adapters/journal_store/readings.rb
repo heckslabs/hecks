@@ -9,6 +9,7 @@ require_relative "readings/scaffolding"
 require_relative "readings/attestation"
 require_relative "readings/composition"
 require_relative "readings/boot_status"
+require_relative "readings/sqlite_status"
 
 module Hecks
   module Adapters
@@ -26,6 +27,7 @@ module Hecks
         include Attestation
         include Composition
         include BootStatus
+        include SqliteStatus
 
         # Words the answer for a domain that holds no era.
         #
