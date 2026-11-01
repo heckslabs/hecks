@@ -133,13 +133,6 @@ module Hecks
               [era, shape["name"] == bluebook.formerly_known_as ? shape.merge("name" => bluebook.name) : shape]
             end
           end
-
-          # The storage shape an era holds: the projection its mint recorded, which covers every
-          # file of a domain split across files. The held text is the root file only, so an era
-          # minted without a projection falls back to the shape that text declares.
-          def held_shape(era)
-            era[:projection] || Runtime::StorageShape.project(shadow(era[:held_text]))
-          end
         end
       end
     end
