@@ -239,6 +239,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Attestation"
     answers_query "Compaction"
     answers_query "BootStatus"
+    answers_query "SqliteStatus"
   end
 
   Hecks::Era.port "Ledger" do
