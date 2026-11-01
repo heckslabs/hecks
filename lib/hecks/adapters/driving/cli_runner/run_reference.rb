@@ -37,8 +37,13 @@ module Hecks
             return args unless tree[:ok]
 
             record = tree[:record]
-            args.merge(checkout: args[:checkout] || { value: record[:path] },
-                       branch:   args[:branch] || { value: record[:branch] })
+            args.merge(checkout: args[:checkout] || { value: value_of(record[:path]) },
+                       branch:   args[:branch] || { value: value_of(record[:branch]) })
+          end
+
+          # A stored field is its value, or the `{value:}` wrapper a word carries.
+          def value_of(field)
+            field.is_a?(Hash) ? field[:value] : field
           end
         end
       end

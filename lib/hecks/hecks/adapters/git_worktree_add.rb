@@ -34,7 +34,7 @@ module Hecks
         path = File.join(repo, ".claude", "worktrees", branch) if path.empty?
         read("worktree", "add", "-b", branch, path, "main")
         sha = read("rev-parse", "--short", "HEAD", dir: path)
-        { sha: { value: sha }, report: { value: "opened #{path} on #{branch}" } }
+        { path: { value: path }, sha: { value: sha }, report: { value: "opened #{path} on #{branch}" } }
       end
 
       private
