@@ -224,6 +224,12 @@ Hecks.hecksagon "Hecks" do
       refuses "EraRefused"
     end
 
+    asks "Mint", to: Era do
+      attribute :run, RunKey
+      answers "Minted"
+      refuses "MintRefused"
+    end
+
     answers_query "ScaffoldTranslation"
     answers_query "AuditTranslation"
     answers_query "ComposeTranslation"
