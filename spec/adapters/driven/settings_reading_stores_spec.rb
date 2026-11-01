@@ -18,7 +18,7 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   def registry(default_adapter: nil, database: nil)
     instance_double(Hecks::Runtime::Registry, bluebooks: { "Shop" => shop }, hecksagon: hecksagon,
                                               default_adapter_for: default_adapter, default_database_for: database,
-                                              first_domain_name: "Shop", binding_settings: {})
+                                              first_domain_name: "Shop", binding_settings: {}, world: nil)
   end
 
   def stores(text) = text.lines.map(&:chomp).select { |line| line.start_with?("store ") }

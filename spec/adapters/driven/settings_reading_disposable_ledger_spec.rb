@@ -15,7 +15,7 @@ RSpec.describe Hecks::Adapters::SettingsReading, "#settings" do
 
   before do
     registry = instance_double(Hecks::Runtime::Registry, default_database_for: nil, first_domain_name: "Shop",
-                                                         binding_settings: declared_settings, bluebooks: {})
+                                                         binding_settings: declared_settings, bluebooks: {}, world: nil)
     allow(Hecks).to receive(:describe).with(directory)
                                       .and_return(instance_double(Hecks::Runtime::Loader::Described, registry: registry))
   end
