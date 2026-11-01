@@ -38,17 +38,15 @@ module Hecks
       #   loaded bluebook for candidates
       # @param event_uid [String, nil] the outbox uid every consumer of this event shares; the
       #   reaction identity only when the event has no id
-      # @return [void]
+      # @return [Array<Hash>] the reactions recorded, one per delivery attempted
       def react(event, domain, only: nil, event_uid: nil)
         selected = only ? [only] : policies_for(event, domain)
-        selected.each do |policy, home_domain|
+        selected.flat_map do |policy, home_domain|
           result = deliver(policy, event, home_domain)
-          next if result.nil?
-
           # A for_each policy answers an array; Array(...) would explode a record Hash. The identity
           # is the event's own id: a later run recognises the reaction, whichever path ran it.
-          identity = reaction_identity(event, event_uid)
-          (result.is_a?(Array) ? result : [result]).each { |record| @registry.log_reaction(record, event: identity) }
+          records = result.is_a?(Array) ? result : [result].compact
+          records.each { |record| @registry.log_reaction(record, event: reaction_identity(event, event_uid)) }
         end
       end
 

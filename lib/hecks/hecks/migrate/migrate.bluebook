@@ -428,6 +428,21 @@ Hecks.bluebook "Hecks" do
         attribute :domain, DomainPath
         returns Document
       end
+
+      # Whether the events a domain's store recorded were seen and answered: per event, each policy
+      # that listens to it (resolved from the bluebooks) and the outcome the store's outbox holds for
+      # the pair. Opens each store read-only and never boots the domain.
+      query "EventTrace" do
+        description "Per recorded event: the policies that listen to it and what became of each delivery " \
+                    "(delivered, refused with its reason, pending, claimed, failed, or no record), the events " \
+                    "nobody listens to, and the policies whose event never occurred. Reads only; Memory keeps no log."
+        attribute :domain,   DomainPath
+        attribute :event,    String,  optional: true
+        attribute :run,      String,  optional: true
+        attribute :last,     Integer, optional: true
+        attribute :database, String,  optional: true
+        returns Document
+      end
     end
 
     policy "ExamineWhenFirstEraRequested" do
