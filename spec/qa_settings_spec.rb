@@ -5,58 +5,22 @@ require "tempfile"
 # `Hecks::Fuzzing::QaSettings` against small fixture files: no ledger boot and nothing
 # from the real qa/settings.yml, so the adapter's own accept-or-refuse contract is isolated.
 RSpec.describe Hecks::Fuzzing::QaSettings do
-  # Complete fixture: every key `EXPECTED_TYPES` names, with small values.
+  # The dials this spec pins, over the rest of the shipped qa/settings.yml: a dial added to
+  # `QaDial` and the file reaches the fixture without an edit here.
+  FIXTURE_OVERRIDES = {
+    "pr_cap_per_day"              => 3,
+    "widening_tiers"              => [{ "upto" => 4, "seeds" => 10, "steps" => 25 },
+                                      { "upto" => Float::INFINITY, "seeds" => 50, "steps" => 100 }],
+    "modes"                       => { "differential" => true, "ruby_only" => true },
+    "mutation_files"              => ["rust/src/kernel/dispatch.rs"],
+    "mutation_equivalent"         => [],
+    "structural_refusal_boundary" => %w[cursor consistency]
+  }.freeze
+
+  # Complete fixture: every key the shipped file names, with the overrides above.
   def valid_yaml
-    <<~YAML
-      cadence_seconds: 0
-      pr_cap_per_day: 3
-      widening_tiers:
-        - { upto: 4, seeds: 10, steps: 25 }
-        - { upto: .inf, seeds: 50, steps: 100 }
-      sweep_max_parallel: 4
-      liveness_fallback_seconds: 1500
-      draft_only: false
-      auto_merge: true
-      adversarial_fraction: 0.3
-      guided_generation: true
-      corpus_splice_probability: 0.0
-      favor_rare_verbs: 3
-      runtime_coverage_feedback: false
-      self_consistency_checks: true
-      shrink_budget: 200
-      yield_weight_seconds: 1800
-      yield_decay_percent: 50
-      rotation_stale_floor_seconds: 21600
-      persistence_parity_seed_cap: 5
-      concurrency_seed_cap: 3
-      adapter_parity_pairs:
-        persistence_parity:
-          left: memory
-          right: postgres_era
-        adapter_parity_sqlite:
-          left: memory
-          right: sqlite
-      modes:
-        differential: true
-        ruby_only: true
-      role_draw_probability: 0.25
-      dry_run_fraction: 0.10
-      generated_domains_per_tick: 2
-      generated_domains_rust: true
-      generated_domain_seeds: 5
-      red_main_check: true
-      event_pump: true
-      push_nudge: true
-      quiesced: false
-      main_maintenance: true
-      maintenance_confirm: false
-      mutation_files:
-        - rust/src/kernel/dispatch.rs
-      mutation_equivalent: []
-      structural_refusal_boundary:
-        - cursor
-        - consistency
-    YAML
+    shipped = YAML.safe_load_file(described_class::DEFAULT_PATH)
+    YAML.dump(shipped.merge(FIXTURE_OVERRIDES))
   end
 
   def with_settings_file(contents)
