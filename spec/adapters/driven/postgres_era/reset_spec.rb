@@ -2,11 +2,13 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/era_registry_loading"
+require_relative "../../../support/first_era_hold"
 
 # `PostgresEra#reset!` raises rather than silently deleting nothing when the journal's
 # force-RLS policies admit no DELETE. Needs a non-superuser owner: superusers bypass RLS.
 RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io do
   include EraRegistryLoading
+  include FirstEraHold
 
   RESET_DB = "hecks_reset_spec".freeze
   RESET_OWNER = "hecks_reset_spec_owner".freeze
@@ -61,7 +63,9 @@ RSpec.describe "PostgresEra#reset! against a lineage-provisioned journal", :io d
     scrub.close
   end
 
+  # A boot holds no era, so the lineage holds its first (with its stored shape) before it boots.
   def check!
+    hold_first_era!(url: owner_url, domain: "Ledger", source: RESET_SPEC_SOURCE)
     registry = load_registry(RESET_SPEC_SOURCE)
     bluebook = registry.bluebooks.values.first
     Hecks::Adapters::PostgresEra::LineageManager.check!(
