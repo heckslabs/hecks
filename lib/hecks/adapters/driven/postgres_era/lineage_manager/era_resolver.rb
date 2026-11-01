@@ -3,6 +3,7 @@ require_relative "../../../../ports/persistence/plugins/era/storage_shape"
 require_relative "context"
 require_relative "mint_request"
 require_relative "mint_decision"
+require_relative "era_resolution"
 require_relative "../../../../indifferent_key"
 
 module Hecks
@@ -57,12 +58,21 @@ module Hecks
             [true, "true"].include?(PostgresEra.setting(settings, :mint_eras, default: MINT_BY_DEFAULT))
           end
 
+          # Resolves the boot's shape through `EraResolution`, the answer every era tool reads, and
+          # records it on the registry; a mint request on a shape no era holds mints instead.
           def resolve_era(context)
-            held = context.held_eras
-            return refuse_unheld!(context) if held.empty?
+            answer = EraResolution.resolve(eras: context.held_eras, bluebook: context.bluebook,
+                                           translations: context.translations, directory: context.directory) do
+              context.watermark
+            end
+            return refuse_unheld!(context) if answer.status == "unheld"
+            return context.record_resolved(mint!(context.with(latest: answer.latest))) if minting?(answer, context)
 
-            resolve_held(context, held)
+            record(context, answer)
           end
+
+          # Whether this check mints: a mint request, on a shape no held era holds.
+          def minting?(answer, context) = context.mint_request && !answer.matched?
 
           # No era is held: the first era is held by the mint entry point, never by a boot.
           def refuse_unheld!(context)
@@ -71,67 +81,18 @@ module Hecks
                   "(`hecks hold_first <domain directory> --confirm`) to hold the first era"
           end
 
-          # Some era is held: the latest, a superseded one, or none matches and a new one is minted.
-          def resolve_held(context, held)
-            shapes = held_shapes(context.bluebook, held)
-            latest, latest_shape = shapes.last
-            current_shape = context.current_shape
-            return resolve_latest(context, latest) if latest_shape == current_shape
-
-            matched, = shapes.find { |_, shape| shape == current_shape }
-            return resolve_superseded(context, matched, latest) if matched
-
-            return resolve_unminted(context, latest) unless context.mint_request
-
-            context.record_resolved(mint!(context.with(latest: latest)))
-          end
-
-          # A shape no held era matches, booted without a mint request: the copy reads the latest
-          # held era and writes nothing. When a recorded move or a translation edge leads the latest
-          # era to this shape, the boot reports it as behind; a mint would cover it, and the mint
-          # entry point runs that mint.
-          def resolve_unminted(context, latest)
-            context.record_resolved(latest[:ordinal])
-            context.record_unminted(latest[:ordinal])
-            context.record_behind(latest[:ordinal]) if behind?(context, latest)
+          # Records what the resolution answered and writes nothing. A superseded era (an old
+          # checkout) reads and never writes: the adapter refuses appends on it, even where the RLS
+          # fence cannot bind. A shape no era holds reads the latest held era, and is behind when a
+          # mint from it would go ahead; the mint entry point runs that mint.
+          def record(context, answer)
+            context.record_resolved(answer.ordinal)
+            latest = answer.latest[:ordinal]
+            status = answer.status
+            context.record_superseded(latest) if status == "superseded"
+            context.record_unminted(latest) if %w[unminted behind].include?(status)
+            context.record_behind(latest) if status == "behind"
             nil
-          end
-
-          # Whether a mint from the latest held era would go ahead on its edge or recorded move.
-          # Reads only: the decision takes the loaded translations and the recorded moves.
-          def behind?(context, latest)
-            verdict = MintDecision.decide_latest(
-              latest, bluebook: context.bluebook, translations: context.translations,
-                      directory: context.directory, watermark: context.watermark
-            )
-            verdict.verdict == "would_mint"
-          end
-
-          # The latest held era is the current shape: nothing to mint, nothing to write.
-          def resolve_latest(context, latest)
-            context.record_resolved(latest[:ordinal])
-            nil
-          end
-
-          # A superseded era (an old checkout) reads and never writes: the fence is already past
-          # this ordinal, so nothing here advances it.
-          def resolve_superseded(context, matched, latest)
-            context.record_resolved(matched[:ordinal])
-            # The adapter refuses appends on this, even where the RLS fence cannot bind.
-            context.record_superseded(latest[:ordinal])
-            nil
-          end
-
-          # Each held era with its storage shape. Held text is a frozen record and keeps the
-          # prior name; only the in-memory shape is normalized, and only on an exact match with
-          # the declared prior name.
-          def held_shapes(bluebook, held)
-            shapes = held.map { |era| [era, held_shape(era)] }
-            return shapes unless bluebook.formerly_known_as
-
-            shapes.map do |era, shape|
-              [era, shape["name"] == bluebook.formerly_known_as ? shape.merge("name" => bluebook.name) : shape]
-            end
           end
         end
       end

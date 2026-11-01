@@ -4,7 +4,7 @@ require_relative "declaration"
 require_relative "environment"
 require_relative "../journal_store/edge_audit"
 require_relative "../journal_store/held_domain"
-require_relative "../../../adapters/driven/postgres_era/lineage_manager/mint_decision"
+require_relative "../../../adapters/driven/postgres_era/lineage_manager/era_resolution"
 
 module Hecks
   module Adapters
@@ -114,18 +114,16 @@ module Hecks
         # @return [String] the domain's bluebook directory
         def directory = held.directory
 
-        # The verdict a mint of this subject would reach from one held era, decided by the rule the
-        # mint applies. The held era's source is parsed here, so the decision itself reads nothing.
+        # Which held era the subject's shape resolves to, and the verdict a mint from the latest one
+        # would reach, by the resolution a boot records (`LineageManager::EraResolution`). It reads
+        # only the eras it is handed.
         #
-        # @param held_era [Hash] the held era: `label`, `held_text`
-        # @param watermark [Integer] the copy's ledger watermark
-        # @return [PostgresEra::LineageManager::MintDecision::Verdict]
-        def decide(held_era, watermark)
-          PostgresEra::LineageManager::MintDecision.decide(
-            held: [PostgresEra::LineageManager::MintDecision.held_for_decision(held_era)], bluebook: bluebook,
-            watermark: watermark, rows: [],
-            edge_source: { translations: registry.translations,
-                           recorded:     PostgresEra::LineageManager::MintDecision.recorded_moves(bluebook.name, directory) }
+        # @param eras [Array<Hash>] the copy's held eras, oldest first: `label`, `held_text`
+        # @yieldreturn [Integer] the copy's ledger watermark, read only when no held era matches
+        # @return [PostgresEra::LineageManager::EraResolution::Answer]
+        def resolve(eras, &)
+          PostgresEra::LineageManager::EraResolution.resolve(
+            eras: eras, bluebook: bluebook, translations: registry.translations, directory: directory, &
           )
         end
 
