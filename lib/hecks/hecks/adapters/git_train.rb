@@ -8,6 +8,7 @@ require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
+require_relative "git_train/mint_step"
 
 module Hecks
   module Adapters
@@ -16,6 +17,9 @@ module Hecks
     # A boarding takes an exclusive `flock` on a file in the repository's common git directory, so
     # every worktree of one repository waits in the same line, and holds it until its push ends.
     # Waiting costs nothing: the pre-push checks of one push run at a time instead of all at once.
+    #
+    # Holding the line, a boarding first runs the Hecks mint (`MintStep`), then settles and pushes:
+    # one step after the other, so a refused mint stops the boarding before anything is pushed.
     class GitTrain
       include Reading
 
@@ -27,22 +31,30 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil)
+      # @param mint [MintStep, nil] the mint a boarding runs first; the Hecks domain's by default
+      def initialize(aggregate: nil, settings: {}, root: nil, mint: nil)
         @git = Git.new
+        @mint = mint || MintStep.new
       end
 
-      # Waits for the push ahead in the same repository, then carries the boarded commit.
+      # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
+      # boarded commit.
       #
-      # @param held [Hash] the `PushTrain` record: `branch`, `remote`, `checkout` (a directory
-      #   inside the repository; the current directory when none is named) and `full_gate` (the
-      #   push runs the whole pre-push stage, which the hook reads as `hecks.fullGate`)
+      # @param held [Hash] the `SendTrain` record: `run`, `confirm`, `branch`, `remote`, `checkout`
+      #   (a directory inside the repository; the current directory when none is named) and
+      #   `full_gate` (the push runs the whole pre-push stage, which the hook reads as
+      #   `hecks.fullGate`)
       # @return [Hash{Symbol => Hash}] `outcome:` (`pushed` or `carried`), `checkout:`, `boarded:`,
-      #   `pushed:` and `report:`
+      #   `pushed:` and `report:`, which opens with what the mint did
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch and the
       #   remote's conflict, or the push is refused
+      # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
-        in_turn { settle_and_carry(held) }
+        in_turn do
+          minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
+          after_mint(minted, settle_and_carry(held))
+        end
       end
 
       # Lists every checkout under a directory whose default branch has commits its remote does
@@ -68,6 +80,11 @@ module Hecks
         Settlement.new(@git, @checkout, branch: branch, remote: remote).run
         carriage = Carriage.new(@git, @checkout, branch: branch, remote: remote, config: gate_config(held))
         carriage.carry(carriage.local_head)
+      end
+
+      # The carriage's answer, its report opened with what the mint did.
+      def after_mint(minted, answer)
+        answer.merge(report: { value: "#{minted}, then #{answer.dig(:report, :value)}" })
       end
 
       # A git hook takes no arguments, so the argument reaches the pre-push hook as git

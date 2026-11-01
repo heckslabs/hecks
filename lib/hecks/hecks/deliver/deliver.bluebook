@@ -460,12 +460,9 @@ Hecks.bluebook "Hecks" do
 
     # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the
     # records it keeps run the code that landed, not the code that was there when it was set up.
-    # It reacts to the train's answer, beside RecordThePush, and takes the pushed commit from it:
-    # a push already runs the mint, the clear and the carry first, and one more step past the
-    # recorded push would be past the reaction depth.
+    # It reacts to the recorded push and takes the pushed commit from it.
     policy "KeepTheLauncherCurrent" do
-      on      "SendTrain.TrainAnswered"
-      where   { outcome.value == "pushed" }
+      on      "SendTrain.BranchPushed"
       ask     :refresh, with: { run: :run, pushed: :pushed }
     end
 
@@ -598,17 +595,6 @@ Hecks.bluebook "Hecks" do
         emits PushFaulted
       end
 
-      # The boarding's mint came back `Minted`: the push may carry the commit. Changes no status; the
-      # carry is asked on the event this emits, since an ask answers from the aggregate it is declared on.
-      command "Clear" do
-        role "System"
-        goal "Record that the Hecks mint let this boarding carry its commit"
-
-        reference_to SendTrain
-
-        emits BoardingCleared
-      end
-
       query "Outcome" do
         description "How one boarding ended: pushed, carried by an earlier push, or why it failed."
         attribute :run, RunKey
@@ -617,30 +603,12 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # The push's first step is the Hecks domain's mint, before anything is written. The boarding carries
-    # only once the mint answers `Minted` (a minted era, or a shape that did not move); a refused mint
-    # faults the boarding by name.
-    policy "MintBeforeCarry" do
+    # A boarding is carried by the train, which runs its steps in order while it holds the line: the
+    # Hecks domain's mint, then the settlement and the push. A shape that did not move passes straight
+    # through; a refused mint is the train's refusal, named, and nothing is pushed.
+    policy "CarryWhenBoarded" do
       on      "SendTrain.BoardingRequested"
-      trigger Era::MintHeld, with: { run: :run, confirm: :confirm }
-    end
-
-    policy "ClearWhenMinted" do
-      on      "Era.Minted"
-      trigger SendTrain::Clear, with: { run: :run }
-    end
-
-    policy "CarryWhenCleared" do
-      on      "SendTrain.BoardingCleared"
       ask     :carry, with: { run: :run }
-    end
-
-    # The refusal carries the mint's run, which is the boarding's own run key (MintBeforeCarry passes
-    # it through), so `run` names the SendTrain receiver. The event's aggregate is Era, so without it
-    # the Fault has no SendTrain identity to route to.
-    policy "RecordTheRefusedMint" do
-      on      "Era.MintRefused"
-      trigger SendTrain::Fault, with: { run: :run, refusal: :refusal }
     end
 
     policy "RecordThePush" do
@@ -676,10 +644,9 @@ Hecks.bluebook "Hecks" do
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
-    # Like KeepTheLauncherCurrent, it reacts to the train's answer and takes the pushed commit from it.
+    # Like KeepTheLauncherCurrent, it reacts to the recorded push and takes the pushed commit from it.
     policy "AnnounceWhenPushed" do
-      on      "SendTrain.TrainAnswered"
-      where   { outcome.value == "pushed" }
+      on      "SendTrain.BranchPushed"
       ask     :announce, with: { run: :run, pushed: :pushed }
     end
 
