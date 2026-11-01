@@ -26,7 +26,7 @@ module Hecks
           end
 
           def diff_for(domain, latest)
-            Translation::Scaffold.diff(PostgresEra::LineageManager.shadow(latest[:held_text]), domain.bluebook)
+            Translation::Scaffold.diff(PostgresEra::LineageManager.held_declaration(latest), domain.bluebook)
           end
 
           def shape_edge(domain, latest, current, diffed)

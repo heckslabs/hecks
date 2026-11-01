@@ -50,7 +50,7 @@ module Hecks
             ensure_named!(lineage, latest)
             latest = lineage.eras.last
             label = Runtime::StorageShape.mint_hash(bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
-            diffed = Translation::Scaffold.diff(shadow(latest[:held_text]), bluebook)
+            diffed = Translation::Scaffold.diff(held_declaration(latest), bluebook)
             edge = Translation::Scaffold::Edge.new(
               domain: bluebook.name, from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
               label: label, aggregates: diffed[:aggregates], retired: diffed[:retired]
@@ -64,8 +64,7 @@ module Hecks
           def ensure_named!(lineage, era)
             return if era[:hash]
 
-            held_bluebook = shadow(era[:held_text])
-            hash = Runtime::StorageShape.mint_hash(held_bluebook)
+            hash = Runtime::StorageShape.mint_hash(held_declaration(era))
             lineage.mint_name!(era[:ordinal], hash, hash[0, Runtime::StorageShape::LABEL_LENGTH])
           end
 
@@ -74,9 +73,8 @@ module Hecks
           # The verdict `MintDecision` reaches for the held era the mint leaves, read at the
           # watermark the context holds now.
           def decide!(context)
-            held = context.latest.merge(declaration: shadow(context.latest[:held_text]))
-            MintDecision.decide(held: [held], bluebook: context.bluebook, edge_source: edge_source_of(context),
-                                watermark: context.watermark, rows: [])
+            MintDecision.decide(held: [MintDecision.held_for_decision(context.latest)], bluebook: context.bluebook,
+                                edge_source: edge_source_of(context), watermark: context.watermark, rows: [])
           end
 
           def edge_source_of(context)
@@ -103,7 +101,7 @@ module Hecks
           # The edge leaving the held era, once resolved and found to cover the diff.
           def verified_edge!(context)
             edge = resolve_edge!(context)
-            check_coverage!(context.registry, context.bluebook, shadow(context.latest[:held_text]), edge)
+            check_coverage!(context.registry, context.bluebook, held_declaration(context.latest), edge)
             edge
           end
 

@@ -4,6 +4,7 @@ require_relative "lineage_manager/era_resolver"
 require_relative "lineage_manager/minter"
 require_relative "lineage_manager/merge_coordinator"
 require_relative "lineage_manager/coverage_check"
+require_relative "lineage_manager/held_era"
 require_relative "../../../ports/persistence/plugins/era/era_guard"
 require_relative "../../../runtime/registry"
 
@@ -17,6 +18,7 @@ module Hecks
         extend Minter
         extend MergeCoordinator
         extend CoverageCheck
+        extend HeldEra
 
         module_function
 

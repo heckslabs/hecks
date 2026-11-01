@@ -57,9 +57,20 @@ module Hecks
           # @param watermark [Integer] the ledger watermark the decision reads
           # @return [Verdict]
           def decide_latest(latest, bluebook:, translations:, directory:, watermark:)
-            held = latest.merge(declaration: LineageManager.shadow(latest[:held_text]))
-            decide(held: [held], bluebook: bluebook, watermark: watermark, rows: [],
+            decide(held: [held_for_decision(latest)], bluebook: bluebook, watermark: watermark, rows: [],
                    edge_source: { translations: translations, recorded: recorded_moves(bluebook.name, directory) })
+          end
+
+          # A held era as the decision reads it: with the declaration its held text parses to, or
+          # with none when that text does not declare the shape the era's mint recorded (see
+          # LineageManager::HeldEra). With none, a move without an edge file needs one
+          # (`:partial_held_text`), since nothing can show it is additive; a written edge still
+          # decides on its own.
+          #
+          # @param era [Hash] an era as `Lineage#eras` answers it
+          # @return [Hash] the era with `declaration`, a declaration or nil
+          def held_for_decision(era)
+            era.merge(declaration: (LineageManager.held_declaration(era) if LineageManager.whole_held_text?(era)))
           end
 
           # The implicit moves a domain has recorded: beside its own bluebooks, when a directory is
@@ -87,6 +98,8 @@ module Hecks
           # and the change must qualify as additive by `Translation::ImplicitEdge.qualifies?`.
           def implicit(latest, bluebook, recorded, watermark)
             diff = diff_of(latest, bluebook)
+            return verdict_of("needs_edge", diff, watermark, reason: :partial_held_text) unless latest[:declaration]
+
             to = label_of(bluebook)
             return verdict_of("needs_edge", diff, watermark, reason: :unrecorded) unless reachable?(latest, to, recorded)
             return verdict_of("needs_edge", diff, watermark, reason: :non_qualifying) unless additive?(diff, latest, bluebook)
@@ -96,7 +109,9 @@ module Hecks
           end
 
           # @return [Hash] the scaffold's diff of the held era against the current bluebook
-          def diff_of(latest, bluebook) = Translation::Scaffold.diff(latest[:declaration], bluebook)
+          def diff_of(latest, bluebook)
+            latest[:declaration] && Translation::Scaffold.diff(latest[:declaration], bluebook)
+          end
 
           # @return [Boolean] whether the recorded moves chain from the held label to `to`
           def reachable?(latest, to, recorded) = ShapeLedger.reachable?(latest[:label], to, recorded)
