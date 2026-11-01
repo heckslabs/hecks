@@ -2,12 +2,14 @@
 
 require_relative "../shell"
 require "hecks/vendoring/git_environment"
+require_relative "impacted"
 
 module Hecks
   module Adapters
     class GitRehearsal
       # The stages a real push runs, run in a copy of the commit: the `quick` stage, the
-      # `unguarded_push` stage of the Vocabulary gate rows, and the end-to-end push specs.
+      # `unguarded_push` stage of the Vocabulary gate rows, the end-to-end push specs, and the specs
+      # the push's changes touch.
       class Stages
         # How one stage ended.
         #
@@ -39,14 +41,18 @@ module Hecks
         BUNDLER = %w[BUNDLE_GEMFILE BUNDLE_BIN_PATH RUBYOPT RUBYLIB].freeze
 
         # @param directory [String] the copy of the commit the stages run in
-        def initialize(directory)
+        # @param branch [String] the branch pushed; impacted specs compare with `origin/<branch>`
+        # @param impacted_limit [Integer, nil] the most impacted spec files to run
+        def initialize(directory, branch: "main", impacted_limit: nil)
           @directory = directory
+          @branch = branch
+          @impacted_limit = impacted_limit
           @shell = Shell.new
         end
 
         # @return [Array<Result>] each stage's result, in the order a push runs them
         def run
-          [gate("quick"), gate("unguarded_push"), push_specs]
+          [gate("quick"), gate("unguarded_push"), push_specs, impacted]
         end
 
         private
@@ -85,9 +91,14 @@ module Hecks
 
         def printed_lines(result) = "#{result.out}#{result.err}".lines.map(&:strip).reject(&:empty?)
 
-        def capture(*command, env:)
+        def impacted
+          runner = ->(directory, *command, env:) { capture(*command, env: env, directory: directory) }
+          Impacted.build(@directory, branch: @branch, capture: runner, limit: @impacted_limit).result
+        end
+
+        def capture(*command, env:, directory: @directory)
           clean = BUNDLER.to_h { |name| [name, nil] }.merge(Vendoring::GitEnvironment.clean).merge(env)
-          @shell.capture(*command, env: clean, chdir: @directory)
+          @shell.capture(*command, env: clean, chdir: directory)
         end
       end
     end
