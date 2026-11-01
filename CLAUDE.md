@@ -172,6 +172,28 @@ marker (`~/.claude/hecks-dev/quiesce`, stale after two hours) is fresh every `sw
 `HECKS_QUIESCE_OWNER`); another owner's marker is not removed without `force.value=true`. The mint does
 not require the flag.
 
+## Landings, era inspection and the QA dispatcher
+
+Each command's `--help` says what it takes; this names where they live. **Landing and the queue:**
+`landing.finish!` (rebase onto local `main`, quick gate, land, tidy), `landing.land!` and `landing.train!`
+(`lib/hecks/hecks/deliver/deliver.bluebook`) take a place in one first-come, first-served line; the
+world's `landing "Queue"` (`hecks.world`) sets how long a ticket may go without a heartbeat and how long
+a landing waits. `push_rehearsal.rehearse!` runs the push's four stages (quick, `unguarded_push`, push
+specs, the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
+(`rehearse/rehearse.bluebook`); `test_suite_run.run_spec_files!` and `run_impacted_specs!` run named or
+impacted specs through the launcher. Branch worktrees from local `main`, never `origin/main`.
+**Era inspection:** `era.boot_resolution`, `era.mint_plan` (every guard a mint runs, read-only),
+`era.event_trace`, `era.sqlite_status` and `era.projection_audit` read without writing; `Era.RenameDomain`
+(`era.rename_domain!`) moves a renamed domain's history. The world words are `disposable_ledger`,
+`stored_as` (the table an aggregate's rows keep after a rename), `formerly` (a domain's former name) and
+`minting` (the command an unminted boot may write). **QA and dispatch:** `qa_quiesce.hold!`, `release!`
+and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Work rows and
+`Dispatch.Settle` finishes the rows of sessions that ended (`delegate/delegate.bluebook`); a landed
+branch finishes the Work row of the same name (or the same name without a leading `qa/`). The Tickets
+world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
+gate checks `command_names`, `workflow_pagination` and `meta_domain_coverage` keep the names in docs,
+workflows and guides resolvable, lists paged and the meta-domain covered.
+
 ## RuboCop is strict: it runs at its defaults
 
 `.rubocop.yml` overrides only what `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`

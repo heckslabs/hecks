@@ -589,6 +589,14 @@ Hecks.bluebook "Tickets" do
     trigger Work::Finish, with: { work: :branch }
   end
 
+  # A branch that landed on local main finishes the step it was cut for. The Landing's LandedWork
+  # port found the open step the branch names (the whole branch name, else the name without a leading
+  # `qa/`) and answered its key; a branch with no open step is refused there and never reaches here.
+  policy "FinishWorkWhenBranchLanded" do
+    on      "Landing.LandedWorkFound"
+    trigger Work::Finish, with: { work: :branch }
+  end
+
   # A conformance or gate run that faults files its own finding.
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
