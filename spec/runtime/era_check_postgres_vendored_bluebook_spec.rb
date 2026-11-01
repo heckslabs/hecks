@@ -4,11 +4,14 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
+require_relative "../support/first_era_hold"
 
 # Pins a fix: PostgresEra's era-1 self-mint for a second, vendored bluebook
 # in a registry wrote the first bluebook's own source text into
 # `hecks_eras.held_text` instead of the second bluebook's own.
 RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-bluebook registry", :io do
+  include FirstEraHold
+
   VENDORED_BLUEBOOK_DB = "hecks_era_vendored_bluebook_spec".freeze
 
   VENDORED_TARGET_BLUEBOOK = <<~BLUEBOOK.freeze
@@ -103,6 +106,12 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
 
   def world_text = %w[Target Notes Governance].map { |declaration| world_for(declaration) }.join("\n")
 
+  # Holds era 1 for each bluebook the way the mint entry point does, then boots the directory.
+  def boot_held(directory)
+    hold_domain_eras!(directory: directory, url: owner_url)
+    Hecks.boot(directory, install_driving: false)
+  end
+
   def write(path, content)
     FileUtils.mkdir_p(File.dirname(path))
     File.write(path, content)
@@ -131,7 +140,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
   # Boots the written domain and answers each bluebook's era-1 held_text, keyed by bluebook name.
   def held_text_after_boot
     Dir.mktmpdir do |dir|
-      Hecks.boot(write_domain(dir), install_driving: false)
+      boot_held(write_domain(dir))
       era_one_rows.to_h { |row| [row["domain"], row["held_text"]] }
     end
   end
@@ -151,7 +160,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
     Dir.mktmpdir do |dir|
       domain_dir = write_domain(dir)
 
-      Hecks.boot(domain_dir, install_driving: false)
+      boot_held(domain_dir)
 
       expect { Hecks.boot(domain_dir, install_driving: false) }.not_to raise_error
     end
