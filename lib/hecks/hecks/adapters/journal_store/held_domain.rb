@@ -3,6 +3,7 @@
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "hecks/indifferent_key"
+require_relative "held_domain/renaming"
 
 module Hecks
   module Adapters
@@ -15,6 +16,8 @@ module Hecks
       # text from being attested; `scaffold` loads everything but the edges, since an unresolved
       # edge file refuses to load and writing it is the point.
       class HeldDomain
+        include Renaming
+
         MODES = %i[translated bare scaffold].freeze
 
         attr_reader :registry, :bluebook, :directory, :adapter_name

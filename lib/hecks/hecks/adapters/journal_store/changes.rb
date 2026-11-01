@@ -50,6 +50,14 @@ module Hecks
           "#{domain.domain_name} holds era 1 now."
         end
 
+        # Moves the history held under the former name to the current one, in one transaction. A
+        # failure rolls it back whole, so the old name still holds everything.
+        def apply_rename_domain(held)
+          domain = HeldDomain.open(plain(held[:domain]), mode: :bare)
+          moved = domain.renaming { |lineage| lineage.rename_domain!(storage_names: domain.aggregates.map(&:storage_name)) }
+          "#{domain.domain_name} holds the #{moved} era#{"s" unless moved == 1} of #{domain.former_name} now."
+        end
+
         def apply_merge_tail(held)
           domain = HeldDomain.open(plain(held[:domain]))
           named = winners(held)
