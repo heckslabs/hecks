@@ -1,5 +1,0 @@
-# Composed edge from the held Bluebook shape 1b447c to the current 25452c. The chain 1b447c -> 51fdf5
-# -> 148849 -> b00c6a -> f02ca0 -> 9aeb4d -> 25452c carries no field change; the last step adds the
-# optional process-manager `resumes` list, which every held row answers with its default.
-Hecks.data_translation "Bluebook", from: "1b447c", to: "25452c" do
-end

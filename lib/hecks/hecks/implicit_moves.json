@@ -1,48 +1,4 @@
 {
-  "Bluebook": [
-    {
-      "from": "25452c",
-      "to": "5f27b9"
-    }
-  ],
-  "Coder": [
-    {
-      "from": "abd863",
-      "to": "cce664"
-    }
-  ],
-  "Fixer": [
-    {
-      "from": "93d42b",
-      "to": "cc8494"
-    }
-  ],
-  "Hecks": [
-    {
-      "from": "f30dcb",
-      "to": "d237f1"
-    },
-    {
-      "from": "d237f1",
-      "to": "b6a912"
-    },
-    {
-      "from": "b6a912",
-      "to": "8318c6"
-    },
-    {
-      "from": "8318c6",
-      "to": "f4b204"
-    },
-    {
-      "from": "f4b204",
-      "to": "b69048"
-    },
-    {
-      "from": "b69048",
-      "to": "8148e2"
-    }
-  ],
   "QualityControl": [
     {
       "from": "e6b119",
@@ -63,16 +19,6 @@
     {
       "from": "8cdb9d",
       "to": "bbe061"
-    }
-  ],
-  "Tickets": [
-    {
-      "from": "b165fa",
-      "to": "5fb8b3"
-    },
-    {
-      "from": "5fb8b3",
-      "to": "65b1d4"
     }
   ]
 }
