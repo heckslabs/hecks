@@ -9,7 +9,7 @@ window. Read the "Why one window" section first.
 
 ## Why one window
 
-The live console (`platform.embryonaut.ai`, image `console-20261027203026`, hecks 4.0.0) reads
+The live console (`platform.embryonaut.ai`, image `console-20261027203026`, on the hecks 4 line) reads
 ConsoleSettings through `vendor/embryonaut_console/web/presentation_config.rb` and `web/app.rb`. The
 journal `hecks_journal_console_settings` is text-typed and unpartitioned, which is the layout hecks 4 reads.
 The migration changes that layout, so the old console cannot read its settings afterwards. The console

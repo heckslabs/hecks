@@ -154,8 +154,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           for _ in $(seq 1 90); do
-            found=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
-                    --jq '[.artifacts[] | select(.name | startswith("host-wasm-"))] | length')
+            # --paginate runs --jq once per page, so list the names and count the lines
+            found=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
+                    --jq '.artifacts[] | select(.name | startswith("host-wasm-")) | .name' | wc -l | tr -d ' ')
             [ "$found" = "3" ] && exit 0
             sleep 2
           done
