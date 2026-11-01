@@ -303,6 +303,23 @@ meter = runtime.registry.bluebook("CommandReference").aggregate("Meter")
 meter.commands.find { |c| c.hecks_name == "Calibrate" }.mints_era  # => true
 ```
 
+This is a storage concern, so it is moving out of the bluebook to the world that binds the
+persistence. A world's `persisted_by("PostgresEra")` block names the commands instead:
+
+```text
+Hecks.world "QualityControl" do
+  persisted_by("PostgresEra") do
+    database "postgres://hecks_qa@localhost/hecks_quality_control"
+    mints_era "Maintenance.MintEra"   # one `Aggregate.Command` name, or a list
+  end
+end
+```
+
+The adapter reads the world's names at boot. Until the word is retired from the grammar, a command
+that still says `mints_era true` keeps its allowance, and the two must agree: a world that names a
+command the domain does not declare, or that leaves out a command still saying `mints_era true`,
+refuses the boot by name. A world with no `mints_era` leaves the bluebook word alone.
+
 ## reference_to
 
 <!-- generated:begin word=reference_to -->

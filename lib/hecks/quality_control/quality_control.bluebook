@@ -2292,10 +2292,6 @@ Hecks.bluebook "QualityControl" do
     command "MintEra" do
       role "QA engineer"
       goal "Mint a domain's next era, against the rehearsal of that same era and the watermark it read"
-      # Its own record may pass the unminted-boot guard: the mint starts from a boot whose shape no era
-      # holds yet, so this record is the one write that boot is let make.
-      mints_era true
-
       attribute :run,            MaintenanceRun
       attribute :domain,         String
       attribute :era,            Integer
