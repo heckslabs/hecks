@@ -2050,6 +2050,11 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String, matches: :git_sha
     end
 
+    # The era a mint created, as the Minted event carries it.
+    value_object "MintedEra" do
+      attribute :value, Integer
+    end
+
     # Opens a run for a submitted commit of main; the gate is the first step it asks for.
     command "Start" do
       role "QA engineer"
@@ -2119,16 +2124,22 @@ Hecks.bluebook "QualityControl" do
       attribute :run,       MaintenanceRun
       attribute :domain,    String
       attribute :watermark, Integer
-      attribute :verdict,   MintVerdict
+      attribute :rehearsal_verdict, MintVerdict
 
       emits "RehearsalVerdict"
     end
 
-    # Asks for the mint of a domain's next era. The mint command is the only caller that mints: a boot never
-    # does, and a mint names the commit its landing will put on main, so the ledger and main move together.
-    command "RequestMint" do
+    # The confirmation of a mint: the `--confirm` flag, which the launcher reads as a Boolean.
+    value_object "Confirmation" do
+      attribute :value, Boolean
+    end
+
+    # The single entry point for a mint of a domain's next era. It is the only command that asks for a mint:
+    # a boot never mints, and the mint names the commit its landing puts on main, so the ledger and main move
+    # together. The rehearsal ref and the expected watermark are checked against the live ledger by the era check.
+    command "MintEra" do
       role "QA engineer"
-      goal "Ask for the mint of a domain's next era, against the rehearsal of that same era"
+      goal "Mint a domain's next era, against the rehearsal of that same era and the watermark it read"
 
       attribute :run,            MaintenanceRun
       attribute :domain,         String
@@ -2137,10 +2148,10 @@ Hecks.bluebook "QualityControl" do
       attribute :branch,         String
       attribute :rehearsal_ref,  String
       attribute :watermark,      Integer
-      attribute :verdict,        MintVerdict
-      attribute :confirm,        one_of("no", "yes")
+      attribute :rehearsal_verdict, MintVerdict
+      attribute :confirm,        Confirmation, optional: true
 
-      given("only a confirmed mint is requested") { confirm.value == "yes" }
+      given("only a confirmed mint is requested") { confirm.value == true }
 
       emits "MintRequested"
     end
@@ -2153,9 +2164,9 @@ Hecks.bluebook "QualityControl" do
       attribute :run,     MaintenanceRun
       attribute :domain,  String
       attribute :era,     Integer
-      attribute :verdict, MintVerdict
+      attribute :rehearsal_verdict, MintVerdict
 
-      given("only a rehearsal that did not say would_mint is refused") { verdict.value != "would_mint" }
+      given("only a rehearsal that did not say would_mint is refused") { rehearsal_verdict.value != "would_mint" }
 
       emits "MintRefused"
     end
@@ -2694,15 +2705,15 @@ Hecks.bluebook "QualityControl" do
   # `Land` ask names.
   policy "MintOnWouldMint" do
     on      "Maintenance.MintRequested"
-    where   { verdict.value == "would_mint" }
+    where   { rehearsal_verdict.value == "would_mint" }
     ask     :mint, with: { run: :run, domain: :domain, era: :era, sha: :sha, branch: :branch,
-                           watermark: :watermark, rehearsal_verdict: :verdict }
+                           watermark: :watermark, rehearsal_verdict: :rehearsal_verdict, confirm: :confirm }
   end
 
   policy "RefuseMintWithoutVerdict" do
     on      "Maintenance.MintRequested"
-    where   { verdict.value != "would_mint" }
-    trigger Maintenance::RefuseMint, with: { run: :run, domain: :domain, era: :era, verdict: :verdict }
+    where   { rehearsal_verdict.value != "would_mint" }
+    trigger Maintenance::RefuseMint, with: { run: :run, domain: :domain, era: :era, rehearsal_verdict: :rehearsal_verdict }
   end
 
   policy "LandOnMinted" do
