@@ -58,6 +58,7 @@ module Hecks
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true
+                disposable_ledger true
               end
             end
           WORLD

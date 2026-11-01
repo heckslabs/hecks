@@ -116,7 +116,11 @@ RSpec.describe "qa_sweep era_boundary", :io do
     ledger.exec("CREATE SCHEMA public")
     ledger.close
     QaLedgerRole.own_public!(QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE)
+    QaLedgerFixture.hold_eras!(@fixture_dir, QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE)
+    reset_target_schema!
+  end
 
+  def reset_target_schema!
     target = PG.connect(dbname: QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE)
     target.exec("SET client_min_messages = warning")
     target.exec("DROP SCHEMA public CASCADE")
