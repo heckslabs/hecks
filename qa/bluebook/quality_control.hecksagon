@@ -9,10 +9,6 @@ Hecks.hecksagon "QualityControl" do
   attaches "Coder"
   attaches "Fixer"
 
-  # The fixer's attempts are transient work held in Memory, as the Fixer hecksagon declares, so the
-  # ledger keeps no era for them: the bug's own state is what the ledger records and persists.
-  Fixer::Attempt.persisted_by("Memory")
-
   QualityControl::Target.persisted_by("PostgresEra")
   QualityControl::Sweep.persisted_by("PostgresEra")
   QualityControl::Bug.persisted_by("PostgresEra")
@@ -23,4 +19,14 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::DailyQuota.persisted_by("PostgresEra")
   QualityControl::Clearance.persisted_by("PostgresEra")
   QualityControl::MainCheck.persisted_by("PostgresEra")
+  # One run of main's maintenance lives for that run only; the ledger keeps the mint, not the run.
+  QualityControl::Maintenance.persisted_by("Memory")
+end
+
+# The Fixer's wiring, declared in the Fixer's own block: its attempts are transient work held in Memory,
+# so the ledger keeps no era for them. The bug's own state is what the ledger records and persists.
+Hecks.hecksagon "Fixer" do
+  attaches "Governance"
+  persisted_by "Memory"
+  Fixer::Attempt.persisted_by("Memory")
 end
