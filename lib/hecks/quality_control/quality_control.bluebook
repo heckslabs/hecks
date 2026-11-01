@@ -2178,8 +2178,10 @@ Hecks.bluebook "QualityControl" do
 
     attribute :run,     MaintenanceRun
     attribute :sha,     MaintenanceSha
-    attribute :color,   one_of("green", "red")
-    attribute :verdict, one_of("reported", "written", "refused")
+    # The gate's colour and the reconcile's verdict. A run opened only to mint an era (`MintEra`) never
+    # runs the gate or the reconcile, so its row holds neither.
+    attribute :color,   one_of("green", "red"), optional: true
+    attribute :verdict, one_of("reported", "written", "refused"), optional: true
 
     value_object "MaintenanceRun" do
       attribute :value, String, matches: :present
