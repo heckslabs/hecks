@@ -27,7 +27,7 @@ RSpec.describe "QualityControl" do
   end
 
   # A fixed clock: a staleness rule against the real clock would need a fifteen minute sleep.
-  module FixedClock
+  module QcFixedClock
     module_function
 
     def now = 1_000
@@ -63,7 +63,7 @@ RSpec.describe "QualityControl" do
 
   def stub_qc_adapters(tracker, ci_adapter)
     { "QcTracker" => [tracker, "IssueTracker"], "QcCi" => [ci_adapter, "CI"],
-      "QcClock" => [FixedClock, "clock"] }.each do |name, (implementation, port_name)|
+      "QcClock" => [QcFixedClock, "clock"] }.each do |name, (implementation, port_name)|
       stub_const("Hecks::Adapters::#{name}", implementation)
       Hecks.adapter(name) { port port_name }
     end

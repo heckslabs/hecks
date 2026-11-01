@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/hecks/adapters/git_landing"
 require "tmpdir"
 
 # The guard that keeps real git steps serial across processes.

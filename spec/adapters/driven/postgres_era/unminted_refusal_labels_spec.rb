@@ -24,17 +24,19 @@ RSpec.describe "the unminted boot's refusal" do
     def eras = raise(PG::ConnectionBad, "connection lost")
   end
 
-  LEDGER = proc do
-    aggregate("Acct") do
-      identified_by :kind
-      attribute :kind, Kind
-      value_object("Kind") { attribute :label, String }
+  def ledger_source
+    proc do
+      aggregate("Acct") do
+        identified_by :kind
+        attribute :kind, Kind
+        value_object("Kind") { attribute :label, String }
+      end
     end
   end
 
   def aggregate
     registry = Hecks::Runtime::Registry.new
-    Hecks.with_registry(registry) { Hecks.bluebook("Ledger", &LEDGER) }
+    Hecks.with_registry(registry) { Hecks.bluebook("Ledger", &ledger_source) }
     registry.bluebooks.values.first.aggregate("Acct")
   end
 
