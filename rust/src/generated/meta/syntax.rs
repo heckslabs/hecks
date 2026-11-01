@@ -1531,23 +1531,15 @@ impl Keyword {
 
 impl Keyword {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("position.value")?.to_id_component_lenient().ok()?;
             Some(c0)
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("keyword")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Keyword: no identity found (tried position.value, id, keyword)".to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Keyword: no identity found (tried position.value)".to_string(),
+            )
+        })
     }
 }
 
@@ -2154,23 +2146,15 @@ impl Argument {
 
 impl Argument {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("position.value")?.to_id_component_lenient().ok()?;
             Some(c0)
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("argument")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Argument: no identity found (tried position.value, id, argument)".to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Argument: no identity found (tried position.value)".to_string(),
+            )
+        })
     }
 }
 

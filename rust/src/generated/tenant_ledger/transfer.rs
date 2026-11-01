@@ -721,14 +721,23 @@ impl RequestArgs {
         let ledger = {
             let x = v.get("ledger").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Transfer.ledger expects String, got nil".to_string(),
+                    "Request.ledger expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Transfer.ledger expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Request",
+                        attribute: "ledger",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Ledger is known by code)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let amount_cents = TransferAmountCents::from_json(

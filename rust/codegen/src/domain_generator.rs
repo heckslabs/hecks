@@ -68,6 +68,7 @@ fn reference_checks(
                 optional: crate::attr::optional(attr),
                 list_item: None,
                 union_tag: None,
+                settled: false,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)
@@ -155,6 +156,7 @@ fn state_reference_checks(
                 optional: crate::attr::optional(source_attr),
                 list_item,
                 union_tag: None,
+                settled: true,
                 target_mod: target
                     .get("name")
                     .and_then(Json::as_str)

@@ -176,7 +176,7 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crat
                                 "Label acts on a Kiosk's Line — pass code.value:".to_string(),
                             )
                         })?;
-                    let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Label acts on one Line — pass batch.value, sequence.value:".to_string()))?;
+                    let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id_lenient(facts_json).map_err(|_| { if store.kiosk.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "Kiosk", identity: "code.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Label acts on one Line — pass batch.value, sequence.value:".to_string()) } })?;
                     let element_wants =
                         crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(
                             facts_json,
@@ -241,7 +241,7 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crat
                                 "Settle acts on a Kiosk's Line — pass code.value:".to_string(),
                             )
                         })?;
-                    let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Settle acts on one Line — pass batch.value, sequence.value:".to_string()))?;
+                    let element_id = crate::generated::generated_entity_no_identity::kiosk::Line::extract_id_lenient(facts_json).map_err(|_| { if store.kiosk.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "Kiosk", identity: "code.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Settle acts on one Line — pass batch.value, sequence.value:".to_string()) } })?;
                     let element_wants =
                         crate::generated::generated_entity_no_identity::kiosk::Line::extract_wants(
                             facts_json,

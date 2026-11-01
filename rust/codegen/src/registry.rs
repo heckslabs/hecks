@@ -15,6 +15,10 @@ pub struct ReferenceCheck {
     /// `Some(variant)` for a tagged `one_of` reference: the check runs only when the argument's
     /// `type` names this variant (ADR 0127).
     pub union_tag: Option<String>,
+    /// True for a reference a command sets through a plain value object: Ruby checks it on the
+    /// settled state at `save`, after hydrate, givens and invariants, so the router defers it
+    /// to `Save` beside the tenant boundary instead of running it with the argument gates.
+    pub settled: bool,
     pub target_mod: String,
     pub target_name: String,
     pub heads: String,
@@ -509,6 +513,7 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                     emit_role_check(exemplar, c.role.as_deref(), &c.roles, &c.name),
                     &c.reference_checks
                         .iter()
+                        .filter(|check| !check.settled)
                         .map(|check| emit_reference_check(exemplar, check))
                         .collect::<Vec<_>>()
                 )
@@ -521,9 +526,15 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
 
             // Checks come from `ir.json` at codegen time; none means `Ok(())`, else one closure.
             let tenant_boundary_check_bodies: Vec<String> = c
-                .tenant_boundary_checks
+                .reference_checks
                 .iter()
-                .map(emit_tenant_boundary_check)
+                .filter(|check| check.settled)
+                .map(|check| emit_reference_check(exemplar, check))
+                .chain(
+                    c.tenant_boundary_checks
+                        .iter()
+                        .map(emit_tenant_boundary_check),
+                )
                 .collect();
             let tenant_boundary_check_line = if tenant_boundary_check_bodies.is_empty() {
                 "let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());"
@@ -616,14 +627,19 @@ pub fn emit_registry(exemplar: &Exemplar, aggregates: &[AggregateEntry]) -> Stri
                 c.name, c.entity_name, c.entity_identity_reading
             );
             // `element_id` uses `extract_id_lenient` (absent vs blank element identity);
-            // `parent_id` stays strict.
+            // `parent_id` stays strict. An element identity the arguments lack refuses as the
+            // missing parent when there is none, since Ruby hydrates the parent before it
+            // locates the element.
             let body_entity_match = format!(
-                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
+                "let (parent_id, element_id, element_wants) = match route {{ Some(route) => {{ let element_id = route.entities()[0].clone(); (route.aggregate().to_string(), element_id.clone(), element_id) }}, None => {{ let parent_id = {mod_path}::{}::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound({}.to_string()))?; let element_id = {mod_path}::{}::extract_id_lenient(facts_json).map_err(|_| {{ if store.{module}.find(&parent_id).is_none() {{ crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs {{ aggregate: {record_name}, identity: {identity_reading}, offered: &format!(\"{{parent_id:?}}\") }}.render_args()) }} else {{ crate::kernel::Refusal::NotFound({}.to_string()) }} }})?; let element_wants = {mod_path}::{}::extract_wants(facts_json); (parent_id, element_id, element_wants) }}, }};",
                 a.record,
                 naming::ruby_inspect_string(&entity_parent_no_identity_message),
                 c.entity_record,
                 naming::ruby_inspect_string(&entity_element_no_identity_message),
-                c.entity_record
+                c.entity_record,
+                module = a.module_name,
+                record_name = naming::ruby_inspect_string(&a.record),
+                identity_reading = naming::ruby_inspect_string(&a.identified_by.join(", ")),
             );
 
             let mut body: Vec<String> = vec![

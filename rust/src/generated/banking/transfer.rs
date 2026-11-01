@@ -949,27 +949,45 @@ impl RequestArgs {
         let source = {
             let x = v.get("source").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Transfer.source expects String, got nil".to_string(),
+                    "Request.source expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Transfer.source expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Request",
+                        attribute: "source",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Account is known by number)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let destination = {
             let x = v.get("destination").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Transfer.destination expects String, got nil".to_string(),
+                    "Request.destination expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Transfer.destination expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Request",
+                        attribute: "destination",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Account is known by number)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         Ok(Self {
