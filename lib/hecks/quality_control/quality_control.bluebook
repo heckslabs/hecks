@@ -3224,4 +3224,67 @@ Hecks.bluebook "QualityControl" do
     on      "ReleasePR.ReleaseApproved"
     ask     :write_trailer, with: { approver: :approver, trailer: :trailer }
   end
+
+  # ---- The push nudge ----------------------------------------------------------------------------
+  # Local main drifting ahead of origin/main is red that nobody sees. Each tick checks once whether a
+  # push is due and keeps ONE Work row, `push-due`, for QA: filed when the push is due beyond the
+  # world's thresholds, updated while it stays due, finished when it no longer is. The check reads
+  # refs git already holds (`PushRehearsal.Due`); it never fetches, pushes or merges. Tickets turns the
+  # answer into the row (`PlanWorkWhenPushDue`, `ReviseWorkWhenPushStillDue`, `FinishWorkWhenPushSettled`).
+  aggregate "PushNudge" do
+    description "One check of whether a push of local main is due: whether it is, whether the push-due Work row is already open, and the numbers."
+
+    identified_by :nudge
+
+    attribute :nudge,  NudgeKey
+    attribute :due,    NudgeFlag, optional: true
+    attribute :raised, NudgeFlag, optional: true
+    attribute :work,   NudgeLine, optional: true
+    attribute :title,  NudgeLine, optional: true
+    attribute :detail, NudgeLine, optional: true
+
+    value_object "NudgeKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # "yes" or "no".
+    value_object "NudgeFlag" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "NudgeLine" do
+      attribute :value, String, default: ""
+    end
+
+    command "Check" do
+      role "QA engineer"
+      goal "Ask whether a push of local main is due, from the refs git already holds"
+
+      attribute :nudge, NudgeKey, sets: true
+
+      emits "PushDueCheckRequested"
+    end
+
+    command "Record" do
+      role "System"
+      goal "Keep what a check found"
+
+      reference_to PushNudge
+      attribute :due,    NudgeFlag, sets: true
+      attribute :raised, NudgeFlag, sets: true
+      attribute :detail, NudgeLine, sets: true
+
+      emits "PushDueRecorded"
+    end
+  end
+
+  policy "ReadPushDueOnCheck" do
+    on      "PushNudge.PushDueCheckRequested"
+    ask     :read, with: { nudge: :nudge }
+  end
+
+  policy "RecordThePushDueRead" do
+    on      "PushNudge.PushDueRead"
+    trigger PushNudge::Record, with: { due: :due, raised: :raised, detail: :detail }
+  end
 end

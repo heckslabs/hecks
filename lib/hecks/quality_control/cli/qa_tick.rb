@@ -129,7 +129,7 @@ module Hecks
           Step.new("mutate --from-dials", *run_mutation)
         ]
         steps << Step.new("check_main", *run_main_check) if dial(:RED_MAIN_CHECK, false)
-        steps + pump_steps
+        steps + push_nudge_steps + pump_steps
       end
 
       def run_pr_check

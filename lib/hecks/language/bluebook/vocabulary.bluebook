@@ -1172,6 +1172,8 @@ Hecks.bluebook "Bluebook" do
              meaning: "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
       member name: "event_pump", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."
+      member name: "push_nudge", type: "Boolean",
+             meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
       member name: "main_maintenance", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
       member name: "maintenance_confirm", type: "Boolean",

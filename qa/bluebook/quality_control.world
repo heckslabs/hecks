@@ -10,6 +10,11 @@ Hecks.world "QualityControl" do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
     mint_eras false
   end
+  # How far local main may drift from origin/main before each tick files the `push-due` Work row:
+  # commits ahead, or hours since the oldest unpushed commit. A red last rehearsal on the current main
+  # files it whatever these say. Without this line the thresholds are
+  # `Hecks::Adapters::PushDueReader::DEFAULTS`, the same numbers.
+  push_nudge "PushDueReader", commits: 20, hours: 24
   # The rehearsal reads a throwaway copy of the ledger, named by an environment variable so the
   # file holds no connection string; the copy is made beforehand and is never this database.
   rehearsed_by("Postgres") do

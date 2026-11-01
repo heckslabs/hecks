@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../qa_event_pump"
+require_relative "push_nudge_step"
 
 module Hecks
   module QualityControlCli
@@ -8,6 +9,8 @@ module Hecks
       # The tick's last finding step: the event pump, which runs each attached domain's policies
       # on the events its cursors have not yet read.
       module EventPumpStep
+        include PushNudgeStep
+
         private
 
         # @return [Array<Step>] the pump's step when the `event_pump` dial is on, else none

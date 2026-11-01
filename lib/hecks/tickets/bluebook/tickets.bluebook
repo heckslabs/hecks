@@ -374,6 +374,16 @@ Hecks.bluebook "Tickets" do
       emits "WorkPlanned"
     end
 
+    # A step still open takes what a later look at it found: the row stays one, its detail moves.
+    command "Revise" do
+      goal "Replace an open step's detail with what a later look found"
+
+      reference_to Work
+      attribute :detail, WorkText, sets: true
+
+      emits "WorkRevised"
+    end
+
     # A started step is claimed: the second Start on it is refused, since only a planned step starts.
     command "Start" do
       role "Maintainer"
@@ -582,6 +592,26 @@ Hecks.bluebook "Tickets" do
   policy "FinishWorkWhenSpecWentGreen" do
     on      "RedSpec.SpecWentGreen"
     trigger Work::Finish, with: { work: :spec }
+  end
+
+  # QA's push check: a push that is due beyond the world's thresholds is one step, `push-due`. A look
+  # that finds it already open revises its detail; a look that finds it no longer due finishes it.
+  policy "PlanWorkWhenPushDue" do
+    on      "PushNudge.PushDueRead"
+    where   { due.value == "yes" && raised.value == "no" }
+    trigger Work::Plan, with: { work: :work, title: :title, detail: :detail }
+  end
+
+  policy "ReviseWorkWhenPushStillDue" do
+    on      "PushNudge.PushDueRead"
+    where   { due.value == "yes" && raised.value == "yes" }
+    trigger Work::Revise, with: { work: :work, detail: :detail }
+  end
+
+  policy "FinishWorkWhenPushSettled" do
+    on      "PushNudge.PushDueRead"
+    where   { due.value == "no" && raised.value == "yes" }
+    trigger Work::Finish, with: { work: :work }
   end
 
   policy "RecordTheIssue" do
