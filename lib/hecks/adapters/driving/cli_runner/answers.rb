@@ -113,7 +113,7 @@ module Hecks
             return replayed if replayed
 
             handle = runtime.dispatch_flat(spec[:command], normalized_request(spec, args))
-            extra  = refusals_and_run(handle, minted)
+            extra  = refusals_and_run(handle, minted, args)
             if invocation.wait
               return settled(runtime, spec, handle, invocation.bluebook, invocation.launcher, extra, text: invocation.text)
             end
@@ -127,8 +127,8 @@ module Hecks
           end
 
           # The refused reactions of the dispatch, led by the minted run key when one was.
-          def refusals_and_run(handle, minted)
-            extra = refused_answer(handle)
+          def refusals_and_run(handle, minted, args = {})
+            extra = refused_answer(handle).merge(ids: RunReference.ids(args, handle.id))
             minted ? { run: minted }.merge(extra) : extra
           end
 
