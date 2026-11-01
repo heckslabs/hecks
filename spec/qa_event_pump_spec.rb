@@ -206,6 +206,50 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
     expect(counted_reactions).to eq(2)
   end
 
+  it "skips an event a consumer already reacted to in this process, keyed by its id", :aggregate_failures do
+    entry = ping("a")
+    publish(entry)
+    react_in_process(entry)
+
+    expect(pump_output).not_to include("reacted")
+    expect(counted_reactions).to eq(1)
+  end
+
+  it "reads an event another boot wrote, on a pump booted fresh", :aggregate_failures do
+    publish(ping("a"))
+    fresh_attached = attached_fresh
+
+    expect(capture_output { described_class.new(root: @dir, attached: fresh_attached).run })
+      .to include("reacted: Consumer <- Producer Pinged: CountOnPinged")
+    expect(counted_reactions_on(fresh_attached)).to eq(1)
+  end
+
+  def react_in_process(entry)
+    consumer = attached.runtime("Consumer")
+    event = Hecks::QualityControlCli::QaEventPump::Reader.event(entry)
+    policy, home = consumer.outbox.policies_for(event, "Producer").first
+    consumer.outbox.react_policy(event, policy: policy, home: home, domain: "Producer", event_uid: nil)
+  end
+
+  def attached_fresh
+    Hecks::QualityControlCli::QaEventPump::Attached.new(
+      root: @dir, dirs: { "QualityControl" => PUMP_LEDGER, "Producer" => producer_dir, "Consumer" => consumer_dir }
+    )
+  end
+
+  def counted_reactions_on(boot)
+    boot.runtime("Consumer").registry.reaction_log.count { |record| record[:policy] == "CountOnPinged" && record[:delivered] }
+  end
+
+  def capture_output
+    original = $stdout
+    $stdout = StringIO.new
+    yield
+    $stdout.string
+  ensure
+    $stdout = original
+  end
+
   def ledger = attached.runtime("QualityControl")
 
   # Counts a name on the consumer first, so the pumped `Count` for that name is refused.

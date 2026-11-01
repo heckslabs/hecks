@@ -57,18 +57,28 @@ module Hecks
           ["#{@name} <- #{producer}: stopped, #{e.class}: #{e.message}"]
         end
 
-        # Runs each policy that reacts to the entry and that the ledger holds no reaction for, then
-        # moves the cursor past it. A reaction is recorded as soon as its policy answers, before the
-        # cursor moves, so a stop between the two leaves the policy recorded and the rerun skips it.
+        # Runs each policy that reacts to the entry and that neither the ledger nor this process
+        # holds a reaction for, then moves the cursor past it. A reaction is recorded as soon as
+        # its policy answers, before the cursor moves. The reactions and the cursor share one
+        # transaction where the ledger's store has one, so a stop between them rolls both back
+        # and the rerun repeats both.
         def react(producer, entry, position)
           event = Reader.event(entry)
-          lines = runtime.outbox.policies_for(event, producer).flat_map do |policy, home|
-            next [] if @reactions.recorded?(@name, event.id, policy.name)
+          @cursors.transaction do
+            lines = runtime.outbox.policies_for(event, producer).flat_map do |policy, home|
+              next [] if reacted?(event, policy)
 
-            fire(event, policy, home, producer, position)
+              fire(event, policy, home, producer, position)
+            end
+            @cursors.advance(producer, @name, position)
+            lines
           end
-          @cursors.advance(producer, @name, position)
-          lines
+        end
+
+        # Whether the policy has already reacted to this event: recorded in the ledger by an
+        # earlier pass, or delivered in this process by a domain attached here, by either path.
+        def reacted?(event, policy)
+          @reactions.recorded?(@name, event.id, policy.name) || @attached.reacted?(event, policy)
         end
 
         def fire(event, policy, home, producer, position)
