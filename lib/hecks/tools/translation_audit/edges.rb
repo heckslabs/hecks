@@ -16,7 +16,7 @@ module Hecks
         def edge_chain(registry, bluebook, lineage, directory = nil)
           eras = lineage.eras
           current_shape = Hecks::Runtime::StorageShape.project(bluebook)
-          held_shape = Hecks::Runtime::StorageShape.project(lineage_manager.shadow(eras.last[:held_text]))
+          held_shape = lineage_manager.held_shape(eras.last)
 
           if held_shape == current_shape
             standing_chain(registry, bluebook, eras)
