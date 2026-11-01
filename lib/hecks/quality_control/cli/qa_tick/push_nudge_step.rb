@@ -12,7 +12,7 @@ module Hecks
 
         # @return [Array<Step>] the check's step when the `push_nudge` dial is on, else none
         def push_nudge_steps
-          dial(:PUSH_NUDGE, false) ? [Step.new("push_nudge", *run_push_nudge)] : []
+          dial(:PUSH_NUDGE, false) ? [guarded("push_nudge") { run_push_nudge }] : []
         end
 
         # @return [Array(String, Integer)] the check's output and its exit status

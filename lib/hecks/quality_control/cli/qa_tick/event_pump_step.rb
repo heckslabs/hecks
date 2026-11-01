@@ -15,7 +15,7 @@ module Hecks
 
         # @return [Array<Step>] the pump's step when the `event_pump` dial is on, else none
         def pump_steps
-          dial(:EVENT_PUMP, false) ? [Step.new("event_pump", *run_event_pump)] : []
+          dial(:EVENT_PUMP, false) ? [guarded("event_pump") { run_event_pump }] : []
         end
 
         # @return [Array(String, Integer)] the pump's output and its exit status

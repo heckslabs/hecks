@@ -11,6 +11,7 @@ require_relative "qa_tick/output"
 require_relative "qa_main_gate"
 require_relative "qa_event_pump"
 require_relative "qa_tick/event_pump_step"
+require_relative "qa_tick/quiesce_guard"
 
 module Hecks
   module QualityControlCli
@@ -27,6 +28,7 @@ module Hecks
       include Preflight
       include Output
       include EventPumpStep
+      include QuiesceGuard
 
       EXIT_OK = 0
       EXIT_ERROR = 1
@@ -122,14 +124,13 @@ module Hecks
 
       # The steps that look for findings, in the order the report prints them. The event pump is last.
       def finding_steps
-        steps = [
-          Step.new("check_pull_requests", *run_pr_check),
-          Step.new("ask run --all", *run_sweep),
-          Step.new("check_generated_domains --from-dials", *run_generated_domains),
-          Step.new("mutate --from-dials", *run_mutation)
-        ]
-        steps << Step.new("check_main", *run_main_check) if dial(:RED_MAIN_CHECK, false)
-        steps + push_nudge_steps + pump_steps
+        [
+          guarded("check_pull_requests") { run_pr_check },
+          guarded("ask run --all") { run_sweep },
+          guarded("check_generated_domains --from-dials") { run_generated_domains },
+          guarded("mutate --from-dials") { run_mutation },
+          (guarded("check_main") { run_main_check } if dial(:RED_MAIN_CHECK, false))
+        ].compact + push_nudge_steps + pump_steps
       end
 
       def run_pr_check

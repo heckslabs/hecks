@@ -154,6 +154,16 @@ checkout against it.
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 
+## Minting an era of the QA ledger: quiet QA first
+
+The QA loop writes to the ledger all the time, so its watermark moves between a rehearsal and the mint.
+A mint window starts with `exe/hecks qa_quiesce.hold! reason.value="..." --wait` and ends with
+`exe/hecks qa_quiesce.release! --wait`; `qa_quiesce.status` reports the owner, reason and age. While the
+marker (`~/.claude/hecks-dev/quiesce`, stale after two hours) is fresh every `sweep.tick` step prints
+`quiesced: skipped <step>` and the tick exits 0. Name yourself with `owner.value=` (or
+`HECKS_QUIESCE_OWNER`); another owner's marker is not removed without `force.value=true`. The mint does
+not require the flag.
+
 ## RuboCop is strict: it runs at its defaults
 
 `.rubocop.yml` overrides only what `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`
