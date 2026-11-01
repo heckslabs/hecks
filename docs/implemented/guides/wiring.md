@@ -312,7 +312,7 @@ Either adapter answers what the in-process loop answers from the
 authoritative records; `hecks fuzz_run.fuzz!` checks that on every SQLite
 or Postgres sweep (ADR 0122).
 
-`deployed_to("AwsLambda")` is read by `hecks deploy recipe.project` (see
+`deployed_to("AwsLambda")` is read by `hecks deploy Recipe.project!` (see
 [Projections: Rust and
 WebAssembly](projections.md), and [architecture-map.md](../../architecture-map.md) for
 the projector inventory) to generate a SAM template, build Makefile and
@@ -322,7 +322,7 @@ the stack named by `owner` instead of creating its own; a domain that
 declares no shared database gets its own VPC and RDS instance, plus a
 bastion config for minting its first era. A deployment that must name a
 specific owner stack or stack prefix does so in an environment overlay
-(`hecks deploy recipe.project <domain> --environment=<name>`) kept outside this
+(`hecks deploy Recipe.project! <domain> --environment=<name>`) kept outside this
 repository.
 
 ### Hosting scripts for `AwsFargate`
@@ -341,7 +341,7 @@ the `edge` tag moves with every promotion (a `main` commit that passed every req
 check), each build fetches it afresh and prints the
 commit it got, and the exact-tag check is skipped for it alone. A build from `edge`
 is not reproducible from the name, so a release is still how a deploy is pinned.
-Run `hecks deploy recipe.project <domain> --out=<dir>` on a domain whose `.world` carries
+Run `hecks deploy Recipe.project! <domain> --out=<dir>` on a domain whose `.world` carries
 the block and it writes those files beside `template.yaml`. Without
 `hosting_scripts true` the same run writes only what it always did:
 
@@ -434,7 +434,7 @@ deployed_to("AwsBox") do
 end
 ```
 
-`hecks deploy recipe.project` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
+`hecks deploy Recipe.project!` writes `rds.yaml`, `box.yaml`, `Caddyfile`,
 `services.json`, `render-compose.sh`, `fetch-secrets.sh`, `deploy-box.sh` and a
 `Makefile`. Secrets are named, never written down: the box resolves them when it
 deploys. A world with no `containers` is refused with an example.
@@ -451,9 +451,9 @@ database, pass its security group as `BastionSecurityGroupId` to the RDS stack.
 The two scripts also run as commands, which record each copy in the Hecks database:
 
 ```
-hecks deploy data_copy.restore <project> bastion=i-0abc source=<old-host> source_secret=<arn> \
+hecks deploy DataCopy.restore! <project> bastion=i-0abc source=<old-host> source_secret=<arn> \
   target=<rds-host> target_secret=<arn> [source_db=] [target_db=] [force=true] [skip_verify=true]
-hecks deploy data_copy.verify  <project> bastion=i-0abc source=<host> source_secret=<arn> \
+hecks deploy DataCopy.verify!  <project> bastion=i-0abc source=<host> source_secret=<arn> \
   target=<host> target_secret=<arn> [source_db=] [target_db=]
 ```
 
@@ -510,7 +510,7 @@ make stacks VPC=vpc-... PRIVATE_SUBNETS=subnet-a,subnet-b PUBLIC_SUBNET=subnet-c
 ```
 
 To check what the stacks cost against a budget, run
-`hecks deploy cost_check.check budget=75 since=2026-10-05 --wait`. It reads the
+`hecks deploy CostCheck.check! budget=75 since=2026-10-05 --wait`. It reads the
 daily bill from `since` up to yesterday (today is still partial), scales the mean
 to a month, and records the check as `within_budget` with a one-line report that
 names the biggest services, or as `flagged` with the figures when the rate is over
@@ -520,7 +520,7 @@ the new one. It exits 1 when flagged, and needs AWS credentials that can read Co
 Explorer.
 
 To run the post-deploy smoke as a command, run
-`hecks deploy smoke_run.run <project> --wait`, which finds the `smoke-after-deploy.sh` beside the
+`hecks deploy SmokeRun.run! <project> --wait`, which finds the `smoke-after-deploy.sh` beside the
 project's `Makefile` (or the only one under it; `script=<path>` names it otherwise)
 (`taskdef=<family[:revision]>`, `skip=true`, `async=true` and `dry_run=true` become the
 script's `TASKDEF`, `SKIP_POST_DEPLOY_SMOKE`, `SMOKE_ASYNC` and `DRY_RUN`). It runs the
@@ -529,9 +529,9 @@ already runs, records the run as `passed` with what the script printed, or as `f
 with its status (20 the roll did not settle, 21 `gh` missing, 22 the smoke failed, 23 result
 unknown), and exits 1 when flagged. It only reads AWS.
 
-To roll a project as a command, run `hecks deploy service_roll.run <project> service=<name> --wait`
+To roll a project as a command, run `hecks deploy ServiceRoll.run! <project> service=<name> --wait`
 (`existing_tag=<tag>` redeploys a tag already in ECR, `local_image=<ref>` names the image to push)
-or `hecks deploy box_roll.run <project> --wait` (`taskdef=<family[:revision]>` for a project with a
+or `hecks deploy BoxRoll.run! <project> --wait` (`taskdef=<family[:revision]>` for a project with a
 task definition, `tags="web=20260101 worker=20260101"` for one without). Each runs the project's
 generated `deploy-service.sh` or `deploy-box.sh`, found the way the smoke script is, and records a
 `ServiceRoll` or `BoxRoll` (a service roll with its `tag` and `taskdef`). A failed roll is
@@ -600,7 +600,7 @@ deployed_to("AwsSharedDatabase") do
 end
 ```
 
-`hecks deploy recipe.project` writes `rds.yaml`, a `Makefile` (`make stack VPC=... PRIVATE_SUBNETS=...`) and a README. The
+`hecks deploy Recipe.project!` writes `rds.yaml`, a `Makefile` (`make stack VPC=... PRIVATE_SUBNETS=...`) and a README. The
 stack makes no database of its own; each site's rule on its security group is that site's box stack's, and the bastion's
 is its own resource so an update cannot revoke a site's rule.
 
@@ -651,7 +651,7 @@ box's Compose project is up and has stayed up, and, with a task definition, each
 container runs the image the latest revision names. A roll that looked live but
 left an old image running therefore never reaches the smoke. The box is read over
 SSM, the way `deploy-box.sh` rolls it, and the scripts only read AWS apart from
-the stack update and the roll itself. `make deploy` runs `hecks deploy box_roll.run` and
+the stack update and the roll itself. `make deploy` runs `hecks deploy BoxRoll.run!` and
 `make deploy-service` runs `service_roll.run`; the roll's policy requests
 `smoke_run.run`, which runs `smoke-after-deploy.sh`. Every deploy so leaves a roll (that also
 holds the smoke's outcome) and a `SmokeRun` in the Hecks database that `hecks deploy box_roll.verdict`,
@@ -690,9 +690,9 @@ Three scripts a project keeps by hand also run as commands, each found by name b
 project (`script=<path>` names one when there are several) and each recorded in the Hecks database:
 
 ```
-hecks deploy bluebook_diff.run <project> [old=<json> new=<json>]
+hecks deploy BluebookDiff.run! <project> [old=<json> new=<json>]
 hecks deploy preview_run.<name|url|list|deploy|destroy|login> <project> [branch=<name>] [confirm=true] [dry_run=true]
-hecks deploy companion_roll.run <project> taskdef=<family:rev> [companion=umami] [confirm=true] [dry_run=true]
+hecks deploy CompanionRoll.run! <project> taskdef=<family:rev> [companion=umami] [confirm=true] [dry_run=true]
 ```
 
 `bluebook_diff.run` reports which bluebook releases a deploy changes. Given `old` and `new` (two
@@ -763,7 +763,7 @@ with a message naming it. The defaults and every pattern are documented on
 
 `smoke true` in the same block adds `smoke/harness.js`, a JavaScript smoke
 harness that knows nothing about any site, and `smoke/workflow.yml`, a GitHub
-Actions workflow that runs it on a schedule and on demand. `hecks deploy recipe.project`
+Actions workflow that runs it on a schedule and on demand. `hecks deploy Recipe.project!`
 adds them to whatever the deploy target produced; copy the workflow into the
 repository's `.github/workflows/`.
 
@@ -818,7 +818,7 @@ deployed_to("Vercel") do
 end
 ```
 
-`hecks deploy recipe.project` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh`
+`hecks deploy Recipe.project!` writes `vercel.json`, `.vercelignore`, `deploy-vercel.sh`
 and a `Makefile`. The script reads each named variable from the environment
 (`op run --env-file=.env.tpl -- make deploy`) and passes it to Vercel on stdin
 as a sensitive variable, so no value reaches a file or a command line. The host
@@ -828,7 +828,7 @@ the ADR's open items.
 A world can declare more than one deploy kind, so a small domain can start on
 Vercel and keep an `AwsBox` block beside it. The persistence adapter, not the
 deploy kind, owns the data (Postgres by URL), so the move is a deploy choice.
-`hecks deploy recipe.project` writes each target under `<out>/<adapter>/`;
+`hecks deploy Recipe.project!` writes each target under `<out>/<adapter>/`;
 `--target=Vercel` writes only that one into `<out>`.
 
 ### Project-wide defaults

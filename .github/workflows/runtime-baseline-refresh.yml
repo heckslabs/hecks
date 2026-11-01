@@ -52,7 +52,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # `hecks refresh_runtime_baseline from_run=` refuses (aborts) a non-`success` run,
+      # `hecks TestSuiteRun.refresh_runtime_baseline! from_run=` refuses (aborts) a non-`success` run,
       # and separately skips (warns, does not abort) a family whose artifact set is
       # incomplete — the rspec-runtime-group family runs on every push to main/pull_request,
       # but the postgres-io family is itself gated by `postgres_io_relevant_changed` and can
@@ -91,8 +91,8 @@ jobs:
 
       # Merged at once (main takes pushes with no gate), not a human-reviewed PR — this is a scoped, mechanical, data-only change
       # (two generated log files, no code or spec content), the same class of change a
-      # person would rubber-stamp without reading every line anyway. `hecks refresh_runtime_
-      # baseline`'s own safety checks (above) are what actually gate correctness.
+      # person would rubber-stamp without reading every line anyway. The own safety checks of
+      # `hecks TestSuiteRun.refresh_runtime_baseline!` (above) are what actually gate correctness.
       - name: Open and auto-merge a PR if the baselines changed
         if: steps.find_run.outputs.run_id != ''
         env:

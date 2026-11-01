@@ -699,7 +699,7 @@ Hecks.bluebook "Bluebook" do
     # per row, answering `touched` from the diff of the change against its base.
     # hecks project_ci_gates writes each row into the marked region of its
     # `workflow` (.github/workflows/<workflow>), and the job it writes runs
-    # `hecks decide_ci_gate gate=<name>`, which makes the decision from the row.
+    # `hecks RegenerationRun.decide_ci_gate! gate=<name>`, which makes the decision from the row.
     #
     # `mode` is how `pattern` (an extended regex over changed paths) decides:
     # `touches` runs the job when any changed path matches, `skips_unless` runs it
@@ -822,12 +822,22 @@ Hecks.bluebook "Bluebook" do
              title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md",
              argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait",
              script: "",
-             blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
+             blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
       member name: "comment_blocks", id: "comment_blocks",
              title: "comment blocks, no run of comment lines past ADR 0075's cap",
              argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait",
              script: "",
              blocked: "a comment block ran past the cap; shorten it."
+      member name: "command_names", id: "command_names",
+             title: "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves",
+             argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait",
+             script: "",
+             blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines."
+      member name: "workflow_pagination", id: "workflow_pagination",
+             title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone",
+             argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait",
+             script: "",
+             blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."
       member name: "everyday_names", id: "everyday_names",
              title: "everyday names, every name in the launcher's everyday setting shown in the help",
              argv: "bundle exec rspec spec/everyday_names_spec.rb",
@@ -877,7 +887,7 @@ Hecks.bluebook "Bluebook" do
              blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
       member name: "lint_deploy_recipes", id: "lint_deploy_recipes",
              title: "generated deploy recipes, a command with no checked exit status or no echo",
-             argv: "bundle exec exe/hecks deploy makefile_check.lint --wait",
+             argv: "bundle exec exe/hecks deploy MakefileCheck.lint! --wait",
              script: "",
              blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen."
       # The fuzz sweeps run as three shards each, one CI job leg apiece, so the corpus is swept in
@@ -1011,7 +1021,7 @@ Hecks.bluebook "Bluebook" do
 
       member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
-      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage"
+      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage,command_names,workflow_pagination"
       member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
       member name: "era_proof", env: "", checks: "era_proof"
@@ -1020,7 +1030,7 @@ Hecks.bluebook "Bluebook" do
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
     # is the name of a job in .github/workflows that reports to a commit as a check run; a check
-    # that a path gate skipped reports `skipped`, which counts as passed. `hecks promote` reads
+    # that a path gate skipped reports `skipped`, which counts as passed. `hecks PromotionRun.promote!` reads
     # these rows, and hecks project_lanes writes them into the ruleset of any lane that requires
     # them, so the list lives here and nowhere else.
     #
@@ -1045,7 +1055,7 @@ Hecks.bluebook "Bluebook" do
     # The branches a change travels along. `main` takes pushes with no gate; `stable` takes only
     # what a `Promotion` moves onto it once every `CiGate` check is green on that commit.
     # hecks project_lanes writes each row's ruleset into .github/rulesets/<name>.json, and
-    # `hecks promote` reads `follows` to know which lane a promotion fast-forwards.
+    # `hecks PromotionRun.promote!` reads `follows` to know which lane a promotion fast-forwards.
     #
     # `guarded` says whether a ruleset restricts the branch. `pushers` says what it takes: `anyone`
     # (any commit), or `green` (only a commit on which every `RequiredCheck` has already passed,
@@ -1113,7 +1123,7 @@ Hecks.bluebook "Bluebook" do
       member name: "cadence_seconds", type: "Integer",
              meaning: "Minimum gap in seconds between one tick's report and the next dispatch; 0 is immediately. Read by the `/loop hecks_qa` caller, not by any script."
       member name: "pr_cap_per_day", type: "Integer",
-             meaning: "Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped."
+             meaning: "Most PRs (Patch plus Improvement) `hecks quality_control Patch.open!` opens per calendar day; 0 is uncapped."
       member name: "widening_tiers", type: "Array",
              meaning: "Fuzz depth by `Target.clean_streak`, in three discrete tiers, read by `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling."
       member name: "sweep_max_parallel", type: "Integer",
@@ -1121,9 +1131,9 @@ Hecks.bluebook "Bluebook" do
       member name: "liveness_fallback_seconds", type: "Integer",
              meaning: "How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled."
       member name: "draft_only", type: "Boolean",
-             meaning: "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review."
+             meaning: "Whether `hecks quality_control Patch.open!` opens its PR as a draft; false opens it ready for review."
       member name: "auto_merge", type: "Boolean",
-             meaning: "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open."
+             meaning: "Whether `hecks quality_control Patch.open!` queues the PR for auto-merge once it is open."
       member name: "adversarial_fraction", type: "Numeric",
              meaning: "Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off. Higher finds refusal-ordering splits sooner but reaches deep state less often."
       member name: "guided_generation", type: "Boolean",

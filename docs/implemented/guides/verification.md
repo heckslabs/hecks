@@ -12,12 +12,12 @@ walks the path you thought to write. This page is the toolbox for the
 paths you didn't.
 
 These checks each answer a narrower question than "is the suite
-green." `hecks model_check` reads your domain's own declared shape and
+green." `hecks ModelCheckRun.model_check!` reads your domain's own declared shape and
 proves facts about every path through it, not just the ones you
 tested. `hecks fuzz_run.fuzz!` walks random-but-valid histories through the real
 interpreter and checks properties that must hold of ANY of them. The
 corpus under `spec/corpus/` is the fixed list of refusal paths you
-already decided matter, walked end to end by `hecks run`. And the golden
+already decided matter, walked end to end by `hecks Operation.run!`. And the golden
 IR is a frozen snapshot of what your builder emits, so a shape drift
 shows up before something that reads that shape by name silently
 corrupts. None of them replace the suite — they are what you reach for
@@ -78,13 +78,13 @@ Nothing above is ever dispatched — there is no creating command, and
 nothing below ever calls one — because `model_check` needs no run at
 all. It reads the declaration, not a dispatch.
 
-## `hecks model_check` — what a dispatch never tells you
+## `hecks ModelCheckRun.model_check!` — what a dispatch never tells you
 
 The runtime itself never checks any of this: a dead transition simply
 never fires, in silence, and a saga stuck on an unreachable state looks
 identical to one that is merely rare — nothing raises, nothing logs,
 the domain just quietly never does the thing you declared it could.
-`hecks model_check`'s own header names the family it belongs to —
+`hecks ModelCheckRun.model_check!`'s own header names the family it belongs to —
 TLA+, Alloy, P, the lightweight-formal-methods leg of the arc — and
 `model_check.rb` states the property that makes it worth having rather
 than a second spec someone has to remember to keep in sync: the model
@@ -176,8 +176,8 @@ The CLI walks every example, every grammar bluebook, and the language's
 own two meta-bluebooks the same way, in one pass:
 
 ```sh
-hecks model_check                  # everything
-hecks model_check examples/banking # one domain
+hecks ModelCheckRun.model_check!                  # everything
+hecks ModelCheckRun.model_check! examples/banking # one domain
 ```
 
 `ModelCheck::ALLOWED_FINDINGS` is empty — this repo's own corpus ships
@@ -194,7 +194,7 @@ nothing transitions into or out of no longer exists to be declared,
 so the finding that used to be allowlisted here cannot occur any more,
 by construction, and the entry was deleted rather than left stale. The
 coverage gate in `spec/model_check_spec.rb` — reading the same table
-`hecks model_check` does — still fails in both directions: a new error
+`hecks ModelCheckRun.model_check!` does — still fails in both directions: a new error
 nothing names is a regression, and an allowlisted entry the checker
 stops finding is stale and has to be deleted. A finding gets shipped by
 being named, never by being silenced.
@@ -207,8 +207,8 @@ without saying so. The paths documented as still open are the rules of
 that turns each into an error:
 
 ```sh
-hecks model_check --profile client                 # the whole corpus
-hecks model_check --profile client path/to/domain  # one domain
+hecks ModelCheckRun.model_check! --profile client                 # the whole corpus
+hecks ModelCheckRun.model_check! --profile client path/to/domain  # one domain
 ```
 
 Without `--profile`, nothing changes. The profile fixes nothing; it
@@ -346,7 +346,7 @@ tool you already have:
 
 ```sh
 hecks fuzz_run.fuzz! examples/banking
-hecks run examples/banking tmp/fuzz-failures/banking-seed7.json
+hecks Operation.run! examples/banking tmp/fuzz-failures/banking-seed7.json
 ```
 
 After steps and arguments, the shrinker also offers each surviving argument a simpler value
@@ -386,7 +386,7 @@ Where this sits next to the other two: `model_check` proves things
 about the declaration; `fuzz` proves things about arbitrary runs; the
 corpus is neither — it is a fixed, curated list of the SPECIFIC paths
 a person already decided deserve a permanent regression guard, most of
-them refusals. `hecks run <domain> <script.json>` walks one, dispatching
+them refusals. `hecks Operation.run! <domain> <script.json>` walks one, dispatching
 every step, and reports the first expectation that did not hold.
 
 The same check, run in process against an isolated copy of banking —
@@ -417,7 +417,7 @@ the identical walk without a Ruby snippet, against the domain's real
 binding:
 
 ```sh
-hecks run examples/banking spec/corpus/banking.json
+hecks Operation.run! examples/banking spec/corpus/banking.json
 ```
 
 — printing the full report to stdout and aborting nonzero on the
@@ -449,7 +449,7 @@ against the shape you are about to overwrite.
 
 ## What actually blocks a push
 
-The suite and `hecks model_check` are exactly what `.githooks/pre-push`
+The suite and `hecks ModelCheckRun.model_check!` are exactly what `.githooks/pre-push`
 runs before anything leaves your machine — not `hecks fuzz_run.fuzz!`, which stays
 out deliberately: a random sweep is not a fast loop, and pre-push is
 supposed to be one. The suite runs first; then the model checker; and

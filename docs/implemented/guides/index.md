@@ -22,7 +22,7 @@ you're not.
 5. **[Queries and read models](queries-and-read-models.md)** — what the
    build-time seal catches for you, and the one open question it doesn't.
 6. **[Lifecycles](lifecycles.md)** — states, transitions, and what
-   `hecks model_check` flags before you ship one wrong.
+   `hecks ModelCheckRun.model_check!` flags before you ship one wrong.
 7. **[Entities](entities.md)** — identity and behavior that lives inside
    an aggregate, never addressed alone.
 8. **[Policies and process managers](policies-and-process-managers.md)**

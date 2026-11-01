@@ -344,7 +344,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # No generated-rust step: the spec runs `hecks project_rust` for each domain it compares, in
+      # No generated-rust step: the spec runs `hecks Build.project_rust!` for each domain it compares, in
       # the checkout, and puts rust/src/generated back as it found it; rust/build's own tests read
       # no generated module.
 
@@ -383,7 +383,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # No generated-rust step: `hecks build_wasm` regenerates the domain it builds in a scratch copy
+      # No generated-rust step: `hecks Build.build_wasm!` regenerates the domain it builds in a scratch copy
       # of rust/, so the spec reads nothing the checkout holds beyond the committed mod.rs and pizzas.
 
       # Restore only, as in rspec_rust_io_build.

@@ -329,6 +329,28 @@ Hecks.bluebook "Hecks" do
         emits CheckShapeLedgerRequested
       end
 
+      command "CheckCommandNames" do
+        role "Maintainer"
+        goal "Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "check_command_names"
+
+        emits CheckCommandNamesRequested
+      end
+
+      command "CheckWorkflowPagination" do
+        role "Maintainer"
+        goal "Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "check_workflow_pagination"
+
+        emits CheckWorkflowPaginationRequested
+      end
+
       command "ArgumentGateMatrix" do
         role "Maintainer"
         goal "Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed"
@@ -354,6 +376,16 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenCheckShapeLedgerRequested" do
       on      "ConformanceRun.CheckShapeLedgerRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCheckCommandNamesRequested" do
+      on      "ConformanceRun.CheckCommandNamesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCheckWorkflowPaginationRequested" do
+      on      "ConformanceRun.CheckWorkflowPaginationRequested"
       ask     :examine, with: { run: :run }
     end
 

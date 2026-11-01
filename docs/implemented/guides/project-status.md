@@ -20,7 +20,7 @@ current syntax.
 ## Working today
 
 Exercised in CI on every push (the whole suite, alongside
-`hecks model_check` and `hecks fuzz_run.fuzz!`):
+`hecks ModelCheckRun.model_check!` and `hecks fuzz_run.fuzz!`):
 
 - The DSL → IR → dispatch pipeline; the Ruby reference runtime.
 - Persistence adapters: Memory, Sqlite, Postgres, PostgresEra, Heki,

@@ -20,7 +20,7 @@ this guide walks through:
 
 ```sh
 gem install hecks
-hecks console   # boots the pizzas example this guide walks through
+hecks console!   # boots the pizzas example this guide walks through
 ```
 
 From a clone of the repository, which also holds the other examples and the
