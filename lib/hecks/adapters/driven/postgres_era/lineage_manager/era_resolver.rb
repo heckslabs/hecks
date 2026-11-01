@@ -68,11 +68,12 @@ module Hecks
           end
 
           # A shape no held era matches, booted without a mint request: the copy reads the latest held
-          # era and appends nothing, so reads work while the mint waits for its rehearsal.
+          # era and writes nothing, so reads work while the mint waits for its rehearsal. No era has
+          # superseded this one; the shape is simply not minted yet.
           def resolve_unminted(context, latest)
             grant_role!(context, latest[:ordinal])
             context.record_resolved(latest[:ordinal])
-            context.record_superseded(latest[:ordinal])
+            context.record_unminted(latest[:ordinal])
             nil
           end
 
