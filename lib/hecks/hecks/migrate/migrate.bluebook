@@ -451,6 +451,21 @@ Hecks.bluebook "Hecks" do
         attribute :domain, DomainPath
         returns Document
       end
+
+      # The preflight of a mint: every guard the mint runs, answered from the live store without copying it.
+      # Opens the store read-only and never boots the domain; the full rehearsal still runs once before the mint.
+      query "MintPlan" do
+        description "Runs every guard a mint runs against the live store, read-only and in seconds: the era resolution and decision, " \
+                    "the edge checks, the coverage check, the translation audit (Ruby only; parity needs the full rehearsal), " \
+                    "the watermark rule, the world's flags and markers, and the freshness of a rehearsal ref when one is passed. " \
+                    "Names one bluebook of the directory, the first by default. Answers each guard's status, whether the mint would go ahead, and the exact mint command to run."
+        attribute :domain,              DomainPath
+        attribute :bluebook,            String,  optional: true
+        attribute :rehearsal_ref,       String,  optional: true
+        attribute :rehearsal_watermark, Integer, optional: true
+        attribute :rehearsal_verdict,   String,  optional: true
+        returns Document
+      end
     end
 
     policy "ExamineWhenFirstEraRequested" do
