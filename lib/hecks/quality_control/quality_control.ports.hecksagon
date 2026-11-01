@@ -150,4 +150,22 @@ Hecks.hecksagon "QualityControl" do
       refuses "MintStranded"
     end
   end
+
+  # Answered by the `gh` adapter for the release PR: opening the PR for a version bump, and writing the
+  # release trailer on its merge once the owner has approved it. A refusal names the failure and stops the run.
+  QualityControl::ReleasePR.port "ReleaseGh" do
+    asks "Open", to: ReleasePR do
+      attribute :branch, ReleaseBranch
+      attribute :sha,    MaintenanceSha
+      answers "ReleaseOpened"
+      refuses "ReleaseOpenRefused"
+    end
+
+    asks "WriteTrailer", to: ReleasePR do
+      attribute :approver, ReleaseApprover
+      attribute :trailer,  ReleaseTrailer
+      answers "TrailerWritten"
+      refuses "TrailerRefused"
+    end
+  end
 end

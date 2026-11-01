@@ -12,10 +12,25 @@ module AutoMintSupport
   NO_DIFF = { aggregates: [], retired: [], unclaimed: [] }.freeze
   BLUEBOOK = Struct.new(:aggregates).new([]).freeze
 
+  Attr = Struct.new(:name, :optional) do
+    def optional? = optional
+  end
+  Agg = Struct.new(:name, :attributes)
+
   def clean_facts(**overrides)
     { watermark: 19, from: "5d288c", to: "f30dcb", edge_text: EMPTY_EDGE, diff: NO_DIFF,
       held: BLUEBOOK, current: BLUEBOOK }.merge(overrides)
   end
+
+  def bluebook(*aggregates) = Struct.new(:aggregates).new(aggregates)
+
+  def current_with_new_aggregate
+    bluebook(Agg.new("ReleaseSample", [Attr.new("version", false)]))
+  end
+
+  def held_with_sample = bluebook(Agg.new("Sample", []))
+
+  def current_with_sample_gaining_required = bluebook(Agg.new("Sample", [Attr.new("code", false)]))
 end
 
 RSpec.describe "the auto-mint rule" do
@@ -38,6 +53,21 @@ RSpec.describe "the auto-mint rule" do
 
     it "holds a mint whose rehearsal refused rows" do
       expect(described_class.held_reason(clean_facts, refusal_total: 2)).to include("refused 2 rows")
+    end
+
+    it "mints a new aggregate with required attributes on an empty edge" do
+      expect(described_class.held_reason(clean_facts(current: current_with_new_aggregate), refusal_total: 0))
+        .to be_nil
+    end
+
+    it "still holds a new aggregate's mint when the edge declares a change" do
+      facts = clean_facts(current: current_with_new_aggregate, edge_text: AutoMintSupport::FILLED_EDGE)
+      expect(described_class.held_reason(facts, refusal_total: 0)).to include("not empty")
+    end
+
+    it "holds a required attribute an existing aggregate gained" do
+      facts = clean_facts(held: held_with_sample, current: current_with_sample_gaining_required)
+      expect(described_class.held_reason(facts, refusal_total: 0)).to include("not additive")
     end
   end
 

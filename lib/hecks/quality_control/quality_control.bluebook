@@ -2319,6 +2319,107 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # One release PR: the bump of the version on main, opened as a PR and approved on GitHub by the owner. The
+  # approval is written as the release trailer on the merge, which is the line `Hecks::Release::Approval`
+  # reads. A PR is approved only when every auto-approval condition holds (see ReleaseCondition); a failed
+  # condition is a named refusal and nothing is approved.
+  aggregate "ReleasePR" do
+    description "One release PR: the version bump opened on GitHub, approved by the owner only when every auto-approval condition holds."
+
+    identified_by :release
+
+    attribute :release,   ReleaseVersion
+    attribute :branch,    ReleaseBranch
+    attribute :sha,       MaintenanceSha
+    attribute :state,     one_of("open", "approved", "refused")
+
+    value_object "ReleaseBranch" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "ReleaseVersion" do
+      attribute :value, String
+      invariant("a release names a semantic version") { value.to_s.match?(/\A[0-9]+\.[0-9]+\.[0-9]+\z/) }
+    end
+
+    # The four conditions an approval needs, each named so a refusal says which one failed. `met` is the only
+    # value an approval accepts; the Ruby judge (`Hecks::Release::Conditions.judge`) answers the first failure
+    # in this order: the commit is on stable's head, the required checks passed on it, the CHANGELOG has a
+    # dated `## [<version>]` heading, and every version file names the same version.
+    value_object "ReleaseCondition" do
+      attribute :value, String, one_of: ["met", "not_on_stable_head", "checks_not_green",
+                                         "changelog_undated", "version_mismatch"]
+    end
+
+    # The owner who approves each release PR. The trailer line names this person; no other name is approved.
+    value_object "ReleaseApprover" do
+      attribute :value, String, one_of: ["Chris Young"]
+    end
+
+    # The commit-message trailer an approval writes. It is the `release_trailer` of the stable `Lane` row
+    # (Vocabulary), which `Hecks::Release::Approval` reads, so the check accepts what the policy writes.
+    value_object "ReleaseTrailer" do
+      attribute :value, String, one_of: ["Release-Approved-By"]
+    end
+
+    # Opens the release PR for a version bump on a branch. The open is answered by the `ReleaseGh` port.
+    command "Open" do
+      role "Release owner"
+      goal "Open the release PR for a version bump on main, so the owner can approve it on GitHub"
+
+      attribute :release, ReleaseVersion
+      attribute :branch,  ReleaseBranch
+      attribute :sha,     MaintenanceSha
+
+      emits "ReleaseOpenRequested"
+    end
+
+    # Records the result of the four auto-approval conditions for one release PR. The caller names the approver
+    # and the trailer, which the approval policy passes on to the approval.
+    command "Check" do
+      role "Release owner"
+      goal "Record which auto-approval condition held for a release PR, naming the first one that failed"
+
+      attribute :release,   ReleaseVersion
+      attribute :sha,       MaintenanceSha
+      attribute :condition, ReleaseCondition
+      attribute :approver,  ReleaseApprover
+      attribute :trailer,   ReleaseTrailer
+
+      emits "ReleaseChecked"
+    end
+
+    # Approves a release PR whose conditions all held. Only a condition of `met` is approved; the trailer
+    # is then written on the merge by the `ReleaseGh` port.
+    command "Approve" do
+      role "Release owner"
+      goal "Approve a release PR once every auto-approval condition holds, writing the release trailer for the owner"
+
+      attribute :release,   ReleaseVersion
+      attribute :sha,       MaintenanceSha
+      attribute :condition, ReleaseCondition
+      attribute :approver,  ReleaseApprover
+      attribute :trailer,   ReleaseTrailer
+
+      given("only a release whose conditions all held is approved") { condition.value == "met" }
+
+      emits "ReleaseApproved"
+    end
+
+    # Refuses a release PR one of whose conditions failed, and names that condition.
+    command "Refuse" do
+      role "Release owner"
+      goal "Refuse a release PR, naming the auto-approval condition that failed"
+
+      attribute :release,   ReleaseVersion
+      attribute :condition, ReleaseCondition
+
+      given("only a release with a failed condition is refused") { condition.value != "met" }
+
+      emits "ReleaseRefused"
+    end
+  end
+
   # What remote CI said about one commit of a repository's main, once every job it ran for that
   # commit
   # settled. The Runner adapter answers `Check`; a green verdict is announced as `CiGreen`, and a
@@ -2860,8 +2961,8 @@ Hecks.bluebook "QualityControl" do
   # mint entry point (`Adapters::MainMaintenance#mint`, checked by `Adapters::QaAutoMint`) enforces it:
   #   (a) the translation edge leaving the held era is empty: no aggregate block, derive, drop, rename,
   #       convert, retype or rekey;
-  #   (b) every change in the shape diff is additive: new optional attributes, and new aggregates,
-  #       commands or events with no stored-data effect;
+  #   (b) every change in the shape diff is additive: an attribute an existing aggregate gained is optional,
+  #       and a new aggregate, required attributes included, adds no field to an existing one;
   #   (c) the rehearsal said would_mint with a refusal total of 0, at the live watermark;
   #   (d) no stranded marker exists.
   # Otherwise the mint is held: the entry point refuses it as "needs owner approval", and the policy below
@@ -2886,5 +2987,31 @@ Hecks.bluebook "QualityControl" do
     on      "Maintenance.Minted"
     where   { branch.value != "" }
     ask     :land, with: { run: :run, era: :era, sha: :sha, branch: :branch }
+  end
+
+  # The release PR chain. A version bump opens its PR; the conditions judged on `ReleaseChecked` either
+  # approve it (every condition `met`) or refuse it by the name of the condition that failed. An approval
+  # writes the release trailer on the merge through the `ReleaseGh` port.
+  policy "OpenOnReleaseRequest" do
+    on      "ReleasePR.ReleaseOpenRequested"
+    ask     :open, with: { release: :release, branch: :branch, sha: :sha }
+  end
+
+  policy "ApproveOnConditionsMet" do
+    on      "ReleasePR.ReleaseChecked"
+    where   { condition.value == "met" }
+    trigger ReleasePR::Approve, with: { release: :release, sha: :sha, condition: :condition,
+                                        approver: :approver, trailer: :trailer }
+  end
+
+  policy "RefuseOnFailedCondition" do
+    on      "ReleasePR.ReleaseChecked"
+    where   { condition.value != "met" }
+    trigger ReleasePR::Refuse, with: { release: :release, condition: :condition }
+  end
+
+  policy "WriteTrailerOnApproved" do
+    on      "ReleasePR.ReleaseApproved"
+    ask     :write_trailer, with: { approver: :approver, trailer: :trailer }
   end
 end
