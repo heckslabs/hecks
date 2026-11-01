@@ -23,4 +23,14 @@ RSpec.describe Hecks::Adapters::GitRehearsal::Impacted::SpecRun do
     refusal = "1 example, 1 failure\n\nFailed examples:\n\nrspec ./spec/a_spec.rb:7 # a fails\n"
     expect(outcome(refused("refusal" => refusal)).failures).to eq(["./spec/a_spec.rb:7 # a fails"])
   end
+
+  it "passes a completed run whose exit was non-zero for reactions the spec's domains refused" do
+    said = refused("status" => "completed", "report" => "18 examples, 0 failures")
+    expect(outcome(said).passed).to be(true)
+  end
+
+  it "fails a run that loaded nothing" do
+    said = answer("report" => "0 examples, 0 failures, 1 error occurred outside of examples")
+    expect(outcome(said).passed).to be(false)
+  end
 end

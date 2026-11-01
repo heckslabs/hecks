@@ -43,10 +43,12 @@ module Hecks
         # @param directory [String] the copy of the commit the stages run in
         # @param branch [String] the branch pushed; impacted specs compare with `origin/<branch>`
         # @param impacted_limit [Integer, nil] the most impacted spec files to run
-        def initialize(directory, branch: "main", impacted_limit: nil)
+        # @param impacted_width [Integer, nil] how many of them run at once
+        def initialize(directory, branch: "main", impacted_limit: nil, impacted_width: nil)
           @directory = directory
           @branch = branch
           @impacted_limit = impacted_limit
+          @impacted_width = impacted_width
           @shell = Shell.new
         end
 
@@ -93,7 +95,7 @@ module Hecks
 
         def impacted
           runner = ->(directory, *command, env:) { capture(*command, env: env, directory: directory) }
-          Impacted.build(@directory, branch: @branch, capture: runner, limit: @impacted_limit).result
+          Impacted.build(@directory, branch: @branch, capture: runner, limit: @impacted_limit, width: @impacted_width).result
         end
 
         def capture(*command, env:, directory: @directory)

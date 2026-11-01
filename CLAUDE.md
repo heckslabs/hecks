@@ -215,8 +215,9 @@ commit must pass as `RequiredCheck` rows beside them.
   Push small: a rehearsed push per landed slice, or at least per day, is the norm, so a push
   carries little and a red one is found early. Landing asks for a rehearsal on its own (it runs the
   quick stage, the `unguarded_push` stage, any push specs and the specs the push's changed files
-  touch (at most 60 files, `impacted_spec_limit`; a spec already red on `origin/main` is reported, not
-  failed) against local `main` and pushes nothing; its result is the `PushRehearsal` record), and `hecks push_rehearsal.due` says how far
+  touch (at most 60 files, `impacted_spec_limit`, two at a time, `impacted_spec_width`; a file that fails is
+  run again alone and one that then passes is reported as flaky under parallel load, not failed; a spec
+  already red on `origin/main` is reported, not failed) against local `main` and pushes nothing; its result is the `PushRehearsal` record), and `hecks push_rehearsal.due` says how far
   `main` is ahead of `origin/main`, how old the oldest unpushed commit is and how the last
   rehearsal ended. Nothing pushes by itself.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
