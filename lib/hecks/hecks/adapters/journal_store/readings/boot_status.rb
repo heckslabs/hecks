@@ -46,7 +46,7 @@ module Hecks
           # The rows, with each `no_eras` row answered by the ledger instead.
           def with_ledger(directory, registry, rows)
             ledger = ShapeLedger::Status.of(directory, registry: registry)["bluebooks"] if no_database?(rows)
-            bluebooks = rows.to_h { |name, row| [name, row["source"] == "none" ? ledger.fetch(name) : row] }
+            bluebooks = rows.to_h { |name, row| [name, row["source"] == "none" ? ledger.fetch(name, row) : row] }
             { "domain" => directory, "bluebooks" => bluebooks }
           end
 

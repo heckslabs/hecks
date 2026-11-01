@@ -108,6 +108,7 @@ Read from the repository on 2026-11-01.
 - The mint decision and the rehearsal's edge decision go through one function, and the Hecks
   domain's held era is minted as the carry's first step (`7be5045de`), not a reaction chain.
 - A QA quiesce marker makes a mint window quiet (`468b0ff49`).
+- The shape ledger holds only bluebooks whose committed persistence is an era adapter, and framework members; tooling is Memory and needs no ledger entry.
 
 **In flight.** The commit-time block (point 4) has no code on `main`; it is the next step. The
 commands above are listed in `CLAUDE.md` ("Landings, era inspection and the QA dispatcher").

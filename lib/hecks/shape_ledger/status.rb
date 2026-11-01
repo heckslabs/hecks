@@ -13,7 +13,7 @@ module Hecks
     #   leads from what it holds to the current shape.
     #
     # @example
-    #   Status.of("lib/hecks/hecks")["bluebooks"]["QualityControl"]["status"]  # => "current"
+    #   Status.of("lib/hecks/hecks")["bluebooks"]["Governance"]["status"]  # => "current"
     module Status
       module_function
 
@@ -25,7 +25,7 @@ module Hecks
         ledger = ShapeLedger.read(path)
         moves = ShapeLedger.implicit_moves(ShapeLedger.implicit_path(path))
         edges = ShapeLedger.with_implicit(ShapeLedger.edges_of(registry), moves)
-        bluebooks = registry.bluebooks.to_h do |name, bluebook|
+        bluebooks = registry.bluebooks.slice(*Scope.of(Scope.committed_registry(directory)).first).to_h do |name, bluebook|
           [name, classify(name, ledger[name], Runtime::StorageShape.mint_hash(bluebook), moves, edges)]
         end
         { "domain" => directory, "bluebooks" => bluebooks }

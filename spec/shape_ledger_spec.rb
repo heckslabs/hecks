@@ -27,8 +27,9 @@ RSpec.describe Hecks::ShapeLedger do
     end
   RUBY
 
-  def write_bluebook(extra = "")
+  def write_bluebook(extra = "", persisted_by: "PostgresEra")
     File.write(File.join(directory, "shop.bluebook"), format(SHOP_BLUEBOOK, extra: extra))
+    File.write(File.join(directory, "shop.hecksagon"), %(Hecks.hecksagon "Shop" do\n  persisted_by "#{persisted_by}"\nend\n))
   end
 
   def ledgered = JSON.parse(File.read(File.join(directory, "shapes.json"))).fetch("Shop")
@@ -110,5 +111,36 @@ RSpec.describe Hecks::ShapeLedger do
     write_edge("aaaaaa", described_class.label(current))
 
     expect(described_class.check(directory, confirm: true)).to start_with("wrote 1 bluebook shapes")
+  end
+
+  describe "which bluebooks it holds" do
+    it "skips a bluebook whose committed persistence is Memory, whatever shape it takes", :aggregate_failures do
+      write_bluebook(persisted_by: "Memory")
+      described_class.check(directory, confirm: true)
+      write_bluebook("attribute :price, Price", persisted_by: "Memory")
+
+      expect(described_class.check(directory)).to include("skipped 1 tooling bluebooks (committed persistence: Memory): Shop")
+      expect(described_class.check(directory)).to start_with("0 bluebook shapes")
+    end
+
+    it "does not pull a bluebook in because a local overlay names an era adapter", :aggregate_failures do
+      write_bluebook(persisted_by: "Memory")
+      File.write(File.join(directory, "hecks.local.hecksagon"), %(Hecks.hecksagon "Shop" do\n  persisted_by "PostgresEra"\nend\n))
+
+      expect(described_class::Scope.of(described_class::Scope.committed_registry(directory)).last).to eq("Shop" => "Memory")
+    end
+
+    it "leaves a skipped bluebook out of the status and the edge hygiene", :aggregate_failures do
+      write_bluebook(persisted_by: "Memory")
+      write_edge("aaaaaa", "aaaaaa")
+
+      expect(described_class::Status.of(directory)["bluebooks"]).to be_empty
+      expect(described_class.check(directory)).not_to include("self-loop")
+    end
+
+    it "holds a bluebook whose committed persistence is an era adapter", :aggregate_failures do
+      write_bluebook
+      expect(described_class::Scope.of(described_class::Scope.committed_registry(directory)).first).to eq(["Shop"])
+    end
   end
 end
