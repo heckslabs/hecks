@@ -24,13 +24,14 @@ module Hecks
         #
         # @param directory [String] the domain's bluebook directory
         # @return [Hash] `held` (the count of held eras), and when any are held, `next_era`,
-        #   `watermark`, `from`, `to` and `verdict` (see `QaAutoMint.facts`)
+        #   `status` (the boot's resolution, `LineageManager::EraResolution`), `watermark`, `from`,
+        #   `to` and `verdict` (see `QaAutoMint.facts`)
         def self.read(directory)
-          domain = HeldDomain.open(directory, mode: :translated)
-          held = domain.reading { |lineage| domain.held_eras(lineage) }
-          return { held: 0 } if held.empty?
+          resolution = HeldDomain.open(directory, mode: :translated).resolution
+          return { held: 0 } if resolution.status == "unheld"
 
-          QaAutoMint.facts(directory).merge(held: held.size, next_era: held.last[:ordinal] + 1)
+          QaAutoMint.facts(directory).merge(held: resolution.held_count, next_era: resolution.latest[:ordinal] + 1,
+                                            status: resolution.status)
         end
 
         # Mints the era through the QualityControl mint transaction, against the Hecks domain.
@@ -61,8 +62,9 @@ module Hecks
           refuse!("the mint needs --confirm") unless confirm == true
           facts = @reader.call(@directory)
           refuse!("the Hecks domain holds no era; hold its first era before a mint") if facts[:held].zero?
-          return unchanged(run, facts) if facts[:from] == facts[:to]
+          return unchanged(run, facts) if facts[:status] == "current"
 
+          refuse!("the current shape is held by an era a later one superseded; nothing to mint") if facts[:status] == "superseded"
           decide!(facts, rehearsal_verdict, watermark)
           minted(run, facts)
         end

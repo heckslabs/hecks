@@ -190,6 +190,16 @@ module Hecks
           db&.close
         end
 
+        # What a boot of the held bluebook would resolve, read from its database over a connection
+        # that only reads: the resolution the boot records (`LineageManager::EraResolution`).
+        #
+        # @return [PostgresEra::LineageManager::EraResolution::Answer]
+        # @raise [Runtime::WiringError] if the connection is refused or a held text was altered
+        def resolution
+          PostgresEra::LineageManager::EraResolution.read(bluebook: bluebook, settings: settings,
+                                                          translations: translations, directory: directory)
+        end
+
         # The eras a lineage holds, without provisioning anything: none when the lineage tables do
         # not exist yet.
         #
