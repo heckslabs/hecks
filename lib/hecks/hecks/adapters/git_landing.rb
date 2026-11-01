@@ -49,19 +49,19 @@ module Hecks
       # @param held [Hash] the `Landing` record: `checkout` (the worktree to remove), `branch`
       #   (its checked-out branch when absent), `onto`
       # @return [Hash{Symbol => Hash}] `outcome:` (`retired`), `checkout:`, `branch:`, `report:`
-      # @raise [ConsoleCapture::Failure] when it is the primary worktree, holds uncommitted work,
-      #   or its branch has commits `onto` lacks
+      # @raise [ConsoleCapture::Failure] when anything makes keeping it the safe answer: the primary
+      #   worktree, one the process stands in, any file not tracked and clean (ignored included), a
+      #   branch with commits `onto` lacks or a protected branch, or git refusing the removal
       def remove(**held)
         settle(held)
         branch = plain(held[:branch]) || current_branch
         onto = plain(held[:onto]) || "main"
         gone = @checkout
-        home = primary.path
-        refuse_unretirable(branch, onto)
-        read("worktree", "remove", gone, dir: home)
-        read("branch", "-D", ref(branch), dir: home)
+        kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, retiring: true).retire
+        raise ConsoleCapture::Failure, "#{gone} is kept: #{said}" if kept
+
         { outcome: { value: "retired" }, checkout: { value: gone }, branch: { value: branch },
-          report: { value: "removed #{gone} and deleted #{branch}, which is on #{onto}" } }
+          report: { value: said } }
       end
 
       # The branches whose commits are not on a branch, or that hold uncommitted work.
@@ -122,14 +122,6 @@ module Hecks
         tree = worktree_on(branch)
         changed = tree ? dirty(tree.path) : []
         raise ConsoleCapture::Failure, "#{tree.path} holds uncommitted work: #{changed.join(", ")}" unless changed.empty?
-      end
-
-      def refuse_unretirable(branch, onto)
-        raise ConsoleCapture::Failure, "#{@checkout} is the primary worktree" if @checkout == primary.path
-
-        refuse_unsaved(branch)
-        behind = count("#{ref(onto)}..#{ref(branch)}")
-        raise ConsoleCapture::Failure, "#{branch} has #{behind} commit(s) not on #{onto}" if behind.positive?
       end
 
       def branches = read("for-each-ref", "--format=%(refname:short)", "refs/heads").split("\n")

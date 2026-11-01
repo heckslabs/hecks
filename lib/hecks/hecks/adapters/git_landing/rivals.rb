@@ -30,7 +30,7 @@ module Hecks
           StartedWork.rows(@registry).each do |row|
             next if row[:key] == branch
 
-            clash = files.select { |file| row[:area].any? { |area| AreaOverlap.overlap?(area, file) } }
+            clash = files.select { |file| claims?(row, file) }
             return wording(branch, row, clash) unless clash.empty?
           end
           nil
@@ -38,12 +38,20 @@ module Hecks
 
         private
 
+        def claims?(row, file)
+          row[:area].any? { |area| AreaOverlap.overlap?(area, file, root: @checkout, file: true) }
+        end
+
         def wording(branch, row, clash)
           "#{branch} changes #{clash.join(", ")}, in the area of #{row[:key]} (#{row[:area].join(", ")})"
         end
 
         def changed(branch, onto)
-          read("diff", "--name-only", "#{ref(onto)}...#{ref(branch)}").split("\n")
+          result = @git.capture("diff", "--no-renames", "--name-only", "-z", "#{ref(onto)}...#{ref(branch)}",
+                                chdir: @checkout)
+          raise ConsoleCapture::Failure, "git diff failed in #{@checkout}: #{result.err.strip}" unless result.ok?
+
+          result.out.split("\0").reject(&:empty?)
         end
       end
     end
