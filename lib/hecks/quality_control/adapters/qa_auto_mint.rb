@@ -29,8 +29,9 @@ module Hecks
         held = JournalStore::HeldDomain.open(ledger, mode: :translated)
         registry = held.registry
         latest, watermark = latest_era(held)
-        verdict = MintDecision.decide_latest(latest, bluebook: held.bluebook, translations: registry.translations,
-                                                     directory: ledger, watermark: watermark)
+        verdict = PostgresEra::LineageManager::MintDecision.decide_latest(
+          latest, bluebook: held.bluebook, translations: registry.translations, directory: ledger, watermark: watermark
+        )
         { watermark: watermark, held: shadow_of(latest[:held_text]), current: held.bluebook, verdict: verdict }
           .merge(edge_facts(held, ledger, latest[:label]))
       end
