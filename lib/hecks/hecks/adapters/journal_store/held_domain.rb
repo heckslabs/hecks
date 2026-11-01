@@ -2,6 +2,7 @@
 
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
+require "hecks/indifferent_key"
 
 module Hecks
   module Adapters
@@ -115,6 +116,11 @@ module Hecks
           declared = declared.merge(schema: @schema) if @schema
           @database ? declared.merge(database: @database) : declared
         end
+
+        # The app role the world names, which provisioning grants what the app needs to write.
+        #
+        # @return [String, nil] the role, or nil when the world names none
+        def app_role = IndifferentKey.read(settings, :role)
 
         # Names the schema its journal store is read in, over the world's and `HECKS_SCHEMA`, so a
         # rehearsal reads the schema it reports.

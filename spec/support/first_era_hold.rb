@@ -13,14 +13,15 @@ module FirstEraHold
   # @param domain [String] the domain's declared name
   # @param source [String] the bluebook source the first era freezes
   # @param schema [String, nil] the schema the lineage is held in
+  # @param role [String, nil] the app role to grant, as the world's `role:` names it
   # @return [void]
-  def hold_first_era!(url:, domain:, source:, schema: nil)
+  def hold_first_era!(url:, domain:, source:, schema: nil, role: nil)
     bluebook = load_registry(source).bluebooks.values.first
     db = Hecks::Adapters::PostgresEra.connect_for(domain, { database: url, schema: schema }.compact)
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, domain)
     lineage.ensure_base!
     lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
-    lineage.provision_first_era!(bluebook.aggregates)
+    lineage.provision_first_era!(bluebook.aggregates, role: role)
   ensure
     db&.close
   end
