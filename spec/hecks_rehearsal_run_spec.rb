@@ -35,7 +35,7 @@ RSpec.describe "rehearsing a domain's next era" do
 
   # Runs one rehearsal of the shop and answers the record it ended as.
   def rehearse(run = "r-#{SecureRandom.hex(4)}", *args)
-    launch("rehearsal_run.request", "run=#{run}", "domain=#{shop}", *args)
+    launch("rehearsal_run.request!", "run=#{run}", "domain=#{shop}", *args)
     Array(JSON.parse(launch("rehearsal_run.rehearsal_outcome", "run=#{run}").first)).first
   end
 
@@ -130,6 +130,53 @@ RSpec.describe "rehearsing a domain's next era" do
 
     expect([status_of(record), verdict_of(record)]).to eq(%w[withheld needs_edge])
     expect(record["edge_present"]).to be(false)
+  end
+
+  describe "a recorded implicit move" do
+    let(:optional_note) { note_attribute(optional: true) }
+
+    # Holds the shape the copy was made under, adds `line` to Widget, and records the move
+    # between the two shapes.
+    def move_shape(line, recorded: true)
+      held_current_shape
+      from = rehearse["after"]
+      add_widget_attribute(line)
+      record_moves([{ "from" => from, "to" => rehearse["after"] }]) if recorded
+      rehearse
+    end
+
+    # A `Note` attribute on Widget, optional or required, with the value object it is typed by.
+    def note_attribute(optional:)
+      optional_flag = optional ? ", optional: true" : ""
+      "attribute :note, Note#{optional_flag}\n    value_object \"Note\" do\n      attribute :value, String\n    end"
+    end
+
+    def add_widget_attribute(line)
+      world = File.join(shop, "bluebook", "shop.bluebook")
+      File.write(world, File.read(world).sub("    lifecycle :status", "    #{line}\n    lifecycle :status"))
+    end
+
+    def record_moves(moves)
+      File.write(File.join(shop, "bluebook", Hecks::ShapeLedger::IMPLICIT_FILE), JSON.generate("Shop" => moves))
+    end
+
+    it "would mint when the recorded move qualifies as additive", :aggregate_failures, :process do
+      record = move_shape(optional_note)
+
+      expect([record["minting"], verdict_of(record), record["edge_present"]]).to eq(["next", "would_mint", true])
+    end
+
+    it "still needs an edge when the recorded move does not qualify", :aggregate_failures, :process do
+      record = move_shape(note_attribute(optional: false))
+
+      expect([verdict_of(record), record["edge_present"]]).to eq(["needs_edge", false])
+    end
+
+    it "still needs an edge when no record names the move", :aggregate_failures, :process do
+      record = move_shape(optional_note, recorded: false)
+
+      expect([verdict_of(record), record["edge_present"]]).to eq(["needs_edge", false])
+    end
   end
 
   describe "how much was audited" do

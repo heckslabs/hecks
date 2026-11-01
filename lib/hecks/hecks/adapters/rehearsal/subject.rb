@@ -4,6 +4,7 @@ require_relative "declaration"
 require_relative "environment"
 require_relative "../journal_store/edge_audit"
 require_relative "../journal_store/held_domain"
+require_relative "../../../shape_ledger"
 
 module Hecks
   module Adapters
@@ -13,6 +14,10 @@ module Hecks
       class Subject
         # The domain did not load: the answer a rehearsal gives is `cannot_boot`, with the reason.
         class CannotBoot < StandardError; end
+
+        # The implicit moves the framework keeps beside its shape ledger. A bluebook the framework
+        # holds, such as QualityControl, has its moves recorded here, not beside its own files.
+        FRAMEWORK_MOVES = File.join(File.expand_path("../..", __dir__), ShapeLedger::IMPLICIT_FILE).freeze
 
         attr_reader :held, :declaration, :environment
 
@@ -113,12 +118,38 @@ module Hecks
         # @return [String] the domain's bluebook directory
         def directory = held.directory
 
-        # The edge that leads one era's label to the shape's label.
+        # The edge that leads one era's label to the shape's label: a written translation, else the
+        # implicit empty edge a recorded implicit move reaches the shape by.
         #
         # @param from [String] the held era's label
-        # @return [Bluebook::Translation, nil] the edge; nil when none is declared
-        def edge_from(from)
-          registry.translations.find { |t| t.domain == bluebook.name && t.from == from && t.to == label }
+        # @param held_text [String, nil] the held era's source, which the implicit rule reads
+        # @return [Bluebook::Translation, Translation::ImplicitEdge, nil] the edge, or nil when
+        #   none leads
+        def edge_from(from, held_text = nil)
+          written = registry.translations.find { |t| t.domain == bluebook.name && t.from == from && t.to == label }
+          written || implicit_edge(from, held_text)
+        end
+
+        # The implicit edge from a held era, when the recorded implicit moves chain from its label
+        # to the shape's and the change qualifies as additive, by the rule the mint applies.
+        #
+        # @param from [String] the held era's label
+        # @param held_text [String, nil] the held era's source
+        # @return [Translation::ImplicitEdge, nil]
+        def implicit_edge(from, held_text)
+          return unless held_text && ShapeLedger.reachable?(from, label, recorded_moves)
+
+          PostgresEra::LineageManager.implicit_edge_for(bluebook, held_text, from: from, to: label)
+        end
+
+        # The implicit moves recorded for this domain's bluebook name: beside its own bluebooks, and
+        # in the framework's record.
+        #
+        # @return [Array<Array(String, String)>] each recorded move as `[from, to]`
+        def recorded_moves
+          [File.join(directory, ShapeLedger::IMPLICIT_FILE), FRAMEWORK_MOVES].flat_map do |path|
+            ShapeLedger.pairs_of(ShapeLedger.implicit_moves(path).fetch(bluebook.name, []))
+          end
         end
 
         # @return [Array<String>] the persisted databases the domain's own world names, which a
