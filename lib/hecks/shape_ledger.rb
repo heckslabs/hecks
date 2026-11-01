@@ -1,6 +1,7 @@
 require "json"
 require "hecks"
 require_relative "shape_ledger/status"
+require_relative "shape_ledger/edge_hygiene"
 
 module Hecks
   # The committed record of each bluebook's storage shape, held against the shapes the bluebooks
@@ -46,7 +47,10 @@ module Hecks
       shapes = shapes_of(registry)
       path = File.join(directory, FILE)
       edges = with_implicit(edges_of(registry), implicit_moves(implicit_path(path)))
-      confirm ? rewrite(path, shapes, edges, additive) : verdict(path, shapes, edges)
+      return rewrite(path, shapes, edges, additive) if confirm
+
+      verdict(path, shapes, edges) + EdgeHygiene.report(directory, ledger: read(path), shapes: shapes,
+                                                                   moves: implicit_moves(implicit_path(path)))
     end
 
     # @param registry [Runtime::Registry] the loaded bluebooks
