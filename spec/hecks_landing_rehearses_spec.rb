@@ -3,7 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
-# A successful land asks for the push rehearsal under the primary checkout it carries, so the
+# A successful land asks for the quick push rehearsal under the primary checkout it carries, so the
 # rehearsal runs even though the retired worktree is gone. The stages are stubbed; the repository
 # is a throwaway one.
 RSpec.describe "a landing followed by its rehearsal" do
@@ -48,9 +48,9 @@ RSpec.describe "a landing followed by its rehearsal" do
     Thread.current[:hecks_reaction_depth] = outer
   end
 
-  def last_rehearsal = File.join(repo, ".git", Hecks::Adapters::GitRehearsal::Record::FILE)
+  def last_rehearsal = File.join(repo, ".git", Hecks::Adapters::GitRehearsal::Record::QUICK)
 
-  it "rehearses main after the land, from the worktree the land retired", :aggregate_failures do
+  it "rehearses main quickly after the land, from the worktree the land retired", :aggregate_failures do
     launch("landing.land!", "run=l-#{SecureRandom.hex(4)}", "checkout.value=#{tree}", "branch.value=work/a",
            "--confirm", "--wait")
     landed = git("rev-parse", "main").strip
@@ -59,7 +59,7 @@ RSpec.describe "a landing followed by its rehearsal" do
     expect(File.read(last_rehearsal)).to start_with("#{landed} green")
   end
 
-  it "rehearses main when the land retired its worktree", :aggregate_failures do
+  it "rehearses main quickly when the land retired its worktree", :aggregate_failures do
     launch("landing.land!", "run=l-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "branch.value=work/a",
            "--confirm", "--wait")
     landed = git("rev-parse", "main").strip
