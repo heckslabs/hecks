@@ -17,6 +17,7 @@ RSpec.describe "the QualityControl mint chain" do
   before do
     stub_const("Hecks::Adapters::MainMaintenance::STRANDED_DIR", File.join(state_dir, "state"))
     allow(commands).to receive_messages(auto_mint_facts: facts, mint_era: ["316ef0", true])
+    allow(Hecks::Adapters::QaEraMint).to receive(:disposable?).and_return(false)
   end
 
   after { FileUtils.remove_entry(state_dir) }

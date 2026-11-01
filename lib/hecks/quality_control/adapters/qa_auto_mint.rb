@@ -55,6 +55,18 @@ module Hecks
       # @return [String]
       def ledger_for(root, requested) = requested || File.join(root, QaEraMint::LEDGER)
 
+      # The ledger a mint is for, refused by name when its world declares it disposable: its boot
+      # holds every shape change itself, so there is no era to mint.
+      #
+      # @return [String] the bluebook directory
+      # @raise [Runtime::WiringError] if the ledger is disposable
+      def mintable_ledger_for(root, requested)
+        ledger = ledger_for(root, requested)
+        raise Runtime::WiringError, QaEraMint::DISPOSABLE if QaEraMint.disposable?(ledger)
+
+        ledger
+      end
+
       # The journal rows the run's own `Maintenance` record wrote above the rehearsed watermark: the
       # mint command saves that record before its entry point runs, so it is the one change the
       # rehearsal could not have read.

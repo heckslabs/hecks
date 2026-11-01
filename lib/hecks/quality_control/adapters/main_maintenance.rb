@@ -217,7 +217,7 @@ module Hecks
         facts[:watermark]
       end
 
-      def ledger_of(request) = QaAutoMint.ledger_for(@root, value_of(request[:ledger_dir]))
+      def ledger_of(request) = QaAutoMint.mintable_ledger_for(@root, value_of(request[:ledger_dir]))
 
       # Runs the era check's mint through the mint command, and answers the label it minted. The
       # mint is

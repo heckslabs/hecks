@@ -12,7 +12,20 @@ module Hecks
       # The ledger's bluebook directory, under the repository root.
       LEDGER = "qa/bluebook"
 
+      # What a mint of a disposable ledger answers: its boot holds every shape change itself.
+      DISPOSABLE = "disposable, no mint needed: the ledger's world declares disposable_ledger true, " \
+                   "so its boot brings the shape up to date without an era"
+
       module_function
+
+      # Whether a ledger's world declares `disposable_ledger true`, so it needs no mint.
+      #
+      # @param ledger [String, JournalStore::HeldDomain] the bluebook directory, or the opened one
+      # @return [Boolean]
+      def disposable?(ledger)
+        held = ledger.is_a?(String) ? JournalStore::HeldDomain.open(ledger, mode: :translated) : ledger
+        PostgresEra::LineageManager::DisposableLedger.declared?(held.settings)
+      end
 
       # Mints the next era of the ledger, or refuses by name.
       #
@@ -28,6 +41,8 @@ module Hecks
       #   minted
       def call(root, domain:, era:, request:, ledger: nil)
         held = JournalStore::HeldDomain.open(ledger || File.join(root, LEDGER), mode: :translated)
+        return [DISPOSABLE, false] if disposable?(held)
+
         settings = held.settings.merge(mint_eras: true, mint_request: request)
         refuse_wrong_mint!(held, settings, domain, era)
         mint!(held, settings) ? [Runtime::StorageShape.mint_label(held.bluebook), true] : [unminted, false]
