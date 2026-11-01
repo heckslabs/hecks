@@ -83,7 +83,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
     def self.wasm_for(domain_path)
       domain_name = File.basename(domain_path)
       _stdout, stderr, status = Open3.capture3(
-        { "HECKS_ENVIRONMENT" => "memory" }, "bundle", "exec", "ruby", "exe/hecks", "build.build_wasm",
+        { "HECKS_ENVIRONMENT" => "memory" }, "bundle", "exec", "ruby", "exe/hecks", "build.build_wasm!",
         "domain=#{domain_path}", "--wait", chdir: repo_root
       )
       status.success? or raise "hecks build_wasm #{domain_path} failed: #{stderr}"
@@ -108,7 +108,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
 
     def rust_conformance(domain, script, artifact)
       Open3.capture3(
-        { "HECKS_ENVIRONMENT" => "memory" }, "bundle", "exec", "ruby", "exe/hecks", "build.check_conformance",
+        { "HECKS_ENVIRONMENT" => "memory" }, "bundle", "exec", "ruby", "exe/hecks", "build.check_conformance!",
         "domain=#{domain}", "script=#{script}", "artifact=#{artifact}", "--wait", chdir: self.class.repo_root
       )
     end

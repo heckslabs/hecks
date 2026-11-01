@@ -54,7 +54,7 @@ RSpec.describe "hecks console through the launcher, at a terminal" do
   # Spawns `hecks console` at a pseudo-terminal and yields its reader, writer and pid.
   def with_console
     Dir.mktmpdir do |dir|
-      PTY.spawn(console_env(dir), RbConfig.ruby, "exe/hecks", "console", chdir: InMemoryDomain::ROOT) do |*terminal|
+      PTY.spawn(console_env(dir), RbConfig.ruby, "exe/hecks", "console!", chdir: InMemoryDomain::ROOT) do |*terminal|
         yield(*terminal)
       end
     end

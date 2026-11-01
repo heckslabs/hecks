@@ -19,25 +19,25 @@ needs a database until you deploy:
 export HECKS_ENVIRONMENT=memory
 ```
 
-`hecks console` and `hecks init` set this for themselves; the other commands below do not.
-Skip it and `hecks deploy recipe.project` stops with `cannot bind PostgresEra`,
+`hecks console!` and `hecks init!` set this for themselves; the other commands below do not.
+Skip it and `hecks deploy Recipe.project!` stops with `cannot bind PostgresEra`,
 which means hecks went looking for that local Postgres.
 
 ## 1. Write it
 
 A domain lives in a directory that is not inside the clone, and the
 layout matters: a `bluebook` folder holding a `.bluebook` file named after
-the domain, with its `.world` beside it. `hecks init` writes that layout
+the domain, with its `.world` beside it. `hecks init!` writes that layout
 for you as a stub:
 
 ```sh
-bundle exec hecks init Lending --dir="$HOME/lending" --adapter=Postgres
+bundle exec hecks init! Lending --dir="$HOME/lending" --adapter=Postgres
 ```
 
 It writes `lending.bluebook`, `lending.world` and an
 `environments/memory.world`, tells you what to type next, and never
 replaces a file that is already there. (If you would rather start from a
-conversation with someone who knows the business, `hecks interview Lending`
+conversation with someone who knows the business, `hecks interview! Lending`
 asks the questions, keeps what the expert says, and drafts the domain from
 what you accept. It sends the answers to a model through your own `claude`
 login; `--no-ai` leaves that out.) `--adapter` says where the data will
@@ -125,17 +125,17 @@ Read it top to bottom; it uses only words you met in Getting started:
 Ask hecks to read it back before running anything:
 
 ```sh
-bundle exec hecks docs "$HOME/lending/bluebook"
+bundle exec hecks query Introspection.docs "$HOME/lending/bluebook"
 ```
 
-`hecks docs` prints each command's arguments, the lifecycle, and every
+`hecks query Introspection.docs` prints each command's arguments, the lifecycle, and every
 refusal the domain can produce. If you made a mistake in the file, this
 is where it is named.
 
 ## 2. Run it
 
 Where the data lives is a separate file, because it is a decision about a
-deployment and not about the domain. `hecks init` wrote it as
+deployment and not about the domain. `hecks init!` wrote it as
 `$HOME/lending/bluebook/lending.world`:
 
 ```text
@@ -162,7 +162,7 @@ end
 it. Now open the domain:
 
 ```sh
-bundle exec hecks console subject="$HOME/lending"
+bundle exec hecks console! subject="$HOME/lending"
 ```
 
 The console lists `Book: lend!, return!, shelve!` and gives you a prompt.
@@ -272,7 +272,7 @@ aws lambda invoke --function-name hecks-lending --region us-east-1 \
 ```
 
 Issue a command. `verb` is `<Domain>::<Aggregate>.<Command>`, and `with`
-holds the command's facts in the shape `hecks docs` printed:
+holds the command's facts in the shape `hecks query Introspection.docs` printed:
 
 ```sh
 aws lambda invoke --function-name hecks-lending --region us-east-1 \
@@ -293,8 +293,8 @@ database snapshot too if you want no residue.
 
 Every Ruby block in this guide runs under
 `spec/guides_spec.rb`. The same domain files were also run directly:
-`hecks docs`, a scripted boot on Memory and `hecks console subject=` all
-worked. `hecks deploy recipe.project` wrote the files above for the Lambda
+`hecks query Introspection.docs`, a scripted boot on Memory and `hecks console! subject=` all
+worked. `hecks deploy Recipe.project!` wrote the files above for the Lambda
 target, and `sam build` in that directory compiled the domain into the
 function (a `bootstrap` binary, `lending.wasm` and `lending.ir.json`).
 
