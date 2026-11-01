@@ -5,6 +5,7 @@ require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/mint_request_support"
+require_relative "../../../support/first_era_hold"
 
 # What a boot may do with its journal when its shape is unminted, superseded, or the mint's own
 # boot: an unminted boot reads and refuses writes by naming the mint entry point, a superseded
@@ -12,6 +13,7 @@ require_relative "../../../support/mint_request_support"
 RSpec.describe "unminted and superseded boots in PostgresEra", :io do
   include EraRegistryLoading
   include MintRequestSupport
+  include FirstEraHold
 
   BOOT_DB = "hecks_unminted_boot_spec".freeze
 
@@ -100,7 +102,10 @@ RSpec.describe "unminted and superseded boots in PostgresEra", :io do
     e.message
   end
 
-  before { registry_for(shape_v1) }
+  before do
+    hold_first_era!(url: boot_url, domain: "Ledger", source: shape_v1)
+    registry_for(shape_v1)
+  end
 
   context "with a shape no era holds, booted without a mint request" do
     let(:unminted) { registry_for(shape_v3) }

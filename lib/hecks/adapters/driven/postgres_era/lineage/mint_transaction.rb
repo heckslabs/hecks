@@ -137,7 +137,10 @@ module Hecks
           # grant_role! must follow compile_head!, which creates the per-era snapshot
           # tables that it grants on.
           def compile_and_grant!(mint)
-            mint.aggregates.each { |aggregate| compile_head!(aggregate, mint.ordinal, mint.label, mint.edges) }
+            mint.aggregates.each do |aggregate|
+              compile_head!(aggregate, mint.ordinal, mint.label, mint.edges)
+              provision_read_side!(aggregate, mint.ordinal)
+            end
             grant_role!(mint.role, aggregates: mint.aggregates, era: mint.ordinal) if mint.role
           end
 

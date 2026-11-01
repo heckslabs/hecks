@@ -94,14 +94,19 @@ module Hecks
 
         def text_literal(text) = "'#{text.to_s.gsub("'", "''")}'"
 
-        # Where-fields of the aggregate's and its entities' queries that a cache table can
-        # represent; order_by-only fields never needed a cache.
-        def ensure_field_caches!
-          cached_where_fields.to_h do |field|
-            [field, @lineage.ensure_field_cache!(table, @era, field, query_expression(field))]
+        # The cache tables of this era a boot may read: each cached where-field whose table exists.
+        # A boot creates none; the mint that held the era created them.
+        #
+        # @return [Hash{String => String}] each cached field mapped to its existing cache table
+        def existing_field_caches
+          cached_where_fields.each_with_object({}) do |field, found|
+            name = @lineage.field_cache(table, @era, field)
+            found[field] = name if @lineage.table_exists?(name)
           end
         end
 
+        # Where-fields of the aggregate's and its entities' queries that a cache table can
+        # represent; order_by-only fields never needed a cache.
         def cached_where_fields
           fields = declared_queries.flat_map do |q|
             q.wheres.map do |clause|

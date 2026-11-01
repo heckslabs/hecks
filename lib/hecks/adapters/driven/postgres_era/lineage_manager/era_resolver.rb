@@ -28,8 +28,8 @@ module Hecks
           # @raise [Runtime::WiringError] if the connection is refused, a held text fails its
           #   integrity check, no era is held, or the shape is unheld and `mint!` refuses
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
-            db = PostgresEra.connect_for(bluebook.name, settings)
             request = MintRequest.from(settings)
+            db = PostgresEra.connect_for(bluebook.name, settings, provision: !request.nil?)
             lineage = open_lineage(db, bluebook, settings, request)
             resolve_era(Context.new(registry: registry, bluebook: bluebook, current_text: current_text,
                                     lineage: lineage, role: IndifferentKey.read(settings, :role),
