@@ -15,7 +15,8 @@ module Hecks
         # - `superseded`: an older held era holds the current shape; a later one superseded it.
         # - `behind`: no era holds the current shape, and a mint from the latest one would go ahead
         #   on its translation edge or recorded implicit move.
-        # - `unminted`: no era holds the current shape, and no mint from the latest one would go ahead.
+        # - `unminted`: no era holds the current shape, and no mint from the latest one would go
+        #   ahead.
         module EraResolution
           # What a resolution concludes. `resolved` is the era the boot reads (nil when `unheld`),
           # `latest` the latest held era, `verdict` the mint decision from the latest era (nil
@@ -28,14 +29,13 @@ module Hecks
             # so its label is worked out in memory, as its mint would name it; naming is a write,
             # so a resolution never stores it.
             #
-            # @return [String, nil] the label; nil when no era is held, or the era holds part of its
-            #   domain's source
+            # @return [String, nil] the label; nil when no era is held
+            # @raise [Runtime::WiringError] when an unnamed era stores no shape (`refuse_unshaped!`)
             def held_label
               stored = resolved&.fetch(:label, nil)
               return stored if stored || resolved.nil?
-              return unless LineageManager.whole_held_text?(resolved)
 
-              Runtime::StorageShape.mint_label(LineageManager.held_declaration(resolved))
+              LineageManager.held_hash(resolved)[0, Runtime::StorageShape::LABEL_LENGTH]
             end
 
             # @return [Integer, nil] the ordinal of the era the boot reads
@@ -130,7 +130,7 @@ module Hecks
             prior && shape["name"] == prior ? shape.merge("name" => bluebook.name) : shape
           end
 
-          # @return [Answer] a `behind` or `unminted` answer, by the mint decision from the latest era
+          # @return [Answer] a `behind` or `unminted` answer, by the latest era's mint decision
           def unmatched(facts, bluebook, translations, directory, watermark)
             verdict = MintDecision.decide_latest(facts[:latest], bluebook: bluebook, translations: translations,
                                                                  directory: directory, watermark: watermark)
