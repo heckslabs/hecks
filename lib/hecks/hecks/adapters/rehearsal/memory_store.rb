@@ -32,6 +32,12 @@ module Hecks
           Array(@document["eras"]).map { |era| { ordinal: era["ordinal"], held_text: era["held_text"] } }
         end
 
+        # A document holds no ledger, so its watermark is zero and never moves.
+        #
+        # @param _subject [Subject] unused
+        # @return [Integer] the ledger watermark
+        def watermark(_subject) = 0
+
         # What the document holds: it keeps the latest state of each record only, so the head and
         # the journal counts are the same number.
         #

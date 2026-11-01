@@ -31,6 +31,14 @@ module Hecks
         end
 
         # @param subject [Subject] the loaded domain
+        # @return [Integer] the ledger watermark the copy holds: zero when it holds no lineage
+        def watermark(subject)
+          return 0 unless census(subject).present
+
+          reading(subject, &:last_ordinal)
+        end
+
+        # @param subject [Subject] the loaded domain
         # @param _edge [Bluebook::Translation] the edge leading to the shape
         # @return [Array(Array<String>, Hash)] what the audit's layers refuse over the stored
         #   records, and the records as translated, by aggregate name and id

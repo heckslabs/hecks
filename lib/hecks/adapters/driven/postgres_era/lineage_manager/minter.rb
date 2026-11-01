@@ -4,6 +4,7 @@ require_relative "../../../../ports/persistence/plugins/era/translation/audit"
 require_relative "../../../../ports/persistence/plugins/era/translation/scaffold"
 require_relative "context"
 require_relative "refusals"
+require_relative "mint_decision"
 
 module Hecks
   module Adapters
@@ -24,31 +25,28 @@ module Hecks
             refuse_unrehearsed_mint!(context)
             ensure_named!(context.lineage, context.latest)
             context = context.with(latest: context.held_eras.last)
+            decided_at = context.watermark
             edge = verified_edge!(context)
             refuse_unpermitted_mint!(context) unless context.mint_permitted
             chain = audited_chain!(context, edge)
+            refuse_moved_watermark!(context, decided_at)
             commit_era!(context, chain, edge)
           end
 
-          # Finds the one translation edge leaving the held era and targeting the current
-          # shape's label; a second edge from the same source is a wiring mistake, not a
-          # merge to resolve automatically.
+          # The edge a mint leaves the held era by, as `MintDecision` decides it. A refusal the
+          # decision names is raised by name; a change that needs a rule refuses toward the
+          # scaffold.
           def resolve_edge!(context)
-            edges = edges_leaving(context)
-            if edges.empty?
-              implicit = implicit_edge_for(context.bluebook, context.latest[:held_text],
-                                           from: context.latest[:label], to: context.label)
-              return implicit if implicit
+            verdict = decide!(context)
+            return verdict.edge if verdict.verdict == "would_mint"
+            return refuse_toward_the_scaffold!(context) if verdict.verdict == "needs_edge"
 
-              refuse_toward_the_scaffold!(context)
-            end
-            refuse_forked_eras!(context, edges) if edges.size > 1
-            refuse_stale_edge!(context, edges.first)
-            edges.first
+            refuse_refused_verdict!(context, verdict)
           end
 
           # The implicit empty edge for a shape change with no edge file, or nil when the scaffold
-          # finds a rule, a retirement or an unresolved name, or the change is not additive.
+          # finds a rule, a retirement or an unresolved name, or the change is not additive. The
+          # audit's edge lookup reads it; a mint decides through `MintDecision`.
           #
           # @param bluebook [Bluebook::Declaration] the current bluebook
           # @param held_text [String] the source of the held era the change starts from
@@ -89,11 +87,25 @@ module Hecks
 
           private
 
-          def edges_leaving(context)
+          # The verdict `MintDecision` reaches for the held era the mint leaves, read at the
+          # watermark the context holds now.
+          def decide!(context)
+            held = context.latest.merge(declaration: shadow(context.latest[:held_text]))
+            MintDecision.decide(held: [held], bluebook: context.bluebook, edge_source: edge_source_of(context),
+                                watermark: context.watermark, rows: [])
+          end
+
+          def edge_source_of(context)
             registry = context.registry
-            registry.translations.select do |t|
-              t.domain == context.domain_name && t.from == context.latest[:label]
-            end
+            { translations: registry.translations,
+              recorded:     MintDecision.recorded_moves(context.domain_name, context.directory) }
+          end
+
+          # The refusal a decided edge stands for: a fork or a stale edge, each named.
+          def refuse_refused_verdict!(context, verdict)
+            return refuse_forked_eras!(context, verdict.edges) if verdict.reason == :fork
+
+            refuse_stale_edge!(context, verdict.edge)
           end
 
           # The edge chain to the current shape, after its audit passes.
