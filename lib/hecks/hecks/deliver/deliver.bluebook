@@ -631,9 +631,12 @@ Hecks.bluebook "Hecks" do
       ask     :carry, with: { run: :run }
     end
 
+    # The refusal carries the mint's run, which is the boarding's own run key (MintBeforeCarry passes
+    # it through), so `run` names the SendTrain receiver. The event's aggregate is Era, so without it
+    # the Fault has no SendTrain identity to route to.
     policy "RecordTheRefusedMint" do
       on      "Era.MintRefused"
-      trigger SendTrain::Fault, with: { refusal: :refusal }
+      trigger SendTrain::Fault, with: { run: :run, refusal: :refusal }
     end
 
     policy "RecordThePush" do
