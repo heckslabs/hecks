@@ -2038,10 +2038,15 @@ Hecks.bluebook "QualityControl" do
     attribute :log,      CursorDomain
     attribute :consumer, CursorDomain
     attribute :position, CursorPosition
+    attribute :read_at,  CursorReadAt, optional: true
 
     value_object "CursorKey" do
       attribute :value, String, matches: :present
       invariant("a cursor is keyed by its log and consumer") { !value.to_s.empty? }
+    end
+
+    value_object "CursorReadAt" do
+      attribute :value, String, matches: :present
     end
 
     value_object "CursorDomain" do

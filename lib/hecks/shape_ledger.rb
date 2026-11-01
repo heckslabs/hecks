@@ -1,4 +1,3 @@
-require "fileutils"
 require "json"
 require "hecks"
 
@@ -31,9 +30,10 @@ module Hecks
     #
     # @param directory [String] the domain directory whose bluebooks the ledger records
     # @param confirm [Boolean] rewrite the ledger when every moved shape has an edge
-    # @param additive [Boolean] with `confirm`, write the empty edge for each shape that moved with
-    #   none, on the operator's word that the change only adds; the mint audits every edge against
-    #   the records it migrates and refuses one that would lose data
+    # @param additive [Boolean] with `confirm`, move the ledger for each shape that moved with no
+    #   edge, on the operator's word that the change only adds. No edge file is written: the boot
+    #   and the mint treat such a move as an implicit empty edge, and the mint refuses any change
+    #   the scaffold does not find to be additive
     # @return [String] the clean verdict, or what was written
     # @raise [Failure] with each problem
     def check(directory, confirm: false, additive: false)
@@ -41,7 +41,7 @@ module Hecks
       shapes = shapes_of(registry)
       edges = edges_of(registry)
       path = File.join(directory, FILE)
-      confirm ? rewrite(path, shapes, edges, directory, additive) : verdict(path, shapes, edges)
+      confirm ? rewrite(path, shapes, edges, additive) : verdict(path, shapes, edges)
     end
 
     # @param registry [Runtime::Registry] the loaded bluebooks
@@ -100,25 +100,29 @@ module Hecks
     # What to commit: the empty edge covers a change that only adds, and a change that renames or
     # reshapes data needs the rules the scaffold writes from the database that holds the eras.
     def edge_advice(name, from, now)
-      edge = %(Hecks.data_translation "#{name}", from: "#{from}", to: "#{now}" do end)
-      "for a change that only adds, commit this edge under translations/ (as 2-#{now}.bluebook): #{edge}. " \
-        "Data that is renamed or reshaped needs rules: `hecks query era.scaffold_translation " \
-        "domain.value=<directory>` writes them, reading the eras from the database the domain's " \
-        "own world names. A change that only adds is settled in one step " \
-        "by `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`"
+      "#{name} moved with no edge. A change that only adds needs no edge file: settle it in one step " \
+        "with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which the boot and " \
+        "the mint treat as an implicit empty edge from #{from} to #{now}. Data that is renamed or reshaped " \
+        "needs rules: `hecks query era.scaffold_translation domain.value=<directory>` writes them, reading " \
+        "the eras from the database the domain's own world names."
     end
 
-    def rewrite(path, shapes, edges, directory, additive)
+    def rewrite(path, shapes, edges, additive)
       ledger = read(path)
-      written = additive ? write_edges(directory, uncovered_moves(ledger, shapes, edges)) : []
+      implicit = additive ? uncovered_moves(ledger, shapes, edges) : []
       uncovered = additive ? [] : problems(ledger, shapes, edges).reject { |line| line.include?(REWRITE) }
       raise Failure, uncovered.join("\n") unless uncovered.empty?
 
       File.write(path, "#{JSON.pretty_generate(shapes.sort.to_h)}\n")
-      "wrote #{shapes.size} bluebook shapes to #{path}#{edges_note(written)}"
+      "wrote #{shapes.size} bluebook shapes to #{path}#{implicit_note(implicit)}"
     end
 
-    def edges_note(written) = written.empty? ? "" : " and #{written.size} empty edge(s): #{written.join(", ")}"
+    def implicit_note(moves)
+      return "" if moves.empty?
+
+      named = moves.map { |name, from, now| "#{name} #{from} -> #{now}" }
+      " and #{moves.size} implicit move(s), no edge file: #{named.join(", ")}"
+    end
 
     # @return [Array<Array(String, String, String)>] `[bluebook, from, to]` for each shape that
     #   moved
@@ -130,16 +134,6 @@ module Hecks
         next if reachable?(label(held), label(now), edges.fetch(name, []))
 
         [name, label(held), label(now)]
-      end
-    end
-
-    # @return [Array<String>] the paths of the empty edges written
-    def write_edges(directory, moves)
-      FileUtils.mkdir_p(File.join(directory, "translations"))
-      moves.map do |name, from, now|
-        path = File.join(directory, "translations", "2-#{now}.bluebook")
-        File.write(path, %(Hecks.data_translation "#{name}", from: "#{from}", to: "#{now}" do\nend\n))
-        path
       end
     end
 

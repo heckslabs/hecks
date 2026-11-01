@@ -151,4 +151,62 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
     expect(mint_with).to include(label: { value: label_of(shape("amount")) })
     expect(era_count).to eq(2)
   end
+
+  describe "a shape change that only adds, with no edge file" do
+    before do
+      FileUtils.rm_rf(File.join(ledger_dir, "translations"))
+      FileUtils.mkdir_p(File.join(ledger_dir, "translations"))
+      write_ledger(additive_shape)
+    end
+
+    def additive_shape
+      <<~BLUEBOOK
+        Hecks.bluebook "Ledger" do
+          aggregate "Acct" do
+            identified_by :kind
+
+            attribute :cost, Money
+            attribute :kind, Kind
+            attribute :memo, Memo, optional: true
+
+            value_object "Money" do
+              attribute :cents, Integer
+            end
+
+            value_object "Kind" do
+              attribute :label, String
+            end
+
+            value_object "Memo" do
+              attribute :text, String
+            end
+          end
+        end
+      BLUEBOOK
+    end
+
+    def journal_edge(ordinal)
+      connection = PG.connect(FencedOwner.url(MINT_SPEC_DB))
+      text = connection.exec_params("SELECT edge::text AS edge FROM hecks_eras WHERE domain = $1 AND ordinal = $2",
+                                    ["Ledger", ordinal])[0]["edge"]
+      JSON.parse(text)
+    ensure
+      connection&.close
+    end
+
+    it "mints the era through the guards with no edge file", :aggregate_failures do
+      expect(mint_with).to include(label: { value: label_of(additive_shape) })
+      expect(era_count).to eq(2)
+    end
+
+    it "records the era it minted as implicit and scaffolded" do
+      mint_with
+      expect(journal_edge(2)).to eq("kind" => "implicit", "scaffolded" => true)
+    end
+
+    it "refuses a rename toward the scaffold when no edge file covers it" do
+      write_ledger(shape("amount"))
+      expect { mint_with }.to raise_error(refused, /no translation edge covers it/)
+    end
+  end
 end

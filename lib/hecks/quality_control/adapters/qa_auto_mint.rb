@@ -58,17 +58,34 @@ module Hecks
       end
 
       # Why the auto-mint rule holds a mint for the owner, or nil when it lets the mint run
-      # unconfirmed.
+      # unconfirmed. With no edge file, the implicit empty edge stands in for an empty edge when
+      # the shape change qualifies for one.
       #
       # @param facts [Hash] what `facts` read from the ledger
       # @param refusal_total [Integer, nil] the rehearsal's refusal count
       # @return [String, nil] the reason the owner must approve, or nil when the rule holds
       def held_reason(facts, refusal_total:)
-        return "no translation edge leaves #{facts[:from]}" if facts[:edge_text].nil?
-        return "the edge from #{facts[:from]} is not empty" unless empty_edge?(facts[:edge_text])
-        return "the shape change is not additive" unless additive?(facts[:diff], facts[:held], facts[:current])
+        edge_reason(facts) || additive_reason(facts) || rehearsal_reason(refusal_total)
+      end
 
-        "the rehearsal refused #{refusal_total.inspect} rows" unless refusal_total.is_a?(Integer) && refusal_total.zero?
+      # @return [String, nil] why the edge leaving the held era does not stand in for an empty one
+      def edge_reason(facts)
+        return "no translation edge leaves #{facts[:from]}" if facts[:edge_text].nil? && !implicit?(facts)
+        return "the edge from #{facts[:from]} is not empty" if facts[:edge_text] && !empty_edge?(facts[:edge_text])
+
+        nil
+      end
+
+      # @return [String, nil] why the shape change is not additive
+      def additive_reason(facts)
+        "the shape change is not additive" unless additive?(facts[:diff], facts[:held], facts[:current])
+      end
+
+      # @return [String, nil] why the rehearsal refused rows
+      def rehearsal_reason(refusal_total)
+        return if refusal_total.is_a?(Integer) && refusal_total.zero?
+
+        "the rehearsal refused #{refusal_total.inspect} rows"
       end
 
       # Whether an edge file declares nothing: its header and its `end`, with no line between them.
@@ -80,36 +97,16 @@ module Hecks
         body.size == 2 && EDGE_HEADER.match?(body.first) && body.last == "end"
       end
 
+      # Whether no edge file is needed: the shape change qualifies for the implicit empty edge.
+      #
+      # @return [Boolean]
+      def implicit?(facts) = Translation::ImplicitEdge.qualifies?(facts[:diff], facts[:held], facts[:current])
+
       # Whether the shape diff has no rule, no rename and no retirement, and every attribute the
-      # current
-      # bluebook adds is optional.
+      # current bluebook adds to an existing aggregate is optional.
       #
       # @return [Boolean]
-      def additive?(diff, held, current)
-        diff[:retired].empty? && diff[:unclaimed].empty? && diff[:aggregates].empty? &&
-          new_attributes_optional?(held, current)
-      end
-
-      # Every attribute an existing aggregate gained is optional. An aggregate the held era did not
-      # have is new: nothing stored before it, so its attributes may be required.
-      #
-      # @return [Boolean]
-      def new_attributes_optional?(held, current)
-        held_names = held.aggregates.to_h { |aggregate| [aggregate.name, attribute_names(aggregate)] }
-        current.aggregates.all? do |aggregate|
-          !held_names.key?(aggregate.name) || gained_optional?(aggregate, held_names[aggregate.name])
-        end
-      end
-
-      # Whether every attribute an aggregate has that its held shape did not is optional.
-      #
-      # @return [Boolean]
-      def gained_optional?(aggregate, known)
-        aggregate.attributes.all? { |attribute| known.include?(attribute.name) || attribute.optional? }
-      end
-
-      # @return [Array<String>] the names of an aggregate's attributes
-      def attribute_names(aggregate) = aggregate.attributes.map(&:name)
+      def additive?(diff, held, current) = Translation::ImplicitEdge.qualifies?(diff, held, current)
 
       # @return [Hash] the edge leaving the held era's label for the current shape's label, and its
       #   text

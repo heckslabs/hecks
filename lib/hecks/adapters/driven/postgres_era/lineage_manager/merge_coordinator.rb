@@ -35,7 +35,7 @@ module Hecks
           def merge_chain(registry, bluebook, held)
             raise Runtime::WiringError, "nothing to merge — #{bluebook.name} stands at era 1" if held.size < 2
 
-            edge_chain(registry, bluebook, held[0..-2], held.last[:label])
+            edge_chain(registry, bluebook, held[0..-2], held.last[:label], target: held.last)
           end
 
           # The audit the merge runs over the merged heads, answering every violation found.
