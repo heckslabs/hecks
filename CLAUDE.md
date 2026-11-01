@@ -303,6 +303,10 @@ runs cold. Before adding a spec or a step, check where it runs:
   file missing from them lands wherever it lands. The specs that need `rust/parser` stay
   in `IO_PARALLEL_EXCLUDE_PATTERN`, or the Postgres shards skip them and the skip backstop
   fails; the file-list check runs only on pull requests, so a stale list shows on a PR first.
+- **A fast green on `main` may be a skipped green.** A push of an attested tree skips the
+  heavy jobs. `nightly-main.yml` runs all of `ci.yml` once a day with attestation ignored
+  (`check-attestation` answers "not attested" for it) and opens one issue a day naming the
+  failed jobs; read its latest run, not a push run, to know whether the suites pass.
 - **Look at the job times after your push** (`gh run view <id> --json jobs`). A job
   that grew by a minute is the regression; say so rather than leave it.
 - **Measure the right run.** The wall is `run_started_at` to `updated_at` of the attempt

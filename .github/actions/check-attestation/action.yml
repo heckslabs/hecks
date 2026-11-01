@@ -88,11 +88,16 @@ runs:
       env:
         WANT_CHECKS: ${{ inputs.checks }}
         HMAC_KEY: ${{ inputs.hmac-key }}
+        # In a reusable workflow `github.workflow` is the CALLER's name. nightly-main.yml exists
+        # to run every check for real, so under it no tree counts as attested.
+        CALLER_WORKFLOW: ${{ github.workflow }}
       run: |
         attested=false
         tree=$(git rev-parse HEAD^{tree})
 
-        if [ -n "$HMAC_KEY" ]; then
+        if [ "$CALLER_WORKFLOW" = "Nightly main" ]; then
+          echo "[check-attestation] $CALLER_WORKFLOW runs every check: attestation ignored"
+        elif [ -n "$HMAC_KEY" ]; then
           note=$(git notes --ref=ci show "$tree" 2>/dev/null || true)
           if [ -n "$note" ]; then
             note_checks=$(printf '%s\n' "$note" | sed -n 's/^checks=//p')
