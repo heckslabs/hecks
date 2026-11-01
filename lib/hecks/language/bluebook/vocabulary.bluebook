@@ -1143,6 +1143,8 @@ Hecks.bluebook "Bluebook" do
              meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."
       member name: "red_main_check", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
+      member name: "event_pump", type: "Boolean",
+             meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."
       member name: "main_maintenance", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
       member name: "maintenance_confirm", type: "Boolean",
@@ -1280,6 +1282,7 @@ Hecks.bluebook "Bluebook" do
       member script: "release_gem", section: "Codebase", aggregate: "PublishingRun", verb: "publish_gem"
       member script: "(new)", section: "Codebase", aggregate: "GateRun", verb: "gate"
       member script: "qa_tick", section: "QualityControl", aggregate: "Sweep", verb: "tick"
+      member script: "qa_event_pump", section: "QualityControl", aggregate: "EventPump", verb: "pump"
       member script: "qa_sweep", section: "QualityControl", aggregate: "Sweep", verb: "run", passes: "--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"
       member script: "qa_sweep", section: "QualityControl", aggregate: "Target", verb: "release"
       member script: "qa_pr_check", section: "QualityControl", aggregate: "Clearance", verb: "check_pull_requests"

@@ -9,6 +9,8 @@ require_relative "child"
 require_relative "qa_tick/preflight"
 require_relative "qa_tick/output"
 require_relative "qa_main_gate"
+require_relative "qa_event_pump"
+require_relative "qa_tick/event_pump_step"
 
 module Hecks
   module QualityControlCli
@@ -24,6 +26,7 @@ module Hecks
     class QaTick
       include Preflight
       include Output
+      include EventPumpStep
 
       EXIT_OK = 0
       EXIT_ERROR = 1
@@ -117,7 +120,7 @@ module Hecks
         report(steps, reclaimed_holds(steps[1].output), write_tick_log!(steps))
       end
 
-      # The steps that look for findings, in the order the report prints them. The red-main step is last.
+      # The steps that look for findings, in the order the report prints them. The event pump is last.
       def finding_steps
         steps = [
           Step.new("check_pull_requests", *run_pr_check),
@@ -126,7 +129,7 @@ module Hecks
           Step.new("mutate --from-dials", *run_mutation)
         ]
         steps << Step.new("check_main", *run_main_check) if dial(:RED_MAIN_CHECK, false)
-        steps
+        steps + pump_steps
       end
 
       def run_pr_check

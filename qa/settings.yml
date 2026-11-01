@@ -65,6 +65,10 @@ generated_domain_seeds: 5
 # self-contained one is fixed, gated, landed and pushed.
 red_main_check: true
 
+# The event pump, the tick's last step: each attached domain's policies react to the events past their
+# cursors. `hecks quality_control event_pump.pump!` runs it by hand whatever this says.
+event_pump: true
+
 # The main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push
 # through the train when origin is behind. `maintenance_confirm` lets the reconcile write; false keeps it a dry run.
 main_maintenance: true

@@ -24,22 +24,22 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 <!-- generated:begin tools section=Custodian -->
 | launcher | replaces |
 |---|---|
-| `hecks ir [<domain>] [--translations] [--meta]` | `bin/ir` |
+| `hecks introspection.ir [<domain>] [--translations] [--meta]` | `bin/ir` |
 | `hecks introspection.shape <domain>` | `bin/shape` |
-| `hecks stores <domain> [aggregate=] [record=] [--flat]` | `bin/stores` |
+| `hecks introspection.stores <domain> [aggregate=] [record=] [--flat]` | `bin/stores` |
 | `hecks introspection.history <domain>` | `bin/history` |
 | `hecks introspection.statements <domain> bluebook=` | `bin/statements` |
-| `hecks narrate [<domain>] [aggregate=]` | `bin/narrate` |
-| `hecks docs [<domain>] [aggregate=]` | `bin/docs` |
-| `hecks project_diagrams <domain> bluebook=` | `bin/project_diagrams` |
+| `hecks introspection.narrate [<domain>] [aggregate=]` | `bin/narrate` |
+| `hecks introspection.docs [<domain>] [aggregate=]` | `bin/docs` |
+| `hecks introspection.project_diagrams <domain> bluebook=` | `bin/project_diagrams` |
 | `hecks introspection.glossary <domain> bluebook=` | `bin/project_glossary` |
-| `hecks model_check [<domains>] [profile=] [--strict]` | `bin/model_check` |
+| `hecks model_check_run.model_check [<domains>] [profile=] [--strict]` | `bin/model_check` |
 | `hecks run [domain] <verb [name=value …] \| script.json \| - \| '{"steps":[…]}'>` | `bin/run` |
 | `hecks operation.refresh_projections <subject>` | `bin/project` |
 | `hecks operation.run_behaviors <subject>` | `bin/behaviors` |
 | `hecks console [<subject>]` | `bin/console` |
 | `hecks operation.follow <domain> [aggregate=] [since=] [wait=] [interval=] [--from-now]` | `bin/follow` |
-| `hecks smoke_test [<subject>]` | `bin/smoke_test` |
+| `hecks operation.smoke_test [<subject>]` | `bin/smoke_test` |
 | `hecks operation.smoke_http [<url>] path= [header=] [scheme=] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
 | `hecks host.check_era <host> expected= [timeout=]` | `bin/check_era` |
 | `hecks era.merge_tail <domain> [winners=] --confirm` | `bin/merge_tail` |
@@ -50,7 +50,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks era.compact <domain> [aggregates=] --confirm` | `bin/compact` |
 | `hecks era.compact_heki <domain> [aggregates=] --confirm` | `bin/heki_compact` |
 | `hecks package.vendor <package> [from=] [root=] (waits: a refusal exits 1 with its reason on stderr)` | `bin/vendor_bluebook` |
-| `hecks project_cli [<domains>]` | `bin/project_cli` |
+| `hecks launch.project_cli [<domains>]` | `bin/project_cli` |
 | `hecks mcp [--stdio]` | `bin/hecks_mcp_door` |
 | `hecks build.project_rust <domain>` | `bin/project_rust` |
 | `hecks build.build_wasm <domain> [profile=]` | `bin/project_wasm` |
@@ -169,6 +169,7 @@ publisher at rubygems.org > hecks > Trusted publishers > GitHub Actions (organiz
 | launcher | replaces |
 |---|---|
 | `hecks quality_control sweep.tick` | `bin/qa_tick` |
+| `hecks quality_control event_pump.pump <run>` | `bin/qa_event_pump` |
 | `hecks quality_control sweep.run [<target>] [arguments="--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity"]`; `hecks quality_control target.release <to> now= next_streak= capabilities= yield_score=` | `bin/qa_sweep` |
 | `hecks quality_control clearance.check_pull_requests` | `bin/qa_pr_check` |
 | `hecks quality_control patch.open <bug> number= url= branch= commit= title= now=`; `hecks quality_control improvement.open [<angle>] number= url= branch= title= now=` | `bin/qa_open_pr` |
@@ -182,5 +183,7 @@ publisher at rubygems.org > hecks > Trusted publishers > GitHub Actions (organiz
 | `hecks quality_control target.discover_external_domains [arguments="--projects-dir ~/Projects --max-depth 3 --known-path PATH …"]` | `bin/qa_discover_external_domains` |
 | `hecks quality_control sweep.migrate_ledger_from_heki <domain> data= [arguments="[aggregate …] --force"] (a dry run without --force)` | `bin/qa_postgres_migrate` |
 | `hecks quality_control sweep.create_ledger_role <database> [role=]` | `bin/qa_postgres_role` |
+| `hecks quality_control main_check.check_main` | `bin/qa_main_gate` |
+| `hecks quality_control bug.fix_and_land [arguments="--bug BUG#n"]` | `bin/qa_fix_main_bug` |
 | `hecks quality_control sweep.race <domain> database= schema= verb= step_arguments= (not user-facing; ProcessPool starts it)` | `bin/qa_concurrency_racer` |
 <!-- generated:end tools -->

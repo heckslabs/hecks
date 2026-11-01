@@ -31,6 +31,26 @@ module Hecks
 
         def attached? = !@policies.nil?
 
+        # Runs one policy's reaction to `event`, as a row's delivery runs it: its outcome is
+        # recorded on the registry's reaction log, a refusal included, and nothing is raised.
+        #
+        # @param event [Runtime::Event] the event the policy reacts to
+        # @param policy [Bluebook::Policy] the policy to run
+        # @param home [String] the bluebook the policy is declared in
+        # @param domain [String] the domain the event came from
+        # @param event_uid [String] the identity the reaction log records for the event
+        # @return [void]
+        def react_policy(event, policy:, home:, domain:, event_uid:)
+          @policies.react(event, domain, only: [policy, home], event_uid: event_uid)
+        end
+
+        # Answers the policies `event` triggers in `domain`, as `[policy, home]` pairs.
+        #
+        # @param event [Runtime::Event] the event to react to
+        # @param domain [String] the domain the event came from
+        # @return [Array(Bluebook::Policy, String)]
+        def policies_for(event, domain) = @policies.policies_for(event, domain)
+
         # Forgets every delivery the relay recorded, as a fresh boot starts with none.
         #
         # @return [void]
