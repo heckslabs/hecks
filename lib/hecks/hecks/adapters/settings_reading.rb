@@ -4,6 +4,7 @@ require "hecks"
 require_relative "console_capture"
 require_relative "../../ports/persistence/binding_policy"
 require_relative "settings_reading/stores"
+require_relative "settings_reading/disposable_ledger"
 
 module Hecks
   module Adapters
@@ -23,6 +24,7 @@ module Hecks
       DEFAULT = Ports::Persistence::DEFAULT_ADAPTER
 
       include Stores
+      include DisposableLedger
 
       # The first line of a message.
       FIRST_LINE = /\A[^\n]*/
@@ -50,7 +52,7 @@ module Hecks
       private
 
       def rows(directory)
-        [environment, database(directory), mint_eras(directory), schema, project_environment,
+        [environment, database(directory), mint_eras(directory), disposable_ledger(directory), schema, project_environment,
          variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
          variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),
          registry_source(directory), *stores(directory)]

@@ -4,6 +4,7 @@ require_relative "context"
 require_relative "mint_request"
 require_relative "mint_decision"
 require_relative "era_resolution"
+require_relative "disposable_ledger"
 require_relative "../../../../indifferent_key"
 
 module Hecks
@@ -29,6 +30,9 @@ module Hecks
           # @raise [Runtime::WiringError] if the connection is refused, a held text fails its
           #   integrity check, no era is held, or the shape is unheld and `mint!` refuses
           def check!(registry:, bluebook:, current_text:, settings:, directory: nil)
+            # A world that declares its ledger disposable has no era guard: see `DisposableLedger`.
+            return DisposableLedger.check!(registry:, bluebook:, current_text:, settings:) if DisposableLedger.declared?(settings)
+
             request = MintRequest.from(settings)
             db = PostgresEra.connect_for(bluebook.name, settings, provision: !request.nil?)
             lineage = open_lineage(db, bluebook, settings, request)

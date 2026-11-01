@@ -147,6 +147,10 @@ checkout against it.
   (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
   reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`); the train
   copy's local world declares `mint_eras true`.
+- A tooling ledger may opt out of eras with `disposable_ledger true` in the same block
+  (`LineageManager::DisposableLedger`): an additive shape change is applied in place, any other
+  moves the aggregate's rows to a dated archive table (listed in `hecks_ledger_archives`) and starts
+  it empty, and a boot never refuses as unminted or superseded. Never declare it for client data.
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 

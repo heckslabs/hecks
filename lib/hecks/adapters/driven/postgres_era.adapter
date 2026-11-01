@@ -12,6 +12,11 @@ Hecks.adapter "PostgresEra" do
   # next era through a translation edge. `false` refuses; unset follows
   # `LineageManager::EraResolver::MINT_BY_DEFAULT`; see `Refusals#refuse_unpermitted_mint!`.
   field :mint_eras
+  # Declares the store a disposable tooling ledger: a shape change needs no era, edge or mint, an
+  # additive one is applied in place, any other archives the aggregate's rows under a dated name
+  # and starts it empty, and a boot never refuses as unminted or superseded. Unset or `false`
+  # keeps the era guard; see `LineageManager::DisposableLedger`. Never for client data.
+  field :disposable_ledger
   # Rewrites every row of an aggregate in one statement, on the same SQL path as Postgres.
   provides "set_transform"
 end
