@@ -288,6 +288,7 @@ Hecks.bluebook "Tickets" do
     attribute :claimed_by, Claimant, optional: true
     attribute :claimed_at, ClaimedAt, optional: true
     attribute :area,   list_of(Word), optional: true
+    attribute :budget_minutes, Minutes, optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :work
 
@@ -307,6 +308,19 @@ Hecks.bluebook "Tickets" do
     # When the claim was taken, as the caller reads the clock: an ISO 8601 instant.
     value_object "ClaimedAt" do
       attribute :value, String, matches: :present
+    end
+
+    # How long a claim may run before `Work.overdue` lists it, in whole minutes. A row with none is
+    # never overdue.
+    value_object "Minutes" do
+      attribute :value, Integer
+
+      invariant("a time budget is positive") { value.positive? }
+    end
+
+    # What a query answered from outside the domain returns: its lines.
+    value_object "Document" do
+      attribute :text, String
     end
 
     value_object "WorkKey" do
@@ -348,8 +362,11 @@ Hecks.bluebook "Tickets" do
 
       attribute :work,   WorkKey, sets: true
       attribute :title,  WorkTitle, sets: true
-      attribute :detail, WorkText, optional: true, sets: true
+      # The detail and area default to none, so the event always carries them and
+      # ComposeBriefWhenPlanned in Coder can read them from any plan.
+      attribute :detail, WorkText, optional: true, sets: true, default: { value: "" }
       attribute :step,   Step, optional: true, sets: true
+      attribute :area,   list_of(Word), optional: true, sets: true, default: []
       reference_to Adr, as: :decision, optional: true
 
       sets :decision
@@ -366,12 +383,14 @@ Hecks.bluebook "Tickets" do
       attribute :claimed_by, Claimant, sets: true
       attribute :claimed_at, ClaimedAt, sets: true
       attribute :area,       list_of(Word), optional: true, sets: true
+      attribute :budget_minutes, Minutes, optional: true, sets: true
 
       emits "WorkStarted"
     end
 
-    # The claim's area overlapped another started step's: the WorkAreas port refuses it by name, and
-    # the step goes back to the plan with the refusal as its reason.
+    # The claim's area overlapped another started step's, or it would start more steps than the
+    # cap allows: the WorkAreas or WorkLimits port refuses it by name, and the step goes back to
+    # the plan with the refusal as its reason.
     command "Yield" do
       goal "Return a step whose area another started step holds, with the refusal"
 
@@ -432,6 +451,12 @@ Hecks.bluebook "Tickets" do
       where(status: "planned")
       order_by :step
       limit 1
+    end
+
+    # Answered by the WorkLimits port, which reads the clock: a bluebook never reads it.
+    query "Overdue" do
+      description "Every started step whose claim time plus its time budget is before now; a step with no budget is never listed."
+      returns Document
     end
 
     query "Under" do
@@ -498,6 +523,19 @@ Hecks.bluebook "Tickets" do
 
   policy "YieldWhenAreaTaken" do
     on      "Work.AreaRefused"
+    trigger Work::Yield, with: { reason: :refusal }
+  end
+
+  # A started step asks the WorkLimits port whether it is one too many for the concurrency cap. It is
+  # declared after the area check, so a step that clashes is already back in the plan when the cap
+  # looks, and the cap yields only a step still started.
+  policy "CheckCapWhenStarted" do
+    on      "Work.WorkStarted"
+    ask     :check_cap, with: { work: :work }
+  end
+
+  policy "YieldWhenCapReached" do
+    on      "Work.CapRefused"
     trigger Work::Yield, with: { reason: :refusal }
   end
 

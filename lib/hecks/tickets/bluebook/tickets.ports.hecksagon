@@ -30,4 +30,16 @@ Hecks.hecksagon "Tickets" do
       refuses "AreaRefused"
     end
   end
+
+  # The cap on started rows and the clock behind `Work.overdue`: both read the other rows or the
+  # time, which a bluebook rule cannot. The cap is the world's `work_limit` setting.
+  Tickets::Work.port "WorkLimits" do
+    asks "CheckCap", to: Work do
+      attribute :work, WorkKey
+      answers "CapCleared"
+      refuses "CapRefused"
+    end
+
+    answers_query "Overdue"
+  end
 end
