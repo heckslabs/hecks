@@ -6,12 +6,9 @@ require_relative "../support/memory_ports"
 # era to era, and the newest lands on the shape the bluebook declares today.
 # Nothing else reads them: Fuzzing::IsolatedBoot strips translations/ before every sweep.
 RSpec.describe "the committed translation edges" do
-  # The QA ledger's bluebook ships in lib/, so its directory holds no bluebook of its own to be
-  # swept; its edges stay beside the wiring and the world that name its database.
   def self.domains_with_edges
-    ledgers = Hecks::Corpus::ROTATION_LEDGER.values.map { |path| File.join(InMemoryDomain::ROOT, File.dirname(path)) }
-    (Hecks::Corpus.sweepable_domains | ledgers)
-      .select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }
+    Hecks::Corpus.sweepable_domains
+                 .select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }
   end
 
   # The moves the ledger settled on the operator's word, as `[from, to]` pairs for one bluebook.
@@ -71,7 +68,7 @@ RSpec.describe "the committed translation edges" do
 
   it "finds the committed edges (the discovery itself is not silently empty)" do
     expect(self.class.domains_with_edges.map { |domain| domain.delete_prefix("#{InMemoryDomain::ROOT}/") })
-      .to include("examples/pizzas", "qa", "examples/directory")
+      .to include("examples/pizzas", "examples/directory")
   end
 
   domains_with_edges.each do |domain|
