@@ -19,7 +19,7 @@ module Hecks
         #   superseded by a mint
         # @raise [PG::Error] if Postgres refuses a statement, such as the era fence's RLS
         def append(entry)
-          refuse_unwritable_boot!
+          refuse_unwritable_boot!(entry)
           transaction do
             lock_writes!
             append_and_project!(entry)
@@ -29,13 +29,15 @@ module Hecks
 
         # Refuses a write from a checkout whose shape no era holds yet, or whose era a later mint
         # has superseded. Runs before the transaction so a stale checkout takes no lock; reads stay
-        # allowed.
+        # allowed. An unminted boot lets through the one entry whose command declared `mints_era
+        # true`; a superseded boot refuses that entry too.
         #
+        # @param entry [Ports::Persistence::Entry] the write about to be journaled
         # @return [nil] when this boot's era is current
-        # @raise [Runtime::WiringError] if the boot gate left this shape unminted or marked its era
-        #   superseded
-        def refuse_unwritable_boot!
-          raise Runtime::WiringError, unminted_refusal if @unminted
+        # @raise [Runtime::WiringError] if the boot gate left this shape unminted and the entry is
+        #   not a mint command's record, or marked its era superseded
+        def refuse_unwritable_boot!(entry)
+          raise Runtime::WiringError, unminted_refusal if @unminted && !entry.mints_era?
           return unless @superseded_by
 
           raise Runtime::WiringError, superseded_refusal
@@ -52,7 +54,7 @@ module Hecks
         #   superseded by a mint
         # @raise [PG::Error] if Postgres refuses a statement
         def atomic_put(entry, insert_only: false)
-          refuse_unwritable_boot!
+          refuse_unwritable_boot!(entry)
           status = nil
           transaction do
             lock_writes!

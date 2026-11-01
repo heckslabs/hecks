@@ -48,7 +48,7 @@ module Hecks
             # this interpreter reading the record first to check — a
             # `repository.find` before every atomic_put would be exactly the
             # read this strategy exists to skip.
-            ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?)
+            ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?, mints_era: ctx.command.mints_era?)
           else
             # `expected_version:` is nil for a brand-new record or a
             # non-CAS repository, either of which falls through to a

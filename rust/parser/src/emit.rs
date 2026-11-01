@@ -390,6 +390,7 @@ fn command_json_rest(c: &ir::Command) -> Vec<(String, JsonValue)> {
                 .map_or(JsonValue::Null, ruby_value_json),
         ),
         ("idempotent".to_string(), JsonValue::Bool(c.idempotent)),
+        ("mints_era".to_string(), JsonValue::Bool(c.mints_era)),
     ]
 }
 

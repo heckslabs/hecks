@@ -66,21 +66,27 @@ module Hecks
         from:       -> { from },
         provenance: :provenance,
         # Safe to deliver twice; the saga redrive reads it for a dispatch left unsettled.
-        idempotent: -> { idempotent? }
+        idempotent: -> { idempotent? },
+        # Lets this command's own record through a boot whose shape no era holds yet.
+        mints_era:  -> { mints_era? }
       )
 
       # Every optional declared field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         role: nil, roles: [], audience: [], goal: nil, attributes: [], givens: [], ensures: [], needs: [],
-        mutations: [], emits: [], references: nil, from: nil, provenance: nil, idempotent: false
+        mutations: [], emits: [], references: nil, from: nil, provenance: nil, idempotent: false,
+        mints_era: false
       }.freeze
 
       class << self
         attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
-                    :from, :provenance, :idempotent
+                    :from, :provenance, :idempotent, :mints_era
 
         # @return [Boolean] whether a second delivery leaves the state a first one did
         def idempotent? = @idempotent ? true : false
+
+        # @return [Boolean] whether this command's own record may be written through an unminted boot
+        def mints_era? = @mints_era ? true : false
 
         # @return [Array<String>] every role that may run it when more than one may, else empty
         def roles = @roles || []

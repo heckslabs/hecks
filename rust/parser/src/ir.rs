@@ -126,6 +126,9 @@ pub struct Command {
     // `idempotent`: delivering the command twice leaves the state delivering it once does, so a saga
     // redrive may run it again after a crash left its outcome unknown. Emitted as a boolean.
     pub idempotent: bool,
+    // `mints_era true`: the command's own record may be written through a boot whose shape no era
+    // holds yet. Emitted as a boolean.
+    pub mints_era: bool,
 }
 
 #[derive(Debug, Clone, Default)]

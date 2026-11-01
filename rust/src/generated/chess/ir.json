@@ -583,7 +583,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "PlacePiece",
@@ -786,7 +787,8 @@
             "check"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "MovePiece",
@@ -944,7 +946,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "CapturePiece",
@@ -998,7 +1001,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "AdvanceTurn",
@@ -1054,7 +1058,8 @@
             "check"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "DeclareCheck",
@@ -1090,7 +1095,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "DeclareCheckmate",
@@ -1126,7 +1132,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "DeclareStalemate",
@@ -1162,7 +1169,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Resign",
@@ -1198,7 +1206,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "OfferDraw",
@@ -1267,7 +1276,8 @@
             "check"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "AcceptDraw",
@@ -1358,7 +1368,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "DeclineDraw",
@@ -1449,7 +1460,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -2024,7 +2036,8 @@
               ],
               "from": "on_board",
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             },
             {
               "name": "Capture",
@@ -2167,7 +2180,8 @@
               ],
               "from": "on_board",
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [

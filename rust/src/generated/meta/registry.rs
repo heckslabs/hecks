@@ -1945,6 +1945,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             if let Some(v) = &args.idempotent {
                                 v.check_invariants()?;
                             }
+                            if let Some(v) = &args.mints_era {
+                                v.check_invariants()?;
+                            }
                             if let Some(v) = &args.from {
                                 v.check_invariants()?;
                             }
@@ -2015,6 +2018,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.idempotent {
+                                v.check_invariants()?;
+                            }
+                            if let Some(v) = &args.mints_era {
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.from {
@@ -8648,6 +8654,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "goal",
             "provenance",
             "idempotent",
+            "mints_era",
             "from",
             "position",
         ],
