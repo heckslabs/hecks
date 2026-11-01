@@ -1,5 +1,7 @@
 require "json"
 require "hecks"
+require_relative "ports/persistence/plugins/era/era_check"
+require_relative "shape_ledger/scope"
 require_relative "shape_ledger/status"
 require_relative "shape_ledger/edge_hygiene"
 
@@ -11,8 +13,11 @@ module Hecks
   # that at a boot only runs against a real database, which specs and gates do not use, so this one
   # reads nothing but the loaded bluebooks and the committed edges: it needs no database.
   #
+  # It holds only a bluebook whose committed persistence is an era adapter, or a framework member
+  # that clients persist (see `Scope`); tooling is Memory and needs no entry.
+  #
   # @example
-  #   ShapeLedger.check("lib/hecks/hecks")  # => "15 bluebook shapes, each the one the ledger holds"
+  #   ShapeLedger.check("lib/hecks/hecks")  # => "1 bluebook shapes, each ..."
   module ShapeLedger
     # The ledger file, beside the bluebooks it records.
     FILE = "shapes.json".freeze
@@ -43,14 +48,15 @@ module Hecks
     # @return [String] the clean verdict, or what was written
     # @raise [Failure] with each problem
     def check(directory, confirm: false, additive: false)
-      registry = Hecks.describe(directory).registry
-      shapes = shapes_of(registry)
+      registry = Scope.committed_registry(directory)
       path = File.join(directory, FILE)
-      edges = with_implicit(edges_of(registry), implicit_moves(implicit_path(path)))
-      return rewrite(path, shapes, edges, additive) if confirm
+      shapes, ledger, skipped = Scope.view(registry, path)
+      moves = implicit_moves(implicit_path(path))
+      edges = with_implicit(edges_of(registry), moves)
+      return rewrite(path, ledger, shapes, edges, additive) if confirm
 
-      verdict(path, shapes, edges) + EdgeHygiene.report(directory, ledger: read(path), shapes: shapes,
-                                                                   moves: implicit_moves(implicit_path(path)))
+      verdict(ledger, shapes, edges) + Scope.note(skipped) +
+        EdgeHygiene.report(directory, ledger: ledger, shapes: shapes, moves: moves)
     end
 
     # @param registry [Runtime::Registry] the loaded bluebooks
@@ -95,8 +101,8 @@ module Hecks
       fresh
     end
 
-    def verdict(path, shapes, edges)
-      problems = problems(read(path), shapes, edges)
+    def verdict(ledger, shapes, edges)
+      problems = problems(ledger, shapes, edges)
       raise Failure, problems.join("\n") unless problems.empty?
 
       "#{shapes.size} bluebook shapes, each the one the ledger holds"
@@ -128,8 +134,7 @@ module Hecks
         "the eras from the database the domain's own world names."
     end
 
-    def rewrite(path, shapes, edges, additive)
-      ledger = read(path)
+    def rewrite(path, ledger, shapes, edges, additive)
       implicit = additive ? uncovered_moves(ledger, shapes, edges) : []
       uncovered = additive ? [] : problems(ledger, shapes, edges).reject { |line| line.include?(REWRITE) }
       raise Failure, uncovered.join("\n") unless uncovered.empty?
