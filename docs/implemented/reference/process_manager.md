@@ -31,6 +31,41 @@ process_manager "Onboarding" do
 end
 ```
 
+`Onboarding` declares no `resumes`, so the example for it is a small domain of its own:
+
+```ruby bluebook
+Hecks.bluebook "ProcessManagerResumes" do
+  vision "A ticket filed in two stages, each of which can be picked up again."
+
+  aggregate "Ticket" do
+    attribute :ref, Ref
+    identified_by :ref
+    value_object("Ref") { attribute :value, String }
+
+    command "File" do
+      sets :ref
+      emits "TicketFiled"
+    end
+
+    command "Close" do
+      reference_to Ticket
+      emits "TicketClosed"
+    end
+  end
+
+  process_manager "Filing" do
+    correlates_by :"ref.value"
+    starts_on "TicketFiled"
+    ends_on "TicketClosed"
+
+    resumes "filing=Ticket.File"
+    resumes "closing=Ticket.Close"
+
+    transition "TicketFiled" => "filed", from: "filing"
+  end
+end
+```
+
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
 
@@ -138,7 +173,12 @@ runtime.registry.saga_log.map { |row| row[:on] }.compact  # => ["OnboardingOpene
 | positional 1 | text | true | resumes |
 <!-- generated:end -->
 
-<!-- TODO: document this word -->
+Names the command that resumes each stage of a saga that faulted, one `"stage=Aggregate.Command"` entry per stage. Declaring it does nothing while the saga runs; it is read afterwards by the launcher's `resume <run>`, which re-dispatches the named command with the arguments the saga saved. A stage with no entry cannot be resumed, and the resume is refused by name.
+
+```ruby
+filing = runtime.registry.bluebook("ProcessManagerResumes").process_managers.first
+filing.resumes  # => ["filing=Ticket.File", "closing=Ticket.Close"]
+```
 
 ## transition
 
