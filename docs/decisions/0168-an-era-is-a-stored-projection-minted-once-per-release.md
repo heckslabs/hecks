@@ -38,8 +38,13 @@ rather than a named fault.
 3. **Translate directly from the held era to the current shape, with no hops.** Edge files exist
    only for renames and conversions a diff cannot infer, and each is keyed by the change it
    describes, not by a pair of labels.
-4. **Mint once per release, not once per shape change.** Shape changes pile up on `main`; one mint
-   covers the batch at push or deploy time.
+4. **Mint once per release, not once per shape change.** Decided by the owner on 2026-11-01. A
+   shape change that is neither provably additive nor covered by a name-keyed rule is blocked at
+   commit time: the gate fails when the change is made, so nothing that could lose data piles up
+   on `main`. One mint per release (`release.mint`) then computes a single edge from the held
+   era's stored projection to the current one. Its first step is making `MintDecision` and
+   `Scaffold.diff` read the stored projection. The design is a study kept outside the repository
+   and is not yet committed.
 5. **Minting is a plain step before the push,** outside the reaction cascade. Boots stay
    read-only.
 6. **One resolver everywhere.** Boot, status, rehearsal and mint call the same function against
@@ -60,13 +65,12 @@ rather than a named fault.
 - A mint outside the cascade is a separate step a person or the train must run; a push that skips
   it must be refused by name, not by a depth limit.
 
-## Open question
+## Settled question
 
-Point 4 has two readings. A mint **per release** batches every shape change since the last release
-into one era, so intermediate shapes never exist as eras and cannot be rolled back to. A mint
-**per push** keeps each push's shape recoverable at the cost of the era churn this record set out
-to stop. The owner has not chosen. A design for point 4 is being written and will state which
-reading it takes.
+Point 4 had two readings: a mint per release, or a mint per push. The owner chose the release,
+with the commit-time block above as the safeguard. The cost is that intermediate shapes never
+exist as eras and cannot be rolled back to; the block is what makes that acceptable, since no
+data-losing change reaches `main` unrecorded.
 
 ## Status of the work
 
@@ -84,8 +88,10 @@ Read from the repository on 2026-11-01.
   `b7d77cb63`), and the Hecks domain's held era is minted before the push train writes
   (`6cdccb516`).
 
-**In flight.** Other agents are building points 1, 2 and 3, 5 and 6 now: a world setting that
+**In flight.** Other agents are building points 1, 2 and 3, 5 and 6 now, and the first step of point 4: a world setting that
 makes a ledger disposable, decisions made from the stored projection, a sequential mint step, and
 one resolver. This record states their intent only.
 
-**Not started.** Point 4. A design is being written.
+**Decided, not built.** Point 4. The design exists; its first step, making `MintDecision` and
+`Scaffold.diff` read the stored projection, is in flight. The commit-time block and `release.mint`
+are not started.
