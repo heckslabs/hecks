@@ -2212,14 +2212,24 @@ Hecks.bluebook "QualityControl" do
       emits "RehearsalVerdict"
     end
 
-    # The confirmation of a mint: the `--confirm` flag, which the launcher reads as a Boolean.
+    # The confirmation of a mint: the owner's `--confirm` flag, which the launcher reads as a Boolean. A mint
+    # the auto-mint rule covers runs without it; every other mint needs it.
     value_object "Confirmation" do
       attribute :value, Boolean
+    end
+
+    # Why a mint was refused, as the refusal the mint entry point names. A held mint says "needs owner
+    # approval", which the approval policy reads.
+    value_object "MintRefusal" do
+      attribute :value, String
     end
 
     # The single entry point for a mint of a domain's next era. It is the only command that asks for a mint:
     # a boot never mints, and the mint names the commit its landing puts on main, so the ledger and main move
     # together. The rehearsal ref and the expected watermark are checked against the live ledger by the era check.
+    # `refusal_total` is the rehearsal's refusal count and `ledger_dir` the bluebook directory of the ledger
+    # the era belongs to (the QualityControl ledger when omitted). A mint with no `confirm` runs only when
+    # the auto-mint rule (`AutoMintAdditive`) holds; the mint entry point checks it.
     command "MintEra" do
       role "QA engineer"
       goal "Mint a domain's next era, against the rehearsal of that same era and the watermark it read"
@@ -2232,14 +2242,15 @@ Hecks.bluebook "QualityControl" do
       attribute :rehearsal_ref,  String
       attribute :watermark,      Integer
       attribute :rehearsal_verdict, MintVerdict
+      attribute :refusal_total,  Integer, optional: true
+      attribute :ledger_dir,     String, optional: true
       attribute :confirm,        Confirmation, optional: true
-
-      given("only a confirmed mint is requested") { confirm.value == true }
 
       emits "MintRequested"
     end
 
-    # Refuses a mint whose rehearsal did not say would_mint, and nothing mints or lands after it.
+    # Refuses a mint whose rehearsal did not say would_mint, and nothing mints or lands after it. It also
+    # carries the refusal the mint entry point named when it held a mint for the owner.
     command "RefuseMint" do
       role "QA engineer"
       goal "Stop a mint whose rehearsal did not say would_mint"
@@ -2248,6 +2259,7 @@ Hecks.bluebook "QualityControl" do
       attribute :domain,  String
       attribute :era,     Integer
       attribute :rehearsal_verdict, MintVerdict
+      attribute :refusal, MintRefusal, optional: true
 
       given("only a rehearsal that did not say would_mint is refused") { rehearsal_verdict.value != "would_mint" }
 
@@ -2786,21 +2798,41 @@ Hecks.bluebook "QualityControl" do
   # asked only for a would_mint verdict, and the refusal is the same named event as every other refusal.
   # A mint's landing follows it in the same step; a failed landing is `MintStranded`, the event a refused
   # `Land` ask names.
-  policy "MintOnWouldMint" do
-    on      "Maintenance.MintRequested"
-    where   { rehearsal_verdict.value == "would_mint" }
-    ask     :mint, with: { run: :run, domain: :domain, era: :era, sha: :sha, branch: :branch,
-                           watermark: :watermark, rehearsal_verdict: :rehearsal_verdict, confirm: :confirm }
-  end
-
   policy "RefuseMintWithoutVerdict" do
     on      "Maintenance.MintRequested"
     where   { rehearsal_verdict.value != "would_mint" }
     trigger Maintenance::RefuseMint, with: { run: :run, domain: :domain, era: :era, rehearsal_verdict: :rehearsal_verdict }
   end
 
+  # The auto-mint rule, declared. A mint without the owner's confirm runs only when all four hold, and the
+  # mint entry point (`Adapters::MainMaintenance#mint`, checked by `Adapters::QaAutoMint`) enforces it:
+  #   (a) the translation edge leaving the held era is empty: no aggregate block, derive, drop, rename,
+  #       convert, retype or rekey;
+  #   (b) every change in the shape diff is additive: new optional attributes, and new aggregates,
+  #       commands or events with no stored-data effect;
+  #   (c) the rehearsal said would_mint with a refusal total of 0, at the live watermark;
+  #   (d) no stranded marker exists.
+  # Otherwise the mint is held: the entry point refuses it as "needs owner approval", and the policy below
+  # asks for the approval, which answers `MintNeedsApproval` and stops. A stale watermark or a stranded
+  # marker is a refusal, never a held mint.
+  policy "AutoMintAdditive" do
+    on      "Maintenance.MintRequested"
+    where   { rehearsal_verdict.value == "would_mint" }
+    ask     :mint, with: { run: :run, domain: :domain, era: :era, sha: :sha, branch: :branch,
+                           watermark: :watermark, rehearsal_verdict: :rehearsal_verdict,
+                           refusal_total: :refusal_total, ledger_dir: :ledger_dir, confirm: :confirm }
+  end
+
+  # Holds a mint the auto-mint rule does not cover for the owner. Reads the refusal the entry point named.
+  policy "AskOwnerApprovalOnHeldMint" do
+    on      "Maintenance.MintRefused"
+    where   { refusal && refusal.value.start_with?("needs owner approval") }
+    ask     :approval, with: { domain: :domain, era: :era, reason: :refusal }
+  end
+
   policy "LandOnMinted" do
     on      "Maintenance.Minted"
+    where   { branch.value != "" }
     ask     :land, with: { run: :run, era: :era, sha: :sha, branch: :branch }
   end
 end

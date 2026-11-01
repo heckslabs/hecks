@@ -116,6 +116,8 @@ Hecks.hecksagon "QualityControl" do
     # that refusal is `MintStranded`, which stops every later mint until the owner resolves it.
     # The mint's facts: the domain, the era and branch it lands, the rehearsal's verdict and the watermark it
     # read, and whether the mint was confirmed. They are not attributes of Maintenance, so each is declared here.
+    # A mint with no `confirm` runs only when the auto-mint rule holds; a held mint is refused as
+    # "needs owner approval", and `AskOwnerApprovalOnHeldMint` asks for the approval.
     asks "Mint", to: Maintenance do
       attribute :domain,            String
       attribute :era,               Integer
@@ -123,9 +125,21 @@ Hecks.hecksagon "QualityControl" do
       attribute :branch,            String
       attribute :watermark,         Integer
       attribute :rehearsal_verdict, MintVerdict
-      attribute :confirm,           Confirmation
+      attribute :refusal_total,     Integer, optional: true
+      attribute :ledger_dir,        String, optional: true
+      attribute :confirm,           Confirmation, optional: true
       answers "Minted"
       refuses "MintRefused"
+    end
+
+    # Answered by the mint entry point's approval step: a mint the auto-mint rule does not cover waits
+    # for the owner's confirm. The answer is `MintNeedsApproval`, and nothing follows it.
+    asks "Approval", to: Maintenance do
+      attribute :domain, String
+      attribute :era,    Integer
+      attribute :reason, MintRefusal
+      answers "MintNeedsApproval"
+      refuses "MintApprovalRefused"
     end
 
     asks "Land", to: Maintenance do
