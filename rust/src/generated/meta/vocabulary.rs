@@ -4828,6 +4828,7 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "rust_coverage_codegen", id: "rust_coverage_codegen", title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", argv: "", script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", blocked: "hecks-codegen generated nothing for a construct a domain declares." },
     GateCheck { name: "kernel_coverage", id: "kernel_coverage", title: "rust kernel coverage, every capability variant has a kernel file", argv: "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait", script: "", blocked: "a capability's enum variant has no rust/src/kernel file behind it." },
     GateCheck { name: "rust_vocabulary_drift", id: "rust_vocabulary_drift", title: "rust vocabulary, the kernel vocab tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result." },
+    GateCheck { name: "era_proof", id: "era_proof", title: "era proof, each bluebook's boot status is current or behind by a recorded implicit move", argv: "", script: "status=\"$(bundle exec exe/hecks query era.boot_status domain.value=lib/hecks/hecks)\" || exit 1\nproblems=\"$(echo \"$status\" | jq -r -f .github/era_proof/boot_status.jq)\" || exit 1\nif [ -n \"$problems\" ]; then\n  echo \"era_proof: a bluebook is neither current nor behind by a recorded implicit move:\" >&2\n  echo \"$problems\" >&2\n  exit 1\nfi\n", blocked: "a bluebook's boot status is superseded, unminted, or behind with no implicit move recorded: the output names each one and its reason. Fix the ledger, the edge or the implicit move that leads the held shape to the current one." },
 ];
 
 impl GateCheck {
@@ -4962,6 +4963,7 @@ impl GateCheck {
                     "rust_coverage_codegen",
                     "kernel_coverage",
                     "rust_vocabulary_drift",
+                    "era_proof",
                 ],
                 offered: offered.as_str(),
             }
@@ -4982,6 +4984,7 @@ pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words" },
     GateStage { name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
+    GateStage { name: "era_proof", env: "", checks: "era_proof" },
     GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
 
@@ -5049,7 +5052,14 @@ impl GateStage {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "GateStage",
-                admitted: &["pre_push", "quick", "unguarded_push", "rust_io", "ci"],
+                admitted: &[
+                    "pre_push",
+                    "quick",
+                    "unguarded_push",
+                    "rust_io",
+                    "era_proof",
+                    "ci",
+                ],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -5501,6 +5511,9 @@ pub const QA_DIAL: &[QaDial] = &[
     QaDial { name: "mutation_equivalent", r#type: "Array", meaning: "Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors." },
     QaDial { name: "structural_refusal_boundary", r#type: "Array", meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest." },
     QaDial { name: "red_main_check", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step." },
+    QaDial { name: "event_pump", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless." },
+    QaDial { name: "main_maintenance", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain." },
+    QaDial { name: "maintenance_confirm", r#type: "Boolean", meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing." },
 ];
 
 impl QaDial {
@@ -5598,6 +5611,9 @@ impl QaDial {
                     "mutation_equivalent",
                     "structural_refusal_boundary",
                     "red_main_check",
+                    "event_pump",
+                    "main_maintenance",
+                    "maintenance_confirm",
                 ],
                 offered: offered.as_str(),
             }
@@ -5725,6 +5741,7 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "release_gem", section: "Codebase", aggregate: "PublishingRun", verb: "publish_gem", passes: "", note: "", form: "" },
     RetiredScript { script: "(new)", section: "Codebase", aggregate: "GateRun", verb: "gate", passes: "", note: "", form: "" },
     RetiredScript { script: "qa_tick", section: "QualityControl", aggregate: "Sweep", verb: "tick", passes: "", note: "", form: "" },
+    RetiredScript { script: "qa_event_pump", section: "QualityControl", aggregate: "EventPump", verb: "pump", passes: "", note: "", form: "" },
     RetiredScript { script: "qa_sweep", section: "QualityControl", aggregate: "Sweep", verb: "run", passes: "--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity", note: "", form: "" },
     RetiredScript { script: "qa_sweep", section: "QualityControl", aggregate: "Target", verb: "release", passes: "", note: "", form: "" },
     RetiredScript { script: "qa_pr_check", section: "QualityControl", aggregate: "Clearance", verb: "check_pull_requests", passes: "", note: "", form: "" },
@@ -5973,6 +5990,7 @@ impl RetiredScript {
                     "release_gem",
                     "(new)",
                     "qa_tick",
+                    "qa_event_pump",
                     "qa_sweep",
                     "qa_sweep",
                     "qa_pr_check",
