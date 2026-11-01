@@ -74,7 +74,7 @@ RSpec.describe "the Tickets bluebook" do
     argv = ["tickets", "finding.report!", "finding.value=f-open", "title.value=Still open", "source.value=maintainer"]
     Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
 
-    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "finding.open"])
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "query", "finding.open"])
 
     expect(JSON.parse(out).map { |row| row["finding"] }).to include("f-open")
   end

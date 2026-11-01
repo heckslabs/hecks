@@ -48,7 +48,7 @@ RSpec.describe "the Deploy bluebook's SmokeRun", :io do
 
   def run_smoke(*argv)
     Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                             argv: ["deploy", "smoke_run.run", *argv, "--wait"])
+                                             argv: ["deploy", "smoke_run.run!", *argv, "--wait"])
   end
 
   def smoke(*argv, env: {})

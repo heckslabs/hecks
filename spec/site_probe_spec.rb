@@ -56,7 +56,7 @@ RSpec.describe Hecks::Projections::Site::Probe do
     end
   end
 
-  describe "site_projection.check_site" do
+  describe "site_projection.check_site!" do
     before(:all) do
       @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     end
@@ -96,7 +96,7 @@ RSpec.describe Hecks::Projections::Site::Probe do
 
     def run(url)
       Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["site", "site_projection.check_site", project, "url=#{url}", "--wait"])
+                                               argv: ["site", "site_projection.check_site!", project, "url=#{url}", "--wait"])
     end
 
     it "passes a site that answers as its table declares", :aggregate_failures do
