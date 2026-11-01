@@ -1,6 +1,6 @@
 module Hecks
   module CommandNames
-    # The launcher invocations in a file's text: where each is, and the words typed after the launcher.
+    # The launcher invocations in a file's text: where each is, and the words typed after it.
     class Extractor
       # One invocation found.
       Call = Struct.new(:line, :text, :words)
@@ -17,6 +17,9 @@ module Hecks
 
       # A word that can be a launcher name, with the punctuation prose puts after it cut off.
       NAME = /\A[A-Za-z_][\w:]*(?:\.\w+)*!?\z/
+
+      # The punctuation prose puts after a name.
+      TRAILING = /[,.;:)\]]+\z/
 
       # The line marker that excuses an illustrative invocation, on its own line or the one before.
       MARKER = "dead-name-check: skip".freeze
@@ -53,7 +56,7 @@ module Hecks
       # The leading words of a line that spell a launcher name, after the flags before it.
       def words(rest)
         tokens = rest.split.drop_while { |token| token.start_with?("-") }
-        tokens.map { |token| token.sub(/[,.;:)\]]+\z/, "") }.take_while { |token| token.match?(NAME) }.first(3)
+        tokens.map { |token| token.sub(TRAILING, "") }.take_while { |token| token.match?(NAME) }.first(3)
       end
     end
   end

@@ -10,7 +10,7 @@ module Hecks
       # workflows, hooks, gate rows, specs and guides.
       #
       # Both checks read files in this process and write nothing. They look for the two ways such
-      # text goes quietly wrong: a command name the launcher no longer accepts, and a count of
+      # text goes quietly wrong: a command name the launcher does not accept, and a count of
       # GitHub list items taken from the first page only.
       module LauncherText
         module_function

@@ -99,7 +99,7 @@ jobs:
         with:
           domains: ${{ steps.leg_domains.outputs.names }}
 
-      # `hecks project_rust` runs the hecks-codegen binary, so these builds are restored.
+      # `hecks Build.project_rust!` runs the hecks-codegen binary, so these builds are restored.
       - uses: ./.github/actions/cargo-cache
         with:
           name: parser

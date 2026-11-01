@@ -88,9 +88,9 @@ jobs:
             --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \
             -o "--tag ~io --tag ~fuzzing --tag ~generated_all --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log"
 
-      # Artifact only, never restored: `hecks refresh_runtime_baseline from_run= <run-id>`
+      # Artifact only, never restored: `hecks TestSuiteRun.refresh_runtime_baseline! from_run= <run-id>`
       # rebuilds the committed baseline from CI timings.
-      - name: Upload this shard's runtime log (for hecks refresh_runtime_baseline from_run=)
+      - name: Upload this shard's runtime log (for hecks TestSuiteRun.refresh_runtime_baseline! from_run=)
         if: always()
         uses: actions/upload-artifact@v4
         with:

@@ -34647,7 +34647,7 @@
               ],
               [
                 "blocked",
-                "a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
+                "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
               ]
             ],
             [
@@ -34674,6 +34674,58 @@
               [
                 "blocked",
                 "a comment block ran past the cap; shorten it."
+              ]
+            ],
+            [
+              [
+                "name",
+                "command_names"
+              ],
+              [
+                "id",
+                "command_names"
+              ],
+              [
+                "title",
+                "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_command_names! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines."
+              ]
+            ],
+            [
+              [
+                "name",
+                "workflow_pagination"
+              ],
+              [
+                "id",
+                "workflow_pagination"
+              ],
+              [
+                "title",
+                "workflow pagination, no step counts or waits for GitHub list items from the first page alone"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."
               ]
             ],
             [
@@ -34925,7 +34977,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks deploy makefile_check.lint --wait"
+                "bundle exec exe/hecks deploy MakefileCheck.lint! --wait"
               ],
               [
                 "script",
@@ -35484,7 +35536,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage,command_names,workflow_pagination"
               ]
             ],
             [
@@ -35950,7 +36002,7 @@
               ],
               [
                 "meaning",
-                "Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped."
+                "Most PRs (Patch plus Improvement) `hecks quality_control Patch.open!` opens per calendar day; 0 is uncapped."
               ]
             ],
             [
@@ -36006,7 +36058,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review."
+                "Whether `hecks quality_control Patch.open!` opens its PR as a draft; false opens it ready for review."
               ]
             ],
             [
@@ -36020,7 +36072,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open."
+                "Whether `hecks quality_control Patch.open!` queues the PR for auto-merge once it is open."
               ]
             ],
             [
