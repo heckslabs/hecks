@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/cli"
 
 # `--plan` lists what a command would write and announce, and writes nothing. It runs the same
 # in-memory pipeline as `dry_run?`, so a refusal the real run would give is the refusal it shows.
