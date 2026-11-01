@@ -68,7 +68,7 @@ RSpec.describe "a bluebook's namespace" do
 
     expect(NsOuter::Inner.const_defined?(:Widget, false)).to be true
     expect(Object.const_defined?(:NsNested, false)).to be false
-    expect(NsOuter::Inner.aggregates).to eq(["Widget"])
+    expect(NsOuter::Inner.aggregates).to eq([NsOuter::Inner::Widget])
   end
 
   it "refuses a bluebook whose constants would land in the gem's own Hecks module" do

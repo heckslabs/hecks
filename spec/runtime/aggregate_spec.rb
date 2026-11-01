@@ -23,7 +23,7 @@ RSpec.describe "a constructed aggregate" do
   end
 
   it "names the domain and its aggregates", :aggregate_failures do
-    expect(Pizzas.aggregates).to eq(["Order"])
+    expect(Pizzas.aggregates).to eq([Pizzas::Order])
     expect(Pizzas.vision).to include("sell it to a customer")
   end
 

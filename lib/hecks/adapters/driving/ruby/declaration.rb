@@ -34,10 +34,12 @@ module Hecks
 
           private
 
-          # The bluebook's vision and its aggregate names.
+          # The bluebook's vision and its aggregate modules, sorted by name.
           def define_readers(declaration, bluebook)
-            declaration.define_singleton_method(:vision)     { bluebook.vision }
-            declaration.define_singleton_method(:aggregates) { bluebook.aggregates.map(&:name).sort }
+            declaration.define_singleton_method(:vision) { bluebook.vision }
+            declaration.define_singleton_method(:aggregates) do
+              bluebook.aggregates.sort_by(&:name).map { |aggregate| declaration.const_get(aggregate.hecks_name, false) }
+            end
           end
 
           # The bluebook's documents and projections, each projected from its IR on every call so
