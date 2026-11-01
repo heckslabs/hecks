@@ -5,6 +5,7 @@ require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
+require_relative "../../../support/first_era_hold"
 require_relative "../../../support/mint_request_support"
 require_relative "../../../support/thread_parking"
 
@@ -12,6 +13,7 @@ require_relative "../../../support/thread_parking"
 # Runs only when a Postgres server is reachable (support/postgres_probe.rb).
 RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :io do
   include EraRegistryLoading
+  include FirstEraHold
   include EraAppRole
   include MintRequestSupport
 
@@ -228,8 +230,10 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
                   "VALUES (1, 'acct', '#{id}', 'save', '{}'::jsonb)")
     end
 
+    # The app role is granted when the first era is provisioned, not by a boot.
     before do
       reset_app_role!
+      hold_first_era!(url: FencedOwner.url(RENAME_DB), domain: "OldName", source: OLD_SOURCE, role: RENAME_ROLE)
       write_old_record
       check!(OLD_SOURCE, role: RENAME_ROLE)
     end
