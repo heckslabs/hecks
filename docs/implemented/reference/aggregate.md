@@ -32,6 +32,9 @@ Hecks.bluebook "AggregateReference" do
   vision "A film financed by one studio, and possibly distributed by another — as: is what tells the two references apart."
 
   aggregate "Studio" do
+    formerly_known_as "Producer"
+    created_by "Studio.found!"
+
     attribute :name, Name
 
     identified_by :name
@@ -168,7 +171,15 @@ Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
 | positional 1 | text | true | formerly_known_as |
 <!-- generated:end -->
 
-<!-- TODO: document this word -->
+The aggregate's previous name, kept when it is renamed. It is a marker for the parser and for
+lookups of the old name, which still find the aggregate; it changes no behaviour of its own. Say
+it once, on the renamed aggregate, and drop it when nothing refers to the old name any more.
+
+`Studio` was once called `Producer`:
+
+```ruby
+AggregateReference::Studio.ir.formerly_known_as.value  # => "Producer"
+```
 
 ## created_by
 
@@ -180,7 +191,14 @@ Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
 | positional 1 | text | true | created_by |
 <!-- generated:end -->
 
-<!-- TODO: document this word -->
+Names the command that creates this aggregate's records, as `Aggregate.verb!`. Nothing runs it.
+The refusal wording reads it: a command aimed at a record that does not exist answers with
+"run <creator> first", so the person is told where records come from. Say it on any aggregate
+whose records are not made by its first-listed command.
+
+```ruby
+AggregateReference::Studio.ir.created_by.value  # => "Studio.found!"
+```
 
 ## identified_by
 
