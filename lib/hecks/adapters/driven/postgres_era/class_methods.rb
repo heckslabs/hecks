@@ -40,13 +40,15 @@ module Hecks
         #
         # @param name [String] the domain or aggregate name, used only in refusal messages
         # @param settings [Hash{Symbol, String => Object}] `database` is a name or `postgres://` URL
+        # @param provision [Boolean] whether a declared `schema` that does not exist yet is created;
+        #   a mint or an owner write passes true, a boot passes false and reads what is there
         # @return [PG::Connection] an open connection
         # @raise [Runtime::WiringError] if `database` is missing or Postgres refuses a statement
-        def connect_for(name, settings)
+        def connect_for(name, settings, provision: true)
           require_pg!(name)
           declared = declared_database(name, settings)
           connection = open_connection(declared)
-          prepare_session!(connection, setting(settings, :schema))
+          prepare_session!(connection, setting(settings, :schema), provision: provision)
           connection
         rescue StandardError => e
           # PG is only defined once the gem loads, so the clause cannot name it.
@@ -81,14 +83,15 @@ module Hecks
 
         # A declared `schema` means the instance is shared; search_path makes every unqualified
         # name this adapter and its lineage classes build resolve inside that schema.
-        def prepare_session!(connection, schema)
+        def prepare_session!(connection, schema, provision:)
           if schema.to_s != ""
-            # Idempotent: the schema may not exist yet on the first boot.
-            connection.exec("CREATE SCHEMA IF NOT EXISTS #{connection.quote_ident(schema)}")
+            # A mint creates the schema, idempotently; a read leaves it uncreated. An unknown
+            # search_path names no relation, so the lineage reads as unminted.
+            connection.exec("CREATE SCHEMA IF NOT EXISTS #{connection.quote_ident(schema)}") if provision
             connection.exec("SET search_path TO #{connection.quote_ident(schema)}")
           end
 
-          # Provisioning re-runs CREATE ... IF NOT EXISTS on every boot; silence the notices.
+          # Provisioning runs CREATE ... IF NOT EXISTS on every mint; silence the notices.
           # Warnings and above still surface.
           connection.exec("SET client_min_messages = warning")
         end
