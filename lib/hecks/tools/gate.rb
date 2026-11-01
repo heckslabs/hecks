@@ -23,6 +23,11 @@ module Hecks
     module Gate
       USAGE = "usage: hecks gate <stage> [only=a,b] | hecks gate --list"
 
+      # RuboCop keys its cache by file content, so one directory shared by every worktree lets each
+      # reuse the others' results. It is set here, in the gate's child environment, and not in
+      # .rubocop.yml, so CI and a bare `rubocop` keep the defaults (ADR 0091).
+      RUBOCOP_CACHE_ROOT = File.join(Dir.home, ".cache", "hecks", "rubocop")
+
       module_function
 
       # @return [Hash{String => Hash}] each stage by name: its `env` and its `checks`, in order,
@@ -122,6 +127,7 @@ module Hecks
       # @return [Array(String, Boolean)] what the check printed, and whether it exited 0
       def run_one(check, env, root)
         argv = check.fetch("run").map { |word| word.to_s.sub("{workers}", workers.to_s) }
+        env = { "RUBOCOP_CACHE_ROOT" => RUBOCOP_CACHE_ROOT }.merge(ENV.slice("RUBOCOP_CACHE_ROOT")).merge(env)
         output, status = Open3.capture2e(env, *argv, chdir: root)
         [output, status.success?]
       rescue SystemCallError => e
