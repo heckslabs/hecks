@@ -5,7 +5,8 @@ require "tmpdir"
 require_relative "../lib/hecks/adapters/driven/postgres_era/lineage_manager"
 
 # The single mint path: the shared decision names the edge a mint takes, derived from the diff when
-# the change needs no rule, and refuses a rename without a rule and a fork of edges. Each example
+# the change needs no rule, and refuses a rename without a rule; only an edge to the current shape
+# counts, so other edges from the held era neither fork it nor make it stale. Each example
 # uses disposable bluebook text and no database.
 module SinglePathSupport
   Decision = Hecks::Adapters::PostgresEra::LineageManager::MintDecision
@@ -41,7 +42,10 @@ module SinglePathSupport
 
   def label_of(text) = Decision.label_of(declared(text))
 
-  def held_era(text) = { ordinal: 1, label: HELD_LABEL, held_text: text }
+  # A held era as the journal stores it: its text, and the storage shape its mint recorded.
+  def held_era(text)
+    { ordinal: 1, label: HELD_LABEL, held_text: text, projection: Hecks::Runtime::StorageShape.project(declared(text)) }
+  end
 
   # The verdict the decision reaches for one held era, with the recorded moves and edges given.
   def decide(held_text, current_text, recorded: [], translations: [])
@@ -88,16 +92,16 @@ RSpec.describe "the single mint path" do
     expect(decide(ledger_text, optional_current)).to have_attributes(verdict: "needs_edge", reason: :unrecorded)
   end
 
-  it "refuses a self-loop edge beside the edge to the shape as a fork" do
+  it "takes the edge to the shape beside a self-loop edge, which leads nowhere new" do
     target = SinglePathSupport::Edge.new("Ledger", SinglePathSupport::HELD_LABEL, label_of(optional_current))
     loop_edge = SinglePathSupport::Edge.new("Ledger", SinglePathSupport::HELD_LABEL, SinglePathSupport::HELD_LABEL)
     expect(decide(ledger_text, optional_current, translations: [loop_edge, target]))
-      .to have_attributes(verdict: "refused", reason: :fork)
+      .to have_attributes(verdict: "would_mint", source: "file")
   end
 
-  it "refuses a lone self-loop edge as stale, since it does not reach the shape" do
+  it "decides by the diff beside a lone self-loop edge, since it does not reach the shape" do
     loop_edge = SinglePathSupport::Edge.new("Ledger", SinglePathSupport::HELD_LABEL, SinglePathSupport::HELD_LABEL)
     expect(decide(ledger_text, optional_current, translations: [loop_edge]))
-      .to have_attributes(verdict: "refused", reason: :stale_edge)
+      .to have_attributes(verdict: "needs_edge", reason: :unrecorded)
   end
 end

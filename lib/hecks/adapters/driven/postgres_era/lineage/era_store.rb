@@ -19,7 +19,8 @@ module Hecks
               "FROM hecks_eras WHERE domain = $1 ORDER BY ordinal",
               [@domain]
             ).map do |row|
-              verify_integrity!(row["ordinal"].to_i, row["held_text"], row["held_digest"], row["held_projection"])
+              verify_integrity!(row["ordinal"].to_i, row["held_text"], row["held_digest"], row["held_projection"],
+                                row["hash"])
               era_from(row)
             end
           end
