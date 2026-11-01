@@ -5,6 +5,7 @@ require_relative "ruby_child"
 require "hecks/engine_agreement"
 require "hecks/doc/reference"
 require "hecks/shape_ledger"
+require "hecks/tools/gate_memo/standalone"
 
 module Hecks
   module Adapters
@@ -64,6 +65,14 @@ module Hecks
         # @return [String] the clean verdict, or what was written
         # @raise [ConsoleCapture::Failure] with each bluebook whose shape moved without an edge
         def shape_ledger(held, tree)
+          return judge_shape_ledger(held, tree) if on?(held[:confirm]) || on?(held[:additive])
+
+          Tools::GateMemo::Standalone.guard(tree.root, "shape_ledger") { judge_shape_ledger(held, tree) }
+        end
+
+        # @return [String] the ledger's verdict, or what it wrote
+        # @raise [ConsoleCapture::Failure] with each bluebook whose shape moved without an edge
+        def judge_shape_ledger(held, tree)
           ShapeLedger.check(tree.path("lib/hecks/hecks"), confirm: on?(held[:confirm]), additive: on?(held[:additive]))
         rescue ShapeLedger::Failure => e
           raise ConsoleCapture::Failure, e.message
