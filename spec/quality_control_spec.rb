@@ -1021,6 +1021,14 @@ RSpec.describe "QualityControl" do
       expect(rows("Clearance.All").first[:status]).to eq("green")
     end
 
+    it "checks a commit by starting its clearance and asking CI in one command" do
+      runtime
+
+      QualityControl::Clearance.check!(commit: { value: "abc1234" })
+
+      expect(rows("Clearance.All").first[:status]).to eq("green")
+    end
+
     it "records a red run under the word the runtime actually hands back" do
       red = boot_quality_control(StubTracker, ci_adapter: RedCi)
       QualityControl::Clearance.start!(commit: { value: "def5678" })
