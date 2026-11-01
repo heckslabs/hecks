@@ -365,6 +365,7 @@
         "database",
         "role",
         "schema",
+        "formerly",
         "allow_superuser",
         "mint_eras",
         "disposable_ledger",

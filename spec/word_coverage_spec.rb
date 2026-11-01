@@ -125,6 +125,15 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "corpus use under a different spelling would mean inventing a second inbound " \
                                            "integration this codebase does not otherwise need, for a word that changes " \
                                            "nothing about what the runtime does once declared.",
+    "formerly_known_as (Aggregate)"     =>
+                                           "deprecated for `stored_as` in the world (the physical name of a stored thing is " \
+                                           "a storage fact), kept as a fallback for one major release, and the repository's " \
+                                           "own aggregates have moved to the world, so no real declaration remains. " \
+                                           "spec/dsl_spec.rb and spec/runtime/registry/world_names_spec.rb run it.",
+    "formerly_known_as (Bluebook)"      =>
+                                           "deprecated for `formerly` in the world's PostgresEra block, kept as a fallback " \
+                                           "for one major release; no bluebook in this repository renames its domain. " \
+                                           "spec/dsl_spec.rb and spec/runtime/registry/world_names_spec.rb run it.",
     "attaches_to (Bluebook)"            =>
                                            "genuinely, load-bearingly used for real — lib/hecks/language/bluebook/" \
                                            "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \

@@ -13,9 +13,23 @@ module Hecks
         # launcher prints can carry it.
         def binding_settings(domain, verb, adapter)
           declared = world(domain)&.for_binding(verb, adapter) || {}
-          settings = with_default_database(domain, verb, adapter, declared)
+          settings = with_world_mint_names(domain, verb, adapter, with_default_database(domain, verb, adapter, declared))
           Secrets.register_settings(@declared.adapters[adapter.to_s], settings)
           settings
+        end
+
+        # The commands a world names at its top level (`minting commands: [...]`) join the names a
+        # persistence block gives, for an adapter that declares `mints_era`: a domain whose binding
+        # lives in uncommitted local files still has a committed place to say them.
+        def with_world_mint_names(domain, verb, adapter, settings)
+          return settings unless mint_names_apply?(verb, adapter)
+
+          named = Array(world(domain)&.for_verb("minting")&.fetch(:commands, nil)).map(&:to_s)
+          named.empty? ? settings : settings.merge(mints_era: (Ports::Persistence::MintDoor.names(settings) + named).uniq)
+        end
+
+        def mint_names_apply?(verb, adapter)
+          verb.to_s == Ports::Persistence::VERB && @declared.adapters[adapter.to_s]&.declares?(:mints_era)
         end
 
         def with_default_database(domain, verb, adapter, declared)
@@ -36,7 +50,7 @@ module Hecks
 
             verify_default_adapter_named!(declared.domain, name)
           end
-          self
+          apply_world_names!
         end
 
         # The defaults an adapter's `.adapter` declares for its fields, with each `{name}` or

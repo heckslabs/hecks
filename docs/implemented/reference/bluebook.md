@@ -108,6 +108,8 @@ runtime.registry.bluebook("Pizzas").vision  # => "Put toppings on a pizza and se
 
 A domain's own declared identity can change. Naming what it used to be lets the storage layer recognize its own history under the old name instead of minting a brand-new lineage from nothing — a rename, once applied, bridges the journal, the sequence, every era partition, and the domain-keyed rows in `hecks_eras`/`hecks_era_texts`/`hecks_approvals`/`hecks_attestations` onto the new name, in one transaction, the first time the domain boots under it. Optional, but not empty if given — the same value-object invariant fires here as on any string field. Stored on the bluebook and readable back after boot as `Bluebook.formerly_known_as`; safe to leave declared permanently, since every later boot after the bridge falls through to the ordinary already-held path.
 
+It is deprecated: say it in the world, as `formerly "Bookkeeping"` inside the `persisted_by("PostgresEra")` block (see the World reference). The world's value wins, a bluebook that names a different one refuses the boot, and the word still works alone.
+
 The bluebook answers to its current name and remembers the old one — the
 old name is a fact about this bluebook, not a second bluebook:
 

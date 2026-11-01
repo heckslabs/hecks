@@ -42,6 +42,7 @@
           ],
           "goal": "Open a desk",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -81,6 +82,7 @@
           ],
           "goal": "Check a desk for a pipeline",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -111,6 +113,7 @@
           ],
           "goal": "Record that a desk was seen",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],

@@ -3,6 +3,7 @@ require "fileutils"
 
 require_relative "sql_query_builder"
 require_relative "sqlite/schema_builder"
+require_relative "sqlite/name_guard"
 require_relative "sqlite/codec"
 require_relative "sqlite/dialect"
 require_relative "sqlite/events"
@@ -28,6 +29,7 @@ module Hecks
     class Sqlite
       include SqlQueryBuilder
       include SchemaBuilder
+      include NameGuard
       include Codec
       include Repository
       include Journal
@@ -70,6 +72,7 @@ module Hecks
         # Scopes saga rows; falls back to the aggregate's name for a directly built adapter.
         @domain = settings.fetch(:domain) { aggregate.name }.to_s
         open_database
+        refuse_orphaned_rows!
         create_tables!
       end
 
