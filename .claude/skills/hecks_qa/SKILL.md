@@ -266,3 +266,13 @@ whose real location is outside it needs that gap closed first.
   finding" above) — but it is never optional, and never prose.
 - Run the tick inline, hand it a fresh worktree, or skip `exe/hecks quality_control query clearance.check_pull_requests`
   — `exe/hecks quality_control query sweep.tick` is the order.
+
+## Starting sessions for what a tick found
+
+A finding or a `red-*` Work row is planned like any other row; starting a session for it is one
+command, not a hand-pasted prompt. `exe/hecks Dispatch.fill! run.value=<name> repo.value=<checkout> --wait`
+reports which planned rows would start and why each other waits (area overlap, the cap, the load,
+the freeze); add `--confirm` to start them. The CI watch calls the same command after it files a
+`red-*` row. `exe/hecks Dispatch.settle! run.value=<name> repo.value=<checkout> --wait` finishes or
+yields the rows of sessions that ended. Each session is briefed by `Brief.compose!`, which forbids
+the push and the mint.
