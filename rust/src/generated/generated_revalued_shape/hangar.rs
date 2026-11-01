@@ -551,14 +551,23 @@ impl OpenArgs {
         let venue = {
             let x = v.get("venue").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Hangar.venue expects String, got nil".to_string(),
+                    "Open.venue expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Hangar.venue expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Open",
+                        attribute: "venue",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Venue is known by code)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let code = HangarCode::from_json(

@@ -4457,14 +4457,23 @@ impl DeclareArgs {
         let bluebook = {
             let x = v.get("bluebook").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Aggregate.bluebook expects String, got nil".to_string(),
+                    "Declare.bluebook expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Aggregate.bluebook expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "bluebook",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Bluebook is known by name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = AggregateName::from_json(
@@ -5045,14 +5054,23 @@ impl AttributeArgs {
         let r#type = {
             let x = v.get("type").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Aggregate.type expects String, got nil".to_string(),
+                    "Attribute.type expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Aggregate.type expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Attribute",
+                        attribute: "type",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (ValueObject is known by aggregate, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = FieldName::from_json(
@@ -5453,14 +5471,23 @@ impl ReferenceArgs {
         let points_at = {
             let x = v.get("points_at").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Aggregate.points_at expects String, got nil".to_string(),
+                    "Reference.points_at expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Aggregate.points_at expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Reference",
+                        attribute: "points_at",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Aggregate is known by bluebook, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = FieldName::from_json(
@@ -5861,14 +5888,23 @@ impl HoldsArgs {
         let holds = {
             let x = v.get("holds").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Aggregate.holds expects String, got nil".to_string(),
+                    "Holds.holds expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Aggregate.holds expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Holds",
+                        attribute: "holds",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Entity is known by aggregate, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = FieldName::from_json(

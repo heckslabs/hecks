@@ -1795,21 +1795,19 @@ impl Dispatch {
 
 impl Dispatch {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v
                 .dig("command_name.value")?
                 .to_id_component_lenient()
                 .ok()?;
             let c1 = v.dig("position.value")?.to_id_component_lenient().ok()?;
             Some([c0, c1].join(":"))
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("dispatch")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("Dispatch: no identity found (tried command_name.value, position.value, id, dispatch)".to_string())
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Dispatch: no identity found (tried command_name.value, position.value)"
+                    .to_string(),
+            )
         })
     }
 }
@@ -2579,18 +2577,15 @@ impl Handler {
 
 impl Handler {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("event_type.value")?.to_id_component_lenient().ok()?;
             let c1 = v.dig("from_state.value")?.to_id_component_lenient().ok()?;
             Some([c0, c1].join(":"))
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("handler")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("Handler: no identity found (tried event_type.value, from_state.value, id, handler)".to_string())
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Handler: no identity found (tried event_type.value, from_state.value)".to_string(),
+            )
         })
     }
 }
@@ -3455,14 +3450,23 @@ impl DeclareArgs {
         let bluebook = {
             let x = v.get("bluebook").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "ProcessManager.bluebook expects String, got nil".to_string(),
+                    "Declare.bluebook expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "ProcessManager.bluebook expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "bluebook",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Bluebook is known by name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let name = ProcessManagerName::from_json(

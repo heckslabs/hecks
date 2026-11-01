@@ -684,14 +684,23 @@ impl RequestArgs {
         let event_slug = {
             let x = v.get("event_slug").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Registration.event_slug expects String, got nil".to_string(),
+                    "Request.event_slug expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Registration.event_slug expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Request",
+                        attribute: "event_slug",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Event is known by slug)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let registration_id = RegistrationId::from_json(

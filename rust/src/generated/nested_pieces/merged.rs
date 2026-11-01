@@ -493,9 +493,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "AddCard acts on one Board — pass number.value:".to_string(),
-                            )
+                            if store.workspace.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Workspace",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "AddCard acts on one Board — pass number.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::nested_pieces::workspace::Board::extract_wants(
@@ -568,9 +579,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Label acts on one Board — pass number.value:".to_string(),
-                            )
+                            if store.workspace.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Workspace",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Label acts on one Board — pass number.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::nested_pieces::workspace::Board::extract_wants(
@@ -643,9 +665,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Owne
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Retitle acts on one Board — pass number.value:".to_string(),
-                            )
+                            if store.workspace.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Workspace",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Retitle acts on one Board — pass number.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::nested_pieces::workspace::Board::extract_wants(

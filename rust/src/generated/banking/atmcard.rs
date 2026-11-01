@@ -776,24 +776,15 @@ impl Withdrawal {
 
 impl Withdrawal {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("sequence.value")?.to_id_component_lenient().ok()?;
             Some(c0)
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("withdrawal")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Withdrawal: no identity found (tried sequence.value, id, withdrawal)"
-                        .to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Withdrawal: no identity found (tried sequence.value)".to_string(),
+            )
+        })
     }
 }
 
@@ -1789,14 +1780,23 @@ impl IssueArgs {
         let account = {
             let x = v.get("account").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "ATMCard.account expects String, got nil".to_string(),
+                    "Issue.account expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "ATMCard.account expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Issue",
+                        attribute: "account",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Account is known by number)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let serial = CardSerial::from_json(

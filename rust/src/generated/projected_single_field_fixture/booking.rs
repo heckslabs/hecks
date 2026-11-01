@@ -388,14 +388,23 @@ impl OpenArgs {
         let event = {
             let x = v.get("event").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Booking.event expects String, got nil".to_string(),
+                    "Open.event expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Booking.event expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Open",
+                        attribute: "event",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Event is known by ref)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let r#ref = BookingRef::from_json(

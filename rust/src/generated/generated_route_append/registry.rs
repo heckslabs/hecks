@@ -683,9 +683,20 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crat
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Label acts on one Line — pass sequence.value:".to_string(),
-                            )
+                            if store.kiosk.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Kiosk",
+                                        identity: "code.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Label acts on one Line — pass sequence.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::generated_route_append::kiosk::Line::extract_wants(
