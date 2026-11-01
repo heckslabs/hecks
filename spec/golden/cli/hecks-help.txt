@@ -252,7 +252,9 @@ queries (nothing here changes anything):
     reconcile_plan          The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
     attestation             An era's held text as it now stands, and whether it still matches its digest.
     compaction              What compacting the domain's journals would delete, without deleting it.
-    boot_status             The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason.
+    boot_status             The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.
+    boot_resolution         What a boot would resolve for each bluebook under a domain directory, from its own database: status, held label, current label, ordinal and reason.
+    sqlite_status           The SQLite databases a domain's worlds name, read-only: per aggregate table the columns the aggregate declares and the table lacks (added on the next open), the columns it keeps that the aggregate no longer declares, and the tables no aggregate maps to.
   Seal:
     The head a domain's journal chain had when the rows before it were compacted away.
     latest                  The newest seal a domain holds.
@@ -310,6 +312,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 234 internal commands and queries
+  hecks --all                  also list the 233 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
