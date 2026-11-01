@@ -365,6 +365,10 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
     client
         .batch_execute("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS canon_form int")
         .await?;
+    // Ruby's era reader selects `edge`; the Rust mint leaves it NULL (no implicit-edge record).
+    client
+        .batch_execute("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS edge jsonb")
+        .await?;
     client
         .batch_execute(
             "CREATE TABLE IF NOT EXISTS hecks_era_texts (\
@@ -1946,7 +1950,8 @@ mod tests {
                 .await
                 .expect("era row");
             let stored: Option<String> = row.get(0);
-            let stored: Value = serde_json::from_str(&stored.expect("held_projection set")).expect("json");
+            let stored: Value =
+                serde_json::from_str(&stored.expect("held_projection set")).expect("json");
             let wanted: Value = serde_json::from_str(&storage_shape::canonical(ir)).expect("json");
             assert_eq!(stored, wanted, "era {ordinal} held_projection");
         }
