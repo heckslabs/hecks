@@ -258,7 +258,7 @@ RSpec.describe Hecks::Storehouse do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, dry_run: true, role: "Chef")
 
-      expect(result).to eq(ok: true, summary: "spec", would_succeed: true)
+      expect(result).to include(ok: true, summary: "spec", would_succeed: true)
       expect(described_class.state(runtime: runtime, aggregate: "Order", summary: "spec")[:count]).to eq(0)
     end
 
@@ -294,6 +294,19 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:ok]).to be false
       expect(result[:error]).to include("source")
       expect(runtime.events).to be_empty
+    end
+  end
+
+  describe ".dispatch names the ids a call used" do
+    it "answers the record a dispatch addressed" do
+      expect(create_pizza[:ids]).to include(id: "Margherita")
+    end
+
+    it "answers the references a refused call named, even when nothing was written", :aggregate_failures do
+      result = described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec",
+                                        args: { run: { value: "r1" } })
+
+      expect(result[:ids]).to eq(run: "r1")
     end
   end
 
