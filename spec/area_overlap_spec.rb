@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/hecks/adapters/area_overlap"
 
 # The one rule for when two file areas overlap: whole-segment prefix containment either way, a
 # glob against a prefix or its parent directories, and the literal stems of two globs.

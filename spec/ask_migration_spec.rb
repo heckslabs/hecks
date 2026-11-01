@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/cli"
 require "hecks/tools/model_check"
 
 # ADR 0100's waves: a policy listed here has moved its port-naming trigger to `ask`, and a new
