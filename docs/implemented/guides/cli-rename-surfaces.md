@@ -1,5 +1,7 @@
 # Where command names live outside the launcher
 
+<!-- dead-name-check: skip-file (this page names the surfaces that still carry pre-7.0 command names) -->
+
 ADR 0163 renames and collapses commands in 7.0.0: a bang on every command, one command per family
 (`Build.build! target=`), adapter words out of aggregate names (`PullRequest` to `ReviewRequest`,
 `Commit` to `Change`, `Checkout` to `Workspace`, `PushTrain` to `SendTrain`), and the positional

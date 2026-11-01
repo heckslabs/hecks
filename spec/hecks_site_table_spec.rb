@@ -4,7 +4,7 @@ require "tmpdir"
 require "hecks/tools"
 
 # ADR 0080, section 7: the Site row of the command table. The Site bluebook is attached to the
-# Hecks domain, so the row is `hecks site site_projection.project_site`. This spec checks that the
+# Hecks domain, so the row is `hecks site site_projection.project_site!`. This spec checks that the
 # command is declared in the Site bluebook, that its verb answers `--help` through the launcher,
 # and then runs it against the sample project in spec/fixtures/site/studio: a projection written
 # to a temporary directory, a `--check` that finds the file absent, then current, and a project
@@ -55,7 +55,7 @@ RSpec.describe "the Site row of the ADR command table" do
     Dir.chdir(dir) { answer(argv).last }
   end
 
-  it "answers (new) as SiteProjection.ProjectSite, `hecks site site_projection.project_site`", :aggregate_failures do
+  it "answers (new) as SiteProjection.ProjectSite, `hecks site site_projection.project_site!`", :aggregate_failures do
     aggregate = @bluebook.aggregate("SiteProjection")
 
     expect(aggregate.commands.map(&:hecks_name)).to include("ProjectSite", "Complete", "Fault")

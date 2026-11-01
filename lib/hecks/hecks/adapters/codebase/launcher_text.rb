@@ -1,0 +1,39 @@
+# frozen_string_literal: true
+
+require "hecks/command_names"
+require "hecks/workflow_pagination"
+
+module Hecks
+  module Adapters
+    module Codebase
+      # What Codebase's `ConformanceRun` asks of the text that drives the launcher and GitHub: the
+      # workflows, hooks, gate rows, specs and guides.
+      #
+      # Both checks read files in this process and write nothing. They look for the two ways such
+      # text goes quietly wrong: a command name the launcher no longer accepts, and a count of
+      # GitHub list items taken from the first page only.
+      module LauncherText
+        module_function
+
+        # @param tree [Tree] the working tree, already known to be a hecks checkout
+        # @return [String] the clean verdict
+        # @raise [ConsoleCapture::Failure] with each invocation the launcher would refuse
+        def command_names(tree)
+          runtime = Hecks.describe(tree.path("lib/hecks/hecks"))
+          CommandNames.check(root: tree.root, runtime: runtime)
+        rescue CommandNames::Failure => e
+          raise ConsoleCapture::Failure, e.message
+        end
+
+        # @param tree [Tree] the working tree
+        # @return [String] the clean verdict
+        # @raise [ConsoleCapture::Failure] with each list call that counts one page
+        def workflow_pagination(tree)
+          WorkflowPagination.check(root: tree.root)
+        rescue WorkflowPagination::Failure => e
+          raise ConsoleCapture::Failure, e.message
+        end
+      end
+    end
+  end
+end

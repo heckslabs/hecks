@@ -8,7 +8,7 @@ require_relative "support/fenced_owner"
 
 # The Hecks domain's journal outlives the process. One process runs a journaled command through
 # the launcher against a real Postgres; a second, started afterwards, reads it back with
-# `hecks ask history` and `exe/hecks stores`. Needs a reachable Postgres.
+# `hecks ask history` and `exe/hecks query Introspection.stores`. Needs a reachable Postgres.
 RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   JOURNAL_DB = "hecks_journal_survives_spec".freeze
   HECKS_ROOT = InMemoryDomain::ROOT

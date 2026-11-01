@@ -23,6 +23,7 @@ require_relative "cli_runner/suggestions"
 require_relative "cli_runner/verb_names"
 require_relative "cli_runner/renamed_names"
 require_relative "cli_runner/verbosity"
+require_relative "cli_runner/name_index"
 
 module Hecks
   module Adapters
@@ -46,6 +47,7 @@ module Hecks
         extend ResumeWords
         extend JsonWords
         extend Suggestions
+        extend NameIndex
         extend VerbNames
         extend RenamedNames
         extend Answers

@@ -270,7 +270,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # `hecks project_rust` runs the hecks-codegen binary (ADR 0086), so a regeneration on a
+      # `hecks Build.project_rust!` runs the hecks-codegen binary (ADR 0086), so a regeneration on a
       # cache miss below builds it; cached like every other job that builds that crate.
       - uses: ./.github/actions/cargo-cache
         with:
@@ -409,7 +409,7 @@ jobs:
       # construct each domain's own IR declares, from the already-committed
       # manifest.json + ir.json — no build needed first (see
       # hecks ask rust_coverage's own header for how this differs from equivalence
-      # checking). `hecks ask corpus_rust_coverage` walks every
+      # checking). `hecks query CorpusRun.corpus_rust_coverage` walks every
       # rust/src/generated/ module; an entry on
       # `Hecks::Corpus::RUST_COVERAGE_PENDING` must still fail, so a fixed
       # gap breaks the build until its entry is deleted.

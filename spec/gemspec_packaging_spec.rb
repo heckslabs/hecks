@@ -176,7 +176,7 @@ RSpec.describe "gem packaging" do
       expect(gemspec.files).to include("qa/settings.yml")
     end
 
-    it "ships the pizzas example `hecks console` opens when given no domain, and not its glossary", :aggregate_failures,
+    it "ships the pizzas example `hecks console!` opens when given no domain, and not its glossary", :aggregate_failures,
        :process do
       opened = Hecks::Tools::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
 

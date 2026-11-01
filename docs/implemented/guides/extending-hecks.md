@@ -261,7 +261,7 @@ same reflex: review the diff before you believe it.)
 ## Teaching the model checker a new finding
 
 Sometimes the thing you're adding to the language isn't a new word but
-a new *check* — a way for `hecks model_check` to catch something a
+a new *check* — a way for `hecks ModelCheckRun.model_check!` to catch something a
 lifecycle or a process manager could declare and get wrong. This is
 static analysis over the IR (no bluebook boots twice, nothing here
 touches a runtime), so it lives in
@@ -300,7 +300,7 @@ a domain's allowance belongs on its own declaration (ADR 0025). `spec/model_chec
 enforces this table in **both directions** over the whole corpus: an
 error the checker reports that the table doesn't name is a regression
 you have to fix or explicitly allow; an entry in the table the checker
-no longer reports is stale and must be deleted. `hecks model_check`
+no longer reports is stale and must be deleted. `hecks ModelCheckRun.model_check!`
 reads the exact same `ALLOWED_FINDINGS` constant the spec does — one
 table, never a copy — so the tool a human runs and the gate CI runs
 can't drift apart the way the syntax table and the old hand-written
@@ -315,7 +315,7 @@ new section if it's none of those), have it return `Finding.new(kind:
 that already covers its construct (or into `call` directly, for
 something new), add a fixture under `spec/fixtures/model_check/` that
 deliberately trips it, assert the new kind in `spec/model_check_spec.rb`,
-then run `hecks model_check` over the real corpus — anything it newly
+then run `hecks ModelCheckRun.model_check!` over the real corpus — anything it newly
 flags there has to be fixed in the example domain or allowed on that
 domain's own declaration, naming exactly what's real and what's a bookkeeping gap.
 

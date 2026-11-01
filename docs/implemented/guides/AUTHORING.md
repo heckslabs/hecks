@@ -79,7 +79,7 @@ Rules that keep the suite honest:
   cover guide content that used to be fictional) — rather than
   reaching for a fictional stand-in. The one exception: content that is
   deliberately *invalid* (a malformed declaration proving a build-time
-  refusal, an unreachable lifecycle state proving a `hecks model_check`
+  refusal, an unreachable lifecycle state proving a `hecks ModelCheckRun.model_check!`
   finding, or a controlled multi-version diff that would mean minting a
   fake historical era onto real, settled data) cannot be expressed in a
   domain that must stay valid and golden — that stays a small,

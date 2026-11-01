@@ -676,7 +676,7 @@ standing — same as an ordinary defect always has — the only thing new is
 that the saga no longer just logs a defect and waits for a human to find
 it; it puts back what it can and moves on.
 
-## What `hecks model_check` still catches here
+## What `hecks ModelCheckRun.model_check!` still catches here
 
 Every policy and every process manager here is data, the same data the
 runtime dispatches against, which means the checker `verification.md`

@@ -151,7 +151,7 @@ jobs:
 
       # The committed baseline is the only grouping input: every leg must compute the split
       # from byte-identical inputs or it is not a partition (a restored per-run cache differed
-      # across legs). Built by `hecks refresh_runtime_baseline from_run= <run-id>`.
+      # across legs). Built by `hecks TestSuiteRun.refresh_runtime_baseline! from_run= <run-id>`.
       # The file list is committed too; `postgres_io_file_list` proves it matches a dry run.
       - name: "rspec: postgres + deploy/tenant I/O (this shard's own group only — see job header comment on --only-group)"
         run: |

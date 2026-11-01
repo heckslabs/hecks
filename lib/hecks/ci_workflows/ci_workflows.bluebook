@@ -126,9 +126,9 @@ Hecks.bluebook "CiWorkflows" do
              run: "FILES=()\nwhile IFS= read -r line; do FILES+=(\"$line\"); done < tmp/rspec_shard_files.txt\nbundle exec parallel_rspec \"${FILES[@]}\" \\\n  --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \\\n  -o \"--tag ~io --tag ~fuzzing --tag ~generated_all --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log\"\n",
              note: "--group-by runtime: without it parallel_rspec splits by file size and one worker can\ndraw the slowest files. --allowed-missing: spec files newer than the baseline get the\naverage cost instead of failing."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "upload_log",
-             title: "Upload this shard's runtime log (for hecks refresh_runtime_baseline from_run=)",
+             title: "Upload this shard's runtime log (for hecks TestSuiteRun.refresh_runtime_baseline! from_run=)",
              condition: "always()", uses: "actions/upload-artifact@v4",
-             note: "Artifact only, never restored: `hecks refresh_runtime_baseline from_run= <run-id>`\nrebuilds the committed baseline from CI timings."
+             note: "Artifact only, never restored: `hecks TestSuiteRun.refresh_runtime_baseline! from_run= <run-id>`\nrebuilds the committed baseline from CI timings."
     end
 
     value_object "StepInput" do
