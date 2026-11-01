@@ -13,7 +13,7 @@ module Hecks
         module EraResolver
           # Whether this copy may mint when its world says nothing about it. False, so a copy that
           # was not told refuses, and only the copy that owns a database moves it. A mint also needs
-          # the Maintenance mint command's request (`mint_request` in the settings): a boot never mints.
+          # the mint entry point's request (`mint_request` in the settings): a boot never mints.
           MINT_BY_DEFAULT = false
 
           # Resolves which era this boot is and records it on the registry.
@@ -62,16 +62,18 @@ module Hecks
             matched, = shapes.find { |_, shape| shape == current_shape }
             return resolve_superseded(context, matched, latest) if matched
 
-            context.record_resolved(mint_or_refuse!(context, latest))
+            return resolve_unminted(context, latest) unless context.mint_request
+
+            context.record_resolved(mint!(context.with(latest: latest)))
           end
 
-          # A boot that would mint refuses by name; only a context carrying the mint command's request
-          # reaches `mint!`.
-          def mint_or_refuse!(context, latest)
-            held = context.with(latest: latest)
-            refuse_boot_mint!(held) unless context.mint_request
-
-            mint!(held)
+          # A shape no held era matches, booted without a mint request: the copy reads the latest held
+          # era and appends nothing, so reads work while the mint waits for its rehearsal.
+          def resolve_unminted(context, latest)
+            grant_role!(context, latest[:ordinal])
+            context.record_resolved(latest[:ordinal])
+            context.record_superseded(latest[:ordinal])
+            nil
           end
 
           def hold_first_era(context)

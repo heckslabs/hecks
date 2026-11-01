@@ -1198,28 +1198,22 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
-  # A copy whose world does not say `mint_eras true` does not migrate the database: it is refused,
-  # and the database is left on the era it holds.
+  # A copy whose world does not say `mint_eras true` does not migrate the database: a boot reads the
+  # era it holds, read-only, and the database is left on that era.
   context "with a copy told not to mint" do
-    def boot_without_permission
+    def boot_without_permission(mint_eras: false)
       check!(V1_SOURCE)
-      check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: false)
+      check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: mint_eras)
     end
 
-    it "refuses to mint, and says how to allow it" do
-      expect { boot_without_permission }
-        .to raise_error(Hecks::Runtime::WiringError, /may not mint.*mint_eras true/m)
-    end
-
-    it "leaves the database on the era it holds", :aggregate_failures do
-      expect { boot_without_permission }.to raise_error(Hecks::Runtime::WiringError)
+    it "boots read-only on the era it holds, and does not mint", :aggregate_failures do
+      expect { boot_without_permission }.not_to raise_error
       expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
     end
 
-    it "refuses when the world says nothing", :aggregate_failures do
+    it "does not mint when the world says nothing", :aggregate_failures do
       check!(V1_SOURCE)
-      expect { check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: nil) }
-        .to raise_error(Hecks::Runtime::WiringError, /may not mint/)
+      expect { check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: nil) }.not_to raise_error
       expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
     end
 

@@ -2124,11 +2124,12 @@ Hecks.bluebook "QualityControl" do
       emits "RehearsalVerdict"
     end
 
-    # Asks for the mint of a domain's next era. The mint command is the only caller that mints: a boot never
-    # does, and a mint names the commit its landing will put on main, so the ledger and main move together.
-    command "RequestMint" do
+    # The single entry point for a mint of a domain's next era. It is the only command that asks for a mint:
+    # a boot never mints, and the mint names the commit its landing puts on main, so the ledger and main move
+    # together. The rehearsal ref and the expected watermark are checked against the live ledger by the era check.
+    command "MintEra" do
       role "QA engineer"
-      goal "Ask for the mint of a domain's next era, against the rehearsal of that same era"
+      goal "Mint a domain's next era, against the rehearsal of that same era and the watermark it read"
 
       attribute :run,            MaintenanceRun
       attribute :domain,         String

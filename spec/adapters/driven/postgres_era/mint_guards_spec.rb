@@ -86,10 +86,10 @@ RSpec.describe "mint guards in the PostgresEra era check", :io do
 
   before { check!(shape_v1) }
 
-  it "refuses a read boot whose shape changed, and does not mint", :aggregate_failures do
-    expect { check!(shape_v2, translation_source: edge_v1_to_v2) }
-      .to raise_error(Hecks::Runtime::WiringError, /would mint on this boot.*never mints/m)
+  it "a boot still refuses to mint, and a read still works without minting", :aggregate_failures do
+    registry = check!(shape_v2, translation_source: edge_v1_to_v2)
     expect(era_count).to eq(1)
+    expect(registry.resolved_eras["Ledger"]).to eq(1)
   end
 
   it "refuses a mint that was not confirmed", :aggregate_failures do
