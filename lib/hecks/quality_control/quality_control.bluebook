@@ -2081,6 +2081,58 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # One policy's reaction to one event, recorded once the policy's command has answered: delivered or
+  # refused. The pump checks a row before it runs the policy, so a reaction already on the ledger is not
+  # run again, whatever the cursor says. Keyed by (consumer, event, policy), so the event's other policies
+  # for the same consumer still run.
+  aggregate "EventReaction" do
+    description "A policy's reaction to one event, once its command has answered. One row per (consumer, event, policy)."
+
+    identified_by :key
+
+    attribute :key,      ReactionKey
+    attribute :consumer, ReactionConsumer
+    attribute :event_id, ReactionEvent
+    attribute :policy,   ReactionPolicy
+
+    value_object "ReactionKey" do
+      attribute :value, String, matches: :present
+      invariant("a reaction is keyed by its consumer, event and policy") { !value.to_s.empty? }
+    end
+
+    value_object "ReactionConsumer" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names its consumer") { !value.to_s.empty? }
+    end
+
+    value_object "ReactionEvent" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names the event it answered") { !value.to_s.empty? }
+    end
+
+    value_object "ReactionPolicy" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names its policy") { !value.to_s.empty? }
+    end
+
+    command "Record" do
+      role "QA engineer"
+      goal "Record that one consumer's policy has answered one event, so the pump does not run it again"
+
+      attribute :key,      ReactionKey
+      attribute :consumer, ReactionConsumer
+      attribute :event_id, ReactionEvent
+      attribute :policy,   ReactionPolicy
+
+      emits "EventReacted"
+    end
+
+    query "All" do
+      description "Every reaction the event pump has recorded, by its key."
+      order_by :key
+    end
+  end
+
   # One run of the event pump, requested as a command and answered by the `PumpTools` port, which runs
   # `hecks quality_control qa_event_pump`. The QA tick runs the same pump as its last step.
   aggregate "EventPump" do

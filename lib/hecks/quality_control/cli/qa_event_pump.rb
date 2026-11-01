@@ -5,21 +5,20 @@ require_relative "../../../hecks"
 require_relative "../../ports/persistence/plugins/era"
 require_relative "qa_event_pump/attached"
 require_relative "qa_event_pump/cursors"
+require_relative "qa_event_pump/reactions"
 require_relative "qa_event_pump/reader"
 require_relative "qa_event_pump/consumer"
 
 module Hecks
   module QualityControlCli
     # The command behind `hecks quality_control event_pump.pump!`: reads each attached domain's
-    # event
-    # log past its cursor and runs the policies that react to what it reads. A consumer reads the
-    # logs of the domains its hecksagon subscribes to, and each cursor is one (log, consumer) row of
-    # the ledger's `EventCursor`. The pump writes no domain's event log; the policies it runs write
-    # their own commands' events, as any reaction does.
+    # event log past its cursor and runs the policies that react to what it reads. A consumer reads
+    # the logs its hecksagon subscribes to, and each cursor is one (log, consumer) row of the
+    # ledger's `EventCursor`. The pump writes no domain's event log.
     #
-    # A reaction that is refused is recorded and named in the output, and the cursor moves past its
-    # event, so one bad event cannot hold the queue. A cursor is not moved for an event whose
-    # reaction the pump could not run at all: that consumer stops, and the pump exits 1.
+    # A policy that has an `EventReaction` row for its event is not run again. A refused reaction is
+    # recorded and named, and the cursor moves past it. A cursor does not move for an event whose
+    # reaction could not run at all: that consumer stops, and the pump exits 1.
     class QaEventPump
       EXIT_OK = 0
       EXIT_ERROR = 1
@@ -61,8 +60,12 @@ module Hecks
       #
       # @return [Integer] 0 or 1, as `call` answers
       def run
-        cursors = Cursors.new(@attached.runtime("QualityControl"))
-        consumers = @attached.names.map { |name| Consumer.new(name, attached: @attached, cursors: cursors) }
+        ledger = @attached.runtime("QualityControl")
+        cursors = Cursors.new(ledger)
+        reactions = Reactions.new(ledger)
+        consumers = @attached.names.map do |name|
+          Consumer.new(name, attached: @attached, cursors: cursors, reactions: reactions)
+        end
         lines = consumers.flat_map(&:lines)
         lines.each { |line| puts line }
         puts "event pump: #{lines.size} line(s) reported"

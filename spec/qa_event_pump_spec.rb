@@ -143,8 +143,8 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
   end
 
   it "records a refused reaction, names it, and does not block the next event", :aggregate_failures do
-    first = ping("a")
-    publish(first, first, ping("b"))
+    count_already("a")
+    publish(ping("a"), ping("b"))
 
     output = pump_output
 
@@ -153,8 +153,8 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
   end
 
   it "advances the cursor past a refused event" do
-    first = ping("a")
-    publish(first, first)
+    count_already("a")
+    publish(ping("a"), ping("b"))
     pump_output
 
     expect(position_of("Producer", "Consumer")).to eq(2)
@@ -167,6 +167,65 @@ RSpec.describe Hecks::QualityControlCli::QaEventPump do
 
     expect(position_of("Producer", "Consumer")).to eq(1)
     expect(position_of("Producer", "Auditor")).to eq(0)
+  end
+
+  it "does not react to an event the ledger already holds a reaction for" do
+    entry = ping("a")
+    publish(entry)
+    recorded_reactions.record("Consumer", entry["id"], "CountOnPinged")
+
+    pump_output
+
+    expect(counted_reactions).to eq(0)
+  end
+
+  it "does not rerun a command after a stop between the command and the cursor write" do
+    stop_before_the_first_cursor_write
+    publish(ping("a"))
+
+    2.times { pump_output }
+
+    expect(counted_reactions).to eq(1)
+  end
+
+  it "records a refused reaction, and the reaction after it still runs" do
+    count_already("a")
+    refused = ping("a")
+    publish(refused, ping("b"))
+
+    pump_output
+
+    expect(recorded?(refused)).to be(true)
+  end
+
+  it "runs each reaction once across two passes in a row" do
+    publish(ping("a"), ping("b"))
+
+    2.times { pump_output }
+
+    expect(counted_reactions).to eq(2)
+  end
+
+  def ledger = attached.runtime("QualityControl")
+
+  # Counts a name on the consumer first, so the pumped `Count` for that name is refused.
+  def count_already(name) = attached.runtime("Consumer").dispatch_flat("Consumer::Tally.Count", name: name)
+
+  def recorded_reactions = Hecks::QualityControlCli::QaEventPump::Reactions.new(ledger)
+
+  def recorded?(entry) = recorded_reactions.recorded?("Consumer", entry["id"], "CountOnPinged")
+
+  # Lets the cursor write fail once, after the policy's command has answered, as a stop would.
+  def stop_before_the_first_cursor_write
+    cursors = Hecks::QualityControlCli::QaEventPump::Cursors.new(ledger)
+    allow(Hecks::QualityControlCli::QaEventPump::Cursors).to receive(:new).and_return(cursors)
+    stopped = false
+    allow(cursors).to receive(:advance).and_wrap_original do |original, *args|
+      next original.call(*args) if stopped
+
+      stopped = true
+      raise "stopped before the cursor was written"
+    end
   end
 
   def open_auditor_cursor
