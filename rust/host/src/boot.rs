@@ -589,6 +589,7 @@ async fn boot_postgres(
                     ordinal,
                     my_hash,
                     my_label,
+                    &storage_shape::canonical(ir),
                     held_text,
                     &aggregates,
                     &chain,
