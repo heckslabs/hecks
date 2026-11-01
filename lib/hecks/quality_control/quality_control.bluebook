@@ -2999,7 +2999,7 @@ Hecks.bluebook "QualityControl" do
   # writes the release trailer on the merge through the `ReleaseGh` port.
   policy "OpenOnReleaseRequest" do
     on      "ReleasePR.ReleaseOpenRequested"
-    ask     :open, with: { release: :release, branch: :branch, sha: :sha }
+    ask     :open_pull_request, with: { release: :release, branch: :branch, sha: :sha }
   end
 
   policy "ApproveOnConditionsMet" do
