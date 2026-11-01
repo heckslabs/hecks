@@ -2050,6 +2050,11 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String, matches: :git_sha
     end
 
+    # The era a mint created, as the Minted event carries it.
+    value_object "MintedEra" do
+      attribute :value, Integer
+    end
+
     # Opens a run for a submitted commit of main; the gate is the first step it asks for.
     command "Start" do
       role "QA engineer"

@@ -120,7 +120,7 @@ Hecks.hecksagon "QualityControl" do
     end
 
     asks "Land", to: Maintenance do
-      attribute :era,    Integer
+      attribute :era,    MintedEra
       attribute :sha,    MaintenanceSha
       attribute :branch, String
       answers "Landed"
