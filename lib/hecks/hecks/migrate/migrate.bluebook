@@ -343,6 +343,16 @@ Hecks.bluebook "Hecks" do
         attribute :aggregates, AggregateList, optional: true
         returns Document
       end
+
+      # The boot status of each bluebook under a domain directory, read from the committed ledger and
+      # its edges with no database: current, behind (with the implicit move it would mint), superseded
+      # or unminted, and the reason. Nothing is minted or written.
+      query "BootStatus" do
+        description "The boot status of each bluebook under a domain directory: current, behind by a recorded " \
+                    "implicit move, superseded, or unminted, with the held and current labels and the reason."
+        attribute :domain, DomainPath
+        returns Document
+      end
     end
 
     policy "ExamineWhenFirstEraRequested" do
