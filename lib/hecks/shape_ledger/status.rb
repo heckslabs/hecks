@@ -2,8 +2,8 @@
 
 module Hecks
   module ShapeLedger
-    # The boot status of each bluebook under a directory, read from the committed ledger and its
-    # edges and never from a database. A status is one of:
+    # The ledger status of each bluebook under a directory, read from the committed ledger and its
+    # edges, never from a database. A status is one of:
     #
     # - `current`: the ledger holds the shape the bluebook now has.
     # - `behind`: the shape the ledger holds leads to the current one. `move` names the implicit
@@ -18,9 +18,9 @@ module Hecks
       module_function
 
       # @param directory [String] the domain directory whose bluebooks the ledger records
+      # @param registry [Runtime::Registry] the domain's loaded registry; loaded here when not given
       # @return [Hash] `domain`, and `bluebooks`: each bluebook's status row, by name
-      def of(directory)
-        registry = Hecks.describe(directory).registry
+      def of(directory, registry: Hecks.describe(directory).registry)
         path = File.join(directory, FILE)
         ledger = ShapeLedger.read(path)
         moves = ShapeLedger.implicit_moves(ShapeLedger.implicit_path(path))
@@ -78,9 +78,11 @@ module Hecks
         row("behind", held, now, reason: "no implicit move is recorded from #{held} to #{now}")
       end
 
-      # @return [Hash] one bluebook's status, with every field present
+      # @return [Hash] one bluebook's status, with every field present; `source` says it was read
+      #   from the ledger
       def row(status, held, now, move: nil, reason: nil)
-        { "status" => status, "held" => held, "current" => now, "move" => move, "reason" => reason }
+        { "status" => status, "held" => held, "current" => now, "move" => move, "reason" => reason,
+          "source" => "ledger" }
       end
     end
   end

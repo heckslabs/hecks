@@ -56,8 +56,8 @@ module Hecks
         def decided_edge
           return unless minting == "next" && latest[:held_text]
 
-          verdict = @subject.decide(latest, @store.watermark(@subject))
-          verdict.verdict == "would_mint" ? verdict.edge : nil
+          verdict = resolution.verdict
+          verdict&.verdict == "would_mint" ? verdict.edge : nil
         end
 
         def shape
@@ -99,10 +99,16 @@ module Hecks
 
         def before = latest ? latest[:label] : "none"
 
+        # Which held era the shape resolves to, by the resolution a boot records; the latest era is
+        # named as it would be minted.
+        def resolution
+          @resolution ||= @subject.resolve([*eras[0...-1], latest]) { @store.watermark(@subject) }
+        end
+
         def minting
           return "first" unless latest
 
-          before == @subject.label ? "none" : "next"
+          resolution.status == "current" ? "none" : "next"
         end
 
         def limits(rust, report)

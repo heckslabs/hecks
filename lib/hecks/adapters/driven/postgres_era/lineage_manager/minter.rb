@@ -5,6 +5,7 @@ require_relative "../../../../ports/persistence/plugins/era/translation/scaffold
 require_relative "context"
 require_relative "refusals"
 require_relative "mint_decision"
+require_relative "era_resolution"
 
 module Hecks
   module Adapters
@@ -20,8 +21,10 @@ module Hecks
           # @param context [Context] the era check so far; `latest` is the latest held era, named
           #   here if it has no name yet
           # @return [Integer] the ordinal of the era minted
-          # @raise [Runtime::WiringError] if the edge, its coverage or its audit refuses
+          # @raise [Runtime::WiringError] if a held era already holds the shape, or the edge, its
+          #   coverage or its audit refuses
           def mint!(context)
+            refuse_held_shape!(context)
             refuse_unrehearsed_mint!(context)
             ensure_named!(context.lineage, context.latest)
             context = context.with(latest: context.held_eras.last)
@@ -69,6 +72,14 @@ module Hecks
           end
 
           private
+
+          # Refuses a mint of a shape a held era already holds, by the match the boot resolves with.
+          def refuse_held_shape!(context)
+            held = EraResolution.matching_era(context.held_eras, context.bluebook) or return
+
+            raise Runtime::WiringError,
+                  "cannot mint #{context.domain_name}: era #{held[:ordinal]} already holds the current shape"
+          end
 
           # The verdict `MintDecision` reaches for the held era the mint leaves, read at the
           # watermark the context holds now.

@@ -9,7 +9,8 @@ module HeldMintSupport
   # Facts of a domain whose shape moved from `from` to `to` at watermark 7, with era 3 next.
   def facts(from: "a1", to: "b2", verdict: "would_mint", reason: nil)
     decision = Struct.new(:verdict, :reason).new(verdict, reason)
-    { held: 2, next_era: 3, watermark: 7, from: from, to: to, verdict: decision }
+    { held: 2, next_era: 3, watermark: 7, from: from, to: to, verdict: decision,
+      status: from == to ? "current" : "behind" }
   end
 
   # A minter that records each call as `[era, request]` and answers `[label, ran]`.

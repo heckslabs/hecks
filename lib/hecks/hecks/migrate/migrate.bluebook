@@ -376,12 +376,23 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
 
-      # The boot status of each bluebook under a domain directory, read from the committed ledger and
-      # its edges with no database: current, behind (with the implicit move it would mint), superseded
-      # or unminted, and the reason. Nothing is minted or written.
+      # The boot status of each bluebook under a domain directory, resolved as its boot resolves it:
+      # from the database its own world declares, or, for a bluebook bound to a store that holds no
+      # eras, from the committed ledger and its edges. Each row names its source. Nothing is minted
+      # or written.
       query "BootStatus" do
         description "The boot status of each bluebook under a domain directory: current, behind by a recorded " \
-                    "implicit move, superseded, or unminted, with the held and current labels and the reason."
+                    "implicit move, superseded, or unminted, with the held and current labels and the reason; " \
+                    "read from its own database when it declares one, else from the committed ledger."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # What a boot would resolve for each bluebook under a domain directory, read from the database
+      # its own world declares by the resolution the boot records, over a connection that only reads.
+      query "BootResolution" do
+        description "What a boot would resolve for each bluebook under a domain directory, from its own " \
+                    "database: status, held label, current label, ordinal and reason. Writes nothing."
         attribute :domain, DomainPath
         returns Document
       end

@@ -1,5 +1,6 @@
 require_relative "../plugin"
 require_relative "era/era_check"
+require_relative "era/era_status"
 require_relative "era/era_guard"
 require_relative "era/era_tamper"
 require_relative "era/storage_shape"
