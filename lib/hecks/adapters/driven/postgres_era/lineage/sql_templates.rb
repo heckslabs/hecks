@@ -77,6 +77,15 @@ module Hecks
             SELECT ordinal, aggregate_id, operation, state FROM edge_%<last>s
           SQL
 
+          # The chain in one step: each held era's rows take the one composed translation from
+          # that era to the current shape.
+          DIRECT_SQL = <<~SQL.freeze
+            WITH tail AS MATERIALIZED (%<tail>s),
+            direct AS MATERIALIZED (SELECT ordinal, era, aggregate_id, operation,
+              %<state>s AS state FROM tail)
+            SELECT ordinal, aggregate_id, operation, state FROM direct
+          SQL
+
           # Reduces to newest entry per aggregate id, dropping any id whose newest entry is a
           # delete.
           LATEST_SQL = <<~SQL.freeze
