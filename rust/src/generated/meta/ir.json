@@ -36362,6 +36362,20 @@
             [
               [
                 "name",
+                "push_nudge"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+              ]
+            ],
+            [
+              [
+                "name",
                 "main_maintenance"
               ],
               [
