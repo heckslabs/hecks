@@ -2,11 +2,10 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/era_registry_loading"
 
-# What a held era holds, read from its record alone: the shape its mint recorded, and the
-# declaration its held text parses to, which a field-by-field diff needs. An era whose held text is
-# the top-level file of a domain split into module folders declares none of the folders'
-# aggregates, so its declaration is refused by name and the mint decision asks for an edge.
-RSpec.describe "a held era's shape and declaration" do
+# What a held era is, read from its record: the storage shape its mint recorded and that shape's
+# hash. Held text decides nothing; an era with no stored shape is read from its text only when the
+# text hashes to the era's stored hash, and is refused by name otherwise.
+RSpec.describe "a held era read from its stored shape" do
   include EraRegistryLoading
 
   def manager = Hecks::Adapters::PostgresEra::LineageManager
@@ -30,55 +29,42 @@ RSpec.describe "a held era's shape and declaration" do
   # The top-level file of the same domain, with its aggregate in a module folder.
   def top_level_source = %(Hecks.bluebook "Ledger" do\nend\n)
 
-  def projection = Hecks::Runtime::StorageShape.project(load_registry(whole_source).bluebooks.values.first)
+  def bluebook = load_registry(whole_source).bluebooks.values.first
 
-  def era(text, recorded = projection)
-    { ordinal: 3, label: "abc123", held_text: text, projection: recorded }
+  def projection = Hecks::Runtime::StorageShape.project(bluebook)
+
+  def stored_hash = Hecks::Runtime::StorageShape.mint_hash(bluebook)
+
+  def era(text, recorded: projection, hash: stored_hash)
+    { ordinal: 3, label: "abc123", held_text: text, projection: recorded, hash: hash }
   end
 
-  # The domain grown by one aggregate the held era does not have.
-  def grown
-    load_registry(whole_source.sub(/^end\n\z/, <<~NOTE)).bluebooks.values.first
-        aggregate "Note" do
-          identified_by :body
-
-          attribute :body, Body
-
-          value_object "Body" do
-            attribute :text, String
-          end
-        end
-      end
-    NOTE
-  end
-
-  def decision(held_era)
-    manager::MintDecision.decide(held: [manager::MintDecision.held_for_decision(held_era)], bluebook: grown,
-                                 watermark: 0, rows: [], edge_source: { translations: [], recorded: [%w[abc123 x]] })
-  end
-
-  it "answers the shape a top-level-only era's mint recorded, not the shape its text declares" do
+  it "answers the shape its mint recorded, whatever its held text declares" do
     expect(manager.held_shape(era(top_level_source))).to eq(projection)
   end
 
-  it "answers the shape a whole era's text declares when its mint recorded none" do
-    expect(manager.held_shape(era(whole_source, nil))).to eq(projection)
+  it "reads an era with no stored shape from a held text that hashes to its stored hash" do
+    expect(manager.held_shape(era(whole_source, recorded: nil))).to eq(projection)
   end
 
-  it "answers the declaration of an era whose text declares the recorded shape" do
-    expect(manager.held_declaration(era(whole_source)).aggregates.map(&:name)).to eq(["Acct"])
+  it "refuses an era with no stored shape whose held text does not hash to its stored hash, by name" do
+    expect { manager.held_shape(era(top_level_source, recorded: nil)) }
+      .to raise_error(Hecks::Runtime::WiringError, /era 3 \(abc123\) stores no storage shape.*does not hash/)
   end
 
-  it "refuses the declaration of a top-level-only era, naming the era" do
-    expect { manager.held_declaration(era(top_level_source)) }
-      .to raise_error(Hecks::Runtime::WiringError, /era 3 \(abc123\) holds part of its domain's source/)
+  it "refuses an era with no stored shape and no stored hash, by name" do
+    expect { manager.held_shape(era(whole_source, recorded: nil, hash: nil)) }
+      .to raise_error(Hecks::Runtime::WiringError, /no stored hash to check it against/)
   end
 
-  it "asks for an edge, by name, for a move from a top-level-only era with no edge file" do
-    expect(decision(era(top_level_source)).reason).to eq(:partial_held_text)
+  it "answers the era's aggregates and value-object members from the stored shape alone", :aggregate_failures do
+    held = manager.held_bluebook(era(nil))
+    expect(held.aggregates.map(&:name)).to eq(["Acct"])
+    expect(held.aggregate("Acct").value_object("Kind").attributes.map(&:name)).to eq([:label])
+    expect(held.aggregate("Acct").identity_paths).to eq(bluebook.aggregates.first.identity_paths)
   end
 
-  it "decides a move from a whole era by its diff" do
-    expect(decision(era(whole_source)).reason).not_to eq(:partial_held_text)
+  it "hashes an unnamed era's stored shape as the mint hashes the bluebook it came from" do
+    expect(manager.held_hash(era(nil, hash: nil))).to eq(stored_hash)
   end
 end
