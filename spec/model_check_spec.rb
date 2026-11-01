@@ -408,7 +408,7 @@ RSpec.describe "the model checker" do
     end
 
     # Every event any corpus member emits, attached bluebooks included, as the command's
-    # `global_emitted_events`: a QualityControl policy on a Fixer event has an emitter in the bundle.
+    # `global_emitted_events`: a QualityControl policy on a Fixer event has an emitter.
     def corpus_emitted_events
       self.class.instance_variable_get(:@corpus_emitted_events) ||
         self.class.instance_variable_set(:@corpus_emitted_events, collect_emitted_events.freeze)
