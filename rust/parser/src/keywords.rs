@@ -579,6 +579,18 @@ pub static KEYWORDS: &[KeywordRow] = &[
         disambiguator: "",
     },
     KeywordRow {
+        word: "mints_era",
+        context: "Command",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "mints_era",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordRow {
         word: "reference_to",
         context: "Command",
         body: "none",

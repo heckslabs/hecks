@@ -47,6 +47,20 @@ A field kept its structure and only its name changed — the smallest rule, and 
 runtime.registry.translations.last.aggregates.first.renames  # => {old_field: :new_field}
 ```
 
+## split
+
+<!-- generated:begin word=split -->
+`split into:, keyed_by:, fields:` — fills `splits`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| `into:` | text | true | into |
+| `keyed_by:` | text | true | keyed_by |
+| `fields:` | text | true | fields |
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
 ## move
 
 <!-- generated:begin word=move -->

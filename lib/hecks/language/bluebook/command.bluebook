@@ -33,6 +33,9 @@ Hecks.bluebook "Bluebook" do
     # `idempotent`: delivering the command twice leaves the same state as delivering it once, so a
     # saga redrive may deliver it again after a crash that left its outcome unknown.
     attribute :idempotent, CommandText, optional: true
+    # `mints_era true`: this command's own record may be written through an unminted boot, so the
+    # command that mints the Hecks domain's held era can persist its request.
+    attribute :mints_era, CommandText, optional: true
     # Lifecycle guard as a literal (`from: "open"` or `from: ["open", "frozen"]`); ADR 0025.
     attribute :from,       CommandText, optional: true
 
@@ -126,6 +129,7 @@ Hecks.bluebook "Bluebook" do
       attribute :goal,  Goal, optional: true
       attribute :provenance, CommandText, optional: true
       attribute :idempotent, CommandText, optional: true
+      attribute :mints_era,  CommandText, optional: true
       attribute :from,       CommandText, optional: true
 
       attribute :position, Position, optional: true
@@ -136,6 +140,7 @@ Hecks.bluebook "Bluebook" do
       sets :goal
       sets :provenance
       sets :idempotent
+      sets :mints_era
       sets :from
       sets :position
       emits VerbDeclared
@@ -351,6 +356,8 @@ Hecks.bluebook "Bluebook" do
       member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance", calls: "provenance_impl"
       # Declares the command safe to deliver twice (CommandBuilder#idempotent_impl).
       member word: "idempotent",      context: "Command", body: "none",   inner: "", opens: "", fills: "idempotent", calls: "idempotent_impl"
+      # Lets this command's own record through an unminted boot (CommandBuilder#mints_era_impl).
+      member word: "mints_era",       context: "Command", body: "none",   inner: "", opens: "", fills: "mints_era", calls: "mints_era_impl"
       member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references", calls: "reference_to_impl"
       member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain", calls: "given_impl"
       member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "sets_impl"

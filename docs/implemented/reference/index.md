@@ -9,7 +9,7 @@ survives regeneration.
 - [Lifecycle](lifecycle.md) — 2 words
 - [File](file.md) — 7 words
 - [Bluebook](bluebook.md) — 13 words
-- [Command](command.md) — 16 words
+- [Command](command.md) — 17 words
 - [Entity](entity.md) — 13 words
 - [Policy](policy.md) — 6 words
 - [ProcessManager](process_manager.md) — 5 words
@@ -27,5 +27,5 @@ survives regeneration.
 - [Port](port.md) — 3 words
 - [Adapter](adapter.md) — 6 words
 - [Translation](translation.md) — 2 words
-- [TranslationAggregate](translation_aggregate.md) — 9 words
+- [TranslationAggregate](translation_aggregate.md) — 10 words
 - [ContextMap](context_map.md) — 3 words

@@ -55,11 +55,12 @@ runtime.dispatch("Banking::Customer.Register", with: { reference: "pm-1",
 ## correlates_by
 
 <!-- generated:begin word=correlates_by -->
-`correlates_by correlates_by` — fills `correlates_by`
+`correlates_by correlates_by, correlates_by`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | correlates_by |
+| positional 1 | constant | true | correlates_by |
 <!-- generated:end -->
 
 The dotted scalar path that ties a stream of events to one saga

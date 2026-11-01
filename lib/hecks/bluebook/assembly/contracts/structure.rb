@@ -71,13 +71,14 @@ module Hecks
             # Lifecycle state as a command guard: one state, an array, or nil (ADR 0025).
             from:       [:from,       :plain],
             provenance: [:provenance, :plain],
-            idempotent: [:idempotent, :plain]
+            idempotent: [:idempotent, :plain],
+            mints_era:  [:mints_era, :plain]
           },
           rows: { mutations: :mutation_rows },
           reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule],
                   needs: [:each, :need], mutations: [:call, :mutations], emits: :names, roles: :names, audience: :names,
                   provenance: :provenance,
-                  from: :from, idempotent: :idempotent? },
+                  from: :from, idempotent: :idempotent?, mints_era: :mints_era? },
           derived: { position: :walk }
         ),
 
