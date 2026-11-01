@@ -23,4 +23,11 @@ Hecks.hecksagon "Tickets" do
       end
     end
   end
+  Tickets::Work.port "WorkAreas" do
+    asks "CheckArea", to: Work do
+      attribute :work, WorkKey
+      answers "AreaCleared"
+      refuses "AreaRefused"
+    end
+  end
 end
