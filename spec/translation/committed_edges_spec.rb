@@ -14,6 +14,12 @@ RSpec.describe "the committed translation edges" do
       .select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }
   end
 
+  # The moves the ledger settled on the operator's word, as `[from, to]` pairs for one bluebook.
+  def implicit_pairs(name)
+    file = File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", Hecks::ShapeLedger::IMPLICIT_FILE)
+    Hecks::ShapeLedger.pairs_of(Hecks::ShapeLedger.implicit_moves(file).fetch(name, []))
+  end
+
   def bluebook_in(bluebook_dir)
     files = Hecks::Corpus.bluebook_files(bluebook_dir)
     registry = Hecks::Runtime::Registry.new
@@ -41,7 +47,7 @@ RSpec.describe "the committed translation edges" do
     edges = files.map { |file| edge_in(file) }
     files.zip(edges).each { |file, edge| expect_edge(declaration, file, edge) }
     files.zip(edges).each_cons(2) { |(_, before), (file, after)| expect_link(file, before, after) }
-    expect_newest_current(declaration, edges.last)
+    expect_newest_current(declaration, edges.last, implicit_pairs(declaration.name))
   end
 
   def expect_edge(declaration, file, edge)
@@ -53,11 +59,14 @@ RSpec.describe "the committed translation edges" do
     expect(after.from).to eq(before.to), "#{File.basename(file)} starts at #{after.from}, not #{before.to}"
   end
 
-  def expect_newest_current(declaration, newest)
+  # The QA chain and the Hecks-family edge chain diverge at 541955: the QA chain's newest edge lands
+  # on e6b119, and no edge file leads from e6b119 to 541955. The newest edge may lag the current
+  # label only when implicit_moves.json records a chain from its `to` to that label.
+  def expect_newest_current(declaration, newest, implicit)
     label = Hecks::Runtime::StorageShape.mint_label(declaration)
-    expect(newest.to).to eq(label),
-                         "the newest edge lands on #{newest.to}, but #{declaration.name}'s bluebook now declares " \
-                         "#{label} — commit the translation edge for that change"
+    lagging = "the newest edge lands on #{newest.to}, but #{declaration.name}'s bluebook now declares " \
+              "#{label} — commit the translation edge for that change"
+    expect(Hecks::ShapeLedger.reachable?(newest.to, label, implicit)).to be(true), lagging
   end
 
   it "finds the committed edges (the discovery itself is not silently empty)" do

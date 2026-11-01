@@ -15,6 +15,10 @@ module Hecks
     # The ledger file, beside the bluebooks it records.
     FILE = "shapes.json".freeze
 
+    # The record beside the ledger of each implicit move: a shape change that carried no edge file
+    # and was settled with `--confirm --additive`. Each bluebook maps to its `{from, to}` moves.
+    IMPLICIT_FILE = "implicit_moves.json".freeze
+
     # The length of the label a translation edge names a shape by.
     LABEL = 6
 
@@ -39,8 +43,8 @@ module Hecks
     def check(directory, confirm: false, additive: false)
       registry = Hecks.describe(directory).registry
       shapes = shapes_of(registry)
-      edges = edges_of(registry)
       path = File.join(directory, FILE)
+      edges = with_implicit(edges_of(registry), implicit_moves(implicit_path(path)))
       confirm ? rewrite(path, shapes, edges, additive) : verdict(path, shapes, edges)
     end
 
@@ -57,6 +61,18 @@ module Hecks
     end
 
     def pairs(edges) = edges.map { |edge| [edge.from, edge.to] }
+
+    # @return [Hash{String => Array<Array(String, String)>}] `edges` with each recorded implicit
+    #   move added as an edge: the boot and the mint read a recorded move as an empty edge
+    def with_implicit(edges, record)
+      record.each_with_object(edges.dup) do |(name, moves), merged|
+        merged[name] = merged.fetch(name, []) + pairs_of(moves)
+      end
+    end
+
+    # @param moves [Array<Hash>] recorded `{"from" => ..., "to" => ...}` moves
+    # @return [Array<Array(String, String)>] the moves as `[from, to]`
+    def pairs_of(moves) = moves.map { |move| [move["from"], move["to"]] }
 
     def label(hash) = hash.to_s[0, LABEL]
 
@@ -114,8 +130,29 @@ module Hecks
       raise Failure, uncovered.join("\n") unless uncovered.empty?
 
       File.write(path, "#{JSON.pretty_generate(shapes.sort.to_h)}\n")
+      record_implicit(implicit_path(path), implicit)
       "wrote #{shapes.size} bluebook shapes to #{path}#{implicit_note(implicit)}"
     end
+
+    # Appends each implicit move to the record, once: a move the record already holds is skipped.
+    #
+    # @param path [String] the record file beside the ledger
+    # @param moves [Array<Array(String, String, String)>] `[bluebook, from, to]` for each move
+    # @return [void]
+    def record_implicit(path, moves)
+      return if moves.empty?
+
+      record = implicit_moves(path)
+      moves.each { |name, from, now| append_move(record, name, { "from" => from, "to" => now }) }
+      File.write(path, "#{JSON.pretty_generate(record.sort.to_h)}\n")
+    end
+
+    def append_move(record, name, move)
+      entries = record.fetch(name, [])
+      record[name] = entries.include?(move) ? entries : entries + [move]
+    end
+
+    def implicit_path(path) = File.join(File.dirname(path), IMPLICIT_FILE)
 
     def implicit_note(moves)
       return "" if moves.empty?
@@ -139,5 +176,9 @@ module Hecks
 
     # @return [Hash{String => String}] the ledger, empty when there is none yet
     def read(path) = File.exist?(path) ? JSON.parse(File.read(path)) : {}
+
+    # @param path [String] the implicit-move record
+    # @return [Hash{String => Array<Hash>}] each bluebook's recorded moves, empty when there is none
+    def implicit_moves(path) = File.exist?(path) ? JSON.parse(File.read(path)) : {}
   end
 end
