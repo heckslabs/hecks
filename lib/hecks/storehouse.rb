@@ -10,6 +10,7 @@ require_relative "projector"
 require_relative "runtime/errors"
 require_relative "storehouse/callers"
 require_relative "storehouse/audit"
+require_relative "storehouse/identity"
 require_relative "storehouse/dispatching"
 require_relative "storehouse/querying"
 require_relative "storehouse/introspection"
@@ -45,6 +46,7 @@ module Hecks
 
     extend Callers
     extend Audit
+    extend Identity
     extend Dispatching
     extend Querying
     extend Introspection
@@ -146,11 +148,11 @@ module Hecks
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       outcome = yield
       record_call!(request, tool, started, verb: outcome[:verb], outcome: outcome)
-      outcome.except(:verb)
+      outcome.except(:verb).merge(ids: ids_of(request, outcome))
     rescue *refusal_classes => e
       outcome = refused(e, summary: request.summary)
       record_call!(request, tool, started, outcome: outcome, refusal: refusal_kind(e))
-      outcome
+      outcome.merge(ids: ids_of(request, outcome))
     end
 
     # Writes the audit line for one audited call, timed from `started`.
