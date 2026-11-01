@@ -23,7 +23,7 @@ RSpec.describe "the Deploy bluebook's CostCheck" do
 
   def run_check(*argv)
     out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                                           argv: ["deploy", "cost_check.check", *argv, "--wait"])
+                                                           argv: ["deploy", "cost_check.check!", *argv, "--wait"])
     [JSON.parse(out), status]
   end
 
@@ -65,7 +65,7 @@ RSpec.describe "the Deploy bluebook's CostCheck" do
 
   def refusal_for(argv)
     Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                             argv: ["deploy", "cost_check.check", *argv, "--wait"])
+                                             argv: ["deploy", "cost_check.check!", *argv, "--wait"])
   end
 
   def expect_refused(argv, message)

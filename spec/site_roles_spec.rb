@@ -42,7 +42,7 @@ RSpec.describe Hecks::Projections::Site::RoleProbe do
     end
   end
 
-  describe "site_projection.check_roles" do
+  describe "site_projection.check_roles!" do
     before(:all) do
       @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
     end
@@ -63,7 +63,7 @@ RSpec.describe Hecks::Projections::Site::RoleProbe do
 
     def run(url)
       Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                               argv: ["site", "site_projection.check_roles", project, "url=#{url}", "--wait"])
+                                               argv: ["site", "site_projection.check_roles!", project, "url=#{url}", "--wait"])
     end
 
     it "passes a host that refuses every command", :aggregate_failures do

@@ -36,7 +36,7 @@ stacks:
 
 deploy:
 	@err=$$(mktemp); run=deploy-$$(date -u +%Y%m%d%H%M%S); \
-	$(HECKS) deploy box_roll.run project="$(CURDIR)" run="$$run" $(if $(TASKDEF),taskdef=$(TASKDEF)) \
+	$(HECKS) deploy box_roll.run! project="$(CURDIR)" run="$$run" $(if $(TASKDEF),taskdef=$(TASKDEF)) \
 	  $(if $(SKIP_POST_DEPLOY_SMOKE),skip_smoke=true) --wait 2>"$$err"; rc=$$?; \
 	if [ $$rc -ne 0 ] && grep -q '^cannot open Hecks' "$$err"; then \
 	  echo "==> the deploy record was NOT written: $$(grep -m1 '^cannot open Hecks' "$$err")" >&2; \

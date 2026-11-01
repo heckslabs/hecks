@@ -86,7 +86,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
         { "HECKS_ENVIRONMENT" => "memory" }, "bundle", "exec", "ruby", "exe/hecks", "build.build_wasm!",
         "domain=#{domain_path}", "--wait", chdir: repo_root
       )
-      status.success? or raise "hecks build_wasm #{domain_path} failed: #{stderr}"
+      status.success? or raise "hecks build_wasm! #{domain_path} failed: #{stderr}"
       File.join(repo_root, "rust", "dist", "#{domain_name}.wasm")
     end
 
