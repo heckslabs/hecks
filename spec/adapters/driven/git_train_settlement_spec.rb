@@ -36,7 +36,12 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     git("push", "-q", "origin", "main", dir: other)
   end
 
-  def carry = described_class.new.carry(checkout: { value: work })
+  # The Hecks mint a boarding runs first, answering that the shape did not move.
+  def still_mint = instance_double(described_class::MintStep, run: "the Hecks shape f30dcb did not move")
+
+  def train = described_class.new(mint: still_mint)
+
+  def carry = train.carry(checkout: { value: work })
 
   before do
     git("init", "-q", "--bare", "-b", "main", "origin.git", dir: scratch)
