@@ -150,6 +150,13 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
       FileUtils.rm_rf(File.join(ledger_dir, "translations"))
       FileUtils.mkdir_p(File.join(ledger_dir, "translations"))
       write_ledger(additive_shape)
+      record_implicit_move
+    end
+
+    # The move the decision reads as recorded: from the held shape to the additive one.
+    def record_implicit_move
+      move = { "from" => label_of(shape("cost")), "to" => label_of(additive_shape) }
+      File.write(File.join(ledger_dir, "implicit_moves.json"), JSON.generate("Ledger" => [move]))
     end
 
     def additive_shape
