@@ -23,9 +23,11 @@ module Hecks
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
-        def initialize(git, checkout)
+        # @param scope [String] each scope has its own line, so quick runs alongside full
+        def initialize(git, checkout, scope: "full")
           @git = git
           @checkout = checkout
+          @suffix = scope == "quick" ? ".quick" : ""
         end
 
         # Runs the block as the repository's one running rehearsal.
@@ -67,7 +69,7 @@ module Hecks
 
         private
 
-        def path(name) = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir"), name)
+        def path(name) = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir"), "#{name}#{@suffix}")
       end
     end
   end

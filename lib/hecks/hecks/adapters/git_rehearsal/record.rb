@@ -7,8 +7,12 @@ require_relative "reading"
 module Hecks
   module Adapters
     class GitRehearsal
-      # The last rehearsal's result, kept in a file in the repository's common git directory (never
-      # committed, shared by every worktree) as `<commit> <green|red> <unix time> <failing stages>`.
+      # The last rehearsal's result per scope, kept in files in the repository's common git
+      # directory
+      # (never committed, shared by every worktree) as `<commit> <green|red> <unix time> <failing
+      # stages>`. The `full` scope's file is `hecks-push-rehearsal` (the only file before scopes
+      # existed, so an old record reads as `full`); the `quick` scope's is
+      # `hecks-push-rehearsal.quick`.
       class Record
         include Reading
 
@@ -17,6 +21,9 @@ module Hecks
 
         # The file beside it counting, per spec file, the rehearsals it was flaky in: a JSON map.
         FLAKES = "#{FILE}.flakes".freeze
+
+        # The `quick` scope's file.
+        QUICK = "#{FILE}.quick".freeze
 
         # What the file holds.
         #
@@ -45,14 +52,15 @@ module Hecks
         # @param commit [String] the commit rehearsed
         # @param verdict [String] `green` or `red`
         # @param results [Array<Stages::Result>] the stages
+        # @param scope [String] `full` or `quick`: which scope's record this is
         # @return [String] `recorded`, or the newer record kept and how that was decided
-        def write(commit, verdict, results)
+        def write(commit, verdict, results, scope: "full")
           failed = results.reject(&:passed).map(&:name).join(",")
-          locked do
-            kept = newer_kept(commit)
+          locked(scope) do
+            kept = newer_kept(commit, scope)
             next kept if kept
 
-            replace("#{commit} #{verdict} #{Time.now.to_i} #{failed}\n")
+            replace("#{commit} #{verdict} #{Time.now.to_i} #{failed}\n", path(scope))
             "recorded"
           end
         end
@@ -79,24 +87,25 @@ module Hecks
           {}
         end
 
-        # @return [Entry, nil] the last rehearsal, nil when none has run
-        def last
-          return unless File.file?(path)
+        # @param scope [String] `full` or `quick`
+        # @return [Entry, nil] the last rehearsal of that scope, nil when none has run
+        def last(scope = "full")
+          return unless File.file?(path(scope))
 
-          commit, verdict, at, failed = File.read(path).split(" ", 4)
+          commit, verdict, at, failed = File.read(path(scope)).split(" ", 4)
           Entry.new(commit, verdict, Time.at(at.to_i), failed.to_s.strip)
         end
 
         private
 
-        def path = File.join(common_dir, FILE)
+        def path(scope = "full") = File.join(common_dir, scope == "quick" ? QUICK : FILE)
 
         def flakes_path = File.join(common_dir, FLAKES)
 
         def common_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
 
-        def locked(&)
-          File.open("#{path}.lock", File::RDWR | File::CREAT) do |lock|
+        def locked(scope = "full", &)
+          File.open("#{path(scope)}.lock", File::RDWR | File::CREAT) do |lock|
             lock.flock(File::LOCK_EX)
             yield
           end
@@ -113,8 +122,8 @@ module Hecks
         end
 
         # The recorded result that outranks this commit's, as a sentence; nil when this one wins.
-        def newer_kept(commit)
-          held = last
+        def newer_kept(commit, scope)
+          held = last(scope)
           return unless held && held.commit != commit
           return if ancestor?(held.commit, commit)
           return kept(held, commit, "#{short(commit)} is an ancestor of it") if ancestor?(commit, held.commit)

@@ -33,7 +33,7 @@ module Hecks
       # Everything up to the first line break.
       FIRST_LINE = /[^\n]*/
 
-      RED_NOW = /last rehearsal: red .*\(the current /
+      RED_NOW = /last (?:rehearsal|quick|full): red [^;\n]*\(the current /
 
       # The thresholds a registry's QualityControl world declares.
       #

@@ -44,7 +44,9 @@ module Hecks
         # @param branch [String] the branch pushed; impacted specs compare with `origin/<branch>`
         # @param impacted_limit [Integer, nil] the most impacted spec files to run
         # @param impacted_width [Integer, nil] how many of them run at once
-        def initialize(directory, branch: "main", impacted_limit: nil, impacted_width: nil)
+        # @param scope [String] `full` runs every stage; `quick` only the gate's quick stage
+        def initialize(directory, branch: "main", impacted_limit: nil, impacted_width: nil, scope: "full")
+          @scope = scope
           @directory = directory
           @branch = branch
           @impacted_limit = impacted_limit
@@ -52,8 +54,11 @@ module Hecks
           @shell = Shell.new
         end
 
-        # @return [Array<Result>] each stage's result, in the order a push runs them
+        # @return [Array<Result>] each stage's result, in the order a push runs them (the quick
+        #   stage alone for the `quick` scope)
         def run
+          return [gate("quick")] if @scope == "quick"
+
           [gate("quick"), gate("unguarded_push"), push_specs, impacted]
         end
 
