@@ -474,6 +474,35 @@ fn offer_emitter_id(source: &mut Vec<(String, Json)>, event: &Event) {
     }
 }
 
+// Lends the emitter's identity to a target that declares a reference to the emitting aggregate,
+// under that reference's own name, when `args` does not already carry the name. An event's payload
+// need not carry the emitting record (a command with no attributes emits none), so the identity is
+// the source. A value already passed is never overridden, and a target with no such reference is
+// left alone, as Ruby's `lend_emitter_reference` does.
+fn lend_emitter_reference(
+    args: &mut Vec<(String, Json)>,
+    target_verb: &str,
+    event: &Event,
+    tables: &Tables,
+) {
+    if event.id.is_empty() {
+        return;
+    }
+    let Some((target_aggregate, _)) = target_verb.rsplit_once('.') else {
+        return;
+    };
+    let declared = (tables.command_attributes_fn)(target_verb);
+    let name = reference_lookup::specs_for(tables.reference_table, target_aggregate)
+        .iter()
+        .find(|spec| spec.target == event.aggregate && declared.contains(&spec.field))
+        .map(|spec| spec.field);
+    if let Some(name) = name {
+        if !args.iter().any(|(arg, _)| arg == name) {
+            args.push((name.to_string(), Json::str(event.id.clone())));
+        }
+    }
+}
+
 // Reads a `with:` against a source: a binding starting with ":" names a source field (null when
 // absent), any other is a rendered literal.
 fn resolve_with_spec(with_spec: &[(&str, &str)], source: &[(String, Json)]) -> Vec<(String, Json)> {
@@ -691,6 +720,7 @@ fn trigger_args_with_row(
     }
 
     if policy.with_spec.is_empty() {
+        lend_emitter_reference(&mut source, target_verb, event, tables);
         // No `with:`: lift the same-aggregate event id into the receiver of a non-creating
         // target, as `ReactionInvocation.build` does. Never for a `for_each` row, whose id is
         // already in `source` under the fan-out's own name.
@@ -720,7 +750,8 @@ fn trigger_args_with_row(
     // lends it.
     offer_emitter_id(&mut source, event);
 
-    let projected = resolve_with_spec(policy.with_spec, &source);
+    let mut projected = resolve_with_spec(policy.with_spec, &source);
+    lend_emitter_reference(&mut projected, target_verb, event, tables);
     // Only an explicit `with:` is split; an undeclared projection forwards the payload unsplit.
     let routed = split_routed_args(Json::Object(projected), target_verb, tables);
     // Fallback when nothing named the target's identity: the source's own is the receiver for a
