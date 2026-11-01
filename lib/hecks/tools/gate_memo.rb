@@ -3,6 +3,7 @@
 require "digest"
 require "fileutils"
 require "json"
+require "open3"
 require "time"
 
 module Hecks
@@ -40,6 +41,21 @@ module Hecks
                 rust-toolchain.toml].freeze
       MODEL = %w[lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world examples/**/*].freeze
 
+      # What the code, the rust tree and the bundle hold: everything the whole-tree checks read
+      # except prose, workflows and lint settings.
+      CODE = %w[lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec].freeze
+      # `spec/fuzzing` runs the specs and the corpus against the library and the rust tree
+      # (`rust/` is read for the target capabilities). No spec in it reads `docs/` or `.github/`.
+      FUZZING = CODE
+      # The reference-docs check reads the words of the language (`lib/`) against the pages of
+      # `docs/implemented/reference/` and nothing else.
+      DOC_COVERAGE = %w[lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec].freeze
+      # Regenerating the corpus reads its bluebooks, hecksagons and worlds (`lib/`, `examples/`,
+      # `qa/`, `packages/`, the fixtures and corpus specs the corpus routes name), the generator
+      # (`lib/`, `rust/codegen`) and the committed output (`rust/`). It reads no prose.
+      CODEGEN = %w[lib/**/* examples/**/* qa/**/* packages/**/* spec/fixtures/**/* spec/corpus/**/* exe/**/*
+                   bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec].freeze
+
       INPUTS = {
         "shape_ledger"     => SHAPE,
         "comment_style"    => STYLE,
@@ -48,14 +64,18 @@ module Hecks
         "everyday_names"   => LIBRARY + SPEC + %w[spec/everyday_names_spec.rb],
         "adapter_words"    => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
         "rspec"            => SOURCE,
-        "fuzzing"          => SOURCE,
+        "fuzzing"          => FUZZING,
         "query_agreement"  => SOURCE,
         "engine_agreement" => SOURCE,
         "model_check"      => MODEL,
-        "doc_coverage"     => SOURCE,
-        "codegen_drift"    => SOURCE,
+        "doc_coverage"     => DOC_COVERAGE,
+        "codegen_drift"    => CODEGEN,
         "rust_fmt"         => RUST
       }.freeze
+
+      # The sha of each file this process has hashed, by path, modification time, size and inode, so
+      # the checks of one run that read the same tree hash each file once.
+      SHAS = {} # rubocop:disable Style/MutableConstant
 
       module_function
 
@@ -85,11 +105,29 @@ module Hecks
         "#{file}: #{e.message}"
       end
 
+      # The files a checkout owns: the ones git tracks and the ones it would add. A file git
+      # ignores (a run's data directory, a build's output, a log) is never an input: a check's own
+      # run rewrites those, so hashing them made the next run's inputs differ from the last.
+      #
+      # @param root [String] the checkout
+      # @return [Array<String>, nil] its files relative to the checkout; nil when `root` is not a
+      #   git checkout
+      def owned(root)
+        out, status = Open3.capture2("git", "-C", root, "ls-files", "-co", "--exclude-standard", "-z",
+                                     err: File::NULL)
+        status.success? ? out.split("\0") : nil
+      rescue SystemCallError
+        nil
+      end
+
       # @param root [String] the checkout
       # @param globs [Array<String>] globs under the checkout
-      # @return [Array<String>] the regular files the globs name, relative to the checkout, sorted
+      # @return [Array<String>] the regular files the globs name, relative to the checkout, sorted;
+      #   in a git checkout only the files it owns
       def files(root, globs)
+        own = owned(root)
         matched = globs.flat_map { |glob| Dir.glob(glob, base: root) }.uniq
+        matched &= own if own
         matched.reject { |rel| rel.split("/").intersect?(BUILD_DIRS) }
                .select { |rel| File.file?(File.join(root, rel)) }.sort
       end
@@ -97,7 +135,12 @@ module Hecks
       # @param root [String] the checkout
       # @param rel [String] a file relative to the checkout
       # @return [String] the sha256 of the file's content
-      def sha(root, rel) = Digest::SHA256.file(File.join(root, rel)).hexdigest
+      def sha(root, rel)
+        path = File.join(root, rel)
+        stat = File.stat(path)
+        key = [path, stat.mtime.to_r, stat.size, stat.ino]
+        SHAS.fetch(key) { SHAS[key] = Digest::SHA256.file(path).hexdigest }
+      end
 
       # @param root [String] the checkout
       # @param globs [Array<String>] the files to fingerprint
@@ -113,12 +156,20 @@ module Hecks
       # @return [String, nil] the digest of the check's command, environment and inputs; nil when
       # the
       #   check has no declared inputs, or one of them cannot be read, so it is never skipped
-      def digest(root, check, env)
-        globs = INPUTS[check["id"]]
-        return nil unless globs
+      def digest(root, check, env, tree = tree(root, check["id"]))
+        return nil unless tree
 
         words = ["run #{check["run"].join(" ")}", "env #{env.sort.map { |pair| pair.join("=") }.join(" ")}"]
-        Digest::SHA256.hexdigest("#{words.join("\n")}\n#{fingerprint(root, globs)}")
+        Digest::SHA256.hexdigest("#{words.join("\n")}\n#{tree}")
+      end
+
+      # @param root [String] the checkout
+      # @param id [String] a check's id
+      # @return [String, nil] the digest of the files the check reads, whatever command runs it;
+      #   nil when it has no declared inputs or one of them cannot be read
+      def tree(root, id)
+        globs = INPUTS[id]
+        globs && fingerprint(root, globs)
       rescue SystemCallError
         nil
       end
@@ -130,8 +181,13 @@ module Hecks
         !inputs.nil? && entry.is_a?(Hash) && entry["result"] == "green" && entry["inputs"] == inputs
       end
 
+      # @param inputs [String] the digest of the command, the environment and the files
+      # @param tree [String, nil] the digest of the files alone, which a standalone run of the same
+      #   check compares with
       # @return [Hash] a green entry for a check that ran on these inputs
-      def green(inputs) = { "result" => "green", "at" => Time.now.utc.iso8601, "inputs" => inputs }
+      def green(inputs, tree = nil)
+        { "result" => "green", "at" => Time.now.utc.iso8601, "inputs" => inputs }.merge(tree ? { "tree" => tree } : {})
+      end
     end
   end
 end

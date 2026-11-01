@@ -2,6 +2,7 @@
 
 require_relative "tree"
 require_relative "ruby_child"
+require "hecks/tools/gate_memo/standalone"
 
 module Hecks
   module Adapters
@@ -47,8 +48,21 @@ module Hecks
           when "project_lanes" then project_lanes(child, check, set?(held, :live), set?(held, :confirm))
           when "project_tools_doc" then project_tools_doc(child, check)
           when "decide_ci_gate" then decide_ci_gate(child, held)
-          else regenerate(child, check, [*domains(held), *workers(held)])
+          else regenerate_remembered(child, tree, held, check)
           end
+        end
+
+        # A check of the whole corpus that is not confirmed is skipped when the gate or an earlier
+        # check passed on the same files. A run that writes, or checks only some domains, always
+        # runs.
+        #
+        # @return [String] the verdict, or that the check was skipped as unchanged
+        def regenerate_remembered(child, tree, held, check)
+          args = [*domains(held), *workers(held)]
+          whole = check && args.empty? && !set?(held, :confirm)
+          return regenerate(child, check, args) unless whole
+
+          Tools::GateMemo::Standalone.guard(tree.root, "codegen_drift") { regenerate(child, check, args) }
         end
 
         # @param held [Hash] the `RegenerationRun` record's fields: `domains`
