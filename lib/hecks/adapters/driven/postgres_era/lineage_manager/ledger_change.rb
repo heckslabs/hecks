@@ -8,7 +8,7 @@ module Hecks
         # The change between the storage shape a disposable ledger holds and the shape it boots
         # with, aggregate by aggregate. `added` names aggregates the held shape did not have,
         # `widened` those that only gained optional attributes, and `replaced` those whose stored
-        # rows no longer fit: removed, or with an attribute renamed, dropped, retyped or newly
+        # rows do not fit the booting shape: removed, or with an attribute renamed, dropped, retyped or newly
         # required, or a changed identity or lifecycle field. It reads and writes nothing.
         LedgerChange = Data.define(:added, :widened, :replaced) do
           # @param held_projection [Hash] the held era's storage shape, as `StorageShape.project`
