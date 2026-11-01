@@ -14,13 +14,57 @@ module Hecks
         # is a literal). `extra` is a fan-out's row key, merged into the source before the
         # projection so a `with:` can name the row it acts on. `row` is the fan-out row itself:
         # its fields are offered to a projection only, below the emitter identity and the
-        # payload, and never reach an unprojected payload.
-        def trigger_args(policy, event, extra = {}, row = {})
+        # payload, and never reach an unprojected payload. `target` is the trigger's verb, which
+        # decides whether the emitter's identity is lent to it (see {#lend_emitter_reference}).
+        def trigger_args(policy, event, target, extra = {}, row = {})
           payload = event.payload.transform_keys(&:to_sym).merge(extra)
-          return payload unless ReactionInvocation.projection_declared?(policy)
+          args = if ReactionInvocation.projection_declared?(policy)
+                   source = emitter_id(event).merge(row.transform_keys(&:to_sym))
+                                             .merge(emitter_identity(event)).merge(payload)
+                   projected_args(policy, event, source)
+                 else
+                   payload
+                 end
+          lend_emitter_reference(target, args, event)
+        end
 
-          source = emitter_id(event).merge(row.transform_keys(&:to_sym)).merge(emitter_identity(event)).merge(payload)
-          projected_args(policy, event, source)
+        # A trigger whose command takes a `reference_to` the emitting aggregate is lent the
+        # emitter's identity under that reference's name, because an event's payload need not carry
+        # the emitting record (a command with no attributes emits an empty payload). A value already
+        # passed is never overridden, and a command with no such reference is left alone.
+        def lend_emitter_reference(target, args, event)
+          return args if event.id.to_s.empty?
+
+          name = emitter_reference_name(target, event)
+          return args if name.nil? || args.key?(name)
+
+          args.merge(name => event.id)
+        end
+
+        # The attribute of the target command that references the emitting aggregate, or nil when
+        # the target is unknown here (its refusal is raised later, with its canonical wording).
+        def emitter_reference_name(target, event)
+          command = declared_command(target)
+          return nil unless command
+
+          reference = command.attributes.find { |attribute| attribute.reference? && references_emitter?(attribute, event) }
+          reference&.name&.to_sym
+        end
+
+        def references_emitter?(attribute, event)
+          attribute.target_name.to_s == emitter_aggregate_name(event)
+        end
+
+        # The emitting aggregate's bare name, without its domain.
+        def emitter_aggregate_name(event)
+          _domain, bare_name = event.aggregate.to_s.split("::", 2)
+          bare_name || event.aggregate.to_s
+        end
+
+        # The declared command `target` names, or nil when no bluebook declares it.
+        def declared_command(target)
+          domain, aggregate_name, command_name = Naming.split_verb(target)
+          @registry.bluebook(domain)&.aggregate(aggregate_name)&.command(command_name)
         end
 
         # The emitting record's whole identity as `:id`, below everything else: a fan-out row

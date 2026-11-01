@@ -344,6 +344,63 @@ fn tables() -> Tables<'static> {
     }
 }
 
+const DELIVERY_REFERENCES: crate::kernel::reference_lookup::ReferenceTable = &[(
+    "D::Delivery",
+    &[crate::kernel::reference_lookup::ReferenceSpec {
+        field: "message",
+        as_name: "message",
+        target: "D::Message",
+    }],
+)];
+
+fn queue_declared(_verb: &str) -> &'static [&'static str] {
+    &["message", "guardianship"]
+}
+
+#[test]
+fn an_emitter_identity_is_lent_to_a_reference_the_target_declares_unless_the_args_pass_it() {
+    let t = Tables {
+        command_attributes_fn: queue_declared,
+        reference_table: DELIVERY_REFERENCES,
+        ..tables()
+    };
+    let sent = event("D::Message.Sent", "D::Message", "m-1", Json::obj(vec![]));
+    let queue = "D::Delivery.Queue";
+
+    let lent = trigger_args(
+        &rule(queue, &[]),
+        &sent,
+        Some(("guardianship", "g-1")),
+        queue,
+        &t,
+    );
+    assert_eq!(
+        lent,
+        Json::obj(vec![
+            ("guardianship", Json::str("g-1")),
+            ("message", Json::str("m-1"))
+        ])
+    );
+
+    let carried = event(
+        "D::Message.Sent",
+        "D::Message",
+        "m-1",
+        Json::obj(vec![("message", Json::str("m-9"))]),
+    );
+    let passed = trigger_args(&rule(queue, &[]), &carried, None, queue, &t);
+    assert_eq!(passed, Json::obj(vec![("message", Json::str("m-9"))]));
+
+    let unrelated = trigger_args(
+        &rule("D::Order.Place", &[]),
+        &sent,
+        None,
+        "D::Order.Place",
+        &t,
+    );
+    assert_eq!(unrelated, Json::obj(vec![]));
+}
+
 fn ping_leg() -> SagaLeg<'static> {
     SagaLeg {
         pm: &PROCESS_MANAGERS[0],
