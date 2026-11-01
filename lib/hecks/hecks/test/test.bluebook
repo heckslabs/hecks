@@ -34,6 +34,14 @@ Hecks.bluebook "Hecks" do
       attribute :groups,      Count, optional: true
       attribute :runtime_log, FilePath, optional: true
       attribute :check,       FilePath, optional: true
+      # Several spec files, separated by whitespace, run in one launcher boot.
+      attribute :files,       SpecFiles, optional: true
+      # Whether each file gets a process of its own or all share one.
+      attribute :isolation,   Isolation, optional: true
+      # The most spec files an impacted run takes.
+      attribute :cap,         Count, optional: true
+      # Whether an impacted run only lists the specs it would run.
+      attribute :dry,         Switch, optional: true
 
       # How many, always at least one.
       value_object "Count" do
@@ -64,6 +72,18 @@ Hecks.bluebook "Hecks" do
       # The name of a semantics-corpus fixture.
       value_object "FixtureName" do
         attribute :value, String, pattern: '^[a-z0-9_]+$'
+      end
+
+      # Spec files separated by whitespace or newlines, relative to the checkout or absolute.
+      value_object "SpecFiles" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # How a run of several spec files keeps them apart: `process` gives each file a new process
+      # (nothing leaks between files); `shared` runs all in one process, faster, and may expose an
+      # order dependence between files.
+      value_object "Isolation" do
+        attribute :value, String, pattern: '^(process|shared)$'
       end
 
       # A regular expression naming the specs to leave out.
@@ -125,6 +145,49 @@ Hecks.bluebook "Hecks" do
         sets :operation, to: "run_spec_example"
 
         emits RunSpecExampleRequested
+      end
+
+      command "RunSpecFiles" do
+        role "Maintainer"
+        goal "Run several spec files in one launcher boot, each in a new process or all in one, and report each file"
+
+        attribute :files,       SpecFiles, sets: true
+        attribute :example,     ExampleText, optional: true, sets: true
+        attribute :isolation,   Isolation, default: "process", sets: true
+        attribute :run,         RunKey, sets: true
+        attribute :strict,      Switch, optional: true, sets: true
+        attribute :seeds,       Count, optional: true, sets: true
+        attribute :environment, EnvironmentName, optional: true, sets: true
+        attribute :tags,        TagArguments, optional: true, sets: true
+        attribute :declaration_cache, Switch, default: true, sets: true
+        attribute :root,        FilePath, optional: true, sets: true
+
+        sets :operation, to: "run_spec_files"
+
+        emits RunSpecFilesRequested
+      end
+
+      # The specs the push rehearsal's map names for this branch's changes (against local main unless a base is
+      # named), run as the rehearsal runs them: capped, leaving out specs that need cargo, gh or the network.
+      command "RunImpactedSpecs" do
+        role "Maintainer"
+        goal "Map the branch's changed files to the specs they touch and run them, or list them when dry"
+
+        attribute :base,        FilePath, default: "main", sets: true
+        attribute :cap,         Count, default: 60, sets: true
+        attribute :dry,         Switch, optional: true, sets: true
+        attribute :isolation,   Isolation, default: "process", sets: true
+        attribute :example,     ExampleText, optional: true, sets: true
+        attribute :run,         RunKey, sets: true
+        attribute :strict,      Switch, optional: true, sets: true
+        attribute :seeds,       Count, optional: true, sets: true
+        attribute :environment, EnvironmentName, optional: true, sets: true
+        attribute :tags,        TagArguments, optional: true, sets: true
+        attribute :root,        FilePath, optional: true, sets: true
+
+        sets :operation, to: "run_impacted_specs"
+
+        emits RunImpactedSpecsRequested
       end
 
       # Every spec of a folder, in one process: the project's own suite, or this checkout's when no folder is named.
@@ -278,6 +341,16 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenRunSpecExampleRequested" do
       on      "TestSuiteRun.RunSpecExampleRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRunSpecFilesRequested" do
+      on      "TestSuiteRun.RunSpecFilesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRunImpactedSpecsRequested" do
+      on      "TestSuiteRun.RunImpactedSpecsRequested"
       ask     :examine, with: { run: :run }
     end
 

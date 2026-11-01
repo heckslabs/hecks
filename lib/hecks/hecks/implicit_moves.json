@@ -33,6 +33,10 @@
     {
       "from": "8318c6",
       "to": "f4b204"
+    },
+    {
+      "from": "f4b204",
+      "to": "b69048"
     }
   ],
   "QualityControl": [

@@ -183,6 +183,18 @@ Hecks.behaviors "Codebase" do
     expect emits: %w[RunSpecExampleRequested TestSuiteExamined TestSuiteAccepted TestSuiteRefused TestSuiteFaulted]
   end
 
+  test "RunSpecFiles refuses an isolation that is neither process nor shared" do
+    tests "RunSpecFiles", on: "TestSuiteRun"
+    input files: { value: "spec/a_spec.rb" }, isolation: { value: "fork" }, run: { value: "files" }
+    expect refused: "must match"
+  end
+
+  test "RunImpactedSpecs refuses a cap of zero files" do
+    tests "RunImpactedSpecs", on: "TestSuiteRun"
+    input cap: { value: 0 }, run: { value: "impacted" }
+    expect refused: "a count is positive"
+  end
+
   test "StressConcurrency refuses a count of zero runs" do
     tests "StressConcurrency", on: "TestSuiteRun"
     input runs: { value: 0 }, run: { value: "stress" }

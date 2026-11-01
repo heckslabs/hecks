@@ -4,14 +4,18 @@ test — Run the specs and fuzzers.
   hecks <Aggregate.query> [name=value …]       read something
 
 everyday:
-  TestSuiteRun.run_changed!       Run the specs that the files changed since a git ref map to, in a folder
-  TestSuiteRun.run_spec_example!  Run one spec file filtered to one example, through the test runner in…
+  TestSuiteRun.run_changed!         Run the specs that the files changed since a git ref map to, in a folder
+  TestSuiteRun.run_spec_example!    Run one spec file filtered to one example, through the test runner in…
+  TestSuiteRun.run_spec_files!      Run several spec files in one launcher boot, each in a new process or…
+  TestSuiteRun.run_impacted_specs!  Map the branch's changed files to the specs they touch and run them, or…
 
 commands:
   TestSuiteRun:
     One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
     refresh_runtime_baseline!     Regenerate the committed runtime baselines the sharded jobs group from
     run_spec_example!             Run one spec file filtered to one example, through the test runner in this process
+    run_spec_files!               Run several spec files in one launcher boot, each in a new process or all in one, and report each file
+    run_impacted_specs!           Map the branch's changed files to the specs they touch and run them, or list them when dry
     run_suite!                    Run every spec of a folder through the test runner in this process
     run_changed!                  Run the specs that the files changed since a git ref map to, in a folder
     stress_concurrency!           Rerun the thread-safety specs under many seeds, several processes at a time
@@ -54,6 +58,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 14 internal commands and queries
-  hecks --maintainer           also list the 379 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 398 commands and queries for working on hecks itself
   a command is called with its aggregate — TestSuiteRun.refresh_runtime_baseline!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

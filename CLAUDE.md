@@ -78,6 +78,14 @@ unless a local hecksagon opts it into PostgresEra (ADR 0136), so the run needs n
 environment variable. Memory changes some behavior: two guide examples that retry a payment
 (`commands.md`, `policies-and-process-managers.md`) fail under it.
 
+Several files cost one launcher boot, not one each:
+`exe/hecks test_suite_run.run_spec_files! "files.value=spec/a_spec.rb spec/b_spec.rb" --wait` reports each
+file's counts and a total, and fails naming the files that failed. `isolation.value=process` (the default)
+gives each file a new process; `isolation.value=shared` runs all in one, fastest, and may expose order
+dependence. `exe/hecks test_suite_run.run_impacted_specs! --wait` runs the specs the push rehearsal's
+map names for your branch against local `main` (`base.value=`, `cap.value=`, `dry.value=true` lists
+them without running).
+
 A session isolated in a git worktree has had `bundle exec` with the spec runner
 refused with "too complex to verify that it stays inside the worktree", while
 `cargo test`, `bundle exec ruby`, `git` and `gh` ran. A commit message and a
