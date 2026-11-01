@@ -44,7 +44,12 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     git("config", "core.hooksPath", hooks)
   end
 
-  def carry = described_class.new.carry(checkout: { value: work })
+  # The Hecks mint a boarding runs first, answering that the shape did not move.
+  def still_mint = instance_double(described_class::MintStep, run: "the Hecks shape f30dcb did not move")
+
+  def train = described_class.new(mint: still_mint)
+
+  def carry = train.carry(checkout: { value: work })
 
   before do
     git("init", "-q", "--bare", "-b", "main", "origin.git", dir: scratch)
@@ -73,7 +78,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
   # What the recording hook saw after a boarding of one new commit.
   def gate_config_after(commit_name, **args)
     commit(commit_name)
-    described_class.new.carry(checkout: { value: work }, **args)
+    train.carry(checkout: { value: work }, **args)
     File.read(File.join(scratch, "gate"))
   end
 
@@ -149,5 +154,26 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     refuse_pushes
 
     expect { carry }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /the suite is red/)
+  end
+
+  it "opens the report with what the Hecks mint did" do
+    commit("second")
+
+    expect(carry[:report][:value]).to start_with("the Hecks shape f30dcb did not move, then pushed")
+  end
+
+  # A mint that refuses, as `HeldMint#answer` does, with its reason.
+  def refusing_mint
+    held = Object.new
+    def held.answer(**) = raise(Hecks::Runtime::WiringError, "the decision is needs_edge, not would_mint")
+    described_class::MintStep.new(mint: held)
+  end
+
+  it "refuses with the mint's reason and pushes nothing when the mint refuses", :aggregate_failures do
+    commit("second")
+    attempt = -> { described_class.new(mint: refusing_mint).carry(checkout: { value: work }) }
+
+    expect(&attempt).to raise_error(Hecks::Runtime::WiringError, /Hecks mint refused.*needs_edge/)
+    expect(git("rev-parse", "origin/main")).not_to eq(git("rev-parse", "main"))
   end
 end
