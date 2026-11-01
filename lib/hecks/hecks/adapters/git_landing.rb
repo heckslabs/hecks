@@ -4,8 +4,8 @@ require_relative "git_worktrees"
 require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
-require_relative "git_landing/in_flight"
 require_relative "git_landing/finisher"
+require_relative "git_landing/lineup"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -18,15 +18,18 @@ module Hecks
     class GitLanding
       include GitWorktrees
 
-      # Accepts the arguments every driven adapter is built with and keeps none of them.
+      # Accepts the arguments every driven adapter is built with; only the registry and the
+      # overrides are kept.
       #
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
       # @param registry [Runtime::Registry, nil] where the started Work rows are read
-      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
+      # @param tune [Hash] overrides of the line's limits and collaborators (see `Lineup`)
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **tune)
         @git = Git.new
         @registry = registry
+        @tune = tune
       end
 
       # Lands a worktree's branch onto another branch (local `main` by default), then removes the
@@ -42,7 +45,24 @@ module Hecks
         onto = plain(held[:onto]) || "main"
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
-        in_turn(branch) { |superseded| land_alone(branch, onto, superseded) }
+        lineup.stand(branch, onto: onto, checkout: @checkout) { |note| land_alone(branch, onto, note) }
+      end
+
+      # Takes the front place in the line and lands every branch whose landing is waiting behind
+      # it, in ticket order, without giving the place up: each is rebased onto the moving `onto`,
+      # run through the quick gate and landed. One that conflicts, fails the gate or overlaps
+      # another started row's area is skipped with its reason, and its own waiting `land!` is told.
+      #
+      # @param held [Hash] the `Landing` record: `checkout` (any directory in the repository) and
+      #   `onto`
+      # @return [Hash{Symbol => Hash}] `outcome:` (`trained`), `checkout:`, `branch:` and `report:`
+      # @raise [ConsoleCapture::Failure] when the checkout is not a repository or the wait runs out
+      def convene(**held)
+        settle(held)
+        onto = plain(held[:onto]) || "main"
+        land = ->(checkout, branch, target) { land_for(checkout, branch, target) }
+        said = lineup.convoy(@git, @checkout, onto: onto, land: land)
+        { outcome: { value: "trained" }, checkout: { value: primary.path }, branch: { value: "train" }, report: { value: said } }
       end
 
       # Finishes a branch in one step: refuses unsaved work, rebases it onto `onto`, runs the quick
@@ -102,32 +122,28 @@ module Hecks
 
       private
 
-      # Runs the block as the only landing in flight in the repository, refusing by name when a
-      # fresher one is held.
-      def in_turn(branch)
-        queue = InFlight.new(common_git_dir, stale_minutes: stale_minutes)
-        claim = queue.claim(branch)
-        yield claim.superseded
-      rescue InFlight::Busy => e
-        raise ConsoleCapture::Failure, "queue busy: #{branch} is not landed: #{e.message}; land again when it finishes"
+      # One landing from another worktree, as the train makes it for a waiting branch.
+      def land_for(checkout, branch, onto)
+        mine = @checkout
+        @checkout = checkout
+        land_alone(branch, onto, nil)
       ensure
-        queue.release(claim) if claim
+        @checkout = mine
       end
 
-      def land_alone(branch, onto, superseded)
+      def land_alone(branch, onto, note)
         refuse_unsaved(branch)
         refuse_rival(branch, onto)
         said = tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto)
-        superseded ? said.merge(report: { value: "#{said[:report][:value]}; #{superseded}" }) : said
+        note ? said.merge(report: { value: "#{said[:report][:value]}; #{note}" }) : said
       end
 
       def common_git_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
 
-      # The world's `landing "Queue", stale_minutes: n`, read from the booted Hecks world.
-      def stale_minutes
-        settings = @registry&.world("Hecks")&.settings || {}
-        setting = settings["landing"]
-        setting && IndifferentKey.read(setting, :stale_minutes)
+      # The line of this repository, with the limits of the world's `landing "Queue"` setting.
+      def lineup
+        setting = (@registry&.world("Hecks")&.settings || {})["landing"]
+        Lineup.new(common_git_dir, setting: setting, **@tune)
       end
 
       def refuse_rival(branch, onto)

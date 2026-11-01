@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
     commit(tree, "a.txt")
   end
 
-  def finish(gate) = described_class.new.finish_branch(checkout: tree, branch: "work/a", onto: "main", gate: gate)
+  def finish(gate, **tune) = described_class.new(**tune).finish_branch(checkout: tree, branch: "work/a", onto: "main", gate: gate)
 
   it "rebases onto a main that moved, lands it and removes the worktree", :aggregate_failures do
     build_repo
@@ -76,8 +76,9 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
   it "refuses by name while another landing is in flight" do
     build_repo
     git_dir = git("rev-parse", "--path-format=absolute", "--git-common-dir").strip
-    described_class::InFlight.new(git_dir).claim("work/other")
+    held = described_class::Line.new(git_dir).join("work/other", ready: true)
 
-    expect { finish(->(_dir) { green }) }.to raise_error(failure, /queue busy/)
+    expect { finish(->(_dir) { green }, wait_minutes: 0.02, say: ->(_text) {}) }.to raise_error(failure, /queue busy/)
+    held.close
   end
 end
