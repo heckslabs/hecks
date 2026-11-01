@@ -88,5 +88,31 @@ module Hecks
     # Names come from the language; resolving them here fails at load if one is undefined.
     # Each is a `Hecks::Refused`, and nothing else is, so rescuing either catches the same set.
     DOMAIN_REFUSALS = Hecks::Vocabulary.fetch("DomainRefusal").map { |name| const_get(name) }.freeze
+
+    # The errors that mean the code is wrong, not that the outside world said no: a name that
+    # does not resolve (`NameError`, and `NoMethodError` under it), a value of the wrong class
+    # (`TypeError`), a write to a frozen value (`FrozenError`), and code that would not load
+    # (`ScriptError`: `LoadError`, `NotImplementedError`, `SyntaxError`). An ask that meets one
+    # raises it instead of announcing its `refuses` event, so the defect is seen where it happens.
+    #
+    # `ArgumentError` is left out on purpose: adapters raise its subclasses to refuse input they
+    # were handed (`TenantProvisioner::Refused`, `Composer::Workspace::OutsideWorkspace`), and
+    # parsing outside data raises it (`Integer("x")`, `Date::Error`), so it is the world saying no
+    # as often as it is a wrong call.
+    PROGRAMMING_ERRORS = [NameError, TypeError, FrozenError, ScriptError].freeze
+
+    # @param error [Exception] the error an adapter raised
+    # @return [Boolean] whether `error` is a defect in the code rather than a refusal
+    def self.programming_error?(error) = PROGRAMMING_ERRORS.any? { |kind| error.is_a?(kind) }
+
+    # The refusal text of a failure an ask records: its class and message. An error raised with no
+    # message still names its class, so a refusal never arrives empty.
+    #
+    # @param error [Exception] the error an adapter raised
+    # @return [String] `"Class: message"`, never blank
+    def self.failure_reason(error)
+      message = error.message.to_s.strip
+      "#{error.class}: #{message.empty? ? "raised with no message" : message}"
+    end
   end
 end

@@ -98,8 +98,31 @@ module Hecks
 
         def unminted_refusal
           "cannot write #{table} for #{@domain}: the shape is not minted yet; run the mint entry point. " \
-            "This checkout's shape is held by no era, and a write here would land in era #{@era}, the " \
-            "latest held era, under a shape it does not hold. Reads still work."
+            "This checkout's shape#{compared_labels} is held by no era, and a write here would land in era " \
+            "#{@era}, the latest held era, under a shape it does not hold. Reads still work."
+        end
+
+        # The two labels the boot compared, as far as each can be read: the held era's and this
+        # checkout's. Empty when neither can.
+        def compared_labels
+          held = held_label
+          current = current_label
+          return "" unless held || current
+
+          " (#{current || "unknown"}, against held era #{@era}'s #{held || "unknown"})"
+        end
+
+        # @return [String, nil] the label of the era this boot reads, or nil when it cannot be read
+        def held_label
+          @lineage.eras.find { |era| era[:ordinal] == @era }&.fetch(:label, nil)
+        rescue PG::Error, Runtime::WiringError
+          nil
+        end
+
+        # @return [String, nil] this checkout's shape label, or nil for an aggregate with no owner
+        def current_label
+          owner = @aggregate.hecks_owner
+          owner && Runtime::StorageShape.mint_label(owner)
         end
 
         def superseded_refusal
