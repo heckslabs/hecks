@@ -117,6 +117,14 @@ RSpec.describe "Hecks::Tools::GateMemo" do
       expect(ruby.plan(root, green_entry, ruby.hashes(root)).first).to eq(:skip)
     end
 
+    it "leaves an excluded file out of an incremental run, and still lints the rest" do
+      write(".rubocop.yml", "AllCops:\n  Exclude:\n    - \"**/lib/b.rb\"\n")
+      write("lib/d.rb", "require_relative \"a\"\n")
+      entry = green_entry
+      write("lib/a.rb", "A = 2\n")
+      expect(ruby.plan(root, entry, ruby.hashes(root))[1]).to eq(%w[lib/a.rb lib/d.rb])
+    end
+
     it "lints a changed file and the file that requires it" do
       entry = green_entry
       write("lib/a.rb", "A = 2\n")
