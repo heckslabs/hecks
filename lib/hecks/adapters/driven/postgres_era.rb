@@ -87,6 +87,16 @@ module Hecks
       # @return [String] the aggregate's snake_case storage name
       def table = @aggregate.storage_name
 
+      # Whether this binding's `mints_era` names the command: its own record may be journaled
+      # through a boot whose shape no era holds yet.
+      #
+      # @param aggregate_name [String] the aggregate the command belongs to
+      # @param command_name [String] the command
+      # @return [Boolean]
+      def mints_era_declared?(aggregate_name, command_name)
+        Ports::Persistence::MintDoor.declared?(@settings, aggregate_name, command_name)
+      end
+
       # Reads one record's current state through the head view, translated to the current shape.
       #
       # @param id [String, Object] the record's identity, compared as `id.to_s`

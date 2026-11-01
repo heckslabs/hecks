@@ -56,6 +56,14 @@ module Hecks
                 "#{adapter.class} does not implement append-only persistence: #{missing.join(", ")}"
         end
 
+        # Whether the adapter's binding names this command as one whose own record an unminted
+        # boot may write (`mints_era` in the world); an adapter with no such binding says no.
+        #
+        # @param agg [String] the aggregate the command belongs to
+        # @param name [String] the command
+        # @return [Boolean]
+        def mints_era_declared?(agg, name) = adapter.respond_to?(:mints_era_declared?) && adapter.mints_era_declared?(agg, name)
+
         # Reads one record's current projected state from the adapter.
         #
         # @param id [String, Object] the record's identity; adapters compare it as `id.to_s`

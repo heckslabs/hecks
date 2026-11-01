@@ -12,9 +12,11 @@ module Hecks
         # @param settings [Hash{Symbol, String => Object}] persistence settings; needs `database`
         # @param directory [String, nil] where `HECKS_SCAFFOLD=1` writes a translation edge
         # @return [Integer, nil] the ordinal of the era this boot minted, or nil when none
-        # @raise [Runtime::WiringError] if the database is unreachable or the mint refuses
+        # @raise [Runtime::WiringError] if the database is unreachable or the mint refuses, or the
+        #   binding's `mints_era` and the bluebook's command words disagree
         # @raise [Bluebook::DSL::Malformed] if a held era's text parses under no grammar
         def era_check!(registry:, bluebook:, current_text:, settings:, directory: nil)
+          Ports::Persistence::MintDoor.check!(bluebook, settings)
           LineageManager.check!(
             registry: registry, bluebook: bluebook, current_text: current_text,
             settings: settings, directory: directory

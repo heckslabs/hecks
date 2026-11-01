@@ -17,6 +17,10 @@ Hecks.adapter "PostgresEra" do
   # and starts it empty, and a boot never refuses as unminted or superseded. Unset or `false`
   # keeps the era guard; see `LineageManager::DisposableLedger`. Never for client data.
   field :disposable_ledger
+  # The commands whose own record an unminted boot may write: `mints_era "Maintenance.MintEra"`, one
+  # `Aggregate.Command` name or a list. This is where the allowance is declared; a command's own
+  # `mints_era true` is a fallback that must agree. See `Ports::Persistence::MintDoor`.
+  field :mints_era
   # Rewrites every row of an aggregate in one statement, on the same SQL path as Postgres.
   provides "set_transform"
 end
