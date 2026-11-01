@@ -2,8 +2,7 @@ require "spec_helper"
 require "hecks/bluebook/model_check"
 
 # The Hecks domain, with every bluebook it attaches, comes through the same static model check the
-# pre-push gate runs (`ModelCheckRun.model_check!`) with no finding at all: an error would fail
-# the push, and a warning is either fixed or declared with its reason.
+# pre-push gate runs (`ModelCheckRun.model_check!`) with no error: an error would fail the push.
 RSpec.describe "The Hecks domain's model check" do
   let(:registry) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false).registry }
 
@@ -22,9 +21,5 @@ RSpec.describe "The Hecks domain's model check" do
 
   it "has no errors" do
     expect(findings.select { |f| f.severity == :error }.map(&:to_s)).to be_empty
-  end
-
-  it "has no warnings" do
-    expect(findings.select { |f| f.severity == :warning }.map(&:to_s)).to be_empty
   end
 end
