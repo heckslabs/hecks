@@ -594,6 +594,17 @@ Hecks.bluebook "Hecks" do
         emits PushFaulted
       end
 
+      # The boarding's mint came back `Minted`: the push may carry the commit. Changes no status; the
+      # carry is asked on the event this emits, since an ask answers from the aggregate it is declared on.
+      command "Clear" do
+        role "System"
+        goal "Record that the Hecks mint let this boarding carry its commit"
+
+        reference_to SendTrain
+
+        emits BoardingCleared
+      end
+
       query "Outcome" do
         description "How one boarding ended: pushed, carried by an earlier push, or why it failed."
         attribute :run, RunKey
@@ -602,9 +613,27 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    policy "CarryWhenBoarded" do
+    # The push's first step is the Hecks domain's mint, before anything is written. The boarding carries
+    # only once the mint answers `Minted` (a minted era, or a shape that did not move); a refused mint
+    # faults the boarding by name.
+    policy "MintBeforeCarry" do
       on      "SendTrain.BoardingRequested"
+      trigger Era::MintHeld, with: { run: :run, confirm: :confirm }
+    end
+
+    policy "ClearWhenMinted" do
+      on      "Era.Minted"
+      trigger SendTrain::Clear, with: { run: :run }
+    end
+
+    policy "CarryWhenCleared" do
+      on      "SendTrain.BoardingCleared"
       ask     :carry, with: { run: :run }
+    end
+
+    policy "RecordTheRefusedMint" do
+      on      "Era.MintRefused"
+      trigger SendTrain::Fault, with: { refusal: :refusal }
     end
 
     policy "RecordThePush" do

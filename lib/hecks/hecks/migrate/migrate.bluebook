@@ -68,6 +68,17 @@ Hecks.bluebook "Hecks" do
         attribute :value, Integer
       end
 
+      # The rehearsal verdict a mint was asked with: the one the caller read, compared with the decision.
+      value_object "MintVerdict" do
+        attribute :value, String, one_of: ["would_mint", "no_change", "would_refuse", "needs_edge",
+                                           "cannot_boot", "empty_copy"]
+      end
+
+      # The ledger watermark a mint was asked at: the newest held era's ordinal.
+      value_object "Watermark" do
+        attribute :value, Integer
+      end
+
       value_object "Report" do
         attribute :value, String
       end
@@ -209,6 +220,24 @@ Hecks.bluebook "Hecks" do
         sets :operation, to: "reconcile"
 
         emits ReconcileRequested
+      end
+
+      # Mints the Hecks domain's next era when its shape moved, through the mint transaction the
+      # QualityControl mint uses. The journal store decides again at the live watermark: only a
+      # `would_mint` decision mints, and a shape that did not move answers `no_change` and mints nothing.
+      # The rehearsal verdict and watermark are optional, since the push train asks with neither.
+      command "MintHeld" do
+        role "Operator"
+        goal "Mint the Hecks domain's next era when its shape moved, before the push train writes"
+
+        attribute :run,               RunKey, sets: true
+        attribute :rehearsal_verdict, MintVerdict, optional: true
+        attribute :watermark,         Watermark, optional: true
+        attribute :confirm,           Switch, optional: true, sets: true
+
+        given("minting the era is confirmed") { confirm.value == true }
+
+        emits HeldMintRequested
       end
 
       # The facts the journal store reported, held against the change that was asked for.
@@ -393,6 +422,13 @@ Hecks.bluebook "Hecks" do
     policy "ExamineWhenReconcileRequested" do
       on      "Era.ReconcileRequested"
       ask     :examine, with: { run: :run }
+    end
+
+    # The held mint is answered by the journal store: `Minted` when the shape moved and the mint ran, or
+    # when it did not move (`no_change`); `MintRefused` otherwise, with the reason named.
+    policy "MintWhenHeldRequested" do
+      on      "Era.HeldMintRequested"
+      ask     :mint, with: { run: :run }
     end
 
     policy "PermitWhenExamined" do
