@@ -7,6 +7,7 @@ require_relative "model_check/policy_checks"
 require_relative "model_check/context_checks"
 require_relative "model_check/context_map_checks"
 require_relative "model_check/ask_checks"
+require_relative "model_check/reaction_depth_checks"
 require_relative "model_check/reference_checks"
 require_relative "model_check/orphan_checks"
 require_relative "model_check/one_of_checks"
@@ -41,6 +42,7 @@ module Hecks
       extend PolicyChecks
       extend ContextChecks
       extend AskChecks
+      extend ReactionDepthChecks
       extend ReferenceChecks
       extend OrphanChecks
       extend OneOfChecks
@@ -81,7 +83,8 @@ module Hecks
           *aggregate_findings(bluebook),
           *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
           *reaction_findings(bluebook, options),
-          *unused_ask_findings(bluebook)
+          *unused_ask_findings(bluebook),
+          *reaction_depth_findings(bluebook)
         ]
       end
 
@@ -110,31 +113,6 @@ module Hecks
       def aggregate_lifecycle_findings(aggregate)
         lifecycle_findings(aggregate, aggregate) +
           aggregate.entities.flat_map { |entity| lifecycle_findings(aggregate, entity) }
-      end
-
-      # Flags a query the hecksagon binds to a port's adapter. Only the Ruby runtime asks an
-      # adapter for an answer; a Rust host would find nothing behind the query.
-      #
-      # @param bluebook [Bluebook::Declaration] the assembled bluebook, its hecksagon's ports
-      #   attached
-      # @param rust_target [Boolean] whether this domain has a real Rust target; a domain without
-      #   one is not checked, since nothing but the Ruby runtime serves it
-      # @return [Array<Finding>] one :external_query error per bound query, none off a Rust target
-      def external_query_findings(bluebook, rust_target: false)
-        return [] unless rust_target
-
-        bluebook.aggregates.flat_map do |aggregate|
-          aggregate.ports.flat_map do |port|
-            port.answered_queries.map { |answer| external_query_finding(aggregate, port, answer) }
-          end
-        end
-      end
-
-      def external_query_finding(aggregate, port, answer)
-        Finding.new(kind: :external_query, severity: :error,
-                    subject: "#{aggregate.hecks_name}.#{answer.name}",
-                    message: "the #{port.name} port's adapter answers this query, and only the Ruby " \
-                             "runtime asks an adapter — the Rust host cannot serve it")
       end
 
       # Flags an aggregate or domain name that collides with a Rust keyword or reserved
