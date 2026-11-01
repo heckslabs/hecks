@@ -961,6 +961,16 @@ Hecks.bluebook "Bluebook" do
              argv: "",
              script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n",
              blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."
+      # The era proof: each domain with a bluebook, a PostgresEra ledger and a `rehearsed_by` copy in its
+      # world rehearses its next era against a copy of that ledger, and the rehearsal must say
+      # would_mint (a mint would go through) or no_change (`would_mint` with `minting` none: the shape
+      # stands). The verdict is read by `.github/era_proof/verdict.jq`. Only CI runs it, against a
+      # disposable copy, so a local run refuses before it reads anything.
+      member name: "era_proof", id: "era_proof",
+             title: "era proof, each domain's next era rehearsed against a copy of its ledger must be would_mint or no_change",
+             argv: "",
+             script: "[ \"${CI:-}\" = \"true\" ] || { echo \"era_proof runs only in CI: a local run reads no ledger\" >&2; exit 1; }\nout=\"${ERA_PROOF_OUT:?ERA_PROOF_OUT names where the rehearsal output is kept}\"\nmkdir -p \"$out\"\n# The domains a rehearsal covers. Today that is QualityControl, whose world names HECKS_QC_REHEARSAL_URL.\nfor domain in qa/bluebook; do\n  run=\"era-proof-$(echo \"$domain\" | tr '/' '-')-${GITHUB_RUN_ID:-local}\"\n  bundle exec exe/hecks rehearsal_run.request! run.value=\"$run\" domain.value=\"$domain\" --wait\n  bundle exec exe/hecks query rehearsal_run.rehearsal_outcome run.value=\"$run\" > \"$out/$run.json\"\n  jq -e -f .github/era_proof/verdict.jq \"$out/$run.json\" > /dev/null || { echo \"era_proof: $domain did not reach would_mint or no_change\" >&2; cat \"$out/$run.json\" >&2; exit 1; }\ndone\n",
+             blocked: "a domain's rehearsal did not say would_mint or no_change: the output names the verdict and every refused row. A mint would refuse, a change needs a translation edge, or the copy is empty or unreadable; the verdict's reason says which."
     end
 
     # The stages of the gate: the `checks` a stage runs, as a comma list of `GateCheck` names in
@@ -988,6 +998,7 @@ Hecks.bluebook "Bluebook" do
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words"
       member name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
+      member name: "era_proof", env: "", checks: "era_proof"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
