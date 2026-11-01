@@ -74,6 +74,11 @@ event_pump: true
 # refs git already holds and pushes nothing.
 push_nudge: true
 
+# A quiet tick for a mint window: true makes every step print `quiesced: skipped <step>` and the tick exit 0.
+# A running tick also stops at the marker `hecks qa_quiesce.hold!` writes (a stale one is ignored), so prefer that
+# for a window; this dial is for a standing pause.
+quiesced: false
+
 # The main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push
 # through the train when origin is behind. `maintenance_confirm` lets the reconcile write; false keeps it a dry run.
 main_maintenance: true

@@ -36428,6 +36428,20 @@
             [
               [
                 "name",
+                "quiesced"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step."
+              ]
+            ],
+            [
+              [
+                "name",
                 "main_maintenance"
               ],
               [
