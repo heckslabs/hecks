@@ -55,9 +55,51 @@ module Hecks
       # @return [String]
       def ledger_for(root, requested) = requested || File.join(root, QaEraMint::LEDGER)
 
+      # The journal rows the run's own `Maintenance` record wrote above the rehearsed watermark: the
+      # mint command saves that record before its entry point runs, so it is the one change the
+      # rehearsal could not have read.
+      #
+      # @param ledger [String] the bluebook directory of the ledger
+      # @param run [String] the run key, which is the record's id
+      # @param rehearsed [Integer] the watermark the rehearsal read
+      # @return [Integer]
+      def own_rows_after(ledger, run, rehearsed)
+        held = JournalStore::HeldDomain.open(ledger, mode: :translated)
+        db = PostgresEra.connect_for(held.domain_name, held.settings)
+        PostgresEra::Lineage.new(db, held.domain_name).rows_of_after(rehearsed, "maintenance", run)
+      ensure
+        db&.close
+      end
+
+      # Why a rehearsed watermark is stale at the live one: the ledger moved by something other than
+      # the run's own record, which `commands` counts in the journal now.
+      #
+      # @param commands [#own_rows_after] reads the journal
+      # @param ledger [String] the bluebook directory of the ledger
+      # @param run [String] the run key
+      # @param rehearsed [Integer] the watermark the rehearsal read
+      # @param live [Integer] the live watermark
+      # @return [String, nil]
+      def stale_for(commands, ledger, run, rehearsed, live)
+        stale_watermark(rehearsed, live, own_rows: commands.own_rows_after(ledger, run, rehearsed))
+      end
+
+      # A watermark is stale when the ledger moved by anything but the run's own record.
+      #
+      # @param own_rows [Integer] the rows that record wrote above the rehearsed watermark
       # @return [String, nil] the reason the live watermark moved from the rehearsed one, or nil
-      def stale_watermark(rehearsed, live)
-        "the ledger watermark moved from #{rehearsed} to #{live} since the rehearsal; rehearse again" unless rehearsed == live
+      def stale_watermark(rehearsed, live, own_rows: 0)
+        return if rehearsed == live - own_rows
+
+        "the ledger watermark moved from #{rehearsed} to #{live} since the rehearsal; rehearse again"
+      end
+
+      # Why a mint waits for the owner: never when confirmed, else the reason the rule holds it.
+      #
+      # @param confirm [Boolean, nil] the owner's confirmation
+      # @return [String, nil]
+      def hold_reason(facts, confirm, refusal_total)
+        held_reason(facts, refusal_total: refusal_total) unless confirm == true
       end
 
       # Why the auto-mint rule holds a mint for the owner, or nil when it lets the mint run
