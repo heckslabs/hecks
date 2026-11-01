@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "json"
 require_relative "reading"
 
 module Hecks
@@ -13,6 +14,9 @@ module Hecks
 
         # The file in the common git directory.
         FILE = "hecks-push-rehearsal"
+
+        # The file beside it counting, per spec file, the rehearsals it was flaky in: a JSON map.
+        FLAKES = "#{FILE}.flakes".freeze
 
         # What the file holds.
         #
@@ -53,6 +57,28 @@ module Hecks
           end
         end
 
+        # Counts one more rehearsal in which each spec file was flaky (failed in a batch, passed
+        # alone). The read, the increment and the rename happen under the record's lock, so
+        # concurrent rehearsals lose no count.
+        #
+        # @param specs [Array<String>] the flaky spec files
+        # @return [Hash{String => Integer}] each of them with the rehearsals it has been flaky in
+        def count_flakes(specs)
+          locked do
+            counts = flake_counts
+            specs.each { |spec| counts[spec] = counts.fetch(spec, 0) + 1 }
+            replace(JSON.generate(counts), flakes_path) unless specs.empty?
+            counts.slice(*specs)
+          end
+        end
+
+        # @return [Hash{String => Integer}] the rehearsals each spec file has been flaky in
+        def flake_counts
+          JSON.parse(File.read(flakes_path))
+        rescue Errno::ENOENT, JSON::ParserError
+          {}
+        end
+
         # @return [Entry, nil] the last rehearsal, nil when none has run
         def last
           return unless File.file?(path)
@@ -63,7 +89,11 @@ module Hecks
 
         private
 
-        def path = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir"), FILE)
+        def path = File.join(common_dir, FILE)
+
+        def flakes_path = File.join(common_dir, FLAKES)
+
+        def common_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
 
         def locked(&)
           File.open("#{path}.lock", File::RDWR | File::CREAT) do |lock|
@@ -74,10 +104,10 @@ module Hecks
 
         # Writes the record through a temp file in its directory, so a reader sees the old record or
         # the new one whole.
-        def replace(line)
-          temp = "#{path}.#{Process.pid}.tmp"
+        def replace(line, target = path)
+          temp = "#{target}.#{Process.pid}.tmp"
           File.write(temp, line)
-          File.rename(temp, path)
+          File.rename(temp, target)
         ensure
           FileUtils.rm_f(temp) if temp
         end

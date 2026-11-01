@@ -22,7 +22,7 @@ module Hecks
           end
 
           LAUNCHER = %w[exe/hecks test_suite_run.run_spec_example!].freeze
-          GREEN = /\b\d+ examples?, 0 failures/
+          GREEN = /\b[1-9]\d* examples?, 0 failures\b(?!, \d+ errors? occurred outside)/
           JSON_FROM = /^\{.*\z/m
           FAILED = %r{^rspec (\./\S+)(?: # (.*))?$}
 
@@ -39,18 +39,23 @@ module Hecks
           def call(directory, spec, io: false)
             env = io ? { "CI" => "true" } : {}
             result = @capture.call(directory, *LAUNCHER, "file.value=#{spec}", "example.value= ", "--wait", env: env)
-            report = report(result)
-            Outcome.new(spec, result.ok? && GREEN.match?(report), failures(report, result))
+            answer = answer(result)
+            report = said(answer)
+            Outcome.new(spec, settled?(result, answer) && GREEN.match?(report), failures(report, result))
           end
 
           private
 
-          def report(result)
+          def answer(result)
             json = result.out[JSON_FROM]
-            json ? said(JSON.parse(json)) : ""
+            json ? JSON.parse(json) : {}
           rescue JSON::ParserError
-            ""
+            {}
           end
+
+          # The launcher exits non-zero when reactions the spec's own domains refused or crashed
+          # surface in its run, though every example passed; a run it recorded as completed counts.
+          def settled?(result, answer) = result.ok? || answer.dig("state", "status") == "completed"
 
           # A red run is refused, with the output in the refusal and none in the report.
           def said(answer) = (answer.dig("state", "report") || answer.dig("state", "refusal")).to_s
