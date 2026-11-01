@@ -28,8 +28,10 @@ module Hecks
           # nothing is archived or backfilled, so a reading works under a role that may only select.
           #
           # @return [Array<Hash>] the eras, as `eras` answers them
-          # @raise [Runtime::WiringError] when a held text no longer matches its digest
+          # @raise [Runtime::WiringError] when a held text does not match its digest
           def eras_unrecorded
+            return [] unless table_exists?("hecks_eras")
+
             @db.exec_params(
               "SELECT ordinal, hash, label, held_text, watermark, held_digest, edge::text " \
               "FROM hecks_eras WHERE domain = $1 ORDER BY ordinal",
@@ -54,7 +56,8 @@ module Hecks
               watermark: row["watermark"]&.to_i, edge: parsed_edge(row["edge"]) }
           end
 
-          # @return [Hash, nil] the edge column as symbol-keyed JSON, or nil for an era a written edge reached
+          # @return [Hash, nil] the edge column as symbol-keyed JSON, or nil for an era a written
+          #   edge reached
           def parsed_edge(text)
             text && JSON.parse(text, symbolize_names: true)
           end

@@ -34,13 +34,23 @@ module Hecks
         #   to the next one
         def edge_chain(registry, bluebook, eras, current_label, target: nil)
           labels = eras.map { |era| era[:label] } + [current_label]
-          labels.each_cons(2).with_index.map do |(from, to), index|
+          labels.each_cons(2).with_index.filter_map do |(from, to), index|
+            next if same_shape?(from, to)
+
             step = edge_between(registry, bluebook, from, to) ||
                    recorded_edge(bluebook, from, to, eras[index + 1] || target)
             refuse_broken_chain!(bluebook, index, from, to) unless step
             { translation: step }
           end
         end
+
+        # Whether two shape labels name the same shape. A same-shape step is current, not a change,
+        # so it needs no edge and `edge_chain` skips it.
+        #
+        # @param from [String] the shape label the step leaves
+        # @param to [String] the shape label the step reaches
+        # @return [Boolean] true when both labels are the same shape
+        def same_shape?(from, to) = from == to
 
         # The implicit edge a journal record names for the step that reached its era, or nil.
         #
@@ -55,14 +65,19 @@ module Hecks
           Translation::ImplicitEdge.new(domain: bluebook.name, from: from, to: to)
         end
 
-        # Finds the loaded translation that leads one shape label to the next.
+        # Finds the loaded translation that leads one shape label to the next. A same-shape pair
+        # has no edge to find: it answers nil without searching, and `edge_chain` treats it as
+        # current.
         #
         # @param registry [Runtime::Registry] the registry whose `translations` are searched
         # @param bluebook [Bluebook::Declaration] the domain; only edges for its name count
         # @param from [String] the shape label the edge leaves
         # @param to [String] the shape label the edge reaches
-        # @return [Bluebook::Translation, nil] the edge, or nil when none is loaded
+        # @return [Bluebook::Translation, nil] the edge, or nil when none is loaded, or the shapes
+        #   match
         def edge_between(registry, bluebook, from, to)
+          return nil if same_shape?(from, to)
+
           registry.translations.find { |t| t.domain == bluebook.name && t.from == from && t.to == to }
         end
 

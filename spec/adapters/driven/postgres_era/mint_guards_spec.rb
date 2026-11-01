@@ -77,6 +77,19 @@ RSpec.describe "mint guards in the PostgresEra era check", :io do
     { mint_request: { confirm: confirm, verdict: verdict, watermark: watermark } }
   end
 
+  # Holds the first era the way the `hold_first` command does: a boot never holds one.
+  def hold_first!(source)
+    registry = load_registry(source)
+    bluebook = registry.bluebooks.values.first
+    db = Hecks::Adapters::PostgresEra.connect_for("Ledger", { database: guard_url })
+    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    lineage.ensure_base!
+    lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
+    bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
+  ensure
+    db&.close
+  end
+
   def era_count
     connection = PG.connect(guard_url)
     connection.exec("SELECT count(*) AS n FROM hecks_eras WHERE domain = 'Ledger'")[0]["n"].to_i
@@ -84,7 +97,7 @@ RSpec.describe "mint guards in the PostgresEra era check", :io do
     connection&.close
   end
 
-  before { check!(shape_v1) }
+  before { hold_first!(shape_v1) }
 
   it "a boot still refuses to mint, and a read still works without minting", :aggregate_failures do
     registry = check!(shape_v2, translation_source: edge_v1_to_v2)
