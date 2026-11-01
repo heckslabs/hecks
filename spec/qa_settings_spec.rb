@@ -45,6 +45,11 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
       generated_domains_rust: true
       generated_domain_seeds: 5
       red_main_check: true
+      event_pump: true
+      push_nudge: true
+      quiesced: false
+      main_maintenance: true
+      maintenance_confirm: false
       mutation_files:
         - rust/src/kernel/dispatch.rs
       mutation_equivalent: []

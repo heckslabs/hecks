@@ -106,6 +106,22 @@ Hecks.hecksagon "Hecks" do
     answers_query "Due"
   end
 
+  Hecks::QaQuiesce.port "Quiescing" do
+    asks "Mark", to: QaQuiesce do
+      attribute :run, RunKey
+      answers "QuiesceAnswered"
+      refuses "QuiesceRefused"
+    end
+
+    asks "Clear", to: QaQuiesce do
+      attribute :run, RunKey
+      answers "QuiesceAnswered"
+      refuses "QuiesceRefused"
+    end
+
+    answers_query "Status"
+  end
+
   Hecks::SendTrain.port "Alerts" do
     asks "Announce", to: SendTrain do
       attribute :run, RunKey

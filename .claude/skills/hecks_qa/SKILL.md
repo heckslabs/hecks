@@ -66,6 +66,17 @@ this tick started has reported. `QualityControlDials::CADENCE_SECONDS` is
 the floor between ticks (`0` = immediately); use `ScheduleWakeup` only as
 a liveness fallback, at `QualityControlDials::LIVENESS_FALLBACK_SECONDS`.
 
+## Quiet for a mint window
+
+A tick writes to the QA ledger constantly, so a mint window starts with `exe/hecks qa_quiesce.hold!
+reason.value="..." --wait` and ends with `exe/hecks qa_quiesce.release! --wait` (`qa_quiesce.status` shows
+owner, reason and age). The tick reads the marker before each step (the PR check, the sweep, the
+generated domains, mutation, `check_main`, `push_nudge`, and the event pump, which carries the
+maintenance chain and the CI watch). A held step prints `quiesced: skipped <step>`, and the tick exits 0.
+A marker older than two hours is ignored and reported, so a crashed mint cannot freeze QA. The
+`quiesced` dial in `qa/settings.yml` does the same for a standing pause, but only from the start of a
+tick. The mint does not require the flag. When a tick says `quiesced`, do not dispatch anything for it.
+
 ## On a finding — the per-finding subagent's own prompt
 
 The target is already **suspended** (the ledger's own `SuspendOnSurprise`

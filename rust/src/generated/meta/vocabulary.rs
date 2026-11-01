@@ -5536,6 +5536,7 @@ pub const QA_DIAL: &[QaDial] = &[
     QaDial { name: "red_main_check", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step." },
     QaDial { name: "event_pump", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless." },
     QaDial { name: "push_nudge", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting." },
+    QaDial { name: "quiesced", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step." },
     QaDial { name: "main_maintenance", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain." },
     QaDial { name: "maintenance_confirm", r#type: "Boolean", meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing." },
 ];
@@ -5637,6 +5638,7 @@ impl QaDial {
                     "red_main_check",
                     "event_pump",
                     "push_nudge",
+                    "quiesced",
                     "main_maintenance",
                     "maintenance_confirm",
                 ],
