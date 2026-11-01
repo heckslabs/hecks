@@ -7,7 +7,8 @@ module Hecks
   module Adapters
     class GitRehearsal
       # Whether a push is due, read from refs git already holds: how many commits local `main` is
-      # ahead of `origin/main`, how old the oldest of them is, and how the last rehearsal ended.
+      # ahead of `origin/main`, how old the oldest of them is, and how the last quick and the last
+      # full rehearsal ended.
       class Due
         include Reading
 
@@ -33,7 +34,7 @@ module Hecks
           return "push due: no; #{@branch} is level with #{@tracking}; #{last_rehearsal}" if ahead.zero?
 
           "push due: yes; #{ahead} commit(s) ahead of #{@tracking}; oldest unpushed #{age} hours old; " \
-            "#{last_rehearsal}"
+            "#{last_rehearsal}#{full_needed}"
         end
 
         private
@@ -43,19 +44,29 @@ module Hecks
           format("%.1f", (Time.now.to_i - oldest) / HOUR)
         end
 
-        def last_rehearsal
-          entry = Record.new(@git, @checkout).last
-          return "last rehearsal: none yet" unless entry
+        # Both scopes' last result; a push needs a full one, so a missing or stale one says so.
+        def last_rehearsal = "#{last_of("quick")}; #{last_of("full")}"
 
-          "last rehearsal: #{entry.verdict}#{failed(entry)} on #{short(entry.commit)} (#{currency(entry)})"
+        # A push needs a full rehearsal of the current branch; say so when there is none.
+        def full_needed
+          entry = Record.new(@git, @checkout).last("full")
+          return "" if entry && entry.verdict == "green" && current?(entry)
+
+          "; a push needs a green full rehearsal of the current #{@branch}: push_rehearsal.rehearse!"
+        end
+
+        def last_of(scope)
+          entry = Record.new(@git, @checkout).last(scope)
+          return "last #{scope}: none yet" unless entry
+
+          "last #{scope}: #{entry.verdict}#{failed(entry)} on #{short(entry.commit)} (#{currency(entry)})"
         end
 
         def failed(entry) = entry.failed.empty? ? "" : " (#{entry.failed.tr(",", ", ")})"
 
-        def currency(entry)
-          head = read("rev-parse", "--verify", "refs/heads/#{@branch}^{commit}")
-          head == entry.commit ? "the current #{@branch}" : "#{@branch} has moved since"
-        end
+        def currency(entry) = current?(entry) ? "the current #{@branch}" : "#{@branch} has moved since"
+
+        def current?(entry) = read("rev-parse", "--verify", "refs/heads/#{@branch}^{commit}") == entry.commit
       end
     end
   end

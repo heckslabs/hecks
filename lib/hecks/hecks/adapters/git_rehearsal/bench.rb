@@ -14,14 +14,20 @@ module Hecks
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
-        def initialize(git, checkout)
+        # @param scope [String] a scope sweeps and names only its own benches, so a quick rehearsal
+        #   never removes the live bench of a full one
+        def initialize(git, checkout, scope: "full")
           @git = git
           @checkout = checkout
+          @scope = scope
         end
 
         # The prefix of the scratch directory every bench is made in, which tells a bench of this
         # adapter from any other worktree.
         PREFIX = "hecks-push-rehearsal"
+
+        # The prefix of a `quick` rehearsal's bench.
+        QUICK = "#{PREFIX}-quick".freeze
 
         # A worktree's line in `git worktree list --porcelain`.
         LISTED = /\Aworktree /
@@ -45,7 +51,7 @@ module Hecks
         # @yieldparam directory [String] the copy
         # @return [Object] what the block returned
         def rehearse(commit)
-          Dir.mktmpdir(PREFIX) do |scratch|
+          Dir.mktmpdir(@scope == "quick" ? QUICK : PREFIX) do |scratch|
             directory = File.join(scratch, "bench")
             read("worktree", "add", "--quiet", "--detach", directory, commit)
             begin
@@ -64,7 +70,12 @@ module Hecks
           listed.map { |line| line.delete_prefix("worktree ").strip }.select { |directory| bench?(directory) }
         end
 
-        def bench?(directory) = File.basename(directory) == "bench" && File.basename(File.dirname(directory)).start_with?(PREFIX)
+        def bench?(directory)
+          return false unless File.basename(directory) == "bench"
+
+          name = File.basename(File.dirname(directory))
+          @scope == "quick" ? name.start_with?(QUICK) : (name.start_with?(PREFIX) && !name.start_with?(QUICK))
+        end
       end
     end
   end

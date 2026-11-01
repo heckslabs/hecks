@@ -14,6 +14,10 @@ module Hecks
     # The `Rehearsing` port's adapter for `PushRehearsal`: runs, against local `main` and without
     # pushing, the stages a real push runs, and reports whether a push is due.
     #
+    # A rehearsal has a scope: `quick` (the gate's quick stage alone; a landing asks) or
+    # `full` (every stage; a push needs it). Each scope has its own line, record and bench, so a
+    # quick rehearsal runs alongside a full one rather than waiting behind it or being skipped.
+    #
     # A rehearsal checks out a detached copy of `main` (as the push train's bench does), runs the
     # `quick` stage, the `unguarded_push` stage of the Vocabulary gate rows, any end-to-end push
     # specs and the specs the push's changes touch, and removes the copy. It pushes nothing and
@@ -32,14 +36,14 @@ module Hecks
         @impacted_width = settings[:impacted_spec_width]
       end
 
-      # Rehearses the push of a branch, one rehearsal at a time per repository.
+      # Rehearses the push of a branch, one at a time per repository and scope.
       #
       # A land that arrives while one runs marks `pending: rehearse <sha>` and is refused with that
       # sentence; the running rehearsal then runs once more for the latest commit, however many
       # landed. Benches a killed rehearsal left registered are removed first.
       #
-      # @param held [Hash] the `PushRehearsal` record: `checkout` (a directory inside the
-      #   repository; the current directory when none is named) and `branch` (`main` by default)
+      # @param held [Hash] the `PushRehearsal` record: `checkout`, `branch` (`main` by default) and
+      #   `scope` (`full` by default; `quick` runs the gate's quick stage alone, in its own line)
       # @return [Hash{Symbol => Hash}] `outcome:` (`green` or `red`), `rehearsed:` the commit,
       #   `report:` one line per stage saying pass or fail
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, has no such branch,
@@ -47,6 +51,7 @@ module Hecks
       def trial(**held)
         @checkout = primary(plain(held[:checkout]) || Dir.pwd)
         branch = plain(held[:branch]) || "main"
+        @scope = scope_of(plain(held[:scope]))
         in_line(branch, head(branch))
       end
 
@@ -80,14 +85,20 @@ module Hecks
               "#{pending}: a rehearsal is already running in this repository and will run once more for the latest #{branch}"
       end
 
-      def queue = Line.new(@git, @checkout)
+      def queue = Line.new(@git, @checkout, scope: @scope)
+
+      def scope_of(scope)
+        return scope || "full" if [nil, "full", "quick"].include?(scope)
+
+        raise ConsoleCapture::Failure, "scope #{scope} is not a rehearsal scope: quick or full"
+      end
 
       def head(branch) = read("rev-parse", "--verify", "refs/heads/#{branch}^{commit}")
 
       # Rehearses the commit, then once more for the latest of the branch for as long as a land has
       # marked one pending; answers the last rehearsal.
       def drain(branch, commit)
-        Bench.new(@git, @checkout).sweep
+        Bench.new(@git, @checkout, scope: @scope).sweep
         answer = nil
         while commit
           answer = once(branch, commit)
@@ -99,9 +110,9 @@ module Hecks
       end
 
       def once(branch, commit)
-        results = Bench.new(@git, @checkout).rehearse(commit) { |directory| stages(directory, branch).run }
+        results = Bench.new(@git, @checkout, scope: @scope).rehearse(commit) { |directory| stages(directory, branch).run }
         verdict = results.all?(&:passed) ? "green" : "red"
-        note = Record.new(@git, @checkout).write(commit, verdict, results)
+        note = Record.new(@git, @checkout).write(commit, verdict, results, scope: @scope)
         { outcome: { value: verdict }, rehearsed: { value: commit }, report: { value: report(branch, commit, results, note) } }
       end
 
@@ -112,11 +123,12 @@ module Hecks
       end
 
       def stages(directory, branch)
-        Stages.new(directory, branch: branch, impacted_limit: @impacted_limit, impacted_width: @impacted_width)
+        Stages.new(directory, branch: branch, impacted_limit: @impacted_limit,
+                    impacted_width: @impacted_width, scope: @scope)
       end
 
       def heading(branch, commit)
-        "rehearsed #{branch} at #{short(commit)}; nothing was pushed"
+        "#{@scope} rehearsal of #{branch} at #{short(commit)}; nothing was pushed"
       end
 
       # The repository's own checkout, found from any worktree of it.
