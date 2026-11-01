@@ -913,9 +913,20 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crat
                     let element_id =
                         crate::generated::chess::game::Piece::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Move acts on one Piece — pass id.value:".to_string(),
-                                )
+                                if store.game.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Game",
+                                            identity: "label.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Move acts on one Piece — pass id.value:".to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::chess::game::Piece::extract_wants(facts_json);
@@ -973,9 +984,20 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crat
                     let element_id =
                         crate::generated::chess::game::Piece::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Capture acts on one Piece — pass id.value:".to_string(),
-                                )
+                                if store.game.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Game",
+                                            identity: "label.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Capture acts on one Piece — pass id.value:".to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::chess::game::Piece::extract_wants(facts_json);

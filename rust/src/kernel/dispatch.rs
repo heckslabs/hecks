@@ -160,8 +160,10 @@ pub fn dispatch<'a, T, R>(
     mutations: &mut Vec<MutationRecord>,
     // The synchronous half of `projects`, applied right before `repo.save`.
     seed_projections: Vec<(&'static str, Option<Value>)>,
-    // The write-side tenant boundary. The router computes it (it needs every aggregate's repo)
-    // but it is applied here, first in `Save`, before `seed_projections`.
+    // The settled-state checks: references a command set through a plain value object, then the
+    // write-side tenant boundary. The router computes it (it needs every aggregate's repo)
+    // but it is applied here, first in `Save`, before `seed_projections`, as Ruby's
+    // `resolve_state_references` runs at `save`.
     tenant_boundary_check: Result<(), Refusal>,
 ) -> Result<(T, Vec<Event>), Refusal>
 where

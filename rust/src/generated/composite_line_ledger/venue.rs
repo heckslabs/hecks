@@ -768,23 +768,16 @@ impl Line {
 
 impl Line {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("batch.value")?.to_id_component_lenient().ok()?;
             let c1 = v.dig("sequence.value")?.to_id_component_lenient().ok()?;
             Some([c0, c1].join(":"))
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v.get("line").and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Line: no identity found (tried batch.value, sequence.value, id, line)"
-                        .to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Line: no identity found (tried batch.value, sequence.value)".to_string(),
+            )
+        })
     }
 }
 

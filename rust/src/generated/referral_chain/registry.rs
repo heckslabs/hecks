@@ -346,7 +346,7 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate
             let args = if invocation.explicit_with() {
                 let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::referral::ReassignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::referral::ReassignArgs::from_json(v)?;
 args.member.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::referral::ReassignArgs| { crate::kernel::check_reference(&store.member, &args.member.value, "Member", "handle")?; Ok(()) } })?;
+Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::referral_chain::referral::ReassignArgs| Ok(()) })?;
                 if let Some(route) = route {
                     route.require_depth(0)?;
                 }
@@ -357,7 +357,7 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate
                 }
                 crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::referral_chain::referral::ReassignArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::referral_chain::referral::ReassignArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::referral_chain::referral::ReassignArgs::from_json(v)?;
 args.member.check_invariants()?;
-Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate::generated::referral_chain::referral::ReassignArgs| { crate::kernel::check_reference(&store.member, &args.member.value, "Member", "handle")?; Ok(()) } })?
+Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|_args: &crate::generated::referral_chain::referral::ReassignArgs| Ok(()) })?
             };
             let id = match route {
                 Some(route) => route.aggregate().to_string(),
@@ -375,7 +375,16 @@ Ok(args) }, refuse_role_mismatch: &|| Ok(()), resolve_references: &|args: &crate
                         })?
                 }
             };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> =
+                (|| -> Result<(), crate::kernel::Refusal> {
+                    crate::kernel::check_reference(
+                        &store.member,
+                        &args.member.value,
+                        "Member",
+                        "handle",
+                    )?;
+                    Ok(())
+                })();
             let owner_deref = crate::kernel::owner_deref(
                 &*store,
                 REFERENCE_TABLE,
