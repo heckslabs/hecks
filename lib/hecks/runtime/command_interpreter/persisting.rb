@@ -52,8 +52,9 @@ module Hecks
           else
             # `expected_version:` is nil for a brand-new record or a
             # non-CAS repository, either of which falls through to a
-            # plain, unconditional save inside `AppendOnly#save`.
-            ctx.repository.save(ctx.instance, expected_version: ctx.instance_version)
+            # plain, unconditional save inside `AppendOnly#save`. `mints_era:`
+            # reaches the journal entry only when this command declares it.
+            ctx.repository.save(ctx.instance, expected_version: ctx.instance_version, mints_era: ctx.command.mints_era?)
           end
         end
 
