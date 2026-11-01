@@ -460,7 +460,7 @@ Hecks.bluebook "CiPipeline" do
 
     identified_by :name
 
-    reference_to CiRun
+    reference_to CiRun, as: :build
     attribute :name,        JobName
     attribute :required,    Switch
     attribute :gate,        GateName
@@ -508,7 +508,7 @@ Hecks.bluebook "CiPipeline" do
       role "CI engineer"
       goal "Write down one job of a build, the edges into it, and whether a gate can skip it"
 
-      reference_to CiRun
+      reference_to CiRun, as: :build
       attribute :name,        JobName
       attribute :required,    Switch
       attribute :gate,        GateName
