@@ -7,10 +7,6 @@
   ],
   "Hecks": [
     {
-      "from": "5d288c",
-      "to": "f30dcb"
-    },
-    {
       "from": "f30dcb",
       "to": "d237f1"
     }
