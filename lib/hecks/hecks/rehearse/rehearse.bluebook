@@ -1,0 +1,128 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Rehearse" do
+    vision "Run a push's stages before the push, so a push is never the first time a stage runs."
+
+    # A rehearsal runs, against local `main` and without pushing, the stages a real push runs: the
+    # `quick` stage, the `unguarded_push` stage of the Vocabulary gate rows, and the end-to-end push
+    # specs. It answers pass or fail per stage and names the failing check and spec. A landed
+    # branch asks for one (RehearseWhenLanded); a red one does not undo the land, it records red so
+    # the push is known to be red before anyone boards. Nothing here pushes.
+    aggregate "PushRehearsal" do
+      description "One dry run of the push against local main: green or red per stage, or refused when it could not run."
+      created_by "PushRehearsal.rehearse!"
+
+      attribute :run,      RunKey
+      attribute :checkout, Word,   optional: true
+      attribute :branch,   Word,   optional: true
+      attribute :rehearsed, Word,  optional: true
+      attribute :report,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A branch, a directory or a commit.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "red", "refused"
+        transition "Pass"    => "green",   from: "requested"
+        transition "Fail"    => "red",     from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "green", "red", "refused"
+      end
+
+      command "Rehearse" do
+        role "Operator"
+        goal "Run the push's stages against local main without pushing, and say pass or fail for each"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, default: "main", sets: true
+
+        emits PushRehearsalRequested
+      end
+
+      command "Pass" do
+        role "System"
+        goal "Record that every stage of the push passed on this commit"
+
+        reference_to PushRehearsal
+        attribute :rehearsed, Word, sets: true
+        attribute :report,    Report, sets: true
+
+        emits PushRehearsalPassed
+      end
+
+      command "Fail" do
+        role "System"
+        goal "Record which stages of the push failed on this commit, and the failing check and spec"
+
+        reference_to PushRehearsal
+        attribute :rehearsed, Word, sets: true
+        attribute :report,    Report, sets: true
+
+        emits PushRehearsalFailed
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a rehearsal could not run"
+
+        reference_to PushRehearsal
+        attribute :refusal, Report, sets: true
+
+        emits PushRehearsalDeclined
+      end
+
+      # Read only: how far local main is ahead of origin/main, how old the oldest unpushed commit
+      # is, and how the last rehearsal ended. It fetches nothing and pushes nothing.
+      query "Due" do
+        description "Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last rehearsal's result."
+        attribute :checkout, Word, optional: true
+        returns Document
+      end
+    end
+
+    # A landed branch asks for a rehearsal under its own run key. The rehearsal is a record of its own,
+    # so the landing's record is untouched and a red rehearsal leaves the land standing.
+    policy "RehearseWhenLanded" do
+      on      "Landing.BranchLanded"
+      trigger PushRehearsal::Rehearse, with: { run: :run, checkout: :checkout }
+    end
+
+    policy "RunTheRehearsalWhenRequested" do
+      on      "PushRehearsal.PushRehearsalRequested"
+      ask     :trial, with: { run: :run }
+    end
+
+    policy "RecordTheGreenRehearsal" do
+      on      "PushRehearsal.PushRehearsalAnswered"
+      where   { outcome.value == "green" }
+      trigger PushRehearsal::Pass, with: { rehearsed: :rehearsed, report: :report }
+    end
+
+    policy "RecordTheRedRehearsal" do
+      on      "PushRehearsal.PushRehearsalAnswered"
+      where   { outcome.value == "red" }
+      trigger PushRehearsal::Fail, with: { rehearsed: :rehearsed, report: :report }
+    end
+
+    policy "RecordTheUnrunRehearsal" do
+      on      "PushRehearsal.PushRehearsalRefused"
+      trigger PushRehearsal::Decline, with: { refusal: :refusal }
+    end
+  end
+end
