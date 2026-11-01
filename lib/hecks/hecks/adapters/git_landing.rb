@@ -2,6 +2,8 @@
 
 require_relative "git_worktrees"
 require_relative "git_landing/merger"
+require_relative "git_landing/tidy"
+require_relative "git_landing/rivals"
 
 module Hecks
   module Adapters
@@ -18,11 +20,14 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil)
+      # @param registry [Runtime::Registry, nil] where the started Work rows are read
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @git = Git.new
+        @registry = registry
       end
 
-      # Lands a worktree's branch onto another branch (local `main` by default).
+      # Lands a worktree's branch onto another branch (local `main` by default), then removes the
+      # linked worktree and branch it landed from when they hold nothing main lacks.
       #
       # @param held [Hash] the `Landing` record: `checkout` (a directory inside the worktree; the
       #   current directory when absent), `branch` (its checked-out branch when absent), `onto`
@@ -35,7 +40,8 @@ module Hecks
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
         refuse_unsaved(branch)
-        Merger.new(@git, @checkout, branch: branch, onto: onto).land
+        refuse_rival(branch, onto)
+        tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto)
       end
 
       # Removes a linked worktree and deletes its branch, once the branch is on `onto`.
@@ -73,6 +79,16 @@ module Hecks
       end
 
       private
+
+      def refuse_rival(branch, onto)
+        clash = Rivals.new(@git, @checkout, @registry).refusal(branch, onto)
+        raise ConsoleCapture::Failure, clash if clash
+      end
+
+      def tidy(landed, branch, onto)
+        said = Tidy.new(@git, @checkout, branch: branch, onto: onto).call
+        landed.merge(report: { value: "#{landed[:report][:value]}; #{said}" })
+      end
 
       def refuse_unsaved(branch)
         tree = worktree_on(branch)
