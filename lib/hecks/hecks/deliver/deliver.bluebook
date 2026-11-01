@@ -339,6 +339,21 @@ Hecks.bluebook "Hecks" do
         emits LandingRequested
       end
 
+      command "Finish" do
+        role "Operator"
+        goal "Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, optional: true, sets: true
+        attribute :onto,     Word, default: "main", sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("rebases, lands and tidies needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits FinishRequested
+      end
+
       command "Record" do
         role "System"
         goal "Record the commit main names once the branch is on it"
@@ -419,6 +434,11 @@ Hecks.bluebook "Hecks" do
     policy "MergeWhenLanding" do
       on      "Landing.LandingRequested"
       ask     :merge, with: { run: :run }
+    end
+
+    policy "FinishWhenFinishing" do
+      on      "Landing.FinishRequested"
+      ask     :finish_branch, with: { run: :run }
     end
 
     policy "RecordTheLanding" do
