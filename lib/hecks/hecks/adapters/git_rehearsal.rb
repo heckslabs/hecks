@@ -23,11 +23,13 @@ module Hecks
       include Reading
 
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `impacted_spec_limit:` the most impacted spec files run (60)
+      # @param settings [Hash] `impacted_spec_limit:` the most impacted spec files run (60);
+      #   `impacted_spec_width:` how many run at once (2)
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil)
         @git = Git.new
         @impacted_limit = settings[:impacted_spec_limit]
+        @impacted_width = settings[:impacted_spec_width]
       end
 
       # Rehearses the push of a branch, one rehearsal at a time per repository.
@@ -109,7 +111,9 @@ module Hecks
         lines.join("\n")
       end
 
-      def stages(directory, branch) = Stages.new(directory, branch: branch, impacted_limit: @impacted_limit)
+      def stages(directory, branch)
+        Stages.new(directory, branch: branch, impacted_limit: @impacted_limit, impacted_width: @impacted_width)
+      end
 
       def heading(branch, commit)
         "rehearsed #{branch} at #{short(commit)}; nothing was pushed"
