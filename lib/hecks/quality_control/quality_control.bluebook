@@ -3174,13 +3174,14 @@ Hecks.bluebook "QualityControl" do
   #   (d) no stranded marker exists.
   # Otherwise the mint is held: the entry point refuses it as "needs owner approval", and the policy below
   # asks for the approval, which answers `MintNeedsApproval` and stops. A stale watermark or a stranded
-  # marker is a refusal, never a held mint.
+  # marker is a refusal, never a held mint. The ask forwards no `ledger_dir`: an optional attribute a call
+  # leaves out is not on the event, so the entry point takes the QualityControl ledger by default.
   policy "AutoMintAdditive" do
     on      "Maintenance.MintRequested"
     where   { rehearsal_verdict.value == "would_mint" }
     ask     :mint, with: { run: :run, domain: :domain, era: :era, sha: :sha, branch: :branch,
                            watermark: :watermark, rehearsal_verdict: :rehearsal_verdict,
-                           refusal_total: :refusal_total, ledger_dir: :ledger_dir, confirm: :confirm }
+                           refusal_total: :refusal_total, confirm: :confirm }
   end
 
   # Holds a mint the auto-mint rule does not cover for the owner. Reads the refusal the entry point named.
