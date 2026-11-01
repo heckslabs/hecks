@@ -1,9 +1,12 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/settings_reading"
+require_relative "../../support/registry_double"
 
 # `hecks config`: what a copy resolves for each setting and which source supplied it.
 RSpec.describe Hecks::Adapters::SettingsReading do
+  include RegistryDouble
+
   let(:reading) { described_class.new }
   let(:directory) { Dir.mktmpdir("settings-reading") }
   let(:database) { "postgres://hecks:secret@localhost/hecks" }
@@ -20,8 +23,8 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   before do
     @saved = variables.to_h { |name| [name, ENV.fetch(name, nil)] }
     variables.each { |name| ENV.delete(name) }
-    registry = instance_double(Hecks::Runtime::Registry, default_database_for: database, first_domain_name: "Shop",
-                                                         binding_settings: declared_settings, bluebooks: {}, world: nil)
+    registry = registry_double(default_database_for: database, first_domain_name: "Shop",
+                               binding_settings: declared_settings)
     described = instance_double(Hecks::Runtime::Loader::Described, registry: registry)
     allow(Hecks).to receive(:describe).with(directory).and_return(described)
   end
