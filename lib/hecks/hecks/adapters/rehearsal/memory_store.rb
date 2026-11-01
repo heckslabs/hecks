@@ -26,10 +26,21 @@ module Hecks
         # @return [void] there is nothing to drop
         def drop! = nil
 
+        # The document's eras as a lineage stores them, each with the storage shape a mint records:
+        # the document's own `projection` when it gives one, else the shape of its `held_text`,
+        # which a document holds whole, since it is written as the domain's source.
+        #
         # @param _subject [Subject] unused: the document holds its own eras
-        # @return [Array<Hash>] the eras, `ordinal` and `held_text`
+        # @return [Array<Hash>] the eras, `ordinal`, `held_text` and `projection`
         def eras(_subject)
-          Array(@document["eras"]).map { |era| { ordinal: era["ordinal"], held_text: era["held_text"] } }
+          Array(@document["eras"]).map do |era|
+            { ordinal: era["ordinal"], held_text: era["held_text"], projection: era["projection"] || shape_of(era["held_text"]) }
+          end
+        end
+
+        # @return [Hash, nil] the storage shape a held text declares; nil for no text
+        def shape_of(text)
+          text && Runtime::StorageShape.project(PostgresEra::LineageManager.shadow(text))
         end
 
         # A document holds no ledger, so its watermark is zero and never moves.

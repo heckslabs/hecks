@@ -5,9 +5,9 @@ require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 
-# How a boot matches its shape against a held era of a domain split across files: the held text is
-# the root file only, so the boot compares the projection the mint recorded, and falls back to the
-# held text's own shape for an era minted without one.
+# How a boot matches its shape against a held era: by the projection the era's mint recorded. An era
+# minted without one is read from its held text only when that text hashes to the era's stored
+# hash; a root file alone does not, and the boot refuses it by name.
 RSpec.describe "a boot matching a held era by its recorded projection", :io do
   include EraRegistryLoading
 
@@ -39,15 +39,22 @@ RSpec.describe "a boot matching a held era by its recorded projection", :io do
 
   def projection_of(source) = Hecks::Runtime::StorageShape.project(load_registry(source).bluebooks.values.first)
 
-  # Holds era 1 with `text` as its held text and `projection` as the shape its mint recorded.
-  def hold!(text, projection)
+  # Holds era 1 with `text` as its held text, `projection` as the shape its mint recorded, and the
+  # whole domain's hash as its name when `named`.
+  def hold!(text, projection, named: false)
     db = Hecks::Adapters::PostgresEra.connect_for("Ledger", { database: boot_url })
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
     lineage.ensure_base!
     lineage.hold_first!(text, projection: projection)
+    name!(lineage) if named
     lineage.provision_first_era!(load_registry(full_source).bluebooks.values.first.aggregates)
   ensure
     db&.close
+  end
+
+  def name!(lineage)
+    hash = Hecks::Runtime::StorageShape.mint_hash(load_registry(full_source).bluebooks.values.first)
+    lineage.mint_name!(1, hash, hash[0, Hecks::Runtime::StorageShape::LABEL_LENGTH])
   end
 
   # Boots the era check of the full domain against the database, without a mint request.
@@ -70,19 +77,19 @@ RSpec.describe "a boot matching a held era by its recorded projection", :io do
     end
   end
 
-  context "with an era holding the whole domain's text and no projection" do
-    before { hold!(full_source, nil) }
+  context "with an era holding the whole domain's text, its hash and no projection" do
+    before { hold!(full_source, nil, named: true) }
 
     it "resolves the boot to the held era by the shape its text declares" do
       expect(boot.unminted_eras["Ledger"]).to be_nil
     end
   end
 
-  context "with an era holding the root file and no projection" do
-    before { hold!(root_source, nil) }
+  context "with an era holding the root file, the whole domain's hash and no projection" do
+    before { hold!(root_source, nil, named: true) }
 
-    it "boots unminted, since the text alone declares none of the domain's aggregates" do
-      expect(boot.unminted_eras["Ledger"]).to eq(1)
+    it "refuses the boot, naming the era whose shape it cannot know" do
+      expect { boot }.to raise_error(Hecks::Runtime::WiringError, /era 1 .* does not hash to its stored hash/)
     end
   end
 end

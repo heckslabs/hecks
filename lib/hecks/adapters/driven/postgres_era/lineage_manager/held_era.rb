@@ -1,52 +1,65 @@
 require_relative "../../../../ports/persistence/plugins/era/storage_shape"
+require_relative "../../../../ports/persistence/plugins/era/projected_bluebook"
 require_relative "../../../../runtime/errors"
 
 module Hecks
   module Adapters
     class PostgresEra
       module LineageManager
-        # What a held era holds: its storage shape, and the declaration its held text parses to.
+        # What a held era is: the storage shape its mint recorded, and the hash of that shape.
         #
-        # The shape is the projection the era's mint recorded, read as stored. The held text is the
-        # domain's source as the mint read it; an era minted before the source covered a domain's
-        # module folders holds the top-level file alone, which declares none of the folders'
-        # aggregates. Its declaration is answered only when it parses to the recorded shape.
-        # LineageManager extends it, so each method is called on LineageManager.
+        # Held text is kept for audit and decides nothing. An era minted without a stored shape is
+        # read from its held text only when that text is the whole domain, which it is when it
+        # hashes to the era's stored hash; otherwise the era is refused by name. LineageManager
+        # extends it, so each method is called on LineageManager.
         module HeldEra
-          # @param era [Hash] an era as `Lineage#eras` answers it: `held_text`, and `projection`
-          #   when its mint recorded one
-          # @return [Hash] the storage shape the era holds, as `StorageShape.project` answers it
-          def held_shape(era) = era[:projection] || Runtime::StorageShape.project(shadow(era[:held_text]))
+          # @param era [Hash] an era as `Lineage#eras` answers it: `projection` when its mint
+          #   recorded one, `hash` once it is named, and `held_text`
+          # @return [Hash] the storage shape the era holds
+          # @raise [Runtime::WiringError] naming the era, when it stores no shape and its held text
+          #   does not hash to its stored hash
+          def held_shape(era) = era[:projection] || verified_text_shape(era) || refuse_unshaped!(era)
 
-          # Whether the era's held text parses to the shape its mint recorded, so a field-by-field
-          # diff from it is a diff from the era. An era with no recorded projection is taken at its
-          # text.
+          # The held era as a bluebook view over its storage shape, for a diff, the additive rule or
+          # the coverage check.
           #
           # @param era [Hash] an era as `Lineage#eras` answers it
-          # @return [Boolean]
-          def whole_held_text?(era)
-            era[:projection].nil? || Runtime::StorageShape.project(shadow(era[:held_text])) == era[:projection]
-          end
+          # @return [Runtime::ProjectedBluebook]
+          # @raise [Runtime::WiringError] as `held_shape`
+          def held_bluebook(era) = Runtime::ProjectedBluebook.new(held_shape(era))
 
-          # The declaration an era holds, for a caller that diffs it field by field.
+          # The era's hash: the one it stores once named, else the hash of the shape it holds.
           #
           # @param era [Hash] an era as `Lineage#eras` answers it
-          # @return [Bluebook::Declaration] the declaration the held text parses to
-          # @raise [Runtime::WiringError] naming the era, when its held text does not parse to the
-          #   shape its mint recorded
-          def held_declaration(era)
-            raise Runtime::WiringError, partial_text_refusal(era) unless whole_held_text?(era)
+          # @return [String] 64 lowercase hex characters
+          def held_hash(era) = era[:hash] || held_bluebook(era).mint_hash
 
-            shadow(era[:held_text])
+          # The shape an era's held text declares, when the text hashes to the era's stored hash and
+          # so is the whole domain the era was minted from; nil otherwise.
+          #
+          # @param era [Hash] an era with no stored shape
+          # @return [Hash, nil]
+          def verified_text_shape(era)
+            return unless era[:hash] && era[:held_text]
+
+            declared = shadow(era[:held_text])
+            Runtime::StorageShape.project(declared) if declared && Runtime::StorageShape.mint_hash(declared) == era[:hash]
+          rescue StandardError, SyntaxError
+            nil
           end
 
-          # @param era [Hash] the era whose text is partial
-          # @return [String] the refusal naming the era and what to do instead
-          def partial_text_refusal(era)
-            "era #{era[:ordinal]} (#{era[:label]}) holds part of its domain's source: its held text " \
-              "does not declare the shape its mint recorded, so nothing can be diffed from it field " \
-              "by field. Write the translation edge from #{era[:label]} by hand; the next era minted " \
-              "holds the whole domain."
+          # @raise [Runtime::WiringError] always, naming the era and why its shape is unknown
+          def refuse_unshaped!(era)
+            raise Runtime::WiringError,
+                  "era #{era[:ordinal]} (#{era[:label] || "unnamed"}) stores no storage shape, and its held " \
+                  "text #{unverified_reason(era)}, so it is not the whole domain the era was minted from"
+          end
+
+          # @return [String] why an era's held text cannot stand in for its missing shape
+          def unverified_reason(era)
+            return "has no stored hash to check it against" unless era[:hash]
+
+            "does not hash to its stored hash"
           end
         end
       end
