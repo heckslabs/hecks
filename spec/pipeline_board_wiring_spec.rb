@@ -34,6 +34,12 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     expect(found[:nodes].map { |node| node[:kind] }.sort).to eq(%w[adapter aggregate port])
   end
 
+  it "puts a port in the domain of the aggregate that asks through it" do
+    ask = policy("ListenWhenServed", "PipelineBoard", "Hecks::PipelineBoard::Web.Listen")
+    port = graph([ask], ports: { "Web" => :port })[:nodes].find { |node| node[:kind] == "port" }
+    expect(port).to include(domain: "Hecks", label: "Web")
+  end
+
   it "finds a port an aggregate declares for itself, not only the registry's" do
     ask = policy("FetchWhenChecked", "Host", "Hecks::Host::HostHttp.Fetch")
     expect(graph([ask], owned: ["HostHttp"])[:edges].map { |edge| edge[:to] }).to eq(["port:HostHttp"])
