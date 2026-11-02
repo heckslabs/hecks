@@ -1,6 +1,6 @@
 # A bluebook's classification keys the dependency checks
 
-**Status:** Proposed. Date: 2026-11-02. Adds two model_check findings and no grammar word.
+**Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds two model_check findings and no grammar word.
 
 ## Context
 

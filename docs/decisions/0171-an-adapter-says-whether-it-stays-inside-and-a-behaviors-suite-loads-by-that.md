@@ -1,6 +1,6 @@
 # An adapter says whether it stays inside, and a behaviors suite loads adapters by that
 
-**Status:** Proposed. Date: 2026-11-02. Adds one word to the `Adapter` grammar context, so the Rust
+**Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds one word to the `Adapter` grammar context, so the Rust
 parser's `hecks-parse adapter` reads it too.
 
 ## Context

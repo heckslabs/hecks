@@ -1,6 +1,6 @@
 # Saga state is as durable as the aggregates it coordinates
 
-**Status:** Proposed. Date: 2026-11-02.
+**Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02.
 
 ## Context
 
