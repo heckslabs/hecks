@@ -10,8 +10,10 @@ module Hecks
       # When in doubt it keeps both. It removes them only when the worktree is a linked one that
       # nobody stands in, holds no file that is not tracked and clean (ignored files and build
       # output count, so a local `.env` is never lost), and its branch tip, verified once, is
-      # contained in local `onto`. The worktree goes without `--force`, and the branch goes only
-      # while it still names the verified tip, so a commit made in between is never dropped.
+      # contained in local `onto` or every commit it adds has a patch-equivalent there (a rebase or
+      # a cherry-pick carries a commit under another id). The worktree goes without `--force`, and
+      # the branch goes only while it still names the verified tip, so a commit made in between is
+      # never dropped.
       # `main`, `stable`, `edge`, the target and a branch another worktree holds are never deleted.
       class Tidy
         include GitWorktrees
@@ -93,8 +95,16 @@ module Hecks
           return "it has no commit to verify" unless tip
 
           local = "refs/heads/#{@onto}"
-          behind = count("#{local}..#{tip}")
-          "it has #{behind} commit(s) not on #{@onto}" if behind.positive? || !ancestor?(tip, local)
+          return unless count("#{local}..#{tip}").positive? || !ancestor?(tip, local)
+
+          lacking = unmatched(local, tip)
+          "it has #{lacking} commit(s) not on #{@onto}" if lacking.positive?
+        end
+
+        # How many commits the branch adds that `onto` carries under no id and no patch: `git cherry`
+        # marks one `onto` has a patch-equivalent of with `-`, and one it lacks with `+`.
+        def unmatched(local, tip)
+          read("cherry", local, tip, dir: @checkout).lines.count { |line| line.start_with?("+") }
         end
 
         def drop(path, tip)
