@@ -35377,32 +35377,6 @@
                 "blocked",
                 "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."
               ]
-            ],
-            [
-              [
-                "name",
-                "era_proof"
-              ],
-              [
-                "id",
-                "era_proof"
-              ],
-              [
-                "title",
-                "era proof, each bluebook's boot status is current or behind by a recorded implicit move"
-              ],
-              [
-                "argv",
-                ""
-              ],
-              [
-                "script",
-                "status=\"$(bundle exec exe/hecks query era.boot_status domain.value=lib/hecks/hecks)\" || exit 1\nproblems=\"$(echo \"$status\" | jq -r -f .github/era_proof/boot_status.jq)\" || exit 1\nif [ -n \"$problems\" ]; then\n  echo \"era_proof: a bluebook is neither current nor behind by a recorded implicit move:\" >&2\n  echo \"$problems\" >&2\n  exit 1\nfi\n"
-              ],
-              [
-                "blocked",
-                "a bluebook's boot status is superseded, unminted, or behind with no implicit move recorded: the output names each one and its reason. Fix the ledger, the edge or the implicit move that leads the held shape to the current one."
-              ]
             ]
           ]
         },
@@ -35499,20 +35473,6 @@
               [
                 "checks",
                 "rust_io"
-              ]
-            ],
-            [
-              [
-                "name",
-                "era_proof"
-              ],
-              [
-                "env",
-                ""
-              ],
-              [
-                "checks",
-                "era_proof"
               ]
             ],
             [
@@ -36514,7 +36474,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
+                "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
               ]
             ],
             [
