@@ -70,7 +70,7 @@ module Hecks
         raise ConsoleCapture::Failure, "gh #{args.first(2).join(" ")} answered no JSON"
       end
 
-      def answer(outcome, report) = { outcome: { value: outcome }, report: { value: report } }
+      def answer(outcome, report) = { outcome: { value: outcome }, report: { value: report }, checkout: { value: @checkout } }
 
       def runner = self.class.runner || MainIntegration::CommandRunner.new
 
