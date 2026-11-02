@@ -12,7 +12,7 @@ module Hecks
       # connection open as a Server-Sent Events stream.
       class Server
         HOST = "127.0.0.1"
-        ROUTES = %w[/ /api/state /api/events].freeze
+        ROUTES = %w[/ /api/state /api/events /wiring /api/wiring].freeze
         STATUS = { 200 => "OK", 404 => "Not Found", 405 => "Method Not Allowed" }.freeze
 
         # @return [Integer] the port the server is bound to
@@ -79,6 +79,8 @@ module Hecks
           case path
           when "/" then reply(socket, 200, "text/html; charset=utf-8", @app.page)
           when "/api/state" then reply(socket, 200, "application/json", JSON.generate(@app.state))
+          when "/wiring" then reply(socket, 200, "text/html; charset=utf-8", @app.wiring_page)
+          when "/api/wiring" then reply(socket, 200, "application/json", JSON.generate(@app.wiring))
           else stream(socket)
           end
         end
