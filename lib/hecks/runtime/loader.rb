@@ -103,15 +103,16 @@ module Hecks
       #
       # @param paths [Array<String>, String] the exact file paths to boot, in load order
       # @param shared [String, nil] shared ports/adapters root; nil walks up from the first path
-      # @param environment [String, nil] environment overlay loaded after the named files; nil
-      #   loads none
+      # @param environment [String, nil] overlay loaded after the named files; nil loads none
+      # @param adapters [Array<String>, nil] exactly the `.adapter` files to load, the project's own
+      #   left unloaded even when this is empty; nil leaves the choice to `load_files`
       # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, environment: nil)
+      def self.boot_files(paths, shared: nil, environment: nil, adapters: nil)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
-        registry  = load_files(loading, files, shared, environment)
+        registry  = load_files(loading, files + Array(adapters), shared, environment, chosen: !adapters.nil?)
 
         run_boot_gates!(registry, directory)
         dispatcher_for(registry)
@@ -119,16 +120,17 @@ module Hecks
 
       # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it. An
       # `.adapter` among them stands in for the shared root's adapters, which are then left
-      # unloaded, so a
-      # test can answer a port with its own adapter and never construct the domain's real one.
-      def self.load_files(loading, files, shared, overlay)
+      # unloaded, so a test can answer a port with its own adapter and never construct the domain's
+      # real one. `chosen` says the caller chose the adapters itself (a behaviors suite, ADR 0171),
+      # so the shared root's stay unloaded even when it chose none.
+      def self.load_files(loading, files, shared, overlay, chosen: false)
         directory = File.dirname(files.first)
         root      = loading.shared_root(shared, directory)
         registry  = Registry.new(root: File.dirname(directory))
 
         Hecks.with_registry(registry) do
           loading.load_library
-          loading.load_project(root, adapters: files.none? { |file| file.end_with?(".adapter") })
+          loading.load_project(root, adapters: !chosen && files.none? { |file| file.end_with?(".adapter") })
           loading.load_selected(files, environment: overlay)
         end
         registry

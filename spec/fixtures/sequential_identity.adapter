@@ -1,3 +1,4 @@
 Hecks.adapter "SequentialIdentity" do
   port "identity_generation"
+  stays_inside
 end

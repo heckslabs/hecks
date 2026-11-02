@@ -2,6 +2,7 @@ require_relative "../ir"
 require_relative "../../runtime/loader"
 require_relative "../../runtime/errors"
 require_relative "../../ports/persistence/binding_policy"
+require_relative "adapter_selection"
 
 module Hecks
   module Behaviors
@@ -25,24 +26,30 @@ module Hecks
         # @raise [Malformed] if any aggregate the suite boots is not bound to the
         #   default (Memory) adapter
         def runtime_for(suite)
-          files = Array(suite.loads).map { |path| File.expand_path(path) }
-          key   = files.map { |file| [file, File.exist?(file) ? File.mtime(file).to_f : nil] }
+          files    = Array(suite.loads).map { |path| File.expand_path(path) }
+          adapters = suite.path && AdapterSelection.call(suite.path, files)
+          key      = boot_key(files + Array(adapters))
 
           RUNTIMES_LOCK.synchronize do
-            RUNTIMES[key] ||= boot_and_guard(files)
+            RUNTIMES[key] ||= boot_and_guard(files, adapters)
           end
         end
+
+        # Each file with its mtime, so an edited file boots fresh.
+        def boot_key(files) = files.map { |file| [file, File.exist?(file) ? File.mtime(file).to_f : nil] }
 
         # Refuses at boot when any aggregate binds to a non-Memory adapter —
         # `reset_runtime_state!` only resets Memory's own per-instance store.
         #
         # @param files [Array<String>] absolute paths to the bluebook/hecksagon/world
         #   files to boot
+        # @param adapters [Array<String>, nil] the `.adapter` files `AdapterSelection` chose, or
+        #   nil for a suite with no file of its own
         # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted,
         #   Memory-only-guarded runtime
         # @raise [Malformed] if any aggregate is bound to a non-Memory adapter
-        def boot_and_guard(files)
-          runtime = Hecks.boot_files(files, install_driving: false)
+        def boot_and_guard(files, adapters = nil)
+          runtime = Hecks.boot_files(files, install_driving: false, adapters: adapters)
           guard_memory_only!(runtime)
           runtime
         end
