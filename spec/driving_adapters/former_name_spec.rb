@@ -64,16 +64,16 @@ RSpec.describe "a renamed aggregate's former name" do
 
   it "reads the rows written under the former name after the rename" do
     File.write(fixture, source("Entry"))
-    first = run(boot, "Entry.post", "run=k1", "label=rent")
+    first = run(boot, "Entry.post!", "run=k1", "label=rent")
     File.write(fixture, source("Journal", "Entry"))
-    expect(run(boot, "Journal.post", "run=k1", "label=rent")).to eq(first)
+    expect(run(boot, "Journal.post!", "run=k1", "label=rent")).to eq(first)
   end
 
   it "resolves the former spelling to the renamed command and notes it once on standard error" do
     File.write(fixture, source("Entry"))
-    run(boot, "Entry.post", "run=k2", "label=rent")
+    run(boot, "Entry.post!", "run=k2", "label=rent")
     File.write(fixture, source("Journal", "Entry"))
-    expect { run(boot, "Entry.post", "run=k2", "label=rent") }
+    expect { run(boot, "Entry.post!", "run=k2", "label=rent") }
       .to output(/Entry\.post is the former name of .*Journal/).to_stderr
   end
 

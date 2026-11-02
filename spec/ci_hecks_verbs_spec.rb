@@ -26,7 +26,7 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
   # The [kind, verb] of every `exe/hecks` call in the files, bar the legacy words.
   def verb_calls
     found = code_lines.flat_map do |_, line|
-      line.scan(%r{exe/hecks ((?:ask |query |deploy )?)([a-z_.]+)!?}).map { |kind, verb| [kind.strip, verb] }
+      line.scan(%r{exe/hecks ((?:ask |query |deploy |quality_control )?)([a-z_.]+)!?}).map { |kind, verb| [kind.strip, verb] }
     end
     found.uniq.reject { |_, verb| LEGACY_WORDS.include?(verb) }
   end

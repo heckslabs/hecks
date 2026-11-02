@@ -9,14 +9,14 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
 
   def run_at(*argv) = described_class.call(runtime: runtime, argv: argv, program: "hecks run", err: err)
   def status(*argv) = run_at(*argv).last
-  def pizza = %w[order.create_pizza name=Margherita pizza.price_cents.cents=1200 pizza.size.value=large]
+  def pizza = %w[order.create_pizza! name=Margherita pizza.price_cents.cents=1200 pizza.size.value=large]
 
   it "refuses -q with -v as a usage line" do
-    expect(status("-q", "-v", "order.create_pizza")).to eq(Hecks::Adapters::Driving::ExitStatus::USAGE)
+    expect(status("-q", "-v", "order.create_pizza!")).to eq(Hecks::Adapters::Driving::ExitStatus::USAGE)
   end
 
   it "keeps a refusal under -q" do
-    expect(run_at("-q", "order.create_pizza").first).to include("was not given name")
+    expect(run_at("-q", "order.create_pizza!").first).to include("was not given name")
   end
 
   it "adds the command and its duration on standard error under -v" do

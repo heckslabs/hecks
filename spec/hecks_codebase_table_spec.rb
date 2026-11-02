@@ -12,7 +12,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   # `args` are the words a run of the verb needs beyond its run key; `query` marks a pure read.
   CodebaseRow = Struct.new(:script, :aggregate, :name, :verb, :args, :query, :renamed, keyword_init: true) do
     # The launcher's name for the row: its aggregate, snake-cased, then its verb.
-    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}#{"!" unless query}"
     def help_name = "#{aggregate}.#{verb}"
   end
 
@@ -192,7 +192,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
 
   it "leaves a run the checkout rule refused as a faulted record that the aggregate's query lists",
      :aggregate_failures, :outside_checkout do
-    out, status = launch(["language_run.project_vocabulary", "run=refused-1", "--wait"])
+    out, status = launch(["language_run.project_vocabulary!", "run=refused-1", "--wait"])
     row = JSON.parse(out).fetch("state")
 
     expect([status, row.fetch("status")]).to eq([1, "faulted"])
@@ -203,7 +203,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   %w[publish publish_gem].each do |verb|
     it "leaves `hecks #{verb}` outside a checkout as a faulted run that publishing_faulted lists",
        :aggregate_failures, :outside_checkout do
-      out, status = launch(["publishing_run.#{verb}", "run=refused-#{verb}", "--wait"])
+      out, status = launch(["publishing_run.#{verb}!", "run=refused-#{verb}", "--wait"])
 
       expect([status, JSON.parse(out).dig("state", "status")]).to eq([1, "faulted"])
       expect(runs_listed("publishing_run.publishing_faulted")).to include("refused-#{verb}")

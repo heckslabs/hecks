@@ -67,7 +67,7 @@ RSpec.describe "publishing a release" do
 
   describe "hecks publish" do
     def dry_publish
-      _, status = launch("publishing_run.publish", "run=dry", "--gem-only")
+      _, status = launch("publishing_run.publish!", "run=dry", "--gem-only")
       [outcome("dry"), status]
     end
 
@@ -88,7 +88,7 @@ RSpec.describe "publishing a release" do
 
     def confirmed_publish
       registry_lists_the_gem_after_the_push!
-      _, status = launch("publishing_run.publish", "run=real", "--gem-only", "--confirm")
+      _, status = launch("publishing_run.publish!", "run=real", "--gem-only", "--confirm")
       [outcome("real"), status]
     end
 
@@ -110,7 +110,7 @@ RSpec.describe "publishing a release" do
     def publish_faulting_at_npm
       registry_lists_the_gem_after_the_push!
       commands.fail_run("op", "run", "--env-file=#{File.join(root, "release/npm_publish.env")}")
-      launch("publishing_run.publish", "run=partial", "--npm-local", "--confirm")
+      launch("publishing_run.publish!", "run=partial", "--npm-local", "--confirm")
     end
 
     def rerun_commands
@@ -132,7 +132,7 @@ RSpec.describe "publishing a release" do
     it "verifies on a rerun that finds nothing left to publish", :aggregate_failures do
       publish_faulting_at_npm
       Hecks::Adapters::Codebase::Publishing.commands = rerun_commands
-      launch("publishing_run.publish", "run=rerun", "--npm-local", "--confirm")
+      launch("publishing_run.publish!", "run=rerun", "--npm-local", "--confirm")
 
       expect(outcome("rerun")).to include('"status": "completed"', "Nothing to publish")
       expect(launch("release.shipped").first).to include(version)
@@ -141,7 +141,7 @@ RSpec.describe "publishing a release" do
     it "refuses to release from a branch that is not the release lane, and does nothing", :aggregate_failures do
       commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "main\n")
 
-      out, = launch("publishing_run.publish", "run=off-stable", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish!", "run=off-stable", "--gem-only", "--confirm")
 
       expect(out).to include("a release is cut from the release lane")
       expect(commands.runs).to be_empty
@@ -150,7 +150,7 @@ RSpec.describe "publishing a release" do
     it "refuses when the release lane is not its origin", :aggregate_failures do
       commands.answer("git", "rev-parse", "origin/stable", stdout: "#{"b" * 40}\n")
 
-      out, = launch("publishing_run.publish", "run=behind", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish!", "run=behind", "--gem-only", "--confirm")
 
       expect(out).to include("the release lane is its origin")
       expect(commands.runs).to be_empty
@@ -159,7 +159,7 @@ RSpec.describe "publishing a release" do
     it "refuses a bump whose commit carries no Release-Approved-By line, and does nothing", :aggregate_failures do
       bump_message!("Release #{version}\n")
 
-      out, = launch("publishing_run.publish", "run=unapproved", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish!", "run=unapproved", "--gem-only", "--confirm")
 
       expect(out).to include("the commit that set the version carries a Release-Approved-By line")
       expect(commands.runs).to be_empty
@@ -169,7 +169,7 @@ RSpec.describe "publishing a release" do
       bump_message!("Release #{version}\n")
       commands.answer("git", "rev-parse", "-q", "--verify", "refs/tags/v#{version}^{commit}", stdout: "#{sha}\n")
 
-      out, = launch("publishing_run.publish", "run=finish", "--gem-only")
+      out, = launch("publishing_run.publish!", "run=finish", "--gem-only")
 
       expect(out).not_to include("Release-Approved-By line")
     end
@@ -177,7 +177,7 @@ RSpec.describe "publishing a release" do
     it "refuses a dirty working tree" do
       commands.answer("git", "status", "--porcelain", stdout: " M lib/hecks/version.rb\n")
 
-      out, = launch("publishing_run.publish", "run=dirty", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish!", "run=dirty", "--gem-only", "--confirm")
 
       expect(out).to include("the working tree is clean")
     end
@@ -185,7 +185,7 @@ RSpec.describe "publishing a release" do
     it "--wait exits 1 on a dirty tree and shows the refused reaction", :aggregate_failures do
       commands.answer("git", "status", "--porcelain", stdout: " M lib/hecks/version.rb\n")
 
-      out, status = launch("publishing_run.publish", "run=dirty-wait", "--wait")
+      out, status = launch("publishing_run.publish!", "run=dirty-wait", "--wait")
 
       expect(status).to eq(1)
       expect(out).to include("refused_reactions", "the working tree is clean")
@@ -194,7 +194,7 @@ RSpec.describe "publishing a release" do
     it "without --wait still exits 0 on a dirty tree (the refusal is only reported)", :aggregate_failures do
       commands.answer("git", "status", "--porcelain", stdout: " M lib/hecks/version.rb\n")
 
-      out, status = launch("publishing_run.publish", "run=dirty-nowait")
+      out, status = launch("publishing_run.publish!", "run=dirty-nowait")
 
       expect(status).to eq(0)
       expect(out).to include("refused_reactions")
@@ -204,7 +204,7 @@ RSpec.describe "publishing a release" do
       File.write(File.join(root, "packages/hecks-client/package.json"),
                  JSON.generate("name" => "@hecks/client", "version" => "9.9.8"))
 
-      out, = launch("publishing_run.publish", "run=client", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish!", "run=client", "--gem-only", "--confirm")
 
       expect(out).to include("the client package is at the gem's version")
     end
@@ -212,7 +212,7 @@ RSpec.describe "publishing a release" do
     it "refuses a changelog with no heading for the version" do
       File.write(File.join(root, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n")
 
-      out, = launch("publishing_run.publish", "run=changelog", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish!", "run=changelog", "--gem-only", "--confirm")
 
       expect(out).to include("CHANGELOG.md has a heading for the version")
     end
@@ -220,13 +220,13 @@ RSpec.describe "publishing a release" do
     it "refuses a tag that points at another commit" do
       commands.answer("git", "rev-parse", "-q", "--verify", "refs/tags/v#{version}^{commit}", stdout: "#{"c" * 40}\n")
 
-      out, = launch("publishing_run.publish", "run=tag", "--gem-only", "--confirm")
+      out, = launch("publishing_run.publish!", "run=tag", "--gem-only", "--confirm")
 
       expect(out).to include("a tag for the version points at the release commit")
     end
 
     it "refuses contradicting flags before anything is started", :aggregate_failures do
-      launch("publishing_run.publish", "run=flags", "--gem-only", "--npm-only", "--confirm")
+      launch("publishing_run.publish!", "run=flags", "--gem-only", "--npm-only", "--confirm")
 
       expect(outcome("flags")).to include('"status": "faulted"', "cannot be combined")
       expect(commands.runs).to be_empty
@@ -235,7 +235,7 @@ RSpec.describe "publishing a release" do
 
   describe "hecks publish_gem" do
     def dry_gem_build
-      _, status = launch("publishing_run.publish_gem", "run=gem-dry")
+      _, status = launch("publishing_run.publish_gem!", "run=gem-dry")
       [outcome("gem-dry"), status]
     end
 
@@ -249,7 +249,7 @@ RSpec.describe "publishing a release" do
     end
 
     it "pushes the gem through the vault when confirmed", :aggregate_failures do
-      _, status = launch("publishing_run.publish_gem", "run=gem-real", "--confirm")
+      _, status = launch("publishing_run.publish_gem!", "run=gem-real", "--confirm")
       out = outcome("gem-real")
 
       expect(status).to eq(0)
@@ -261,7 +261,7 @@ RSpec.describe "publishing a release" do
       File.write(File.join(root, "packages/hecks-client/package.json"),
                  JSON.generate("name" => "@hecks/client", "version" => "9.9.8"))
 
-      out, = launch("publishing_run.publish_gem", "run=gem-client", "--confirm")
+      out, = launch("publishing_run.publish_gem!", "run=gem-client", "--confirm")
 
       expect(out).to include("the client package is at the gem's version")
       expect(commands.runs).to be_empty

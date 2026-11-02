@@ -64,19 +64,19 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner::RunReplay do
 
   it "answers the first record for a repeat with the same key and arguments" do
     runtime = boot(persist: true)
-    first = run(runtime, "Entry.post", "run=k1", "label=rent")
-    expect(run(runtime, "Entry.post", "run=k1", "label=rent")).to eq(first)
+    first = run(runtime, "Entry.post!", "run=k1", "label=rent")
+    expect(run(runtime, "Entry.post!", "run=k1", "label=rent")).to eq(first)
   end
 
   it "refuses a repeat of a key with different arguments" do
     runtime = boot(persist: true)
-    run(runtime, "Entry.post", "run=k1", "label=rent")
-    expect(run(runtime, "Entry.post", "run=k1", "label=food").last).to eq(Hecks::Adapters::Driving::ExitStatus::REFUSED)
+    run(runtime, "Entry.post!", "run=k1", "label=rent")
+    expect(run(runtime, "Entry.post!", "run=k1", "label=food").last).to eq(Hecks::Adapters::Driving::ExitStatus::REFUSED)
   end
 
   it "names Memory and the persistent store when a Memory repeat is refused" do
     runtime = boot(persist: false)
-    run(runtime, "Entry.post", "run=k2", "label=rent")
-    expect(run(runtime, "Entry.post", "run=k2", "label=rent").first).to include("Memory", "SQLite")
+    run(runtime, "Entry.post!", "run=k2", "label=rent")
+    expect(run(runtime, "Entry.post!", "run=k2", "label=rent").first).to include("Memory", "SQLite")
   end
 end

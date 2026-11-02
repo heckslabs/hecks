@@ -62,7 +62,7 @@ RSpec.describe "watching a lane" do
   # `by_commit:` for the checks of one commit.
   def watch(run, hours:, key: "stable-lag-2026-10-06", lane: "stable", **world)
     stand_in(hours && (now - (hours * 3600)).to_i, world)
-    launch("promotion_run.watch", "run=#{run}", "lane=#{lane}", "alert_key=#{key}")
+    launch("promotion_run.watch!", "run=#{run}", "lane=#{lane}", "alert_key=#{key}")
     launch("promotion_run.promotion_outcome", "run=#{run}").first
   end
 
