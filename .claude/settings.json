@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(ruby:*)",
+      "Bash(irb:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(perl:*)",
+      "Bash(php:*)",
+      "Bash(lua:*)",
+      "Bash(bundle exec ruby:*)",
+      "Bash(bundle exec irb:*)",
+      "Bash(bundle exec rspec:*)",
+      "Bash(sh -c:*)",
+      "Bash(bash -c:*)",
+      "Bash(zsh -c:*)"
+    ]
+  }
+}
