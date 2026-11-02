@@ -142,18 +142,16 @@ current list of what this repo can do.
   If none exists, add the command to the bluebook rather than a script.
 - Add `--wait` when you need the result before the next step.
 
-## The push train records to its own database
+## The push train runs in Memory
 
-The push train (`~/.claude/hecks-train`, a detached checkout) writes its runs to a database its
-own gitignored local files (`hecks.local.hecksagon` and `hecks.local.world`, or the older
-`environments/local.*`) name (`hecks_train`). The older `hecks_records` is an archive: do not boot a
-checkout against it.
+The push train (`~/.claude/hecks-train`, a detached checkout) runs in Memory like every other tooling
+domain: it needs no database, no local files and no mint. What must outlive a process comes from git:
+the line is a lock in the repository's git directory, and a commit the remote already holds is
+answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`.
 
 - Dev work needs no environment variable: Hecks is in Memory unless a local hecksagon's root
-  `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it), and only the train's
-  copy does. Do not add local files to a development checkout or point them at the train's
-  database: a checkout that boots a newer shape against a records database mints an era the
-  train's launcher then refuses, and the pushes stop.
+  `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it). Do not add local
+  files to a development checkout, and never to the train's copy.
   `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
 - The shape ledger (`lib/hecks/hecks/shapes.json`) holds only bluebooks whose committed persistence
   (local overlays left out) is an era adapter, and framework members such as Governance that clients
@@ -165,8 +163,7 @@ checkout against it.
   writes them from the database the domain's own world names, and `era.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
   (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
-  reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`); the train
-  copy's local world declares `mint_eras true`.
+  reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`).
 - A tooling ledger may opt out of eras with `disposable_ledger true` in the same block
   (`LineageManager::DisposableLedger`): an additive shape change is applied in place, any other
   moves the aggregate's rows to a dated archive table (listed in `hecks_ledger_archives`) and starts
