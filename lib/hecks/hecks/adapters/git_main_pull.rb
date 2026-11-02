@@ -91,8 +91,8 @@ module Hecks
         lacking = count("#{branch_tip(branch)}..#{REMOTE_MAIN}")
         return if lacking.zero? || ancestor?(branch_tip(branch), branch_tip("main"))
 
-        raise ConsoleCapture::Failure, "main is behind origin/main by #{lacking} commit#{"s" unless lacking == 1}: " \
-                                       "pull main first (LinkedTree.pull_main!) and rebase the branch"
+        raise ConsoleCapture::Failure, "#{branch} lacks #{lacking} commit#{"s" unless lacking == 1} that origin/main has: " \
+                                       "pull main first (LinkedTree.pull_main!) and rebase the branch onto it"
       end
     end
   end
