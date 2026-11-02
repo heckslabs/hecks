@@ -67,7 +67,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
      { renamed: "no bin script: the branch rulesets and the promotion workflow were hand-written; without " \
                 "--confirm the verb only compares, and only --live --confirm changes GitHub" }],
     ["watch", "PromotionRun", "Watch", "watch",
-     { args:    %w[lane=stable alert_key=stable-lag-outside],
+     { args:    %w[lane=stable],
        renamed: "no bin script: nothing watched a lane; the verb faults a lane that has stood behind the " \
                 "lane it follows for longer than its Lane row allows" }],
     ["promote", "PromotionRun", "Promote", "promote",

@@ -234,7 +234,7 @@ module Hecks
       # The facts of a promotion or a watch, naming the operation so policies can tell them apart.
       def promotion_facts(held)
         facts = tree.checkout? ? Codebase::Promotion.facts(held, tree) : Codebase::Promotion.no_facts
-        { operation: held[:operation], alert_key: held[:alert_key] }.compact.merge(facts)
+        { operation: held[:operation] }.compact.merge(facts)
       end
 
       # @return [Hash{Symbol => Hash}] `report:` the note that the terminal carries the operation

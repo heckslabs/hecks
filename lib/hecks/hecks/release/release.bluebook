@@ -426,7 +426,6 @@ Hecks.bluebook "Hecks" do
       attribute :head,       Word, optional: true
       attribute :behind_hours, Hours, optional: true
       attribute :limit_hours,  Hours, optional: true
-      attribute :alert_key,    Word, optional: true
       attribute :promoted,   Switch, optional: true
       attribute :reason,     Report, optional: true
       attribute :report,     Report, optional: true
@@ -472,7 +471,7 @@ Hecks.bluebook "Hecks" do
       end
 
       # Looks at a lane and moves nothing: faults when it has stood behind the lane it follows for
-      # longer than its `Lane` row allows, which files a finding. A lane whose row allows no lag is
+      # longer than its `Lane` row allows. A lane whose row allows no lag is
       # never late.
       command "Watch" do
         role "Maintainer"
@@ -480,7 +479,6 @@ Hecks.bluebook "Hecks" do
 
         attribute :lane,      Word, sets: true
         attribute :run,       RunKey, sets: true
-        attribute :alert_key, Word, sets: true
 
         sets :operation, to: "watch"
 
@@ -535,7 +533,6 @@ Hecks.bluebook "Hecks" do
         attribute :lane_known,   Switch, sets: true
         attribute :behind_hours, Hours, sets: true
         attribute :limit_hours,  Hours, sets: true
-        attribute :alert_key,    Word, sets: true
         attribute :promoted,     Switch, sets: true
         attribute :reason,       Report, sets: true
 
@@ -561,11 +558,10 @@ Hecks.bluebook "Hecks" do
       # A lane that has stood behind the lane it follows for longer than its Lane row allows.
       command "Lag" do
         role "System"
-        goal "Record that a lane is late, and what it is waiting on, under the alert key that names its finding"
+        goal "Record that a lane is late, and what it is waiting on"
 
         reference_to PromotionRun
         attribute :refusal,   Report, sets: true
-        attribute :alert_key, Word, sets: true
 
 
         emits LaneLagged
@@ -610,7 +606,7 @@ Hecks.bluebook "Hecks" do
       on      "PromotionRun.PromotionExamined"
       where   { operation.value == "watch" }
       trigger PromotionRun::Observe, with: { checkout: :checkout, lane_known: :lane_known, behind_hours: :behind_hours,
-                                             limit_hours: :limit_hours, alert_key: :alert_key, promoted: :promoted,
+                                             limit_hours: :limit_hours, promoted: :promoted,
                                              reason: :reason }
     end
 
@@ -623,7 +619,7 @@ Hecks.bluebook "Hecks" do
     policy "LagWhenLaneLate" do
       on      "PromotionRun.LaneObserved"
       where   { behind_hours.value > limit_hours.value }
-      trigger PromotionRun::Lag, with: { refusal: :reason, alert_key: :alert_key }
+      trigger PromotionRun::Lag, with: { refusal: :reason }
     end
 
     policy "CompleteWhenLaneOnTime" do
