@@ -9,7 +9,8 @@ module Hecks
   module Adapters
     class GitRehearsal
       # Whether a push is due, read from refs git already holds: how many commits local `main` is
-      # ahead of `origin/main`, how old the oldest of them is, and how the last quick rehearsal ended.
+      # ahead of `origin/main`, how old the oldest of them is, and how the last quick rehearsal
+      # ended.
       class Due
         include Reading
 
