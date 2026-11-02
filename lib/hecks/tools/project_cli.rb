@@ -67,7 +67,9 @@ module Hecks
         failed  = outcomes.select { |_, outcome| outcome == :failed }.keys
         return if drifted.empty? && failed.empty?
 
-        warn "launcher out of date for: #{drifted.join(", ")}; run `hecks launch.project_cli! #{drifted.join(" ")}`" unless drifted.empty?
+        unless drifted.empty?
+          warn "launcher out of date for: #{drifted.join(", ")}; run `hecks launch.project_cli! #{drifted.join(" ")}`"
+        end
         warn "no launcher could be checked or written for: #{failed.join(", ")}" unless failed.empty?
         exit 1
       end
