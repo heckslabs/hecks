@@ -2,7 +2,6 @@
 
 require_relative "../qa_event_pump"
 require_relative "push_nudge_step"
-require_relative "red_main_watch_step"
 
 module Hecks
   module QualityControlCli
@@ -11,13 +10,11 @@ module Hecks
       # on the events its cursors have not yet read.
       module EventPumpStep
         include PushNudgeStep
-        include RedMainWatchStep
 
         private
 
-        # @return [Array<Step>] the steps after the finding steps: the push check, the red-main
-        #   watch and the pump
-        def watch_steps = push_nudge_steps + red_main_watch_steps + pump_steps
+        # @return [Array<Step>] the steps after the finding steps: the push check and the pump
+        def watch_steps = push_nudge_steps + pump_steps
 
         # @return [Array<Step>] the pump's step when the `event_pump` dial is on, else none
         def pump_steps

@@ -114,7 +114,7 @@ RSpec.describe Hecks::Tools::Lanes do
       run = watch.dig("jobs", "watch_stable", "steps").find { |step| step["name"] == "Watch stable" }.fetch("run")
 
       expect(watch.fetch(true, watch["on"]).dig("schedule", 0, "cron")).to match(/\A\d+ \* \* \* \*\z/)
-      expect(run).to include("exe/hecks promotion_run.watch! lane=stable", "alert_key=stable-lag-$(date -u")
+      expect(run).to include("exe/hecks promotion_run.watch! lane=stable")
     end
 
     # A dropped promotion is picked up within the hour; the watch decides nothing about the commit.

@@ -65,9 +65,8 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
       expect(listing.map { |row| row["name"] }).to eq(["ci_suite"])
     end
 
-    it "gives quick and full the gate's quick stage alone, and deep the impacted stage as well" do
+    it "gives quick the gate's quick stage alone, and deep the impacted stage as well" do
       expect(stage_names("quick")).to eq(%w[quick])
-      expect(stage_names("full")).to eq(%w[quick])
       expect(stage_names("deep")).to eq(%w[quick impacted])
     end
 

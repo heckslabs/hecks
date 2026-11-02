@@ -13,7 +13,7 @@ require_relative "qa_fix_main_bug"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control main_check.check_main`, the tick's red-main step. It runs
+    # The command behind `hecks quality_control main_check.check_main`, the tick's main step. It runs
     # the quick gate on local main in a temporary worktree, records the verdict against the commit, and
     # for each red check logs one bug proven by its output. A self-contained bug is handed to
     # `QaFixMainBug`. A commit already on record is answered from the record, so a tick that finds it again

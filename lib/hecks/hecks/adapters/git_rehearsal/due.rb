@@ -9,8 +9,8 @@ module Hecks
   module Adapters
     class GitRehearsal
       # Whether a push is due, read from refs git already holds: how many commits local `main` is
-      # ahead of `origin/main`, how old the oldest of them is, and how the last quick and the last
-      # full rehearsal ended.
+      # ahead of `origin/main`, how old the oldest of them is, and how the last quick rehearsal
+      # ended.
       class Due
         include Reading
 
@@ -39,7 +39,7 @@ module Hecks
           return "push due: no; #{@branch} is level with #{@tracking}; #{last_rehearsal}" if ahead.zero?
 
           "push due: yes; #{ahead} commit(s) ahead of #{@tracking}; oldest unpushed #{age} hours old; " \
-            "#{size(ahead)}#{last_rehearsal}#{full_needed}"
+            "#{size(ahead)}#{last_rehearsal}#{gate_note}"
         end
 
         private
@@ -55,16 +55,15 @@ module Hecks
           format("%.1f", (@clock.now.to_i - oldest) / HOUR)
         end
 
-        # Both scopes' last result; a push needs a full one, so a missing or stale one says so.
-        def last_rehearsal = "#{last_of("quick")}; #{last_of("full")}"
+        def last_rehearsal = last_of("quick")
 
-        # A push needs a full rehearsal of the current branch; say so when there is none.
-        def full_needed
-          entry = Record.new(@git, @checkout).last("full")
+        # The train's quick gate is the push gate; say so when no green rehearsal of it is current.
+        def gate_note
+          entry = Record.new(@git, @checkout).last("quick")
           return "" if entry && entry.verdict == "green" && current?(entry)
 
-          "; a push needs a green full rehearsal of the current #{@branch}: push_rehearsal.rehearse! " \
-            "(scope.value=deep also runs the impacted specs; opt-in)"
+          "; the train's quick gate is the push gate and runs at the push: push_rehearsal.rehearse! " \
+            "runs it ahead (scope.value=deep also runs the impacted specs; opt-in)"
         end
 
         def last_of(scope)

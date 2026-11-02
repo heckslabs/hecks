@@ -8,7 +8,6 @@ require_relative "git_rehearsal/stages"
 require_relative "git_rehearsal/record"
 require_relative "git_rehearsal/due"
 require_relative "git_rehearsal/line"
-require_relative "red_main_line"
 
 module Hecks
   module Adapters
@@ -16,11 +15,10 @@ module Hecks
     # pushing, the stages of a scope, and reports whether a push is due.
     #
     # A scope is a `RehearsalScope` row of the Vocabulary bluebook: `quick` (the gate's quick
-    # stage; a landing asks), `full` (the quick stage again; a push needs it)
-    # or `deep` (full plus the impacted specs; opt-in). Quick has its own line, record and bench, so
-    # it runs alongside a full one; deep shares the full one's. A rehearsal checks out a detached
-    # copy of `main`, runs the scope's stages in it and removes it. It pushes nothing and writes
-    # only a one-line record in the common git directory, which the `Due` query reads back.
+    # stage, the push gate; a landing asks) or `deep` (quick plus the impacted specs; opt-in). Quick
+    # has its own line, record and bench, so it runs alongside a deep one. A rehearsal checks out a
+    # detached copy of `main`, runs the scope's stages in it and removes it. It pushes nothing and
+    # writes only a one-line record in the common git directory, which the `Due` query reads back.
     class GitRehearsal
       include Reading
 
@@ -41,7 +39,7 @@ module Hecks
       # landed. Benches a killed rehearsal left registered are removed first.
       #
       # @param held [Hash] the `PushRehearsal` record: `checkout`, `branch` (`main` by default) and
-      #   `scope` (a `RehearsalScope` row: `full` by default, `quick` or `deep`)
+      #   `scope` (a `RehearsalScope` row: `quick` by default, or `deep`)
       # @return [Hash{Symbol => Hash}] `outcome:` (`green` or `red`), `rehearsed:` the commit,
       #   `report:` one line per stage saying pass or fail
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, has no such branch,
@@ -57,11 +55,11 @@ module Hecks
       #
       # @param held [Hash] `checkout` (a directory inside the repository)
       # @return [Hash{Symbol => String}] `text:` the commits ahead, the oldest one's age and the
-      #   last rehearsal's result, led by the red-main line while a `red-main-*` row is open
+      #   last rehearsal's result
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository
       def due(**held)
         @checkout = primary(plain(held[:checkout]) || Dir.pwd)
-        { text: RedMainLine.lead + Due.new(@git, @checkout).report }
+        { text: Due.new(@git, @checkout).report }
       end
 
       private
@@ -86,7 +84,7 @@ module Hecks
       def queue = Line.new(@git, @checkout, scope: @scope)
 
       def scope_of(scope)
-        return scope || "full" if scope.nil? || Stages.scopes.include?(scope)
+        return scope || "quick" if scope.nil? || Stages.scopes.include?(scope)
 
         raise ConsoleCapture::Failure, "scope #{scope} is not a rehearsal scope: #{Stages.scopes.join(", ")}"
       end
