@@ -219,7 +219,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
     it "answers that no era is held and changes nothing, however often it is asked", :aggregate_failures do
       expect(store.scaffold_translation(domain: { value: @domain }).fetch(:text)).to include("holds no era yet")
-      expect(store.audit_translation(domain: { value: @domain }).fetch(:text)).to include("hecks hold_first")
+      expect(store.audit_translation(domain: { value: @domain }).fetch(:text)).to include("era.hold_first!")
       expect(sql("SELECT to_regclass('hecks_eras') AS present").first["present"]).to be_nil
     end
 
@@ -379,8 +379,11 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
     before do
       write_domain
-      hold_v1_with_a_record
-      sql("UPDATE hecks_eras SET held_projection = NULL WHERE ordinal = 1")
+      registry = hold_v1_with_a_record
+      # The hold leaves era 1 unnamed; an era that predates its projection was named at its mint,
+      # and the backfill fills a projection only for a text that hashes to that name.
+      name = Hecks::Runtime::StorageShape.mint_hash(registry.bluebooks.values.first)
+      sql("UPDATE hecks_eras SET held_projection = NULL, hash = $1, label = $2 WHERE ordinal = 1", name, name[0, 6])
     end
 
     it "stores the shape for the eras that predate it" do

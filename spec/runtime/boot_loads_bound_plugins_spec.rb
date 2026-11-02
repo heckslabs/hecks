@@ -6,11 +6,14 @@ require "securerandom"
 require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
+require_relative "../support/first_era_hold"
 
 # A domain bound to PostgresEra boots with the era plugin loaded, without the
 # application requiring the plugin file itself. Each example boots in a fresh
 # Ruby process since the plugin registers itself process-wide.
 RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
+  include FirstEraHold
+
   let(:scratch) { Dir.mktmpdir("hecks-bound-plugin-spec") }
   let(:lib) { File.expand_path("../../lib", __dir__) }
 
@@ -166,6 +169,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
 
     it "registers the era gates and boots without the application requiring the plugin", :aggregate_failures do
       write_domain(adapter: "PostgresEra", database: FencedOwner.url(database))
+      hold_domain_eras!(directory: File.join(scratch, "bluebook"), url: FencedOwner.url(database))
 
       seen = run_fresh(full_boot_script)
 

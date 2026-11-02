@@ -257,6 +257,9 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     end
 
     describe Hecks::Adapters::PostgresEra do
+      # A boot never holds era 1 (ADR 0168): hold it on the freshly scrubbed database first.
+      before { fixture.hold_postgres_era!(databases[:postgres_era]) }
+
       def build_adapter(aggregate)
         Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: databases[:postgres_era] })
       end
