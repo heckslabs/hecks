@@ -240,12 +240,11 @@ commit must pass as `RequiredCheck` rows beside them.
   and blocks promotion to `stable`, never the push; a red one files a Work row. `hecks send_train.board!
   --confirm full_gate.value=true` runs the whole `pre_push` stage when you ask for it. Never
   force-push `main`, and never use `--admin`.
-  **The push holds `main`.** `send_train.board!` takes the landing queue's front place from its settlement to the
-  push result, so other `landing.land!` calls wait in line and, after the world's `landing` wait, are refused with
-  "landing is held by the push train"; it also sets the QA quiet marker (`push train holding main`) so `Dispatch.Fill`
-  and the tick start nothing, and clears only its own marker. The place beats a heartbeat and expires after the
-  world's `stale_minutes` if the session dies; a failure releases it and says so in the refusal. Local `main`
-  moving during the hold is refused by name. **A plain `git push` of `main` is refused by the pre-push hook:** the train's own
+  **The push is isolated.** `send_train.board!` pushes the boarded commit, by its id, from a throwaway detached
+  worktree at that commit, so the pre-push hook and the quick gate check exactly what goes out and landings onto
+  local `main` meanwhile are never held and never touch the push; commits that land during it stay local and are
+  named in the report. Pushes serialize on the train's one lock; a remote that moved is fetched and retried, and a
+  commit not built on it is refused by name ("board again"). **A plain `git push` of `main` is refused by the pre-push hook:** the train's own
   push carries `-c hecks.trainCarry=<commit>`, which the hook reads, so any agent pushes `main` by boarding the train. The owner's
   one-off override is `HECKS_OWNER_PUSH=<reason>` (ADR 0132): the hook prints the reason, an empty value does not count, and
   agents never set it or use `--no-verify`. Branch and tag pushes are untouched.

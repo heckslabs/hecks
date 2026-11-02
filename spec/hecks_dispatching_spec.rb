@@ -37,8 +37,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
   end
 
   def adapter(planned, started: [], **standins)
-    described_class.new(settings: { load: -> { 1.5 }, cpus: 4, rows: rows_double(planned, started), runner: runner,
-                          marker: Hecks::Adapters::QaQuiesceMarker.new(path: "/nonexistent/quiesce"), **standins })
+    described_class.new(settings: { load: -> { 1.5 }, cpus: 4, rows: rows_double(planned, started), runner: runner, **standins })
   end
 
   def report(held)
@@ -114,35 +113,6 @@ RSpec.describe Hecks::Adapters::Dispatching do
       failing = ->(argv) { result("", "no", argv[1] != "Work.start!") }
 
       expect(report(held.merge(standins: { runner: failing }))).to include("yielded a: start of a failed")
-    end
-  end
-
-  describe "while the push train holds main" do
-    let(:path) { File.join(Dir.mktmpdir("dispatch-quiet"), "quiesce") }
-    let(:marker) { Hecks::Adapters::QaQuiesceMarker.new(path: path) }
-    let(:held) do
-      { rows: [[row("a", "lib/a")], []], record: { repo: "/repo", confirm: { value: true } }, standins: { marker: marker } }
-    end
-
-    after { FileUtils.remove_entry(File.dirname(path)) }
-
-    before { marker.hold!(owner: "push-train-1", reason: "push train holding main") }
-
-    it "says nothing is started, and why" do
-      expect(report(held)).to include("quiesced: nothing started", "push train holding main")
-    end
-
-    it "starts no session" do
-      report(held)
-
-      expect(calls).to be_empty
-    end
-
-    it "starts the row again once the hold is gone" do
-      marker.release!(owner: "push-train-1")
-      report(held)
-
-      expect(calls).not_to be_empty
     end
   end
 end

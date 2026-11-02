@@ -17,9 +17,6 @@ module Hecks
         # Raised when the wait ran out before the ticket reached the front.
         class Expired < RuntimeError; end
 
-        # Raised when the wait ran out behind a push hold: the push train holds the place.
-        class Held < Expired; end
-
         # What the wait ended with.
         #
         # @!attribute [r] verdict
@@ -79,7 +76,7 @@ module Hecks
         end
 
         def pause(standing, events)
-          raise_expired(standing.ahead) if @until <= clock
+          raise Expired, "waited #{waited} behind #{@last}" if @until <= clock
 
           watcher = Thread.new do
             standing.ahead.last.wait_gone
@@ -88,13 +85,6 @@ module Hecks
           events.pop(timeout: [@line.stale_in(standing.ahead), @until - clock].min)
         ensure
           watcher&.kill
-        end
-
-        def raise_expired(ahead)
-          hold = ahead.find { |held| held.data[:hold] }
-          raise Held, "landing is held by #{@line.wording(hold.data)}; try again after the push" if hold
-
-          raise Expired, "waited #{waited} behind #{@last}"
         end
 
         def announce(ahead)
