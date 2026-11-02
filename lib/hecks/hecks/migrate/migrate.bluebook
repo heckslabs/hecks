@@ -908,6 +908,10 @@ Hecks.bluebook "Hecks" do
         attribute :unchecked,     list_of(Limit), sets: true
         attribute :released,      Switch, sets: true
         attribute :kept,          Report, optional: true, sets: true
+        # Carried, not kept: the rehearsed bluebook's name and the ledger watermark the copy held, plain, as
+        # Maintenance.RecordRehearsalVerdict takes them.
+        attribute :rehearsed_domain, String
+        attribute :watermark,     Integer
 
 
         emits RehearsalAudited
@@ -1035,7 +1039,8 @@ Hecks.bluebook "Hecks" do
                                             rust_rows_examined: :rust_rows_examined,
                                             aggregates_examined: :aggregates_examined, reason: :reason,
                                             parity: :parity, unchecked: :unchecked,
-                                            released: :released, kept: :kept }
+                                            released: :released, kept: :kept,
+                                            rehearsed_domain: :rehearsed_domain, watermark: :watermark }
     end
 
     policy "JudgeWhenNothingWouldStopTheMint" do
@@ -1045,6 +1050,20 @@ Hecks.bluebook "Hecks" do
       end
       trigger RehearsalRun::Judge, with: { verdict: "would_mint", refusal_total: :refusal_total,
                                             edge_present: :edge_present }
+    end
+
+    # A rehearsal that would mint is the record a mint reads: QualityControl's Maintenance keeps the verdict and
+    # the watermark the copy held, so Maintenance.MintEra finds it by this run (the mint plan's watermark guard).
+    # It listens beside Judge, on the same audit and the same condition, because the rehearsal is already five
+    # reactions deep at Judge and a reaction to RehearsalJudged would pass the dispatcher's depth bound.
+    policy "RecordVerdictWhenNothingWouldStopTheMint" do
+      on      "RehearsalRun.RehearsalAudited"
+      where do
+        (minting.value != "next" || edge_present.value) && refusal_total.value == 0
+      end
+      trigger Maintenance::RecordRehearsalVerdict, with: { run: :run, domain: :rehearsed_domain,
+                                                            watermark: :watermark, rehearsal_verdict: "would_mint" }
+      across  "QualityControl"
     end
 
     policy "WithholdWhenNoEdgeLeadsOn" do

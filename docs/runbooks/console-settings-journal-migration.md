@@ -88,17 +88,17 @@ console's environment. Do not print or copy the secret. Do not run these from a 
    - `SELECT count(*), count(DISTINCT ordinal) FROM hecks_journal_console_settings` returns 237, 237.
    - `SELECT label FROM hecks_eras WHERE domain = 'ConsoleSettings' AND ordinal::text = '1'` returns `20d28e`.
    - `SELECT count(*) FROM pg_proc WHERE proname LIKE 'hecks_tr_%'` returns 6.
-5. **Mint the edge (owner's decision; not yet runnable).** Traced read-only:
-   - `RehearsalRun.request!` emits `RehearsalJudged` in the migrate domain, with the verdict.
-   - Nothing turns `RehearsalJudged` into `Maintenance.RecordRehearsalVerdict` (QualityControl). That
-     command emits `RehearsalVerdict`, which the mint guard reads (`watermark_guards.rb`).
-   - So a mint can never find a rehearsal: `MintEra` refuses. The bridge is missing.
+5. **Mint the edge (the owner's decision).**
+   - A rehearsal that would mint now records its verdict where the mint reads it. The policy
+     `RecordVerdictWhenNothingWouldStopTheMint` sends `Maintenance.RecordRehearsalVerdict` to QualityControl,
+     with the run, the domain and the ledger watermark the copy held. It reacts to `RehearsalAudited`, beside
+     `Judge`, because a reaction to `RehearsalJudged` would pass the dispatcher's depth bound of 5.
    - The mint command is `Maintenance.MintEra` in QualityControl. Its launcher verb form is unverified;
-     `hecks --help` here does not list the QA domain's Maintenance commands.
-   Steps once the bridge exists and the owner decides: (a) record the rehearsal's verdict and watermark with
-   `RecordRehearsalVerdict` (run, domain, watermark, rehearsal_verdict); (b) run `MintEra` with the same run,
-   domain `ConsoleSettings`, era 2, the sha of the commit that carries the edge, and `confirm` set; (c) confirm
-   `hecks_eras` has ordinal 2. Do not run either against any copy of platform data on this machine.
+     `hecks --help` does not list the QA domain's Maintenance commands.
+   - Steps, once the owner decides: (a) rehearse with `hecks RehearsalRun.request!` and confirm `would_mint`;
+     the verdict is recorded by the policy, not by hand; (b) run `MintEra` with that run, domain
+     `ConsoleSettings`, era 2, the sha of the commit that carries the edge, and `confirm` set; (c) confirm
+     `hecks_eras` has ordinal 2. Do not run either against any copy of platform data on this machine.
 
 6. **Deploy the console upgrade** through the service roll: `hecks deploy service_roll.run!` with the new
    tag. Use the deploy path, not a raw `docker` command.

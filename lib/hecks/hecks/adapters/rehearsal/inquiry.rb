@@ -82,7 +82,12 @@ module Hecks
         def answer(edge, report, refused, unchecked)
           rows, total = Rows.from(refused)
           edge_facts(edge).merge(refused_rows: rows, refusal_total: plain(total), parity: report.parity,
-                                 unchecked: unchecked).merge(report.facts)
+                                 unchecked: unchecked).merge(report.facts).merge(record_facts)
+        end
+
+        # The domain and the ledger watermark the copy held: what a mint's record of this rehearsal names.
+        def record_facts
+          { rehearsed_domain: @subject.bluebook_name, watermark: @store.watermark(@subject) }
         end
 
         def flag(value) = plain(value)
