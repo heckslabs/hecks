@@ -387,11 +387,12 @@ Hecks.bluebook "Tickets" do
       emits "WorkStarted"
     end
 
-    # The claim's area overlapped another started step's, or it would start more steps than the
-    # cap allows: the WorkAreas or WorkLimits port refuses it by name, and the step goes back to
-    # the plan with the refusal as its reason.
+    # A started step that may not go on goes back to the plan with the refusal as its reason: its
+    # area overlapped another started step's, it would start more steps than the cap allows (the
+    # WorkAreas or WorkLimits port refuses it by name), or the architect's review of its plan said
+    # rethink and the coder session handed it back.
     command "Yield" do
-      goal "Return a step whose area another started step holds, with the refusal"
+      goal "Return a started step to the plan, with the refusal that sent it back"
 
       reference_to Work
       attribute :reason, WorkText, sets: true
