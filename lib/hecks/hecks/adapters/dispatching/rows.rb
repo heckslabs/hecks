@@ -2,6 +2,7 @@
 
 require_relative "../started_work"
 require_relative "plan"
+require_relative "../push_size"
 
 module Hecks
   module Adapters
@@ -13,7 +14,8 @@ module Hecks
           @registry = registry
         end
 
-        # The key prefix of a row that says main is red; such a row is planned first.
+        # The key prefix of a row that says main is red; such a row is planned first, and so is the
+        # `push-due` row once its title says the push is urgent.
         RED = "red-"
 
         # @return [Array<Plan::Row>] the planned rows, red ones first, then in plan order (a row
@@ -33,7 +35,7 @@ module Hecks
 
         private
 
-        def red?(row) = row.key.start_with?(RED)
+        def red?(row) = row.key.start_with?(RED) || (row.key == "push-due" && row.title.start_with?(PushSize::URGENT))
 
         def rows(status)
           work = find("Tickets", "Work")

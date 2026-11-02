@@ -19,10 +19,10 @@ Hecks.world "QualityControl" do
     disposable_ledger true
   end
   # How far local main may drift from origin/main before each tick files the `push-due` Work row:
-  # commits ahead, or hours since the oldest unpushed commit. A red last rehearsal on the current main
-  # files it whatever these say. Without this line the thresholds are
-  # `Hecks::Adapters::PushDueReader::DEFAULTS`, the same numbers.
-  push_nudge "PushDueReader", commits: 20, hours: 24
+  # commits ahead, or hours since the oldest unpushed commit; past `urgent_commits` the row's title says
+  # URGENT and it is planned first. A red last rehearsal on the current main files it whatever these
+  # say. Without this line the thresholds are `Hecks::Adapters::PushSize::DEFAULTS`, the same numbers.
+  push_nudge "PushDueReader", commits: 15, hours: 6, urgent_commits: 40
   # The rehearsal reads a throwaway copy of the ledger, named by an environment variable so the
   # file holds no connection string; the copy is made beforehand and is never this database.
   rehearsed_by("Postgres") do
