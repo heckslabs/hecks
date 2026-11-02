@@ -1,6 +1,8 @@
 # Saga state is as durable as the aggregates it coordinates
 
-**Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02.
+**Status:** Accepted (owner, 2026-11-02) — built. Date: 2026-11-02. Built as
+`Registry::SagaDurabilityRule` (`lib/hecks/runtime/registry/saga_durability_rule.rb`), pinned by
+`spec/runtime/registry/forgetful_saga_refusal_spec.rb`.
 
 ## Context
 
@@ -53,8 +55,8 @@ which has no hecksagon, never sees it.
 - A domain that boots today with durable aggregates and forgetful sagas stops booting, with a message
   that names the fix, where today it boots and can lose a compensation on its first restart.
 - `spec/runtime/registry/saga_persistence_spec.rb`'s bare-domain example keeps passing: a bluebook with
-  no world resolves to Memory, and Memory answers the null store. A new example covers a domain with no
-  hecksagon and a world `default_adapter` that answers `save_saga`. The warning specs above keep
+  no world resolves to Memory, and Memory answers the null store. `forgetful_saga_refusal_spec.rb` covers a
+  domain with no hecksagon and a world `default_adapter` that answers `save_saga`. The warning specs above keep
   passing for all-Memory domains.
 - The check sits beside the other boot refusals (`registry/hecksagon_rules.rb`, the boot gates of
   ADR 0031) and reads binds only through `BindingPolicy`, so attached domains resolve through their

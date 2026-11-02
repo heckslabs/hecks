@@ -73,8 +73,10 @@ module Hecks
           @state.saga_instances[process_manager][correlation][:stalled] = pending.transform_keys(&:to_sym)
         end
 
+        # A domain with no hecksagon resolves the same way: its world's `default_adapter` may keep
+        # its records, and then it keeps its sagas too (ADR 0170).
         def resolve_saga_persistence(domain)
-          anchor = hecksagon(domain) && bluebook(domain)&.aggregates&.first
+          anchor = bluebook(domain)&.aggregates&.first
           return Ports::Persistence::NULL_SAGA_STORE unless anchor
 
           persisting_adapter(domain, anchor)
