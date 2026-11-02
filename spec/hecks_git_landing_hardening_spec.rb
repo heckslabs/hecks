@@ -185,6 +185,34 @@ RSpec.describe Hecks::Adapters::GitLanding do
     expect(File.exist?(File.join(tree, "x.log"))).to be(true)
   end
 
+  describe "a branch main carries under other commit ids" do
+    it "is retired when every commit has a patch-equivalent on main", :aggregate_failures do
+      build_repo("work/a", "a.rb", "b.rb")
+      git("cherry-pick", "work/a~1", "work/a")
+
+      expect(retire.dig(:report, :value)).to include("and deleted work/a")
+      expect(File.exist?(tree)).to be(false)
+      expect(branch?("work/a")).to be(false)
+    end
+
+    it "is kept when one commit has no patch-equivalent, counting only that one", :aggregate_failures do
+      build_repo("work/a", "a.rb", "b.rb")
+      git("cherry-pick", "work/a~1")
+
+      expect { retire }.to raise_error(failure, /it has 1 commit\(s\) not on main/)
+      expect(File.directory?(tree)).to be(true)
+      expect(branch?("work/a")).to be(true)
+    end
+
+    it "is kept when main holds the same files from a different change", :aggregate_failures do
+      build_repo("work/a", "a.rb")
+      commit(repo, "a.rb", "other text")
+
+      expect { retire }.to raise_error(failure, /it has 1 commit\(s\) not on main/)
+      expect(branch?("work/a")).to be(true)
+    end
+  end
+
   describe "the rival check" do
     def holds(*area) = allow(Hecks::Adapters::StartedWork).to receive(:rows).and_return([{ key: "other", area: area }])
 
