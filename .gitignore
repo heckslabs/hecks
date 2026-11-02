@@ -53,6 +53,9 @@ coverage/
 !.claude/agents/
 # The repo's permission rules, shared by every clone: the deny list that keeps a coding session on the hecks binary.
 !.claude/settings.json
+# The restricted door the MCP-only agents start: its launcher, its sandbox profile, and the all-mode switch.
+!.claude/hecks-door/
+.claude/hecks-door/ALL_ENABLED
 
 # What the release workflow builds into the gem (caches keyed by lib/); never committed.
 /prebuilt/
