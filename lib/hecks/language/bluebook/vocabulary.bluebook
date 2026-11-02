@@ -1010,8 +1010,8 @@ Hecks.bluebook "Bluebook" do
     # What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalStage` is one
     # step: `kind` is `gate` (the `GateStage` named by `argument` runs) or `impacted` (the specs
     # the push's changes touch, capped by the local spec limit). A `RehearsalScope` lists, in the order they run, the steps a rehearsal of
-    # that scope runs. `quick` is what a landing asks for; `full` is what a push needs; `deep` adds
-    # the impacted specs and runs only when asked for (`scope.value=deep`). Owner decision: the full
+    # that scope runs. `quick` is what a landing asks for and the train's push gate; `deep` adds the
+    # impacted specs and runs only when asked for (`scope.value=deep`). Owner decision: the full
     # spec suite runs only in CI, so no scope runs it and only `deep` runs any impacted specs.
     value_object "RehearsalStage" do
       attribute :name, String
@@ -1027,7 +1027,6 @@ Hecks.bluebook "Bluebook" do
       attribute :stages, String
 
       member name: "quick", stages: "quick"
-      member name: "full", stages: "quick"
       member name: "deep", stages: "quick,impacted"
     end
 

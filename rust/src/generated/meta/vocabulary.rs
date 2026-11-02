@@ -5178,10 +5178,6 @@ pub const REHEARSAL_SCOPE: &[RehearsalScope] = &[
         stages: "quick",
     },
     RehearsalScope {
-        name: "full",
-        stages: "quick",
-    },
-    RehearsalScope {
         name: "deep",
         stages: "quick,impacted",
     },
@@ -5241,7 +5237,7 @@ impl RehearsalScope {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "RehearsalScope",
-                admitted: &["quick", "full", "deep"],
+                admitted: &["quick", "deep"],
                 offered: offered.as_str(),
             }
             .render_args(),
