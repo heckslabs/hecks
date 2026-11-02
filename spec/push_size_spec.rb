@@ -130,7 +130,7 @@ RSpec.describe Hecks::Adapters::PushSize, :io do
     it "never refuses a push, at any size" do
       commits(60)
       carriage = Hecks::Adapters::GitTrain::Carriage.new(Hecks::Adapters::Git.new, work, branch: "main", remote: "origin")
-      answer = carriage.under_hold.carry(git("rev-parse", "main"))
+      answer = carriage.carry(git("rev-parse", "main"))
 
       expect(answer.dig(:outcome, :value)).to eq("pushed")
     end
