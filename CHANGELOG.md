@@ -77,6 +77,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 ### Fixed
 
 - **Rust and the fixtures follow Ruby.** `hecks-parse world` binds a verb that names no adapter (`stored_as`, `minting`), `rust/parser` is clippy-clean, and `banking.json` is reseeded for a String query argument given a value object, which is a `TypeMismatch` on both runtimes.
+- **Fuzz sweeps domains, not module folders.** A module folder's bluebook opens a `domain_module` of its parent and cannot boot alone; Coder declares its Governance sibling so it boots alone.
+- **Provisioning holds the first era in a new tenant schema before it boots.**
 - **A disposable ledger re-holds under the world's `stored_as` names**, so a renamed aggregate's heads are no longer provisioned under its bluebook name.
 - **`ReleasePR` carries `verdict`, not `state`**, so QualityControl no longer warns that an attribute shadows a built-in on every boot.
 - **Rust refusal order and wording follow Ruby (BUG#153 to BUG#155).** A reference a command sets through a plain value object is checked at save, beside the tenant boundary; an entity command whose element identity is absent refuses the missing parent first; and a reference argument that is not an id string refuses as `reference_wrong_shape`.
