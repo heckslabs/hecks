@@ -94,7 +94,7 @@ th { color: var(--ink2); font-size: 12px; }
       <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
       <span><b style="color:var(--critical)">&#10005;</b> refused</span>
       <span>a line rests in its domain's colour, lights in the outcome's colour when a message crosses it, and fades over 20 s</span>
-      <span>each context is one block with its aggregate count; click a block to open it, click its name to close it; scroll to zoom (zooming in opens everything), drag to pan</span>
+      <span>each context is one block with its aggregate count; click a block to open it, click its name to close it; scroll to zoom (zooming in opens everything), drag to pan; packed shapes move aside under the pointer, and a click opens the sidebar</span>
     </div>
     <div class="legend" id="domains"></div>
     <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
@@ -239,7 +239,22 @@ function fit() {
   view.x = r.width / 2 - (Math.max(...xs) + Math.min(...xs)) / 2 * view.s;
   view.y = r.height / 2 - (Math.max(...ys) + Math.min(...ys)) / 2 * view.s;
 }
-const sx = (n) => n.x * view.s + view.x, sy = (n) => n.y * view.s + view.y;
+/* A node's place on screen, plus the scoot: nodes within reach of the cursor ease away from it radially,
+   so a packed cluster opens under the pointer and closes when it leaves. The lines follow. */
+const sx = (n) => n.x * view.s + view.x + (n.ox || 0), sy = (n) => n.y * view.s + view.y + (n.oy || 0);
+const SCOOT_REACH = 90, SCOOT_PUSH = 0.6;
+let cursor = null;
+function scoot() {
+  for (const n of nodes) {
+    let tx = 0, ty = 0;
+    if (cursor && !blocks.has(keyOf(n)) && !reduceMotion) {
+      const bx = n.x * view.s + view.x, by = n.y * view.s + view.y, dx = bx - cursor.x, dy = by - cursor.y, d = Math.hypot(dx, dy);
+      if (d < SCOOT_REACH && d > 0.5) { const push = (SCOOT_REACH - d) * SCOOT_PUSH; tx = dx / d * push; ty = dy / d * push; }
+    }
+    n.ox = (n.ox || 0) + (tx - (n.ox || 0)) * 0.22; n.oy = (n.oy || 0) + (ty - (n.oy || 0)) * 0.22;
+  }
+}
+const scooted = (n) => Math.hypot(n.ox || 0, n.oy || 0) > 6;
 /* ---- zoom with the wheel around the cursor, pan by dragging, or use the buttons ---- */
 function zoomAt(mx, my, k) { view.x = mx - (mx - view.x) * k; view.y = my - (my - view.y) * k; view.s *= k; touched = true; }
 function zoomCentre(k) { const r = canvas.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, k); }
@@ -398,13 +413,15 @@ function strokeEdge(from, to, own, litAt, width, colour, now, dim) {
 function draw(now) {
   const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); placed = []; captions = [];
   blocks = new Map(); for (const k of contexts) if (!open(k)) { const b = blockOf(k); if (b) blocks.set(k, b); }
+  scoot();
   separate([...blocks.values()]);
   if (showBounds) drawBounds(now);
   drawEdges(now);
   for (const b of blocks.values()) drawBlock(b, now);
   for (const n of nodes) if (!blocks.has(keyOf(n))) drawNode(n, now);
   drawParticles(now);
-  if (view.s >= fitScale * 2.2) for (const n of nodes) if (!blocks.has(keyOf(n)) && !(pulses.get(n.id) > now)) label(n, false, true);
+  const named = view.s >= fitScale * 2.2;
+  for (const n of nodes) if (!blocks.has(keyOf(n)) && !(pulses.get(n.id) > now) && (named || scooted(n))) label(n, false, true);
   if (hover && !blocks.has(keyOf(hover))) label(hover, true);
   requestAnimationFrame(draw);
 }
@@ -486,6 +503,7 @@ function renderTable() {
 }
 canvas.addEventListener("mousemove", (e) => {
   const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  cursor = drag ? null : { x: mx, y: my };
   hover = nodes.find((n) => !blocks.has(keyOf(n)) && Math.hypot(sx(n) - mx, sy(n) - my) < 10) || null;
   const onBlock = [...blocks.values()].some((b) => Math.abs(mx - b.x) < b.w / 2 && Math.abs(my - b.y) < b.hgt / 2);
   canvas.style.cursor = drag ? "grabbing" : hover || onBlock ? "pointer" : "grab";
@@ -494,7 +512,7 @@ $("all").addEventListener("click", () => { allOpen = !allOpen; if (!allOpen) exp
 $("fit").addEventListener("click", fit);
 $("zin").addEventListener("click", () => zoomCentre(1.4));
 $("zout").addEventListener("click", () => zoomCentre(1 / 1.4));
-canvas.addEventListener("mouseleave", () => { hover = null; });
+canvas.addEventListener("mouseleave", () => { hover = null; cursor = null; });
 $("toggle").addEventListener("click", () => { const on = document.body.classList.toggle("tables-only"); $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show diagram" : "Show table"; });
 $("replay").addEventListener("click", () => replay(backlog.slice(-12), false));
 $("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
