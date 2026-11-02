@@ -207,12 +207,6 @@ Hecks.behaviors "Codebase" do
     expect emits: %w[ClearCachesRequested TestSuiteExamined TestSuiteAccepted TestSuiteAnswered TestSuiteCompleted]
   end
 
-  test "RefreshRuntimeBaseline refuses a run that is not a number" do
-    tests "RefreshRuntimeBaseline", on: "TestSuiteRun"
-    input from_run: { value: "latest" }, run: { value: "baseline" }
-    expect refused: "must match"
-  end
-
   test "RegenerateLegacyFixtures reports what it would rewrite, and rewrites nothing, without confirm" do
     tests "RegenerateLegacyFixtures", on: "TestSuiteRun"
     input run: { value: "fixtures" }

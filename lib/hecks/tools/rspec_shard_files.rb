@@ -1,16 +1,17 @@
 # frozen_string_literal: true
 
-require "parallel_tests/test/runner"
+require_relative "shard_planner"
 
 module Hecks
   module Tools
     # The command behind `hecks shard_specs`: prints the spec files assigned to one group
-    # (1-indexed) of a runtime-balanced N-way split. `rspec_shard` in ci-rspec.yml passes the
-    # committed runtime baseline so every leg agrees.
+    # (1-indexed) of an N-way split by the shared `ShardPlanner`. It is the split a leg of
+    # `rspec_shard` in ci-rspec.yml falls back on when the plan job's plan cannot be read; with no
+    # runtime log it balances by file size, which every leg computes alike.
     #
     # It does not use `parallel_rspec --only-group`, which forces one process per leg; this suite
-    # is CPU-bound, so each leg would use one of four vCPUs. The group's list comes from
-    # `tests_in_groups`, leaving `parallel_rspec` its own workers.
+    # is CPU-bound, so each leg would use one of four vCPUs. The group's list comes from the
+    # planner, leaving `parallel_rspec` its own workers.
     module RspecShardFiles
       USAGE = "usage: hecks shard_specs <group 1-indexed> <num_groups> [runtime_log_path]"
 
@@ -60,21 +61,17 @@ module Hecks
               "refusing to hand parallel_rspec nothing to run"
       end
 
-      # Splits the files by recorded runtime, falling back to file size on a cold cache.
-      #
-      # `allowed_missing_percent` covers gaps inside a log, not a missing file (`Runner.runtimes`
-      # raises `Errno::ENOENT`).
+      # Splits the files by the seconds in the runtime log when one is given and exists, and by file
+      # size otherwise.
       #
       # @param files [Array<String>] the spec files, relative to the checkout
       # @param num_groups [Integer] how many groups to split into
-      # @param runtime_log [String, nil] the runtime log's path, used when the file exists
+      # @param runtime_log [String, nil] a log of `path:seconds` lines, used when the file exists
       # @return [Array<Array<String>>] the files of each group
       def groups_of(files, num_groups, runtime_log)
-        options = { group_by: :runtime, allowed_missing_percent: 100 }
-        options[:runtime_log] = runtime_log if runtime_log && File.exist?(runtime_log)
-        ParallelTests::Test::Runner.tests_in_groups(files, num_groups, **options)
-      rescue Errno::ENOENT
-        ParallelTests::Test::Runner.tests_in_groups(files, num_groups, group_by: :filesize)
+        table = runtime_log && File.exist?(runtime_log) ? ShardPlanner.parse(File.read(runtime_log)) : {}
+        prices = ShardPlanner.prices(files, table, ->(file) { File.size(file) })
+        ShardPlanner.partition(files, num_groups, prices)
       end
     end
   end

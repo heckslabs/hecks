@@ -18,4 +18,26 @@ Hecks.hecksagon "CiSpeed" do
       refuses "ExperimentRefused"
     end
   end
+
+  # Finds the timings the newest successful main run recorded for a family's files. The adapter
+  # reads a directory of logs or downloads them through `gh`, and refuses when it finds none; the
+  # bluebook never says which.
+  CiSpeed::ShardPlan.port "TimingsSource" do
+    asks "Fetch", to: ShardPlan do
+      attribute :name, PlanName
+      answers "TimingsFetched"
+      refuses "TimingsUnavailable"
+    end
+  end
+
+  # Splits a family's files among its shards by price (timings, or size) and writes the plan.
+  CiSpeed::ShardPlan.port "Planner" do
+    asks "Partition", to: ShardPlan do
+      attribute :name,    PlanName
+      attribute :source,  PlanSource
+      attribute :timings, Timings
+      answers "ShardPlanned"
+      refuses "PlanRefused"
+    end
+  end
 end

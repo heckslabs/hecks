@@ -2,7 +2,6 @@ require "spec_helper"
 require "json"
 require "hecks/hecks/adapters/codebase/source_tree"
 require "hecks/tools/pattern_cases"
-require "hecks/tools/refresh_rspec_runtime_baseline"
 require "hecks/tools/rspec_io_parallel_files"
 require "hecks/tools/rspec_shard_files"
 require "hecks/tools/seed_semantics_corpus"
@@ -73,34 +72,6 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
       cases = JSON.parse(query("record_pattern_cases", {}, nil))
 
       expect(cases.first.keys).to eq(%w[pattern input matches])
-    end
-  end
-
-  describe "the baseline" do
-    it "reports what it would rewrite and runs nothing unless confirmed", :aggregate_failures do
-      calls = command_double(Hecks::Tools::RefreshRspecRuntimeBaseline)
-
-      report = suite("refresh_runtime_baseline", { from_run: word("42") }, nil)
-
-      expect(report).to start_with("dry run, would read CI run 42's timings and rewrite .github/")
-      expect(calls).to be_empty
-    end
-
-    it "reads one CI run's timings when confirmed with a run", :aggregate_failures do
-      calls = command_double(Hecks::Tools::RefreshRspecRuntimeBaseline)
-
-      suite("refresh_runtime_baseline", { from_run: word("42"), confirm: word(true) }, nil)
-
-      expect(calls.first.first).to eq([["--from-run", "42"]])
-      expect(calls.first.last).to include(root: tree.root)
-    end
-
-    it "times a local run with the workers named, when confirmed" do
-      calls = command_double(Hecks::Tools::RefreshRspecRuntimeBaseline)
-
-      suite("refresh_runtime_baseline", { workers: word(3), confirm: word(true) }, nil)
-
-      expect(calls.first.first).to eq([["3"]])
     end
   end
 

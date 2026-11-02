@@ -367,10 +367,16 @@ runs cold. Before adding a spec or a step, check where it runs:
   disk prices banking and deploy in other proportions than a runner's and the legs split
   worse. A file that parallel_tests cannot split (one spec file) sets a shard's length, so
   split the file.
-- **Refresh the runtime baselines when you add io spec files**:
-  `exe/hecks test_suite_run.refresh_runtime_baseline! from_run=<a green CI run id> --confirm --wait`,
-  then `test_suite_run.write_io_parallel_spec_list!`. Shards group by these logs, and a
-  file missing from them lands wherever it lands. The specs that need `rust/parser` stay
+- **The rspec and Postgres io shards are balanced per run, not from a committed baseline.** A
+  `shard_plan` job (`postgres_io_shard_plan` in the Postgres workflow) runs the CiSpeed bluebook's
+  `ShardPlan.Request` through `Operation.run!`: it reads the per-file timings the shard legs uploaded
+  as artifacts on the newest successful `main` run, splits the files once with the shared
+  `Hecks::Tools::ShardPlanner` (longest processing time first) and publishes the plan; every leg
+  reads that plan. When no timing can be read (no previous run, expired artifacts, an API error)
+  the `PlanBySizeWhenTimingsUnavailable` policy plans by file size and the run does not fail. The
+  plan job's summary and the `shard-plan-trace-*` artifact list each event and the policy that
+  reacted. When you add io spec files run `test_suite_run.write_io_parallel_spec_list!`; a file with
+  no timing is priced at the median. The specs that need `rust/parser` stay
   in `IO_PARALLEL_EXCLUDE_PATTERN`, or the Postgres shards skip them and the skip backstop
   fails; the file-list check runs only on pull requests, so a stale list shows on a PR first.
 - **A fast green on `main` may be a skipped green.** A push of an attested tree skips the

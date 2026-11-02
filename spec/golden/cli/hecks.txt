@@ -205,7 +205,6 @@ commands:
     interview!                    Hold an interview with a subject matter expert and draft a first domain from it
   TestSuiteRun:
     One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
-    refresh_runtime_baseline!     Regenerate the committed runtime baselines the sharded jobs group from
     run_spec_example!             Run one spec file filtered to one example, through the test runner in this process
     run_spec_files!               Run several spec files in one launcher boot, each in a new process or all in one, and report each file
     run_impacted_specs!           Map the branch's changed files to the specs they touch and run them, or list them when dry

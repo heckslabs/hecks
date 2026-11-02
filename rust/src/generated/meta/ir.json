@@ -34409,7 +34409,7 @@
               ],
               [
                 "script",
-                "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed). CI's committed baseline leaves out the io\n# specs this run includes, so it only seeds the first run; each run then rewrites the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\n[ -f \"$log\" ] || cp .github/rspec_runtime_baseline.log \"$log\"\nbundle exec parallel_rspec spec -n {workers} --group-by runtime --runtime-log \"$log\" --allowed-missing 100 \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n"
+                "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n"
               ],
               [
                 "blocked",
@@ -38188,24 +38188,6 @@
               [
                 "verb",
                 "write_io_parallel_spec_list"
-              ]
-            ],
-            [
-              [
-                "script",
-                "refresh_rspec_runtime_baseline"
-              ],
-              [
-                "section",
-                "Codebase"
-              ],
-              [
-                "aggregate",
-                "TestSuiteRun"
-              ],
-              [
-                "verb",
-                "refresh_runtime_baseline"
               ]
             ],
             [
