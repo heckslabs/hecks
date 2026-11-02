@@ -37,8 +37,33 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
   after { FileUtils.rm_rf(scratch) }
 
   describe "#locate" do
-    it "says a directory is there" do
-      expect(adapter.locate(repo: { value: scratch })).to eq(report: { value: "#{scratch} is a directory" })
+    # Answers a probe for an agent it does not have as `claude` does, naming the agents it has.
+    LISTING = "#!/bin/sh\necho \"--agent '$2' not found. Available agents: claude, Explore, coder\" >&2\nexit 1\n".freeze
+
+    it "says a directory is there, and that with no agent named there is nothing to look for" do
+      expect(adapter.locate(repo: { value: scratch }))
+        .to eq(report: { value: "#{scratch} is a directory" }, listed: true,
+               note: "no agent named: the session runs the default agent")
+    end
+
+    it "says an agent the directory's claude lists is listed" do
+      install(LISTING)
+
+      expect(adapter.locate(repo: { value: scratch }, agent: { value: "coder" })).to include(listed: true)
+    end
+
+    it "says an agent it does not list is not, naming the ones it does" do
+      install(LISTING)
+
+      expect(adapter.locate(repo: { value: scratch }, agent: { value: "nope" }))
+        .to include(listed: false, note: "agent nope is not available in #{scratch}; available: claude, Explore, coder")
+    end
+
+    it "refuses when claude names no agents, saying what it said" do
+      install("#!/bin/sh\necho something else\nexit 1\n")
+
+      expect { adapter.locate(repo: { value: scratch }, agent: { value: "coder" }) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /listed no agents: something else/)
     end
 
     it "refuses a directory that is not there" do
@@ -78,20 +103,38 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     end
   end
 
-  describe "#examine" do
-    before { listing({ id: "abc123", sessionId: "full-abc123", state: "busy" }, { id: "def456", state: "done" }) }
+  describe "#read_job" do
+    let(:jobs) { File.join(scratch, "jobs") }
+    let(:adapter) { described_class.new(settings: { command: stand_in, jobs: jobs, settle: 0 }) }
 
-    it "answers the state a session reports, found by id" do
-      expect(adapter.examine(session: { value: "def456" })).to eq(condition: "done")
+    def job(state, detail)
+      FileUtils.mkdir_p(File.join(jobs, "abc123"))
+      File.write(File.join(jobs, "abc123", "state.json"), JSON.generate(state: state, detail: detail))
     end
 
-    it "finds a session by its full session id" do
-      expect(adapter.examine(session: { value: "full-abc123" })).to eq(condition: "busy")
+    def read(**held) = adapter.read_job(session: { value: "abc123" }, repo: { value: scratch }, **held)
+
+    it "answers the job's state and detail, the held condition, and the directory with its slash" do
+      job("blocked", "which branch?")
+
+      expect(read(condition: { value: "working" }))
+        .to eq(state: "blocked", detail: "which branch?", previous: "working", checkout: "#{scratch}/")
     end
 
-    it "refuses a session that is not listed" do
-      expect { adapter.examine(session: { value: "zzz" }) }
-        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no session zzz is listed/)
+    it "answers an empty previous state for a run that has recorded none" do
+      job("working", nil)
+
+      expect(read).to include(previous: "", detail: "")
+    end
+
+    it "refuses a session that has no job" do
+      expect { read }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no job state at .*abc123/)
+    end
+
+    it "reads the same way once a new session has settled" do
+      job("failed", "exit 1 before init")
+
+      expect(adapter.await_job(session: { value: "abc123" }, repo: { value: scratch })).to include(state: "failed")
     end
   end
 end

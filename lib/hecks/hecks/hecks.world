@@ -84,6 +84,7 @@ Hecks.world "Hecks" do
                        renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take", "checkout.log" => "workspace.history" },
                        names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
+                                "agent_run.check_all" => "session_sweep.check_all",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],

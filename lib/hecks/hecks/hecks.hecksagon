@@ -96,6 +96,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Where a boarding's outcome is recorded: the boarded checkout's own launcher records it in that
+  # checkout's store. The train's own store stays Memory.
+  Hecks::SendTrain.port "PushRecords" do
+    asks "RecordOutcome", to: SendTrain do
+      attribute :run, RunKey
+      answers "OutcomeRecorded"
+      refuses "OutcomeUnrecorded"
+    end
+  end
+
   Hecks::PushRehearsal.port "Rehearsing" do
     asks "Trial", to: PushRehearsal do
       attribute :run, RunKey
@@ -283,8 +293,8 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  # The outside an agent run reaches: it finds the directory, starts the background session, and
-  # reports the state the session is in. The state is judged in the bluebook, not here.
+  # The outside an agent run reaches: it finds the directory and the agents, starts the background
+  # session, and reports the state its job is in. The state is judged in the bluebook, not here.
   Hecks::AgentRun.port "Agents" do
     asks "Locate", to: AgentRun do
       attribute :run, RunKey
@@ -298,10 +308,18 @@ Hecks.hecksagon "Hecks" do
       refuses "StartRefused"
     end
 
-    asks "Examine", to: AgentRun do
+    # The state a session's job is in, with the state the run last recorded beside it.
+    asks "ReadJob", to: AgentRun do
       attribute :run, RunKey
-      answers "SessionChecked"
-      refuses "CheckRefused"
+      answers "JobRead"
+      refuses "JobUnread"
+    end
+
+    # The same reading, taken once a just-started session has had a few seconds to fail.
+    asks "AwaitJob", to: AgentRun do
+      attribute :run, RunKey
+      answers "JobRead"
+      refuses "JobUnread"
     end
 
     # Whether a person took the session over is a fact about its transcript; the bluebook judges it.
