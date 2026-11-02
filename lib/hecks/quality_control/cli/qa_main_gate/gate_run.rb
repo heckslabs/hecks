@@ -7,7 +7,7 @@ module Hecks
     class QaMainGate
       # Runs the quick gate's checks in a directory, all at once, and says which passed. The checks are
       # the `GateStage` rows of the Vocabulary bluebook, so a red check is reported with the output it
-      # printed, the same way `hecks gate quick` reports one.
+      # printed, the same way `hecks gate_run.gate! stage=quick` reports one.
       module GateRun
         # One check of the quick gate after it ran.
         #

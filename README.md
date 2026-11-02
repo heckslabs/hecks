@@ -489,7 +489,7 @@ account.status          # => "open"
 To run a scripted step list instead of a REPL, writing to the same files:
 
 ```sh
-bundle exec hecks run examples/banking spec/corpus/banking.json
+bundle exec hecks operation.run! subject.value=examples/banking script.value=spec/corpus/banking.json
 ```
 
 ## Why this architecture matters
@@ -500,7 +500,7 @@ Only what this repository actually does today, checked, not aspired to:
   closed set of declared verbs (`sets`, `increment`/`decrement`,
   `append`); every refusal is a named `given` or invariant. There is no
   code path that mutates state outside `sets`.
-- **Static verification.** `hecks model_check` runs structural analysis
+- **Static verification.** `hecks model_check_run.model_check!` runs structural analysis
   over a domain's own IR — unreachable lifecycle states, transitions
   nothing can fire, saga states no handler chain reaches — before
   anything boots against real data.
@@ -701,7 +701,7 @@ hecksagon with `attaches "<name>", from: :vendor`, the same way
 Issues, examples, and runtime/adapter work are all welcome — the gaps
 in [Project status](docs/implemented/guides/project-status.md) are real
 starting points, not a formality.
-Before sending a change: `bundle exec rspec`, `hecks model_check`, and
+Before sending a change: `bundle exec rspec`, `hecks model_check_run.model_check!`, and
 `hecks fuzz_run.fuzz!` are what CI runs, and every `ruby`-fenced example in a guide
 or this README not tagged `skip` or `excerpt` is expected to execute exactly as shown
 (`spec/guides_spec.rb`). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for
@@ -709,7 +709,7 @@ the full checklist. To check the whole claim, not just the demo:
 
 ```sh
 bundle exec rspec       # the whole suite
-bundle exec hecks model_check   # static analysis over a domain's IR
+bundle exec hecks model_check_run.model_check!   # static analysis over a domain's IR
 bundle exec hecks fuzz_run.fuzz!          # generated sequences, checked against declared properties
 ```
 

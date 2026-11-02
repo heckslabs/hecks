@@ -215,7 +215,7 @@ bundle exec rspec spec/fuzzing/meta_domain_coverage_spec.rb --tag fuzzing   # ne
 bundle exec rspec spec/round_trip_spec.rb                  # Reconstruction returns every ir_spec key
 bundle exec rspec                                            # full suite
 hecks measure_doc_coverage
-hecks model_check
+hecks model_check_run.model_check!
 ```
 
 If you migrated real corpus text, write the doc prose demonstrating it

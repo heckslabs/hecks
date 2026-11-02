@@ -89,7 +89,7 @@ body:
     attributes:
       label: Anything else
       description: >
-        Output of `hecks model_check` or `hecks fuzz_run.fuzz!` if you ran either
+        Output of `hecks model_check_run.model_check!` or `hecks fuzz_run.fuzz!` if you ran either
         against this domain, or anything else that narrowed it down.
     validations:
       required: false
