@@ -107,9 +107,20 @@ module Hecks
           end
         end
 
+        # The live tickets behind one, in order.
+        #
+        # @param ticket [Ticket] the holder
+        # @return [Array<Ticket>] those that joined after it and are still held by a process
+        def behind(ticket)
+          guarded { tickets.select { |other| other.sequence > ticket.sequence && other.held? } }
+        end
+
         # @param data [Hash] a ticket's record
-        # @return [String] its branch and how long it has been at the front
+        # @return [String] its branch and how long it has been at the front; a push hold says the
+        #   push train and since when
         def wording(data)
+          return hold_wording(data) if data[:hold]
+
           minutes = ((now.to_f - data.fetch(:turn_at) { data[:at] }.to_f) / 60).floor
           "#{data[:branch]} (landing for #{minutes} minute#{"s" unless minutes == 1})"
         end
@@ -126,6 +137,11 @@ module Hecks
         private
 
         def now = @clock.call
+
+        def hold_wording(data)
+          since = Time.at(data.fetch(:turn_at) { data[:at] }.to_f).utc.strftime("%H:%M:%SZ")
+          "the push train (#{data[:branch]}, since #{since})"
+        end
 
         def fed_by?(ticket)
           File.exist?(legacy) && JSON.parse(File.read(legacy))["token"] == ticket.name

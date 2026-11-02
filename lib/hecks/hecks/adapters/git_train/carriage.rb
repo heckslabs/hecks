@@ -34,6 +34,14 @@ module Hecks
           @config = config
         end
 
+        # Says the push hold is kept, so a branch that moved is named as a hold broken.
+        #
+        # @return [Carriage] self
+        def under_hold
+          @held = true
+          self
+        end
+
         # @return [String] the commit the local branch names now
         # @raise [ConsoleCapture::Failure] when there is no such branch
         def local_head = read("rev-parse", "--verify", "refs/heads/#{@branch}^{commit}")
@@ -59,8 +67,13 @@ module Hecks
           now = local_head
           return if now == boarded
 
-          raise ConsoleCapture::Failure,
-                "#{@branch} moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"
+          raise ConsoleCapture::Failure, moved_words(boarded, now)
+        end
+
+        def moved_words(boarded, now)
+          return "#{@branch} moved from #{short(boarded)} to #{short(now)} during the push hold: board again" if @held
+
+          "#{@branch} moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"
         end
 
         def finish(answer, boarded)
