@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "git_main_pull"
 require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
@@ -17,6 +18,7 @@ module Hecks
     # that holds uncommitted work or a branch with commits `main` lacks, so no unpushed work goes.
     class GitLanding
       include GitWorktrees
+      include GitMainPull
 
       # Accepts the arguments every driven adapter is built with; only the registry and the
       # overrides are kept.
@@ -133,6 +135,7 @@ module Hecks
 
       def land_alone(branch, onto, note)
         refuse_unsaved(branch)
+        refuse_stale_base(branch) if onto == "main"
         refuse_rival(branch, onto)
         said = tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto)
         note ? said.merge(report: { value: "#{said[:report][:value]}; #{note}" }) : said

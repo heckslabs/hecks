@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../git_worktrees"
+require_relative "../git_main_pull"
 require_relative "../shell"
 
 module Hecks
@@ -14,6 +15,7 @@ module Hecks
       # {GitLanding#merge}'s.
       class Finisher
         include GitWorktrees
+        include GitMainPull
 
         # The command that runs the seconds-long checks in a worktree.
         GATE = %w[exe/hecks gate_run.gate! stage=quick --wait].freeze
@@ -34,13 +36,14 @@ module Hecks
           @gate = gate || ->(dir) { Shell.new.capture(*GATE, chdir: dir) }
         end
 
-        # Refuses unsaved work, rebases and runs the gate.
+        # Refuses unsaved work, pulls `main` when it is the target, rebases and runs the gate.
         #
         # @return [void]
         # @raise [ConsoleCapture::Failure] naming the step that failed: unsaved work, conflict or
         #   gate red
         def prepare
           refuse_unsaved
+          pull_main if @onto == "main"
           rebase
           run_gate
         end

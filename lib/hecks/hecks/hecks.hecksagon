@@ -163,6 +163,12 @@ Hecks.hecksagon "Hecks" do
       answers "CreateAnswered"
       refuses "CreateRefused"
     end
+
+    asks "Pull", to: LinkedTree do
+      attribute :run, RunKey
+      answers "PullAnswered"
+      refuses "PullRefused"
+    end
   end
 
   Hecks::Landing.port "Worktrees" do

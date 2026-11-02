@@ -11,7 +11,8 @@ module Hecks
     class Dispatching
       # Starts one chosen row's session by running the launcher's own commands, so each step is the
       # bluebook's command and nothing is written but through one: start the Work row, compose its
-      # brief, hand the brief to `AgentRun`. A step that fails yields the row back to the plan.
+      # brief, hand the brief to `AgentRun`. Before any of them, pull main (`LinkedTree.PullMain`),
+      # so a session never starts from a stale base. A step that fails yields the row to the plan.
       class Launcher
         # The claimant every dispatched row names.
         CLAIMANT = "dispatch"
@@ -33,6 +34,7 @@ module Hecks
         # @param limit [Integer, nil] the most spec files a session runs per call, from the world
         # @return [String] one line: the session started, or why the row went back to the plan
         def launch(row, held:, frozen:, minutes:, limit: nil)
+          step(row, "pull main", pull_argv)
           step(row, "start", start_argv(row, minutes))
           text = BriefText.new(composed(row)).render(row.key, area: row.area, held: held, frozen: frozen, limit: limit)
           step(row, "dispatch", dispatch_argv(row, text))
@@ -71,6 +73,9 @@ module Hecks
         end
 
         def said(result) = (result.err.empty? ? result.out : result.err).strip[0, 300]
+
+        # Local `main` current before the session starts, so no worktree is cut from a stale base.
+        def pull_argv = ["LinkedTree.pull_main!", "checkout.value=#{@repo}", "--wait"]
 
         def dispatch_argv(row, text)
           ["AgentRun.dispatch!", "run.value=#{row.key}", "repo.value=#{@repo}", "brief.value=#{text}", "--wait"]
