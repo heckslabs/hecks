@@ -93,7 +93,7 @@ fi
 # The checks are data in the Vocabulary gate rows. `hecks gate_run.gate!` runs a stage's checks together and
 # prints every red one, so a failure does not hide the others. The tool is called directly, not
 # through the launcher, so a red check's output arrives as text and not inside a journal record
-# (`hecks gate_run.gate! pre_push --wait` is the recorded form).
+# (`hecks gate_run.gate! stage=pre_push --wait` is the recorded form).
 if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' pre_push; then
   printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
   exit 1
