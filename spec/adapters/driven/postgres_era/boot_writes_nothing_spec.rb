@@ -90,7 +90,7 @@ RSpec.describe "a boot's writes in PostgresEra", :io do
   end
 
   def relation_names(db)
-    db.exec("SELECT n.nspname || '.' || c.relname || ':' || c.relkind AS name FROM pg_class c " \
+    db.exec("SELECT n.nspname || '.' || c.relname || ':' || c.relkind::text AS name FROM pg_class c " \
             "JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' ORDER BY 1")
       .map { |row| row["name"] }
   end
