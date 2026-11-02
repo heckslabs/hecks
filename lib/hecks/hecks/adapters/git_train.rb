@@ -11,6 +11,7 @@ require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
 require_relative "git_train/launcher_shape"
 require_relative "git_train/hold"
+require_relative "red_main_line"
 
 module Hecks
   module Adapters
@@ -122,12 +123,13 @@ module Hecks
 
       def remote_of(held) = plain(held[:remote]) || "origin"
 
-      # The carriage's answer, its report opened with what the mint did and naming the boarded
+      # The carriage's answer, its report opened with the red-main line while one is open, then what
+      # the mint did and naming the boarded
       # commit (and the settled one when settlement moved the branch).
       def after_mint(minted, boarded, carried)
         answer, settled = carried
         named = settled == boarded ? "boarded #{boarded[0, 9]}" : "boarded #{boarded[0, 9]}, settled to #{settled[0, 9]}"
-        report = "#{minted}, then #{named}: #{answer.dig(:report, :value)}"
+        report = "#{RedMainLine.lead}#{minted}, then #{named}: #{answer.dig(:report, :value)}"
         answer.merge(boarded: { value: boarded }, report: { value: report })
       end
 

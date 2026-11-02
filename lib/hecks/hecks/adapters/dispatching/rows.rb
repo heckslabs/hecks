@@ -13,8 +13,12 @@ module Hecks
           @registry = registry
         end
 
-        # @return [Array<Plan::Row>] the planned rows, in plan order (a row with no step last)
-        def planned = rows("planned").sort_by.with_index { |row, index| [row[0], index] }.map(&:last)
+        # The key prefix of a row that says main is red; such a row is planned first.
+        RED = "red-"
+
+        # @return [Array<Plan::Row>] the planned rows, red ones first, then in plan order (a row
+        #   with no step last)
+        def planned = rows("planned").sort_by.with_index { |row, index| [red?(row[1]) ? 0 : 1, row[0], index] }.map(&:last)
 
         # @return [Array<Plan::Row>] the started rows
         def started = rows("started").map(&:last)
@@ -28,6 +32,8 @@ module Hecks
         end
 
         private
+
+        def red?(row) = row.key.start_with?(RED)
 
         def rows(status)
           work = find("Tickets", "Work")

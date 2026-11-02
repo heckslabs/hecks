@@ -130,7 +130,7 @@ module Hecks
           guarded("check_generated_domains --from-dials") { run_generated_domains },
           guarded("mutate --from-dials") { run_mutation },
           (guarded("check_main") { run_main_check } if dial(:RED_MAIN_CHECK, false))
-        ].compact + push_nudge_steps + pump_steps
+        ].compact + watch_steps
       end
 
       def run_pr_check
