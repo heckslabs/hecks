@@ -24,14 +24,16 @@ Hecks.behaviors "Tickets" do
   test "Start moves a planned step to started" do
     tests "Start", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w4" }, title: { value: "Declare for:" }
-    input  work: { value: "w4" }
+    input  work: { value: "w4" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     expect status: "started"
   end
 
   test "Finish closes a started step as done" do
     tests "Finish", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w5" }, title: { value: "Declare the run kind" }
-    setup  "Tickets::Work.Start", work: { value: "w5" }
+    setup  "Tickets::Work.Start", work: { value: "w5" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     input  work: { value: "w5" }
     expect status: "done"
   end
@@ -61,7 +63,8 @@ Hecks.behaviors "Tickets" do
     tests "Start", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w9" }, title: { value: "Finished early" }
     setup  "Tickets::Work.Finish", work: { value: "w9" }
-    input  work: { value: "w9" }
+    input  work: { value: "w9" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     expect refused: "done"
   end
 end
