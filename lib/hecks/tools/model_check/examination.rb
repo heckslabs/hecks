@@ -40,7 +40,8 @@ module Hecks
           edges = booted.flat_map do |_, registry|
             Projections::ContextRelationships.call(registry: registry, owners: owners)
           end
-          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq) + context_map_findings(booted, owners)
+          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq) +
+                     classification_findings(booted, owners) + context_map_findings(booted, owners)
           return true if findings.empty?
 
           puts "── contexts"
@@ -56,9 +57,31 @@ module Hecks
           booted.flat_map do |_, registry|
             registry.context_maps.flat_map do |map|
               edges = Projections::ContextRelationships.call(registry: registry, owners: owners)
-              Bluebook::ModelCheck.context_map_findings(map, edges)
+              Bluebook::ModelCheck.context_map_findings(map, edges) +
+                Bluebook::ModelCheck.core_conforms_findings(map, classifications_of(registry))
             end
           end
+        end
+
+        # What each booted system's classifications say about its own wiring (ADR 0172). Each system
+        # is read alone: two systems may each declare a context of the same name.
+        #
+        # @api private
+        # @return [Array<Bluebook::ModelCheck::Finding>]
+        def classification_findings(booted, owners)
+          booted.flat_map do |_, registry|
+            edges = Projections::ContextRelationships.call(registry: registry, owners: owners)
+            Bluebook::ModelCheck.generic_depends_on_core_findings(edges, classifications_of(registry))
+          end
+        end
+
+        # Each context's classification (`core`, `supporting`, `generic`), as its bluebook declares it.
+        #
+        # @api private
+        # @return [Hash{String => String}] only the contexts that declare one
+        def classifications_of(registry)
+          classified = registry.bluebooks.values.select(&:classification)
+          classified.to_h { |declaration| [declaration.name.to_s, declaration.classification.to_s] }
         end
 
         # @api private

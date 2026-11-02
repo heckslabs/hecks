@@ -26,18 +26,20 @@ module Hecks
             @namespace = value.to_s
           end
 
-          # Classifies this bluebook as core to the framework, rather than a domain built on it.
+          # Classifies this bluebook as the core subdomain: where the domain's advantage lies, which
+          # no generic context may depend on and which translates rather than conforms (ADR 0172).
           #
           # @return [Symbol] `:core`
           def core       = classify(:core)
 
-          # Classifies this bluebook as a supporting piece of the framework, rather than a domain
-          # built on it.
+          # Classifies this bluebook as a supporting subdomain: specific to this business, but not
+          # where its advantage lies.
           #
           # @return [Symbol] `:supporting`
           def supporting = classify(:supporting)
 
-          # Classifies this bluebook as generic infrastructure, rather than a domain built on it.
+          # Classifies this bluebook as a generic subdomain: a solved problem that could be bought
+          # or attached, so it may not depend on the core (ADR 0172).
           #
           # @return [Symbol] `:generic`
           def generic    = classify(:generic)
