@@ -52,6 +52,8 @@ coverage/
 # The hooks every agent session on this repo runs (rubocop after an edit), tracked for the same reason.
 !.claude/settings.json
 !.claude/hooks/
+# The agents a coder session hands work to, such as the architect that reviews its plan, tracked for the same reason.
+!.claude/agents/
 
 # What the release workflow builds into the gem (caches keyed by lib/); never committed.
 /prebuilt/
