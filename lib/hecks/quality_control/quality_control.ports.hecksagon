@@ -164,10 +164,13 @@ Hecks.hecksagon "QualityControl" do
       refuses "MintApprovalRefused"
     end
 
+    # The landing runs in the repository that holds the minted ledger: the Hecks checkout when
+    # `ledger_dir` is empty, else the git checkout around that directory.
     asks "Land", to: Maintenance do
-      attribute :era,    MintedEra
-      attribute :sha,    MaintenanceSha
-      attribute :branch, String
+      attribute :era,        MintedEra
+      attribute :sha,        MaintenanceSha
+      attribute :branch,     String
+      attribute :ledger_dir, String
       answers "Landed"
       refuses "MintStranded"
     end

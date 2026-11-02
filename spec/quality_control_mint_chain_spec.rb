@@ -22,12 +22,12 @@ RSpec.describe "the QualityControl mint chain" do
 
   after { FileUtils.remove_entry(state_dir) }
 
-  def mint_era
+  def mint_era(*extra, branch: "")
     Hecks::Adapters::Driving::CliRunner.call(
       runtime: qc, program: "hecks",
       argv: ["quality_control", "Maintenance.mint_era!", "run.value=mint-1", "domain=QualityControl", "era=13",
-             "sha.value=#{"a" * 40}", "branch=", "rehearsal_ref=r", "watermark=19",
-             "rehearsal_verdict.value=would_mint", "refusal_total=0", "confirm.value=true", "--wait"]
+             "sha.value=#{"a" * 40}", "branch=#{branch}", "rehearsal_ref=r", "watermark=19",
+             "rehearsal_verdict.value=would_mint", "refusal_total=0", "confirm.value=true", *extra, "--wait"]
     ).first
   end
 
@@ -35,6 +35,37 @@ RSpec.describe "the QualityControl mint chain" do
     out = mint_era
     expect(commands).to have_received(:mint_era)
     expect(out).to include("Minted").and(not_include("refused_reactions"))
+  end
+
+  it "mints the QualityControl ledger when the call names no ledger" do
+    mint_era
+    expect(commands).to have_received(:mint_era)
+      .with(anything, hash_including(ledger: end_with(File.join("qa", "bluebook"))))
+  end
+
+  context "when the call names another domain's ledger" do
+    # A client repository holding the ledger, made fresh for each example.
+    def client_ledger
+      @client = Dir.mktmpdir
+      system("git", "init", "-q", @client, exception: true)
+      File.join(@client, "bluebook").tap { |dir| FileUtils.mkdir_p(dir) }
+    end
+
+    before { allow(commands).to receive(:land).and_return(["landed", true]) }
+
+    after { FileUtils.remove_entry(@client) }
+
+    it "mints that ledger, not the QualityControl one" do
+      ledger = client_ledger
+      mint_era("ledger_dir=#{ledger}")
+      expect(commands).to have_received(:mint_era).with(anything, hash_including(ledger: ledger))
+    end
+
+    it "lands the branch in the repository that holds the ledger", :aggregate_failures do
+      out = mint_era("ledger_dir=#{client_ledger}", branch: "era-edge")
+      expect(commands).to have_received(:land).with(File.realpath(@client), "era-edge")
+      expect(out).to include("Landed").and(not_include("refused_reactions"))
+    end
   end
 
   it "leaves a mint-only run's gate colour and reconcile verdict optional", :aggregate_failures do
