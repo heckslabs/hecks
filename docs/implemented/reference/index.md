@@ -25,7 +25,7 @@ survives regeneration.
 - [Hecksagon](hecksagon.md) — 6 words
 - [PortOperation](port_operation.md) — 6 words
 - [Port](port.md) — 3 words
-- [Adapter](adapter.md) — 6 words
+- [Adapter](adapter.md) — 7 words
 - [Translation](translation.md) — 2 words
 - [TranslationAggregate](translation_aggregate.md) — 10 words
 - [ContextMap](context_map.md) — 3 words

@@ -29,6 +29,11 @@ Hecks.adapter("reference_plugin") do
   answers_query "Calendar::Event.Occurrences"
   runs "occurrences.wasm"
 end
+
+Hecks.adapter("reference_counter") do
+  port "reference_identity"
+  stays_inside
+end
 ```
 
 ## port
@@ -161,5 +166,23 @@ by row.
 
 ```ruby
 runtime.registry.adapters["reference_sql"].capabilities  # => ["set_transform"]
+```
+
+## stays_inside
+
+<!-- generated:begin word=stays_inside -->
+`stays_inside` — fills `stays_inside`
+<!-- generated:end -->
+
+Says the adapter reaches nothing outside the process and the checkout: no network, no model, no host
+side effect. It takes no argument. A behaviors suite whose project has opted in (a `behavior_adapters/`
+directory beside the suite, or any of the project's adapters saying `stays_inside`) loads every project
+adapter that says it, takes a stand-in from `behavior_adapters/` for any other port, and never runs the
+code of an adapter that does not say it: its declaration is read with its `require` lines left out. An
+adapter that says nothing is treated as reaching outside (ADR 0171).
+
+```ruby
+runtime.registry.adapters["reference_counter"].stays_inside?  # => true
+runtime.registry.adapters["reference_memory"].stays_inside?   # => false
 ```
 

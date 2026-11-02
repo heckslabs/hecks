@@ -1030,7 +1030,8 @@ fn ruby_value_json(value: &ruby_value::Value) -> JsonValue {
 }
 
 /// One declared adapter, keys in the order the Ruby side prints them; an adapter that provides
-/// capabilities adds `provides`, and a plugin adds `answers` and `runs` after them.
+/// capabilities adds `provides`, one that stays inside adds `stays_inside`, and a plugin adds
+/// `answers` and `runs` after them.
 pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
     let JsonValue::Object(mut keys) = declared_adapter_json(adapter) else {
         unreachable!("an adapter is a JSON object")
@@ -1040,6 +1041,9 @@ pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
             "provides".to_string(),
             JsonValue::strings(&adapter.provides),
         ));
+    }
+    if adapter.stays_inside {
+        keys.push(("stays_inside".to_string(), JsonValue::Bool(true)));
     }
     if let Some(runs) = &adapter.runs {
         keys.push(("answers".to_string(), JsonValue::strings(&adapter.answers)));

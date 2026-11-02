@@ -61,6 +61,13 @@ module Hecks
         # @return [Array<String>] every capability named so far, this one last
         def provides(capability) = @provides << capability.to_s
 
+        # Says this adapter reaches nothing outside the process and the checkout: no network, no
+        # model, no host side effect. A behaviors suite loads it instead of asking for a stand-in
+        # (ADR 0171); an adapter that does not say it is kept out of every suite.
+        #
+        # @return [true]
+        def stays_inside = @stays_inside = true
+
         # Names the wasm module this adapter runs, beside its `.adapter` file.
         #
         # @param file [String] the module's file name, such as `"occurrences.wasm"`
@@ -75,7 +82,8 @@ module Hecks
         def build
           MetaValidator.call_adapter(
             Adapter.new(name: @name, port: @port, fields: @fields, secrets: @secrets, defaults: @defaults,
-                        answers: @answers, runs: @runs, provides: @provides, source_dir: @source_dir)
+                        answers: @answers, runs: @runs, provides: @provides, source_dir: @source_dir,
+                        stays_inside: @stays_inside == true)
           )
         end
 
