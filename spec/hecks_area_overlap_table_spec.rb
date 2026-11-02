@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/hecks/adapters/area_overlap"
 require "tmpdir"
 
 # The overlap rule must never miss a real overlap: every pair below that names ground in common

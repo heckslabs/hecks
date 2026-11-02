@@ -5,6 +5,7 @@ require_relative "tree"
 require_relative "spec_files"
 require_relative "changed_specs"
 require_relative "../git_rehearsal/spec_map"
+require_relative "../git_rehearsal/impacted"
 require_relative "../git_rehearsal/impacted/skips"
 
 module Hecks

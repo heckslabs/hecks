@@ -1,6 +1,5 @@
 require "fileutils"
 require "stringio"
-require_relative "../../../../hecks"
 
 module Hecks
   module Adapters
