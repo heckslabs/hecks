@@ -83,7 +83,7 @@ RSpec.describe "the installed hecks gem", :io do
   end
 
   it "prints a domain's IR as JSON for `ir`", :aggregate_failures do
-    out, err, code = hecks("ir", ".")
+    out, err, code = hecks("introspection.ir", ".")
 
     expect(code).to eq(0), err
     expect(JSON.parse(out)).to have_key("Banking")
