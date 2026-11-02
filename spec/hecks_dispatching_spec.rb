@@ -99,7 +99,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
 
       commands = calls.map { |argv| argv.find { |word| word.end_with?("!") } }
 
-      expect(commands).to eq(["Work.start!", "Brief.compose!", "AgentRun.dispatch!"])
+      expect(commands).to eq(["LinkedTree.pull_main!", "Work.start!", "Brief.compose!", "AgentRun.dispatch!"])
     end
 
     it "briefs the session with the other started rows' areas to leave alone", :aggregate_failures do

@@ -174,7 +174,9 @@ Hecks.bluebook "Hecks" do
         mark :failure, "declined"
         transition "Record"  => "opened",   from: "requested"
         transition "Decline" => "declined", from: "requested"
-        mark :terminal, "opened", "declined"
+        transition "Pulled"  => "pulled",   from: "requested"
+        transition "PullDeclined" => "declined", from: "requested"
+        mark :terminal, "opened", "declined", "pulled"
       end
 
       command "Add" do
@@ -191,6 +193,37 @@ Hecks.bluebook "Hecks" do
         end
 
         emits AddRequested
+      end
+
+      command "PullMain" do
+        role "Operator"
+        goal "Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits PullRequested
+      end
+
+      command "Pulled" do
+        role "System"
+        goal "Record where main stands once it is up to date with origin/main"
+
+        reference_to LinkedTree
+        attribute :sha,    Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits MainPulled
+      end
+
+      command "PullDeclined" do
+        role "System"
+        goal "Record why main could not be pulled"
+
+        reference_to LinkedTree
+        attribute :refusal, Report, sets: true
+
+        emits PullDeclinedRecorded
       end
 
       command "Record" do
@@ -219,6 +252,21 @@ Hecks.bluebook "Hecks" do
     policy "AddWorktreeWhenRequested" do
       on      "LinkedTree.AddRequested"
       ask     :create, with: { run: :run }
+    end
+
+    policy "PullMainWhenRequested" do
+      on      "LinkedTree.PullRequested"
+      ask     :pull, with: { run: :run }
+    end
+
+    policy "RecordThePull" do
+      on      "LinkedTree.PullAnswered"
+      trigger LinkedTree::Pulled, with: { sha: :sha, report: :report }
+    end
+
+    policy "DeclineThePull" do
+      on      "LinkedTree.PullRefused"
+      trigger LinkedTree::PullDeclined, with: { refusal: :refusal }
     end
 
     policy "RecordTheWorktree" do

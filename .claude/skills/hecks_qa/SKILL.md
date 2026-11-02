@@ -39,7 +39,7 @@ before the first boot. Never run the tick inline: its output is large
 and would land in this session's context every wakeup.
 
 The subagent's prompt is: `cd <absolute path of the runner worktree>`,
-then `bundle exec exe/hecks quality_control query sweep.tick`, then relay the ENTIRE printed report
+then `exe/hecks LinkedTree.pull_main! --wait` (pull main first: the same operation `LinkedTree.add!` and `landing.finish!` run; relay a refusal, do not skip it), then `bundle exec exe/hecks quality_control query sweep.tick`, then relay the ENTIRE printed report
 back verbatim, and make no judgment of its own. `exe/hecks quality_control query sweep.tick` refuses a
 dirty tree, rebases onto `origin/main`, runs `exe/hecks quality_control query clearance.check_pull_requests` FIRST
 (always — the order is the script, not a rule to remember), then
@@ -117,7 +117,8 @@ in order:
    guard, an off-by-one, a validation gap — no semantic or architectural
    call. Anything else is `bigger`.
 4. **If `self_contained`:** fix it on a fresh `qa/<slug>` branch in the
-   runner worktree; move the bug through `hecks run qa/bluebook
+   runner worktree, cut after `exe/hecks LinkedTree.pull_main! --wait` (pull main first; `landing.land!`
+   refuses a branch behind `origin/main`); move the bug through `hecks run qa/bluebook
    bug.investigate id=BUG#n …`, `fix id=BUG#n reference.value=BUG#n
    commit.value=<sha>`, `verify id=BUG#n evidence.value="<what ran>"`;
    The Fixer refuses a fix without a failing reproduction: first run the
