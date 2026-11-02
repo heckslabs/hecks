@@ -450,7 +450,7 @@ RSpec.describe Hecks::Projector::CliProjector do
       question = command_help(banking_bluebook, "account.open", ask: true)
 
       expect(question).to include("reads Banking::Account.Open")
-      expect(question).to include("hecks run query Account.open")
+      expect(question).to include("hecks run Account.open")
     end
   end
 end
