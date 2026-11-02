@@ -15,7 +15,7 @@ RSpec.describe Hecks::Adapters::GitLanding do
       gate: ->(tree) { (gated << File.basename(tree)) && nil } }
   end
 
-  after { FileUtils.remove_entry(dir) }
+  after { FileUtils.rm_rf(dir) }
 
   def git(*args, chdir: repo)
     out, status = Open3.capture2e("git", "-c", "user.name=t", "-c", "user.email=t@t", *args, chdir: chdir)
@@ -66,10 +66,25 @@ RSpec.describe Hecks::Adapters::GitLanding do
   def convene
     front = line.join("work/front", ready: true)
     threads = trees.to_h { |name, tree| [name, waiting(tree, name.to_s)] }
+    report = run_train { line.leave(front) }
+    [report, settled(threads)]
+  end
+
+  def run_train
     runner = Thread.new { described_class.new(**tune).convene(checkout: repo) }
     hear("train is")
-    line.leave(front)
-    [runner.value, threads]
+    yield
+    runner.value
+  end
+
+  def settled(threads) = threads.each_value { |thread| settle(thread) }
+
+  # Waits for a landing thread to finish, whatever became of its branch, so none is still
+  # touching the repository when the example's directory is removed.
+  def settle(thread)
+    thread.join
+  rescue Hecks::Adapters::ConsoleCapture::Failure
+    nil
   end
 
   it "lands the ready branches in ticket order and skips the one that conflicts", :aggregate_failures do
@@ -84,6 +99,12 @@ RSpec.describe Hecks::Adapters::GitLanding do
 
     expect(threads[:a].value.dig(:report, :value)).to include("landed by the train")
     expect { threads[:c].value }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, %r{work/c does not rebase onto main})
+  end
+
+  it "returns only once every waiting landing has finished" do
+    _, threads = convene
+
+    expect(threads.values).to all(satisfy { |thread| !thread.alive? })
   end
 
   it "runs the gate once for each branch that reaches it" do
