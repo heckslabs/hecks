@@ -10,9 +10,8 @@ module Hecks
       # The last rehearsal's result per scope, kept in files in the repository's common git
       # directory
       # (never committed, shared by every worktree) as `<commit> <green|red> <unix time> <failing
-      # stages>`. The `full` scope's file is `hecks-push-rehearsal` (the only file before scopes
-      # existed, so an old record reads as `full`); the `quick` scope's is
-      # `hecks-push-rehearsal.quick`.
+      # stages>`. The `quick` scope's file is `hecks-push-rehearsal.quick`; the `deep`
+      # scope's is `hecks-push-rehearsal` (the only file before scopes existed).
       class Record
         include Reading
 
@@ -52,9 +51,9 @@ module Hecks
         # @param commit [String] the commit rehearsed
         # @param verdict [String] `green` or `red`
         # @param results [Array<Stages::Result>] the stages
-        # @param scope [String] `full` or `quick`: which scope's record this is
+        # @param scope [String] `quick` or `deep`: which scope's record this is
         # @return [String] `recorded`, or the newer record kept and how that was decided
-        def write(commit, verdict, results, scope: "full")
+        def write(commit, verdict, results, scope: "quick")
           failed = results.reject(&:passed).map(&:name).join(",")
           locked(scope) do
             kept = newer_kept(commit, scope)
@@ -87,9 +86,9 @@ module Hecks
           {}
         end
 
-        # @param scope [String] `full` or `quick`
+        # @param scope [String] `quick` or `deep`
         # @return [Entry, nil] the last rehearsal of that scope, nil when none has run
-        def last(scope = "full")
+        def last(scope = "quick")
           return unless File.file?(path(scope))
 
           commit, verdict, at, failed = File.read(path(scope)).split(" ", 4)
@@ -98,13 +97,13 @@ module Hecks
 
         private
 
-        def path(scope = "full") = File.join(common_dir, scope == "quick" ? QUICK : FILE)
+        def path(scope = "quick") = File.join(common_dir, scope == "quick" ? QUICK : FILE)
 
         def flakes_path = File.join(common_dir, FLAKES)
 
         def common_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
 
-        def locked(scope = "full", &)
+        def locked(scope = "quick", &)
           File.open("#{path(scope)}.lock", File::RDWR | File::CREAT) do |lock|
             lock.flock(File::LOCK_EX)
             yield

@@ -34755,32 +34755,6 @@
             [
               [
                 "name",
-                "everyday_names"
-              ],
-              [
-                "id",
-                "everyday_names"
-              ],
-              [
-                "title",
-                "everyday names, every name in the launcher's everyday setting shown in the help"
-              ],
-              [
-                "argv",
-                "bundle exec rspec spec/everyday_names_spec.rb"
-              ],
-              [
-                "script",
-                ""
-              ],
-              [
-                "blocked",
-                "a name in the world's `everyday` setting is not shown in the help's everyday section: it does not resolve to a command, it is internal, or it is not listed for people. The failure names each one; fix the spelling in hecks.world or the command's audience."
-              ]
-            ],
-            [
-              [
-                "name",
                 "secret_output"
               ],
               [
@@ -34802,32 +34776,6 @@
               [
                 "blocked",
                 "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
-              ]
-            ],
-            [
-              [
-                "name",
-                "meta_domain_coverage"
-              ],
-              [
-                "id",
-                "meta_domain_coverage"
-              ],
-              [
-                "title",
-                "meta-domain coverage, every language feature with a fuzzer coverage decision"
-              ],
-              [
-                "argv",
-                "bundle exec rspec spec/fuzzing/meta_domain_coverage_spec.rb --tag fuzzing"
-              ],
-              [
-                "script",
-                ""
-              ],
-              [
-                "blocked",
-                "a language feature has no fuzzer coverage decision: a word the language gained is neither covered by a fuzzer property nor listed as left out with its reason. The failure names each one; add the entry in spec/fuzzing/meta_domain_coverage_spec.rb."
               ]
             ],
             [
@@ -35453,32 +35401,6 @@
                 "blocked",
                 "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."
               ]
-            ],
-            [
-              [
-                "name",
-                "era_proof"
-              ],
-              [
-                "id",
-                "era_proof"
-              ],
-              [
-                "title",
-                "era proof, each bluebook's boot status is current or behind by a recorded implicit move"
-              ],
-              [
-                "argv",
-                ""
-              ],
-              [
-                "script",
-                "status=\"$(bundle exec exe/hecks query era.boot_status domain.value=lib/hecks/hecks)\" || exit 1\nproblems=\"$(echo \"$status\" | jq -r -f .github/era_proof/boot_status.jq)\" || exit 1\nif [ -n \"$problems\" ]; then\n  echo \"era_proof: a bluebook is neither current nor behind by a recorded implicit move:\" >&2\n  echo \"$problems\" >&2\n  exit 1\nfi\n"
-              ],
-              [
-                "blocked",
-                "a bluebook's boot status is superseded, unminted, or behind with no implicit move recorded: the output names each one and its reason. Fix the ledger, the edge or the implicit move that leads the held shape to the current one."
-              ]
             ]
           ],
           "name": "GateCheck"
@@ -35560,21 +35482,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,everyday_names,adapter_words,meta_domain_coverage,command_names,workflow_pagination"
-              ]
-            ],
-            [
-              [
-                "name",
-                "unguarded_push"
-              ],
-              [
-                "env",
-                "HECKS_ENVIRONMENT=memory"
-              ],
-              [
-                "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,fuzzing"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
               ]
             ],
             [
@@ -35594,20 +35502,6 @@
             [
               [
                 "name",
-                "era_proof"
-              ],
-              [
-                "env",
-                ""
-              ],
-              [
-                "checks",
-                "era_proof"
-              ]
-            ],
-            [
-              [
-                "name",
                 "ci"
               ],
               [
@@ -35616,11 +35510,131 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
               ]
             ]
           ],
           "name": "GateStage"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "argument",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "kind",
+                "gate"
+              ],
+              [
+                "argument",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "impacted"
+              ],
+              [
+                "kind",
+                "impacted"
+              ],
+              [
+                "argument",
+                ""
+              ]
+            ]
+          ],
+          "name": "RehearsalStage"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "stages",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "stages",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "deep"
+              ],
+              [
+                "stages",
+                "quick,impacted"
+              ]
+            ]
+          ],
+          "name": "RehearsalScope"
         },
         {
           "attributes": [
@@ -36474,7 +36488,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
+                "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
               ]
             ],
             [

@@ -50,7 +50,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
 
   describe "#due" do
     it "says no push is due when main is level with origin/main" do
-      expect(due).to eq("push due: no; main is level with origin/main; last quick: none yet; last full: none yet")
+      expect(due).to eq("push due: no; main is level with origin/main; last quick: none yet")
     end
 
     it "counts the unpushed commits and ages the oldest in hours" do
@@ -64,7 +64,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
       commit("second")
       record("red", [stage("unguarded_push", false)])
 
-      expect(due).to include("last full: red (unguarded_push) on #{git("rev-parse", "main")[0, 9]} (the current main)")
+      expect(due).to include("last quick: red (unguarded_push) on #{git("rev-parse", "main")[0, 9]} (the current main)")
     end
 
     it "says when main has moved since the last rehearsal" do
@@ -116,7 +116,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
       it "records the verdict where the due query reads it" do
         answer
 
-        expect(due).to include("last full: red (unguarded_push)")
+        expect(due).to include("last quick: red (unguarded_push)")
       end
     end
 
@@ -132,7 +132,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
 
   describe "the record" do
     let(:recorder) { Hecks::Adapters::GitRehearsal::Record.new(Hecks::Adapters::Git.new, work) }
-    let(:file) { File.join(work, ".git", Hecks::Adapters::GitRehearsal::Record::FILE) }
+    let(:file) { File.join(work, ".git", Hecks::Adapters::GitRehearsal::Record::QUICK) }
 
     def commit_after(name)
       commit(name)
@@ -227,7 +227,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
 
     # A bench a killed rehearsal left registered, and an unrelated worktree.
     def stale_bench_and_other
-      bench = File.join(Dir.mktmpdir("hecks-push-rehearsal"), "bench")
+      bench = File.join(Dir.mktmpdir("hecks-push-rehearsal-quick"), "bench")
       git("worktree", "add", "-q", "--detach", bench, "main")
       git("worktree", "add", "-q", "--detach", File.join(scratch, "other-worktree"), "main")
       bench

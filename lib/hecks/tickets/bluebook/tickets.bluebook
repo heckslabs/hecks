@@ -111,22 +111,6 @@ Hecks.bluebook "Tickets" do
       emits "RunFindingReported"
     end
 
-    # A lane that stood behind the lane it follows for longer than its Lane row allows reports
-    # itself. The alert key names the finding and carries the day, so a lane that stays late files
-    # one finding a day: the same key again is the same finding.
-    command "ReportLag" do
-      goal "Record a lane that has stood behind the lane it follows too long as a finding"
-
-      attribute :finding, FindingKey, sets: true
-      attribute :body,    Body, sets: true
-
-      sets :fingerprint, to: "lane-lag"
-      sets :title,  to: "A lane is behind the lane it follows"
-      sets :source, to: "qa_loop"
-
-      emits "LagFindingReported"
-    end
-
     command "Triage" do
       role "Maintainer"
       goal "Give a finding its kind and severity"
@@ -310,8 +294,8 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, default: ""
     end
 
-    # How long a claim may run before `Work.overdue` lists it, in whole minutes. A row with none, or
-    # zero, is never overdue; a step back in the plan holds zero.
+    # How long a claim may run, in whole minutes. A row with none, or zero, has no budget; a step
+    # back in the plan holds zero.
     value_object "Minutes" do
       attribute :value, Integer
 
@@ -490,12 +474,6 @@ Hecks.bluebook "Tickets" do
       limit 1
     end
 
-    # Answered by the WorkLimits port, which reads the clock: a bluebook never reads it.
-    query "Overdue" do
-      description "Every started step whose claim time plus its time budget is before now; a step with no budget is never listed."
-      returns Document
-    end
-
     query "Under" do
       description "Every step of the plan one decision carries, in plan order."
       attribute :adr, String
@@ -519,11 +497,6 @@ Hecks.bluebook "Tickets" do
 
   policy "OpenIssueWhenRunReported" do
     on      "Finding.RunFindingReported"
-    ask     :open_issue, with: { finding: :finding }
-  end
-
-  policy "OpenIssueWhenLagReported" do
-    on      "Finding.LagFindingReported"
     ask     :open_issue, with: { finding: :finding }
   end
 
@@ -603,12 +576,6 @@ Hecks.bluebook "Tickets" do
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
-  end
-
-  # A watch that finds a lane late faults it, and the fault files its finding.
-  policy "ReportWhenLaneLags" do
-    on      "PromotionRun.LaneLagged"
-    trigger Finding::ReportLag, with: { finding: :alert_key, body: :refusal }
   end
 
   policy "ReportWhenGateFaulted" do

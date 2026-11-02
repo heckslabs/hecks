@@ -192,7 +192,7 @@ Each command's `--help` says what it takes; this names where they live. **Landin
 (`lib/hecks/hecks/deliver/deliver.bluebook`) take a place in one first-come, first-served line; the
 world's `landing "Queue"` (`hecks.world`) sets how long a ticket may go without a heartbeat and how long
 a landing waits. `push_rehearsal.rehearse!` runs the stages of its scope (`RehearsalScope` rows in the Vocabulary
-bluebook: `quick`, `full`, and opt-in `deep` which adds the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
+bluebook: `quick`, the default and the push gate, and opt-in `deep` which adds the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
 (`rehearse/rehearse.bluebook`); `test_suite_run.run_spec_files!` and `run_impacted_specs!` run named or
 impacted specs through the launcher. Branch worktrees through `LinkedTree.add!`, which pulls `main` first.
 **Era inspection:** `era.boot_resolution`, `era.mint_plan` (every guard a mint runs, read-only),
@@ -263,14 +263,12 @@ commit must pass as `RequiredCheck` rows beside them.
   alone and one that then passes is reported as flaky under parallel load, not failed; a spec already
   red on `origin/main` is reported, not failed). Its result is the `PushRehearsal` record, and
   `hecks push_rehearsal.due` says how far `main` is ahead of `origin/main`, how old the oldest
-  unpushed commit is and how the last rehearsal of each scope ended. Nothing pushes by itself.
+  unpushed commit is and how the last quick rehearsal ended. Nothing pushes by itself.
   The size that counts as too big is the QualityControl world's `push_nudge` setting (`commits`, `hours`,
   `urgent_commits`): past it the line and the train's report say `PUSH NOW`, and neither ever refuses a push.
-- **Red main is a standing Work row.** When the latest `CI` run on `main` fails, each QA tick files one
-  open `red-main-<run id>` row naming the failing job, and finishes it when a later run passes. The
-  dispatch fill plans `red-*` rows first and starts one before other planned work, and `push_rehearsal.due`
-  and the train's report open with `main is red since <time>: <job>; row red-main-<id>`. A red main
-  blocks promotion to `stable`, never a push: refusing the push would stop the fix too.
+- **Red `main` is read on GitHub.** The `CI` run's status and failure email are the signal; no local
+  watch repeats it. The dispatch fill plans `red-*` rows (filed by people and CI jobs) first and starts
+  one before other planned work. A red `main` blocks promotion to `stable`, never a push.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
   fast-forwards `stable` onto it through
