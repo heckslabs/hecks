@@ -23,8 +23,8 @@ module Hecks
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
-        # @param scope [String] each scope has its own line, so quick runs alongside full
-        def initialize(git, checkout, scope: "full")
+        # @param scope [String] each scope has its own line, so quick runs alongside deep
+        def initialize(git, checkout, scope: "quick")
           @git = git
           @checkout = checkout
           @suffix = scope == "quick" ? ".quick" : ""

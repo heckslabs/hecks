@@ -4,15 +4,14 @@ Hecks.bluebook "Hecks" do
 
     # A rehearsal runs, against local `main` and without pushing, the stages of its scope, which the
     # `RehearsalScope` and `RehearsalStage` rows of the Vocabulary bluebook list: `quick` is the gate's
-    # quick stage; `full` is the quick stage again; `deep`
-    # is full plus the specs the push's changed files touch, and runs only when asked for. It answers
+    # quick stage, which is also the train's push gate; `deep`
+    # is quick plus the specs the push's changed files touch, and runs only when asked for. It answers
     # pass or fail per stage and names the failing check and spec. A landed branch asks for a quick
-    # one (RehearseWhenLanded); a push needs a green full one, which runs when asked by hand and
-    # before a push. Owner decision: the full spec suite runs only in CI, so no scope runs it. A red
+    # one (RehearseWhenLanded); the train runs the quick gate at the push. Owner decision: the full spec suite runs only in CI, so no scope runs it. A red
     # one does not undo the land, it records red so the push is known to be red before anyone boards.
     # Nothing here pushes.
     aggregate "PushRehearsal" do
-      description "One dry run of the push against local main: green or red per stage, or refused when it could not run. Its scope is quick (the gate's quick stage; a landing triggers this), full (the quick stage again; a push needs this) or deep (full plus the impacted specs; opt-in)."
+      description "One dry run of the push against local main: green or red per stage, or refused when it could not run. Its scope is quick (the gate's quick stage, the push gate; a landing triggers this) or deep (quick plus the impacted specs; opt-in)."
       created_by "PushRehearsal.rehearse!"
 
       attribute :run,      RunKey
@@ -56,7 +55,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
         attribute :branch,   Word, default: "main", sets: true
-        attribute :scope,    Word, default: "full", sets: true
+        attribute :scope,    Word, default: "quick", sets: true
 
         emits PushRehearsalRequested
       end
@@ -96,7 +95,7 @@ Hecks.bluebook "Hecks" do
       # Read only: how far local main is ahead of origin/main, how old the oldest unpushed commit
       # is, and how the last rehearsal ended. It fetches nothing and pushes nothing.
       query "Due" do
-        description "Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last quick and the last full rehearsal's result."
+        description "Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last quick rehearsal's result."
         attribute :checkout, Word, optional: true
         returns Document
       end

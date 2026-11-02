@@ -43,8 +43,8 @@ module Hecks
         # @param branch [String] the branch pushed; impacted specs compare with `origin/<branch>`
         # @param impacted_limit [Integer, nil] the most impacted spec files to run
         # @param impacted_width [Integer, nil] how many of them run at once
-        # @param scope [String] a `RehearsalScope` row: `quick`, `full` or `deep`
-        def initialize(directory, branch: "main", impacted_limit: nil, impacted_width: nil, scope: "full")
+        # @param scope [String] a `RehearsalScope` row: `quick` or `deep`
+        def initialize(directory, branch: "main", impacted_limit: nil, impacted_width: nil, scope: "quick")
           @scope = scope
           @directory = directory
           @branch = branch

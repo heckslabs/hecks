@@ -471,7 +471,6 @@ module Hecks
       ].freeze,
       "RehearsalScope" => [
         {"name"=>"quick", "stages"=>"quick"}.freeze,
-        {"name"=>"full", "stages"=>"quick"}.freeze,
         {"name"=>"deep", "stages"=>"quick,impacted"}.freeze
       ].freeze,
       "RehearsalStage" => [

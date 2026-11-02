@@ -15,8 +15,8 @@ module Hecks
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
         # @param scope [String] a scope sweeps and names only its own benches, so a quick rehearsal
-        #   never removes the live bench of a full one
-        def initialize(git, checkout, scope: "full")
+        #   never removes the live bench of a deep one
+        def initialize(git, checkout, scope: "quick")
           @git = git
           @checkout = checkout
           @scope = scope
