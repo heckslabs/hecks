@@ -5,10 +5,10 @@ domain, the bluebook and the command's verb form, and prints the command that un
 that none is declared:
 
 ```
-$ exe/hecks query Introspection.undo domain.value=examples/banking bluebook.value=Banking command.value=Account.Debit
+$ exe/hecks Introspection.undo domain.value=examples/banking bluebook.value=Banking command.value=Account.Debit
 Account.Debit is undone by Account.Credit, a compensation the bluebook declares.
 
-$ exe/hecks query Introspection.undo domain.value=lib/hecks/hecks bluebook.value=Hecks command.value=Landing.land
+$ exe/hecks Introspection.undo domain.value=lib/hecks/hecks bluebook.value=Hecks command.value=Landing.land
 Landing.land has no undo declared: its bluebook names no compensating command.
 ```
 

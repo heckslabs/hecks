@@ -123,7 +123,7 @@ Hecks.bluebook "CiWorkflows" do
              note: "rust/src/generated is committed, so the whole tree is in the checkout and this step only checks it.\nA shard reads only the domains named below (rust_build_kernel_input_spec); the input names them and\nchanges nothing. Specs that read the whole tree are tagged `generated_all` and run in the drift job,\nwhich regenerates every domain."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "file_list",
              title: "Determine this shard's own file list",
-             run: "mkdir -p tmp\nbundle exec exe/hecks query test_suite_run.shard_specs group=${{ matrix.group }} groups=%{shard_total} runtime_log=.github/rspec_runtime_baseline.log \\\n  > tmp/rspec_shard_files.txt\n",
+             run: "mkdir -p tmp\nbundle exec exe/hecks test_suite_run.shard_specs group=${{ matrix.group }} groups=%{shard_total} runtime_log=.github/rspec_runtime_baseline.log \\\n  > tmp/rspec_shard_files.txt\n",
              note: "`io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io.\nEvery shard must compute its file list from identical inputs or the lists stop\npartitioning the suite, so grouping reads only the committed baseline, never a cache."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "parallel",
              title: "rspec: parallel (this shard's own file list only)",

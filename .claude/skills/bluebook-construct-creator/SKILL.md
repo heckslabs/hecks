@@ -326,7 +326,7 @@ not discovery.
   `hecks codemod_run.hoist_local_givens!` is the reference implementation of
   this narrower check — copy it rather than reusing the default
   byte-identical comparison for the next hoist-shaped codemod.
-- **`hecks query corpus_run.ir_duplicates` (`lib/hecks/query_ir.rb`'s
+- **`hecks corpus_run.ir_duplicates` (`lib/hecks/query_ir.rb`'s
   `declaration_count`) needs a matching update EVERY TIME a new sharing
   scope ships**, and it can only ever be a lagging structural snapshot —
   it reads the exported IR, which by design cannot distinguish "I

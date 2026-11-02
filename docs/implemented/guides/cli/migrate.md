@@ -27,7 +27,7 @@ Without `confirm.value=true` it names what it would delete and deletes nothing.
 **Example: see what compacting would delete**
 
 ```sh
-hecks query Era.compaction domain.value=examples/banking
+hecks Era.compaction domain.value=examples/banking
 ```
 
 Reads the journal and reports what compacting would remove, without removing it.

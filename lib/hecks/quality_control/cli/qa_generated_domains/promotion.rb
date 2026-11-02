@@ -67,7 +67,7 @@ module Hecks
           <<~NOTES
             # #{name}
 
-            Promoted from a `hecks quality_control query target.check_generated_domains` finding — #{origin_phrase(recorded)}, not
+            Promoted from a `hecks quality_control target.check_generated_domains` finding — #{origin_phrase(recorded)}, not
             hand-written. The bluebook is the minimal form of the domain that
             surprised; `QaGenerated` was renamed to `#{camelize(name)}` and nothing
             else changed.
@@ -102,7 +102,7 @@ module Hecks
         end
 
         def origin_phrase(recorded)
-          recorded&.key?("source") ? "written by `hecks quality_control query target.mine_combinations`' agent" : "generated"
+          recorded&.key?("source") ? "written by `hecks quality_control target.mine_combinations`' agent" : "generated"
         end
       end
     end

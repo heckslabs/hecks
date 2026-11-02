@@ -87,7 +87,7 @@ jobs:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       - name: .github/postgres_io_spec_files.txt matches a real --tag io dry run
-        run: bundle exec exe/hecks query test_suite_run.list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
+        run: bundle exec exe/hecks test_suite_run.list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
 
   # Matrix of one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
   # required check name, since matrix legs report as `<job id> (<value>)`.

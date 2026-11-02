@@ -60,7 +60,7 @@ is cut from `origin/main`, not local `main`: check `git merge-base --is-ancestor
 
 Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
 model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
-While main CI is red, only a push that fixes a red-* Work row goes out (exe/hecks tickets query Work.undone lists them), through the push train; everything else lands locally with landing.land! and waits until CI on origin/main is green.
+While main CI is red, only a push that fixes a red-* Work row goes out (exe/hecks tickets Work.undone lists them), through the push train; everything else lands locally with landing.land! and waits until CI on origin/main is green.
 
 ## Briefing a session
 
@@ -133,7 +133,8 @@ current list of what this repo can do.
 - `exe/hecks` lists the public commands and queries (`exe/hecks --all` adds the internal ones); `exe/hecks <command> --help`
   says what one wants and how it refuses.
 - `exe/hecks <command>! name=value …` does something;
-  `exe/hecks query <query> name=value …` reads something.
+  `exe/hecks <query> name=value …` reads something, written bare (`query` is the old spelling,
+  kept as an alias until 8.0.0, and needed only where a command shares the query's name).
 - A command is named by its aggregate and verb, as the bluebook spells them: `SendTrain.board!`,
   `Hecks::SendTrain.board!` and `Hecks::SendTrain.Board` all reach it, and so does the older
   snake-case `send_train.board!`. The listing and `--help` print `SendTrain.board!`; the heading
@@ -160,7 +161,7 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   For a held bluebook, a shape change needs a translation edge under its `translations/`:
   `exe/hecks conformance_run.check_shape_ledger! --wait` (no database) names it, `--confirm --additive`
   settles a change that only adds, and `--confirm` alone moves the ledger once an edge covers the move.
-  Renamed or reshaped data needs rules: `exe/hecks query era.scaffold_translation domain.value=<dir>`
+  Renamed or reshaped data needs rules: `exe/hecks era.scaffold_translation domain.value=<dir>`
   writes them from the database the domain's own world names, and `era.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
   (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`

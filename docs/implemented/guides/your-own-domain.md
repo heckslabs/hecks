@@ -125,10 +125,10 @@ Read it top to bottom; it uses only words you met in Getting started:
 Ask hecks to read it back before running anything:
 
 ```sh
-bundle exec hecks query Introspection.docs "$HOME/lending/bluebook"
+bundle exec hecks Introspection.docs "$HOME/lending/bluebook"
 ```
 
-`hecks query Introspection.docs` prints each command's arguments, the lifecycle, and every
+`hecks Introspection.docs` prints each command's arguments, the lifecycle, and every
 refusal the domain can produce. If you made a mistake in the file, this
 is where it is named.
 
@@ -272,7 +272,7 @@ aws lambda invoke --function-name hecks-lending --region us-east-1 \
 ```
 
 Issue a command. `verb` is `<Domain>::<Aggregate>.<Command>`, and `with`
-holds the command's facts in the shape `hecks query Introspection.docs` printed:
+holds the command's facts in the shape `hecks Introspection.docs` printed:
 
 ```sh
 aws lambda invoke --function-name hecks-lending --region us-east-1 \
@@ -293,7 +293,7 @@ database snapshot too if you want no residue.
 
 Every Ruby block in this guide runs under
 `spec/guides_spec.rb`. The same domain files were also run directly:
-`hecks query Introspection.docs`, a scripted boot on Memory and `hecks console! subject=` all
+`hecks Introspection.docs`, a scripted boot on Memory and `hecks console! subject=` all
 worked. `hecks deploy Recipe.project!` wrote the files above for the Lambda
 target, and `sam build` in that directory compiled the domain into the
 function (a `bootstrap` binary, `lending.wasm` and `lending.ir.json`).

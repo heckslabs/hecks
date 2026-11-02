@@ -2,7 +2,7 @@ require "tmpdir"
 require "open3"
 require "rbconfig"
 
-# Runs `exe/hecks query Introspection.stores` as a subprocess.
+# Runs `exe/hecks Introspection.stores` as a subprocess.
 # Pins that a nonexistent domain path fails loudly instead of exiting 0 silently.
 RSpec.describe "hecks stores" do
   # Uniquely named: load_hygiene_spec.rb rejects top-level constants that collide across specs.

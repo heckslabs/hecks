@@ -2820,7 +2820,7 @@ Targets that are shelved, sorted by target reference, A to Z.
 
 #### Suspended
 
-Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back.
+Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control sweep.run <target> --release --notes is how one comes back.
 
 Targets that are suspended, sorted by target reference, A to Z.
 

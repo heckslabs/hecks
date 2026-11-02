@@ -11,7 +11,7 @@ require_relative "differential/wire_comparison"
 module Hecks
   module Fuzzing
     # The Ruby-vs-Rust comparison of one generated sequence, shared by the QualityControl sweep
-    # (`hecks quality_control query sweep.run`) and `hecks quality_control
+    # (`hecks quality_control sweep.run`) and `hecks quality_control
     # target.check_generated_domains --rust`.
     #
     # `differ` is duck-typed (the `RustConformanceHelpers` comparison helpers plus a

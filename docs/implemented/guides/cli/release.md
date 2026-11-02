@@ -27,7 +27,7 @@ Builds the gem and says so. Pass `confirm.value=true` to push it to the registry
 **Example: see what has shipped**
 
 ```sh
-hecks query Release.shipped
+hecks Release.shipped
 ```
 
 Lists every version that was tagged, published and verified.

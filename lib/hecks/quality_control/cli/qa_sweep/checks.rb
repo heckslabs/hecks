@@ -66,7 +66,7 @@ module Hecks
 
         # Coverage-guided generation's corpus, one JSON file per (target, mode): `--all`'s waves can
         # run a target's primary sweep and its persistence-parity/concurrency variants as separate
-        # `hecks quality_control query sweep.run` processes within the same tick, and each explores
+        # `hecks quality_control sweep.run` processes within the same tick, and each explores
         # a conceptually independent axis of the same domain, so each keeps its own file rather than
         # sharing one that nothing here locks.
         def coverage_corpus_path(target_reference, mode)

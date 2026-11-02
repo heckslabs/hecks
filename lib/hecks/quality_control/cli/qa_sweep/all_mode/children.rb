@@ -16,7 +16,7 @@ module Hecks
 
           private
 
-          # Spawns `hecks quality_control query sweep.run target=<target>` as a fresh process, not a
+          # Spawns `hecks quality_control sweep.run target=<target>` as a fresh process, not a
           # fork.
           def spawn_sweep_child(target_reference, flags, modes:, parity: false)
             # Unlinked at once: the open fd stays readable, nothing is left on disk, and no fixed
