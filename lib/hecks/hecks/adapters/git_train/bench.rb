@@ -54,7 +54,8 @@ module Hecks
 
         def push_from(bench, local, tracking)
           diverged!(local, tracking) unless ancestor?(tracking, local)
-          pushed = @git.capture(*@config, "push", @remote, "#{local}:refs/heads/#{@branch}", chdir: bench)
+          carry = ["-c", "hecks.trainCarry=#{local}"]
+          pushed = @git.capture(*@config, *carry, "push", @remote, "#{local}:refs/heads/#{@branch}", chdir: bench)
           return local if pushed.ok?
           return :moved if pushed.err.match?(MOVED)
 

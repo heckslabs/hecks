@@ -64,6 +64,20 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
+# Main is pushed through the push train: any agent boards it, and the train's
+# own `git push` carries `-c hecks.trainCarry=<commit>` (git config, like `hecks.fullGate`, for
+# that push only). A push of main without it is refused, unless the owner sets HECKS_OWNER_PUSH
+# to a reason (ADR 0132): the reason is printed here and the push goes on to the checks. The
+# gate cannot see the pushed refs, so this check lives in the hook.
+if [ -z "$(git config --get hecks.trainCarry)" ]; then
+  if [ -n "$HECKS_OWNER_PUSH" ]; then
+    printf '[pre-push] owner push of main outside the train: %s\n\n' "$HECKS_OWNER_PUSH" >&2
+  else
+    printf '[pre-push] main is pushed through the push train (send_train.board! checkout=%s --confirm); a plain git push of main is refused  (owner override: HECKS_OWNER_PUSH=<reason>)\n' "$ROOT" >&2
+    exit 1
+  fi
+fi
+
 # The slow suite is opt-in: a push runs only the `quick` stage, seconds long, since CI runs every other
 # check on the pushed commit. hecks.fullGate runs the whole `pre_push` stage and, when green, writes the
 # attestation note that lets CI skip its checks.
