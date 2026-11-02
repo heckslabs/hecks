@@ -168,7 +168,7 @@ module Hecks
       def checkpoint(process_manager, correlation, instance, domain, pending: nil)
         memory = deep_copy(instance[:memory])
         memory[SAGA_PENDING_DISPATCH_KEY] = pending if pending
-        @registry.saga_persistence(domain).save_saga(
+        @registry.saga_persistence(domain, process_manager).save_saga(
           process_manager: process_manager.name, correlation: correlation,
           state: instance[:state], memory: memory,
           completed_compensations: deep_copy_array(instance[:completed_compensations])

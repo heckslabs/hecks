@@ -209,6 +209,43 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside an integration of main reaches: the open runs an advance steps, a clean copy of
+  # main for a verification, the push train's own copy for a boarding, and GitHub's CI runs.
+  Hecks::Integration.port "Integrating" do
+    asks "Step", to: Integration do
+      attribute :run, RunKey
+      answers "AdvanceAnswered"
+      refuses "AdvanceRefused"
+    end
+  end
+
+  Hecks::Integration.port "MainVerifying" do
+    asks "Check", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      answers "VerifyAnswered"
+      refuses "VerifyRefused"
+    end
+  end
+
+  Hecks::Integration.port "MainBoarding" do
+    asks "Embark", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      answers "BoardAnswered"
+      refuses "BoardRefused"
+    end
+  end
+
+  Hecks::Integration.port "CiRuns" do
+    asks "Watch", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      answers "ObserveAnswered"
+      refuses "ObserveRefused"
+    end
+  end
+
   Hecks::ReviewRequest.port "GitHubPullRequests" do
     asks "Create", to: ReviewRequest do
       attribute :run, RunKey
