@@ -51,7 +51,7 @@ RSpec.describe Hecks::CommandNames do
 
   describe "the spellings the launcher accepts" do
     accepted = ["Build.build_wasm!", "Hecks::Build.build_wasm!", "Hecks::Build.BuildWasm!", "build.build_wasm!",
-                "query workspace.status", "workspace.status", "ask Workspace.status", "config", "console!", "usage",
+                "workspace.status", "ask Workspace.status", "config", "console!", "usage",
                 "deliver", "deploy recipe.project!", "deploy Recipe.project!"]
 
     accepted.each do |spelling|

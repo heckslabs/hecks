@@ -21,7 +21,7 @@ module Hecks
         typed = rest.drop(asking ? 1 : 0).first
         return if typed.nil? || free?(scope, typed)
 
-        Resolution.new(scope, typed, asking).problem
+        Resolution.new(scope, typed, asking, old_spelling: rest.first == "query").problem
       end
 
       private
