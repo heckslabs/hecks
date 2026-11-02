@@ -56,7 +56,7 @@ RSpec.describe "the ci gate stage" do
   describe "ci-checks.yml" do
     let(:launched) do
       run_commands.map do |command|
-        match = command.match(%r{\Abundle exec exe/hecks GateRun.accept!\.gate! stage=ci only=([a-z0-9_,]+) --wait\z})
+        match = command.match(%r{\Abundle exec exe/hecks gate_run\.gate! stage=ci only=([a-z0-9_,]+) --wait\z})
         [command, match && match[1].split(",")]
       end
     end
