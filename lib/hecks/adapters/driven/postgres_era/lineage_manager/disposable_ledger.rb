@@ -32,7 +32,11 @@ module Hecks
           # @param settings [Hash{Symbol, String => Object}] the persistence settings of the boot
           # @return [nil] a disposable ledger's boot mints no era
           # @raise [Runtime::WiringError] if the connection is refused or its role is unfenced
+          #
+          # The world's `stored_as` names are applied first: the boot gates run before the wiring
+          # check that applies them, and a re-hold provisions heads under the storage names.
           def check!(registry:, bluebook:, current_text:, settings:)
+            registry.apply_world_names!
             db = PostgresEra.connect_for(bluebook.name, settings, provision: true)
             lineage = open_lineage(db, bluebook, settings)
             registry.resolved_eras[bluebook.name] = locked(db, bluebook.name) { reconcile!(lineage, bluebook, current_text) }
