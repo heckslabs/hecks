@@ -310,8 +310,8 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, default: ""
     end
 
-    # How long a claim may run before `Work.overdue` lists it, in whole minutes. A row with none, or
-    # zero, is never overdue; a step back in the plan holds zero.
+    # How long a claim may run, in whole minutes. A row with none, or zero, has no budget; a step
+    # back in the plan holds zero.
     value_object "Minutes" do
       attribute :value, Integer
 
@@ -488,12 +488,6 @@ Hecks.bluebook "Tickets" do
       where(status: "planned")
       order_by :step
       limit 1
-    end
-
-    # Answered by the WorkLimits port, which reads the clock: a bluebook never reads it.
-    query "Overdue" do
-      description "Every started step whose claim time plus its time budget is before now; a step with no budget is never listed."
-      returns Document
     end
 
     query "Under" do
