@@ -140,18 +140,24 @@ RSpec.describe "the judge's coverage of the language" do
   # `Bluebook.Group` (a `domain_module`) and `Command.Address` (a command's `audience`) are real
   # DSL surface no corpus member the judge walks declares, so a small fixture does.
   def modules_bluebook
+    part = part_aggregate
     @modules_bluebook ||= Hecks::Bluebook::DSL::BluebookBuilder.build("ModulesCoverage") do
-      domain_module "Make" do
+      domain_module("Make") do
         vision "Turn raw parts into finished ones."
+        instance_eval(&part)
+      end
+    end
+  end
 
-        aggregate "Part" do
-          identified_by { attribute :code, String }
+  def part_aggregate
+    proc do
+      aggregate "Part" do
+        identified_by { attribute :code, String }
 
-          command("Cut") do
-            attribute :code, String
-            audience :agent, :ci
-            emits "PartCut"
-          end
+        command "Cut" do
+          attribute :code, String
+          audience :agent, :ci
+          emits "PartCut"
         end
       end
     end
