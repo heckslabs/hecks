@@ -21,7 +21,9 @@ module Hecks
         # The mint plan's ledger line has no successor command yet.
         "exe/hecks Maintenance.mint_era! run.value=<run-id>",
         "hecks project_diagrams", "hecks project_parser_table", "hecks project_phrase_table",
-        "hecks measure_kernel_coverage", "`hecks site site_projection.project_site"
+        "hecks measure_kernel_coverage",
+        # The installed gem's own `hecks vendor`, which a client runs outside this launcher.
+        "(the name `hecks vendor` accepts)", "`hecks site site_projection.project_site"
       ].freeze
 
       # Paths that record what was once true, so a retired name in them is history, not a fault.
