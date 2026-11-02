@@ -638,7 +638,7 @@ fn group_in_module(
         });
     }
     for row in bluebook.modules.iter_mut().filter(|row| row.name == name) {
-        row.vision = vision.clone();
+        row.vision.clone_from(&vision);
     }
     Ok(())
 }
