@@ -59,7 +59,7 @@ module Hecks
       #   `detail:`
       # @raise [Runtime::GivenNotMet] when the refs cannot be read
       def read(**_held)
-        text = @rehearsal.due(checkout: @root).fetch(:text)
+        text = push_line(@rehearsal.due(checkout: @root).fetch(:text))
         limits = self.class.thresholds(registry)
         { due: flag(due?(text, limits)), raised: flag(raised?), work: { value: WORK }, title: { value: TITLE },
           detail: { value: detail(text, limits) } }
@@ -72,6 +72,10 @@ module Hecks
       def detail(text, limits)
         "#{text.delete_prefix("push due: ")} (thresholds: #{limits[:commits]} commits, #{limits[:hours]} hours)"
       end
+
+      # The `push due:` line of the rehearsal's answer: the red-main line that may lead it is not
+      # part of whether a push is due.
+      def push_line(text) = text.lines.map(&:chomp).find { |line| line.start_with?("push due: ") } || text
 
       def first_line(text) = text[FIRST_LINE].strip
 

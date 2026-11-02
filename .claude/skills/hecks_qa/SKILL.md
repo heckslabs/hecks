@@ -49,6 +49,8 @@ reclaimed and named), and exits with the precedence across both:
 
 Once per tick (the `push_nudge` dial) it also runs `PushNudge.check!`: when local main is ahead of origin/main past the QualityControl world's `push_nudge` thresholds (20 commits, 24 hours, or a red last rehearsal on the current main) it files, revises or finishes the one `push-due` Work row from refs git already holds; it never fetches, pushes or merges, so a `push-due` row in `work.undone` is the cue to push through the train.
 
+Once per tick it also runs the red-main watch (`QaRedMainWatch`, the `red_main_watch` step): when the latest finished `CI` run on main failed it keeps one open `red-main-<run id>` Work row naming the failing job, and when a later run passes it finishes the rows it settles. It reads GitHub through `gh` only, files nothing twice, and never blocks a push (red main blocks promotion to stable). Take a `red-*` row before other work; dispatch fills it first.
+
 - **0 — clean.** Relay the summary. Nothing to dispatch.
 - **1 — operational error, nothing found.** Read the actual message(s);
   fix the real problem or report it. Nothing to dispatch per target.
