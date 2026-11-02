@@ -1,4 +1,5 @@
 require "hecks"
+require "hecks/hecks/adapters/settings_reading"
 require_relative "../lib/hecks/quality_control/adapters/main_maintenance"
 
 # The QA bundle's worlds declare their PostgresEra ledgers disposable, so a shape change needs no
