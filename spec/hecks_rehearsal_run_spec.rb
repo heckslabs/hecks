@@ -92,8 +92,9 @@ RSpec.describe "rehearsing a domain's next era" do
     expect(record["minting"]).to eq("next")
   end
 
-  # The mint reads a rehearsal's verdict from QualityControl's Maintenance, by the run (the mint plan's
-  # watermark guard), so a rehearsal that would mint records it there with the domain and the watermark it read.
+  # The mint reads a rehearsal's verdict from QualityControl's Maintenance, by the run (the mint
+  # plan's watermark guard), so a rehearsal that would mint records it there with the domain and
+  # the watermark it read.
   it "records a would-mint verdict where the mint reads it", :aggregate_failures, :process do
     run = "r-#{SecureRandom.hex(4)}"
     recorded = recorded_verdict(run)
