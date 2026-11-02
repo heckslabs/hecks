@@ -954,13 +954,13 @@ Hecks.bluebook "Bluebook" do
              blocked: "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`."
       member name: "rust_coverage", id: "rust_coverage",
              title: "rust coverage, every generated module",
-             argv: "bundle exec exe/hecks query corpus_run.corpus_rust_coverage --wait",
+             argv: "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait",
              script: "",
              blocked: "a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted."
       member name: "rust_coverage_codegen", id: "rust_coverage_codegen",
              title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta",
              argv: "",
-             script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait\ndone\n",
+             script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n",
              blocked: "hecks-codegen generated nothing for a construct a domain declares."
       member name: "kernel_coverage", id: "kernel_coverage",
              title: "rust kernel coverage, every capability variant has a kernel file",
@@ -1129,7 +1129,7 @@ Hecks.bluebook "Bluebook" do
       member name: "widening_tiers", type: "Array",
              meaning: "Fuzz depth by `Target.clean_streak`, in three discrete tiers, read by `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling."
       member name: "sweep_max_parallel", type: "Integer",
-             meaning: "How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once."
+             meaning: "How many `hecks quality_control sweep.run <target>` children `--all` keeps running at once."
       member name: "liveness_fallback_seconds", type: "Integer",
              meaning: "How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled."
       member name: "draft_only", type: "Boolean",
@@ -1147,9 +1147,9 @@ Hecks.bluebook "Bluebook" do
       member name: "runtime_coverage_feedback", type: "Boolean",
              meaning: "Whether guided generation also admits a seed to the corpus for reaching a new line or branch of the Ruby runtime (`Hecks::Fuzzing::RuntimeCoverage`), not only a new (verb, kind, state, mutation, outcome) tuple. Off by default: tracing every line slows each seed."
       member name: "self_consistency_checks", type: "Boolean",
-             meaning: "Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
+             meaning: "Whether `hecks quality_control sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
       member name: "shrink_budget", type: "Integer",
-             meaning: "Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
+             meaning: "Candidate replays `hecks quality_control sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
       member name: "yield_weight_seconds", type: "Integer",
              meaning: "Seconds of staleness that one point of yield score is worth in `RotationPriority.pick`. Zero would make yield invisible, so pick a number that lets it matter."
       member name: "yield_decay_percent", type: "Integer",
@@ -1157,13 +1157,13 @@ Hecks.bluebook "Bluebook" do
       member name: "rotation_stale_floor_seconds", type: "Integer",
              meaning: "Once a waiting target is this stale, `RotationPriority.pick` takes it whatever its yield score, so a quiet target cannot starve."
       member name: "persistence_parity_seed_cap", type: "Integer",
-             meaning: "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control query sweep.run` clamps down, never up, and prints a note."
+             meaning: "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control sweep.run` clamps down, never up, and prints a note."
       member name: "concurrency_seed_cap", type: "Integer",
              meaning: "Ceiling on `--seeds` for the concurrency mode, which needs two disposable schemas per seed."
       member name: "adapter_parity_pairs", type: "Hash",
              meaning: "The two adapters each adapter-parity mode compares, by mode name; a new pairing is a new entry. `adapter_parity_sqlite` needs no `database:`/`schema:` because sqlite has no disposable database."
       member name: "modes", type: "Hash",
-             meaning: "Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
+             meaning: "Which comparison modes `hecks quality_control sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
       member name: "role_draw_probability", type: "Numeric",
              meaning: "How often a generated role-gated command step carries a drawn caller (`role:`/`actor_id:`); 0 turns the draw off."
       member name: "dry_run_fraction", type: "Numeric",

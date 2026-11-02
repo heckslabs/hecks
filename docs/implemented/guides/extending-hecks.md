@@ -64,7 +64,7 @@ means live. `deprecated` means still read, on its way out. `retired`
 means gone — the row stays, as history, but no builder may answer it
 any more. There's one more thing a row can say, in its own column
 rather than its own status: `was:`, the rename column. `read_model` carries
-`was: "report"` (`hecks query language_run.word_status` lists it) — the corpus, still able to boot the old
+`was: "report"` (`hecks language_run.word_status` lists it) — the corpus, still able to boot the old
 `report` spelling, is the proof that a rename never stops the old spelling
 from booting.
 

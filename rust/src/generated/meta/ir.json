@@ -35289,7 +35289,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks query corpus_run.corpus_rust_coverage --wait"
+                "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait"
               ],
               [
                 "script",
@@ -35319,7 +35319,7 @@
               ],
               [
                 "script",
-                "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait\ndone\n"
+                "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n"
               ],
               [
                 "blocked",
@@ -36044,7 +36044,7 @@
               ],
               [
                 "meaning",
-                "How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once."
+                "How many `hecks quality_control sweep.run <target>` children `--all` keeps running at once."
               ]
             ],
             [
@@ -36170,7 +36170,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
+                "Whether `hecks quality_control sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
               ]
             ],
             [
@@ -36184,7 +36184,7 @@
               ],
               [
                 "meaning",
-                "Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
+                "Candidate replays `hecks quality_control sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
               ]
             ],
             [
@@ -36240,7 +36240,7 @@
               ],
               [
                 "meaning",
-                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control query sweep.run` clamps down, never up, and prints a note."
+                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control sweep.run` clamps down, never up, and prints a note."
               ]
             ],
             [
@@ -36282,7 +36282,7 @@
               ],
               [
                 "meaning",
-                "Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
+                "Which comparison modes `hecks quality_control sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
               ]
             ],
             [

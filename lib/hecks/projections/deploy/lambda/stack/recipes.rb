@@ -26,11 +26,11 @@ module Hecks
 
             # `hecks ask` answers the scaffold as text, and refuses (exit 1) where the script
             # aborted.
-            SCAFFOLD = Translation.new(verb: "scaffold-translation", script: "exe/hecks query era.scaffold_translation",
+            SCAFFOLD = Translation.new(verb: "scaffold-translation", script: "exe/hecks era.scaffold_translation",
                                        extra_args: "", cwd: "$(ROOT)", run_prefix: "HECKS_ENVIRONMENT=memory ruby",
                                        db_env_blind: true, domain_arg: "domain=$(DOMAIN) ")
             # A refused audit is a refused query: `hecks ask` exits 1, so the target fails too.
-            AUDIT = Translation.new(verb: "translation-audit", script: "exe/hecks query era.audit_translation",
+            AUDIT = Translation.new(verb: "translation-audit", script: "exe/hecks era.audit_translation",
                                     extra_args: "", cwd: "$(ROOT)", run_prefix: "HECKS_ENVIRONMENT=memory ruby",
                                     db_env_blind: true, domain_arg: "domain=$(DOMAIN) ")
             # An app-owned one-time migration script instead of a hecks tool:

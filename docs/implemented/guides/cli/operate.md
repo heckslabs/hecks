@@ -18,7 +18,7 @@ The reply is the outcome the domain gave, and the run is kept so it can be read 
 **Example: see what a domain holds**
 
 ```sh
-hecks query Introspection.stores domain.value=examples/banking
+hecks Introspection.stores domain.value=examples/banking
 ```
 
 The reply is each aggregate's current records, as JSON.

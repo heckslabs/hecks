@@ -45,7 +45,7 @@ Hecks.bluebook "QualityControl" do
     attribute :last_swept, SweptIn
     # Recency-decayed count of how often this bluebook was worth sweeping; see `YieldScore`.
     attribute :yield_score, YieldScore
-    # Consecutive `Release`s that came back clean; `hecks quality_control query sweep.run` reads it to choose sweep depth.
+    # Consecutive `Release`s that came back clean; `hecks quality_control sweep.run` reads it to choose sweep depth.
     # Zero means no streak yet, shared on purpose by a never-swept target and a just-surprised one.
     attribute :clean_streak, CleanStreak
     # Comma-joined mode names recorded at release from what the runner inferred. Stored so
@@ -267,7 +267,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     query "Suspended" do
-      description "Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back."
+      description "Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control sweep.run <target> --release --notes is how one comes back."
       where(status: "suspended")
       order_by :reference
     end
@@ -3039,14 +3039,14 @@ Hecks.bluebook "QualityControl" do
   # Nothing reacts to `TicketRaised` on purpose: a ticket waits until somebody submits it.
 
   # The rotation's one automatic reaction. Releasing on `SweepConcluded` cannot work: that event
-  # carries no target id, `next_streak` or yield score, so `hecks quality_control query sweep.run` still releases.
+  # carries no target id, `next_streak` or yield score, so `hecks quality_control sweep.run` still releases.
   # `on Sweep::CheckSurprised`, not `Sweep::Check::...`: an entity command's event is stamped with
   # its parent aggregate. `Check.Surprised` restates `target` so the id rides in.
   policy "SuspendOnSurprise" do
     on      Sweep::CheckSurprised
     trigger Target::Suspend, with: {
       target: :target,
-      reason: { value: "a check surprised — a person releases with hecks quality_control query sweep.run <target> --release --notes" }
+      reason: { value: "a check surprised — a person releases with hecks quality_control sweep.run <target> --release --notes" }
     }
   end
 

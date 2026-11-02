@@ -10,7 +10,7 @@ module Hecks
     #
     #   hecks generate_sequence <domain> [--seed N] [--steps N] [--adversarial fraction]
     #
-    # `--adversarial` mutates the sequence as `hecks quality_control query sweep.run` does; 0 (off)
+    # `--adversarial` mutates the sequence as `hecks quality_control sweep.run` does; 0 (off)
     # by default.
     module SequenceScript
       USAGE = "usage: hecks generate_sequence <domain> [--seed N] [--steps N] [--adversarial FRACTION]"
