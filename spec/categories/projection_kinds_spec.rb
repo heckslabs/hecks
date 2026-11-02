@@ -15,9 +15,10 @@ RSpec.describe "every domain projection, on every example domain", :aggregate_fa
 
   def self.kinds = Hecks::Projector.registered_by_category.fetch(:projection).reject { |kind| site_kind?(kind) }
 
+  # `undo` asks about one named command, so every kind is handed one; the others ignore it.
   def projected(dir, kind)
     registry = Hecks::Runtime::Loader.describe(dir, environment: nil).registry
-    Hecks::Projector.call(kind, bluebook: registry.bluebooks.values.first, options: {})
+    Hecks::Projector.call(kind, bluebook: registry.bluebooks.values.first, options: { command: "Probe.Command" })
   end
 
   domains.each do |dir|

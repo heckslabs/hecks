@@ -2571,6 +2571,7 @@ Hecks.bluebook "QualityControl" do
 
     # A cleared file that fails again goes back to red: the row reopens, it is never filed twice.
     lifecycle :status, default: "red" do
+      mark :failure, "red"
       transition "Clear"  => "green", from: "red"
       transition "Reopen" => "red",   from: "green"
     end

@@ -38,7 +38,14 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }["with"] = { "domains" => shard_domains }
     change_run(steps, "rspec: parallel", "--tag ~fuzzing", "--tag ~fuzzing --tag ~generated_all")
     change_run(steps, "Determine", "groups=4", "groups=#{shard_total}")
+    spell_with_bang(steps)
     document
+  end
+
+  # The runtime-log upload's name teaches the command by its bang spelling now.
+  def spell_with_bang(steps)
+    step = steps.find { |candidate| candidate["name"].to_s.start_with?("Upload this shard") }
+    step["name"] = step["name"].sub("hecks refresh_runtime_baseline", "hecks TestSuiteRun.refresh_runtime_baseline!")
   end
 
   # Rewrites part of the command of the step whose name starts with `name`.
