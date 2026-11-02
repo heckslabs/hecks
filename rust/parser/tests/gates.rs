@@ -989,6 +989,21 @@ fn a_multi_line_keyword_call_records_its_keyword_names_in_order() {
 }
 
 #[test]
+fn a_binding_with_keywords_and_no_adapter_binds_under_the_empty_adapter() {
+    let (code, out, err) = run_world(&["world_no_adapter.world"]);
+    assert_eq!(code, 0, "{err}");
+    let flat = squash(&out);
+    assert!(
+        flat.contains("\"verb\": \"stored_as\", \"adapter\": \"\", \"settings\": [ \"Revision\", \"Workspace\" ]"),
+        "got: {out}"
+    );
+    assert!(
+        flat.contains("\"verb\": \"minting\", \"adapter\": \"\", \"settings\": [ \"commands\" ]"),
+        "got: {out}"
+    );
+}
+
+#[test]
 fn default_database_accepts_an_env_fetch_expression_without_printing_it() {
     let (code, out, _) = run_world(&["world_env_database.world"]);
     assert_eq!(code, 0);
