@@ -3,11 +3,13 @@ require "tmpdir"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 require_relative "support/tenant_scratch_database"
+require_relative "support/first_era_hold"
 
 # Interleaved random writes to two live tenants, across many seeds, must stay partitioned.
 # Shared ambient state would show as tenant B seeing what tenant A just wrote.
 RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   include TenantScratchDatabase
+  include FirstEraHold
 
   TENANT_FUZZ_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Fuzzed" do
@@ -105,10 +107,16 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
       "bloom" => Hecks.boot(dir, environment: "bloom", install_driving: false) }
   end
 
+  def hold_postgres_tenant_eras!(dir, tenant_settings)
+    url = tenant_settings.values.first.fetch(:database)
+    hold_tenant_eras!(directory: dir, url: url, schemas: tenant_settings.values.map { |t| t.fetch(:schema) })
+  end
+
   # One line for each tenant whose rows after the interleaved writes are not exactly its own.
   def partition_mismatches(seed:, steps:, adapter:, tenant_settings:)
     Dir.mktmpdir do |dir|
       write_domain(dir, adapter: adapter, tenant_settings: tenant_settings)
+      hold_postgres_tenant_eras!(dir, tenant_settings) if adapter == "PostgresEra"
       dispatchers = boot_tenants(dir)
       interleave(dispatchers, seed: seed, steps: steps).filter_map do |slug, refs|
         actual = actual_refs(dispatchers.fetch(slug)).sort

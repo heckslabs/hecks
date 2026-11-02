@@ -2,6 +2,7 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
 require_relative "../support/scratch_postgres"
+require_relative "../support/first_era_hold"
 
 # The `saga_durability_spec.rb` proof, run against Postgres. Kept in its own io-gated file like
 # the other Postgres-specific specs.
@@ -10,7 +11,11 @@ RSpec.describe "durable saga/process-manager state, against Postgres", :io do
   POSTGRES_ERA_ADAPTER = InMemoryDomain::POSTGRES_ERA_ADAPTER
   SAGA_DURABILITY_SPEC_DB = "hecks_saga_durability_spec".freeze
 
+  include FirstEraHold
+
   scratch_postgres SAGA_DURABILITY_SPEC_DB
+
+  before { hold_first_era!(url: SAGA_DURABILITY_SPEC_DB, domain: "Wire", source: File.read(WIRE_BLUEBOOK)) }
 
   # Commands declare `role`; without `attaches "Governance"` the builder refuses
   # ungoverned roles (refuse_ungoverned_roles!).
