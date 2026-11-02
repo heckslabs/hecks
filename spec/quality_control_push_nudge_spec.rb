@@ -33,11 +33,11 @@ RSpec.describe "the push nudge" do
     check
 
     expect(rows.size).to eq(1)
-    expect(rows.first["detail"]).to include("27 commit(s) ahead", "20 commits", "24.0 hours")
+    expect(rows.first["detail"]).to include("27 commit(s) ahead", "15 commits", "6.0 hours", "urgent at 40")
   end
 
   it "files one row when the oldest unpushed commit is old enough" do
-    ahead(3, hours: 30.5)
+    ahead(3, hours: 7.5)
     check
 
     expect(rows.size).to eq(1)
@@ -68,6 +68,24 @@ RSpec.describe "the push nudge" do
     expect(rows).to be_empty
   end
 
+  def titles = rows.map { |row| row["title"] }
+
+  it "titles the row by size class" do
+    ahead(16)
+    check
+
+    expect(titles).to eq(["a push of main is due, 16 commits"])
+  end
+
+  it "revises the title as the push grows to urgent" do
+    ahead(16)
+    check
+    ahead(45)
+    check
+
+    expect(titles).to eq(["URGENT: a push of main is due, 45 commits"])
+  end
+
   it "files the row for a red last rehearsal on the current main even under the numbers" do
     ahead(2, hours: 0.5, rehearsed: "red (quick) on abc1234 (the current main)")
     check
@@ -86,7 +104,7 @@ RSpec.describe "the push nudge" do
     world = instance_double(Hecks::Bluebook::World, for_verb: { adapter: "PushDueReader", commits: 5, hours: 2 })
     registry = instance_double(Hecks::Runtime::Registry, world: world)
 
-    expect(Hecks::Adapters::PushDueReader.thresholds(registry)).to eq({ commits: 5, hours: 2.0 })
-    expect(Hecks::Adapters::PushDueReader.thresholds(nil)).to eq({ commits: 20, hours: 24.0 })
+    expect(Hecks::Adapters::PushDueReader.thresholds(registry)).to eq({ commits: 5, hours: 2.0, urgent_commits: 40 })
+    expect(Hecks::Adapters::PushDueReader.thresholds(nil)).to eq({ commits: 15, hours: 6.0, urgent_commits: 40 })
   end
 end

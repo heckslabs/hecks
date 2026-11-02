@@ -374,11 +374,13 @@ Hecks.bluebook "Tickets" do
       emits "WorkPlanned"
     end
 
-    # A step still open takes what a later look at it found: the row stays one, its detail moves.
+    # A step still open takes what a later look at it found: the row stays one, its title and
+    # detail move.
     command "Revise" do
-      goal "Replace an open step's detail with what a later look found"
+      goal "Replace an open step's title and detail with what a later look found"
 
       reference_to Work
+      attribute :title,  WorkTitle, sets: true
       attribute :detail, WorkText, sets: true
 
       emits "WorkRevised"
@@ -644,7 +646,7 @@ Hecks.bluebook "Tickets" do
   policy "ReviseWorkWhenPushStillDue" do
     on      "PushNudge.PushDueRead"
     where   { due.value == "yes" && raised.value == "yes" }
-    trigger Work::Revise, with: { work: :work, detail: :detail }
+    trigger Work::Revise, with: { work: :work, title: :title, detail: :detail }
   end
 
   policy "FinishWorkWhenPushSettled" do
