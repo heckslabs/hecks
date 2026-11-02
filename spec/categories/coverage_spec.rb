@@ -37,6 +37,9 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
     "RefusalKind"           => "the sorts of refusal, held by spec/runtime/refusal_classification_spec.rb",
     "RefusalSiteArgument"   => "refusal wording rows, pinned by the IR golden",
     "RefusalTemplate"       => "refusal wording rows, pinned by the IR golden",
+    "RehearsalScope"        => "the stages a push rehearsal runs, held by spec/adapters/driven/git_rehearsal_scope_spec.rb",
+    "RehearsalStage"        => "the gate or impacted-spec step of a rehearsal, held by " \
+                               "spec/adapters/driven/git_rehearsal_scope_spec.rb",
     "ReleaseFile"           => "release bookkeeping, held by spec/release/",
     "RequiredCheck"         => "release checks, held by spec/tools_lanes_spec.rb",
     "RetiredScript"         => "retired tooling, held by spec/bin_holds_no_script_spec.rb",
