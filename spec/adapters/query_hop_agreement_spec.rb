@@ -2,6 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
+require_relative "../support/first_era_hold"
 require "pg"
 
 # Whether a cross-aggregate hop query answers correctly on the SQL adapters
@@ -17,6 +18,8 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   # constant name shared across spec files.
   HOP_CHAIN_AGREEMENT = File.join(InMemoryDomain::ROOT, "spec/fixtures/hop_chain.bluebook")
   HOP_AGREEMENT_DB = "hecks_query_hop_agreement_spec".freeze
+
+  include FirstEraHold
 
   def postgres_available? = PostgresProbe.available?
 
@@ -187,6 +190,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     before do
       skip "no reachable local Postgres — set up a local server to run this spec" unless postgres_available?
 
+      hold_first_era!(url: HOP_AGREEMENT_DB, domain: "HopChain", source: File.read(HOP_CHAIN_AGREEMENT))
       seed(runtime)
     end
 

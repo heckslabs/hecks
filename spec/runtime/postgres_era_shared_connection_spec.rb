@@ -2,6 +2,7 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
+require_relative "../support/first_era_hold"
 require_relative "../support/thread_parking"
 
 # A domain's PostgresEra adapters share one connection per database and schema, so booting a
@@ -9,6 +10,8 @@ require_relative "../support/thread_parking"
 RSpec.describe "PostgresEra shares one connection across a domain's aggregates", :io do
   SHARED_CONN_DB = "hecks_shared_connection_spec".freeze
   AGGREGATE_COUNT = 70
+
+  include FirstEraHold
 
   def owner_url = FencedOwner.url(SHARED_CONN_DB)
 
@@ -79,6 +82,7 @@ RSpec.describe "PostgresEra shares one connection across a domain's aggregates",
   end
 
   def adapters_for(domain, settings)
+    hold_declared_era!(domain, url: settings[:database], schema: settings[:schema])
     domain.aggregates.map do |aggregate|
       Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: settings.merge(domain: "Sprawl"))
     end

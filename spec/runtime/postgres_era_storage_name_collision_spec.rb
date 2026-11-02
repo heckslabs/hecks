@@ -5,6 +5,7 @@ require_relative "../support/postgres_probe"
 require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
 require_relative "../support/mint_request_support"
+require_relative "../support/first_era_hold"
 
 # Pins a fix (ADR 0059): Lineage#head_view/#head_snapshot/#matview were
 # qualified by storage_name alone, so two aggregates named alike (e.g. two
@@ -12,6 +13,7 @@ require_relative "../support/mint_request_support"
 # PostgresEra's boot-time self-heal silently clobbered one with the other.
 RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (docs/decisions/0059)", :io do
   include MintRequestSupport
+  include FirstEraHold
 
   STORAGE_COLLISION_DB = "hecks_storage_name_collision_spec".freeze
 
@@ -169,7 +171,10 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     File.join(dir, "bluebook")
   end
 
-  def boot_dir(domain_dir) = Hecks.boot(domain_dir, install_driving: false)
+  def boot_dir(domain_dir)
+    hold_domain_eras!(directory: domain_dir, url: owner_url)
+    Hecks.boot(domain_dir, install_driving: false)
+  end
 
   def relation_names(pattern)
     db = PG.connect(dbname: STORAGE_COLLISION_DB)
@@ -387,6 +392,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     # LineageManager.check! only needs a registry + bluebook — no hecksagon/world required to mint
     # Target directly at era 1; saves one note there.
     def mint_target_at_era_one
+      hold_first_era!(url: owner_url, domain: "Target", source: TARGET_V1)
       registry_v1 = check!(TARGET_V1)
       aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Note")
       adapter_v1 = Hecks::Adapters::PostgresEra.new(

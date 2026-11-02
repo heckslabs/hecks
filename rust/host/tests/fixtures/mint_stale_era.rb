@@ -9,6 +9,7 @@ $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tempfile"
+require_relative "../../../../spec/support/first_era_hold"
 
 db_name, owner_role, app_role = ARGV
 unless db_name && owner_role && app_role
@@ -115,6 +116,8 @@ def edge_source(from:, to:)
   RUBY
 end
 
+# A boot never holds era 1: hold it as the mint entry point does, then mint era 2 over it.
+Object.new.extend(FirstEraHold).hold_first_era!(url: owner_url, domain: "Ledger", source: v1)
 check!(v1, owner_url: owner_url)
 from = label_of(v1)
 to = label_of(v2)
