@@ -1,5 +1,6 @@
 require "spec_helper"
 require_relative "../support/memory_ports"
+require_relative "../../lib/hecks/tools/stage_progress"
 
 # The launcher's `-q` and `-v` levels: `-q` keeps the result and any refusal; `-v` adds the
 # command, its checkout and stores, and the time it took, on standard error.
