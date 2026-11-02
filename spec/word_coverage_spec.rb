@@ -192,6 +192,16 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "a real declaration would invent a second operation for a command that needs " \
                                            "none. The word is exercised by docs/implemented/reference/port_operation.md.",
     "backfill (TranslationAggregate)"   => TRANSLATION_RULE_GAP,
+    # ADR 0171's addendum: an adapter saying `stays_inside` opts its whole project into the
+    # behaviors adapter selection, and this repository's own suites boot through more than a
+    # hundred adapters no one has judged yet, so none of lib/hecks/adapters/driven may say it
+    # until that migration is made. The word's corpus use is Miette's adapters, under ADR 0025
+    # item 4's exemption for a named external consumer; spec/fixtures/sequential_identity.adapter
+    # and the reference page's `reference_counter` exercise it here.
+    "stays_inside (Adapter)"            =>
+                                           "a driven adapter saying it opts this repository's behaviors suites into " \
+                                           "ADR 0171's selection before their adapters are judged; the real use is " \
+                                           "Miette's adapters, a named external consumer (ADR 0025 item 4).",
     "unresolved (TranslationAggregate)" =>
                                            "same finding as the rest of this group, plus a second, independent reason: " \
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
