@@ -12,6 +12,7 @@ module Hecks
           TOUR_NAME = "Tour".freeze
           TOUR_COMMAND = %w[Example.create! name=hello].freeze
           TOUR_DIRECTORY = "hecks-tour".freeze
+          USAGE = "tour [dir]  write a sample domain in dir (default hecks-tour) and run one command".freeze
 
           # The answer to `tour [dir]`, or nil when the line is not a tour.
           def tour_answer(scope, argv)

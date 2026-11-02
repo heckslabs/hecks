@@ -5,6 +5,8 @@ module Hecks
         # The launcher word `completion <shell>` (ADR 0163, plan step 7): the script that completes
         # the launcher's words in that shell, written from the same listing the help prints.
         module CompletionWords
+          USAGE = "completion <bash|zsh|fish>  print the script that completes the launcher in a shell".freeze
+
           # The answer to `completion <shell>`: the script on stdout, or the usage line when the
           # shell is missing or not one this projection writes.
           def completion_answer(scope, argv)

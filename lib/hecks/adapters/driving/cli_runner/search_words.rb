@@ -5,6 +5,8 @@ module Hecks
         # The launcher word `search`: the commands and queries a word appears in, read from the same
         # projection the help prints (ADR 0163, step 20). Extended into `CliRunner`.
         module SearchWords
+          USAGE = "search <word> [--all]  list the commands and queries a word appears in".freeze
+
           # The answer to `search <word> [--all]`: the commands and queries a word appears in, or
           # the line saying none does.
           def search_answer(scope, argv)
