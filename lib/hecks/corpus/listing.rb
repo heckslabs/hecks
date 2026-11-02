@@ -1,6 +1,7 @@
 module Hecks
   module Corpus
-    # How a kind's glob becomes its members: a directory each, or a file each. Extended onto `Corpus`.
+    # How a kind's glob becomes its members: a directory each, or a file each.
+    # Extended onto `Corpus`.
     module Listing
       # @return [Array<Member>] the members of one kind: a directory each, or a file each
       # @raise [ArgumentError] if `kind` is not in `KINDS`
