@@ -3384,6 +3384,19 @@ RSpec.describe "the DSL surface" do
       expect(occurrences_plugin).to be_plugin
       expect(build_adapter { port "post" }).not_to be_plugin
     end
+
+    def inside_clock_adapter
+      build_adapter do
+        port "clock"
+        stays_inside
+      end
+    end
+
+    # ADR 0171: the one claim an adapter makes about its reach, false until it says the word.
+    it "stays_inside says the adapter reaches nothing outside the process and the checkout", :aggregate_failures do
+      expect(inside_clock_adapter).to be_stays_inside
+      expect(build_adapter { port "clock" }).not_to be_stays_inside
+    end
   end
 
   describe "a domain port" do
