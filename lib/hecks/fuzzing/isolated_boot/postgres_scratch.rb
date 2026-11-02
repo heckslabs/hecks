@@ -75,19 +75,13 @@ module Hecks
                 "There is no shared default, unlike :postgres, so the caller cannot forget to own the lifecycle."
         end
 
-        # The world text for one bluebook on `PostgresEra`.
+        # The world text for one bluebook on `PostgresEra`, in a throwaway schema the caller owns.
         #
-        # `schema:` isolates one ephemeral boot from the next, as `ScratchSchema#scratch_schema`
-        # does for `:postgres`.
+        # `allow_superuser true` is deliberate: the era write-fence is row-level security, which a
+        # superuser bypasses, and the fence is not under test here.
         #
-        # `allow_superuser true` is deliberate: PostgresEra normally refuses to boot as
-        # a superuser (its era write-fence is row-level security, which a superuser
-        # bypasses), to protect a real ledger from stale writes. This is a throwaway
-        # schema the caller creates and drops, comparing Memory against PostgresEra's
-        # SQL — the era fence isn't under test, so opting in here is safe.
-        #
-        # A boot over a schema just created holds no first era, so the ledger is disposable unless
-        # the caller holds the first era itself and wants the era guard (`disposable: false`).
+        # The ledger is disposable unless the caller holds the first era itself and wants the
+        # era guard (`disposable: false`).
         def postgres_era_world(name, database, schema, disposable: true)
           <<~WORLD
             Hecks.world "#{name}" do
