@@ -236,10 +236,11 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect { carry }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /the suite is red/)
   end
 
-  it "opens the report with what the Hecks mint did" do
+  it "opens the report with the push's size, then what the Hecks mint did" do
     commit("second")
 
-    expect(carry[:report][:value]).to start_with("the Hecks shape f30dcb did not move, then boarded").and include("pushed")
+    expect(carry[:report][:value])
+      .to start_with("pushing 1 commits\nthe Hecks shape f30dcb did not move, then boarded").and include("pushed")
   end
 
   # A mint that refuses, as `HeldMint#answer` does, with its reason.
