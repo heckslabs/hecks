@@ -114,8 +114,8 @@ RSpec.describe "pulling main first" do
     it "refuses a branch whose base is behind origin/main, naming the fix" do
       stale_branch
       expect { lander.merge(checkout: repo, branch: "work/stale") }
-        .to raise_error(failure, "main is behind origin/main by 1 commit: pull main first " \
-                                 "(LinkedTree.pull_main!) and rebase the branch")
+        .to raise_error(failure, "work/stale lacks 1 commit that origin/main has: pull main first " \
+                                 "(LinkedTree.pull_main!) and rebase the branch onto it")
     end
 
     it "accepts the branch after the pull and rebase" do
