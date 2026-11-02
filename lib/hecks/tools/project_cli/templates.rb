@@ -102,20 +102,16 @@ module Hecks
         RUBY
 
         # The lines that put a checkout's launcher on the gems its Gemfile pins. They do nothing
-        # beside an installed gem, where no Gemfile stands next to the gemspec, and they leave the
-        # gems at hand when the pinned set is not installed.
+        # beside an installed gem, where no Gemfile stands next to the gemspec. A Gemfile that
+        # cannot be loaded stops the launcher with Bundler's own error.
         PINNED_GEMS = <<~RUBY.freeze
 
           # In a hecks checkout this runs on the gems the Gemfile pins, as `bundle exec` and CI do.
-          # Beside an installed gem, or where that set is not installed, it runs on the gems at hand.
+          # Beside an installed gem, where no Gemfile stands, it runs on the gems at hand.
           gemfile = File.expand_path("{{up}}Gemfile", __dir__)
           if File.exist?(File.expand_path("{{up}}hecks.gemspec", __dir__)) && File.exist?(gemfile)
             ENV["BUNDLE_GEMFILE"] ||= gemfile
-            begin
-              require "bundler/setup"
-            rescue LoadError, StandardError
-              nil
-            end
+            require "bundler/setup"
           end
         RUBY
 

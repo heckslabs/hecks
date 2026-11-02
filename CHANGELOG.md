@@ -69,6 +69,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Fixed
 
+- **A broken checkout Gemfile now fails loudly.** The launcher no longer swallows a failed `require "bundler/setup"` and runs on whatever gems load; Bundler's own error stops the CLI.
 - **Rust refusal order and wording follow Ruby (BUG#153 to BUG#155).** A reference a command sets through a plain value object is checked at save, beside the tenant boundary; an entity command whose element identity is absent refuses the missing parent first; and a reference argument that is not an id string refuses as `reference_wrong_shape`.
 - **A SQLite store whose aggregate gained attributes after its table was made no longer refuses every write.** Opening the adapter adds each missing column, nullable, and only adds. Two processes opening the same file at once no longer crash on `duplicate column name`, and column names compare case-insensitively as SQLite does.
 - **`era.boot_status` no longer reports a shape current that the real boot holds unminted.** It used to read the committed `shapes.json`; it reads the domain's own database, and labels a held era from its stored hash or projection.

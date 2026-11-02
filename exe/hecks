@@ -15,15 +15,11 @@ Encoding.default_internal = Encoding::UTF_8
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
 # In a hecks checkout this runs on the gems the Gemfile pins, as `bundle exec` and CI do.
-# Beside an installed gem, or where that set is not installed, it runs on the gems at hand.
+# Beside an installed gem, where no Gemfile stands, it runs on the gems at hand.
 gemfile = File.expand_path("../Gemfile", __dir__)
 if File.exist?(File.expand_path("../hecks.gemspec", __dir__)) && File.exist?(gemfile)
   ENV["BUNDLE_GEMFILE"] ||= gemfile
-  begin
-    require "bundler/setup"
-  rescue LoadError, StandardError
-    nil
-  end
+  require "bundler/setup"
 end
 
 # These commands keep nothing worth a database, so they run on Memory unless told otherwise.
