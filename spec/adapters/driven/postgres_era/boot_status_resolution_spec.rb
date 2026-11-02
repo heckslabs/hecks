@@ -165,8 +165,27 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
     expect(both(shape_v1)).to eq(boot: ["current", 1], status: ["current", 1])
   end
 
-  it "agrees with the boot on an unminted shape" do
-    expect(both(shape_v3)).to eq(boot: ["unminted", 1], status: ["unminted", 1])
+  it "agrees with the boot on a breaking shape no edge covers: it refuses, the status says why", :aggregate_failures do
+    expect { boot(shape_v3) }.to raise_error(Hecks::Runtime::WiringError, /no translation edge covers it/)
+    row = status(shape_v3)
+    expect([row.status, row.reason]).to match(["unminted", /no translation edge covers it/])
+  end
+
+  it "reads a provably additive shape no edge covers as unminted, and agrees with the status" do
+    additive = shape("cost").sub("attribute :kind, Kind", "attribute :kind, Kind\n    attribute :note, Kind, optional: true")
+    expect(both(additive)).to eq(boot: ["unminted", 1], status: ["unminted", 1])
+  end
+
+  def refusal_pattern
+    held = label_of(shape_v1)
+    current = label_of(shape_v3)
+    /cannot boot Ledger: no translation edge covers it: #{current} .*#{held}.*scaffold_translation/
+  end
+
+  it "refuses a breaking shape with the domain, both labels and the remedy, and writes nothing", :aggregate_failures do
+    before_state = database_state
+    expect { boot(shape_v3) }.to raise_error(Hecks::Runtime::WiringError, refusal_pattern)
+    expect(database_state).to eq(before_state)
   end
 
   it "agrees with the boot on a shape an edge leads the held era to" do

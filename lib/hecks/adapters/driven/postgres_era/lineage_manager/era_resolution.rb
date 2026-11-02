@@ -21,7 +21,12 @@ module Hecks
           # What a resolution concludes. `resolved` is the era the boot reads (nil when `unheld`),
           # `latest` the latest held era, `verdict` the mint decision from the latest era (nil
           # unless the shape is `behind` or `unminted`), and `held_count` how many eras are held.
-          Answer = Data.define(:status, :resolved, :latest, :current_label, :verdict, :held_count) do
+          Answer = Data.define(:status, :resolved, :latest, :current_label, :verdict, :held_count,
+                               :breaking) do
+            # @return [Boolean] whether the shape is unminted because the move is breaking and no
+            #   translation edge covers it, so a boot reads nothing under it and refuses
+            def breaking? = breaking == true
+
             # @return [Boolean] whether a held era holds the current shape
             def matched? = %w[current superseded].include?(status)
 
@@ -154,16 +159,20 @@ module Hecks
           def unmatched(facts, bluebook, translations, directory, watermark)
             verdict = MintDecision.decide_latest(facts[:latest], bluebook: bluebook, translations: translations,
                                                                  directory: directory, watermark: watermark)
-            answer(verdict.verdict == "would_mint" ? "behind" : "unminted", facts[:latest], facts, verdict)
+            status = verdict.verdict == "would_mint" ? "behind" : "unminted"
+            breaking = MintDecision.breaking?(facts[:latest], bluebook, verdict, translations)
+            answer(status, facts[:latest], facts, verdict, breaking: breaking)
           end
 
           # @return [Answer]
-          def answer(status, resolved, facts, verdict = nil)
-            Answer.new(status: status, resolved: resolved, verdict: verdict, **facts)
+          def answer(status, resolved, facts, verdict = nil, breaking: false)
+            Answer.new(status: status, resolved: resolved, verdict: verdict, breaking: breaking, **facts)
           end
 
           # The sentence a status row gives for its status.
           module Reasons
+            REMEDY = "write an edge (`era.scaffold_translation`) and mint it with the release mint".freeze
+
             module_function
 
             # @param answer [Answer] the resolution
@@ -189,8 +198,16 @@ module Hecks
                 "would go ahead on its #{answer.implicit? ? "recorded implicit move" : "translation edge"}"
             end
 
+            # @return [String] the refusal a boot over a breaking move gives
+            def breaking(answer)
+              "no translation edge covers it: #{answer.current_label} is not an additive move from " \
+                "era #{answer.ordinal} (#{answer.held_label}); #{REMEDY}"
+            end
+
             # @return [String]
             def unminted(answer)
+              return breaking(answer) if answer.breaking?
+
               "no era holds #{answer.current_label}; a mint from era #{answer.ordinal} (#{answer.held_label}) " \
                 "is #{answer.decision}"
             end

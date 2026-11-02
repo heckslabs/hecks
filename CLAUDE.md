@@ -169,6 +169,9 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   (`LineageManager::DisposableLedger`): an additive shape change is applied in place, any other
   moves the aggregate's rows to a dated archive table (listed in `hecks_ledger_archives`) and starts
   it empty, and a boot never refuses as unminted or superseded. Never declare it for client data.
+- A boot over a store that holds eras reads a shape no era holds only when a recorded edge or a
+  provably additive move covers it; a breaking move no edge covers refuses by name (`no translation
+  edge covers it`), writing nothing. This is the interim until the commit-time gate (ADR 0168).
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 
