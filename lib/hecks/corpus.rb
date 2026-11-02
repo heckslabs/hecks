@@ -151,13 +151,14 @@ module Hecks
     end
 
     # Every bootable domain in the project — any directory holding a
-    # `.bluebook` no route sends elsewhere (a `bluebook/` folder stands for its parent).
+    # `.bluebook` no route sends elsewhere (a `bluebook/` folder stands for its parent),
+    # less module folders, which their parent's bluebook stands for.
     #
     # @param root [String] repository root to search under
     # @return [Array<String>] absolute paths of every sweepable domain directory
     def sweepable_domains(root = ROOT)
       Dir.chdir(root) do
-        swept = Dir.glob("**/*.bluebook").reject { |path| route_for(path) }
+        swept = Dir.glob("**/*.bluebook").reject { |path| route_for(path) || module_bluebook?(path) }
         dirs = swept.map { |path| owning_dir(File.dirname(path)) }
         dirs.uniq.sort.map { |dir| File.join(root, dir) }
       end
@@ -165,6 +166,15 @@ module Hecks
 
     # The domain directory a bluebook directory stands for: a `bluebook/` folder is its parent.
     def owning_dir(dir) = File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
+
+    # A bluebook line that opens a `domain_module`.
+    MODULE_OPENING = /^\s*domain_module\b/
+
+    # Whether a bluebook is a module folder's (ADR 0163): it opens a `domain_module` of the parent's
+    # bluebook, so its folder is no domain on its own and cannot boot alone.
+    def module_bluebook?(path)
+      File.basename(path, ".bluebook") == File.basename(File.dirname(path)) && File.read(path).match?(MODULE_OPENING)
+    end
 
     # Sweepable domains a fuzz cannot boot from its copy, by repo-relative directory, each with
     # the reason. A fuzz boots a tmpdir copy of a domain to isolate its state.

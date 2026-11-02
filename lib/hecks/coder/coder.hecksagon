@@ -5,3 +5,8 @@ Hecks.hecksagon "Coder" do
   # A planned Work row, which ComposeBriefWhenPlanned briefs.
   subscribe "Tickets.WorkPlanned"
 end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
