@@ -50,7 +50,7 @@ RSpec.describe Hecks::Translation::AdditiveShape do
   PHASE = "#{NM}\nattribute :phase, String, optional: true".freeze
 
   # Each pair: the held attributes and options, the booting ones, and whether the change only adds.
-  PAIRS = {
+  SHAPE_PAIRS = {
     "an unchanged shape"                       => [[NM, {}], [NM, {}], true],
     "an optional attribute gained"             => [[NM, {}], [OPT_M, {}], true],
     "a required attribute gained"              => [[NM, {}], [REQ_M, {}], false],
@@ -65,7 +65,7 @@ RSpec.describe Hecks::Translation::AdditiveShape do
                                                    [PHASE, { lifecycle: LIFE.call(:phase, "a", "b") }], false]
   }.freeze
 
-  PAIRS.each do |name, (held, current, additive)|
+  SHAPE_PAIRS.each do |name, (held, current, additive)|
     verdict = additive ? "additive" : "breaking"
 
     %i[implicit? shared? ledger?].zip(["the implicit edge", "the shared rule", "the disposable ledger"]).each do |ask, by|

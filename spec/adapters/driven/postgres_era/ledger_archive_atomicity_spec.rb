@@ -37,7 +37,7 @@ RSpec.describe "a disposable ledger's archive on scratch Postgres", :io do
     end
   end
 
-  SOURCE = <<~BLUEBOOK.freeze
+  ARCHIVE_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "Ledger" do
       aggregate "Acct" do
         identified_by :kind
@@ -51,14 +51,14 @@ RSpec.describe "a disposable ledger's archive on scratch Postgres", :io do
 
   def url = FencedOwner.url(ATOMIC_DB)
 
-  def bluebook = load_registry(SOURCE).bluebooks.values.first
+  def bluebook = load_registry(ARCHIVE_SOURCE).bluebooks.values.first
 
   def settings = { database: url, disposable_ledger: true }
 
   def boot!
-    registry = load_registry(SOURCE)
+    registry = load_registry(ARCHIVE_SOURCE)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: registry.bluebooks.values.first, current_text: SOURCE, settings: settings
+      registry: registry, bluebook: registry.bluebooks.values.first, current_text: ARCHIVE_SOURCE, settings: settings
     )
     registry
   end
