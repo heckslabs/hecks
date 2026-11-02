@@ -87,9 +87,12 @@ Or in a Gemfile: `gem "hecks"`.
 
 The gem installs a `hecks` command for a domain you supply: `init`
 (writes the stub of a new one), `interview` (drafts one from a conversation
-with someone who knows the business), `run`, `docs`, `narrate`, `ir`, `stores`, `model_check`, `smoke_test`,
-`project_diagrams`, `project_cli`, and `mcp` (the MCP server, over stdio
-only). `hecks` lists them and `hecks <command> --help` prints one's
+with someone who knows the business), `Operation.run!`, `introspection.docs`, `introspection.narrate`,
+`introspection.ir`, `introspection.stores`, `ModelCheckRun.model_check!`, `Operation.smoke_test!`,
+`introspection.project_diagrams`, `Launch.project_cli!`, and `mcp!` (the MCP server, over stdio
+only). A command is written with its `!`, a query without it, and the bare 6.x names (`hecks run`,
+`hecks docs`, `hecks mcp`, …) exit 2 with the spelling to use; [Migrating from 6.x to 7.0](docs/migrating-6-to-7.md)
+has the table. `hecks` lists the commands and `hecks <command> --help` prints one's
 usage. Every launcher exits 0 when answered, 1 when the domain refused or the run failed, and 2
 when the line could not be read ([the promise](docs/compatibility.md) has the table). In a clone
 of this repository, the same launcher also answers the
@@ -519,7 +522,7 @@ Only what this repository actually does today, checked, not aspired to:
   [Project status](#project-status)).
 - **A corpus that checks its own refusals.** `spec/corpus/*.json`
   scripts real command/query sequences — successes and refusals both —
-  replayed by `hecks run` and pinned by `spec/corpus_spec.rb`; a runtime
+  replayed by `hecks Operation.run!` and pinned by `spec/corpus_spec.rb`; a runtime
   that *accepts* what the corpus says must be refused is the failure
   that matters more than one that rejects a valid command.
 - **Event-oriented by construction.** `emits` is the only way anything
