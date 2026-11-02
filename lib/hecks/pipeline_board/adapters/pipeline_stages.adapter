@@ -1,0 +1,7 @@
+# Binds the `Pipeline` port to `PipelineStages`, which answers `Stages` from git, GitHub, Tickets, Jobs and the journal.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/pipeline_board/adapters/pipeline_stages"
+
+Hecks.adapter "PipelineStages" do
+  port "Pipeline"
+end

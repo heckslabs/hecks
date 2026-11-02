@@ -1,0 +1,7 @@
+# Binds the `Jobs` port to `PipelineJobs`, which answers `Sessions` from each job's state file and `claude agents`.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/pipeline_board/adapters/pipeline_jobs"
+
+Hecks.adapter "PipelineJobs" do
+  port "Jobs"
+end
