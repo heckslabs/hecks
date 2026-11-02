@@ -22,9 +22,6 @@ Hecks::Bluebook::MetaValidator::VerdictCache.define_singleton_method(:dir) { VER
 USAGE_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-usage-cache-spec")
 at_exit { FileUtils.rm_rf(USAGE_CACHE_SPEC_DIR) }
 ENV["HECKS_CACHE_DIR"] = USAGE_CACHE_SPEC_DIR
-# The QA quiet marker (a push hold sets it) is private to the run too,
-# so no spec touches the real one.
-ENV["HECKS_QUIESCE_STATE"] = File.join(USAGE_CACHE_SPEC_DIR, "quiesce")
 require_relative "support/ci_skip_backstop"
 require_relative "support/hecks_memory_environment"
 require_relative "support/repo_tool"
