@@ -41,6 +41,14 @@ RSpec.describe Hecks::CommandNames do
     end
   end
 
+  describe "a regex that matches a command line" do
+    before { write("spec/a_spec.rb", "match = line.match(%r{\\Abundle exec #{launcher} gate_run\\.gate! stage=ci})\n") }
+
+    it "is a pattern, not a launcher call" do
+      expect(found).to be_empty
+    end
+  end
+
   describe "the spellings the launcher accepts" do
     accepted = ["Build.build_wasm!", "Hecks::Build.build_wasm!", "Hecks::Build.BuildWasm!", "build.build_wasm!",
                 "query workspace.status", "workspace.status", "ask Workspace.status", "config", "console!", "usage",

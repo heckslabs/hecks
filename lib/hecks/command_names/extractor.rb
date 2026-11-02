@@ -21,6 +21,9 @@ module Hecks
       # The punctuation prose puts after a name.
       TRAILING = /[,.;:)\]]+\z/
 
+      # A name with a regex-escaped dot (`gate_run\.gate!`): a pattern, not a launcher call.
+      ESCAPED = /[\w:!]+(?:\\\.[\w!]*)+/
+
       # The line marker that excuses an illustrative invocation, on its own line or the one before.
       MARKER = "dead-name-check: skip".freeze
 
@@ -37,7 +40,8 @@ module Hecks
       def calls(line, number)
         return [] unless line.include?("hecks")
 
-        patterns.flat_map { |pattern| line.scan(pattern).flatten }.filter_map { |rest| call(rest, number, line) }
+        text = line.gsub(ESCAPED, "")
+        patterns.flat_map { |pattern| text.scan(pattern).flatten }.filter_map { |rest| call(rest, number, line) }
       end
 
       private
