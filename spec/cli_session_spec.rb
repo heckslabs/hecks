@@ -14,6 +14,13 @@ RSpec.describe "exe/hecks first session", :io do
       "HECKS_ENVIRONMENT" => nil, "PGHOST" => "127.0.0.1", "PGPORT" => "1", "PGPASSWORD" => nil }
   end
 
+  # The tour's hinted next line: the Operation verb that runs a verb against the tour's domain.
+  def second_command(root)
+    words = %w[Operation.run! subject.value=demo verb.value=Example.create!
+               arguments.value=name=yourname --wait]
+    Open3.capture3(clean_env(root), RbConfig.ruby, exe, *words, chdir: root)
+  end
+
   def session(*argv)
     Dir.mktmpdir do |root|
       Dir.mktmpdir do |cache|
@@ -37,9 +44,7 @@ RSpec.describe "exe/hecks first session", :io do
 
   it "a second command against the tour's domain prints its event and exits 0" do
     session("tour", "demo") do |_out, _err, _code, root|
-      out, _err, status = Open3.capture3(clean_env(root), RbConfig.ruby, exe, "Operation.run!",
-                                         "subject.value=demo", "verb.value=Example.create!",
-                                         "arguments.value=name=yourname", "--wait", chdir: root)
+      out, _err, status = second_command(root)
       expect([status.exitstatus, out.include?("ExampleCreated")]).to eq([0, true])
     end
   end
