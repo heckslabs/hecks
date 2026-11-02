@@ -1,6 +1,10 @@
 # A bluebook's classification keys the dependency checks
 
-**Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds two model_check findings and no grammar word.
+**Status:** Accepted (owner, 2026-11-02) — built. Date: 2026-11-02. Adds two model_check findings and no
+grammar word. Built as `ModelCheck::ClassificationChecks`
+(`lib/hecks/bluebook/model_check/classification_checks.rb`), run per booted system from
+`Tools::ModelCheck::Examination`, and pinned by `spec/classification_checks_spec.rb`. Run over the corpus
+it found nothing to invert or reclassify.
 
 ## Context
 
