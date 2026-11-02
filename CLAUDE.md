@@ -51,7 +51,7 @@ A session that needs its own checkout uses `git worktree add`, and retires it wi
 before every push, and again if the pre-push gate ran long enough for `main` to
 move. Many sessions push to `main`; a stale push is rejected or buries their work.
 
-Push with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
+Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
 model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
 
 ## Briefing a session
@@ -245,7 +245,10 @@ commit must pass as `RequiredCheck` rows beside them.
   "landing is held by the push train"; it also sets the QA quiet marker (`push train holding main`) so `Dispatch.Fill`
   and the tick start nothing, and clears only its own marker. The place beats a heartbeat and expires after the
   world's `stale_minutes` if the session dies; a failure releases it and says so in the refusal. Local `main`
-  moving during the hold is refused by name. A plain `git push` outside the train is not stopped by the hold.
+  moving during the hold is refused by name. **A plain `git push` of `main` is refused by the pre-push hook:** the train's own
+  push carries `-c hecks.trainCarry=<commit>`, which the hook reads, so any agent pushes `main` by boarding the train. The owner's
+  one-off override is `HECKS_OWNER_PUSH=<reason>` (ADR 0132): the hook prints the reason, an empty value does not count, and
+  agents never set it or use `--no-verify`. Branch and tag pushes are untouched.
   Push small: a rehearsed push per landed slice, or at least per day, is the norm. A rehearsal
   (`push_rehearsal.rehearse!`; `scope.value=quick` for a landing's) runs the quick stage against local
   `main` and pushes nothing; a deep one (`scope.value=deep`, opt-in) adds the specs the push's changed
