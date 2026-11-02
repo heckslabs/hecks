@@ -77,15 +77,15 @@ module Hecks
 
         # The world text for one bluebook on `PostgresEra`.
         #
-        # `schema:` isolates one ephemeral boot from the next, the same job
-        # `ScratchSchema#scratch_schema` does for `:postgres` (`connect_for` idempotently
-        # creates it; `ensure_postgres_era_schema!` only needs to drop it first).
+        # `schema:` isolates one ephemeral boot from the next, as `ScratchSchema#scratch_schema`
+        # does for `:postgres`.
         #
         # `allow_superuser true` is deliberate: PostgresEra normally refuses to boot as
         # a superuser (its era write-fence is row-level security, which a superuser
         # bypasses), to protect a real ledger from stale writes. This is a throwaway
         # schema the caller creates and drops, comparing Memory against PostgresEra's
         # SQL — the era fence isn't under test, so opting in here is safe.
+        #
         # A boot over a schema just created holds no first era, so the ledger is disposable unless
         # the caller holds the first era itself and wants the era guard (`disposable: false`).
         def postgres_era_world(name, database, schema, disposable: true)

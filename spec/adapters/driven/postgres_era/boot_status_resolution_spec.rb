@@ -177,7 +177,8 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
   end
 
   def refusal_pattern
-    held, current = label_of(shape_v1), label_of(shape_v3)
+    held = label_of(shape_v1)
+    current = label_of(shape_v3)
     /cannot boot Ledger: no translation edge covers it: #{current} .*#{held}.*scaffold_translation/
   end
 
