@@ -1,7 +1,6 @@
 require_relative "commands"
 require_relative "clean_tree"
 require_relative "git"
-require_relative "../../tools/release_gem"
 require "hecks/hecks/adapters/codebase/gem_registry"
 
 module Hecks
@@ -32,6 +31,7 @@ module Hecks
 
           CleanTree.new(git: Git.new(root: @root, commands: @commands)).check!
 
+          require_relative "../../tools/release_gem"
           @console.say("Publishing hecks #{version} to rubygems.org...")
           status = Hecks::Tools::ReleaseGem.call(root: @root, commands: @commands, out: @console.out,
                                                  err: @console.err, version: version)
