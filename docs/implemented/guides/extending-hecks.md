@@ -215,7 +215,7 @@ in that file do, in order:
 
 ```ruby
 rows = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
-rows.select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }.map { |row| row[:word] }.sort   # => ["backfill", "convert", "derive", "drop", "move", "rekey_to", "rename", "retype", "unresolved"]
+rows.select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }.map { |row| row[:word] }.sort   # => ["backfill", "convert", "derive", "drop", "move", "rekey_to", "rename", "retype", "split", "unresolved"]
 ```
 
 That's the recipe if you ever have to write another gate: find the two

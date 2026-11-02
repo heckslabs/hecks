@@ -20,7 +20,9 @@ RSpec.describe "every nullable field the wire carries, actually filled" do
     "where_ast"         => "derived from `where`, so null exactly where `where` is (above); its shape is " \
                            "pinned against the Chess corpus by spec/expression_ast_spec.rb",
     "formerly_known_as" => "real and dispatch/boot-tested outside the golden corpus (spec/dsl_spec.rb, " \
-                           "spec/adapters/driven/postgres_era/domain_rename_spec.rb) -- see this file's own comment"
+                           "spec/adapters/driven/postgres_era/domain_rename_spec.rb) -- see this file's own comment",
+    "created_by"        => "real and refusal-tested outside the golden corpus (spec/created_by_refusal_spec.rb " \
+                           "boots an aggregate that declares one); no corpus member spells it yet (ADR 0163)"
   }.freeze
 
   # An object or list counts as set itself, not only via recursion into it, or a

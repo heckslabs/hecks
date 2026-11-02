@@ -14,7 +14,18 @@ flowchart LR
     n_patch["Patch"]
     n_daily_quota["Daily quota"]
     n_improvement["Improvement"]
+    n_main_check["Main check"]
+    n_event_cursor["Event cursor"]
+    n_event_reaction["Event reaction"]
+    n_event_pump["Event pump"]
+    n_maintenance["Maintenance"]
+    n_release_pr["Release PR"]
+    n_head["Head"]
+    n_red_spec["Red spec"]
+    n_main_run["Main run"]
+    n_image_roll["Image roll"]
     n_clearance["Clearance"]
+    n_push_nudge["Push nudge"]
     n_sweep -->|"target"| n_target
     n_bug -->|"sweep"| n_sweep
     n_ticket -->|"bug"| n_bug
@@ -494,6 +505,12 @@ Every bug ever logged — what a runner mints the next reference from.
 
 All bugs, sorted by bug sequence, lowest first.
 
+#### Fix and land
+
+Takes one self-contained bug through a fix on a fresh branch, the quick gate on that exact commit, a landing on local main and a push through the push train. A bigger bug stops here, untouched.
+
+All bugs, sorted by bug sequence, lowest first.
+
 #### Found in
 
 Everything one sweep turned up, in the order it was found.
@@ -730,6 +747,14 @@ stateDiagram-v2
 
 ### Actions
 
+#### Check
+
+Put a commit through CI and record the verdict it gives. Done by the qa engineer.
+
+Needs a commit ([Commit ref](#commit-ref-1)).
+
+Records [Clearance checked](#clearance-checked).
+
 #### Failed
 
 Record that the suite went red against this commit. Done by the system.
@@ -760,6 +785,10 @@ Records [Clearance started](#clearance-started).
 
 ### What it records
 
+#### Clearance checked
+
+Recorded after [Check](#check). Prompts [Run when checked](#run-when-checked).
+
 #### Clearance given
 
 Recorded after [Passed](#passed).
@@ -771,6 +800,12 @@ Recorded after [Failed](#failed).
 #### Clearance started
 
 Recorded after [Start](#start).
+
+### What happens on its own
+
+#### Run when checked
+
+When [Clearance checked](#clearance-checked) happens, Clearance::ci is asked to Run.
 
 ### Lists
 
@@ -886,6 +921,386 @@ A whole number.
 
 Always true: a count of pull requests is not negative.
 
+## Event cursor
+
+> How far one consumer has read one domain's event log, as the count of entries it has reacted to. One row per (log, consumer).
+
+**Always true**
+
+- A cursor is keyed by its log and consumer.
+- A cursor names its domain.
+- A position is not negative.
+
+### Actions
+
+#### Advance
+
+Move one consumer's cursor past the entries it has reacted to. Done by the qa engineer.
+
+Needs a position ([Cursor position](#cursor-position)).
+
+Sets the position.
+
+Records [Cursor advanced](#cursor-advanced).
+
+#### Start
+
+Open a consumer's cursor on one domain's event log, at the start of the log. Done by the qa engineer.
+
+Needs a key ([Cursor key](#cursor-key)), a log ([Cursor domain](#cursor-domain)), and a consumer ([Cursor domain](#cursor-domain)).
+
+Records [Cursor started](#cursor-started).
+
+### What it records
+
+#### Cursor advanced
+
+Recorded after [Advance](#advance).
+
+#### Cursor started
+
+Recorded after [Start](#start-1).
+
+### Lists
+
+#### All
+
+Every cursor the event pump holds, with the position each consumer has read to.
+
+All event cursors, sorted by cursor key, A to Z.
+
+### What it is made of
+
+#### Cursor domain
+
+Text that must not be blank.
+
+Always true: a cursor names its domain.
+
+#### Cursor key
+
+Text that must not be blank.
+
+Always true: a cursor is keyed by its log and consumer.
+
+#### Cursor position
+
+A whole number.
+
+Always true: a position is not negative.
+
+#### Cursor read at
+
+Text that must not be blank.
+
+## Event pump
+
+> One run of the event pump: every attached domain's policies reacting to the events past their cursors, and what each reaction answered.
+
+**Always true**
+
+- A pump run is named.
+
+### Actions
+
+#### Pump
+
+Run the event pump once: each attached domain's policies react to the events past their cursors, and every refusal is named. Done by the qa engineer.
+
+Needs a run ([Pump run](#pump-run)).
+
+Records [Pump requested](#pump-requested).
+
+### What it records
+
+#### Pump requested
+
+Recorded after [Pump](#pump). Prompts [Pump on request](#pump-on-request).
+
+### What happens on its own
+
+#### Pump on request
+
+When [Pump requested](#pump-requested) happens, Event pump::pump tools is asked to Execute.
+
+### What it is made of
+
+#### Pump run
+
+Text that must not be blank.
+
+Always true: a pump run is named.
+
+## Event reaction
+
+> A policy's reaction to one event, once its command has answered. One row per (consumer, event, policy).
+
+**Always true**
+
+- A reaction is keyed by its consumer, event and policy.
+- A reaction names its consumer.
+- A reaction names the event it answered.
+- A reaction names its policy.
+
+### Actions
+
+#### Record
+
+Record that one consumer's policy has answered one event, so the pump does not run it again. Done by the qa engineer.
+
+Needs a key ([Reaction key](#reaction-key)), a consumer ([Reaction consumer](#reaction-consumer)), an event id ([Reaction event](#reaction-event)), and a policy ([Reaction policy](#reaction-policy)).
+
+Records [Event reacted](#event-reacted).
+
+### What it records
+
+#### Event reacted
+
+Recorded after [Record](#record).
+
+### Lists
+
+#### All
+
+Every reaction the event pump has recorded, by its key.
+
+All event reactions, sorted by reaction key, A to Z.
+
+### What it is made of
+
+#### Reaction consumer
+
+Text that must not be blank.
+
+Always true: a reaction names its consumer.
+
+#### Reaction event
+
+Text that must not be blank.
+
+Always true: a reaction names the event it answered.
+
+#### Reaction key
+
+Text that must not be blank.
+
+Always true: a reaction is keyed by its consumer, event and policy.
+
+#### Reaction policy
+
+Text that must not be blank.
+
+Always true: a reaction names its policy.
+
+## Head
+
+> One commit of a repository's main, and whether remote CI passed every job it ran for that commit.
+
+**Always true**
+
+- A head names its branch.
+
+### Actions
+
+#### Green
+
+Announce that remote CI passed every job it ran for one commit of main. Done by the system.
+
+Needs a commit ([Head commit](#head-commit)), a branch ([Head branch](#head-branch)), a repo ([Head repo](#head-repo)), and a color ([Color](#color)).
+
+Allowed only when: only a green verdict is announced.
+
+Records [Ci green](#ci-green).
+
+#### Red
+
+Announce that remote CI refused one commit of main, and which jobs failed. Done by the system.
+
+Needs a commit ([Head commit](#head-commit)), a repo ([Head repo](#head-repo)), a color ([Color](#color)), and a failing jobs ([Failing jobs](#failing-jobs)).
+
+Allowed only when: only a red verdict names the jobs that failed.
+
+Records [Ci red](#ci-red).
+
+#### Request
+
+Ask remote CI what it said about one commit of a repository's main. Done by the ci engineer.
+
+Needs a commit ([Head commit](#head-commit)), a branch ([Head branch](#head-branch)), and a repo ([Head repo](#head-repo)).
+
+Allowed only when: only main is judged.
+
+Records [Head requested](#head-requested).
+
+### What it records
+
+#### Ci green
+
+Recorded after [Green](#green). Prompts [Roll images](#roll-images).
+
+#### Ci red
+
+Recorded after [Red](#red-1).
+
+#### Head requested
+
+Recorded after [Request](#request). Prompts [Check head on request](#check-head-on-request).
+
+### What happens on its own
+
+#### Check head on request
+
+When [Head requested](#head-requested) happens, Head::ci head is asked to Check.
+
+#### Roll images
+
+When [Ci green](#ci-green) happens, [Image roll](#image-roll) is asked to [Consider](#consider).
+
+### What it is made of
+
+#### Color
+
+One of green or red.
+
+#### Failing jobs
+
+Text.
+
+#### Head branch
+
+Text that must not be blank.
+
+Always true: a head names its branch.
+
+#### Head commit
+
+Text that must follow a set format.
+
+#### Head repo
+
+Text that must follow a set format.
+
+## Image roll
+
+> One commit of embryonaut_platform's main: whether its container image was rolled, or waits for a person.
+
+Starts out idle. Can be idle, requested, awaiting approval, or finished.
+
+**How it moves**
+
+```mermaid
+stateDiagram-v2
+    state "awaiting approval" as awaiting_approval
+    [*] --> idle
+    idle --> requested: Request
+    idle --> awaiting_approval: Needs approval
+    requested --> finished: Finish
+```
+
+- Requesting an image roll moves it from idle to requested.
+- Needsing an approval moves the image roll from idle to awaiting approval.
+- Finishing an image roll moves it from requested to finished.
+
+**Always true**
+
+- An app is named.
+
+### Actions
+
+#### Consider
+
+Take one green commit of embryonaut_platform's main into the image roll's chain. Done by the system.
+
+Needs a commit ([Commit ref](#commit-ref-2)), a branch ([Roll branch](#roll-branch)), and a repo ([Roll repo](#roll-repo)).
+
+Records [Roll considered](#roll-considered).
+
+#### Finish
+
+Record how the image roll of one commit ended. Done by the system.
+
+Needs an app ([App name](#app-name)) and a status (Status).
+
+Sets the outcome and moves the image roll from requested to finished.
+
+Records [Roll done](#roll-done).
+
+#### Needs approval
+
+Hold one commit whose changes reach past the container's inputs for a person to approve. Done by the system.
+
+Needs a commit ([Commit ref](#commit-ref-2)) and a paths ([Changed paths](#changed-paths)).
+
+Moves the image roll from idle to awaiting approval.
+
+Records [Roll needs approval](#roll-needs-approval).
+
+#### Request
+
+Start the image roll of one commit whose changes touch only the console container's inputs. Done by the system.
+
+Needs a commit ([Commit ref](#commit-ref-2)) and an app ([App name](#app-name)).
+
+Moves the image roll from idle to requested.
+
+Records [Roll requested](#roll-requested).
+
+### What it records
+
+#### Roll considered
+
+Recorded after [Consider](#consider). Prompts [Classify considered](#classify-considered).
+
+#### Roll done
+
+Recorded after [Finish](#finish).
+
+#### Roll needs approval
+
+Recorded after [Needs approval](#needs-approval).
+
+#### Roll requested
+
+Recorded after [Request](#request-1). Prompts [Run roll on request](#run-roll-on-request).
+
+### What happens on its own
+
+#### Classify considered
+
+When [Roll considered](#roll-considered) happens, Image roll::image roll is asked to Classify.
+
+#### Run roll on request
+
+When [Roll requested](#roll-requested) happens, Image roll::image roll is asked to Roll.
+
+### What it is made of
+
+#### App name
+
+Text that must not be blank.
+
+Always true: an app is named.
+
+#### Changed paths
+
+Text.
+
+#### Commit ref
+
+Text that must follow a set format.
+
+#### Outcome
+
+One of done or failed.
+
+#### Roll branch
+
+Text that must not be blank.
+
+#### Roll repo
+
+Text that must follow a set format.
+
 ## Improvement
 
 > One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug's own fix.
@@ -947,7 +1362,7 @@ Records [Improvement closed](#improvement-closed).
 
 Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix. Done by the qa engineer.
 
-Needs a number ([Improvement number](#improvement-number)) and a commit ([Commit ref](#commit-ref-2)).
+Needs a number ([Improvement number](#improvement-number)) and a commit ([Commit ref](#commit-ref-3)).
 
 Sets the commit and moves the improvement from opened or needs fix to landed.
 
@@ -1075,6 +1490,280 @@ A whole number.
 
 Always true: an instant is not before the epoch.
 
+## Main check
+
+> One run of the quick gate on local main at one commit, and whether every one of its checks came back green.
+
+**Always true**
+
+- A count of red checks is not negative.
+
+### Actions
+
+#### Record
+
+Write down what the quick gate said about one commit of main. Done by the qa engineer.
+
+Needs a reference ([Main commit](#main-commit)), a verdict ([Verdict](#verdict)), and a red checks ([Red count](#red-count)).
+
+Allowed only when: a red verdict names a red check, and a green one names none.
+
+Records [Main check recorded](#main-check-recorded).
+
+### What it records
+
+#### Main check recorded
+
+Recorded after [Record](#record-1).
+
+### Lists
+
+#### All
+
+Every commit of main the quick gate has been run on, with its verdict.
+
+All main checks, sorted by main commit, A to Z.
+
+#### Check main
+
+Runs the quick gate on local main in a temporary worktree of it and records the verdict, logging each red check as a bug.
+
+All main checks, sorted by main commit, A to Z.
+
+### What it is made of
+
+#### Main commit
+
+Text that must be a commit id.
+
+#### Red count
+
+A whole number.
+
+Always true: a count of red checks is not negative.
+
+#### Verdict
+
+One of green or red.
+
+## Main run
+
+> One CI run of main, read for the spec files it failed.
+
+### Actions
+
+#### Record
+
+Keep how a read run settled. Done by the system.
+
+Needs a commit (Spec commit) and a settled ([Settled flag](#settled-flag)).
+
+Sets the commit and the settled.
+
+Records [Main run recorded](#main-run-recorded).
+
+#### Request
+
+Ask for one CI run of main to be read for the spec files it failed. Done by the ci engineer.
+
+Needs a run ([Main run id](#main-run-id)) and a repo (Head repo).
+
+Sets the run and the repo.
+
+Records [Main run read requested](#main-run-read-requested).
+
+### What it records
+
+#### Main run read requested
+
+Recorded after [Request](#request-2). Prompts [Read run on request](#read-run-on-request).
+
+#### Main run recorded
+
+Recorded after [Record](#record-2).
+
+### What happens on its own
+
+#### Read run on request
+
+When [Main run read requested](#main-run-read-requested) happens, Main run::reader is asked to Read.
+
+### What it is made of
+
+#### Main run id
+
+Text that must not be blank.
+
+#### Settled flag
+
+Text.
+
+## Maintenance
+
+> One run of local main's maintenance: the quick gate on a submitted commit, the reconcile, and the push through the train.
+
+**Always true**
+
+- A run names its branch.
+
+### Actions
+
+#### Mint era
+
+Mint a domain's next era, against the rehearsal of that same era and the watermark it read. Done by the qa engineer.
+
+Needs a run ([Maintenance run](#maintenance-run)), a domain (text), an era (a whole number), a sha ([Maintenance sha](#maintenance-sha)), a branch (text), a rehearsal ref (text), a watermark (a whole number), a rehearsal verdict ([Mint verdict](#mint-verdict)), a refusal total (a whole number, optional), a ledger dir (text, optional), and a confirm ([Confirmation](#confirmation), optional).
+
+Records [Mint requested](#mint-requested).
+
+#### Record rehearsal verdict
+
+Record what the rehearsal of a domain's next era concluded, and the watermark it read. Done by the qa engineer.
+
+Needs a run ([Maintenance run](#maintenance-run)), a domain (text), a watermark (a whole number), and a rehearsal verdict ([Mint verdict](#mint-verdict)).
+
+Records [Rehearsal verdict](#rehearsal-verdict).
+
+#### Refuse gate
+
+Stop a run whose quick gate on main is red. Done by the qa engineer.
+
+Needs a run ([Maintenance run](#maintenance-run)) and a color ([Color](#color-1)).
+
+Allowed only when: only a red verdict is refused.
+
+Records [Gate refused](#gate-refused).
+
+#### Refuse mint
+
+Stop a mint whose rehearsal did not say would_mint. Done by the qa engineer.
+
+Needs a run ([Maintenance run](#maintenance-run)), a domain (text), an era (a whole number), a rehearsal verdict ([Mint verdict](#mint-verdict)), and a refusal ([Mint refusal](#mint-refusal), optional).
+
+Allowed only when: only a rehearsal that did not say would_mint is refused.
+
+Records [Mint refused](#mint-refused).
+
+#### Request push
+
+Ask for the push of a commit whose gate is green and whose reconcile did not refuse. Done by the qa engineer.
+
+Needs a run ([Maintenance run](#maintenance-run)), a sha ([Maintenance sha](#maintenance-sha)), a color ([Color](#color-1)), and a verdict ([Verdict](#verdict-1)).
+
+Allowed only when: the reconcile did not refuse and the gate is green.
+
+Records [Push requested](#push-requested).
+
+#### Request reconcile
+
+Ask for the reconcile of a commit whose quick gate is green. Done by the qa engineer.
+
+Needs a run ([Maintenance run](#maintenance-run)), a sha ([Maintenance sha](#maintenance-sha)), and a color ([Color](#color-1)).
+
+Allowed only when: only a green gate is reconciled.
+
+Records [Reconcile requested](#reconcile-requested).
+
+#### Start
+
+Open the maintenance of main for one submitted commit. Done by the qa engineer.
+
+Needs a run ([Maintenance run](#maintenance-run)) and a sha ([Maintenance sha](#maintenance-sha)).
+
+Records [Run started](#run-started).
+
+### What it records
+
+#### Gate refused
+
+Recorded after [Refuse gate](#refuse-gate).
+
+#### Mint refused
+
+Recorded after [Refuse mint](#refuse-mint). Prompts [Ask owner approval on held mint](#ask-owner-approval-on-held-mint).
+
+#### Mint requested
+
+Recorded after [Mint era](#mint-era). Prompts [Refuse mint without verdict](#refuse-mint-without-verdict) and [Auto mint additive](#auto-mint-additive).
+
+#### Push requested
+
+Recorded after [Request push](#request-push). Prompts [Push on request](#push-on-request).
+
+#### Reconcile requested
+
+Recorded after [Request reconcile](#request-reconcile). Prompts [Reconcile on request](#reconcile-on-request).
+
+#### Rehearsal verdict
+
+Recorded after [Record rehearsal verdict](#record-rehearsal-verdict).
+
+#### Run started
+
+Recorded after [Start](#start-2). Prompts [Gate on start](#gate-on-start).
+
+### What happens on its own
+
+#### Ask owner approval on held mint
+
+When [Mint refused](#mint-refused) happens, Maintenance::main maintenance is asked to Approval.
+
+#### Auto mint additive
+
+When [Mint requested](#mint-requested) happens, Maintenance::main maintenance is asked to Mint.
+
+#### Gate on start
+
+When [Run started](#run-started) happens, Maintenance::main maintenance is asked to Gate.
+
+#### Push on request
+
+When [Push requested](#push-requested) happens, Maintenance::main maintenance is asked to Push.
+
+#### Reconcile on request
+
+When [Reconcile requested](#reconcile-requested) happens, Maintenance::main maintenance is asked to Reconcile.
+
+#### Refuse mint without verdict
+
+When [Mint requested](#mint-requested) happens, [Maintenance](#maintenance) is asked to [Refuse mint](#refuse-mint).
+
+### What it is made of
+
+#### Color
+
+One of green or red.
+
+#### Confirmation
+
+Yes or no.
+
+#### Maintenance run
+
+Text that must not be blank.
+
+Always true: a run names its branch.
+
+#### Maintenance sha
+
+Text that must be a commit id.
+
+#### Mint refusal
+
+Text.
+
+#### Mint verdict
+
+One of would_mint, would_refuse, needs_edge, cannot_boot, or empty_copy.
+
+#### Minted era
+
+A whole number.
+
+#### Verdict
+
+One of reported, written, or refused.
+
 ## Patch
 
 > One pull request opened for a Bug's own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess.
@@ -1134,7 +1823,7 @@ Records [Patch merged](#patch-merged).
 
 Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known. Done by the qa engineer.
 
-Needs a bug ([Bug](#bug)), a number ([Patch number](#patch-number)), an url ([Patch url](#patch-url)), a branch ([Patch branch](#patch-branch)), a commit ([Commit ref](#commit-ref-3)), a title ([Patch title](#patch-title)), and a now ([Instant](#instant-3)).
+Needs a bug ([Bug](#bug)), a number ([Patch number](#patch-number)), an url ([Patch url](#patch-url)), a branch ([Patch branch](#patch-branch)), a commit ([Commit ref](#commit-ref-4)), a title ([Patch title](#patch-title)), and a now ([Instant](#instant-3)).
 
 Allowed only when: the branch is one this practice recognises as its own; the bug is fixed.
 
@@ -1215,6 +1904,300 @@ Always true: a patch is titled.
 Text that must not be blank.
 
 Always true: a patch says where it lives.
+
+## Push nudge
+
+> One check of whether a push of local main is due: whether it is, whether the push-due Work row is already open, and the numbers.
+
+### Actions
+
+#### Check
+
+Ask whether a push of local main is due, from the refs git already holds. Done by the qa engineer.
+
+Needs a nudge ([Nudge key](#nudge-key)).
+
+Sets the nudge.
+
+Records [Push due check requested](#push-due-check-requested).
+
+#### Record
+
+Keep what a check found. Done by the system.
+
+Needs a due ([Nudge flag](#nudge-flag)), a raised ([Nudge flag](#nudge-flag)), and a detail ([Nudge line](#nudge-line)).
+
+Sets the due, the raised, and the detail.
+
+Records [Push due recorded](#push-due-recorded).
+
+### What it records
+
+#### Push due check requested
+
+Recorded after [Check](#check-1). Prompts [Read push due on check](#read-push-due-on-check).
+
+#### Push due recorded
+
+Recorded after [Record](#record-3).
+
+### What happens on its own
+
+#### Read push due on check
+
+When [Push due check requested](#push-due-check-requested) happens, Push nudge::push due is asked to Read.
+
+### What it is made of
+
+#### Nudge flag
+
+Text.
+
+#### Nudge key
+
+Text that must not be blank.
+
+#### Nudge line
+
+Text.
+
+## Red spec
+
+> One spec file that is red on main: how many examples fail, the first failure, the run that saw it last, and the day it first went red.
+
+Starts out red. Can be red or green.
+
+**How it moves**
+
+```mermaid
+stateDiagram-v2
+    [*] --> red
+    red --> green: Clear
+    green --> red: Reopen
+```
+
+- Clearing a red spec moves it from red to green.
+- Reopening a red spec moves it from green to red.
+
+**Always true**
+
+- A red spec has failing examples.
+
+### Actions
+
+#### Clear
+
+Record that a settled run of main no longer fails a spec file. Done by the system.
+
+Needs a run ([Run id](#run-id)) and a seen in ([Run id](#run-id)).
+
+Allowed only when: a run that still saw the file fail does not clear it.
+
+Sets the cleared by and moves the red spec from red to green.
+
+Records [Spec went green](#spec-went-green).
+
+#### Open
+
+Record that a spec file is red on main. Done by the system.
+
+Needs a spec ([Spec key](#spec-key)), a path ([Spec path](#spec-path)), a failures ([Failure count](#failure-count)), a first failure ([Failure line](#failure-line), optional), an examples ([Failure line](#failure-line), optional), a last run ([Run id](#run-id)), a commit ([Spec commit](#spec-commit)), a since ([Seen on](#seen-on)), a title ([Work line](#work-line)), and a detail ([Work line](#work-line)).
+
+Sets the spec, the path, the failures, the first failure, the examples, the last run, the commit, the since, the title, and the detail.
+
+Records [Spec went red](#spec-went-red).
+
+#### Reopen
+
+Record that a spec file cleared earlier is red on main again. Done by the system.
+
+Needs a failures ([Failure count](#failure-count)), a first failure ([Failure line](#failure-line), optional), an examples ([Failure line](#failure-line), optional), a last run ([Run id](#run-id)), a commit ([Spec commit](#spec-commit)), a since ([Seen on](#seen-on)), a title ([Work line](#work-line)), and a detail ([Work line](#work-line)).
+
+Sets the failures, the first failure, the examples, the last run, the commit, the since, the title, and the detail and moves the red spec from green to red.
+
+Records [Spec went red again](#spec-went-red-again).
+
+#### Update
+
+Record what a later red run saw of a spec file that was already red. Done by the system.
+
+Needs a failures ([Failure count](#failure-count)), a first failure ([Failure line](#failure-line), optional), an examples ([Failure line](#failure-line), optional), a last run ([Run id](#run-id)), a commit ([Spec commit](#spec-commit)), and a detail ([Work line](#work-line)).
+
+Sets the failures, the first failure, the examples, the last run, the commit, and the detail.
+
+Records [Spec still red](#spec-still-red).
+
+### What it records
+
+#### Spec still red
+
+Recorded after [Update](#update).
+
+#### Spec went green
+
+Recorded after [Clear](#clear).
+
+#### Spec went red
+
+Recorded after [Open](#open-4).
+
+#### Spec went red again
+
+Recorded after [Reopen](#reopen).
+
+### Lists
+
+#### On main
+
+The red specs on main: every spec file still red, with the day it first went red and the run that last saw it fail.
+
+Red specs that are red, sorted by seen on, A to Z.
+
+### What it is made of
+
+#### Failure count
+
+A whole number.
+
+Always true: a red spec has failing examples.
+
+#### Failure line
+
+Text.
+
+#### Run id
+
+Text that must not be blank.
+
+#### Seen on
+
+Text that must not be blank.
+
+#### Spec commit
+
+Text that must not be blank.
+
+#### Spec key
+
+Text that must follow a set format.
+
+#### Spec path
+
+Text that must not be blank.
+
+#### Work line
+
+Text that must not be blank.
+
+## Release PR
+
+> One release PR: the version bump opened on GitHub, approved by the owner only when every auto-approval condition holds.
+
+**Always true**
+
+- A release names a semantic version.
+
+### Actions
+
+#### Approve
+
+Approve a release PR once every auto-approval condition holds, writing the release trailer for the owner. Done by the release owner.
+
+Needs a release ([Release version](#release-version)), a sha (Maintenance sha), a condition ([Release condition](#release-condition)), an approver ([Release approver](#release-approver)), and a trailer ([Release trailer](#release-trailer)).
+
+Allowed only when: only a release whose conditions all held is approved.
+
+Records [Release approved](#release-approved).
+
+#### Check
+
+Record which auto-approval condition held for a release PR, naming the first one that failed. Done by the release owner.
+
+Needs a release ([Release version](#release-version)), a sha (Maintenance sha), a condition ([Release condition](#release-condition)), an approver ([Release approver](#release-approver)), and a trailer ([Release trailer](#release-trailer)).
+
+Records [Release checked](#release-checked).
+
+#### Open
+
+Open the release PR for a version bump on main, so the owner can approve it on GitHub. Done by the release owner.
+
+Needs a release ([Release version](#release-version)), a branch ([Release branch](#release-branch)), and a sha (Maintenance sha).
+
+Records [Release open requested](#release-open-requested).
+
+#### Refuse
+
+Refuse a release PR, naming the auto-approval condition that failed. Done by the release owner.
+
+Needs a release ([Release version](#release-version)) and a condition ([Release condition](#release-condition)).
+
+Allowed only when: only a release with a failed condition is refused.
+
+Records [Release refused](#release-refused).
+
+### What it records
+
+#### Release approved
+
+Recorded after [Approve](#approve). Prompts [Write trailer on approved](#write-trailer-on-approved).
+
+#### Release checked
+
+Recorded after [Check](#check-2). Prompts [Approve on conditions met](#approve-on-conditions-met) and [Refuse on failed condition](#refuse-on-failed-condition).
+
+#### Release open requested
+
+Recorded after [Open](#open-5). Prompts [Open on release request](#open-on-release-request).
+
+#### Release refused
+
+Recorded after [Refuse](#refuse).
+
+### What happens on its own
+
+#### Approve on conditions met
+
+When [Release checked](#release-checked) happens, [Release PR](#release-pr) is asked to [Approve](#approve).
+
+#### Open on release request
+
+When [Release open requested](#release-open-requested) happens, Release pr::release gh is asked to Open pull request.
+
+#### Refuse on failed condition
+
+When [Release checked](#release-checked) happens, [Release PR](#release-pr) is asked to [Refuse](#refuse).
+
+#### Write trailer on approved
+
+When [Release approved](#release-approved) happens, Release pr::release gh is asked to Write trailer.
+
+### What it is made of
+
+#### Release approver
+
+One of Chris Young.
+
+#### Release branch
+
+Text that must not be blank.
+
+#### Release condition
+
+One of met, not_on_stable_head, checks_not_green, changelog_undated, or version_mismatch.
+
+#### Release trailer
+
+One of Release-Approved-By.
+
+#### Release version
+
+Text.
+
+Always true: a release names a semantic version.
+
+#### Verdict
+
+One of open, approved, or refused.
 
 ## Sweep
 
@@ -1377,7 +2360,7 @@ Recorded after [Held](#held).
 
 #### Check made
 
-Recorded after [Check](#check).
+Recorded after [Check](#check-3).
 
 #### Check remade
 
@@ -1405,7 +2388,7 @@ Recorded after [Conclude](#conclude).
 
 #### Sweep opened
 
-Recorded after [Open](#open-4).
+Recorded after [Open](#open-6).
 
 ### What happens on its own
 
@@ -2208,13 +3191,21 @@ Always true: a ticket is titled.
 
 > Who does what. Each role is listed once, with the actions it is responsible for.
 
+#### CI engineer
+
+Responsible for [Request (head)](#request) and [Request (main run)](#request-2).
+
 #### QA engineer
 
-Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Relocate](#relocate), [Open (sweep)](#open-4), [Check](#check), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Name](#name), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-3), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (daily quota)](#open-1), [Take](#take), [Open (improvement)](#open-2), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), and [Start](#start).
+Responsible for [Identify](#identify), [Claim (target)](#claim-1), [Release](#release), [Shelve](#shelve), [Restore](#restore), [Relocate](#relocate), [Open (sweep)](#open-6), [Check (sweep)](#check-3), [Waive (sweep)](#waive-1), [Conclude](#conclude), [Abandon (sweep)](#abandon), [Held](#held), [Surprised](#surprised), [Unsettled (check)](#unsettled-check), [Remake](#remake), [Log](#log), [Rank](#rank), [Tag](#tag), [Triage](#triage), [Name](#name), [Claim (bug)](#claim), [Drop](#drop), [Investigate (bug)](#investigate-1), [Fix](#fix), [Verify](#verify), [Pause](#pause), [Withdraw](#withdraw), [Regress (bug)](#regress), [Revisit](#revisit), [Waive (bug)](#waive), [Propose](#propose), [Investigate (angle)](#investigate), [Build](#build), [Discard](#discard), [Raise](#raise), [Submit](#submit), [Abandon (ticket)](#abandon-1), [Close (ticket)](#close-2), [Open (patch)](#open-3), [Merge (patch)](#merge-1), [Close (patch)](#close-1), [Open (daily quota)](#open-1), [Take](#take), [Open (improvement)](#open-2), [Land](#land), [Regress (improvement)](#regress-1), [Merge (improvement)](#merge), [Close (improvement)](#close), [Record (main check)](#record-1), [Start (event cursor)](#start-1), [Advance](#advance), [Record (event reaction)](#record), [Pump](#pump), [Start (maintenance)](#start-2), [Refuse gate](#refuse-gate), [Request reconcile](#request-reconcile), [Request push](#request-push), [Record rehearsal verdict](#record-rehearsal-verdict), [Mint era](#mint-era), [Refuse mint](#refuse-mint), [Start (clearance)](#start), [Check (clearance)](#check), and [Check (push nudge)](#check-1).
+
+#### Release owner
+
+Responsible for [Open](#open-5), [Check](#check-2), [Approve](#approve), and [Refuse](#refuse).
 
 #### System
 
-Responsible for [Suspend](#suspend), [Filed](#filed), [Refused](#refused), [Retry](#retry), [Passed](#passed), and [Failed](#failed).
+Responsible for [Suspend](#suspend), [Filed](#filed), [Refused](#refused), [Retry](#retry), [Green](#green), [Red](#red-1), [Open](#open-4), [Update](#update), [Reopen](#reopen), [Clear](#clear), [Record (main run)](#record-2), [Consider](#consider), [Request](#request-1), [Needs approval](#needs-approval), [Finish](#finish), [Passed](#passed), [Failed](#failed), and [Record (push nudge)](#record-3).
 
 ## Read models
 
@@ -2248,18 +3239,90 @@ Every ticket sorted by where it got to — stuck filings and abandoned ones are 
 
 When "Suite passed" arrives from outside, [Clearance](#clearance) is asked to [Passed](#passed).
 
+#### Clear specs on settled run
+
+When "Main run read" arrives from outside, [Red spec](#red-spec) is asked to [Clear](#clear), once for each row of [On main](#on-main).
+
 #### Close when closed upstream
 
 When "Issue closed upstream" arrives from outside, [Ticket](#ticket) is asked to [Close](#close-2).
+
+#### Finish on roll answered
+
+When "Roll answered" arrives from outside, [Image roll](#image-roll) is asked to [Finish](#finish).
+
+#### Finish on roll refused
+
+When "Roll refused" arrives from outside, [Image roll](#image-roll) is asked to [Finish](#finish).
+
+#### Green on head checked
+
+When "Head checked" arrives from outside, [Head](#head) is asked to [Green](#green).
+
+#### Hold when infra
+
+When "Image classified" arrives from outside, [Image roll](#image-roll) is asked to [Needs approval](#needs-approval).
+
+#### Land on minted
+
+When "Minted" arrives from outside, Maintenance::main maintenance is asked to Land.
+
+#### Push on reconciled
+
+When "Reconcile done" arrives from outside, [Maintenance](#maintenance) is asked to [Request push](#request-push).
+
+#### Reconcile on green gate
+
+When "Gate verdict" arrives from outside, [Maintenance](#maintenance) is asked to [Request reconcile](#request-reconcile).
+
+#### Record claim on attempt claimed
+
+When "Attempt claimed" arrives from outside, [Bug](#bug) is asked to [Claim](#claim).
+
+#### Record fix on fix ready
+
+When "Fix ready" arrives from outside, [Bug](#bug) is asked to [Fix](#fix).
+
+#### Record investigation on attempt investigated
+
+When "Attempt investigated" arrives from outside, [Bug](#bug) is asked to [Investigate](#investigate-1).
 
 #### Record the issue
 
 When "Issue filed" arrives from outside, [Ticket](#ticket) is asked to [Filed](#filed).
 
+#### Record the push due read
+
+When "Push due read" arrives from outside, [Push nudge](#push-nudge) is asked to [Record](#record-3).
+
 #### Record the refusal
 
 When "Issue filing refused" arrives from outside, [Ticket](#ticket) is asked to [Refused](#refused).
 
+#### Record the run read
+
+When "Main run read" arrives from outside, [Main run](#main-run) is asked to [Record](#record-2).
+
+#### Record verify on fix verified
+
+When "Fix verified" arrives from outside, [Bug](#bug) is asked to [Verify](#verify).
+
+#### Red on head checked
+
+When "Head checked" arrives from outside, [Head](#head) is asked to [Red](#red-1).
+
 #### Refuse on fail
 
 When "Suite failed" arrives from outside, [Clearance](#clearance) is asked to [Failed](#failed).
+
+#### Refuse on red gate
+
+When "Gate verdict" arrives from outside, [Maintenance](#maintenance) is asked to [Refuse gate](#refuse-gate).
+
+#### Roll when image only
+
+When "Image classified" arrives from outside, [Image roll](#image-roll) is asked to [Request](#request-1).
+
+#### Start on submission
+
+When "Work submitted" arrives from outside, [Maintenance](#maintenance) is asked to [Start](#start-2).

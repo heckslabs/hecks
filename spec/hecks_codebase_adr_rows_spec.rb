@@ -68,6 +68,12 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "check_shape_ledger", verbs: %w[check_shape_ledger],
                note: "no bin script: it holds each bluebook's storage shape against the committed ledger and the " \
                      "translation edges, with no database, and rewrites the ledger only when confirmed"),
+    AdrRow.new(script: "check_command_names", verbs: %w[check_command_names],
+               note: "no bin script: it reads the launcher names a workflow, hook, gate row, spec or guide " \
+                     "invokes and refuses any the launcher does not accept"),
+    AdrRow.new(script: "check_workflow_pagination", verbs: %w[check_workflow_pagination],
+               note: "no bin script: it refuses a workflow that counts or waits on a GitHub list call " \
+                     "returning only its first page"),
     AdrRow.new(script: "clear_caches", verbs: %w[clear_caches],
                note: "no bin script: it deletes the syntax-boot and verdict caches, which turning them off " \
                      "with HECKS_SYNTAX_BOOT_CACHE=off or HECKS_VERDICT_CACHE=off used to rule out"),
@@ -83,6 +89,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
                note: "no script preceded it: it serves one directory of static files on the loopback address"),
     AdrRow.new(script: "query_ir", verbs: %w[ir_constructs ir_duplicates ir_impact]),
     AdrRow.new(script: "hecks_query_ir_mcp", verbs: %w[serve_query_ir_mcp]),
+    AdrRow.new(script: "serve_mcp", verbs: %w[serve_mcp],
+               note: "no bin script: it serves the storehouse bus to an MCP client over stdio until it " \
+                     "closes; `mcp` is the launcher's alias for it"),
     AdrRow.new(script: "present", verbs: %w[present]),
     AdrRow.new(script: "compose", verbs: %w[compose],
                note: "no bin script: it serves the Composer, a live bluebook editor, over one domain " \
@@ -170,6 +179,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     end.to_h
   end
 
+  # A verb whose help opens with its launcher alias, not `Aggregate.verb`: `mcp` is serve_mcp's.
+  HELP_SPELLED_AS = { "serve_mcp" => "mcp" }.freeze
+
   ADR_CODEBASE_ROWS.each do |row|
     row.verbs.each do |verb|
       it "answers #{row.script} with `hecks #{verb}`, called with its aggregate", :aggregate_failures do
@@ -177,7 +189,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
         out, status = launch([qualified, "--help"])
 
         expect(status).to eq(0), "no launcher verb #{qualified} for the row #{row.script}: #{out.lines.first}"
-        expect(out).to start_with(help_names.fetch(verb))
+        expect(out).to start_with(HELP_SPELLED_AS.fetch(verb) { help_names.fetch(verb) })
       end
     end
   end

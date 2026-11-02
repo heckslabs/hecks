@@ -375,8 +375,10 @@ RSpec.describe "the rules a command obeys" do
       # `reference_call` is the query oracle's second entry: the interpreter's own evaluation,
       # skipping the adapter's native hook, so the fuzzer can diff the two answers.
       expect(surface(Hecks::Runtime::QueryInterpreter)).to   eq([:call, :reference_call])
-      expect(surface(Hecks::Runtime::PolicyInterpreter)).to  eq([:react])
-      expect(surface(Hecks::Runtime::SagaInterpreter)).to    eq([:advance])
+      # `policies_for` is the outbox's lookup of which policies an event reaches; `resume` reads a
+      # faulted saga's saved stage back, as `advance` reads its next one.
+      expect(surface(Hecks::Runtime::PolicyInterpreter)).to  eq([:policies_for, :react])
+      expect(surface(Hecks::Runtime::SagaInterpreter)).to    eq([:advance, :resume])
     end
   end
 end
