@@ -57,12 +57,13 @@ th { color: var(--ink2); font-size: 12px; }
   <header>
     <h1>Pipeline Wiring</h1>
     <div class="meta">
-      <a href="/">Board</a>
+      <a href="/">Board</a><a href="/sequence">Sequence</a>
       <span id="count">loading the wiring</span>
       <span id="live">stream: connecting</span>
       <button id="zout" type="button" aria-label="Zoom out">&minus;</button>
       <button id="zin" type="button" aria-label="Zoom in">+</button>
       <button id="fit" type="button">Fit</button>
+      <button id="all" type="button">Expand all</button>
       <button id="bounds" type="button" aria-pressed="true">Hide boundaries</button>
       <button id="replay" type="button">Replay recent</button>
       <button id="toggle" type="button" aria-pressed="false">Show table</button>
@@ -76,7 +77,7 @@ th { color: var(--ink2); font-size: 12px; }
       <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
       <span><b style="color:var(--critical)">&#10005;</b> refused</span>
       <span>a line rests in its domain's colour, lights in the outcome's colour when a message crosses it, and fades over 20 s</span>
-      <span>scroll to zoom, drag to pan, double-click to zoom in; names appear when zoomed in</span>
+      <span>each context is one block with its aggregate count; click a block to open it, click its name to close it; scroll to zoom (zooming in opens everything), drag to pan</span>
     </div>
     <div class="legend" id="domains"></div>
     <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
@@ -178,21 +179,28 @@ function paint(colour, fillAlpha, strokeAlpha, dash) {
   ctx.globalAlpha = fillAlpha; ctx.fillStyle = colour; ctx.fill();
   ctx.globalAlpha = strokeAlpha; ctx.lineWidth = 1.5; ctx.strokeStyle = colour; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
 }
-function caption(text, x, y, weight) {
-  ctx.font = weight + " 12px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "center"; ctx.fillText(text, x, y); ctx.textAlign = "start";
+function caption(text, x, y, weight, active, now) {
+  ctx.font = weight + " 12px system-ui, sans-serif"; ctx.fillStyle = active ? css("--series1") : css("--ink"); ctx.textAlign = "center";
+  ctx.globalAlpha = active && !blink(now) ? 0.25 : 1; ctx.fillText(text, x, y); ctx.globalAlpha = 1; ctx.textAlign = "start";
 }
-function drawBounds() {
+function corners(b) { return [[b.x - b.w / 2, b.y - b.hgt / 2], [b.x + b.w / 2, b.y - b.hgt / 2], [b.x + b.w / 2, b.y + b.hgt / 2], [b.x - b.w / 2, b.y + b.hgt / 2]]; }
+function drawBounds(now) {
   const inside = (n) => n.kind !== "adapter";
+  const active = (test) => nodes.some((n) => test(n) && heatOf(n.id, now) > 0);
   for (const d of domains) {
-    const members = nodes.filter((n) => n.domain === d && inside(n)).map((n) => [sx(n), sy(n)]), split = contexts.filter((k) => k.startsWith(d + " / ")).length > 1;
-    if (!members.length || !split) continue;
-    const at = outline(members, 36); paint(colourOf(d), 0.04, 0.35, [2, 6]); caption(d, at.cx, at.top, "700");
+    const split = contexts.filter((k) => k.startsWith(d + " / ")).length > 1; if (!split) continue;
+    const members = contexts.filter((k) => k === d || k.startsWith(d + " / ")).flatMap((k) => blocks.has(k) ? corners(blocks.get(k)) : nodes.filter((n) => keyOf(n) === k && inside(n)).map((n) => [sx(n), sy(n)]));
+    if (!members.length) continue;
+    const at = outline(members, 36); paint(colourOf(d), 0.04, 0.35, [2, 6]); caption(d, at.cx, at.top, "700", active((n) => n.domain === d), now);
   }
   for (const k of contexts) {
+    if (blocks.has(k)) continue;
     const members = nodes.filter((n) => keyOf(n) === k && inside(n)).map((n) => [sx(n), sy(n)]);
     if (!members.length) continue;
     const d = k.split(" / ")[0], name = k.split(" / ")[1] || d;
-    const at = outline(members, 20); paint(colourOf(d), 0.09, 0.7, [6, 4]); caption(name, at.cx, at.top, "600");
+    const at = outline(members, 20); paint(colourOf(d), 0.09, 0.7, [6, 4]); caption(name + "  −", at.cx, at.top, "600", active((n) => keyOf(n) === k), now);
+    ctx.font = "600 12px system-ui, sans-serif"; const w = ctx.measureText(name + "  −").width;
+    captions.push({ k, x: at.cx - w / 2, y: at.top - 12, w, hgt: 16 });
   }
 }
 let touched = false, fitScale = 1;
@@ -218,7 +226,14 @@ let drag = null;
 canvas.addEventListener("wheel", (e) => { e.preventDefault(); const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
 canvas.addEventListener("mousedown", (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; });
 addEventListener("mousemove", (e) => { if (!drag) return; drag.moved = true; view.x = drag.vx + e.clientX - drag.x; view.y = drag.vy + e.clientY - drag.y; touched = true; });
-addEventListener("mouseup", () => { drag = null; });
+addEventListener("mouseup", (e) => {
+  const was = drag; drag = null; if (!was || was.moved || e.target !== canvas) return;
+  const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const hit = [...blocks.values()].find((b) => Math.abs(mx - b.x) < b.w / 2 && Math.abs(my - b.y) < b.hgt / 2);
+  if (hit) { expanded.add(hit.k); return; }
+  const cap = captions.find((c) => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.hgt);
+  if (cap) { expanded.delete(cap.k); allOpen = false; $("all").textContent = "Expand all"; }
+});
 canvas.addEventListener("dblclick", (e) => { const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 1.6); });
 let placed = [];
 function free(x, y, w, hgt) {
@@ -233,23 +248,78 @@ function shape(n, x, y, r) {
   else if (n.kind === "adapter") { for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); }
   else ctx.roundRect(x - r, y - r * 0.7, r * 2, r * 1.4, 3);
 }
-function draw(now) {
-  const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); placed = [];
-  if (showBounds) drawBounds();
+/* ---- level of detail: a context is one block until it is opened by a click, "Expand all", or zooming in ---- */
+const expanded = new Set();
+let blocks = new Map(), captions = [], allOpen = false;
+const open = (k) => allOpen || expanded.has(k) || view.s >= fitScale * 2.2;
+function blockOf(k) {
+  const members = nodes.filter((n) => keyOf(n) === k && n.kind !== "adapter");
+  if (!members.length) return null;
+  const x = members.reduce((s, n) => s + sx(n), 0) / members.length, y = members.reduce((s, n) => s + sy(n), 0) / members.length;
+  const d = k.split(" / ")[0], name = k.split(" / ")[1] || d, count = members.filter((n) => n.kind === "aggregate").length;
+  ctx.font = "600 12px system-ui, sans-serif";
+  const w = Math.max(ctx.measureText(name).width + 34, 64), hgt = 30;
+  return { k, d, name, count, x, y, w, hgt, members };
+}
+const anchor = (n) => { const b = blocks.get(keyOf(n)); return b ? { x: b.x, y: b.y } : { x: sx(n), y: sy(n) }; };
+/* Blocks are pixel-sized, so two neighbouring contexts can collide at the fitted scale: push them apart. */
+function separate(list) {
+  for (let pass = 0; pass < 12; pass++) for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j], gapX = (a.w + b.w) / 2 + 10 - Math.abs(a.x - b.x), gapY = (a.hgt + b.hgt) / 2 + 8 - Math.abs(a.y - b.y);
+    if (gapX <= 0 || gapY <= 0) continue;
+    if (gapX < gapY) { const s = Math.sign(a.x - b.x) || 1; a.x += s * gapX / 2; b.x -= s * gapX / 2; }
+    else { const s = Math.sign(a.y - b.y) || 1; a.y += s * gapY / 2; b.y -= s * gapY / 2; }
+  }
+}
+const blink = (now) => reduceMotion || Math.sin(now / 140) > -0.3;
+function heatOf(id, now) { const p = pulses.get(id); return p && p > now ? Math.min(1, (p - now) / LINGER_FADE) : 0; }
+function drawBlock(b, now) {
+  const heat = Math.max(0, ...b.members.map((n) => heatOf(n.id, now))), colour = colourOf(b.d);
+  ctx.beginPath(); ctx.roundRect(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt, 8);
+  ctx.globalAlpha = 0.18 + 0.5 * heat; ctx.fillStyle = heat ? css("--series1") : colour; ctx.fill();
+  ctx.globalAlpha = 1; ctx.lineWidth = heat ? 2 : 1.2; ctx.strokeStyle = heat ? css("--series1") : colour; ctx.stroke();
+  ctx.font = "600 12px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "center";
+  ctx.globalAlpha = heat && !blink(now) ? 0.25 : 1; ctx.fillText(b.name, b.x - 8, b.y + 4); ctx.globalAlpha = 1; ctx.textAlign = "start";
+  ctx.font = "10px system-ui, sans-serif"; ctx.fillStyle = css("--ink2"); ctx.fillText(String(b.count), b.x + b.w / 2 - 16, b.y + 4);
+  free(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt);
+}
+function drawEdges(now) {
+  const bundles = new Map();
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
-    const lit = e.lit && e.lit.until > now ? e.lit : null, heat = lit ? Math.min(1, (lit.until - now) / LINGER_FADE) : 0;
-    ctx.globalAlpha = 0.35 + 0.65 * heat; ctx.lineWidth = 1 + 1.5 * heat;
-    ctx.strokeStyle = lit ? css(lit.token) : (showBounds ? colourOf(a.domain) : css("--axis"));
-    ctx.beginPath();
-    if (a === b) ctx.arc(sx(a) + 9, sy(a) - 9, 7, 0, 6.283); else { ctx.moveTo(sx(a), sy(a)); ctx.lineTo(sx(b), sy(b)); }
-    ctx.stroke();
+    const ca = blocks.get(keyOf(a)), cb = blocks.get(keyOf(b));
+    if (ca && ca === cb) continue;
+    if (!ca && !cb) { strokeEdge(anchor(a), anchor(b), a === b, e.lit, 1, colourOf(a.domain), now); continue; }
+    if (e.kind === "adapter" && cb) continue;
+    const key = (ca ? ca.k : a.id) + "|" + (cb ? cb.k : b.id), held = bundles.get(key) || { from: anchor(a), to: anchor(b), count: 0, lit: null, colour: colourOf(a.domain) };
+    held.count++; if (e.lit && e.lit.until > now && (!held.lit || e.lit.until > held.lit.until)) held.lit = e.lit;
+    bundles.set(key, held);
   }
-  ctx.globalAlpha = 1;
-  for (const n of nodes) drawNode(n, now);
+  for (const b of bundles.values()) {
+    strokeEdge(b.from, b.to, false, b.lit, 1 + Math.log2(b.count), b.colour, now);
+    if (b.count > 1) { const mx = (b.from.x + b.to.x) / 2, my = (b.from.y + b.to.y) / 2; ctx.font = "10px system-ui, sans-serif";
+      if (free(mx - 8, my - 8, 16, 14)) { ctx.fillStyle = css("--ink2"); ctx.textAlign = "center"; ctx.fillText(String(b.count), mx, my + 3); ctx.textAlign = "start"; } }
+  }
+}
+function strokeEdge(from, to, own, litAt, width, colour, now) {
+  const lit = litAt && litAt.until > now ? litAt : null, heat = lit ? Math.min(1, (lit.until - now) / LINGER_FADE) : 0;
+  ctx.globalAlpha = 0.35 + 0.65 * heat; ctx.lineWidth = width + 1.5 * heat;
+  ctx.strokeStyle = lit ? css(lit.token) : (showBounds ? colour : css("--axis"));
+  ctx.beginPath();
+  if (own) ctx.arc(from.x + 9, from.y - 9, 7, 0, 6.283); else { ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); }
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+function draw(now) {
+  const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); placed = []; captions = [];
+  blocks = new Map(); for (const k of contexts) if (!open(k)) { const b = blockOf(k); if (b) blocks.set(k, b); }
+  separate([...blocks.values()]);
+  if (showBounds) drawBounds(now);
+  drawEdges(now);
+  for (const b of blocks.values()) drawBlock(b, now);
+  for (const n of nodes) if (!blocks.has(keyOf(n))) drawNode(n, now);
   drawParticles(now);
-  if (view.s >= fitScale * 2.2) for (const n of nodes) if (!(pulses.get(n.id) > now)) label(n, false, true);
-  if (hover) label(hover, true);
+  if (view.s >= fitScale * 2.2) for (const n of nodes) if (!blocks.has(keyOf(n)) && !(pulses.get(n.id) > now)) label(n, false, true);
+  if (hover && !blocks.has(keyOf(hover))) label(hover, true);
   requestAnimationFrame(draw);
 }
 function drawNode(n, now) {
@@ -274,9 +344,9 @@ function drawParticles(now) {
     const p = particles[i], t = (now - p.start) / p.ms;
     if (t >= 1) { pulses.set(p.to.id, now + LINGER); particles.splice(i, 1); continue; }
     if (t < 0) continue;
-    const own = p.from === p.to, angle = t * 6.283 + 1.57;
-    const x = own ? sx(p.from) + 9 + Math.cos(angle) * 7 : sx(p.from) + (sx(p.to) - sx(p.from)) * t;
-    const y = own ? sy(p.from) - 9 + Math.sin(angle) * 7 : sy(p.from) + (sy(p.to) - sy(p.from)) * t, [token, word] = OUTCOME[p.kind];
+    const from = anchor(p.from), to = anchor(p.to), own = from.x === to.x && from.y === to.y, angle = t * 6.283 + 1.57;
+    const x = own ? from.x + 9 + Math.cos(angle) * 7 : from.x + (to.x - from.x) * t;
+    const y = own ? from.y - 9 + Math.sin(angle) * 7 : from.y + (to.y - from.y) * t, [token, word] = OUTCOME[p.kind];
     ctx.beginPath(); ctx.arc(x, y, 5, 0, 6.283); ctx.fillStyle = css(token); ctx.fill(); ctx.strokeStyle = css("--surface"); ctx.lineWidth = 2; ctx.stroke();
     ctx.font = "11px system-ui, sans-serif"; const text = word.slice(0, 1) + " " + p.text;
     if (free(x + 8, y - 16, ctx.measureText(text).width + 4, 14)) { ctx.fillStyle = css("--ink"); ctx.fillText(text, x + 8, y - 6); }
@@ -329,9 +399,11 @@ function renderTable() {
 }
 canvas.addEventListener("mousemove", (e) => {
   const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-  hover = nodes.find((n) => Math.hypot(sx(n) - mx, sy(n) - my) < 10) || null;
-  canvas.style.cursor = drag ? "grabbing" : hover ? "pointer" : "grab";
+  hover = nodes.find((n) => !blocks.has(keyOf(n)) && Math.hypot(sx(n) - mx, sy(n) - my) < 10) || null;
+  const onBlock = [...blocks.values()].some((b) => Math.abs(mx - b.x) < b.w / 2 && Math.abs(my - b.y) < b.hgt / 2);
+  canvas.style.cursor = drag ? "grabbing" : hover || onBlock ? "pointer" : "grab";
 });
+$("all").addEventListener("click", () => { allOpen = !allOpen; if (!allOpen) expanded.clear(); $("all").textContent = allOpen ? "Collapse all" : "Expand all"; });
 $("fit").addEventListener("click", fit);
 $("zin").addEventListener("click", () => zoomCentre(1.4));
 $("zout").addEventListener("click", () => zoomCentre(1 / 1.4));

@@ -83,5 +83,13 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     it "has no external URL in the diagram page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::WIRING_PAGE)).not_to match(%r{https?://|//cdn|@import})
     end
+
+    it "serves the sequence diagram at /sequence" do
+      expect(fetch("/sequence").body).to include("Pipeline Sequence")
+    end
+
+    it "has no external URL in the sequence page" do
+      expect(File.read(Hecks::Adapters::PipelineWeb::SEQUENCE_PAGE)).not_to match(%r{https?://|//cdn|@import})
+    end
   end
 end

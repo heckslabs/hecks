@@ -14,6 +14,7 @@ module Hecks
     class PipelineWeb
       PAGE = File.expand_path("pipeline_web/page.html", __dir__)
       WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
+      SEQUENCE_PAGE = File.expand_path("pipeline_web/sequence.html", __dir__)
       DEFAULT_PORT = 4747
 
       # @param registry [Runtime::Registry, nil] handed to the readers
@@ -56,6 +57,9 @@ module Hecks
 
       # @return [String] the wiring diagram's page
       def wiring_page = File.read(WIRING_PAGE)
+
+      # @return [String] the sequence diagram's page
+      def sequence_page = File.read(SEQUENCE_PAGE)
 
       # @return [Hash] the wiring graph (`nodes` and `edges`), or `{unknown: reason}`
       def wiring
