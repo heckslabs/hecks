@@ -1,0 +1,85 @@
+# frozen_string_literal: true
+
+require_relative "tile_kit"
+
+module Hecks
+  module Adapters
+    module PipelineBoard
+      # The tiles that read CI: success rate, wall time against the goal, failed jobs on the head,
+      # how long main has been red, and how long a commit takes to get a green CI.
+      module CiTiles
+        include TileKit
+
+        GOAL_MINUTES = 3
+
+        # @param runs [Array<Hash>] CI runs, oldest first
+        def success(runs)
+          spec = { id: "success", label: "CI success", unit: "%", detail: "last #{runs.size} main runs" }
+          built = windowed(spec, runs) { |list| success_rate(list) }
+          built.merge(state: band(built[:value], 80, 50))
+        end
+
+        def wall(runs)
+          spec = { id: "wall", label: "Median CI wall", unit: "min", lower: true, detail: "goal #{GOAL_MINUTES} min" }
+          built = windowed(spec, runs.select { |run| run[:status] == "completed" }) do |list|
+            median(list.map { |run| run[:wall_minutes] })
+          end
+          built.merge(state: over(built[:value], GOAL_MINUTES))
+        end
+
+        def failed_head(runs)
+          head, before = runs.last(2).reverse
+          return unlisted(head) if head[:failed_jobs].nil?
+
+          change = before && trend(before[:failed_jobs], head[:failed_jobs], "jobs", lower_is_better: true)
+          state = head[:failed_jobs].zero? ? "ok" : "failed"
+          tile("failed_head", "Failed jobs on head", head[:failed_jobs], "jobs",
+               detail: "run #{head[:sha]}", trend: change, state: state)
+        end
+
+        def unlisted(head)
+          unknown_tile("failed_head", "Failed jobs on head", { unknown: "GitHub would not list the jobs of #{head[:sha]}" })
+        end
+
+        def red_for(runs, now)
+          return tile("red", "Main red for", 0, "h", detail: "main is green") if runs.last[:conclusion] == "success"
+
+          green = runs.reverse.find { |run| run[:conclusion] == "success" }
+          hours = green && ((now - finished(green)) / 3600.0).round(1)
+          note = green ? "since #{green[:sha]} went green" : "no green run in the window"
+          tile("red", "Main red for", hours, "h", state: "failed", detail: note)
+        end
+
+        def lead(data, runs)
+          times = data[:commit_times].to_h
+          spec = { id: "lead", label: "Commit to green CI", unit: "min", lower: true,
+                   detail: "landed to pushed is not recorded" }
+          windowed(spec, runs.select { |run| times[run[:sha]] }) do |list|
+            median(list.map { |run| (finished(run) - Time.parse(times[run[:sha]])) / 60.0 })
+          end
+        end
+
+        # @param spec [Hash] `id`, `label`, `unit`, `detail` and `lower` (a fall is an improvement)
+        def windowed(spec, list)
+          early, late = halves(list)
+          change = trend(yield(early), yield(late), spec[:unit], lower_is_better: spec[:lower] || false)
+          tile(spec[:id], spec[:label], yield(list), spec[:unit], detail: spec[:detail], trend: change)
+        end
+
+        def band(value, good, fair)
+          return "unknown" if value.nil?
+          return "ok" if value >= good
+
+          value >= fair ? "attention" : "failed"
+        end
+
+        def over(value, goal)
+          return "unknown" if value.nil?
+          return "ok" if value <= goal
+
+          value <= goal * 2 ? "attention" : "failed"
+        end
+      end
+    end
+  end
+end
