@@ -65,6 +65,8 @@ module Hecks
 
           # @return [String] the context line, as `-v` prints it
           def checkout_line
+            require_relative "../context_line"
+            require_relative "../../../hecks/adapters/settings_reading"
             ContextLine.line(directory: Dir.pwd, stores: SettingsReading.new.stores(Dir.pwd),
                              audience: ContextLine.audience(Dir.pwd))
           end
