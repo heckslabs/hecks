@@ -126,6 +126,7 @@ still need a checkout.
 | `hecks style_run.canonicalise! <file>` | `bin/canonicalise` |
 | `hecks codemod_run.hoist_local_givens! --confirm` | `bin/codemod_hoist_local_givens` |
 | `hecks codemod_run.drop_implicit_append_fields! --confirm` | `bin/codemod_implicit_append_fields` |
+| `hecks codemod_run.move_former_name! --confirm` | `bin/codemod_move_former_name` |
 | `hecks test_suite_run.shard_specs <group> groups= [runtime_log=]` | `bin/rspec_shard_files` |
 | `hecks test_suite_run.list_io_parallel_specs <exclude> [tags=] [check=]`; `hecks test_suite_run.write_io_parallel_spec_list! <exclude> [tags=] write= --confirm` | `bin/rspec_io_parallel_files` |
 | `hecks test_suite_run.refresh_runtime_baseline! [<workers>] [from_run=] --confirm` | `bin/refresh_rspec_runtime_baseline` |
