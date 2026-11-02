@@ -5,6 +5,7 @@ require "tmpdir"
 require "fileutils"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
+require_relative "support/first_era_hold"
 
 # The Hecks domain's journal outlives the process. One process runs a journaled command through
 # the launcher against a real Postgres; a second, started afterwards, reads it back with
@@ -59,6 +60,13 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
                "Hecks.hecksagon \"Shelf\" do\n  persisted_by \"Memory\"\nend\n")
     File.write(File.join(@dir, "launch.rb"), LAUNCH_SCRIPT)
     opt_in_to_postgres_era(@dir)
+    hold_hecks_eras
+  end
+
+  # A boot never holds era 1 (ADR 0168): hold it for the Hecks domain the child processes boot.
+  def hold_hecks_eras
+    Object.new.extend(FirstEraHold)
+          .hold_domain_eras!(directory: File.join(HECKS_ROOT, "lib/hecks/hecks"), url: FencedOwner.url(JOURNAL_DB))
   end
 
   # What a client does to keep a journal: a `hecks.local.hecksagon` in the working directory whose
@@ -119,7 +127,7 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   end
 
   def journaled_events
-    out = launch("model_check_run.model_check", "run=kept-1", "domains=#{File.join(@dir, "shelf")}")
+    out = launch("model_check_run.model_check!", "run=kept-1", "domains=#{File.join(@dir, "shelf")}")
     JSON.parse(out).fetch("events")
   end
 
@@ -129,7 +137,7 @@ RSpec.describe "the Hecks domain journals to PostgresEra", :io do
   end
 
   def stores_name_run?(domain)
-    out = child!(File.join(HECKS_ROOT, "exe/hecks"), "stores", domain)
+    out = child!(File.join(HECKS_ROOT, "exe/hecks"), "introspection.stores", domain)
     JSON.parse(out.lines.last).fetch("model_check_run").fetch("authoritative").to_s.include?("kept-1")
   end
 
