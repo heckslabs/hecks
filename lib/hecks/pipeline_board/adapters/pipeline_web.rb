@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "pipeline_stages"
+require_relative "pipeline_wiring"
 require_relative "pipeline_web/server"
 require_relative "pipeline_web/stream"
 require_relative "pipeline_web/snapshot"
@@ -12,6 +13,7 @@ module Hecks
     # has; every answer is read from {PipelineStages} and nothing is written.
     class PipelineWeb
       PAGE = File.expand_path("pipeline_web/page.html", __dir__)
+      WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
       DEFAULT_PORT = 4747
 
       # @param registry [Runtime::Registry, nil] handed to the readers
@@ -21,6 +23,7 @@ module Hecks
       # @param root [String, nil] the checkout the readers run in
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @stages = settings[:stages] || PipelineStages.new(registry: registry, root: root)
+        @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
         @interval = settings.fetch(:interval, 1.0)
         @snapshot = PipelineBoard::Snapshot.new(source: @stages.method(:state), background: settings.fetch(:background, true))
       end
@@ -50,6 +53,16 @@ module Hecks
 
       # @return [Hash] every section the page shows
       def state = @snapshot.latest
+
+      # @return [String] the wiring diagram's page
+      def wiring_page = File.read(WIRING_PAGE)
+
+      # @return [Hash] the wiring graph (`nodes` and `edges`), or `{unknown: reason}`
+      def wiring
+        @wiring.graph
+      rescue PipelineBoard::Unavailable => e
+        { unknown: e.message }
+      end
 
       # Yields each event of the journal once and again when its reactions change, until the reader
       # goes away.

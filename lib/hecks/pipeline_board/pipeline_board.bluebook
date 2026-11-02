@@ -115,6 +115,11 @@ Hecks.bluebook "PipelineBoard" do
       returns Document
     end
 
+    query "Wiring" do
+      description "What the loaded bluebooks wire together: aggregates, the policies between them, the ports an ask goes out through and the adapters that answer them."
+      returns Document
+    end
+
     query "Events" do
       description "The most recent events the tooling recorded, newest first: time, aggregate, event, and the policy that reacted where the journal holds one."
       attribute :limit, Limit, optional: true

@@ -25,6 +25,11 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "Events"
   end
 
+  # The wiring of the booted domains, read from the registry, for the diagram.
+  PipelineBoard::PipelineBoard.port "Wiring" do
+    answers_query "Wiring"
+  end
+
   # Every stage, composed from the readings above and from this checkout's git state.
   PipelineBoard::PipelineBoard.port "Pipeline" do
     answers_query "Stages"

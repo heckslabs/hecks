@@ -34,6 +34,7 @@ header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; j
 h1 { font-size: 20px; margin: 0; font-weight: 600; }
 h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .meta { color: var(--ink2); font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+a { color: var(--series1); }
 button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--series1); outline-offset: 2px; }
 section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
@@ -112,6 +113,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   <header>
     <h1>Pipeline Board</h1>
     <div class="meta">
+      <a href="/wiring">Wiring diagram</a>
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
       <button id="toggle" type="button" aria-pressed="false">Show tables</button>
