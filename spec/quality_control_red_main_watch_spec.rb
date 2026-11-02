@@ -4,9 +4,10 @@ require "hecks/hecks/adapters/dispatching"
 require "hecks/quality_control/cli/qa_red_main_watch"
 
 # Red main as a standing Work row: the tick's watch files one `red-main-<run id>` row when the
-# latest CI run on main failed and finishes it when a later run passes, the dispatch fill starts it first,
-# and `push_rehearsal.due` and the train's report lead with it without ever refusing a push. The
-# GitHub reader is a stub, the Hecks domain boots in Memory, and no network or git history is read.
+# latest CI run on main failed and finishes it when a later run passes, the dispatch fill starts
+# it first, and `push_rehearsal.due` and the train's report lead with it without ever refusing a
+# push. The GitHub reader is a stub, the Hecks domain boots in Memory, and no network or git
+# history is read.
 RSpec.describe "red main as a standing Work row" do
   let(:hecks) { boot_hecks_in_memory }
   let(:registry) { hecks.registry }
