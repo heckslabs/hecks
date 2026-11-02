@@ -101,6 +101,27 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[RetirementRequested RemovalRefused RetirementDeclined]
   end
 
+  test "Discard keeps a checkout that is not there as a spared worktree" do
+    tests "Discard", on: "Landing"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          reason: { value: "superseded" }, confirm: { value: true }
+    expect emits: %w[DiscardRequested DiscardRefused DiscardDeclined]
+  end
+
+  test "Discard needs confirm" do
+    tests "Discard", on: "Landing"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          reason: { value: "superseded" }
+    expect refused: "discards the branch's commits that main lacks needs --confirm; without it this only reports"
+  end
+
+  test "Discard needs a reason" do
+    tests "Discard", on: "Landing"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          reason: { value: "" }, confirm: { value: true }
+    expect refused: "a discard says why"
+  end
+
   test "Dispatch keeps a directory that is not there as a declined run" do
     tests "Dispatch", on: "AgentRun"
     input run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }

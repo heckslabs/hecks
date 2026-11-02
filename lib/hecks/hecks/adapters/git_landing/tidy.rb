@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../git_worktrees"
+require_relative "carried"
 
 module Hecks
   module Adapters
@@ -17,6 +18,7 @@ module Hecks
       # `main`, `stable`, `edge`, the target and a branch another worktree holds are never deleted.
       class Tidy
         include GitWorktrees
+        include Carried
 
         # Branches no tidy deletes, whatever they contain.
         PROTECTED = %w[main stable edge].freeze
@@ -28,14 +30,17 @@ module Hecks
         # @param checkout [String] the repository's top level
         # @param branch [String] the landed branch
         # @param onto [String] the branch it was landed on
-        # @param retiring [Boolean] whether `checkout` is the very worktree to retire
-        def initialize(git, checkout, branch:, onto:, retiring: false)
+        # @param mode [Symbol] `:land` tidies after a landing, `:retire` removes the worktree named
+        #   by `checkout`, `:discard` does that although `onto` lacks the branch's commits; every
+        #   other guard holds, and the sentence names the tip it was at
+        def initialize(git, checkout, branch:, onto:, mode: :land)
           @git = git
           @checkout = checkout
           @from = checkout
           @branch = ref(branch)
           @onto = ref(onto)
-          @retiring = retiring
+          @retiring = mode != :land
+          @discarding = mode == :discard
         end
 
         # @return [String] a sentence saying what was removed, or why nothing was
@@ -51,7 +56,11 @@ module Hecks
           tree = worktree_on(@branch)
           tip = tree && branch_tip(@branch)
           why = reason_to_keep(tree, tip)
-          why ? [true, why] : drop(tree.path, tip)
+          return [true, why] if why
+
+          note = discarded_note(tip)
+          kept, said = drop(tree.path, tip)
+          [kept, kept || !@discarding ? said : "#{said}; #{note}"]
         end
 
         private
@@ -89,22 +98,6 @@ module Hecks
         def named(lines)
           shown = lines.first(NAMED).join(", ")
           lines.size > NAMED ? "#{shown} and #{lines.size - NAMED} more" : shown
-        end
-
-        def unmerged(tip)
-          return "it has no commit to verify" unless tip
-
-          local = "refs/heads/#{@onto}"
-          return unless count("#{local}..#{tip}").positive? || !ancestor?(tip, local)
-
-          lacking = unmatched(local, tip)
-          "it has #{lacking} commit(s) not on #{@onto}" if lacking.positive?
-        end
-
-        # How many commits the branch adds that `onto` carries under no id and no patch: `git cherry`
-        # marks one `onto` has a patch-equivalent of with `-`, and one it lacks with `+`.
-        def unmatched(local, tip)
-          read("cherry", local, tip, dir: @checkout).lines.count { |line| line.start_with?("+") }
         end
 
         def drop(path, tip)

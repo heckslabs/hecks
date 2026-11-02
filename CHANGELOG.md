@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- **`Landing.discard!` removes a worktree and its branch although `main` lacks the branch's commits.** It needs `reason.value=…` (free text, kept on the record) and `--confirm`, and refuses by name what `retire!` refuses: `main`, `stable`, `edge` and the target, the main checkout, the worktree the process stands in, a locked worktree, a branch another worktree holds, a branch that moved after it was checked, and any uncommitted or untracked file. Its report names the tip the branch was at and how many commits `main` lacked (`it was at <sha> with N commit(s) not on main; reason: …`), so the commits stay findable by sha until git prunes them. Events are `DiscardRequested`, `WorktreeDiscarded` and `DiscardDeclined`. `retire!` is unchanged, and an agent runs `discard!` only on a branch the owner has asked it to discard.
+
 ### Changed
 
 - **`Landing.retire!` and the tidy after a landing count a branch as merged when `main` carries every commit it adds under another id.** The check was commit ids only, so a branch rebuilt after a conflict, cherry-picked or rebased onto `main` was kept for ever. It now asks `git cherry` and counts only the commits that have no patch-equivalent on `main`, so the refusal names the number that are really missing. An ignored or untracked file in the worktree still keeps it, as before.

@@ -47,6 +47,12 @@ A session that needs its own checkout uses `git worktree add`, and retires it wi
 `git worktree remove`. Any git operation an agent needs is allowed, through plain git or through a
 `hecks` command that performs it; use the command when one exists, since it carries the repo's own checks.
 
+**Discarding a branch.** `exe/hecks Landing.retire! --confirm` removes a worktree whose work is on `main`.
+`exe/hecks Landing.discard! reason.value=… --confirm` removes one whose commits `main` lacks, and an
+agent runs it only when the owner explicitly asks for that branch, never on its own work: the standing
+rule is to report unpushed or uncommitted work, not delete it. It refuses uncommitted files, and its
+report names the tip sha.
+
 **Always pull `main` before you push.** Fetch and rebase onto `origin/main` right
 before every push, and again if the pre-push gate ran long enough for `main` to
 move. Many sessions push to `main`; a stale push is rejected or buries their work.

@@ -196,6 +196,12 @@ Hecks.hecksagon "Hecks" do
       refuses "RemovalRefused"
     end
 
+    asks "DropBranch", to: Landing do
+      attribute :run, RunKey
+      answers "DiscardAnswered"
+      refuses "DiscardRefused"
+    end
+
     answers_query "Unlanded"
   end
 
