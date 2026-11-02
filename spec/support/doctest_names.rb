@@ -35,6 +35,7 @@ module DoctestNames
   UNGATED_STATUS_DOCS = %w[
     1.0-readiness.md
     architecture-map.md
+    ARCHITECTURE_REVIEW.md
     benchmarks.md
     cli-measures.md
     command-form-and-query-form-bluebook.md
@@ -47,6 +48,7 @@ module DoctestNames
     fuzzer-property-expansion-plan.md
     HECKS_IMPLEMENTATION_PLAN.md
     migrating-2-to-3.md
+    migrating-6-to-7.md
     query-dsl.md
     rails-integration.md
     rubocop-custom-cops.md
