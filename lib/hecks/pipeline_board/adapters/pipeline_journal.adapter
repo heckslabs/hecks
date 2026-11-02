@@ -1,0 +1,7 @@
+# Binds the `Journal` port to `PipelineJournal`, which answers `Events` from the journal stores, read-only.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/pipeline_board/adapters/pipeline_journal"
+
+Hecks.adapter "PipelineJournal" do
+  port "Journal"
+end

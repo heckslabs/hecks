@@ -28,6 +28,8 @@ module Hecks
       # The Coder and Fixer domains keep their bluebook beside their hecksagon in their own folder.
       coder:     "lib/hecks/coder",
       fixer:     "lib/hecks/fixer",
+      # The PipelineBoard domain keeps its bluebook beside its hecksagon and adapters.
+      board:     "lib/hecks/pipeline_board",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
