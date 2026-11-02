@@ -73,6 +73,15 @@ RSpec.describe Hecks::Adapters::Dispatching do
     expect(plan([row("a")], started: [row("s", "lib")]).chosen.map(&:key)).to eq(["a"])
   end
 
+  it "reads a red-* row before earlier planned work, whatever its step" do
+    hecks = boot_hecks_in_memory
+    %w[first red-ci-3].each do |key|
+      hecks.dispatch_flat("Tickets::Work.Plan", work: { value: key }, title: { value: key }, detail: { value: "d" }, area: [])
+    end
+
+    expect(described_class::Rows.new(hecks.registry).planned.map(&:key)).to eq(%w[red-ci-3 first])
+  end
+
   describe "the dry run" do
     let(:held) { { rows: [[row("a", "lib/a"), row("b", "lib/a/b")]], record: { repo: "/repo" } } }
 

@@ -8,7 +8,6 @@ require_relative "git_rehearsal/stages"
 require_relative "git_rehearsal/record"
 require_relative "git_rehearsal/due"
 require_relative "git_rehearsal/line"
-require_relative "red_main_line"
 
 module Hecks
   module Adapters
@@ -57,11 +56,11 @@ module Hecks
       #
       # @param held [Hash] `checkout` (a directory inside the repository)
       # @return [Hash{Symbol => String}] `text:` the commits ahead, the oldest one's age and the
-      #   last rehearsal's result, led by the red-main line while a `red-main-*` row is open
+      #   last rehearsal's result
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository
       def due(**held)
         @checkout = primary(plain(held[:checkout]) || Dir.pwd)
-        { text: RedMainLine.lead + Due.new(@git, @checkout).report }
+        { text: Due.new(@git, @checkout).report }
       end
 
       private

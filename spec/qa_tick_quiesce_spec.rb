@@ -11,7 +11,7 @@ RSpec.describe "hecks quality_control tick while quiesced", :aggregate_failures 
   let(:tick) { Hecks::QualityControlCli::QaTick.new(root: dir, env: {}) }
   let(:ran) { [] }
   let(:steps) do
-    %w[pr_check sweep generated_domains mutation main_check push_nudge red_main_watch event_pump]
+    %w[pr_check sweep generated_domains mutation main_check push_nudge event_pump]
   end
 
   before do
