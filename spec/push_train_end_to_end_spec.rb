@@ -166,9 +166,10 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
       expect([pushed?, era_count]).to eq([false, 1])
     end
 
-    it "refuses the boarding's own record when the move is one no edge covers", :aggregate_failures do
+    # A boot over a breaking move no edge covers refuses before any record is written (ADR 0168).
+    it "refuses the boot itself when the move is one no edge covers", :aggregate_failures do
       prepare(held: { extra: LANE })
-      expect(&refused_boarding).to refusal
+      expect(&refused_boarding).to raise_error(Hecks::Runtime::WiringError, /no translation edge covers it/)
       expect([pushed?, era_count]).to eq([false, 1])
     end
   end
