@@ -51,6 +51,8 @@ coverage/
 !.claude/skills/
 # The agents a coder session hands work to, such as the architect that reviews its plan, tracked for the same reason.
 !.claude/agents/
+# The repo's permission rules, shared by every clone: the deny list that keeps a coding session on the hecks binary.
+!.claude/settings.json
 
 # What the release workflow builds into the gem (caches keyed by lib/); never committed.
 /prebuilt/
