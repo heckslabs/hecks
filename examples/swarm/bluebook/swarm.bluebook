@@ -205,7 +205,7 @@ Hecks.bluebook "Swarm" do
       attribute :winner, ProposalId
 
       given("the run is judging") { phase.value == "judging" }
-      given("at least one score was cast") { scores.any? }
+      given("at least one score was cast") { scores.size > 0 }
       given("the winner is a submitted proposal") do
         proposals.any? { |p| p.id.value == winner.value }
       end
