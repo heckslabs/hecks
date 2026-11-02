@@ -45,7 +45,10 @@ module Hecks
         end
 
         # Answers the store rows of a directory, through the adapter `hecks config` uses.
-        STORES = ->(directory) { Hecks::Adapters::SettingsReading.new.stores(directory) }
+        STORES = lambda do |directory|
+          require_relative "../../hecks/adapters/settings_reading"
+          Hecks::Adapters::SettingsReading.new.stores(directory)
+        end
       end
     end
   end

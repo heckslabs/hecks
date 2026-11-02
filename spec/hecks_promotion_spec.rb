@@ -90,7 +90,7 @@ RSpec.describe "promoting a lane" do
   end
 
   def promote(run, *args, lane: "stable", confirm: true)
-    launch("promotion_run.promote", "run=#{run}", "lane=#{lane}", *args, *("--confirm" if confirm))
+    launch("promotion_run.promote!", "run=#{run}", "lane=#{lane}", *args, *("--confirm" if confirm))
     outcome(run)
   end
 
