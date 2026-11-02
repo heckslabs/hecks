@@ -81,6 +81,24 @@ module Hecks
             paths.flat_map { |path| ShapeLedger.pairs_of(ShapeLedger.implicit_moves(path).fetch(domain, [])) }
           end
 
+          # Whether the move from the held era is breaking and nothing covers it: the decision needs
+          # an edge, and the change is not provably additive. A move a mint would go ahead on, or a
+          # decision already refused for another reason, is not this. An edge from the held shape
+          # covers it even when the held era has not been named yet.
+          #
+          # @return [Boolean]
+          def breaking?(latest, bluebook, verdict, translations)
+            return false unless verdict.verdict == "needs_edge"
+            return false unless leading(translations, bluebook, held_label_of(latest)).empty?
+
+            !additive?(verdict.diff, held_for_decision(latest), bluebook)
+          end
+
+          # @return [String] the stored label of a held era, or the one its shape would be named
+          def held_label_of(era)
+            era[:label] || LineageManager.held_hash(era)[0, Runtime::StorageShape::LABEL_LENGTH]
+          end
+
           # The shape label a storage shape of this bluebook carries.
           #
           # @return [String]
