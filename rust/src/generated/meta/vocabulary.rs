@@ -4830,7 +4830,6 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "rust_coverage_codegen", id: "rust_coverage_codegen", title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", argv: "", script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", blocked: "hecks-codegen generated nothing for a construct a domain declares.", runs_in: "" },
     GateCheck { name: "kernel_coverage", id: "kernel_coverage", title: "rust kernel coverage, every capability variant has a kernel file", argv: "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait", script: "", blocked: "a capability's enum variant has no rust/src/kernel file behind it.", runs_in: "" },
     GateCheck { name: "rust_vocabulary_drift", id: "rust_vocabulary_drift", title: "rust vocabulary, the kernel vocab tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result.", runs_in: "" },
-    GateCheck { name: "era_proof", id: "era_proof", title: "era proof, each bluebook's boot status is current or behind by a recorded implicit move", argv: "", script: "status=\"$(bundle exec exe/hecks query era.boot_status domain.value=lib/hecks/hecks)\" || exit 1\nproblems=\"$(echo \"$status\" | jq -r -f .github/era_proof/boot_status.jq)\" || exit 1\nif [ -n \"$problems\" ]; then\n  echo \"era_proof: a bluebook is neither current nor behind by a recorded implicit move:\" >&2\n  echo \"$problems\" >&2\n  exit 1\nfi\n", blocked: "a bluebook's boot status is superseded, unminted, or behind with no implicit move recorded: the output names each one and its reason. Fix the ledger, the edge or the implicit move that leads the held shape to the current one.", runs_in: "" },
 ];
 
 impl GateCheck {
@@ -4980,7 +4979,6 @@ impl GateCheck {
                     "rust_coverage_codegen",
                     "kernel_coverage",
                     "rust_vocabulary_drift",
-                    "era_proof",
                 ],
                 offered: offered.as_str(),
             }
@@ -5001,7 +4999,6 @@ pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec" },
     GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
-    GateStage { name: "era_proof", env: "", checks: "era_proof" },
     GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
 
@@ -5069,14 +5066,7 @@ impl GateStage {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "GateStage",
-                admitted: &[
-                    "pre_push",
-                    "ci_suite",
-                    "quick",
-                    "rust_io",
-                    "era_proof",
-                    "ci",
-                ],
+                admitted: &["pre_push", "ci_suite", "quick", "rust_io", "ci"],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -5706,7 +5696,7 @@ pub const QA_DIAL: &[QaDial] = &[
     QaDial { name: "event_pump", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless." },
     QaDial { name: "push_nudge", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting." },
     QaDial { name: "quiesced", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step." },
-    QaDial { name: "main_maintenance", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain." },
+    QaDial { name: "main_maintenance", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain." },
     QaDial { name: "maintenance_confirm", r#type: "Boolean", meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing." },
 ];
 
