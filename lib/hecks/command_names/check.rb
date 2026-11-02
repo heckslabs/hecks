@@ -30,7 +30,7 @@ module Hecks
         Sources.files(root).flat_map do |path|
           Scan.new(path, File.read(File.join(root, path), encoding: "UTF-8")).calls.filter_map do |call|
             problem = index.problem(call.words)
-            Finding.new(path, call.line, call.text, problem) if problem
+            Finding.new(path, call.line, call.text, problem) if problem && !Sources.allowed?(call.text)
           end
         end
       end

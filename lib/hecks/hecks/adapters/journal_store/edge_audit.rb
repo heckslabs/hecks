@@ -86,7 +86,7 @@ module Hecks
           return verdict.edge if verdict.verdict == "would_mint"
 
           raise Runtime::NotFound, "no translation edge leads #{latest[:label]} to #{label} " \
-                                   "(the decision is #{verdict.verdict}) — run `hecks scaffold_translation` first"
+                                   "(the decision is #{verdict.verdict}) — run `hecks query era.scaffold_translation` first"
         end
 
         # The registered translations that leave the latest era.

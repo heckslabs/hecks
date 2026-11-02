@@ -2,7 +2,7 @@ module Hecks
   module Tools
     module StressConcurrencySpecs
       USAGE = <<~TEXT.freeze
-        Usage: hecks stress_concurrency [--runs N] [--parallel N] [--seed-start N]
+        Usage: hecks test_suite_run.stress_concurrency! [--runs N] [--parallel N] [--seed-start N]
 
           --runs N        How many times to run EACH group below. Each run uses
                            a different --seed (seed-start + run index).
@@ -16,8 +16,8 @@ module Hecks
           --seed-start N  First --seed value; runs use seed_start,
                            seed_start + 1, ... seed_start + runs - 1.
 
-        `hecks stress_concurrency` fills --runs and --seed-start from the defaults its
-        bluebook declares (`hecks stress_concurrency --help` shows them).
+        `hecks test_suite_run.stress_concurrency!` fills --runs and --seed-start from the defaults its
+        bluebook declares (`hecks test_suite_run.stress_concurrency! --help` shows them).
 
         Exits 0 if every run's every example passed, 1 if anything failed -
         failing runs' full output is saved under tmp/stress-failures/

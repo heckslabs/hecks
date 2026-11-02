@@ -109,7 +109,7 @@ module Hecks
         rescue Runtime::WiringError => e
           raise Runtime::WiringError, "#{domain.domain_name}: stopped at a row that isn't merely legacy — " \
                                       "it fails its own integrity check: #{e.message} — resolve that first " \
-                                      "(`hecks reattest`), then run this again for the remaining rows."
+                                      "(`hecks era.reattest!`), then run this again for the remaining rows."
         end
 
         def missing_projections(lineage)

@@ -5,7 +5,7 @@ require_relative "../corpus"
 
 module Hecks
   module Tools
-    # The command behind `hecks project_cli` and `hecks project_cli`: writes a
+    # The command behind `hecks launch.project_cli!` and `hecks launch.project_cli!`: writes a
     # command-line launcher beside each domain, named after its bluebook, so
     # `Hecks.bluebook "QualityControl"` in `qa/` becomes `qa/quality_control`.
     #
@@ -56,7 +56,7 @@ module Hecks
       # @api private
       def refuse_unknown(flags)
         unknown = flags - ["--check"]
-        abort "hecks project_cli: unknown option #{unknown.first} (the only option is --check)" unless unknown.empty?
+        abort "hecks launch.project_cli!: unknown option #{unknown.first} (the only option is --check)" unless unknown.empty?
       end
 
       # Says which launchers drifted or could not be made, and exits 1 if any did.
@@ -67,7 +67,7 @@ module Hecks
         failed  = outcomes.select { |_, outcome| outcome == :failed }.keys
         return if drifted.empty? && failed.empty?
 
-        warn "launcher out of date for: #{drifted.join(", ")}; run `hecks project_cli #{drifted.join(" ")}`" unless drifted.empty?
+        warn "launcher out of date for: #{drifted.join(", ")}; run `hecks launch.project_cli! #{drifted.join(" ")}`" unless drifted.empty?
         warn "no launcher could be checked or written for: #{failed.join(", ")}" unless failed.empty?
         exit 1
       end
@@ -81,7 +81,7 @@ module Hecks
       def under_root(root, path)
         expanded = File.expand_path(path, root)
         inside   = expanded == root || expanded.start_with?("#{root}/")
-        abort "hecks project_cli: #{path.inspect} is outside #{root}" unless inside
+        abort "hecks launch.project_cli!: #{path.inspect} is outside #{root}" unless inside
 
         relative = expanded.delete_prefix(root).delete_prefix("/")
         relative.empty? ? "." : relative
