@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "rbconfig"
 require "hecks/ports/persistence/plugins/era"
+require "hecks/hecks/adapters/journal_store"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 
@@ -139,6 +140,38 @@ RSpec.describe "hecks deploy provision", :io do
     _out, _err, status = provision_tenant("acme")
 
     expect(status).to be_success
+  end
+
+  # The eras a tenant's schema holds for Scratch, as the lineage reads them.
+  def held_eras(schema)
+    db = Hecks::Adapters::PostgresEra.connect_for("Scratch", { database: DB_URL, schema: schema })
+    Hecks::Adapters::PostgresEra::Lineage.new(db, "Scratch").eras.map { |era| era[:ordinal] }
+  ensure
+    db&.close
+  end
+
+  it "holds era 1 in the new schema once, and a re-provision mints no second era" do
+    provision_tenant("acme")
+    provision_tenant("acme")
+
+    expect(held_eras("acme")).to eq([1])
+  end
+
+  # Holds era 1 of the fixture in `schema` as the hold_first command does, before any provision.
+  def hold_first_in(schema)
+    held = Hecks::Adapters::JournalStore::HeldDomain.open(dir, mode: :bare, environment: nil)
+    held.read_from(DB_URL).read_schema(schema).writing do |lineage|
+      lineage.hold_first_era!(held.source_text, projection: held.shape, aggregates: held.aggregates)
+    end
+  end
+
+  it "leaves a schema that already holds an era untouched", :aggregate_failures do
+    hold_first_in("keeper")
+    before = held_eras("keeper")
+    _out, err, status = provision_tenant("keeper")
+
+    expect(status).to be_success, err
+    expect(held_eras("keeper")).to eq(before)
   end
 
   it "keeps two tenants it provisions completely apart, through the real overlays it wrote", :aggregate_failures do
