@@ -23,8 +23,9 @@ RSpec.describe "the Coder brief's standing sections" do
   def section(name) = compose[name][:value]
 
   it "tells the session how to set up and clean up its worktree" do
-    expect(section(:workflow)).to include("git worktree add .claude/worktrees/{work} -b {work} main",
-                                          "local main is ahead of origin/main", "no Claude attribution trailer", "ignored files")
+    expect(section(:workflow)).to include("LinkedTree.add! branch.value={work}", "Pull main first, always",
+                                          "merge-base --is-ancestor origin/main HEAD",
+                                          "no Claude attribution trailer", "ignored files")
   end
 
   it "tells the session how to land" do

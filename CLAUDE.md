@@ -51,6 +51,13 @@ A session that needs its own checkout uses `git worktree add`, and retires it wi
 before every push, and again if the pre-push gate ran long enough for `main` to
 move. Many sessions push to `main`; a stale push is rejected or buries their work.
 
+**Pull `main` first, before you cut a branch.** `LinkedTree.pull_main!` fetches `origin` and brings local `main`
+up to date: a fast-forward when it is behind, a rebase of its unpushed commits when both moved; it never
+forces or discards, and refuses by name (`cannot pull main: the checkout has uncommitted changes`) a dirty or
+mid-rebase checkout. `LinkedTree.add!` runs it before cutting the branch and `landing.finish!` before its
+rebase; `landing.land!` refuses a branch behind `origin/main`. A harness-made worktree (`EnterWorktree`)
+is cut from `origin/main`, not local `main`: check `git merge-base --is-ancestor origin/main HEAD` and rebase.
+
 Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
 model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
 
@@ -186,7 +193,7 @@ world's `landing "Queue"` (`hecks.world`) sets how long a ticket may go without 
 a landing waits. `push_rehearsal.rehearse!` runs the stages of its scope (`RehearsalScope` rows in the Vocabulary
 bluebook: `quick`, `full`, and opt-in `deep` which adds the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
 (`rehearse/rehearse.bluebook`); `test_suite_run.run_spec_files!` and `run_impacted_specs!` run named or
-impacted specs through the launcher. Branch worktrees from local `main`, never `origin/main`.
+impacted specs through the launcher. Branch worktrees through `LinkedTree.add!`, which pulls `main` first.
 **Era inspection:** `era.boot_resolution`, `era.mint_plan` (every guard a mint runs, read-only),
 `era.event_trace`, `era.sqlite_status` and `era.projection_audit` read without writing; `Era.RenameDomain`
 (`era.rename_domain!`) moves a renamed domain's history. The world words are `disposable_ledger`,
