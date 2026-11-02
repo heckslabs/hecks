@@ -162,7 +162,7 @@ RSpec.describe "the Site row of the ADR command table" do
     expect(out).to include('Extension admits "ts", "mts"')
   end
 
-  describe "site_projection.check_live" do
+  describe "site_projection.check_live!" do
     require_relative "support/live_distribution"
 
     let(:edge) do
@@ -180,7 +180,7 @@ RSpec.describe "the Site row of the ADR command table" do
       Dir.mktmpdir("site_live") do |dir|
         file = File.join(dir, "live.json")
         File.write(file, JSON.generate(config))
-        return launch(["site_projection.check_live", PROJECT, "live=#{file}", "refs=#{words}", *flags])
+        return launch(["site_projection.check_live!", PROJECT, "live=#{file}", "refs=#{words}", *flags])
       end
     end
 
@@ -200,7 +200,7 @@ RSpec.describe "the Site row of the ADR command table" do
       copy_project_naming_no_template(dir)
       file = File.join(dir, "live.json")
       File.write(file, JSON.generate(config))
-      ["site_projection.check_live", dir, "live=#{file}", "refs=#{words}"]
+      ["site_projection.check_live!", dir, "live=#{file}", "refs=#{words}"]
     end
 
     def aws_result(out, err, success)
@@ -213,7 +213,7 @@ RSpec.describe "the Site row of the ADR command table" do
     end
 
     it "answers --help", :aggregate_failures do
-      out, status = launch(["site_projection.check_live", "--help"])
+      out, status = launch(["site_projection.check_live!", "--help"])
 
       expect(status).to eq(0)
       expect(out).to start_with("SiteProjection.check_live")
@@ -271,14 +271,14 @@ RSpec.describe "the Site row of the ADR command table" do
     end
 
     it "exits 1 when neither of a saved configuration and a distribution is named", :aggregate_failures do
-      out, status = launch(["site_projection.check_live", PROJECT])
+      out, status = launch(["site_projection.check_live!", PROJECT])
 
       expect(status).to eq(1)
       expect(out).to include("exactly one of a saved configuration and a distribution")
     end
 
     it "exits 1 when both a saved configuration and a distribution are named" do
-      _out, status = launch(["site_projection.check_live", PROJECT, "live=x.json", "distribution=E123"])
+      _out, status = launch(["site_projection.check_live!", PROJECT, "live=x.json", "distribution=E123"])
 
       expect(status).to eq(1)
     end
@@ -287,19 +287,19 @@ RSpec.describe "the Site row of the ADR command table" do
       allow(stubbed_shell).to receive(:capture).with("aws", "cloudfront", "get-distribution-config", "--id", "E36ACSIVZJAKNV")
                                                .and_return(aws_result(JSON.generate(config), "", true))
 
-      expect(launch(["site_projection.check_live", PROJECT, "distribution=E36ACSIVZJAKNV", "refs=#{words}"]).last).to eq(0)
+      expect(launch(["site_projection.check_live!", PROJECT, "distribution=E36ACSIVZJAKNV", "refs=#{words}"]).last).to eq(0)
     end
 
     it "exits 1 with the reason when aws fails", :aggregate_failures do
       stubbed_shell(capture: aws_result("", "AccessDenied", false))
-      reason, status = launch(["site_projection.check_live", PROJECT, "distribution=E1"])
+      reason, status = launch(["site_projection.check_live!", PROJECT, "distribution=E1"])
 
       expect(status).to eq(1)
       expect(reason).to include("get-distribution-config failed: AccessDenied")
     end
 
     it "exits 1 with the reason when the saved file is missing", :aggregate_failures do
-      reason, status = launch(["site_projection.check_live", PROJECT, "live=/nonexistent/live.json"])
+      reason, status = launch(["site_projection.check_live!", PROJECT, "live=/nonexistent/live.json"])
 
       expect(status).to eq(1)
       expect(reason).to include("cannot read the live configuration")
@@ -307,7 +307,7 @@ RSpec.describe "the Site row of the ADR command table" do
 
     it "exits 1 for a project with no edge", :aggregate_failures do
       FileUtils.mkdir_p(File.join(@dir, "bluebook"))
-      reason, status = launch(["site_projection.check_live", @dir, "live=#{@dir}/x.json"])
+      reason, status = launch(["site_projection.check_live!", @dir, "live=#{@dir}/x.json"])
 
       expect(status).to eq(1)
       expect(reason).to include("no bluebook declares a value_object")

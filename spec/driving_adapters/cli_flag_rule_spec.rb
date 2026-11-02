@@ -10,7 +10,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   def status(*argv) = run(*argv).last
 
   def create_pizza(*extra)
-    run("order.create_pizza", "name=Margherita", "pizza.price_cents.cents=1200", "pizza.size.value=large", *extra)
+    run("order.create_pizza!", "name=Margherita", "pizza.price_cents.cents=1200", "pizza.size.value=large", *extra)
   end
 
   it "accepts --wait on a command whose bluebook does not opt into the launcher" do
@@ -22,7 +22,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   it "refuses a flag no command declares, with exit 2 and the flag named" do
-    text, code = run("order.create_pizza", "name=X", "--bogus")
+    text, code = run("order.create_pizza!", "name=X", "--bogus")
     expect([code, text]).to match([2, /--bogus is a flag/])
   end
 end
