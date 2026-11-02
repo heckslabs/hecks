@@ -31,7 +31,8 @@ module Hecks
       # A held era whose label is the current one but whose projection differs has no chain to walk:
       # its one step is the edge from that label to itself, when such an edge exists.
       #
-      # @return [Array<Bluebook::Translation>] the edges in order; empty when none leads `from` to `to`
+      # @return [Array<Bluebook::Translation>] the edges in order; empty when none leads `from` to
+      #   `to`
       #   and `from` is `to`
       # @raise [Runtime::WiringError] when a step has no edge, has two, or the walk loops
       def chain(translations, domain:, from:, to:)
@@ -48,7 +49,8 @@ module Hecks
         steps
       end
 
-      # @return [Bluebook::Translation] the one edge from the first step's origin to the last step's target
+      # @return [Bluebook::Translation] the one edge from the first step's origin to the last step's
+      #   target
       # @raise [Runtime::WiringError] when a step's rules cannot be composed into one edge
       def compose(domain:, from:, to:, chain:)
         refuse_unrenderable!(chain)
@@ -102,7 +104,8 @@ module Hecks
       # Follows each aggregate from its held name to its current one, and finds the one step that
       # carries field rules for each origin.
       #
-      # @return [Array(Hash, Array<String>, Hash)] origins keyed by current name, every retired name,
+      # @return [Array(Hash, Array<String>, Hash)] origins keyed by current name, every retired
+      #   name,
       #   and the aggregate carrying field rules for each origin
       def track_chain(chain)
         state = { origins: {}, retired: [], ruled: {} }

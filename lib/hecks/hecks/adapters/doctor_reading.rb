@@ -50,7 +50,8 @@ module Hecks
         [directory, Dir.pwd].uniq.flat_map { |where| Dir[File.join(where, "*.local.{world,hecksagon}")] }.uniq
       end
 
-      # The first line of a compile error, or nil when the file is valid Ruby. Compiling never runs it.
+      # The first line of a compile error, or nil when the file is valid Ruby. Compiling never runs
+      # it.
       def syntax_error(path)
         RubyVM::InstructionSequence.compile(File.read(path), path)
         nil
@@ -124,7 +125,8 @@ module Hecks
         row("store", :fail, "#{adapter} directory #{dir} is missing", "mkdir -p #{dir}")
       end
 
-      # Postgres reachable, and the role the URL names exists; a read of the catalog, nothing written.
+      # Postgres reachable, and the role the URL names exists; a read of the catalog, nothing
+      # written.
       def reach(url)
         require "pg"
         PG.connect(url, connect_timeout: 3) { |conn| role_row(conn, URI.parse(url).user) }

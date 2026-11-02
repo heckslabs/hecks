@@ -32,7 +32,8 @@ module Hecks
                                        "persisted_by block of its world", minting: false)
           end
 
-          # Refuses a mint that the rehearsal does not back: not confirmed, not a would_mint verdict, or a
+          # Refuses a mint that the rehearsal does not back: not confirmed, not a would_mint
+          # verdict, or a
           # ledger watermark that moved since the rehearsal read it.
           def refuse_unrehearsed_mint!(context)
             request = context.mint_request

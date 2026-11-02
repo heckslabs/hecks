@@ -5,7 +5,8 @@ require "open3"
 module Hecks
   module Adapters
     module Codebase
-      # The minitest files of a spec directory. RSpec does not run them, so each one runs in its own Ruby
+      # The minitest files of a spec directory. RSpec does not run them, so each one runs in its own
+      # Ruby
       # process, and its run summary is reported beside the RSpec output.
       module MinitestRuns
         # The summary line minitest prints, such as "3 runs, 5 assertions".
@@ -19,7 +20,8 @@ module Hecks
           Dir.glob("#{TestSuite::SPEC_DIRECTORY}/**/*_test.rb", base: tree.root).sort
         end
 
-        # Runs each file in its own Ruby process, from the folder, outside this process's bundle so the
+        # Runs each file in its own Ruby process, from the folder, outside this process's bundle so
+        # the
         # folder's own gems are the ones it loads.
         #
         # @param tree [Tree] the folder the files run in

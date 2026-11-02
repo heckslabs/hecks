@@ -9,7 +9,8 @@ require_relative "dispatching/settler"
 
 module Hecks
   module Adapters
-    # The `Dispatching` port's adapter for `Dispatch`: reads the Work queue and the machine, says which
+    # The `Dispatching` port's adapter for `Dispatch`: reads the Work queue and the machine, says
+    # which
     # planned rows would start a session and why each other waits, and with `confirm` starts them.
     #
     # It decides only what the Plan rules decide; whether a row may start is still the bluebook's
@@ -18,7 +19,8 @@ module Hecks
     class Dispatching
       # @param registry [Runtime::Registry, nil] the booted registry whose rows are read
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `load:`, `cpus:` and `runner:` stand in for the machine and the launcher
+      # @param settings [Hash] `load:`, `cpus:` and `runner:` stand in for the machine and the
+      #   launcher
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
@@ -28,7 +30,8 @@ module Hecks
       # Says which planned rows start now, and starts them when confirmed.
       #
       # @param held [Hash] the `Dispatch` record: `repo`, `budget_minutes`, `confirm`
-      # @return [Hash{Symbol => Hash}] `report:` the load, the rows started or that would be, and the
+      # @return [Hash{Symbol => Hash}] `report:` the load, the rows started or that would be, and
+      #   the
       #   rows left waiting with the reason
       def choose(**held)
         plan = plan_for

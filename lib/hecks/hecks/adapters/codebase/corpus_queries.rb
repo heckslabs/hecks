@@ -3,7 +3,8 @@
 module Hecks
   module Adapters
     class SourceTree
-      # The `SourceTree` queries that read the corpus of domains: which have Rust, the order regeneration
+      # The `SourceTree` queries that read the corpus of domains: which have Rust, the order
+      # regeneration
       # walks them in, and what the IR and its propagation touchpoints say. Each is answered through
       # `corpus`, which the includer provides.
       module CorpusQueries

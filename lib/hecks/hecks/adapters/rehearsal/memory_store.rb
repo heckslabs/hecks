@@ -84,7 +84,8 @@ module Hecks
 
         private
 
-        # A split target's "before": its source's held records, fanned out one per key the split names,
+        # A split target's "before": its source's held records, fanned out one per key the split
+        # names,
         # carrying the split's fields (ADR 0166). Nil when the aggregate is not a split target.
         def split_before(edge, aggregate)
           source, split = split_source_for(edge, aggregate)
@@ -100,7 +101,8 @@ module Hecks
           []
         end
 
-        # One target record per source record that carries the split's key, holding the split's fields.
+        # One target record per source record that carries the split's key, holding the split's
+        # fields.
         def fanned_out(held, split)
           fields = split.fields.map(&:to_s)
           held.filter_map do |_id, state|
@@ -120,7 +122,8 @@ module Hecks
           held.filter_map { |_id, state| fanned_row(state, split.keyed_by.to_s, fields) }.to_h
         end
 
-        # One target row keyed by the held record's key, a value object's `value` member when it has one.
+        # One target row keyed by the held record's key, a value object's `value` member when it has
+        # one.
         def fanned_row(state, key, fields)
           value = state[key]
           value = value["value"] if value.is_a?(Hash)

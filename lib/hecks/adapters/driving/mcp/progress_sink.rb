@@ -5,9 +5,11 @@ module Hecks
   module Adapters
     module Driving
       module Mcp
-        # Where a stage's progress lines go when the client asked for them with a progress token: each
+        # Where a stage's progress lines go when the client asked for them with a progress token:
+        # each
         # line becomes one `notifications/progress` message on the server's output, ahead of the
-        # response to the call. Stands in for the standard error that `Tools::StageProgress` writes to.
+        # response to the call. Stands in for the standard error that `Tools::StageProgress` writes
+        # to.
         class ProgressSink
           # @param token [Object] the client's `progressToken`, echoed back on every notification
           # @param out [#puts] the server's output, where each notification is written

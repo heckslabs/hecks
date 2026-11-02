@@ -46,7 +46,8 @@ module Hecks
 
           private
 
-          # Opens the lineage: for reading on a boot, and provisioned first on a mint request. Either
+          # Opens the lineage: for reading on a boot, and provisioned first on a mint request.
+          # Either
           # refuses, by name, while the domain's history still sits under its former name.
           def open_lineage(db, bluebook, settings, request)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as,

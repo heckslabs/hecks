@@ -13,7 +13,8 @@ module Hecks
       # CamelCase word takes an underscore.
       CAMEL_CASE_BOUNDARY = /([a-z\d])([A-Z])/
 
-      # The last segment of a qualified constant name, such as `TypeMismatch` in `Runtime::TypeMismatch`.
+      # The last segment of a qualified constant name, such as `TypeMismatch` in
+      # `Runtime::TypeMismatch`.
       UNQUALIFIED_NAME = /[^:]+\z/
 
       # Kept under Hecks::CacheDir, not the domain directory (part of the domain's

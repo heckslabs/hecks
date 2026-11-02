@@ -8,7 +8,8 @@ require_relative "stress_concurrency_specs/reporting"
 
 module Hecks
   module Tools
-    # The command behind `hecks test_suite_run.stress_concurrency!`: reruns the thread-safety specs under many
+    # The command behind `hecks test_suite_run.stress_concurrency!`: reruns the thread-safety specs
+    # under many
     # seeds, several OS processes at a time. A clean run shows only "not in this many tries", never
     # "impossible".
     #

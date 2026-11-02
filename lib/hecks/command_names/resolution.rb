@@ -52,7 +52,8 @@ module Hecks
         Problem.new("#{@typed}! is a query and reads; write it without the !", question.to_s)
       end
 
-      # A query is written bare (ADR 0163 rule 6); `query` stays only where a command shares the name.
+      # A query is written bare (ADR 0163 rule 6); `query` stays only where a command shares the
+      # name.
       def query_word
         return unless @old_spelling && question && !command
 

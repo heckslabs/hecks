@@ -85,7 +85,8 @@ module Hecks
         # @return [Boolean] whether a second delivery leaves the state a first one did
         def idempotent? = @idempotent ? true : false
 
-        # @return [Boolean] whether this command's own record may be written through an unminted boot
+        # @return [Boolean] whether this command's own record may be written through an unminted
+        #   boot
         def mints_era? = @mints_era ? true : false
 
         # @return [Array<String>] every role that may run it when more than one may, else empty
@@ -97,7 +98,8 @@ module Hecks
         # Mints one command as its own anonymous subclass of the class `declare` is called on.
         #
         # @param name [String, Symbol] the command's declared name
-        # @param role [String, nil] the declared role; `roles` all of them, `audience` who it is listed for
+        # @param role [String, nil] the declared role; `roles` all of them, `audience` who it is
+        #   listed for
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
         # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies

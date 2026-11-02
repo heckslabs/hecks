@@ -5,11 +5,14 @@ require_relative "../area_overlap"
 module Hecks
   module Adapters
     class Dispatching
-      # Which planned rows start a session now, and why each of the others waits. It decides from the
+      # Which planned rows start a session now, and why each of the others waits. It decides from
+      # the
       # rows it is given and starts nothing.
       #
-      # A planned row waits when it sits in a frozen area, when its area overlaps a started row's or an
-      # earlier chosen row's (by {AreaOverlap}), or when the machine is loaded or the cap is reached,
+      # A planned row waits when it sits in a frozen area, when its area overlaps a started row's or
+      # an
+      # earlier chosen row's (by {AreaOverlap}), or when the machine is loaded or the cap is
+      # reached,
       # which also hold back every row after it.
       class Plan
         # A row, as {Rows} reads it.
@@ -38,7 +41,8 @@ module Hecks
           planned.each { |row| consider(row) }
         end
 
-        # @return [Array<Row>] the started rows and the chosen ones: whose areas are not to be edited
+        # @return [Array<Row>] the started rows and the chosen ones: whose areas are not to be
+        #   edited
         def holders = @started + @chosen
 
         private
