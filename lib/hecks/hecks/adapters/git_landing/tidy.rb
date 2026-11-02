@@ -63,6 +63,16 @@ module Hecks
           [kept, kept || !@discarding ? said : "#{said}; #{note}"]
         end
 
+        # What `retire` would do, said and not done: it removes nothing and takes no lock.
+        #
+        # @return [String] "would retire it", or "would keep it: " and why
+        def verdict
+          @checkout = primary.path
+          tree = worktree_on(@branch)
+          why = reason_to_keep(tree, tree && branch_tip(@branch))
+          why ? "would keep it: #{why}" : "would retire it"
+        end
+
         private
 
         def reason_to_keep(tree, tip)

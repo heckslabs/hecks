@@ -17,7 +17,8 @@ RSpec.describe "the push train's reaction chain" do
   # they react to, which the step before it emits (the carry answers or refuses).
   BESIDE = { "RecordTheRide"        => %w[RecordThePush SendTrain.TrainAnswered],
              "RecordTheRefusedPush" => %w[RecordThePush SendTrain.TrainRefused],
-             "AnnounceWhenPushed"   => %w[KeepTheLauncherCurrent SendTrain.BranchPushed] }.freeze
+             "AnnounceWhenPushed"   => %w[KeepTheLauncherCurrent SendTrain.BranchPushed],
+             "ListLeftoversWhenPushed" => %w[KeepTheLauncherCurrent SendTrain.BranchPushed] }.freeze
 
   # Policies that would chain the mint through events; the carry runs it in sequence instead.
   RETIRED = %w[MintBeforeCarry ClearWhenMinted CarryWhenCleared RecordTheRefusedMint].freeze

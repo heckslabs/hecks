@@ -141,6 +141,15 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::SendTrain.port "Leftovers" do
+    asks "Leftovers", to: SendTrain do
+      attribute :run, RunKey
+      attribute :pushed, Word
+      answers "LeftoversListed"
+      refuses "LeftoversRefused"
+    end
+  end
+
   Hecks::Workspace.port "Reading" do
     answers_query "Status"
     answers_query "Changes"

@@ -836,6 +836,13 @@ Hecks.bluebook "Hecks" do
       ask     :announce, with: { run: :run, pushed: :pushed }
     end
 
+    # What landings left behind is listed after a push, and nothing is removed: a session may still
+    # be working in a worktree whose branch landed, and a clean tree looks the same as a finished one.
+    policy "ListLeftoversWhenPushed" do
+      on      "SendTrain.BranchPushed"
+      ask     :leftovers, with: { run: :run, pushed: :pushed }
+    end
+
     # The train runs in Memory, in a checkout of its own, so its outcome is recorded where the
     # boarded checkout keeps its records: the `PushRecords` port runs that checkout's own
     # `PushOutcome.Record`. A recording that fails is answered `OutcomeUnrecorded` and changes
