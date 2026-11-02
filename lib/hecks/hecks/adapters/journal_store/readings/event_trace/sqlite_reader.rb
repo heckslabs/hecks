@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "sqlite3"
 require_relative "reader"
 require_relative "../sqlite_status/read_only"
 

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "pg"
 require_relative "qa_postgres_role/ownership"
 
 module Hecks
@@ -77,6 +76,7 @@ module Hecks
       def provision(database, role)
         done = []
         skipped = []
+        require "pg"
         admin = PG.connect(dbname: "postgres")
         create_role(admin, role, done, skipped)
         take_database(admin, database, role, done, skipped)

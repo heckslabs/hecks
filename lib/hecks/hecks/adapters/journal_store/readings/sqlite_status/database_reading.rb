@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "sqlite3"
 require_relative "../../../../../adapters/driven/sqlite"
 require_relative "read_only"
 
