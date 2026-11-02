@@ -1,6 +1,6 @@
 # Time reaches a saga as a command an inbound clock dispatches
 
-**Status:** Proposed. Date: 2026-11-02. Adds no bluebook grammar word; it settles how a deadline is
+**Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds no bluebook grammar word; it settles how a deadline is
 modelled and names the one missing piece, the inbound clock.
 
 ## Context
