@@ -52,7 +52,7 @@ RSpec.shared_context "with a local runner over a shared clone" do
     described_class.new(catalog: catalog, root: caller_checkout, scratch: File.join(scratch, "runs"))
   end
 
-  def usage_runner = runner_for(definition(step("usage", "Checkout.status")))
+  def usage_runner = runner_for(definition(step("usage", "Workspace.status")))
 
   def experiment(**changes)
     { measures: { value: "tiny" }, cache_state: { value: "miss" }, base_ref: { value: "HEAD~1" },
@@ -67,7 +67,7 @@ RSpec.shared_context "with a local runner over a shared clone" do
   def checkouts_of(runner) = runner.trail.map { |taken| taken[:checkout] }.uniq
 
   def steps_this_machine_cannot_run
-    [step("load_database", "Checkout.status", needs: "postgres"), step("no_such_verb", "NoSuchAggregate.nothing!")]
+    [step("load_database", "Workspace.status", needs: "postgres"), step("no_such_verb", "NoSuchAggregate.nothing!")]
   end
 
   def unmeasured_of(*steps)

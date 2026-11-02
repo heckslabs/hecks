@@ -67,7 +67,7 @@ RSpec.describe Hecks::Adapters::LocalRunner do
     end
 
     it "refuses a generated tree it was asked to copy when the caller holds none" do
-      runner = runner_for(definition(step("usage", "Checkout.status"), needs_generated_tree: "yes"))
+      runner = runner_for(definition(step("usage", "Workspace.status"), needs_generated_tree: "yes"))
 
       expect { runner.measure(**experiment) }.to raise_error(described_class::Refused, /holds none/)
     end

@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::LocalRunner, "#measure" do
     end
 
     it "names a step it cannot stand in for in unmeasured, and times neither side with it", :aggregate_failures do
-      unmeasured = unmeasured_of(step("usage", "Checkout.status"), *steps_this_machine_cannot_run)
+      unmeasured = unmeasured_of(step("usage", "Workspace.status"), *steps_this_machine_cannot_run)
 
       expect(unmeasured).to include("load_database: needs postgres")
       expect(unmeasured).to include("no_such_verb: NoSuchAggregate.nothing! or an argument it is given is unknown")
@@ -36,14 +36,14 @@ RSpec.describe Hecks::Adapters::LocalRunner, "#measure" do
     end
 
     it "names a step whose argument a ref does not know, as unmeasured" do
-      unmeasured = unmeasured_of(step("usage", "Checkout.status"),
-                                 step("new_argument", "Checkout.status", arguments: "no_such.value=1"))
+      unmeasured = unmeasured_of(step("usage", "Workspace.status"),
+                                 step("new_argument", "Workspace.status", arguments: "no_such.value=1"))
 
-      expect(unmeasured).to include("new_argument: Checkout.status or an argument it is given is unknown")
+      expect(unmeasured).to include("new_argument: Workspace.status or an argument it is given is unknown")
     end
 
     it "refuses an experiment none of whose steps can be measured" do
-      runner = runner_for(definition(step("load_database", "Checkout.status", needs: "postgres")))
+      runner = runner_for(definition(step("load_database", "Workspace.status", needs: "postgres")))
 
       expect { runner.measure(**experiment) }
         .to raise_error(described_class::Refused, /no step could be measured here: load_database/)
