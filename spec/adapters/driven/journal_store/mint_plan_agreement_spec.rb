@@ -14,11 +14,11 @@ require_relative "../../../support/mint_plan_shop"
 RSpec.describe "the mint plan agreeing with the mint", :io do
   include MintPlanShop
 
-  AGREEMENT_DB = "hecks_mint_plan_agreement_spec"
+  MINT_PLAN_DB = "hecks_mint_plan_agreement_spec"
 
-  scratch_postgres AGREEMENT_DB, fenced: true
+  scratch_postgres MINT_PLAN_DB, fenced: true
 
-  let(:url) { FencedOwner.url(AGREEMENT_DB) }
+  let(:url) { FencedOwner.url(MINT_PLAN_DB) }
   let(:dir) { Dir.mktmpdir("mint-plan-agreement-") }
   let(:added) { source(note: true) }
 
