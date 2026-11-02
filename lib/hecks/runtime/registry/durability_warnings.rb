@@ -69,17 +69,24 @@ module Hecks
         # A warning, not a refusal: running sagas on a store with no `save_saga` is
         # legitimate on purpose in a fast in-memory test/dev boot.
         def warn_undurable_sagas!(hecksagon)
-          bluebook_ir = bluebook(hecksagon.domain)
-          return unless bluebook_ir
-          return if bluebook_ir.process_managers.empty?
-          return unless saga_persistence(hecksagon.domain).equal?(Ports::Persistence::NULL_SAGA_STORE)
+          undurable = undurable_process_managers(hecksagon.domain)
+          return if undurable.empty?
 
-          names = bluebook_ir.process_managers.map(&:name).join(", ")
+          names = undurable.map(&:name).join(", ")
           warn "[hecks] #{hecksagon.domain} declares process_manager(s) #{names} but its resolved " \
                "persistence adapter has no save_saga — saga state advances correctly in-process " \
                "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
                "Bind this domain to an adapter that implements save_saga if this process_manager " \
                "must survive a crash."
+        end
+
+        # The process managers whose checkpoints no store keeps: each is held by its starting
+        # aggregate's store or by the domain's, and either may be the null store.
+        def undurable_process_managers(domain)
+          process_managers = bluebook(domain)&.process_managers || []
+          process_managers.select do |process_manager|
+            saga_persistence(domain, process_manager).equal?(Ports::Persistence::NULL_SAGA_STORE)
+          end
         end
       end
     end

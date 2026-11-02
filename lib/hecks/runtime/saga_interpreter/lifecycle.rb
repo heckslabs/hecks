@@ -53,7 +53,8 @@ module Hecks
           @registry.saga_mutex.synchronize do
             next false unless @registry.saga_instances[process_manager.name].delete(correlation)
 
-            @registry.saga_persistence(domain).delete_saga(process_manager: process_manager.name, correlation: correlation)
+            @registry.saga_persistence(domain, process_manager)
+                     .delete_saga(process_manager: process_manager.name, correlation: correlation)
             true
           end
         end

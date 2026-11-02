@@ -1,0 +1,74 @@
+# frozen_string_literal: true
+
+require "json"
+require_relative "../console_capture"
+
+module Hecks
+  module Adapters
+    class MainIntegration
+      # The push train's own copy (`~/.claude/hecks-train`), as a boarding uses it: brought up to
+      # origin/main when it has no tracked changes, then asked to board the checkout's main. The
+      # train runs in its own process and store, so what it pushed is read from its answer. The
+      # command line is fixed: no plain push, no force, no skipped hook, no owner override.
+      class Train
+        # Where the train's copy is.
+        ROOT = File.join(Dir.home, ".claude", "hecks-train")
+
+        # The statuses of a boarding the remote holds: pushed now, or carried by an earlier push.
+        BOARDED = %w[pushed carried].freeze
+
+        # Where the launcher's JSON answer starts in what it printed.
+        RECORD_START = /^\{/
+
+        # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]`
+        # @param root [String] the train's copy
+        def initialize(runner, root: ROOT)
+          @runner = runner
+          @root = root
+        end
+
+        # Brings the copy up to origin/main, unless it has tracked changes.
+        #
+        # @return [String] where the copy stands, or why it was left
+        def refresh
+          changed = run("git", "status", "--porcelain", "--untracked-files=no").last.strip
+          return "train copy left as it is: it has tracked changes" unless changed.empty?
+
+          fetched = run("git", "fetch", "-q", "origin", "main").first
+          moved = fetched && run("git", "checkout", "-q", "--detach", "FETCH_HEAD").first
+          moved ? "train copy at origin/main" : "train copy left as it is: it could not be refreshed"
+        end
+
+        # @param checkout [String] the checkout whose main is boarded
+        # @return [Array<String>] the command line the boarding runs
+        def command(checkout)
+          [File.join(@root, "exe", "hecks"), "SendTrain.board!", "checkout=#{checkout}", "remote=origin", "branch=main",
+           "--confirm", "--wait"]
+        end
+
+        # @param checkout [String] the checkout whose main is boarded
+        # @return [Hash{String => Object}] the boarding's record as the train answered it
+        # @raise [ConsoleCapture::Failure] when the train refused, faulted or answered unreadably
+        def board(checkout)
+          ok, output = run(*command(checkout))
+          state = record_in(output)
+          return state if ok && BOARDED.include?(state["status"].to_s)
+
+          raise ConsoleCapture::Failure, "the push train did not push: #{state["refusal"] || output.to_s.strip[-300..] || output}"
+        end
+
+        private
+
+        def run(*argv) = @runner.call(argv, chdir: @root)
+
+        def record_in(output)
+          text = output.to_s
+          start = text.index(RECORD_START)
+          start ? JSON.parse(text[start..]).fetch("state", {}) : {}
+        rescue JSON::ParserError
+          {}
+        end
+      end
+    end
+  end
+end
