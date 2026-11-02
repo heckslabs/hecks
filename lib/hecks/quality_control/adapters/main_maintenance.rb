@@ -138,12 +138,13 @@ module Hecks
       # @param request [Hash] the `MintRequested` attributes: `run`, `domain`, `era`, `sha`,
       #   `branch`,
       #   `watermark`, `rehearsal_verdict`, `refusal_total`, `ledger_dir` and `confirm`
-      # @return [Hash] `run`, `domain`, `era`, `sha`, `branch` and `label`
+      # @return [Hash] `run`, `domain`, `era`, `sha` and `label` as values; `branch` and
+      #   `ledger_dir` as the strings the landing takes
       def mint(**request)
         refuse_while_stranded!
         refuse_unrehearsed!(value_of(request[:rehearsal_verdict]))
-        label = run_mint!(request, authorize!(request))
-        %i[run domain era sha branch].to_h { |key| [key, wrap(request[key])] }.merge(label: wrap(label))
+        label = wrap(run_mint!(request, authorize!(request)))
+        %i[run domain era sha].to_h { |key| [key, wrap(request[key])] }.merge(label:, **request.slice(:branch, :ledger_dir))
       end
 
       # Answers a held mint's approval request: the mint waits for the owner, and nothing follows
@@ -160,9 +161,12 @@ module Hecks
       # mint
       # refuses until the owner removes it.
       #
+      # `ledger_dir` names the minted ledger's bluebook directory; an empty one is the
+      # QualityControl ledger, which lands in this checkout.
+      #
       # @return [Hash] `run`, `era`, `sha` and `branch`, which `MintStranded` takes on refusal
-      def land(run:, era:, sha:, branch:, **)
-        output, landed = @commands.land(@root, value_of(branch))
+      def land(run:, era:, sha:, branch:, **answer)
+        output, landed = @commands.land(QaAutoMint.checkout_for(@root, value_of(answer[:ledger_dir])), value_of(branch))
         strand!(run, era, sha, output) unless landed
         { run: wrap(run), era: wrap(era), sha: wrap(sha), branch: wrap(branch) }
       end

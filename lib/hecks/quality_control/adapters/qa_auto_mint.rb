@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require_relative "qa_era_mint"
 require_relative "../../adapters/driven/postgres_era/lineage_manager/mint_decision"
 
@@ -49,10 +50,28 @@ module Hecks
       def held_bluebook(latest) = PostgresEra::LineageManager.held_bluebook(latest)
 
       # The bluebook directory a mint is for: the one the request names, or the QualityControl
-      # ledger.
+      # ledger when it names none or an empty one.
       #
       # @return [String]
-      def ledger_for(root, requested) = requested || File.join(root, QaEraMint::LEDGER)
+      def ledger_for(root, requested)
+        requested.to_s.empty? ? File.join(root, QaEraMint::LEDGER) : requested
+      end
+
+      # The checkout a minted ledger's branch lands in: `root` for the QualityControl ledger, else
+      # the git checkout around the ledger's directory.
+      #
+      # @param root [String] the Hecks checkout
+      # @param requested [String, nil] the ledger's bluebook directory, or nil or empty for QA's
+      # @return [String] the checkout's top directory
+      # @raise [Runtime::WiringError] if the ledger's directory is in no git checkout
+      def checkout_for(root, requested)
+        return root if requested.to_s.empty?
+
+        top, status = Open3.capture2e("git", "-C", requested, "rev-parse", "--show-toplevel")
+        raise Runtime::WiringError, "#{requested} is in no git checkout: #{top.strip}" unless status.success?
+
+        top.strip
+      end
 
       # The ledger a mint is for, refused by name when its world declares it disposable: its boot
       # holds every shape change itself, so there is no era to mint.
