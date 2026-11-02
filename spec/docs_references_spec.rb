@@ -37,7 +37,7 @@ end
 module DocReferences
   ROOT = File.expand_path("..", __dir__)
 
-  HISTORICAL = %w[docs/migrating-2-to-3.md].freeze
+  HISTORICAL = %w[docs/migrating-2-to-3.md docs/migrating-6-to-7.md].freeze
 
   # Words the launcher took unqualified before it retired them; they are not qualified names.
   RETIRED = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
