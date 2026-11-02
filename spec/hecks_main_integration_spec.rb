@@ -22,6 +22,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     open_repository
     allow(Hecks::Adapters::GitRehearsal::Stages).to receive(:new).and_return(stages)
     @hecks.registry.saga_instances[SAGA].clear
+    @hecks.registry.saga_log.clear
     @depths = []
     stub_outside
   end
@@ -49,9 +50,11 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     git("push", "-q", "origin", "main")
   end
 
+  # The content is unique so two examples committing in the same second never share a sha: the
+  # saga log is keyed by it, and one example's walk would otherwise show up in the next.
   def commit(where, file, message)
     FileUtils.mkdir_p(File.dirname(File.join(where, file)))
-    File.write(File.join(where, file), "x")
+    File.write(File.join(where, file), SecureRandom.hex)
     git("add", ".", chdir: where)
     git("commit", "-m", message, chdir: where)
   end

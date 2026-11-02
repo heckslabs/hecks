@@ -1612,7 +1612,7 @@ Text.
 
 Mint a domain's next era, against the rehearsal of that same era and the watermark it read. Done by the qa engineer.
 
-Needs a run ([Maintenance run](#maintenance-run)), a domain (text), an era (a whole number), a sha ([Maintenance sha](#maintenance-sha)), a branch (text), a rehearsal ref (text), a watermark (a whole number), a rehearsal verdict ([Mint verdict](#mint-verdict)), a refusal total (a whole number, optional), a ledger dir (text, optional), and a confirm ([Confirmation](#confirmation), optional).
+Needs a run ([Maintenance run](#maintenance-run)), a domain (text), an era (a whole number), a sha ([Maintenance sha](#maintenance-sha)), a branch (text), a rehearsal ref (text), a watermark (a whole number), a rehearsal verdict ([Mint verdict](#mint-verdict)), a refusal total (a whole number, optional), a ledger dir (text), and a confirm ([Confirmation](#confirmation), optional).
 
 Records [Mint requested](#mint-requested).
 

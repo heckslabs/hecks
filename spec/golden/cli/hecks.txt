@@ -185,6 +185,10 @@ commands:
     One hold or release of the QA quiet marker: held, released, or refused.
     hold!                         Quiet QA for a mint window: every tick step refuses to start while the marker is fresh
     release!                      End a mint window: remove the QA quiet marker, which another owner's marker survives without force
+  RedFlag:
+    One request against main's red flag: raised, noted, checked in to, lowered, or refused.
+    check_in!                     Say who is helping with the red flag and what they take (a red-* Work row or a cause), so nobody fixes the same thing twice
+    sync!                         Read main's newest CI run on GitHub and raise or lower the red flag to match it
   PushRehearsal:
     One dry run of the push against local main: green or red per stage, or refused when it could not run.
     rehearse!                     Run the push's stages against local main without pushing, and say pass or fail for each
@@ -316,6 +320,9 @@ queries (nothing here changes anything):
   QaQuiesce:
     One hold or release of the QA quiet marker: held, released, or refused.
     status                  Whether QA is quiesced: the marker's owner, reason and age, or that it is stale or absent.
+  RedFlag:
+    One request against main's red flag: raised, noted, checked in to, lowered, or refused.
+    status                  Whether main is flagged: the flag, its commit, red time, failed jobs and who is helping.
   PushRehearsal:
     One dry run of the push against local main: green or red per stage, or refused when it could not run.
     due                     Whether a push is due: commits local main is ahead of origin/main, the age in hours of the oldest unpushed commit, and the last quick rehearsal's result.
@@ -355,6 +362,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 266 internal commands and queries
+  hecks --all                  also list the 279 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
