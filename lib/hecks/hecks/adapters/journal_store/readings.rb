@@ -41,7 +41,7 @@ module Hecks
         # @param path [String] the domain path, as the operator typed it
         # @return [String] the sentence
         def self.no_era(name, path)
-          "#{name} holds no era yet. `hecks hold_first #{path} --confirm` holds the first."
+          "#{name} holds no era yet. `hecks era.hold_first! #{path} --confirm` holds the first."
         end
 
         # The edge file that would lead the latest held era to the current shape, as its text.

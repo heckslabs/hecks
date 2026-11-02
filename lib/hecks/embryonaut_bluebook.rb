@@ -9,7 +9,7 @@ module Hecks
     autoload :Vendor, File.join(__dir__, "embryonaut_bluebook/vendor")
     autoload :VendorCli, File.join(__dir__, "embryonaut_bluebook/vendor_cli")
 
-    # The shape `hecks vendor` accepts for a package directory name. The name is joined into a
+    # The shape `hecks package.vendor!` accepts for a package directory name. The name is joined into a
     # path that `load!` evaluates as Ruby, so `../x` or an absolute path must never reach it.
     PACKAGE_NAME = /\A[a-z][a-z0-9_]*\z/
 
@@ -51,7 +51,7 @@ module Hecks
 
       raise Runtime::WiringError,
             "no vendored embryonaut bluebook named #{name.inspect} at #{dir} — " \
-            "vendor it with hecks vendor #{name}"
+            "vendor it with hecks package.vendor! #{name}"
     end
     private_class_method :vendored_bluebooks
 
@@ -66,7 +66,7 @@ module Hecks
 
       raise Runtime::WiringError,
             "attaches(#{name.inspect}, from: :vendor) is not a package name — it must match " \
-            "[a-z][a-z0-9_]* (the name `hecks vendor` accepts)"
+            "[a-z][a-z0-9_]* (the name `hecks package.vendor!` accepts)"
     end
     private_class_method :check_loadable!
 

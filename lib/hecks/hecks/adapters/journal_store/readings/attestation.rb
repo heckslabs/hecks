@@ -30,7 +30,7 @@ module Hecks
               shape_line(held, era, ordinal),
               "The held text AS IT NOW STANDS — the original is gone; this is what you would be attesting to:",
               "─" * 72, era[:held_text], "─" * 72,
-              "Read it, then `hecks reattest #{held.domain_name} era=#{ordinal} --confirm` accepts it."
+              "Read it, then `hecks era.reattest! #{held.domain_name} era=#{ordinal} --confirm` accepts it."
             ].join("\n")
           end
 

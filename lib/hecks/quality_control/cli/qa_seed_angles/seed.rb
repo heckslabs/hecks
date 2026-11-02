@@ -48,7 +48,7 @@ module Hecks
                      "banking for CI-gated differential fuzzing. rust/Cargo.toml already declares " \
                      "compiled-binary features for compliance and roster (plus meta) that " \
                      "sit unused for this purpose; examples/chess and examples/directory have no Cargo " \
-                     "feature at all — `hecks project_rust` has never regenerated a binary for either. " \
+                     "feature at all — `hecks build.project_rust!` has never regenerated a binary for either. " \
                      "Widening either list would let differential fuzzing catch a whole bug class " \
                      "Ruby-only fuzzing cannot, on domains the practice already owns.",
           citation:  "BUG#1/#3/#4 (engine-divergence bugs); spec/rust_conformance_fuzz_spec.rb DOMAINS " \

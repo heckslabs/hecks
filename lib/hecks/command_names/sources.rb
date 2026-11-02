@@ -7,6 +7,20 @@ module Hecks
         .github/workflows/*.yml .github/workflows/*.yaml .github/actions/**/* .githooks/*
         lib/hecks/language/bluebook/vocabulary.bluebook Makefile scripts/**/* spec/**/*.rb
         docs/implemented/**/*.md CLAUDE.md
+        lib/**/*.rb qa/**/*.rb qa/**/*.md qa/**/*.sh qa/**/*.yml
+        .claude/hooks/* .claude/settings.json .claude/skills/**/*.md .claude/agents/**/*.md
+      ].freeze
+
+      # Exact lines left unflagged. Each is a dead name kept on purpose until a person picks the
+      # command that replaces it; remove the entry when that command exists.
+      #
+      # The headers below are written into committed generated files (diagrams, the Rust syntax and
+      # phrase tables, the site routes, the kernel templates) and specs assert them, so renaming
+      # one is a regeneration of those files and its own change.
+      ALLOWED_LINES = [
+        "exe/hecks Maintenance.mint_era! run.value=<run-id>", # the mint plan's ledger line has no successor yet
+        "hecks project_diagrams", "hecks project_parser_table", "hecks project_phrase_table",
+        "hecks measure_kernel_coverage", "`hecks site site_projection.project_site"
       ].freeze
 
       # Paths that record what was once true, so a retired name in them is history, not a fault.
@@ -46,6 +60,9 @@ module Hecks
 
         File.foreach(File.join(root, path), encoding: "UTF-8").first(BANNER_WINDOW).any? { |line| excused?(line) }
       end
+
+      # @return [Boolean] whether a line carries one of the allowed strings
+      def allowed?(text) = ALLOWED_LINES.any? { |allowed| text.include?(allowed) }
 
       def excused?(line) = line.match?(SNAPSHOT) || line.include?(SKIP_FILE)
     end

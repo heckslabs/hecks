@@ -49,14 +49,14 @@ module Hecks
 
         # What the tool says after a proposal or a rename, which still needs hand work.
         FOLLOW_UP = {
-          "propose"          => "Proposed. It reaches no projection until admitted. Before `hecks admit`:\n  " \
+          "propose"          => "Proposed. It reaches no projection until admitted. Before `hecks language_run.admit!`:\n  " \
                                 "1. teach the %<context>s builder the word (and its spec/dsl_spec example)",
           "rename"           => "Renamed. The old spelling keeps parsing — that is the point. Before this holds:\n  " \
                                 "1. alias the new word to the old in the %<context>s builder " \
                                 "(alias_method :%<new_name>s, :%<word>s)\n  " \
                                 "2. add the identical-IR example to spec/dsl_spec.rb",
           "propose_argument" => "Proposed. It reaches no projection until admitted. Before " \
-                                "`hecks admit_argument`:\n  " \
+                                "`hecks language_run.admit_argument!`:\n  " \
                                 "1. teach the %<context>s builder's %<word>s method the argument"
         }.freeze
 

@@ -99,14 +99,14 @@ module Hecks
         [argv.first(split), argv.drop(split + 1).reject { |arg| arg == "--against" }]
       end
 
-      # `hecks project_rust` reads exactly `<name>/bluebook/<name>.bluebook`, so refuse anything
+      # `hecks build.project_rust!` reads exactly `<name>/bluebook/<name>.bluebook`, so refuse anything
       # else early.
       def refuse_unless_stress_domain_shaped!(path)
         expected = File.join(path, "bluebook", "#{File.basename(path)}.bluebook")
         return if File.file?(expected)
 
         raise UsageError, "#{path} is not shaped like a stress domain: expected #{expected} to exist " \
-                          "(`<name>/bluebook/<name>.bluebook` — a flat file breaks `hecks project_rust`; " \
+                          "(`<name>/bluebook/<name>.bluebook` — a flat file breaks `hecks build.project_rust!`; " \
                           "see qa/stress_domains/ledger_ordering/NOTES.md)"
       end
 
