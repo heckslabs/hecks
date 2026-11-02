@@ -88,9 +88,14 @@ console's environment. Do not print or copy the secret. Do not run these from a 
    - `SELECT count(*), count(DISTINCT ordinal) FROM hecks_journal_console_settings` returns 237, 237.
    - `SELECT label FROM hecks_eras WHERE domain = 'ConsoleSettings' AND ordinal::text = '1'` returns `20d28e`.
    - `SELECT count(*) FROM pg_proc WHERE proname LIKE 'hecks_tr_%'` returns 6.
-5. **Mint the edge** through hecks. Run `hecks RehearsalRun.request!` against the production copy first and
-   confirm `would_mint`. The mint command itself is not yet confirmed for this repo: find it with
-   `hecks --help` before running, and do not run the mint by hand.
+5. **Mint the edge.** There is no mint command: the era is minted during a `PostgresEra` boot that carries a
+   confirmed mint request. The boot refuses unless the request is confirmed, its rehearsal verdict is
+   `would_mint`, and the watermark has not moved since that rehearsal. So: (a) rehearse with
+   `hecks RehearsalRun.request!` and confirm `would_mint`, (b) boot the console as the owner with that mint
+   request and `mint_eras` permitted in the world, (c) confirm `hecks_eras` now has ordinal 2 for
+   `ConsoleSettings`. How the boot receives the confirmed request (the rehearsal run's id) is not yet verified
+   against the live world file: check it on the scratch copy before production.
+
 6. **Deploy the console upgrade** through the service roll: `hecks deploy service_roll.run!` with the new
    tag. Use the deploy path, not a raw `docker` command.
 7. **Resume writes:** the service roll starts the container. Check `https://platform.embryonaut.ai/`
