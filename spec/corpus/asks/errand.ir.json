@@ -134,7 +134,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Settle",
@@ -178,7 +179,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Abandon",
@@ -222,7 +224,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
