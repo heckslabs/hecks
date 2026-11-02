@@ -1,0 +1,39 @@
+Hecks.behaviors "OrderDeadline" do
+  vision "A deadline reaches a saga as an ordinary command: Expire is refused until the order is overdue, and an expiry gives the held stock back through the process manager (ADR 0169)."
+
+  loads "order_deadline.bluebook"
+
+  # Placed at 1000, due three days later at 260200. `now` is passed, so the clock is not asked.
+  test "an inbound clock that fires before the deadline is refused" do
+    tests "Expire", on: "Order"
+    setup "OrderDeadline::Stock.Stock", sku: { value: "lamp" }
+    setup "Place", reference: { value: "o-1" }, stock: "lamp", now: { value: 1000 }
+    input order: "o-1", now: { value: 1000 }
+    expect refused: "the order is overdue"
+  end
+
+  test "an expiry gives the held stock back through the saga" do
+    tests "Expire", on: "Order"
+    setup "OrderDeadline::Stock.Stock", sku: { value: "lamp" }
+    setup "Place", reference: { value: "o-2" }, stock: "lamp", now: { value: 1000 }
+    input order: "o-2", now: { value: 260200 }
+    expect emits: ["OrderExpired", "StockFreed"]
+  end
+
+  test "a clock that fires twice is refused the second time" do
+    tests "Expire", on: "Order"
+    setup "OrderDeadline::Stock.Stock", sku: { value: "lamp" }
+    setup "Place", reference: { value: "o-3" }, stock: "lamp", now: { value: 1000 }
+    setup "Expire", order: "o-3", now: { value: 300000 }
+    input order: "o-3", now: { value: 400000 }
+    expect refused: "placed"
+  end
+
+  test "a paid order ends the saga with its stock still held" do
+    tests "Pay", on: "Order"
+    setup "OrderDeadline::Stock.Stock", sku: { value: "lamp" }
+    setup "Place", reference: { value: "o-4" }, stock: "lamp", now: { value: 1000 }
+    input order: "o-4"
+    expect emits: ["OrderPaid"]
+  end
+end
