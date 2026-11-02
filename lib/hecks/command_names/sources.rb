@@ -18,7 +18,8 @@ module Hecks
       # phrase tables, the site routes, the kernel templates) and specs assert them, so renaming
       # one is a regeneration of those files and its own change.
       ALLOWED_LINES = [
-        "exe/hecks Maintenance.mint_era! run.value=<run-id>", # the mint plan's ledger line has no successor yet
+        # The mint plan's ledger line has no successor command yet.
+        "exe/hecks Maintenance.mint_era! run.value=<run-id>",
         "hecks project_diagrams", "hecks project_parser_table", "hecks project_phrase_table",
         "hecks measure_kernel_coverage", "`hecks site site_projection.project_site"
       ].freeze

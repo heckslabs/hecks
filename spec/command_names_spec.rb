@@ -131,6 +131,41 @@ RSpec.describe Hecks::CommandNames do
     end
   end
 
+  describe "the places a Ruby string, a QA script or an agent file names a launcher command" do
+    {
+      "lib/hecks/tools/hint.rb"   => "warn \"run `%<l>s gone_command` to fix\"\n",
+      "qa/run.sh"                 => "%<l>s gone_command --wait\n",
+      ".claude/skills/x/SKILL.md" => "Run `%<l>s gone_command`.\n",
+      ".claude/hooks/h.sh"        => "%<l>s gone_command\n",
+      "scripts/go.sh"             => "%<l>s gone_command\n"
+    }.each do |path, template|
+      it "goes red for a nonexistent command in #{path}, naming file:line" do
+        write(path, format(template, l: launcher))
+
+        expect(found.map { |line| line[/\A[^:]+:\d+/] }).to eq(["#{path}:1"])
+      end
+
+      it "stays green for a real command in #{path}" do
+        write(path, format(template, l: launcher).sub("gone_command", "workspace.status"))
+
+        expect(found).to be_empty
+      end
+    end
+
+    it "does not read a checkout's linked worktrees under .claude/worktrees" do
+      write(".claude/worktrees/other/lib/a.rb", "# #{launcher} gone_command\n")
+
+      expect(found).to be_empty
+    end
+
+    it "excuses a line only by an exact allowed string" do
+      write("lib/a.rb", "x = \"#{launcher} Maintenance.mint_era! run.value=<run-id>\"\n")
+      write("lib/b.rb", "x = \"#{launcher} Maintenance.other!\"\n")
+
+      expect(found.map { |line| line[/\A[^:]+/] }).to eq(["lib/b.rb"])
+    end
+  end
+
   describe ".check" do
     it "raises with every finding" do
       write("Makefile", "go:\n\t#{launcher} stale_name\n")
