@@ -84,9 +84,10 @@ module Hecks
             value.values.first
           end
 
-          # The first answer's text: the run key and the record it already holds.
+          # The first answer's text: the run key, the record it already holds and the ids it named.
           def recorded_text(record, args)
-            JSON.pretty_generate("id" => run_key(args).to_s, "state" => recorded_state(record), "events" => [])
+            JSON.pretty_generate("id" => run_key(args).to_s, "state" => recorded_state(record), "events" => [],
+                                 "ids" => { "run" => run_key(args).to_s, "id" => record.id.to_s })
           end
 
           # The stored fields as text, keyed by name, then the record's id, as the first answer
