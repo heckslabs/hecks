@@ -71,9 +71,9 @@ module Doors
   end
 
   def through_cli(runtime, step)
-    argv = [cli_name(step["verb"]), *argv_pairs(request(runtime, step))]
+    argv = ["#{cli_name(step["verb"])}!", *argv_pairs(request(runtime, step))]
     output, status = Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv)
-    status.zero? ? [:ok] : [:refused, output.lines.first.to_s.strip]
+    status.zero? ? [:ok] : [:refused, output.lines.first.to_s.strip.sub(/\A\[\w+\] /, "")]
   end
 
   def through_mcp(runtime, step)
