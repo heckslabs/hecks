@@ -1899,6 +1899,18 @@ pub static KEYWORDS: &[KeywordRow] = &[
         disambiguator: "",
     },
     KeywordRow {
+        word: "stays_inside",
+        context: "Adapter",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "stays_inside",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordRow {
         word: "data_translation",
         context: "File",
         body: "keywords",

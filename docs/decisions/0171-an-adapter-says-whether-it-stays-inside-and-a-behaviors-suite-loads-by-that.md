@@ -2,6 +2,7 @@
 
 **Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds one word to the `Adapter` grammar context, so the Rust
 parser's `hecks-parse adapter` reads it too.
+Built 2026-11-02 with the opt-in described in the addendum below.
 
 ## Context
 
@@ -96,3 +97,26 @@ a list, which adapters are as harmless in a test as Memory is.
   would be a word of its own, with its own corpus case.
 - The spelling. `stays_inside` says what it promises; `local` and `offline` were considered and read as
   where the adapter runs, not what it touches.
+
+## Addendum: a project opts in (2026-11-02, while building)
+
+Built as written, the new selection broke 192 of the corpus's 223 behaviors examples: Hecks's own
+suites boot through more than a hundred adapters that no one has yet judged inside or outside, and a
+port that answers a bound query fails the boot without one. Judging every one of them is its own
+migration, so the selection applies to a suite once its project opts in, and the loader's own choice
+stands for the rest:
+
+- **A project opts in** by having a `behavior_adapters/` directory beside the suite, or by any of its
+  adapters saying `stays_inside`. Miette opts in through its `behavior_adapters/`.
+- **Until then** a suite boots as it did: every project adapter when it names none in `loads`, only the
+  named ones when it names any.
+- **The safe default holds inside an opted-in project:** an adapter there that says nothing is never
+  loaded and its Ruby never runs.
+
+Built as `Behaviors::Expectations::AdapterSelection`, which hands the chosen files to
+`Hecks.boot_files(..., adapters:)`; `Runtime::Loader.load_files` then leaves the project's own adapters
+unloaded even when the choice is empty. A declaration is read with its `require` lines left out, in a
+throwaway registry, and one that cannot be read that way counts as reaching outside. The corpus use in
+this repository is `spec/fixtures/sequential_identity.adapter` and the reference's `reference_counter`;
+`ci_speed`'s fixture project is left unmarked, because opting it in needs a stand-in for `CiReader`,
+which calls `gh`.

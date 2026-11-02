@@ -73,7 +73,7 @@ module Hecks
       def self.call_adapter(adapter)
         judge_artifact(adapter, AdapterJudge, "#{adapter.name}'s adapter") do
           JSON.generate([adapter.name, adapter.port, adapter.fields, adapter.secrets, adapter.declared_defaults,
-                         adapter.answered_queries, adapter.runs, adapter.capabilities])
+                         adapter.answered_queries, adapter.runs, adapter.capabilities, adapter.stays_inside?])
         end
       end
 

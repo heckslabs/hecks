@@ -15,6 +15,9 @@ Hecks.bluebook "Adapter" do
     # What this adapter can do beyond its port's contract, such as `set_transform`. Absent is
     # not empty: most adapters provide nothing more.
     attribute :provides, list_of(AdapterCapability)
+    # Whether this adapter stays inside: it reaches no network, model or host beyond the process
+    # and the checkout, so a behaviors suite may load it (ADR 0171). Absent means it reaches outside.
+    attribute :stays_inside, Containment, optional: true
 
     # **A plugin answers named queries** — one that `runs` a wasm module says which queries it
     # answers, each qualified by bluebook and aggregate, and the runtime binds them to it.
@@ -48,6 +51,12 @@ Hecks.bluebook "Adapter" do
       attribute :value, String, matches: :snake_name
     end
 
+    # What `stays_inside` records: the one claim an adapter can make about its reach.
+    value_object "Containment" do
+      attribute :value, String
+      invariant("an adapter that says where it reaches stays inside") { value.to_s == "inside" }
+    end
+
     # The wasm module a plugin runs: a file beside its `.adapter`, never a path out of it.
     value_object "PluginModule" do
       attribute :value, String, pattern: '^[a-z0-9_-]+\.wasm$'
@@ -69,10 +78,13 @@ Hecks.bluebook "Adapter" do
       attribute :port, AdapterPortName, optional: true
       # Optional: only a plugin runs a wasm module.
       attribute :runs, PluginModule, optional: true
+      # Optional: only an adapter that says `stays_inside` holds it.
+      attribute :stays_inside, Containment, optional: true
 
       sets :name
       sets :port
       sets :runs
+      sets :stays_inside
 
       emits "AdapterDeclared"
     end
@@ -148,6 +160,7 @@ Hecks.bluebook "Adapter" do
 
 
       member word: "provides", context: "Adapter", body: "none", inner: "", opens: "", fills: "provides"
+      member word: "stays_inside", context: "Adapter", body: "none", inner: "", opens: "", fills: "stays_inside"
     end
 
     value_object "ArgumentSeed" do

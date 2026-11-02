@@ -36,13 +36,20 @@ module Hecks
         end
 
         def judge!
-          send_to("Adapter::Adapter.Declare", @adapter.name, name: v(@adapter.name), port: v(@adapter.port),
-                                                             runs: v(@adapter.runs))
+          declare
           add_fields
           add_all("AddSecret", @adapter.secrets)
           add_all("AnswerQuery", @adapter.answered_queries)
           add_all("Provide", @adapter.capabilities)
         end
+
+        # Offers the `Declare` that names the adapter, its port, its plugin module and its reach.
+        def declare
+          send_to("Adapter::Adapter.Declare", @adapter.name, name: v(@adapter.name), port: v(@adapter.port),
+                                                             runs: v(@adapter.runs), stays_inside: v(containment))
+        end
+
+        def containment = ("inside" if @adapter.stays_inside?)
 
         # Offers one `AddField` per field, each with its declared default when it has one.
         def add_fields
