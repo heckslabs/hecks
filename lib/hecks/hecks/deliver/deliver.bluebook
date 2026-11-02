@@ -342,6 +342,7 @@ Hecks.bluebook "Hecks" do
       attribute :onto,     Word,   optional: true
       attribute :from,     RunKey, optional: true
       attribute :landed,   Word,   optional: true
+      attribute :reason,   Report, optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
       identified_by :run
@@ -367,10 +368,12 @@ Hecks.bluebook "Hecks" do
         mark :failure, "refused"
         transition "Record"  => "landed",  from: "requested"
         transition "Clear"   => "retired", from: "requested"
+        transition "Dispose" => "discarded", from: "requested"
+        transition "Spare"   => "refused", from: "requested"
         transition "Refuse"  => "refused", from: "requested"
         transition "Decline" => "refused", from: "requested"
         transition "Convoy"  => "convoyed", from: "requested"
-        mark :terminal, "landed", "refused", "retired", "convoyed"
+        mark :terminal, "landed", "refused", "retired", "discarded", "convoyed"
       end
 
       command "Land" do
@@ -467,6 +470,44 @@ Hecks.bluebook "Hecks" do
         emits RetirementRequested
       end
 
+      command "Discard" do
+        role "Operator"
+        goal "Remove a worktree and delete its branch even though main lacks its commits, for a stated reason: refused for a protected branch, a worktree in use, or uncommitted work"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, optional: true, sets: true
+        attribute :onto,     Word, default: "main", sets: true
+        attribute :reason,   Report, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("a discard says why") { reason.value != "" }
+        given("discards the branch's commits that main lacks needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits DiscardRequested
+      end
+
+      command "Dispose" do
+        role "System"
+        goal "Record that the worktree and its branch were discarded, with the tip they were at"
+
+        reference_to Landing
+        attribute :branch, Word, sets: true
+        attribute :report, Report, sets: true
+
+        emits WorktreeDiscarded
+      end
+
+      command "Spare" do
+        role "System"
+        goal "Record why a worktree was not discarded"
+
+        reference_to Landing
+        attribute :refusal, Report, sets: true
+
+        emits DiscardDeclined
+      end
+
       command "Clear" do
         role "System"
         goal "Record that the worktree and its branch are gone"
@@ -552,6 +593,21 @@ Hecks.bluebook "Hecks" do
     policy "RemoveWhenRetiring" do
       on      "Landing.RetirementRequested"
       ask     :remove, with: { run: :run }
+    end
+
+    policy "DiscardWhenAsked" do
+      on      "Landing.DiscardRequested"
+      ask     :drop_branch, with: { run: :run }
+    end
+
+    policy "RecordTheDiscard" do
+      on      "Landing.DiscardAnswered"
+      trigger Landing::Dispose, with: { branch: :branch, report: :report }
+    end
+
+    policy "RecordTheSparedWorktree" do
+      on      "Landing.DiscardRefused"
+      trigger Landing::Spare, with: { refusal: :refusal }
     end
 
     policy "RecordTheRetirement" do

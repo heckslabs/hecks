@@ -213,6 +213,61 @@ RSpec.describe Hecks::Adapters::GitLanding do
     end
   end
 
+  describe "discarding" do
+    def discard(branch = "work/a", reason: "superseded by another branch", checkout: tree)
+      landing.drop_branch(checkout: checkout, branch: branch, onto: "main", reason: { value: reason })
+    end
+
+    def unmerged_branch
+      build_repo("work/a", "a.rb", "b.rb")
+    end
+
+    it "removes a branch main lacks, naming its tip, its commits and the reason", :aggregate_failures do
+      unmerged_branch
+      tip = git("rev-parse", "work/a").strip
+      said = discard.dig(:report, :value)
+
+      expect(said).to include("deleted work/a", "it was at #{tip}", "2 commit(s) not on main", "reason: superseded")
+      expect([File.exist?(tree), branch?("work/a")]).to eq([false, false])
+    end
+
+    it "keeps the tip reachable by sha", :aggregate_failures do
+      unmerged_branch
+      tip = git("rev-parse", "work/a").strip
+      discard
+
+      expect(git("cat-file", "-t", tip).strip).to eq("commit")
+    end
+
+    it "still refuses uncommitted work, naming the file", :aggregate_failures do
+      unmerged_branch
+      File.write(File.join(tree, "notes.txt"), "mine")
+
+      expect { discard }.to raise_error(failure, /notes\.txt/)
+      expect(branch?("work/a")).to be(true)
+    end
+
+    it "still refuses a protected branch and the main checkout", :aggregate_failures do
+      unmerged_branch
+
+      expect { discard("main", checkout: repo) }.to raise_error(failure, /main checkout|protected/)
+      expect(File.exist?(tree)).to be(true)
+    end
+
+    it "still refuses the worktree the process stands in", :aggregate_failures do
+      unmerged_branch
+
+      expect { Dir.chdir(tree) { discard } }.to raise_error(failure, /where this runs/)
+      expect(branch?("work/a")).to be(true)
+    end
+
+    it "does not weaken retire" do
+      unmerged_branch
+
+      expect { retire }.to raise_error(failure, /not on main/)
+    end
+  end
+
   describe "the rival check" do
     def holds(*area) = allow(Hecks::Adapters::StartedWork).to receive(:rows).and_return([{ key: "other", area: area }])
 

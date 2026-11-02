@@ -96,16 +96,20 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when anything makes keeping it the safe answer: the primary
       #   worktree, one the process stands in, any file not tracked and clean (ignored included), a
       #   branch with commits `onto` lacks or a protected branch, or git refusing the removal
-      def remove(**held)
-        settle(held)
-        branch = plain(held[:branch]) || current_branch
-        onto = plain(held[:onto]) || "main"
-        gone = @checkout
-        kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, retiring: true).retire
-        raise ConsoleCapture::Failure, "#{gone} is kept: #{said}" if kept
+      def remove(**held) = take_down(held, :retire, "retired")
 
-        { outcome: { value: "retired" }, checkout: { value: gone }, branch: { value: branch },
-          report: { value: said } }
+      # Removes a linked worktree and deletes its branch although `onto` lacks the branch's commits.
+      #
+      # Every other guard of `remove` holds: the primary worktree, one the process stands in, any
+      # file not tracked and clean, a protected branch and a branch that moved are all refused. The
+      # answer names the tip the branch was at and how many commits `onto` lacked, so they can be
+      # found again, and the reason the caller gave.
+      #
+      # @param held [Hash] the `Landing` record: `checkout`, `branch`, `onto` and `reason`
+      # @return [Hash{Symbol => Hash}] `outcome:` (`discarded`), `checkout:`, `branch:`, `report:`
+      # @raise [ConsoleCapture::Failure] when anything makes keeping it the safe answer
+      def drop_branch(**held)
+        take_down(held, :discard, "discarded") { |said| "#{said}; reason: #{plain(held[:reason])}" }
       end
 
       # The branches whose commits are not on a branch, or that hold uncommitted work.
@@ -123,6 +127,17 @@ module Hecks
       end
 
       private
+
+      def take_down(held, mode, outcome)
+        settle(held)
+        branch = plain(held[:branch]) || current_branch
+        gone = @checkout
+        kept, said = Tidy.new(@git, @checkout, branch: branch, onto: plain(held[:onto]) || "main", mode: mode).retire
+        raise ConsoleCapture::Failure, "#{gone} is kept: #{said}" if kept
+
+        { outcome: { value: outcome }, checkout: { value: gone }, branch: { value: branch },
+          report: { value: block_given? ? yield(said) : said } }
+      end
 
       # One landing from another worktree, as the train makes it for a waiting branch.
       def land_for(checkout, branch, onto)
@@ -164,7 +179,7 @@ module Hecks
       # holds ignored files is kept and said so.
       def retire_from_primary(branch, onto)
         Dir.chdir(primary.path) do
-          kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, retiring: true).retire
+          kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, mode: :retire).retire
           kept ? "kept #{branch}: #{said}" : said
         end
       end

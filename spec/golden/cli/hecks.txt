@@ -96,6 +96,7 @@ commands:
     finish!                       Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
     train!                        Hold the front place in the landing line and land every ready branch behind it, in ticket order
     retire!                       Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
+    discard!                      Remove a worktree and delete its branch even though main lacks its commits, for a stated reason: refused for a protected branch, a worktree in use, or uncommitted work
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
@@ -342,6 +343,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 245 internal commands and queries
+  hecks --all                  also list the 248 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

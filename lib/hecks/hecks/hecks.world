@@ -79,7 +79,7 @@ Hecks.world "Hecks" do
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
                                   handover.clear rehearsal_run.request send_train.board
-                                  landing.land landing.train landing.retire agent_run.dispatch agent_run.check],
+                                  landing.land landing.train landing.retire landing.discard agent_run.dispatch agent_run.check],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
                        renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take", "checkout.log" => "workspace.history" },
                        names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",

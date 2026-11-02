@@ -23,6 +23,7 @@ RSpec.describe "exe/hecks git-state confirmation", :io do
   gated = {
     "Landing.land!"       => ["branch.value=no-such", "checkout.value=/nonexistent-checkout"],
     "Landing.retire!"     => ["branch.value=no-such", "checkout.value=/nonexistent-checkout"],
+    "Landing.discard!"    => ["branch.value=no-such", "checkout.value=/nonexistent-checkout", "reason.value=superseded"],
     "SendTrain.board!"    => ["branch.value=no-such", "checkout.value=/nonexistent-checkout"],
     "Shipment.ship!"      => ["branch.value=no-such", "checkout.value=/nonexistent-checkout"],
     "ReviewRequest.open!" => ["branch.value=no-such"],
