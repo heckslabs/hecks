@@ -1112,6 +1112,22 @@ pub static PHRASES: &[PhraseRow] = &[
         status: "admitted",
     },
     PhraseRow {
+        id: "examples_goal",
+        context: "Examples",
+        pattern: "Goal: {goal:rest}",
+        opens: "Goal",
+        canonical: "yes",
+        status: "admitted",
+    },
+    PhraseRow {
+        id: "goal_example",
+        context: "Goal",
+        pattern: "Example: {title:rest}",
+        opens: "Example",
+        canonical: "yes",
+        status: "admitted",
+    },
+    PhraseRow {
         id: "person_role",
         context: "Background",
         pattern: "{person:words} is (a|an) {role:words}",

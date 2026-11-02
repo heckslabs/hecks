@@ -187,6 +187,8 @@ Hecks.bluebook "Sentence" do
       member id: "examples_for",      context: "ExamplesFile", pattern: "Examples for: {name:words}",                                       opens: "Examples"
       member id: "background",        context: "Examples",  pattern: "Background:",                                                           opens: "Background"
       member id: "example",           context: "Examples",  pattern: "Example: {title:rest}",                                                 opens: "Example"
+      member id: "examples_goal",     context: "Examples",  pattern: "Goal: {goal:rest}",                                                     opens: "Goal"
+      member id: "goal_example",      context: "Goal",      pattern: "Example: {title:rest}",                                                 opens: "Example"
       member id: "person_role",       context: "Background", pattern: "{person:words} is (a|an) {role:words}",                                opens: ""
       member id: "given_step",        context: "Example",   pattern: "Given {step:rest}",                                                     opens: ""
       member id: "when_step",         context: "Example",   pattern: "When {step:rest}",                                                      opens: ""
