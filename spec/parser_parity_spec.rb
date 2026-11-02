@@ -71,7 +71,7 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
   PENDING_MEMBERS = (PARITY_CORPUS_MEMBERS.map(&:first) -
                      %w[pizzas identity governance console_settings expression translation banking compliance
                         compliance_framework roster chess directory bluebook_language embryonaut_vendoring_demo
-                        privacy change] -
+                        privacy change order_deadline] -
                      PARITY_FIXTURE_MEMBERS.map { |member| fixture_stem(member) })
                     .to_h { |stem| [stem, "Stage 1: parser not implemented yet — see rust/parser/src/parse/mod.rs"] }.freeze
 
@@ -80,7 +80,9 @@ RSpec.describe "Rust parser parity (hecks-parse)", :io do
 
   # stem -> [bluebook name, files...] in the order hecks project_rust loads them: the `.bluebook`,
   # then its `.hecksagon`. Derived from the corpus, not hand-listed.
-  REAL_PARITY_MEMBERS = %w[pizzas banking compliance roster chess directory embryonaut_vendoring_demo].to_h do |stem|
+  REAL_PARITY_EXAMPLES = %w[pizzas banking compliance roster chess directory embryonaut_vendoring_demo
+                            order_deadline].freeze
+  REAL_PARITY_MEMBERS = REAL_PARITY_EXAMPLES.to_h do |stem|
     domain = PARITY_EXAMPLE_ROOTS.find { |path| File.basename(path) == stem } or raise "no examples/#{stem} directory"
     bluebooks = bluebooks_in(domain)
     raise "#{domain} has no .bluebook" if bluebooks.empty?

@@ -2,6 +2,8 @@
 
 **Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds no bluebook grammar word; it settles how a deadline is
 modelled and names the one missing piece, the inbound clock.
+Built 2026-11-02 as the worked example `examples/order_deadline` (see the addendum); the inbound clock
+remains open.
 
 ## Context
 
@@ -86,3 +88,15 @@ hecksagon, out of process, and "hecks's DSL has no inbound-scheduling concept at
   declares any driver refuses the ones it omits, so the first clock adds a member to that list.
   `docs/future-features.md` sketches the spelling `driving on interval | cron | clock`. That word earns its
   place when the first clock is built (ADR 0025).
+
+## Addendum: the worked example (2026-11-02, while building)
+
+The worked expiry is its own example, `examples/order_deadline`, not a change to `examples/banking`:
+banking is pinned by about a hundred specs, its generated Rust and its fuzz baselines, none of which a
+deadline concerns. The example is the shape above, small: `Order.Place` declares `needs :now` and sets
+`due_at` to `now + 259200`; `Order.Expire` declares `needs :now` and refuses with
+`given("the order is overdue") { now.value >= due_at.value }`; the `Fulfilment` process manager holds a
+unit of `Stock` on `OrderPlaced` and, on `OrderExpired`, dispatches `Stock.Free` from the handler. Its
+behaviors show an early clock refused, an expiry freeing the unit through the saga, a second firing
+refused, and a paid order ending the saga; its corpus script replays on both engines and the Rust parser
+reads it byte for byte.
