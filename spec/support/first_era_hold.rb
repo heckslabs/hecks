@@ -28,7 +28,8 @@ module FirstEraHold
 
   # Holds era 1 for every bluebook a domain directory loads, each frozen as its own source text,
   # the steps `hold_first` makes for one. A domain that already holds an era is left alone. The
-  # world's `stored_as` names apply first, so a renamed aggregate's heads sit under its storage name.
+  # world's `stored_as` names apply first, so a renamed aggregate's heads sit under its
+  # storage name.
   #
   # @param directory [String] the domain's `bluebook/` directory
   # @param url [String] the database URL the lineage lives in

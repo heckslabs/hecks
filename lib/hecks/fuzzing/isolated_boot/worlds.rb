@@ -64,15 +64,20 @@ module Hecks
         # folder: the world takes that name there.
         def write_worlds!(copy, world_file, &world_for)
           written = hecksagon_names_by_dir(copy).filter_map do |dir, names|
-            next if names.empty?
-
-            File.join(dir, world_file_for(dir, world_file)).tap do |path|
-              File.write(path, names.uniq.map(&world_for).join("\n"))
-            end
+            write_world(dir, names, world_file, &world_for)
           end
 
           Dir.glob(File.join(copy, "**", "*.world")).each do |path|
             File.delete(path) unless written.include?(path) || File.basename(path) == world_file
+          end
+        end
+
+        # Writes `dir`'s world for `names`, and answers its path; nil when no hecksagon is named.
+        def write_world(dir, names, world_file, &world_for)
+          return if names.empty?
+
+          File.join(dir, world_file_for(dir, world_file)).tap do |path|
+            File.write(path, names.uniq.map(&world_for).join("\n"))
           end
         end
 
