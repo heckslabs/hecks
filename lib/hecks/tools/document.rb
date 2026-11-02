@@ -32,10 +32,21 @@ module Hecks
 
         bluebook = boot_bluebook(path)
         begin
-          puts Projector.call(projection, bluebook: bluebook, options: aggregate ? { aggregate: aggregate } : {})
+          puts Projector.call(projection, bluebook: bluebook, options: options_for(projection, path, aggregate))
         rescue Runtime::NotFound => e
           abort e.message
         end
+      end
+
+      # The projection's options: the aggregate it narrows to, and for `:narrate` the `.examples`
+      # files under the domain, whose goals it tells as use cases (ADR 0173).
+      #
+      # @api private
+      def options_for(projection, path, aggregate)
+        options = aggregate ? { aggregate: aggregate } : {}
+        return options unless projection == :narrate
+
+        options.merge(examples: Dir.glob(File.join(path, "**", "*.examples")))
       end
 
       # The domain's own bluebook, not a framework member it attached: insertion
