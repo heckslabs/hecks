@@ -28,6 +28,8 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   it "writes a zsh script zsh accepts" do
+    skip "zsh not installed" unless system("which zsh > /dev/null 2>&1")
+
     expect(Open3.capture2e("zsh", "-n", stdin_data: text("completion", "zsh")).last.success?).to be(true)
   end
 
