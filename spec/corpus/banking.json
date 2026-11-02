@@ -3336,6 +3336,11 @@
         "kind": "LifecycleRefused"
       },
       {
+        "verb": "Banking::Account.OpenForCustomer",
+        "error": "Account.reference expects String, got {\"value\":\"CUST-0001\"}",
+        "kind": "TypeMismatch"
+      },
+      {
         "verb": "Banking::Customer.Reinstate",
         "error": "Reinstate refused — status is \"active\", and Reinstate moves it only from \"suspended\"",
         "kind": "LifecycleRefused"
@@ -5834,12 +5839,10 @@
             "value": "CUST-0001"
           }
         },
-        "rows": [
-
-        ],
-        "reference_rows": [
-
-        ]
+        "rows": null,
+        "error": "Account.reference expects String, got {\"value\":\"CUST-0001\"}",
+        "reference_rows": null,
+        "reference_error": "Account.reference expects String, got {\"value\":\"CUST-0001\"}"
       },
       {
         "query": "Banking::Account.Open",
