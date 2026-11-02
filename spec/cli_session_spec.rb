@@ -37,8 +37,9 @@ RSpec.describe "exe/hecks first session", :io do
 
   it "a second command against the tour's domain prints its event and exits 0" do
     session("tour", "demo") do |_out, _err, _code, root|
-      out, _err, status = Open3.capture3(clean_env(root), RbConfig.ruby, exe, "run", "demo",
-                                         "Example.create!", "name=yourname", chdir: root)
+      out, _err, status = Open3.capture3(clean_env(root), RbConfig.ruby, exe, "Operation.run!",
+                                         "subject.value=demo", "verb.value=Example.create!",
+                                         "arguments.value=name=yourname", "--wait", chdir: root)
       expect([status.exitstatus, out.include?("ExampleCreated")]).to eq([0, true])
     end
   end
