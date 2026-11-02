@@ -137,6 +137,26 @@ RSpec.describe "the judge's coverage of the language" do
     end
   end
 
+  # `Bluebook.Group` (a `domain_module`) and `Command.Address` (a command's `audience`) are real
+  # DSL surface no corpus member the judge walks declares, so a small fixture does.
+  def modules_bluebook
+    @modules_bluebook ||= Hecks::Bluebook::DSL::BluebookBuilder.build("ModulesCoverage") do
+      domain_module "Make" do
+        vision "Turn raw parts into finished ones."
+
+        aggregate "Part" do
+          identified_by { attribute :code, String }
+
+          command("Cut") do
+            attribute :code, String
+            audience :agent, :ci
+            emits "PartCut"
+          end
+        end
+      end
+    end
+  end
+
   attr_reader :banking
   attr_reader :paging
   attr_reader :governance
@@ -165,7 +185,8 @@ RSpec.describe "the judge's coverage of the language" do
   # Banking carries every query and read_model option itself, so no union with
   # another bluebook is needed for `Query.Option` and `ReadModel.Option`.
   def offered_verbs
-    [banking, paging, grammar, relationships, governance, needs_bluebook, marks_bluebook, acknowledges_bluebook]
+    [banking, paging, grammar, relationships, governance, needs_bluebook, marks_bluebook, acknowledges_bluebook,
+     modules_bluebook]
       .flat_map { |declaration| offered_in_order(declaration) }
   end
 
