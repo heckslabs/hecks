@@ -10,9 +10,11 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
   def policy(name, heard, reaches) = double(name: name, event_qualifier: heard, reaches: reaches)
 
   def registry(policies, ports: {}, adapters: {}, owned: [], modules: {})
-    aggregate = double(ports: owned.map { |name| double(name: name) })
-    rows = modules.map { |name, held| double(name: held, aggregate: name) }
-    book = double(name: "Hecks", policies: policies, aggregates: [aggregate], modules: rows)
+    tree = double(hecks_name: "LinkedTree", description: "A linked worktree.", lifecycle: nil, queries: [],
+                  commands: [double(hecks_name: "Add", goal: "Open a worktree", emits: ["AddRequested"])],
+                  ports: owned.map { |name| double(name: name, operations: [], answered_queries: []) })
+    rows = modules.map { |name, held| double(name: held, aggregate: name, vision: "") }
+    book = double(name: "Hecks", policies: policies, aggregates: [tree], modules: rows)
     instance_double(Hecks::Runtime::Registry, bluebooks: { "Hecks" => book }, ports: ports, adapters: adapters)
   end
 
@@ -50,6 +52,12 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     ask = policy("ListenWhenServed", "PipelineBoard", "Hecks::PipelineBoard::Web.Listen")
     found = graph([ask], ports: { "Web" => :port }, modules: { "PipelineBoard" => "Serve" })
     expect(found[:nodes].map { |node| node[:context] }).to eq(%w[Serve Serve])
+  end
+
+  it "carries what an aggregate declares, for the sidebar", :aggregate_failures do
+    details = graph([add])[:nodes].first[:details]
+    expect(details[:description]).to eq("A linked worktree.")
+    expect(details[:commands]).to eq([{ name: "Add", goal: "Open a worktree", emits: ["AddRequested"] }])
   end
 
   it "leaves out an aggregate that nothing is wired to" do

@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "probe"
+require_relative "pipeline_wiring/details"
 require_relative "pipeline_wiring/graph"
 
 module Hecks
