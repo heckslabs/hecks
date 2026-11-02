@@ -56,6 +56,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
+
+      # cli_completion_spec checks the zsh completion script with `zsh -n`; the runner has no zsh,
+      # and the skip backstop turns an unrouted skip into a failure.
+      - name: Install zsh
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}

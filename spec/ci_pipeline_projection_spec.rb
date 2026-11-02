@@ -30,7 +30,7 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
 
   # The hand-written workflow with what was changed on purpose since: each shard names the domains
   # it reads, leaves out the specs tagged `generated_all`, which read the whole tree and run in
-  # the drift job, and the suite is split across more shards.
+  # the drift job, the suite is split across more shards, and each shard installs zsh.
   def deliberately_changed(document)
     job = document.dig("jobs", "rspec_shard")
     job.dig("strategy", "matrix")["group"] = (1..shard_total).to_a
@@ -39,7 +39,14 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     change_run(steps, "rspec: parallel", "--tag ~fuzzing", "--tag ~fuzzing --tag ~generated_all")
     change_run(steps, "Determine", "groups=4", "groups=#{shard_total}")
     spell_with_bang(steps)
+    install_zsh(steps)
     document
+  end
+
+  # The zsh completion example runs `zsh -n`, and the runner has no zsh.
+  def install_zsh(steps)
+    steps.insert(2, { "name" => "Install zsh",
+                      "run"  => "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh\n" })
   end
 
   # The runtime-log upload's name teaches the command by its bang spelling now.
