@@ -202,7 +202,8 @@ fn default_database_set(file: &str, line: usize, call: &lex::Call) -> ParseResul
     Ok(true)
 }
 
-/// One binding call: `verb("Adapter") do ... end`, or `verb "Adapter", k: v, ...` with no block.
+/// One binding call: `verb("Adapter") do ... end`, or `verb "Adapter", k: v, ...` with no block;
+/// the adapter may be left out when keyword settings are given.
 /// Records the verb, the first positional string, the keyword names, then the body's top-level
 /// keys. A verb that is a grammar word elsewhere is refused, as Ruby's word gate refuses it.
 fn parse_binding(
@@ -256,13 +257,6 @@ fn parse_binding(
             ));
         }
     }
-    let adapter = adapter.ok_or_else(|| {
-        Diagnostic::new(
-            file,
-            number,
-            format!("'{}' needs a quoted adapter name", call.word),
-        )
-    })?;
     match call.opener {
         Opener::None => {}
         Opener::DoBlock { .. } => body_keys(file, lines, pos, &mut settings)?,
@@ -274,6 +268,16 @@ fn parse_binding(
             ))
         }
     }
+    // A verb that names no adapter but gives settings (`stored_as Revision: "commit"`,
+    // `minting commands: [...]`) binds under the empty adapter, as Ruby's world builder does.
+    let adapter = adapter.or_else(|| (!settings.is_empty()).then(String::new));
+    let adapter = adapter.ok_or_else(|| {
+        Diagnostic::new(
+            file,
+            number,
+            format!("'{}' needs a quoted adapter name", call.word),
+        )
+    })?;
     Ok(ir::Binding {
         verb: call.word.clone(),
         adapter,
