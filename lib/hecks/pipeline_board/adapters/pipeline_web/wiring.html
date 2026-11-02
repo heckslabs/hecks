@@ -35,6 +35,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--series1); outli
 section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
 .legend b { color: var(--ink); font-weight: 600; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
 canvas { width: 100%; height: 640px; display: block; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); }
 .log { list-style: none; margin: 0; padding: 0; font-size: 13px; max-height: 260px; overflow: auto; }
 .log li { padding: 4px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
@@ -59,6 +60,7 @@ th { color: var(--ink2); font-size: 12px; }
       <a href="/">Board</a>
       <span id="count">loading the wiring</span>
       <span id="live">stream: connecting</span>
+      <button id="bounds" type="button" aria-pressed="true">Hide boundaries</button>
       <button id="replay" type="button">Replay recent</button>
       <button id="toggle" type="button" aria-pressed="false">Show table</button>
     </div>
@@ -71,6 +73,7 @@ th { color: var(--ink2); font-size: 12px; }
       <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
       <span><b style="color:var(--critical)">&#10005;</b> refused</span>
     </div>
+    <div class="legend" id="domains"></div>
     <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
     <div class="scroll" id="edgetable"></div>
   </section>
@@ -85,6 +88,12 @@ const css = (name) => getComputedStyle(document.documentElement).getPropertyValu
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let nodes = [], edges = [], byId = new Map(), view = { s: 1, x: 0, y: 0 }, hover = null;
 const pulses = new Map(), particles = [], seen = new Map();
+/* Categorical slots from the reference palette, in their fixed order; a 9th domain folds to muted. */
+const SLOTS = { light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
+                dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] };
+let domains = [], domainColour = new Map(), showBounds = true;
+const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+function colourOf(domain) { const i = domainColour.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
 
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -94,27 +103,63 @@ function h(tag, attrs, ...kids) {
 }
 function clock(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 
-/* ---- layout: clusters per domain, then springs and repulsion ---- */
-function layout() {
-  const domains = [...new Set(nodes.map((n) => n.domain))];
-  const centre = new Map(domains.map((d, i) => [d, { x: Math.cos(i / domains.length * 6.283) * 380, y: Math.sin(i / domains.length * 6.283) * 260 }]));
-  nodes.forEach((n, i) => { const c = centre.get(n.domain); n.x = c.x + Math.cos(i * 2.4) * 60; n.y = c.y + Math.sin(i * 2.4) * 60; n.vx = 0; n.vy = 0; });
-  for (let step = 0; step < 320; step++) tick(centre, 1 - step / 340);
+/* ---- domains: an adapter belongs to the domain of the port it answers, but sits outside its hull ---- */
+function assignDomains() {
+  for (const e of edges) if (e.kind === "adapter") { const p = byId.get(e.from), a = byId.get(e.to); if (p && a) a.domain = p.domain; }
+  const count = new Map(); for (const n of nodes) if (n.kind !== "adapter") count.set(n.domain, (count.get(n.domain) || 0) + 1);
+  domains = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
+  domainColour = new Map(domains.map((d, i) => [d, i]));
 }
-function tick(centre, heat) {
+/* ---- layout: one cluster per domain, aggregates inside, ports on the rim, adapters outside ---- */
+let centre = new Map();
+function layout() {
+  const ring = domains.map((d, i) => [d, { x: Math.cos(i / domains.length * 6.283) * 420, y: Math.sin(i / domains.length * 6.283) * 300 }]);
+  centre = new Map(ring);
+  nodes.forEach((n, i) => { const c = centre.get(n.domain) || { x: 0, y: 0 }; n.x = c.x + Math.cos(i * 2.4) * 50; n.y = c.y + Math.sin(i * 2.4) * 50; n.vx = 0; n.vy = 0; });
+  for (let step = 0; step < 360; step++) tick(1 - step / 380);
+}
+function tick(heat) {
   for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
     const a = nodes[i], b = nodes[j]; let dx = a.x - b.x, dy = a.y - b.y; const d2 = Math.max(dx * dx + dy * dy, 36);
-    const f = 2600 / d2, d = Math.sqrt(d2); dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    const f = (a.domain === b.domain ? 2200 : 5200) / d2, d = Math.sqrt(d2); dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
   }
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
-    const dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1), f = (d - 70) * 0.012;
+    const rest = e.kind === "adapter" ? 34 : 70, dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1), f = (d - rest) * 0.014;
     a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
   }
   for (const n of nodes) {
-    const c = centre.get(n.domain) || { x: 0, y: 0 };
-    n.vx += (c.x - n.x) * 0.004 - n.x * 0.0008; n.vy += (c.y - n.y) * 0.004 - n.y * 0.0008;
+    const c = centre.get(n.domain) || { x: 0, y: 0 }, dx = n.x - c.x, dy = n.y - c.y, d = Math.max(Math.hypot(dx, dy), 1);
+    const pull = n.kind === "aggregate" ? 0.012 : n.kind === "port" ? 0.006 : 0.003;
+    n.vx += (c.x - n.x) * pull; n.vy += (c.y - n.y) * pull;
+    if (n.kind !== "aggregate") { const out = n.kind === "port" ? 0.9 : 1.6; n.vx += dx / d * out; n.vy += dy / d * out; }
     n.x += n.vx * 0.5 * heat; n.y += n.vy * 0.5 * heat; n.vx *= 0.82; n.vy *= 0.82;
+  }
+}
+/* ---- boundaries: a padded convex hull around each domain's aggregates and ports ---- */
+function hull(points) {
+  const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = []; for (const q of p) { while (lower.length > 1 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+  const upper = []; for (const q of p.slice().reverse()) { while (upper.length > 1 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
+}
+function drawBounds() {
+  for (const d of domains) {
+    const members = nodes.filter((n) => n.domain === d && n.kind !== "adapter").map((n) => [sx(n), sy(n)]);
+    if (!members.length) continue;
+    const cx = members.reduce((s, q) => s + q[0], 0) / members.length, cy = members.reduce((s, q) => s + q[1], 0) / members.length;
+    const pad = 22, ring = hull(members).map(([x, y]) => { const dx = x - cx, dy = y - cy, l = Math.max(Math.hypot(dx, dy), 1); return [x + dx / l * pad, y + dy / l * pad]; });
+    if (ring.length < 2) continue;
+    ctx.beginPath();
+    if (ring.length === 2) ctx.ellipse(cx, cy, Math.hypot(ring[0][0] - ring[1][0], ring[0][1] - ring[1][1]) / 2 + pad, pad, Math.atan2(ring[1][1] - ring[0][1], ring[1][0] - ring[0][0]), 0, 6.283);
+    else { const m = (i) => [(ring[i][0] + ring[(i + 1) % ring.length][0]) / 2, (ring[i][1] + ring[(i + 1) % ring.length][1]) / 2];
+      ctx.moveTo(...m(ring.length - 1)); for (let i = 0; i < ring.length; i++) ctx.quadraticCurveTo(ring[i][0], ring[i][1], ...m(i)); }
+    ctx.closePath();
+    const colour = colourOf(d); ctx.globalAlpha = 0.09; ctx.fillStyle = colour; ctx.fill();
+    ctx.globalAlpha = 0.7; ctx.lineWidth = 1.5; ctx.strokeStyle = colour; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    const top = Math.min(...ring.map((q) => q[1])) - 6;
+    ctx.font = "600 12px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "center"; ctx.fillText(d, cx, top); ctx.textAlign = "start";
   }
 }
 function fit() {
@@ -138,6 +183,7 @@ function shape(n, x, y, r) {
 }
 function draw(now) {
   const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height);
+  if (showBounds) drawBounds();
   ctx.lineWidth = 1; ctx.strokeStyle = css("--axis");
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
@@ -159,7 +205,7 @@ function drawNode(n, now) {
   const live = pulse && pulse > now;
   shape(n, x, y, r + (live && !reduceMotion ? 3 * ((pulse - now) / 1800) : 0));
   ctx.fillStyle = live ? css("--series1") : css("--surface"); ctx.fill();
-  ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : css("--ink2"); ctx.stroke();
+  ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : (showBounds ? colourOf(n.domain) : css("--ink2")); ctx.stroke();
   if (live) label(n, false);
 }
 function label(n, boxed) {
@@ -234,12 +280,15 @@ canvas.addEventListener("mousemove", (e) => {
 canvas.addEventListener("mouseleave", () => { hover = null; });
 $("toggle").addEventListener("click", () => { const on = document.body.classList.toggle("tables-only"); $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show diagram" : "Show table"; });
 $("replay").addEventListener("click", () => replay(backlog.slice(-12), false));
+$("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
 addEventListener("resize", fit);
 
 fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
   if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; return; }
   nodes = g.nodes; edges = g.edges; byId = new Map(nodes.map((n) => [n.id, n]));
-  $("count").textContent = nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + edges.filter((e) => e.kind !== "adapter").length + " policies";
+  assignDomains();
+  $("count").textContent = domains.length + " domains, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + edges.filter((e) => e.kind !== "adapter").length + " policies";
+  $("domains").replaceChildren(...domains.map((d) => h("span", {}, h("i", { class: "swatch", style: "background:" + colourOf(d) }), d)));
   layout(); fit(); renderTable(); requestAnimationFrame(draw); listen();
 }).catch((e) => { $("count").textContent = "unknown: " + e.message; });
 </script>

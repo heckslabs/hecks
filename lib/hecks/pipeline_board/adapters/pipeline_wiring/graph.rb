@@ -76,13 +76,18 @@ module Hecks
         def link(from, to, label, kind)
           return unless to
 
-          [from, to].each { |id| node(id) }
+          node(from, from.split("::").first)
+          node(to, from.split("::").first)
           @edges << { from: from, to: to, label: label, kind: kind }
         end
 
-        def node(id)
-          kind = id.start_with?("port:") ? "port" : "aggregate"
-          @nodes[id] ||= { id: id, kind: kind, domain: id.split("::").first, label: id.split("::").last.sub("port:", "") }
+        # A port belongs to the domain of the aggregate that asks through it; an aggregate to its
+        # own.
+        def node(id, asking_domain)
+          port = id.start_with?("port:")
+          domain = port ? asking_domain : id.split("::").first
+          label = id.split("::").last.sub("port:", "")
+          @nodes[id] ||= { id: id, kind: port ? "port" : "aggregate", domain: domain, label: label }
         end
 
         def adapter_edges
