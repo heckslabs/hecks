@@ -38,8 +38,13 @@ RSpec.describe Hecks::Adapters::GitLanding::Lineup do
     children = names.each_with_index.map do |name, index|
       start(name).tap { |child| hear(child, index.zero? ? "start #{name}" : "#{name} is #{%w[_ 2nd 3rd 4th][index]} in line") }
     end
-    children.each { |child| child.puts("go") }
-    children.each(&:close)
+    # Let each child finish speaking before its pipe closes; a write to a closed pipe kills it.
+    children.each do |child|
+      child.puts("go")
+      child.close_write
+      child.read
+      child.close
+    end
   end
 
   it "lands in the order the processes joined, one at a time" do
