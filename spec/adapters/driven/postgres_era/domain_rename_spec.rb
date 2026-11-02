@@ -312,8 +312,10 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     end
 
     # A boot carries no mint request, so the changed shape reads the held era and appends nothing.
+    # The move is breaking, so a boot over it needs an edge present; the mint entry point is what
+    # judges that edge's coverage.
     it "boot reads a changed shape without minting", :aggregate_failures do
-      registry = check!(NEW_SOURCE_CHANGED)
+      registry = check!(NEW_SOURCE_CHANGED, translation_source: uncovered_edge)
       expect(count_in("hecks_eras", "NewName")).to eq("1")
       expect(registry.resolved_eras["NewName"]).to eq(1)
       expect(adapter_for(registry, "Acct", domain: "NewName").find("a1").balance.to_h).to eq(cents: 500)
