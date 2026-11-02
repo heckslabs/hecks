@@ -13,10 +13,9 @@ RSpec.describe "served_by in a world" do
 
   let(:registry) { Hecks::Runtime::Registry.new }
   let(:secret)   { "served-by-spec-secret" }
-  let(:ping_webhook) { Class.new(Hecks::Adapters::Driving::GithubWebhook) }
   let(:adapters) do
-    { "PingWebhook"    => ping_webhook,
-      "GithubWebhook"   => Hecks::Adapters::Driving::GithubWebhook }
+    { "PingWebhook"   => Class.new(Hecks::Adapters::Driving::GithubWebhook),
+      "GithubWebhook" => Hecks::Adapters::Driving::GithubWebhook }
   end
   let(:world) do
     Hecks.with_registry(registry) do

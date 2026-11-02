@@ -5,7 +5,8 @@ module Hecks
     module Lanes
       # The workflow that watches each lane with an alert threshold: every hour it asks
       # `PromotionRun` whether the lane has stood behind the lane it follows for longer than its
-      # `Lane` row allows. A late lane faults the run, and GitHub's failed-run status and email say so.
+      # `Lane` row allows. A late lane faults the run, and GitHub's failed-run status
+      # and email say so.
       module WatchWorkflow
         HEADER = <<~YAML.chomp
           name: Watch lanes

@@ -5,7 +5,8 @@ require "tmpdir"
 require "hecks/hecks/adapters/git_rehearsal"
 
 # A rehearsal's scope: `quick` runs only the gate's quick stage and is recorded and queued apart
-# from `deep`, which adds the impacted specs. The stages are stubbed; the repository is a throwaway one.
+# from `deep`, which adds the impacted specs. The stages are stubbed; the repository is a
+# throwaway one.
 RSpec.describe Hecks::Adapters::GitRehearsal, "#trial", :aggregate_failures, :io do
   IDENT = { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
             "GIT_COMMITTER_NAME" => "A", "GIT_COMMITTER_EMAIL" => "a@example.test" }.freeze

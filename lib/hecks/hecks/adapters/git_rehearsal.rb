@@ -16,9 +16,9 @@ module Hecks
     #
     # A scope is a `RehearsalScope` row of the Vocabulary bluebook: `quick` (the gate's quick
     # stage, the push gate; a landing asks) or `deep` (quick plus the impacted specs; opt-in). Quick
-    # has its own line, record and bench, so it runs alongside a deep one. A rehearsal checks out a detached
-    # copy of `main`, runs the scope's stages in it and removes it. It pushes nothing and writes
-    # only a one-line record in the common git directory, which the `Due` query reads back.
+    # has its own line, record and bench, so it runs alongside a deep one. A rehearsal checks out a
+    # detached copy of `main`, runs the scope's stages in it and removes it. It pushes nothing and
+    # writes only a one-line record in the common git directory, which the `Due` query reads back.
     class GitRehearsal
       include Reading
 
