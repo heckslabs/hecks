@@ -1052,20 +1052,6 @@ Hecks.bluebook "Hecks" do
                                             edge_present: :edge_present }
     end
 
-    # A rehearsal that would mint is the record a mint reads: QualityControl's Maintenance keeps the verdict and
-    # the watermark the copy held, so Maintenance.MintEra finds it by this run (the mint plan's watermark guard).
-    # It listens beside Judge, on the same audit and the same condition, because the rehearsal is already five
-    # reactions deep at Judge and a reaction to RehearsalJudged would pass the dispatcher's depth bound.
-    policy "RecordVerdictWhenNothingWouldStopTheMint" do
-      on      "RehearsalRun.RehearsalAudited"
-      where do
-        (minting.value != "next" || edge_present.value) && refusal_total.value == 0
-      end
-      trigger Maintenance::RecordRehearsalVerdict, with: { run: :run, domain: :rehearsed_domain,
-                                                            watermark: :watermark, rehearsal_verdict: "would_mint" }
-      across  "QualityControl"
-    end
-
     policy "WithholdWhenNoEdgeLeadsOn" do
       on      "RehearsalRun.RehearsalAudited"
       where   { minting.value == "next" && !edge_present.value }

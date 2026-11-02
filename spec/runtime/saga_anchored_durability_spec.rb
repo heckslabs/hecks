@@ -5,7 +5,7 @@ require "tmpdir"
 # aggregate on its own: the domain stays in Memory, the Wire aggregate (whose Ask starts Carry)
 # is bound to SqlitePersistence in a temporary database, and a stuck Carry survives a restart.
 RSpec.describe "a saga checkpointed with the aggregate that starts it" do
-  SETTLEMENT = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(SETTLEMENT)
+  SETTLEMENT_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(SETTLEMENT_FIXTURE)
   SQLITE = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter") unless defined?(SQLITE)
 
   around do |example|
@@ -27,7 +27,7 @@ RSpec.describe "a saga checkpointed with the aggregate that starts it" do
 
   def declare(root)
     [InMemoryDomain::PERSISTENCE_PORT, InMemoryDomain::EXTRACTION_PORT, InMemoryDomain::MEMORY_ADAPTER, SQLITE,
-     InMemoryDomain::PRISM_ADAPTER, SETTLEMENT].each { |file| Kernel.load(file) }
+     InMemoryDomain::PRISM_ADAPTER, SETTLEMENT_FIXTURE].each { |file| Kernel.load(file) }
     bind(root)
   end
 
