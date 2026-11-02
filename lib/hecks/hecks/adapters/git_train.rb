@@ -2,6 +2,7 @@
 
 require_relative "git"
 require_relative "console_capture"
+require_relative "push_size"
 require_relative "git_train/reading"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
@@ -37,10 +38,11 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `marker:` a `QaQuiesceMarker`, for a spec
       # @param root [String, nil] unused
-      # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's by default);
-      #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one this
-      #   code runs from by default); `registry:` the booted registry whose world names the landing
-      #   queue's limits; any other key tunes the push hold's landing line (see `GitLanding::Lineup`)
+      # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's if none);
+      #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one
+      #   this code runs from by default); `registry:` the booted registry whose world names the
+      #   landing queue's limits and the push size; any other key tunes the push hold's landing
+      #   line (see `GitLanding::Lineup`)
       def initialize(aggregate: nil, settings: {}, root: nil, **options)
         @registry = options.delete(:registry)
         @marker = settings[:marker] || QaQuiesceMarker.new
@@ -65,10 +67,11 @@ module Hecks
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
         in_turn do
+          size = push_size(held)
           boarded = boarded_commit(held)
           LauncherShape.new(@git, @checkout, domain: @domain).check!(boarded)
           minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
-          after_mint(minted, boarded, holding_main(held, boarded))
+          after_mint(minted, boarded, holding_main(held, boarded), size)
         end
       end
 
@@ -119,6 +122,14 @@ module Hecks
         [carriage.carry(settled), settled]
       end
 
+      # What the push is, said before it is made: how many commits go and, past the world's
+      # threshold, the size sentence. It only says; a push of any size is carried.
+      def push_size(held)
+        ahead = read("rev-list", "--count", "#{remote_of(held)}/#{branch_of(held)}..#{branch_of(held)}").to_i
+        sentence = PushSize.sentence(ahead, PushSize.thresholds(@registry))
+        sentence.empty? ? "pushing #{ahead} commits" : "pushing #{ahead} commits; #{sentence}"
+      end
+
       def branch_of(held) = plain(held[:branch]) || "main"
 
       def remote_of(held) = plain(held[:remote]) || "origin"
@@ -126,10 +137,10 @@ module Hecks
       # The carriage's answer, its report opened with the red-main line while one is open, then what
       # the mint did and naming the boarded
       # commit (and the settled one when settlement moved the branch).
-      def after_mint(minted, boarded, carried)
+      def after_mint(minted, boarded, carried, size = nil)
         answer, settled = carried
         named = settled == boarded ? "boarded #{boarded[0, 9]}" : "boarded #{boarded[0, 9]}, settled to #{settled[0, 9]}"
-        report = "#{RedMainLine.lead}#{minted}, then #{named}: #{answer.dig(:report, :value)}"
+        report = "#{RedMainLine.lead}#{"#{size}\n" if size}#{minted}, then #{named}: #{answer.dig(:report, :value)}"
         answer.merge(boarded: { value: boarded }, report: { value: report })
       end
 

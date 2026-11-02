@@ -4,6 +4,7 @@ require "hecks/runtime/asking"
 require "hecks/runtime/errors"
 require "hecks/runtime/row_sweep"
 require "hecks/hecks/adapters/git_rehearsal"
+require "hecks/hecks/adapters/push_size"
 
 module Hecks
   module Adapters
@@ -13,14 +14,14 @@ module Hecks
     #
     # The git reading is `GitRehearsal#due`, called as it is: this class only parses the line it
     # answers and applies the thresholds. It fetches, pushes and merges nothing. The thresholds are
-    # the QualityControl world's `push_nudge` setting (`commits:` ahead, `hours:` old), else the
-    # defaults below.
+    # the QualityControl world's `push_nudge` setting (`commits:` ahead, `hours:` old,
+    # `urgent_commits:`), else `PushSize::DEFAULTS`.
     class PushDueReader
       # The thresholds when the world declares none.
-      DEFAULTS = { commits: 20, hours: 24 }.freeze
+      DEFAULTS = PushSize::DEFAULTS
 
       # The world verb that carries the thresholds.
-      VERB = "push_nudge"
+      VERB = PushSize::VERB
 
       # The key of the one Work row.
       WORK = "push-due"
@@ -38,12 +39,8 @@ module Hecks
       # The thresholds a registry's QualityControl world declares.
       #
       # @param registry [Runtime::Registry, nil]
-      # @return [Hash{Symbol => Integer, Float}] `commits:` and `hours:`
-      def self.thresholds(registry)
-        declared = registry&.world("QualityControl")&.for_verb(VERB) || {}
-        merged = DEFAULTS.merge(declared.slice(*DEFAULTS.keys))
-        { commits: Integer(merged[:commits]), hours: Float(merged[:hours]) }
-      end
+      # @return [Hash{Symbol => Integer, Float}] `commits:`, `hours:` and `urgent_commits:`
+      def self.thresholds(registry) = PushSize.thresholds(registry)
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
@@ -61,7 +58,7 @@ module Hecks
       def read(**_held)
         text = push_line(@rehearsal.due(checkout: @root).fetch(:text))
         limits = self.class.thresholds(registry)
-        { due: flag(due?(text, limits)), raised: flag(raised?), work: { value: WORK }, title: { value: TITLE },
+        { due: flag(due?(text, limits)), raised: flag(raised?), work: { value: WORK }, title: { value: title(text, limits) },
           detail: { value: detail(text, limits) } }
       rescue ConsoleCapture::Failure => e
         raise Runtime::GivenNotMet, "the refs could not be read: #{first_line(e.message)}"
@@ -70,8 +67,12 @@ module Hecks
       private
 
       def detail(text, limits)
-        "#{text.delete_prefix("push due: ")} (thresholds: #{limits[:commits]} commits, #{limits[:hours]} hours)"
+        "#{text.delete_prefix("push due: ")} (thresholds: #{limits[:commits]} commits, #{limits[:hours]} hours, " \
+          "urgent at #{limits[:urgent_commits]})"
       end
+
+      # The row's title, naming the size class once the commits ahead pass a threshold.
+      def title(text, limits) = PushSize.title(TITLE, text[AHEAD, 1].to_i, limits)
 
       # The `push due:` line of the rehearsal's answer: the red-main line that may lead it is not
       # part of whether a push is due.
