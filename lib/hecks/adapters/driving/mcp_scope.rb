@@ -31,9 +31,9 @@ module Hecks
         # write, a port to open, a store to switch to, or flips a command from a preview to a
         # change of state.
         DENIED_ARGUMENTS = %w[
-          adapter artifact brief claimed confirm expected from gem_only header health_path host live no_wait npm_local
-          npm_only output path payload payload_file port prebuilt remote row rust_binary scheme stage_dir state_path
-          stdio url write
+          adapter artifact brief claimed confirm expected force from gem_only header health_path host live
+          no_wait npm_local npm_only output path payload payload_file port prebuilt remote row rust_binary
+          scheme stage_dir state_path stdio url write
         ].freeze
 
         # Argument names whose values are paths (a comma-separated list for some). A restricted
@@ -41,7 +41,7 @@ module Hecks
         # passes them on only when each resolves, symlinks followed, inside `Storehouse::BOOT_ROOT`,
         # and holds no colon: `host:repo` and `https://host/x` would otherwise pass as relative
         # paths.
-        PATH_ARGUMENTS = %w[checkout dir directory domain domains file fixture paths repo root script].freeze
+        PATH_ARGUMENTS = %w[checkout dir directory domain domains file files fixture paths repo root script].freeze
 
         # Argument names whose values are git refs: plain names only, so a value cannot read as an
         # option to git.
