@@ -1,17 +1,14 @@
 # frozen_string_literal: true
 
-require "time"
 require_relative "started_work"
 require_relative "console_capture"
-require_relative "../../ports/clock"
 
 module Hecks
   module Adapters
-    # The `WorkLimits` port's adapter for `Tickets::Work`: the concurrency cap on started rows and
-    # the list of started rows that outlived their time budget.
+    # The `WorkLimits` port's adapter for `Tickets::Work`: the concurrency cap on started rows.
     #
     # It reads the other Work rows from the registry it is built with, the cap from the Tickets
-    # world's `work_limit` setting, and the time from the registry's clock port. It decides nothing
+    # world's `work_limit` setting. It decides nothing
     # about what happens next: the bluebook sends a refused start back to the plan.
     class WorkLimits
       # The cap when the Tickets world declares none.
@@ -52,26 +49,7 @@ module Hecks
         { output: { value: "#{key} is within the cap of #{limit} (#{holders.size} started)" } }
       end
 
-      # The started rows whose claim time plus time budget is before now.
-      #
-      # @param _held [Hash] unused
-      # @return [Hash{Symbol => String}] `text:` one line per overdue row, empty when none is
-      def overdue(**_held)
-        now = Ports::Clock.now(@registry)
-        lines = StartedWork.budgeted(@registry).filter_map { |row| late_line(row, now) }
-        { text: lines.join("\n") }
-      end
-
       private
-
-      def late_line(row, now)
-        due = Time.iso8601(row[:claimed_at]).to_i + (row[:budget_minutes] * 60)
-        return unless due < now
-
-        "#{row[:key]} (#{row[:claimed_by]}) is #{(now - due) / 60} minutes over its #{row[:budget_minutes]}"
-      rescue ArgumentError
-        nil
-      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
