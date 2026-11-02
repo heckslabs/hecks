@@ -35,7 +35,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner::TourWords do
   it "names the next command to type" do
     Dir.mktmpdir do |root|
       answer, = tour(File.join(root, "demo"))[:answer]
-      expect(lines(answer)).to include("next: hecks run")
+      expect(lines(answer)).to include("next: hecks Operation.run! subject.value=")
     end
   end
 end

@@ -73,10 +73,10 @@ module Hecks
           runtime = begin
             Hecks.boot({{boot}}, install_driving: false)
           rescue StandardError => e
-            abort "cannot open {{name}}: #{e.message.strip}"
+            abort "cannot open {{name}}: #{e.message.lines.first.strip}"
           end
 
-          text, status =Hecks::Adapters::Driving::CliRunner.call(
+          text, status = Hecks::Adapters::Driving::CliRunner.call(
             runtime: runtime, argv: ARGV, program: "{{shown}}"
           )
         RUBY

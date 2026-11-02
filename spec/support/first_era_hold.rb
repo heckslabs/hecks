@@ -27,7 +27,9 @@ module FirstEraHold
   end
 
   # Holds era 1 for every bluebook a domain directory loads, each frozen as its own source text,
-  # the steps `hold_first` makes for one. A domain that already holds an era is left alone.
+  # the steps `hold_first` makes for one. A domain that already holds an era is left alone. The
+  # world's `stored_as` names apply first, so a renamed aggregate's heads sit under its
+  # storage name.
   #
   # @param directory [String] the domain's `bluebook/` directory
   # @param url [String] the database URL the lineage lives in
@@ -35,6 +37,7 @@ module FirstEraHold
   # @return [void]
   def hold_domain_eras!(directory:, url:, schema: nil)
     held = Hecks::Adapters::JournalStore::HeldDomain.open(directory, mode: :bare)
+    held.registry.apply_world_names!
     held.registry.bluebooks.each_value do |bluebook|
       source = Hecks::Runtime::EraCheck.source_text_for(bluebook, held.directory, registry: held.registry)
       hold_bluebook_era!(url, bluebook, source, schema)
