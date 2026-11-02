@@ -8,6 +8,12 @@ RSpec.describe Hecks::Adapters::Codebase::Regeneration do
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
   let(:plan) { "hecks regenerate_corpus: regenerating 7 domain(s), in this fixed order:\n  examples/pizzas\n" }
 
+  # The gate's memo skips an unconfirmed whole-corpus check that already passed on these files, and
+  # keeps its own pass; neither belongs in what these examples ask, so the guard runs its block.
+  before do
+    allow(Hecks::Tools::GateMemo::Standalone).to receive(:guard) { |*_args, &block| block.call }
+  end
+
   # Answers a fixed output and status, and remembers what was asked. The run happens in this
   # process, so what is stubbed is `Hecks::Tools.run`.
   def fake_run(out, status = 0)
