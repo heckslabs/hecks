@@ -50,8 +50,24 @@ RSpec.describe "a Maintenance-like mint command through an unminted boot", :io d
     BLUEBOOK
   end
 
-  def registry_for(source)
-    registry = load_registry(source)
+  def label_of(source)
+    Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
+  end
+
+  # The edge a breaking move needs to boot at all: a boot over one no edge covers refuses.
+  def edge_cost_to_total
+    <<~RUBY
+      Hecks.data_translation("Ledger", from: #{label_of(shape("cost")).inspect},
+                             to: #{label_of(shape("total")).inspect}) do
+        aggregate("Maintenance") do
+          rename :cost, to: :total
+        end
+      end
+    RUBY
+  end
+
+  def registry_for(source, translation_source: nil)
+    registry = load_registry(source, translation_source: translation_source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: boot_url, mint_eras: true }
@@ -79,7 +95,7 @@ RSpec.describe "a Maintenance-like mint command through an unminted boot", :io d
     e.message
   end
 
-  let(:unminted) { registry_for(shape("total")) }
+  let(:unminted) { registry_for(shape("total"), translation_source: edge_cost_to_total) }
 
   before do
     hold_first_era!(url: boot_url, domain: "Ledger", source: shape("cost"))

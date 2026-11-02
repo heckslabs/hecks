@@ -12,27 +12,28 @@ everyday:
 commands:
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
-    make!    Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
+    make!       Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
   LinkedTree:
     A linked worktree opened on a new branch from main, or declined with the reason.
-    add!     Open a linked worktree on a new branch from main, never on main itself
+    add!        Open a linked worktree on a new branch from main, never on main itself
+    pull_main!  Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
-    land!    Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
-    finish!  Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
-    train!   Hold the front place in the landing line and land every ready branch behind it, in ticket order
-    retire!  Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
+    land!       Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
+    finish!     Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
+    train!      Hold the front place in the landing line and land every ready branch behind it, in ticket order
+    retire!     Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
-    board!   Push this checkout's branch once the push ahead of it lands, unless that push already carried it
-    survey!  List every checkout under a directory whose branch has commits its remote does not
+    board!      Push this checkout's branch once the push ahead of it lands, unless that push already carried it
+    survey!     List every checkout under a directory whose branch has commits its remote does not
   Shipment:
     One request to fix, gate, land and board a branch: the gate-and-board saga starts on it.
-    ship!    Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
+    ship!       Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
-    open!    Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
-    take!    Squash-merge an open pull request by its number; never with an admin override
+    open!       Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
+    take!       Squash-merge an open pull request by its number; never with an admin override
 
 queries (nothing here changes anything):
   Workspace:
@@ -67,7 +68,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 30 internal commands and queries
+  hecks --all                  also list the 34 internal commands and queries
   hecks --maintainer           also list the 386 commands and queries for working on hecks itself
   a command is called with its aggregate — Revision.make!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
