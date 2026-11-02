@@ -30,6 +30,7 @@ require_relative "support/declaration_cache"
 require_relative "support/prism_source_memo"
 require_relative "support/memory_ports"
 require_relative "support/scratch_directory"
+require_relative "support/live_ledger_guard"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and
