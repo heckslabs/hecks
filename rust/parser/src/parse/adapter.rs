@@ -114,6 +114,7 @@ fn parse_body(
                     1,
                 )?);
             }
+            "stays_inside" => adapter.stays_inside = true,
             // A repeat replaces the earlier value, as the Ruby builder's setter does.
             "runs" => {
                 adapter.runs = Some(super::positional_text(

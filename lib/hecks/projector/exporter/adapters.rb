@@ -33,13 +33,14 @@ module Hecks
           }.merge(optional_adapter_keys(adapter))
         end
 
-        # The keys only some adapters carry: `provides` when it names a capability, and a
-        # plugin's `answers` and `runs`.
+        # The keys only some adapters carry: `provides` when it names a capability, `stays_inside`
+        # when the adapter says it, and a plugin's `answers` and `runs`.
         #
         # @param adapter [Bluebook::Hecksagon::Adapter] the adapter to export
         # @return [Hash{String => Object}] the keys it carries beyond the five every adapter has
         def optional_adapter_keys(adapter)
           keys = adapter.capabilities.empty? ? {} : { "provides" => adapter.capabilities }
+          keys["stays_inside"] = true if adapter.stays_inside?
           return keys unless adapter.plugin?
 
           keys.merge("answers" => adapter.answered_queries, "runs" => adapter.runs)

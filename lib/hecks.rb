@@ -98,9 +98,12 @@ module Hecks
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot_files`
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil] environment name passed to the selected-file loader
+    # @param adapters [Array<String>, nil] exactly the `.adapter` files to load, leaving the
+    #   project's own unloaded; nil keeps the loader's own choice
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the domain's dispatcher
-    def boot_files(paths, shared: nil, install_driving: true, environment: Assembly::FROM_ENV)
-      Assembly.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment)
+    def boot_files(paths, shared: nil, install_driving: true, environment: Assembly::FROM_ENV, adapters: nil)
+      Assembly.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment,
+                                 adapters: adapters)
     end
 
     # Installs the Ruby driving adapter (`Widget::Item.Add(...)`) over a dispatcher built by hand.

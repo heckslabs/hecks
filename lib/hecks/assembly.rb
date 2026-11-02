@@ -66,9 +66,11 @@ module Hecks
     # @param shared [String, nil] a shared-root override
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil, Symbol] the overlay, or `FROM_ENV` for `HECKS_ENVIRONMENT`
+    # @param adapters [Array<String>, nil] exactly the `.adapter` files to load; see `Runtime::Loader`
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
-    def boot_files(paths, shared: nil, install_driving: true, environment: FROM_ENV)
-      drive(Runtime::Loader.boot_files(paths, shared: shared, environment: selected_environment(environment)),
+    def boot_files(paths, shared: nil, install_driving: true, environment: FROM_ENV, adapters: nil)
+      drive(Runtime::Loader.boot_files(paths, shared: shared, environment: selected_environment(environment),
+                                              adapters: adapters),
             install_driving)
     end
 

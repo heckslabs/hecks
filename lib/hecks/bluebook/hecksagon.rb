@@ -19,10 +19,10 @@ module Hecks
     # and names the queries it `answers` (`"Bluebook::Aggregate.Query"`); it needs no port, and the
     # runtime binds each query it answers without a hecksagon line.
     #
-    # `provides` names what the adapter can do beyond its port's contract, such as
-    # `"set_transform"`; a caller asks before relying on it.
+    # `provides` names what it can do beyond its port's contract (`"set_transform"`), and
+    # `stays_inside` is true when it reaches nothing outside the process and checkout (ADR 0171).
     Adapter = Struct.new(:name, :port, :fields, :secrets, :defaults, :answers, :runs, :provides, :source_dir,
-                         keyword_init: true) do
+                         :stays_inside, keyword_init: true) do
       def declares?(field) = all_fields.include?(field.to_sym)
 
       def all_fields = (fields || []) + (secrets || [])
@@ -39,6 +39,9 @@ module Hecks
       # @param capability [String, Symbol] a capability's name, such as `"set_transform"`
       # @return [Boolean] whether this adapter declares `provides` for it
       def provides?(capability) = capabilities.include?(capability.to_s)
+
+      # @return [Boolean] whether this adapter says it stays inside
+      def stays_inside? = stays_inside == true
 
       # @return [Boolean] whether this adapter is a wasm plugin
       def plugin? = !runs.nil?

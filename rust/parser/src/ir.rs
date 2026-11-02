@@ -486,4 +486,6 @@ pub struct Adapter {
     pub runs: Option<String>,
     // The capabilities the adapter provides beyond its port's contract, in declaration order.
     pub provides: Vec<String>,
+    // `stays_inside`: the adapter reaches nothing outside the process and the checkout (ADR 0171).
+    pub stays_inside: bool,
 }
