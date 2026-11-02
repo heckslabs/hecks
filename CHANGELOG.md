@@ -9,6 +9,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **`Landing.retire!` removes a branch whose commits `main` holds under other shas.** After `LinkedTree.pull_main!` rebases `main`, or a commit is cherry-picked, the branch's own shas are not on `main` and the retirement refused with `N commit(s) not on main`. It now also counts a branch merged when every one of its commits has a patch-equivalent on `main` (`git cherry`); a branch with any commit `main` lacks is still kept.
+
+### Changed
+
 - **The rspec and Postgres io shards are balanced from the last successful `main` run's timings, with no committed baseline.** A `shard_plan` job runs the CiSpeed `ShardPlan` aggregate (`Request`, `RecordTimings`; events `ShardPlanRequested`, `TimingsFetched`, `TimingsUnavailable`, `ShardPlanned`, `TimingsRecorded`), splits the files once with the shared `Hecks::Tools::ShardPlanner` and every leg reads that plan; timings that cannot be read fall back to file size through a policy and never fail the run. Removed: `runtime-baseline-refresh.yml`, `test_suite_run.refresh_runtime_baseline!` (the `RefreshRuntimeBaseline` command and its `refresh_rspec_runtime_baseline` tool) and the committed `.github/rspec_runtime_baseline.log` and `.github/postgres_io_runtime_baseline.log`. The fuzz shards keep `spec/fuzzing/fuzz_runtime_baseline.log` and now deal with the same planner.
 
 ## [7.0.0] - 2026-11-02

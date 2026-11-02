@@ -10,7 +10,8 @@ module Hecks
       # When in doubt it keeps both. It removes them only when the worktree is a linked one that
       # nobody stands in, holds no file that is not tracked and clean (ignored files and build
       # output count, so a local `.env` is never lost), and its branch tip, verified once, is
-      # contained in local `onto`. The worktree goes without `--force`, and the branch goes only
+      # contained in local `onto`, or every commit of it has a patch-equivalent there (`git cherry`),
+      # as after `onto` was rebased. The worktree goes without `--force`, and the branch goes only
       # while it still names the verified tip, so a commit made in between is never dropped.
       # `main`, `stable`, `edge`, the target and a branch another worktree holds are never deleted.
       class Tidy
@@ -94,7 +95,18 @@ module Hecks
 
           local = "refs/heads/#{@onto}"
           behind = count("#{local}..#{tip}")
-          "it has #{behind} commit(s) not on #{@onto}" if behind.positive? || !ancestor?(tip, local)
+          return unless behind.positive? || !ancestor?(tip, local)
+          return if replayed?(local, tip)
+
+          "it has #{behind} commit(s) not on #{@onto}"
+        end
+
+        # Whether every commit the branch holds has a patch-equivalent on `onto`, as when `onto` was
+        # rebased or cherry-picked and the branch's own shas were rewritten. The work is there under
+        # other names, so removing the branch loses nothing.
+        def replayed?(local, tip)
+          marks = read("cherry", local, tip).lines.map { |line| line[0] }
+          marks.any? && marks.none?("+")
         end
 
         def drop(path, tip)

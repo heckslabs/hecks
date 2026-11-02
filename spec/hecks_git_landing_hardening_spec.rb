@@ -177,6 +177,23 @@ RSpec.describe Hecks::Adapters::GitLanding do
     expect(branch?("work/a")).to be(false)
   end
 
+  it "removes a worktree whose commits main holds under rewritten shas", :aggregate_failures do
+    build_repo("work/a", "a.rb")
+    commit(repo, "b.rb")
+    git("cherry-pick", "work/a")
+
+    expect(retire.dig(:report, :value)).to include("and deleted work/a")
+    expect([File.exist?(tree), branch?("work/a")]).to eq([false, false])
+  end
+
+  it "keeps a worktree with a commit main does not hold even when another is replayed", :aggregate_failures do
+    build_repo("work/a", "a.rb", "c.rb")
+    git("cherry-pick", "work/a~1")
+
+    expect { retire }.to raise_error(failure, /not on main/)
+    expect(branch?("work/a")).to be(true)
+  end
+
   it "refuses to retire a worktree holding an ignored file", :aggregate_failures do
     ignored_file("x.log")
     git("merge", "work/a")
