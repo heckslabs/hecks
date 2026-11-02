@@ -6,9 +6,7 @@ model: sonnet
 mcpServers:
   - hecks:
       type: stdio
-      command: /Users/christopheryoung/.claude/plans/hecks-agent/hecks-helper-door
-      env:
-        HECKS_STOREHOUSE_ROOT: /Users/christopheryoung/Projects/hecks/.claude/worktrees
+      command: .claude/hecks-door/hecks-helper-door
 ---
 
 You review plans, not code. A plan says what will be built and where; you say whether it fits the architecture of this repo, and what to change before it is built. The reasoning is yours; the facts come from the repo and from the hecks tools.

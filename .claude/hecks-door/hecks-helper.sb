@@ -1,0 +1,33 @@
+;; Sandbox for one hecks invocation (macOS sandbox-exec). Parameters: HOME CHECKOUT TMP.
+;; Reads are open except credential stores; writes only in the checkout and temp;
+;; network only to the local Postgres (unix socket or localhost:5432).
+(version 1)
+(allow default)
+
+(deny file-write*)
+(allow file-write*
+  (subpath (param "CHECKOUT"))
+  (subpath (param "TMP"))
+  (literal "/dev/null") (literal "/dev/tty") (literal "/dev/dtracehelper")
+  (regex #"^/dev/fd/"))
+
+(deny file-read*
+  (subpath (string-append (param "HOME") "/.ssh"))
+  (subpath (string-append (param "HOME") "/.aws"))
+  (subpath (string-append (param "HOME") "/.gnupg"))
+  (subpath (string-append (param "HOME") "/.claude"))
+  (subpath (string-append (param "HOME") "/.config/gh"))
+  (subpath (string-append (param "HOME") "/.config/op"))
+  (subpath (string-append (param "HOME") "/.gem/credentials"))
+  (subpath (string-append (param "HOME") "/.netrc"))
+  (subpath (string-append (param "HOME") "/Library/Keychains")))
+
+(deny network*)
+(allow network-outbound (remote ip "localhost:5432"))
+(allow network-outbound (remote unix-socket (path-literal "/tmp/.s.PGSQL.5432")))
+
+;; Helper door only: the hecks CLI must see that ~/.claude exists, and may read and write its own
+;; state directory. Seatbelt takes the last matching rule, so these come after the credential
+;; denies above. Nothing else under ~/.claude is opened.
+(allow file-read-metadata (literal (string-append (param "HOME") "/.claude")))
+(allow file-read* file-write* (subpath (string-append (param "HOME") "/.claude/hecks-dev")))
