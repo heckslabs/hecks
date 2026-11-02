@@ -6,11 +6,11 @@ require "spec_helper"
 RSpec.describe Hecks::Adapters::Driving::McpScope do
   # Names that carry data and reach nothing outside the domain's own files.
   PLAIN_ARGUMENTS = %w[
-    additive agent aggregates arguments at body budget budget_minutes cap check context crate
+    additive agent aggregates arguments at body budget budget_minutes cap check commits context crate
     declaration_cache dry email environment era example exclude expert fills format full_gate
-    gate inner isolation iterations kind lane list_shards message name named new_name no_ai number only
-    opens owner package pairs_shape parallel persist_regressions pin profile reason rehearsal_verdict
-    required role run runs scope seed_start seeds shard stage stdout steps strict subject tags target
+    gate inner isolation iterations kind lane landed list_shards message name named new_name no_ai number only
+    opens outcome owner package pairs_shape parallel persist_regressions pin profile pushed reason rehearsal_verdict
+    report required role run runs scope seed_start seeds shard stage stdout steps strict subject tags target
     targets timeout to top verb warmup watermark winners word workers
   ].freeze
 
