@@ -96,8 +96,12 @@ module Hecks
         end
 
         # @param now [Time] the current time
-        # @return [Float] seconds since the last heartbeat
-        def silence(now) = now.to_f - File.mtime(@path).to_f
+        # @return [Float] seconds since the last heartbeat, infinite when the ticket is gone
+        def silence(now)
+          now.to_f - File.mtime(@path).to_f
+        rescue Errno::ENOENT
+          Float::INFINITY
+        end
 
         # @return [Boolean] whether a live process holds the lock
         def held?
