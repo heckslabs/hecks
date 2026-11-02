@@ -32,6 +32,12 @@ RSpec.describe "pulling main first" do
     out.strip
   end
 
+  # The code under test commits too (a rebase), so each repo carries its own identity.
+  def identify(where)
+    git("config", "user.name", "t", chdir: where)
+    git("config", "user.email", "t@t", chdir: where)
+  end
+
   def commit(where, file)
     File.write(File.join(where, file), file)
     git("add", ".", chdir: where)
@@ -46,6 +52,7 @@ RSpec.describe "pulling main first" do
     commit(repo, "README")
     git("push", "origin", "main")
     git("clone", remote, other, chdir: dir)
+    [repo, other].each { |where| identify(where) }
   end
 
   # Another session pushes a commit to origin/main.

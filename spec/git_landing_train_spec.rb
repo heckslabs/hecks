@@ -36,6 +36,8 @@ RSpec.describe Hecks::Adapters::GitLanding do
   before do
     FileUtils.mkdir_p(repo)
     git("init", "-b", "main")
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
     File.write(File.join(repo, "shared.txt"), "base\n")
     git("add", ".")
     git("commit", "-m", "first")
