@@ -1,0 +1,7 @@
+# Binds the `Web` port to `PipelineWeb`, which serves the board on 127.0.0.1 until it is stopped.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/pipeline_board/adapters/pipeline_web"
+
+Hecks.adapter "PipelineWeb" do
+  port "Web"
+end

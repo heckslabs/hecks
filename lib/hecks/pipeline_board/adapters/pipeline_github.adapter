@@ -1,0 +1,7 @@
+# Binds the `GitHub` port to `PipelineGitHub`, which answers `CiRuns` and `SlowestJobs` with CI as GitHub reports it.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/pipeline_board/adapters/pipeline_github"
+
+Hecks.adapter "PipelineGitHub" do
+  port "GitHub"
+end
