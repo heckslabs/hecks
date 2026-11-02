@@ -8,6 +8,7 @@ module Hecks
         # dispatched with the saved arguments through the ordinary line path.
         module ResumeWords
           SAGA = "GateAndBoard".freeze
+          USAGE = "resume <run>  continue a GateAndBoard saga that faulted, from the stage it faulted in".freeze
 
           # The answer to `resume <run>`, or nil when the line is not a resume.
           def resume(scope, argv)

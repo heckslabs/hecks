@@ -16,6 +16,7 @@ require_relative "cli_runner/search_words"
 require_relative "cli_runner/completion_words"
 require_relative "cli_runner/tour_words"
 require_relative "cli_runner/resume_words"
+require_relative "cli_runner/word_help"
 require_relative "cli_runner/json_words"
 require_relative "cli_runner/settling"
 require_relative "cli_runner/streaming"
@@ -45,6 +46,7 @@ module Hecks
         extend CompletionWords
         extend TourWords
         extend ResumeWords
+        extend WordHelp
         extend JsonWords
         extend Suggestions
         extend NameIndex
