@@ -10,8 +10,8 @@ Hecks.bluebook "Swarm" do
     attribute :name,        RunName
     attribute :target_repo, RepoPath
     attribute :phase,       Phase
-    # How many voices and judges the run has, set at StartRun. Judging waits on the voices;
-    # the winner waits on the judges.
+    # How many voices and judges the run has, set at StartRun. Recorded for the run's history;
+    # no command gates on them yet.
     attribute :voice_count, VoiceCount
     attribute :judge_count, JudgeCount
     attribute :winner,      ProposalId, optional: true
@@ -141,7 +141,6 @@ Hecks.bluebook "Swarm" do
       attribute :voice, VoiceLabel
 
       given("the run is voicing") { phase.value == "voicing" }
-      given("no more proposals than voices") { proposals.size < voice_count.value }
       given("a proposal id is not reused") { proposals.none? { |p| p.id.value == id.value } }
       given("a voice proposes once") { proposals.none? { |p| p.voice.value == voice.value } }
 
@@ -151,7 +150,7 @@ Hecks.bluebook "Swarm" do
     end
 
     command "SubmitCritique" do
-      goal "Record one voice's critique of a proposal, once every voice has proposed"
+      goal "Record one voice's critique of a proposal"
 
       reference_to SwarmRun
       attribute :critic, VoiceLabel
@@ -160,7 +159,6 @@ Hecks.bluebook "Swarm" do
       given("the run is voicing or crossing") do
         phase.value == "voicing" || phase.value == "crossing"
       end
-      given("every voice has proposed") { proposals.size == voice_count.value }
       given("a critic does not critique its own proposal") do
         proposals.none? { |p| p.id.value == target.value && p.voice.value == critic.value }
       end
@@ -175,8 +173,7 @@ Hecks.bluebook "Swarm" do
       emits CritiqueSubmitted
     end
 
-    # The first score moves the run into judging. Judging cannot start until every voice has a
-    # proposal, so the voice count is checked here as well as on the phase.
+    # The first score moves the run into judging. Scoring needs no critiques first.
     command "CastScore" do
       goal "Record one judge's score for one proposal; the first score starts judging"
 
@@ -185,18 +182,12 @@ Hecks.bluebook "Swarm" do
       attribute :proposal, ProposalId
       attribute :points,   Points
 
-      given("the run is crossing or judging") do
-        phase.value == "crossing" || phase.value == "judging"
-      end
-      given("judging waits until every voice has a proposal") do
-        proposals.size == voice_count.value
+      given("the run is voicing, crossing or judging") do
+        phase.value == "voicing" || phase.value == "crossing" || phase.value == "judging"
       end
       given("the scored proposal exists") { proposals.any? { |p| p.id.value == proposal.value } }
       given("a judge scores a proposal once") do
         scores.none? { |s| s.judge.value == judge.value && s.proposal.value == proposal.value }
-      end
-      given("no more scores than judges times proposals") do
-        scores.size < judge_count.value * proposals.size
       end
 
       sets :scores, append: { judge: :judge, proposal: :proposal, points: :points }
@@ -208,15 +199,13 @@ Hecks.bluebook "Swarm" do
     # Declared as a phase change rather than a policy: a policy can only trigger a command, and
     # moving to building is a fact of this command.
     command "DeclareWinner" do
-      goal "Name the winning proposal once every judge has scored every proposal"
+      goal "Name the winning proposal once scoring has started"
 
       reference_to SwarmRun
       attribute :winner, ProposalId
 
       given("the run is judging") { phase.value == "judging" }
-      given("every judge has scored every proposal") do
-        scores.size == judge_count.value * proposals.size
-      end
+      given("at least one score was cast") { scores.any? }
       given("the winner is a submitted proposal") do
         proposals.any? { |p| p.id.value == winner.value }
       end
