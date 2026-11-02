@@ -132,7 +132,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
 
   describe "the record" do
     let(:recorder) { Hecks::Adapters::GitRehearsal::Record.new(Hecks::Adapters::Git.new, work) }
-    let(:file) { File.join(work, ".git", Hecks::Adapters::GitRehearsal::Record::FILE) }
+    let(:file) { File.join(work, ".git", Hecks::Adapters::GitRehearsal::Record::QUICK) }
 
     def commit_after(name)
       commit(name)
@@ -227,7 +227,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
 
     # A bench a killed rehearsal left registered, and an unrelated worktree.
     def stale_bench_and_other
-      bench = File.join(Dir.mktmpdir("hecks-push-rehearsal"), "bench")
+      bench = File.join(Dir.mktmpdir("hecks-push-rehearsal-quick"), "bench")
       git("worktree", "add", "-q", "--detach", bench, "main")
       git("worktree", "add", "-q", "--detach", File.join(scratch, "other-worktree"), "main")
       bench
