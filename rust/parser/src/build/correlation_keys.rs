@@ -68,7 +68,7 @@ mod tests {
     fn aggregate(name: &str, identified_by: &[&str]) -> ir::Aggregate {
         ir::Aggregate {
             name: name.to_string(),
-            identified_by: identified_by.iter().map(|s| s.to_string()).collect(),
+            identified_by: identified_by.iter().map(ToString::to_string).collect(),
             ..Default::default()
         }
     }

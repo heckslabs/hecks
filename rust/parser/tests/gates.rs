@@ -1125,9 +1125,8 @@ fn a_bare_aggregate_correlates_by_resolves_to_its_identity_and_a_dotted_key_stay
     );
 
     let compact: String = stdout.split_whitespace().collect();
-    for expected in [r#""correlates_by":"Message.id""#] {
-        assert!(compact.contains(expected), "missing {expected}: {stdout}");
-    }
+    let expected = r#""correlates_by":"Message.id""#;
+    assert!(compact.contains(expected), "missing {expected}: {stdout}");
 }
 
 #[test]
