@@ -119,6 +119,33 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
     end
   end
 
+  context "with a world that renames an aggregate's table (`stored_as`)" do
+    # The booting registry's world names the table Acct's rows sit under, as `hecks.world` does for
+    # SendTrain; the boot gates run this check before the wiring check that applies the name.
+    # Acct also declares a where-query, so a re-hold backfills a field cache from its head snapshot.
+    def renamed(source)
+      query = "query(\"ByName\") { where(:\"name.value\" => \"kept\") }\n    value_object(\"Kind\")"
+      queried = source.sub("value_object(\"Kind\")", query)
+      "#{queried}\nHecks.world \"Ledger\" do\n  stored_as Acct: \"account\"\nend\n"
+    end
+
+    def tables = sql("SELECT tablename FROM pg_tables WHERE tablename LIKE 'ledger_ac%'").map { |row| row["tablename"] }
+
+    before do
+      first = load_registry(renamed(shape_v1)).tap(&:apply_world_names!)
+      Hecks::Adapters::PostgresEra::LineageManager.check!(
+        registry: first, bluebook: first.bluebooks.values.first, current_text: shape_v1,
+        settings: { database: url, disposable_ledger: true }
+      )
+    end
+
+    it "re-holds an additive change over the table the rows sit under", :aggregate_failures do
+      expect { boot(renamed(shape_added)) }.not_to raise_error
+      expect(tables).to include("ledger_account_head_snapshot_1")
+      expect(tables).not_to include("ledger_acct_head_snapshot_1")
+    end
+  end
+
   context "with a breaking change" do
     before do
       write!(boot(shape_v1), acct(:name, "old"))
