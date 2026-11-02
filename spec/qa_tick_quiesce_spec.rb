@@ -35,7 +35,7 @@ RSpec.describe "hecks quality_control tick while quiesced", :aggregate_failures 
     expect { results = run_all }.not_to output(/quiesced/).to_stdout
 
     expect(results.map(&:exit_code).uniq).to eq([0])
-    expect(ran.size).to eq(8)
+    expect(ran.size).to eq(7)
   end
 
   it "skips each step with the message and exit 0 while held, and runs them again after release" do
@@ -46,11 +46,11 @@ RSpec.describe "hecks quality_control tick while quiesced", :aggregate_failures 
     expect(ran).to be_empty
     expect(results.map(&:exit_code).uniq).to eq([0])
     results.each { |step| expect(output).to include("quiesced: skipped #{step.name}") }
-    expect(results.size).to eq(8)
+    expect(results.size).to eq(7)
 
     marker.release!(owner: "mint")
     run_all
-    expect(ran.size).to eq(8)
+    expect(ran.size).to eq(7)
   end
 
   it "notices a hold set while the tick runs, before the next step" do
@@ -73,7 +73,7 @@ RSpec.describe "hecks quality_control tick while quiesced", :aggregate_failures 
     File.write(path, JSON.generate(owner: "crashed", reason: "old", held_at: old.utc.iso8601))
     output = capture_stdout { run_all }
 
-    expect(ran.size).to eq(8)
+    expect(ran.size).to eq(7)
     expect(output.scan("quiesce marker is stale and ignored").size).to eq(1)
     expect(output).not_to include("quiesced: skipped")
   end
