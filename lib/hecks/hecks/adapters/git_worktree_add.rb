@@ -1,16 +1,19 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "git_main_pull"
 
 module Hecks
   module Adapters
     # The `WorktreeAdding` port's adapter for `Worktree`: opens a linked worktree on a new branch cut from
-    # `main`, at the path named or under the checkout's `.claude/worktrees`.
+    # `main` (pulled first, see {GitMainPull}), at the path named or under the checkout's
+    # `.claude/worktrees`.
     #
     # It never checks out `main` in a worktree, never pushes, and never forces. A branch that already exists
     # is declined by git, and the reason travels back on the record.
     class GitWorktreeAdd
       include GitWorktrees
+      include GitMainPull
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -32,9 +35,22 @@ module Hecks
         branch = branch_named(held)
         path = plain(held[:path]).to_s.strip
         path = File.join(repo, ".claude", "worktrees", branch) if path.empty?
+        pulled = pull_main
         read("worktree", "add", "-b", branch, path, "main")
         sha = read("rev-parse", "--short", "HEAD", dir: path)
-        { path: { value: path }, sha: { value: sha }, report: { value: "opened #{path} on #{branch}" } }
+        { path: { value: path }, sha: { value: sha }, report: { value: "opened #{path} on #{branch}; #{pulled}" } }
+      end
+
+      # Brings local `main` up to date with `origin/main`: a fast-forward, or a rebase of its
+      # unpushed commits when both moved. Refuses a dirty checkout or a rebase in progress.
+      #
+      # @param held [Hash] the `LinkedTree` record: `checkout` (a directory inside the repository)
+      # @return [Hash{Symbol => Hash}] `sha:` where `main` stands, `report:` what was done
+      # @raise [ConsoleCapture::Failure] `cannot pull main: ...` with the reason
+      def pull(**held)
+        settle(held)
+        said = pull_main
+        { sha: { value: read("rev-parse", "--short", "main") }, report: { value: said } }
       end
 
       private
