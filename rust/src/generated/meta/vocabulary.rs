@@ -4792,7 +4792,7 @@ pub struct GateCheck {
 }
 
 pub const GATE_CHECK: &[GateCheck] = &[
-    GateCheck { name: "rspec", id: "rspec", title: "rspec (parallel)", argv: "", script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed). CI's committed baseline leaves out the io\n# specs this run includes, so it only seeds the first run; each run then rewrites the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\n[ -f \"$log\" ] || cp .github/rspec_runtime_baseline.log \"$log\"\nbundle exec parallel_rspec spec -n {workers} --group-by runtime --runtime-log \"$log\" --allowed-missing 100 \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", blocked: "the suite is red.", runs_in: "ci" },
+    GateCheck { name: "rspec", id: "rspec", title: "rspec (parallel)", argv: "", script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", blocked: "the suite is red.", runs_in: "ci" },
     GateCheck { name: "fuzzing", id: "fuzzing", title: "spec/fuzzing, which the parallel run above excludes", argv: "bundle exec rspec spec/fuzzing --tag fuzzing", script: "", blocked: "spec/fuzzing is red.", runs_in: "" },
     GateCheck { name: "query_agreement", id: "query_agreement", title: "adapter agreement, one declared query and every engine giving the same answer", argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io", script: "", blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which.", runs_in: "" },
     GateCheck { name: "engine_agreement", id: "engine_agreement", title: "engine agreement, every declared comparator on both engines", argv: "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait", script: "", blocked: "a comparator is missing a shared case or a cross-engine spec.", runs_in: "" },
@@ -5906,7 +5906,6 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "rspec_shard_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "shard_specs", passes: "", note: "", form: "" },
     RetiredScript { script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "list_io_parallel_specs", passes: "", note: "", form: "" },
     RetiredScript { script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "write_io_parallel_spec_list", passes: "", note: "", form: "" },
-    RetiredScript { script: "refresh_rspec_runtime_baseline", section: "Codebase", aggregate: "TestSuiteRun", verb: "refresh_runtime_baseline", passes: "", note: "", form: "" },
     RetiredScript { script: "spec_example", section: "Codebase", aggregate: "TestSuiteRun", verb: "run_spec_example", passes: "", note: "", form: "" },
     RetiredScript { script: "stress_concurrency_specs", section: "Codebase", aggregate: "TestSuiteRun", verb: "stress_concurrency", passes: "", note: "", form: "" },
     RetiredScript { script: "regenerate_persistence_legacy_fixtures", section: "Codebase", aggregate: "TestSuiteRun", verb: "regenerate_legacy_fixtures", passes: "", note: "", form: "" },
@@ -6156,7 +6155,6 @@ impl RetiredScript {
                     "rspec_shard_files",
                     "rspec_io_parallel_files",
                     "rspec_io_parallel_files",
-                    "refresh_rspec_runtime_baseline",
                     "spec_example",
                     "stress_concurrency_specs",
                     "regenerate_persistence_legacy_fixtures",

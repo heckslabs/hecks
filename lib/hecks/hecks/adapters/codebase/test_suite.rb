@@ -20,11 +20,11 @@ module Hecks
       # The tooling owns its options, so each ask runs one of the `Hecks::Tools` commands in this
       # process from the checkout's root, except a single example (the `TestRunner` adapter runs it)
       # and the persistence fixtures (the `SqliteFixture` adapter). A listing is a pure read.
-      # Refreshing the committed timings, regenerating the fixtures and writing the committed spec
-      # list change tracked files, so unconfirmed they report what they would do and write nothing.
+      # Regenerating the fixtures and writing the committed spec list change tracked files, so
+      # unconfirmed they report what they would do and write nothing.
       module TestSuite
         # Every operation this family carries out.
-        OPERATIONS = %w[refresh_runtime_baseline run_spec_example run_spec_files run_impacted_specs run_suite run_changed
+        OPERATIONS = %w[run_spec_example run_spec_files run_impacted_specs run_suite run_changed
                         stress_concurrency run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
                         write_io_parallel_spec_list].freeze
 
@@ -37,9 +37,6 @@ module Hecks
 
         # The tag filter the postgres job lists its specs by when none is named.
         DEFAULT_TAGS = "--tag io --tag ~fuzzing"
-
-        # The committed files a baseline refresh writes.
-        BASELINES = %w[.github/rspec_runtime_baseline.log .github/postgres_io_runtime_baseline.log].freeze
 
         module_function
 
@@ -79,7 +76,6 @@ module Hecks
         # @return [String] what the tool printed
         def tooling(operation, args, tree, shell)
           case operation
-          when "refresh_runtime_baseline" then refresh(args, tree)
           when "stress_concurrency" then stress(args, tree)
           when "regenerate_legacy_fixtures" then regenerate_fixtures(args, tree, shell)
           when "seed_semantics_corpus" then seed(args, tree)
@@ -203,18 +199,6 @@ module Hecks
         # @param args [Hash] `tags`, perhaps absent
         # @return [Array<String>] the tag filter, one word each
         def tag_words(args) = (args[:tags] || DEFAULT_TAGS).split
-
-        # @param args [Hash] `workers` and `from_run`
-        # @param tree [Tree] the checkout whose baselines are rewritten
-        # @return [String] what was written, or (unconfirmed) what would be
-        # @raise [ConsoleCapture::Failure] when the refresh ends badly
-        def refresh(args, tree)
-          source = args[:from_run] ? ["--from-run", args[:from_run]] : [*args[:workers]&.to_s]
-          return answer { command("refresh_rspec_runtime_baseline").call(source, root: tree.root) } if args[:confirm] == true
-
-          "dry run, would #{args[:from_run] ? "read CI run #{args[:from_run]}'s timings" : "time a local run"} " \
-            "and rewrite #{BASELINES.join(", ")} (add --confirm)"
-        end
 
         # @param args [Hash] `exclude`, `tags`, `write` and `confirm`
         # @param tree [Tree] the checkout whose spec list is written

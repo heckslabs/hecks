@@ -64,6 +64,9 @@ Hecks.bluebook "CiWorkflows" do
 
       member workflow: "ci-rspec.yml", name: "ci_attestation_rspec", runner: "ubuntu-latest", timeout_minutes: 10,
              note: "Separate job because a job-level `if:` cannot read a step output from its own job.\nLets `rspec_shard` skip wholesale when a local run attested this tree.\nSafe to skip on push: `rspec_shard` never reads this result on that trigger."
+      member workflow: "ci-rspec.yml", name: "shard_plan", runner: "ubuntu-latest", timeout_minutes: 10,
+             condition: "always() && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')",
+             note: "Splits the spec files among the shards once, so every leg reads the same plan. It runs the\nCiSpeed bluebook's ShardPlan: the seconds the newest successful run on main recorded for each file\nbalance the legs, and file size does when that run cannot be read. The events of the plan, and the\npolicy that reacted to each, are in the job summary and the shard-plan-trace-rspec artifact."
       member workflow: "ci-rspec.yml", name: "rspec_shard", runner: "ubuntu-latest", timeout_minutes: 20,
              condition: "always() && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')",
              shard_total: 8, shard_axis: "group",
@@ -75,7 +78,9 @@ Hecks.bluebook "CiWorkflows" do
       attribute :job,      String
       attribute :needs,    String
 
+      member workflow: "ci-rspec.yml", job: "shard_plan", needs: "ci_attestation_rspec"
       member workflow: "ci-rspec.yml", job: "rspec_shard", needs: "ci_attestation_rspec"
+      member workflow: "ci-rspec.yml", job: "rspec_shard", needs: "shard_plan"
     end
 
     value_object "Output" do
@@ -93,6 +98,9 @@ Hecks.bluebook "CiWorkflows" do
       attribute :job,      String
       attribute :key,      String
       attribute :value,    String
+
+      member workflow: "ci-rspec.yml", job: "shard_plan", key: "GH_TOKEN", value: "${{ github.token }}"
+      member workflow: "ci-rspec.yml", job: "rspec_shard", key: "GH_TOKEN", value: "${{ github.token }}"
     end
 
     value_object "Step" do
@@ -110,6 +118,25 @@ Hecks.bluebook "CiWorkflows" do
       member workflow: "ci-rspec.yml", job: "ci_attestation_rspec", name: "attest", id: "attest",
              uses: "./.github/actions/check-attestation"
 
+      member workflow: "ci-rspec.yml", job: "shard_plan", name: "checkout", uses: "actions/checkout@v4"
+      member workflow: "ci-rspec.yml", job: "shard_plan", name: "ruby", uses: "./.github/actions/setup-ruby",
+             note: "The plan boots the CiSpeed bluebook and splits spec files; it builds no Rust."
+      member workflow: "ci-rspec.yml", job: "shard_plan", name: "environment",
+             uses: "./.github/actions/hecks-environment"
+      member workflow: "ci-rspec.yml", job: "shard_plan", name: "plan",
+             title: "Plan the shards: ShardPlan.Request, from the last main run's timings or file size",
+             run: "mkdir -p tmp/shard-plan-trace\ncat > tmp/shard-plan-steps.json <<'JSON'\n{\"steps\":[{\"verb\":\"CiSpeed::ShardPlan.Request\",\"args\":{\"name\":{\"value\":\"rspec\"},\"shards\":{\"value\":8},\"items_from\":{\"value\":\"glob:spec/**/*_spec.rb\"},\"timings_from\":{\"value\":\"main\"},\"out_dir\":{\"value\":\"tmp/plan\"}}}]}\nJSON\nbundle exec exe/hecks Operation.run! subject.value=lib/hecks/ci_speed script.value=tmp/shard-plan-steps.json --wait \\\n  > tmp/shard-plan-trace/run.json \\\n  || echo \"::warning::the shard plan failed; every leg splits by file size\"\n",
+             note: "`shards` is the rspec_shard matrix's group count. A plan that cannot be made leaves tmp/plan empty and\neach leg then splits by file size on its own, so a missing plan never fails the run."
+      member workflow: "ci-rspec.yml", job: "shard_plan", name: "trace",
+             title: "Publish the plan's events and the policies that reacted",
+             condition: "always()",
+             run: "jq -r -f .github/shard-plan-trace.jq tmp/shard-plan-trace/run.json \\\n  | tee tmp/shard-plan-trace/trace.md >> \"$GITHUB_STEP_SUMMARY\" \\\n  || echo \"::warning::no shard plan trace to publish\"\n"
+      member workflow: "ci-rspec.yml", job: "shard_plan", name: "upload_plan",
+             title: "Upload the plan every leg reads",
+             condition: "always()", uses: "actions/upload-artifact@v4"
+      member workflow: "ci-rspec.yml", job: "shard_plan", name: "upload_trace",
+             title: "Upload the plan's event trace",
+             condition: "always()", uses: "actions/upload-artifact@v4"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "checkout", uses: "actions/checkout@v4"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "ruby", uses: "./.github/actions/setup-ruby"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "zsh",
@@ -121,18 +148,22 @@ Hecks.bluebook "CiWorkflows" do
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "generated_rust",
              uses: "./.github/actions/generated-rust",
              note: "rust/src/generated is committed, so the whole tree is in the checkout and this step only checks it.\nA shard reads only the domains named below (rust_build_kernel_input_spec); the input names them and\nchanges nothing. Specs that read the whole tree are tagged `generated_all` and run in the drift job,\nwhich regenerates every domain."
+      member workflow: "ci-rspec.yml", job: "rspec_shard", name: "download_plan",
+             title: "Read the plan",
+             run: "mkdir -p tmp/plan\ngh run download ${{ github.run_id }} --name shard-plan-rspec --dir tmp/plan \\\n  || echo \"::warning::no shard plan to read; this leg splits by file size\"\n",
+             note: "Every leg reads the one plan the shard_plan job made, so the legs agree on the partition.\nA plan that cannot be read is no reason to fail: the leg splits by file size on its own."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "file_list",
              title: "Determine this shard's own file list",
-             run: "mkdir -p tmp\nbundle exec exe/hecks test_suite_run.shard_specs group=${{ matrix.group }} groups=%{shard_total} runtime_log=.github/rspec_runtime_baseline.log \\\n  > tmp/rspec_shard_files.txt\n",
-             note: "`io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io.\nEvery shard must compute its file list from identical inputs or the lists stop\npartitioning the suite, so grouping reads only the committed baseline, never a cache."
+             run: "if [ -s \"tmp/plan/group-${{ matrix.group }}.txt\" ]; then\n  cp \"tmp/plan/group-${{ matrix.group }}.txt\" tmp/rspec_shard_files.txt\nelse\n  bundle exec exe/hecks test_suite_run.shard_specs group=${{ matrix.group }} groups=%{shard_total} \\\n    > tmp/rspec_shard_files.txt\nfi\n",
+             note: "`io: true` specs run elsewhere: rspec_rust_io (cargo/wasm) and rspec_postgres_io."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "parallel",
              title: "rspec: parallel (this shard's own file list only)",
-             run: "FILES=()\nwhile IFS= read -r line; do FILES+=(\"$line\"); done < tmp/rspec_shard_files.txt\nbundle exec parallel_rspec \"${FILES[@]}\" \\\n  --group-by runtime --runtime-log .github/rspec_runtime_baseline.log --allowed-missing 100 \\\n  -o \"--tag ~io --tag ~fuzzing --tag ~generated_all --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log\"\n",
-             note: "--group-by runtime: without it parallel_rspec splits by file size and one worker can\ndraw the slowest files. --allowed-missing: spec files newer than the baseline get the\naverage cost instead of failing."
+             run: "if [ -s tmp/plan/runtimes.log ]; then\n  GROUPING=(--group-by runtime --runtime-log tmp/plan/runtimes.log --allowed-missing 100)\nelse\n  GROUPING=(--group-by filesize)\nfi\nFILES=()\nwhile IFS= read -r line; do FILES+=(\"$line\"); done < tmp/rspec_shard_files.txt\nbundle exec parallel_rspec \"${FILES[@]}\" \"${GROUPING[@]}\" \\\n  -o \"--tag ~io --tag ~fuzzing --tag ~generated_all --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log\"\n",
+             note: "Grouping by runtime keeps one worker from drawing the slowest files; the plan's runtimes.log\nprices every file, so none is missing. Without a plan the workers group by file size."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "upload_log",
-             title: "Upload this shard's runtime log (for hecks TestSuiteRun.refresh_runtime_baseline! from_run=)",
+             title: "Upload this shard's runtime log (the next run's plan reads it)",
              condition: "always()", uses: "actions/upload-artifact@v4",
-             note: "Artifact only, never restored: `hecks TestSuiteRun.refresh_runtime_baseline! from_run= <run-id>`\nrebuilds the committed baseline from CI timings."
+             note: "Artifact only, never restored by this run: the shard_plan job of the next run downloads\nthe artifacts of the newest successful run on main and balances the legs by these seconds."
     end
 
     value_object "StepInput" do
@@ -145,6 +176,19 @@ Hecks.bluebook "CiWorkflows" do
       member workflow: "ci-rspec.yml", job: "ci_attestation_rspec", step: "attest", key: "checks", value: "rspec"
       member workflow: "ci-rspec.yml", job: "ci_attestation_rspec", step: "attest", key: "hmac-key",
              value: "${{ secrets.HECKS_CI_ATTEST_KEY }}"
+
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_plan", key: "name", value: "shard-plan-rspec"
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_plan", key: "path", value: "tmp/plan"
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_plan", key: "retention-days", value: "14"
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_plan", key: "if-no-files-found",
+             value: "ignore"
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_trace", key: "name",
+             value: "shard-plan-trace-rspec"
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_trace", key: "path",
+             value: "tmp/shard-plan-trace"
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_trace", key: "retention-days", value: "14"
+      member workflow: "ci-rspec.yml", job: "shard_plan", step: "upload_trace", key: "if-no-files-found",
+             value: "ignore"
 
       member workflow: "ci-rspec.yml", job: "rspec_shard", step: "environment", key: "database",
              value: "${{ secrets.HECKS_JOURNAL_DATABASE }}"

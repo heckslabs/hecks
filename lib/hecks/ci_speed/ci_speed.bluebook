@@ -981,6 +981,99 @@ Hecks.bluebook "CiSpeed" do
     end
   end
 
+  # How one family of sharded CI jobs (the rspec shards, the postgres io shards) splits its files
+  # among its legs. A plan job asks for the split once; every leg reads that plan, so all legs
+  # agree. The split is balanced by the seconds the newest successful main run recorded for each
+  # file, and by file size when no such run can be read. The chain, never deeper than three:
+  #
+  #   ShardPlanRequested -> TimingsFetched     -> ShardPlanned (source timings)
+  #   ShardPlanRequested -> TimingsUnavailable -> ShardPlanned (source size)
+  #
+  # The `TimingsSource` port finds the previous run's timings and the `Planner` port splits; the
+  # bluebook says neither how. Run the plan job's command line as
+  #
+  #   exe/hecks run lib/hecks/ci_speed '{"steps":[{"verb":"CiSpeed::ShardPlan.Request","args":{
+  #     "name":{"value":"rspec"},"shards":{"value":8},"items_from":{"value":"glob:spec/**/*_spec.rb"},
+  #     "timings_from":{"value":"main"},"out_dir":{"value":"tmp/shard-plan"}}}]}'
+  aggregate "ShardPlan" do
+    description "One family's split of its files among its shard legs, and where the timings behind it came from."
+
+    identified_by :name
+
+    attribute :name,         PlanName
+    attribute :shards,       ShardCount,  optional: true
+    # `glob:<pattern>` splits the files a pattern finds, `list:<path>` the lines of a file.
+    attribute :items_from,   ItemsFrom,   optional: true
+    # A directory of timing logs, or `main` for the newest successful CI run on main.
+    attribute :timings_from, TimingsFrom, optional: true
+    # Where the plan is written: `group-<n>.txt` per leg, `runtimes.log` and `plan.json`.
+    attribute :out_dir,      OutDir,      optional: true
+    # The log one leg timed its own files into, kept as an artifact for the next plan.
+    attribute :recorded_log, OutDir,      optional: true
+
+    # The family: `rspec`, `postgres_io`.
+    value_object "PlanName" do
+      attribute :value, String, pattern: '^[a-z][a-z0-9_]*$'
+    end
+
+    value_object "ShardCount" do
+      attribute :value, Integer, default: 1
+      invariant("a family has at least one shard") { value >= 1 }
+    end
+
+    value_object "ItemsFrom" do
+      attribute :value, String, pattern: '^(glob|list):[^ \t\n]+$'
+    end
+
+    value_object "TimingsFrom" do
+      attribute :value, String, pattern: '^[^ \t\n]+$'
+    end
+
+    value_object "OutDir" do
+      attribute :value, String, pattern: '^[^ \t\n]+$'
+    end
+
+    # Where a plan's prices came from: the recorded seconds, or file size.
+    value_object "PlanSource" do
+      attribute :value, String, pattern: '^(timings|size)$'
+    end
+
+    # Lines of `path:seconds`, as the shards' runtime loggers write them.
+    value_object "Timings" do
+      attribute :value, String, default: ""
+    end
+
+    command "Request" do
+      goal "Ask for a family's files to be split among its shards, from the last run's timings when they can be read"
+
+      attribute :name,         PlanName
+      attribute :shards,       ShardCount
+      attribute :items_from,   ItemsFrom
+      attribute :timings_from, TimingsFrom
+      attribute :out_dir,      OutDir
+
+      sets :name
+      sets :shards
+      sets :items_from
+      sets :timings_from
+      sets :out_dir
+
+      emits "ShardPlanRequested"
+    end
+
+    command "RecordTimings" do
+      goal "Say which log one shard leg timed its own files into, so the next plan can read it"
+
+      attribute :name,         PlanName
+      attribute :recorded_log, OutDir
+
+      sets :name
+      sets :recorded_log
+
+      emits "TimingsRecorded"
+    end
+  end
+
   # An experiment runs as soon as it is asked for: the port runs it and answers with the numbers.
   policy "MeasureWhenRequested" do
     on      "Experiment.ExperimentRequested"
@@ -1069,5 +1162,23 @@ Hecks.bluebook "CiSpeed" do
   policy "CompleteOnMissWitness" do
     on      "Budget.MissRunWitnessed"
     trigger Budget::Complete, with: { budget: :name }
+  end
+
+  # A plan is asked for, and the first thing to do is look for the previous run's timings.
+  policy "FetchTimingsWhenPlanRequested" do
+    on      "ShardPlan.ShardPlanRequested"
+    ask     :fetch, with: { name: :name }
+  end
+
+  policy "PlanFromFetchedTimings" do
+    on      "ShardPlan.TimingsFetched"
+    ask     :partition, with: { name: :name, source: { value: "timings" }, timings: :timings }
+  end
+
+  # The fallback: timings that cannot be read are no reason to fail the run, so the files are
+  # split by size instead.
+  policy "PlanBySizeWhenTimingsUnavailable" do
+    on      "ShardPlan.TimingsUnavailable"
+    ask     :partition, with: { name: :name, source: { value: "size" }, timings: { value: "" } }
   end
 end

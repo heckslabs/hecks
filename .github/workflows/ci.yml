@@ -126,6 +126,11 @@ jobs:
   rspec_impl:
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rspec.yml
+    # The calling job's permissions cap the reusable workflow's; `actions: read` is for the plan
+    # job to read the newest successful main run's timing artifacts.
+    permissions:
+      contents: read
+      actions: read
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
       HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
@@ -274,6 +279,10 @@ jobs:
   rspec_postgres_io_parallel_impl:
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
+    # See rspec_impl: `actions: read` is for the plan job's timings.
+    permissions:
+      contents: read
+      actions: read
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
       HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}

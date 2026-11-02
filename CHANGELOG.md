@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Changed
+
+- **The rspec and Postgres io shards are balanced from the last successful `main` run's timings, with no committed baseline.** A `shard_plan` job runs the CiSpeed `ShardPlan` aggregate (`Request`, `RecordTimings`; events `ShardPlanRequested`, `TimingsFetched`, `TimingsUnavailable`, `ShardPlanned`, `TimingsRecorded`), splits the files once with the shared `Hecks::Tools::ShardPlanner` and every leg reads that plan; timings that cannot be read fall back to file size through a policy and never fail the run. Removed: `runtime-baseline-refresh.yml`, `test_suite_run.refresh_runtime_baseline!` (the `RefreshRuntimeBaseline` command and its `refresh_rspec_runtime_baseline` tool) and the committed `.github/rspec_runtime_baseline.log` and `.github/postgres_io_runtime_baseline.log`. The fuzz shards keep `spec/fuzzing/fuzz_runtime_baseline.log` and now deal with the same planner.
+
 ## [7.0.0] - 2026-11-02
 
 ### Breaking

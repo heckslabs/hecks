@@ -47,7 +47,6 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "rspec_shard_files", verbs: %w[shard_specs]),
     AdrRow.new(script: "rspec_io_parallel_files", verbs: %w[list_io_parallel_specs write_io_parallel_spec_list],
                note: "the table's write= is its own confirmed command, since a query never writes"),
-    AdrRow.new(script: "refresh_rspec_runtime_baseline", verbs: %w[refresh_runtime_baseline]),
     AdrRow.new(script: "spec_example", verbs: %w[run_spec_example]),
     AdrRow.new(script: "run_suite", verbs: %w[run_suite],
                note: "added beyond ADR 0080's table: runs a folder's whole spec directory, so any project's suite " \

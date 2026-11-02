@@ -102,7 +102,6 @@ RSpec.describe "the Codebase rows of the ADR command table" do
      { args:    %w[exclude=x write=list.txt],
        renamed: "the table folds write= into the listing query; a query never writes, so writing the " \
                 "committed list is its own confirmed command" }],
-    ["refresh_rspec_runtime_baseline", "TestSuiteRun", "RefreshRuntimeBaseline", "refresh_runtime_baseline"],
     ["spec_example", "TestSuiteRun", "RunSpecExample", "run_spec_example",
      { args: %w[file=spec/a_spec.rb example=hello] }],
     ["stress_concurrency_specs", "TestSuiteRun", "StressConcurrency", "stress_concurrency"],

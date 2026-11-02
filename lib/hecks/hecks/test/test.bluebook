@@ -107,20 +107,6 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, pattern: '^(host|parser|json)$'
       end
 
-      command "RefreshRuntimeBaseline" do
-        role "Maintainer"
-        goal "Regenerate the committed runtime baselines the sharded jobs group from"
-
-        attribute :workers,  Count, default: 6, sets: true
-        attribute :from_run, RunId, optional: true, sets: true
-        attribute :run,      RunKey, sets: true
-        attribute :confirm,  Switch, optional: true, sets: true
-
-        sets :operation, to: "refresh_runtime_baseline"
-
-        emits RefreshRuntimeBaselineRequested
-      end
-
       command "RunSpecExample" do
         role "Maintainer"
         goal "Run one spec file filtered to one example, through the test runner in this process"
@@ -332,11 +318,6 @@ Hecks.bluebook "Hecks" do
         description "The expected match results of the pattern cases, as JSON."
         returns Document
       end
-    end
-
-    policy "ExamineWhenRefreshRuntimeBaselineRequested" do
-      on      "TestSuiteRun.RefreshRuntimeBaselineRequested"
-      ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenRunSpecExampleRequested" do
