@@ -5,7 +5,9 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased] - planned 7.0.0
+## [Unreleased]
+
+## [7.0.0] - 2026-11-02
 
 ### Breaking
 
@@ -26,12 +28,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 - **The push train runs in Memory and mints nothing.** `MintBeforeCarry`, `ClearWhenMinted`, `CarryWhenCleared`, `RecordTheRefusedMint`, the `SendTrain` `Clear` command and its `BoardingCleared` event are retired, and so are the train's database and its use of `hecks_train` and `hecks_records`. A domain whose store holds no eras needs no mint, and the report says `Memory holds no eras, no mint needed`. The line is a lock in the repository's git directory, and a commit the remote already holds is answered `carried`. A client that read the train's database reads git instead.
 - **`Work.plan!` takes an optional `area` and its `detail` defaults to empty.** A started row whose `area` overlaps another started row's goes back to the plan, naming the row and the path. `landing.land!` refuses a branch that changes files another started row holds, and a landing takes its place in the landing line.
 - **An ask's programming error is raised, not refused.** An adapter that raises `NameError`, `NoMethodError`, `TypeError`, `FrozenError` or a `ScriptError` used to be announced as the ask's refuses event, so a defect read as a domain refusal. Those now raise, and a policy's ask records them as a warned defect. `ArgumentError` still refuses, and a refusal with no message names its error class.
+- **A boot over a store whose held shape differs from the current one refuses unless a recorded translation covers it.** It reads `cannot boot <Domain>: no translation edge covers it …` with both labels and the remedy, where it used to boot as unminted and could read records under a shape they were not written in. Before a breaking shape change, write the edge (`era.scaffold_translation`) and mint it with the release mint, then deploy; an edge or a provably additive move covers a boot.
+- **`hecks deploy provision` holds era 1 in a new tenant schema before it boots, and a boot of an empty schema no longer holds one implicitly (ADR 0168).** The eras of an existing schema are never touched.
+- **Deleted: `Work.overdue`, the `full` rehearsal scope, the red-main watch, the Era proof workflow and gate, `GithubCiWebhook`, and the `Watch` lanes' issue filing.** Nothing read them; GitHub's CI status and the failed run's email carry the signal. A script that names one drops it, and the quick scope is the push gate.
 
 
 ### Added
 
 - `hecks tour` writes a sample domain, runs one command against it and prints the result.
-- `hecks search <word>` finds commands and queries by name or description.
+- `hecks search <pattern>` prints the lines of the checkout's text files that match a pattern, as `path:line: text`.
 - `hecks completion bash|zsh|fish` prints a completion script generated from the listing.
 - `hecks doctor` checks the environment, and `Workspace.where` shows each bluebook's store and the reason for it.
 - `--json` on the listing, `--plan` on every bang command (it lists what the command would write and changes nothing), and `-q` and `-v` for the output level.
