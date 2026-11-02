@@ -54,12 +54,17 @@ RSpec.describe "unminted and superseded boots in PostgresEra", :io do
     Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)[0, 6]
   end
 
-  def edge_v1_to_v2
+  def edge_v1_to_v2 = edge(shape_v2, :amount)
+
+  # The edge a breaking move needs to boot at all: a boot over one no edge covers refuses.
+  def edge_v1_to_v3 = edge(shape_v3, :total)
+
+  def edge(target, renamed)
     <<~RUBY
       Hecks.data_translation("Ledger", from: #{label_of(shape_v1).inspect},
-                             to: #{label_of(shape_v2).inspect}) do
+                             to: #{label_of(target).inspect}) do
         aggregate("Acct") do
-          rename :cost, to: :amount
+          rename :cost, to: #{renamed.inspect}
         end
       end
     RUBY
@@ -108,7 +113,7 @@ RSpec.describe "unminted and superseded boots in PostgresEra", :io do
   end
 
   context "with a shape no era holds, booted without a mint request" do
-    let(:unminted) { registry_for(shape_v3) }
+    let(:unminted) { registry_for(shape_v3, translation_source: edge_v1_to_v3) }
 
     it "reads the latest held era" do
       expect { adapter_for(unminted, era: 1, unminted: true).entries }.not_to raise_error
