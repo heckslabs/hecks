@@ -19,7 +19,8 @@ module Hecks
         def to_h
           policy_edges
           adapter_edges
-          { nodes: @nodes.values, edges: @edges.uniq }
+          details = Details.new(@registry)
+          { nodes: @nodes.values.map { |node| details.enrich(node) }, edges: @edges.uniq }
         end
 
         private
