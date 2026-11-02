@@ -54,7 +54,8 @@ module Hecks
 
       # Whether the hand-typed Reconstruction method reads `field`. Answers nil, not false, for a
       # construct without one: nil means "not applicable", false means "applicable, and it fails",
-      # and the touchpoint reports each differently. Named without `?` because it is not a predicate.
+      # and the touchpoint reports each differently. Named without `?` because it is not a
+      # predicate.
       def reconstruction_reads(name, field)
         method_name = RECONSTRUCTION_METHODS[name]
         return nil unless method_name

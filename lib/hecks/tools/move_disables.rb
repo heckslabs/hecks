@@ -121,7 +121,8 @@ module Hecks
       # Removes the directives from one file's lines.
       #
       # @param lines [Array<String>] the file's lines, without their newlines
-      # @return [Array(Array<String>, String)] the cops the directives named, and the file's new text
+      # @return [Array(Array<String>, String)] the cops the directives named, and the file's new
+      #   text
       def strip(lines)
         touched = []
         out = lines.filter_map { |line| keep_line(line, touched) }
@@ -190,7 +191,8 @@ module Hecks
 
       # @param cop [String] a cop name
       # @param paths [Array<String>] the `Exclude` entries
-      # @return [String] the cop's header, its reason, and its `Exclude`, to replace an existing header
+      # @return [String] the cop's header, its reason, and its `Exclude`, to replace an existing
+      #   header
       def merged_block(cop, paths) = ["#{cop}:", "  # #{REASONS.fetch(cop)}", "  Exclude:", *paths].join("\n")
 
       # @param cop [String] a cop name

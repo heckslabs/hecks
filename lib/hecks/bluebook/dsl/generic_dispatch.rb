@@ -10,7 +10,8 @@ module Hecks
 
         COERCE_BY_KIND = { "text" => :to_s, "symbol" => :to_sym }.freeze
 
-        # The arguments of one word call: its positional arguments, its keyword arguments, and its block.
+        # The arguments of one word call: its positional arguments, its keyword arguments, and its
+        # block.
         Invocation = Struct.new(:args, :kwargs, :block)
 
         # Not derivable from `fills:` (these rows all carry `fills: ""`) — the append target

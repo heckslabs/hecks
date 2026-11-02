@@ -7,7 +7,8 @@ require "tmpdir"
 module Hecks
   module QualityControlCli
     class QaMainGate
-      # A temporary git worktree, made for one block and removed when it returns, so a gate or a fix never
+      # A temporary git worktree, made for one block and removed when it returns, so a gate or a fix
+      # never
       # runs in the owner's checkout.
       module Worktree
         # Raised when a git command the worktree needs fails.
@@ -17,7 +18,7 @@ module Hecks
 
         # @param root [String] the repository the worktree belongs to
         # @param ref [String] the commit the worktree starts at
-        # @param branch [String, nil] a new branch checked out in it; nil leaves HEAD detached
+        # @param branch [String, nil] a new branch checked out in it; nil leaves head detached
         # @yieldparam dir [String] the worktree's directory
         # @return [Object] whatever the block returns
         def with(root:, ref:, branch: nil)

@@ -99,7 +99,8 @@ module Hecks
         [argv.first(split), argv.drop(split + 1).reject { |arg| arg == "--against" }]
       end
 
-      # `hecks build.project_rust!` reads exactly `<name>/bluebook/<name>.bluebook`, so refuse anything
+      # `hecks build.project_rust!` reads exactly `<name>/bluebook/<name>.bluebook`, so refuse
+      # anything
       # else early.
       def refuse_unless_stress_domain_shaped!(path)
         expected = File.join(path, "bluebook", "#{File.basename(path)}.bluebook")

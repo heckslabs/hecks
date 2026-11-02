@@ -36,7 +36,8 @@ module Hecks
           end
         end
 
-        # @return [Array<Bluebook::Aggregate>] the aggregates with no commands that do not acknowledge it
+        # @return [Array<Bluebook::Aggregate>] the aggregates with no commands that do not
+        #   acknowledge it
         def unacknowledged_commandless(bluebook)
           commandless = bluebook.aggregates.select { |aggregate| aggregate.commands.empty? }
           commandless.reject { |aggregate| Acknowledgements.held?(aggregate, :no_command_surface) }

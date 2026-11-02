@@ -157,7 +157,8 @@ module Hecks
         Hecks.boot(File.join(Parse::ROOT, "lib/hecks/hecks"), install_driving: false, environment: "memory")
       end
 
-      # A safe-listed command writes through the runner only with its bang; the list names bare commands.
+      # A safe-listed command writes through the runner only with its bang; the list names bare
+      # commands.
       def writing(argv)
         return argv unless argv.first && SAFE_COMMANDS.include?(argv.first)
 

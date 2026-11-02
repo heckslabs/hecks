@@ -16,7 +16,8 @@ module Hecks
     # A workflow with no row is hand-written and left alone. With `--check` nothing is written: the
     # tool answers 1 and names each file that differs from its rows.
     module CiWorkflows
-      # The directory of the bluebook that declares the rows, which attaches the CiPipeline bluebook.
+      # The directory of the bluebook that declares the rows, which attaches the CiPipeline
+      # bluebook.
       BLUEBOOK_DIRECTORY = File.expand_path("../ci_workflows", __dir__)
 
       # The directory `ports/` and `adapters/` live under, loaded before the rows are.

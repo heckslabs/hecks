@@ -82,7 +82,8 @@ module Hecks
             layered_chain_sql(aggregate, era, edges) || walked_sql(aggregate, era, edges, direct)
           end
 
-          # The whole chain from the journal: one composed step when `direct` and the chain composes,
+          # The whole chain from the journal: one composed step when `direct` and the chain
+          # composes,
           # otherwise one link per era.
           def walked_sql(aggregate, era, edges, direct)
             (direct && direct_chain_sql(aggregate, era, edges)) || chain_sql(aggregate, era, edges)

@@ -20,7 +20,8 @@ module Hecks
         # The JSON object a command prints after any log lines.
         JSON_OBJECT = /\{.*\}/m
 
-        # @param repo [String] the checkout whose `exe/hecks` runs the commands and where sessions work
+        # @param repo [String] the checkout whose `exe/hecks` runs the commands and where sessions
+        #   work
         # @param runner [#call, nil] runs an argument list in `repo` and answers a {Shell::Result}
         def initialize(repo, runner: nil)
           @repo = repo

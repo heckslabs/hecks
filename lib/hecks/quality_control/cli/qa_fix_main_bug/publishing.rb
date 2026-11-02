@@ -3,9 +3,12 @@
 module Hecks
   module QualityControlCli
     class QaFixMainBug
-      # What happens after a fix is committed: the ledger records the investigation and the fix, the branch
-      # lands on local main, the ledger records the verification, and main is pushed through the push train.
-      # The push runs only after the quick gate is green on main's head, and origin's main is fetched right
+      # What happens after a fix is committed: the ledger records the investigation and the fix, the
+      # branch
+      # lands on local main, the ledger records the verification, and main is pushed through the
+      # push train.
+      # The push runs only after the quick gate is green on main's head, and origin's main is
+      # fetched right
       # before it.
       module Publishing
         private
@@ -62,7 +65,8 @@ module Hecks
           unpushed("the push train refused main: #{output.strip}")
         end
 
-        # Fetches origin's main right before the push. @return [String, nil] why main cannot be pushed as it is
+        # Fetches origin's main right before the push. @return [String, nil] why main cannot be
+        # pushed as it is
         def behind_origin
           QaMainGate::Worktree.git!(@root, "fetch", "origin", "main")
           return nil if QaMainGate::Worktree.git?(@root, "merge-base", "--is-ancestor", "origin/main", "main")

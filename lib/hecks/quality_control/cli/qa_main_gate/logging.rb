@@ -3,17 +3,21 @@
 module Hecks
   module QualityControlCli
     class QaMainGate
-      # Turns one red check into one QA bug, proven by the check's own output, and triages it. A check the
+      # Turns one red check into one QA bug, proven by the check's own output, and triages it. A
+      # check the
       # command can fix mechanically is `self_contained`; every other is `bigger`, for the owner.
       module Logging
-        # Checks with a mechanical fixer. `rubocop -a` fixes style offenses it can fix; metrics and the
+        # Checks with a mechanical fixer. `rubocop -a` fixes style offenses it can fix; metrics and
+        # the
         # rest need a person.
         SELF_CONTAINED = %w[rubocop].freeze
         SUBMITTER = "qa_main_gate"
         NAME_PREFIX = "main-red-"
 
-        # A bug already open for the same check is not logged again: the commit moved, the red did not.
-        # @return [Array(String, String, Boolean)] the reference, its disposition, and whether it was new
+        # A bug already open for the same check is not logged again: the commit moved, the red did
+        # not.
+        # @return [Array(String, String, Boolean)] the reference, its disposition, and whether it
+        #   was new
         def log_red(sweep, result, sha)
           open = open_bug_named(bug_name(result.id))
           return [open, disposition(result.id), false] if open

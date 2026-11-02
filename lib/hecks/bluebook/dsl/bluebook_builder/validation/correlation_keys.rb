@@ -47,7 +47,8 @@ module Hecks
               bluebook.aggregates.find { |candidate| candidate.name.to_s == Naming.demodulise(key) }
             end
 
-            # The one field an aggregate is correlated by: its identity, or `id` when it declares none.
+            # The one field an aggregate is correlated by: its identity, or `id` when it declares
+            # none.
             # A value-object identity drops its trailing `.value`, so `Thing` reads as `Thing.id`.
             def identity_path(process_manager, aggregate)
               paths = aggregate.identity_paths.map(&:to_s)

@@ -156,7 +156,8 @@ module Hecks
           with_progress(token) { tool_result(answer_tool(params["name"], params["arguments"] || {})) }
         end
 
-        # Runs the block with a progress seam for this call's stages, so their lines reach the client as
+        # Runs the block with a progress seam for this call's stages, so their lines reach the
+        # client as
         # notifications. The seam is per thread and removed when the call ends.
         # @param token [Object] the client's progress token
         # @return [Object] the block's value

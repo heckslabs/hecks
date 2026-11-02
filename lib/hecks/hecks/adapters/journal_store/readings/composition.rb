@@ -11,7 +11,8 @@ module Hecks
           # it would remove.
           #
           # @param domain [Hash, String] the domain directory
-          # @return [Hash] `text:` the edge file's text, or the sentence that says nothing is to be written
+          # @return [Hash] `text:` the edge file's text, or the sentence that says nothing is to be
+          #   written
           # @raise [Runtime::NotFound] if the domain holds no eras, cannot be loaded, or its chain
           #   cannot be composed
           def compose_translation(domain:)

@@ -3,8 +3,10 @@
 module Hecks
   module Adapters
     class Dispatching
-      # The words a session is started with, laid out from a composed brief. Every sentence in it is the
-      # Coder bluebook's; this only orders the sections, fills in the row's key and lists the areas the
+      # The words a session is started with, laid out from a composed brief. Every sentence in it is
+      # the
+      # Coder bluebook's; this only orders the sections, fills in the row's key and lists the areas
+      # the
       # caller knows.
       class BriefText
         # The sections of a brief after the outcome, in the order they are read.

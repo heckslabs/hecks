@@ -5,15 +5,18 @@ module Hecks
         # Groups a bluebook's aggregates in the modules it declares (ADR 0163). `domain_module
         # "Deliver" do … end` opens a block whose `aggregate` words are recorded under the module;
         # the module changes no aggregate, it names the task each one belongs to. Policies, read
-        # models and process managers inside the block are the bluebook's own, as they are outside it.
+        # models and process managers inside the block are the bluebook's own, as they are outside
+        # it.
         module Modules
           # Opens the module `name` and evaluates its body; a module of that name that an earlier
           # file opened gains the aggregates this body declares.
           #
           # @param name [String] the module's own name, such as `"Deliver"`
-          # @yield the module body: its vision, aggregates, policies, read models and process managers
+          # @yield the module body: its vision, aggregates, policies, read models and process
+          #   managers
           # @return [Array<Bluebook::Declaration::ModuleRow>] every membership declared so far
-          # @raise [Bluebook::DSL::Malformed] if a module opens inside another, or holds no aggregate
+          # @raise [Bluebook::DSL::Malformed] if a module opens inside another, or holds no
+          #   aggregate
           def domain_module(name, &)
             refuse_nested_module!(name)
             @open_module = name.to_s

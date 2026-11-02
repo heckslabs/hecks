@@ -6,7 +6,8 @@ module Hecks
         # is noted once on standard error, and its argument names translate before the command reads
         # them. Extended into `CliRunner`.
         module RenamedNames
-          # Notes a renamed spelling once, and returns the line's argv with its arguments translated.
+          # Notes a renamed spelling once, and returns the line's argv with its arguments
+          # translated.
           #
           # @param cli [Hash] the projection, holding `:names` with its `:renamed` table
           # @param typed [String] the word typed, without its `!`

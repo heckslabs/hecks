@@ -11,13 +11,18 @@ require_relative "qa_fix_main_bug/publishing"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control bug.fix_and_land --bug BUG#n`: takes one self-contained red-main
-    # bug through a fix on a fresh branch off main, the quick gate on that exact commit, a landing on local main,
-    # and a push through the push train. A bug triaged bigger, or one whose fixer changes nothing or leaves a
-    # check red, stops before anything lands and stays open for the owner. Nothing is landed unless the gate is
+    # The command behind `hecks quality_control bug.fix_and_land --bug BUG#n`: takes one
+    # self-contained red-main
+    # bug through a fix on a fresh branch off main, the quick gate on that exact commit, a landing
+    # on local main,
+    # and a push through the push train. A bug triaged bigger, or one whose fixer changes nothing or
+    # leaves a
+    # check red, stops before anything lands and stays open for the owner. Nothing is landed unless
+    # the gate is
     # green on the commit, and nothing is pushed unless the gate is green on main's head.
     #
-    # Exit 0 when the fix is landed (pushed, or the push's refusal is printed), 1 when refused before any fix,
+    # Exit 0 when the fix is landed (pushed, or the push's refusal is printed), 1 when refused
+    # before any fix,
     # 2 when the fix stays red.
     class QaFixMainBug
       include Publishing
@@ -140,7 +145,8 @@ module Hecks
         QaMainGate::Worktree.git?(@root, "rev-parse", "--verify", "--quiet", "refs/heads/#{branch}")
       end
 
-      # The fixer runs, then the gate on the exact commit it makes. Returns the commit, or what kept it red.
+      # The fixer runs, then the gate on the exact commit it makes. Returns the commit, or what kept
+      # it red.
       def fix_in(dir, row)
         @shell.rubocop(dir, files_of(row))
         return Stuck.new("the fixer changed nothing") unless changed?(dir)

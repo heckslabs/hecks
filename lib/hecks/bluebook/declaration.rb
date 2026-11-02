@@ -65,7 +65,8 @@ module Hecks
         #
         # @param row [Bluebook::Declaration::ModuleRow, #to_h] a `ModuleRow` already, or anything
         #   answering `to_h` with `name`/`vision`/`aggregate` entries
-        # @return [Bluebook::Declaration::ModuleRow] `row` itself if it already is one, else a new one
+        # @return [Bluebook::Declaration::ModuleRow] `row` itself if it already is one, else a new
+        #   one
         def self.from(row)
           return row if row.is_a?(self)
 

@@ -9,7 +9,8 @@ module Hecks
           # A realm written before the aggregate: `Hecks::`.
           REALM = /\A(?:[A-Z]\w*::)+/
 
-          # The spelling notices this process has already printed, keyed by the spelling typed, so each
+          # The spelling notices this process has already printed, keyed by the spelling typed, so
+          # each
           # prints once.
           NOTED = Set.new
 

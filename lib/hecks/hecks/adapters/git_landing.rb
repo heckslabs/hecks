@@ -159,7 +159,8 @@ module Hecks
         landed.merge(report: { value: "#{landed[:report][:value]}; #{said}" })
       end
 
-      # A finish runs inside the worktree it retires, so the process leaves it first; a worktree that
+      # A finish runs inside the worktree it retires, so the process leaves it first; a worktree
+      # that
       # holds ignored files is kept and said so.
       def retire_from_primary(branch, onto)
         Dir.chdir(primary.path) do

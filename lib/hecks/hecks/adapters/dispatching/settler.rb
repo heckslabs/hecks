@@ -3,8 +3,10 @@
 module Hecks
   module Adapters
     class Dispatching
-      # Settles the started rows whose sessions have ended: asks each running session how it is, then
-      # finishes the row of one that ended `done` and yields the row of one that ended any other way,
+      # Settles the started rows whose sessions have ended: asks each running session how it is,
+      # then
+      # finishes the row of one that ended `done` and yields the row of one that ended any other
+      # way,
       # with the condition as the reason. A session still working is left alone.
       class Settler
         # @param rows [Rows] where the started rows and the runs are read

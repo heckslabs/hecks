@@ -16,7 +16,8 @@ module Hecks
       # `translations/` directory.
       module TranslationWrite
         # What a write would do: the file it writes and its text, the stale files it deletes, and
-        # the shape labels the chain passes through. `message` alone answers when nothing is to be done.
+        # the shape labels the chain passes through. `message` alone answers when nothing is to be
+        # done.
         Plan = Struct.new(:message, :path, :text, :removals, :labels, keyword_init: true)
 
         include ShapeEdge
@@ -83,7 +84,8 @@ module Hecks
 
         # Writes the composed edge and deletes the stale ones; returns what each file held before.
         #
-        # @return [Hash{String => String, nil}] each touched path with its earlier text, nil if absent
+        # @return [Hash{String => String, nil}] each touched path with its earlier text, nil if
+        #   absent
         def write_translation!(plan)
           originals = [plan.path, *plan.removals].to_h { |path| [path, read_if_present(path)] }
           File.write(plan.path, plan.text)

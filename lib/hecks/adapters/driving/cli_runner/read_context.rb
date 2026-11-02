@@ -2,9 +2,12 @@ module Hecks
   module Adapters
     module Driving
       module CliRunner
-        # The session's checkout, for reads only. A read of a checkout's state that names no checkout
-        # takes the one the session set in `HECKS_CHECKOUT`; a command never does. A command names its
-        # own target, because a write must land where it was asked to, not where the session last was.
+        # The session's checkout, for reads only. A read of a checkout's state that names no
+        # checkout
+        # takes the one the session set in `HECKS_CHECKOUT`; a command never does. A command names
+        # its
+        # own target, because a write must land where it was asked to, not where the session last
+        # was.
         module ReadContext
           # The environment variable a session sets to name its checkout.
           VARIABLE = "HECKS_CHECKOUT".freeze

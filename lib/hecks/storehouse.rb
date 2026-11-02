@@ -29,7 +29,8 @@ module Hecks
     SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
 
     # Which surface a call came in through, so the audit line says what made it: a person at a shell
-    # (`cli`), an agent over the MCP server (`mcp`), or the domain itself (`policy`, `saga`, `reaction`).
+    # (`cli`), an agent over the MCP server (`mcp`), or the domain itself (`policy`, `saga`,
+    # `reaction`).
     SURFACES = %w[cli mcp policy saga reaction].freeze
 
     # The root every domain path resolves under; HECKS_STOREHOUSE_ROOT widens it.

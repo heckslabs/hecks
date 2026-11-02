@@ -3,7 +3,8 @@ module Hecks
     class PostgresEra
       module LineageManager
         # The request a mint carries into the era check: whether the mint was confirmed, the verdict
-        # the rehearsal of that same era reached, and the ledger watermark the rehearsal read. Only the
+        # the rehearsal of that same era reached, and the ledger watermark the rehearsal read. Only
+        # the
         # Maintenance mint path builds one; a boot has none, so a boot that would mint refuses.
         MintRequest = Data.define(:confirm, :verdict, :watermark) do
           # Reads the request out of a settings hash, spelled with symbol or string keys.

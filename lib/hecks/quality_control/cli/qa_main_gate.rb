@@ -13,13 +13,17 @@ require_relative "qa_fix_main_bug"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control main_check.check_main`, the tick's main step. It runs
-    # the quick gate on local main in a temporary worktree, records the verdict against the commit, and
+    # The command behind `hecks quality_control main_check.check_main`, the tick's main step. It
+    # runs
+    # the quick gate on local main in a temporary worktree, records the verdict against the commit,
+    # and
     # for each red check logs one bug proven by its output. A self-contained bug is handed to
-    # `QaFixMainBug`. A commit already on record is answered from the record, so a tick that finds it again
+    # `QaFixMainBug`. A commit already on record is answered from the record, so a tick that finds
+    # it again
     # logs nothing twice.
     #
-    # Exit 0 when main is green, 2 when a check is red (the bugs are on the ledger), 1 on an operational
+    # Exit 0 when main is green, 2 when a check is red (the bugs are on the ledger), 1 on an
+    # operational
     # error. `QA_SWEEP_DOMAIN_DIR` picks the ledger, as for the other QA commands.
     class QaMainGate
       include Sweeping
@@ -36,7 +40,8 @@ module Hecks
       # @param argv [Array<String>] no arguments
       # @param root [String] the repository root, whose local `main` is checked
       # @param env [Hash{String => String}] `QA_SWEEP_DOMAIN_DIR` picks another ledger
-      # @param gate [#run] runs the quick gate in a directory and answers its results; a spec injects one
+      # @param gate [#run] runs the quick gate in a directory and answers its results; a spec
+      #   injects one
       # @param shell [Module] the fixer, landing and push commands; a spec injects one
       # @return [Integer] the exit status
       def self.call(argv, root:, env: ENV, gate: GateRun, shell: Shell)

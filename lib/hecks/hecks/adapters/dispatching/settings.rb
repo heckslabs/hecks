@@ -53,7 +53,8 @@ module Hecks
         # @return [Integer] the CPU count
         attr_reader :cpus
 
-        # @return [Float] the load above which no session is started: the world's, else the CPU count
+        # @return [Float] the load above which no session is started: the world's, else the CPU
+        #   count
         def max_load = (declared(MAX_LOAD)[:limit] || @cpus).to_f
 
         # @return [Integer] the cap on started rows
