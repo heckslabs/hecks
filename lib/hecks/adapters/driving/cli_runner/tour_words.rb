@@ -43,9 +43,18 @@ module Hecks
           def tour_report(scope, target)
             shown = shown_tour(target)
             result = capture_run(target)
-            ran = "ran: #{scope[:program]} run #{shown} #{TOUR_COMMAND.join(" ")}"
+            ran = "ran: #{tour_line(scope, shown, TOUR_COMMAND)}"
             lines = ["wrote a sample domain in #{shown}/", "", ran, result]
-            lines + ["", "next: #{scope[:program]} run #{shown} Example.create! name=yourname"]
+            lines + ["", "next: #{tour_line(scope, shown, %w[Example.create! name=yourname])}"]
+          end
+
+          # The launcher line that runs `command` (a verb and its arguments) against the domain in
+          # `shown`: `run` is a verb of Operation, not a launcher word.
+          def tour_line(scope, shown, command)
+            verb, *arguments = command
+            given = arguments.map { |argument| "arguments.value=#{argument}" }
+            [scope[:program], "Operation.run!", "subject.value=#{shown}", "verb.value=#{verb}",
+             *given].join(" ")
           end
 
           # The command's own answer, from a booted copy of the sample domain. The runner answers

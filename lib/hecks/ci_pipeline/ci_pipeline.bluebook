@@ -905,34 +905,34 @@ Hecks.bluebook "CiPipeline" do
   policy "CountRequiredPass" do
     on      "Job.Passed"
     where   { was_required.value }
-    trigger Build::CountPass, with: { build: :of_build }
+    trigger CiRun::CountPass, with: { build: :of_build }
   end
 
   policy "CountRequiredSkip" do
     on      "Job.Skipped"
     where   { was_required.value }
-    trigger Build::CountSkip, with: { build: :of_build }
+    trigger CiRun::CountSkip, with: { build: :of_build }
   end
 
   policy "CountRequiredFailure" do
     on      "Job.Failed"
     where   { was_required.value }
-    trigger Build::CountFailure, with: { build: :of_build }
+    trigger CiRun::CountFailure, with: { build: :of_build }
   end
 
   # Refused until every required job is settled, which is the "not yet" answer.
   policy "PassBuildOnPassCounted" do
     on      "CiRun.PassCounted"
-    trigger Build::Pass, with: { build: :build }
+    trigger CiRun::Pass, with: { build: :build }
   end
 
   policy "PassBuildOnSkipCounted" do
     on      "CiRun.SkipCounted"
-    trigger Build::Pass, with: { build: :build }
+    trigger CiRun::Pass, with: { build: :build }
   end
 
   policy "FailBuildOnFailureCounted" do
     on      "CiRun.FailureCounted"
-    trigger Build::Fail, with: { build: :build }
+    trigger CiRun::Fail, with: { build: :build }
   end
 end

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "pg"
 require_relative "qa_era_mint"
 require_relative "../../adapters/driven/postgres_era/lineage_manager/mint_decision"
 
