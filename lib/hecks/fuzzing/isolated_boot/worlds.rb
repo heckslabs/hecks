@@ -58,16 +58,29 @@ module Hecks
         # blocks (e.g. `context_map.hecksagon` beside the main one) across sibling files
         # in the same directory, and a second `File.write` to the same path would drop
         # the first file's names.
+        #
+        # A directory that holds the hecksagon named for it (`ask_policy/ask_policy.hecksagon`) may
+        # be loaded as a module folder of its parent, which reads only the `.world` named for the
+        # folder: the world takes that name there.
         def write_worlds!(copy, world_file, &world_for)
-          hecksagon_names_by_dir(copy).each do |dir, names|
+          written = hecksagon_names_by_dir(copy).filter_map do |dir, names|
             next if names.empty?
 
-            File.write(File.join(dir, world_file), names.uniq.map(&world_for).join("\n"))
+            File.join(dir, world_file_for(dir, world_file)).tap do |path|
+              File.write(path, names.uniq.map(&world_for).join("\n"))
+            end
           end
 
           Dir.glob(File.join(copy, "**", "*.world")).each do |path|
-            File.delete(path) unless File.basename(path) == world_file
+            File.delete(path) unless written.include?(path) || File.basename(path) == world_file
           end
+        end
+
+        # The file `dir`'s world is written to: `world_file`, or the folder's own name when its
+        # hecksagon carries that name.
+        def world_file_for(dir, world_file)
+          name = File.basename(dir)
+          File.exist?(File.join(dir, "#{name}.hecksagon")) ? "#{name}.world" : world_file
         end
 
         # The `Hecks.hecksagon` names declared in each directory under `copy`.
