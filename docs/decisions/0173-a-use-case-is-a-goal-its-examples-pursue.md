@@ -1,7 +1,7 @@
 # A use case is a goal its examples pursue
 
-**Status:** Accepted (owner delegated the choice, 2026-11-02). Date: 2026-11-02. Built 2026-11-02 except
-item 5 (see the addendum). Adds one header to the
+**Status:** Accepted (owner delegated the choice, 2026-11-02). Date: 2026-11-02. Built 2026-11-02 (see the
+addendum). Adds one header to the
 `.examples` form (ADR 0131), read by `hecks-parse examples`, the behaviors runner and narrate; no bluebook
 grammar word.
 
@@ -117,6 +117,7 @@ whose first three examples now stand under `Goal: Remy serves a pizza someone or
 `spec/sentence_examples_spec.rb` pins a goal that runs and each refusal. `docs/sentence-form.md` says
 how to write one.
 
-Not built: item 5, narration. The narrate projection reads a bluebook and never an `.examples` file,
-so rendering a goal as a use case needs that projection to read the examples beside a bluebook first.
-That is its own change; until it lands, a goal is checked and run but not narrated.
+Item 5, narration, is built as `Projector::NarrateProjector::UseCases`: given `options[:examples]`, the
+narrate projection ends with a "Use cases" section, one heading per goal, its main scenario and then its
+extensions, each line quoted from the file. `hecks narrate` passes the `.examples` files under the
+domain's directory. `spec/narrate_use_cases_spec.rb` pins it against the shop's goal.
