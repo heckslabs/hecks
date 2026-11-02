@@ -4,7 +4,8 @@ module Hecks
   module Adapters
     class JournalStore
       module TranslationWrite
-        # The edge for a shape that changed under an unchanged label: the scaffold's diff, written from
+        # The edge for a shape that changed under an unchanged label: the scaffold's diff, written
+        # from
         # the label to itself. Only `TranslationWrite` includes it.
         module ShapeEdge
           # A line of an edge file that still marks a field as undecided.
@@ -13,7 +14,8 @@ module Hecks
           private
 
           # A held label that equals the current one with a different projection: the edge is the
-          # scaffold's diff, from the label to itself. A field the diff cannot decide refuses the write.
+          # scaffold's diff, from the label to itself. A field the diff cannot decide refuses the
+          # write.
           #
           # @raise [Runtime::WiringError] when the diff leaves a field or an aggregate to decide
           def shape_edge_plan(domain, latest, current)

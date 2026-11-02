@@ -5,7 +5,8 @@ require "open3"
 module Hecks
   module QualityControlCli
     class QaMainGate
-      # The commands outside the ledger that a red-main fix runs: the mechanical fixer, the landing, and the
+      # The commands outside the ledger that a red-main fix runs: the mechanical fixer, the landing,
+      # and the
       # push through the push train. Each answers its output and whether it exited 0.
       module Shell
         # The push train's own launcher, in its detached checkout.
@@ -13,7 +14,8 @@ module Hecks
 
         module_function
 
-        # Applies `rubocop -a` to the files, which fixes what it can; whether the rest is fixed is the gate's
+        # Applies `rubocop -a` to the files, which fixes what it can; whether the rest is fixed is
+        # the gate's
         # to say.
         #
         # @return [Array(String, Boolean)]

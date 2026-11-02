@@ -41,7 +41,8 @@ module Hecks
                          "#{claimed.map(&:name).join(", ")}; a project has one set of workflow rows"
         end
 
-        # @return [Array<Bluebook::Declaration>] the project's bluebooks that declare `Workflow` rows
+        # @return [Array<Bluebook::Declaration>] the project's bluebooks that declare `Workflow`
+        #   rows
         def self.holders(registry)
           clients = registry.bluebooks.values.reject { |bluebook| bluebook.name == BLUEBOOK }
           clients.select { |bluebook| rows_of(bluebook, MARKER).any? }

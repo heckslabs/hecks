@@ -2,10 +2,12 @@ module Hecks
   module Bluebook
     module DSL
       class CommandBuilder
-        # `attribute :name, Type, sets: true`: the argument and the plain `sets :name` that a following
+        # `attribute :name, Type, sets: true`: the argument and the plain `sets :name` that a
+        # following
         # line would record, at the same position among the command's mutations.
         module FoldedSets
-          # Declares one argument and, with `sets: true`, the plain `sets` of the owner's field of the
+          # Declares one argument and, with `sets: true`, the plain `sets` of the owner's field of
+          # the
           # same name.
           #
           # @param name [Symbol] the argument's name

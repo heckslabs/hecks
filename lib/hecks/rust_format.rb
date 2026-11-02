@@ -22,7 +22,8 @@ module Hecks
     # The most passes `call` makes; a text still changing after them keeps the last result.
     PASSES = 3
 
-    # Serializes the rustfmt children of this process. In a whole-suite run, worker threads capturing
+    # Serializes the rustfmt children of this process. In a whole-suite run, worker threads
+    # capturing
     # at once end with `Errno::EBADF` in `Open3.popen_run`, so each capture waits for this lock.
     SPAWN_LOCK = Mutex.new
 

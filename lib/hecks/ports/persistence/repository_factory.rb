@@ -55,7 +55,8 @@ module Hecks
           settings.merge(boot_marks(registry, domain))
         end
 
-        # The per-domain marks the boot gate left on the registry, merged into an adapter's settings.
+        # The per-domain marks the boot gate left on the registry, merged into an adapter's
+        # settings.
         #
         # @return [Hash] the domain, resolved era, superseding era and whether the shape is unminted
         def boot_marks(registry, domain)

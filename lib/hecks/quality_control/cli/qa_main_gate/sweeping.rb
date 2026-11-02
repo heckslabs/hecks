@@ -3,8 +3,10 @@
 module Hecks
   module QualityControlCli
     class QaMainGate
-      # The sweep a red run of the gate on main is written as. Main is not a bluebook, so the sweep runs
-      # against one standing target, `main-gate`, that is shelved: the rotation never claims it. Each gate
+      # The sweep a red run of the gate on main is written as. Main is not a bluebook, so the sweep
+      # runs
+      # against one standing target, `main-gate`, that is shelved: the rotation never claims it.
+      # Each gate
       # check is one `Check`, its expectation written before the answer is read.
       module Sweeping
         TARGET = "main-gate"
@@ -42,8 +44,10 @@ module Hecks
             dispatch("QualityControl::Sweep.Check.Held", id: sweep.id, sequence: { value: sequence },
                                                           observation: { value: "exit 0" })
           else
-            # Not `Check.Surprised`: its `SuspendOnSurprise` policy can only suspend a held target, and this
-            # one is shelved, so the policy would be refused on every red run. The red is carried by the
+            # Not `Check.Surprised`: its `SuspendOnSurprise` policy can only suspend a held target,
+            # and this
+            # one is shelved, so the policy would be refused on every red run. The red is carried by
+            # the
             # `MainCheck` record and the bugs logged from the output.
             dispatch("QualityControl::Sweep.Check.Unsettled", id: sweep.id, sequence: { value: sequence },
                                                                observation: { value: result.output })

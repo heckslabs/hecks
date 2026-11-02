@@ -15,7 +15,8 @@ module Hecks
       module_function
 
       # @param bluebook [Bluebook::Declaration] the bluebook holding the process managers
-      # @param options [Hash{Symbol => Object}] `command:`, the command's verb form, e.g. "Account.Debit"
+      # @param options [Hash{Symbol => Object}] `command:`, the command's verb form, e.g.
+      #   "Account.Debit"
       # @return [Array<String>] one sentence: the undoing command, or that none is declared
       def call(bluebook:, options: {})
         command = options.fetch(:command)

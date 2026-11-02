@@ -20,7 +20,8 @@ module Hecks
           # REVOKE are owner-only, so a non-owner app role must skip them.
           #
           # @return [void]
-          # @raise [Runtime::WiringError] if the domain's `formerly_known_as` rename is still pending
+          # @raise [Runtime::WiringError] if the domain's `formerly_known_as` rename is still
+          #   pending
           # @raise [PG::Error] if Postgres refuses a provisioning statement
           def ensure_base!
             refuse_pending_rename!
@@ -120,7 +121,8 @@ module Hecks
             # Canonical-form version that minted the name (Runtime::StorageShape::FORM_VERSION);
             # NULL reads as 1.
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS canon_form int")
-            # The edge an era was minted under when no edge file wrote it, as `Translation::ImplicitEdge::RECORD`;
+            # The edge an era was minted under when no edge file wrote it, as
+            # `Translation::ImplicitEdge::RECORD`;
             # NULL for every era a written edge reached.
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS edge jsonb")
             @db.exec(ERA_TEXTS_SQL)

@@ -10,7 +10,8 @@ module Hecks
     # standard output, so a pipe still receives only the result.
     class StageProgress
       class << self
-        # Whether the lines are left out, as `-q` asks: set by the launcher for the length of a line.
+        # Whether the lines are left out, as `-q` asks: set by the launcher for the length of a
+        # line.
         # @return [Boolean]
         attr_accessor :quiet
       end

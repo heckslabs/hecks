@@ -5,7 +5,8 @@ require "json"
 module Hecks
   module ShapeLedger
     # Finds the translation edges that no longer earn their file; it deletes nothing. The graph is
-    # a bluebook's edge files plus its recorded implicit moves, aimed at the current shape. A file is:
+    # a bluebook's edge files plus its recorded implicit moves, aimed at the current shape. A file
+    # is:
     #
     # - a **self-loop** when its `from` equals its `to`.
     # - a **fork** branch when two edges leave a label and both reach the current shape; the branch
@@ -19,11 +20,13 @@ module Hecks
       # One edge: the file that declares it (nil for a recorded implicit move) and its two labels.
       Edge = Struct.new(:path, :from, :to)
 
-      # The list beside the ledger of stale edges already known, each a finding key. A listed edge is
+      # The list beside the ledger of stale edges already known, each a finding key. A listed edge
+      # is
       # reported as a warning and does not fail the check; any other stale edge fails it.
       KNOWN_FILE = "known_stale_edges.json"
 
-      # One problem: its kind, the bluebook, the file to remove, a stable key naming the edge, and what
+      # One problem: its kind, the bluebook, the file to remove, a stable key naming the edge, and
+      # what
       # to do.
       Finding = Struct.new(:kind, :domain, :path, :key, :message, keyword_init: true)
 
@@ -42,7 +45,8 @@ module Hecks
         listed.map { |finding| "\nwarning, known stale edge (#{KNOWN_FILE}) #{lines([finding]).first}" }.join
       end
 
-      # @return [Array<String>] the finding keys of the known stale edges, empty when there is no list
+      # @return [Array<String>] the finding keys of the known stale edges, empty when there is no
+      #   list
       def known_stale(path) = File.exist?(path) ? JSON.parse(File.read(path)) : []
 
       # @param directory [String] the domain directory holding `translations/`
@@ -144,7 +148,8 @@ module Hecks
 
       def leads_to?(label, current, graph) = label == current || reached_from(label, graph).include?(current)
 
-      # @return [Array<String>] every label a chain of edges leads to from one label, itself included
+      # @return [Array<String>] every label a chain of edges leads to from one label, itself
+      #   included
       def reached_from(label, graph)
         seen = [label]
         seen.each { |at| graph.each { |edge| seen << edge.to if edge.from == at && !seen.include?(edge.to) } }

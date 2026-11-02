@@ -4,7 +4,8 @@ require "fileutils"
 
 module Hecks
   module Tools
-    # The model check a domain repository runs in its CI, generated from Hecks' own definition of it:
+    # The model check a domain repository runs in its CI, generated from Hecks' own definition of
+    # it:
     # the client profile, over the domain's bluebooks, from the hecks the Gemfile pins.
     #
     # A downstream repository commits the file this writes (`.github/workflows/model-check.yml`) and
@@ -80,7 +81,8 @@ module Hecks
         YAML
       end
 
-      # Writes the workflow under `root`, or with `check` compares it and reports whether it is current.
+      # Writes the workflow under `root`, or with `check` compares it and reports whether it is
+      # current.
       #
       # @param root [String] the checkout
       # @param domain_directory [String] see {workflow}

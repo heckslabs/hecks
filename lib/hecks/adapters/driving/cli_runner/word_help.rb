@@ -15,7 +15,8 @@ module Hecks
               "completion" => CompletionWords::USAGE, "resume" => ResumeWords::USAGE }
           end
 
-          # The answer to a line that opens with one of these words: its usage when it asks for help,
+          # The answer to a line that opens with one of these words: its usage when it asks for
+          # help,
           # else the word's own handler; nil when the line opens with another word.
           def word_answer(scope, argv)
             word_help(scope, argv) || search_answer(scope, argv) || completion_answer(scope, argv) ||

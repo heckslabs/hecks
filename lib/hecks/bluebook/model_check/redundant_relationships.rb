@@ -21,7 +21,8 @@ module Hecks
           end
         end
 
-        # @return [Boolean] whether the relationship is a bare conformist that attaches alone explain
+        # @return [Boolean] whether the relationship is a bare conformist that attaches alone
+        #   explain
         def restates_attach?(relationship, edges)
           return false unless relationship.kind == :conformist && relationship.published.to_a.empty?
 

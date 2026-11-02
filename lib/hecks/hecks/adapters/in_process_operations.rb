@@ -16,7 +16,8 @@ module Hecks
     # the asks of `ModelCheckRun` and `Operation`, plus the `Follow` query.
     #
     # An ask is handed the whole record it was made on (its `held_state`), so each method reads the
-    # record's fields, runs the existing `Hecks::Tools::*` entry point captured, and answers the text
+    # record's fields, runs the existing `Hecks::Tools::*` entry point captured, and answers the
+    # text
     # it printed. An answer records a success; a raise records a refusal, so a check that finds
     # something, or a run that fails, is refused with the report as its reason.
     module InProcessOperations

@@ -5,11 +5,13 @@ require_relative "git_main_pull"
 
 module Hecks
   module Adapters
-    # The `WorktreeAdding` port's adapter for `Worktree`: opens a linked worktree on a new branch cut from
+    # The `WorktreeAdding` port's adapter for `Worktree`: opens a linked worktree on a new branch
+    # cut from
     # `main` (pulled first, see {GitMainPull}), at the path named or under the checkout's
     # `.claude/worktrees`.
     #
-    # It never checks out `main` in a worktree, never pushes, and never forces. A branch that already exists
+    # It never checks out `main` in a worktree, never pushes, and never forces. A branch that
+    # already exists
     # is declined by git, and the reason travels back on the record.
     class GitWorktreeAdd
       include GitWorktrees
@@ -26,10 +28,12 @@ module Hecks
 
       # Opens the worktree, then reads the sha it stands on.
       #
-      # @param held [Hash] the `Worktree` record: `checkout` (a directory inside the repository; the current
+      # @param held [Hash] the `Worktree` record: `checkout` (a directory inside the repository; the
+      #   current
       #   directory when absent), `branch` (a new branch name), and `path` (optional)
       # @return [Hash{Symbol => Hash}] `sha:` the commit it stands on, `report:` where it is
-      # @raise [ConsoleCapture::Failure] on a missing branch, a branch named main, or a directory outside a repository
+      # @raise [ConsoleCapture::Failure] on a missing branch, a branch named main, or a directory
+      #   outside a repository
       def create(**held)
         repo = settle(held)
         branch = branch_named(held)

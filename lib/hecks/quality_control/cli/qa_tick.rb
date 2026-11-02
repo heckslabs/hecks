@@ -122,7 +122,8 @@ module Hecks
         report(steps, reclaimed_holds(steps[1].output), write_tick_log!(steps))
       end
 
-      # The steps that look for findings, in the order the report prints them. The event pump is last.
+      # The steps that look for findings, in the order the report prints them. The event pump is
+      # last.
       def finding_steps
         [
           guarded("check_pull_requests") { run_pr_check },
@@ -161,7 +162,8 @@ module Hecks
         [output, exit_code]
       end
 
-      # The quick gate on local main, last: each red check it finds becomes a bug and a self-contained one
+      # The quick gate on local main, last: each red check it finds becomes a bug and a
+      # self-contained one
       # is fixed, landed and pushed by `QaMainGate`.
       def run_main_check
         banner "hecks quality_control check_main"
@@ -170,7 +172,8 @@ module Hecks
         [output, exit_code]
       end
 
-      # @return [Object] the dial's value from `qa/settings.yml`, or the fallback when it is not loaded
+      # @return [Object] the dial's value from `qa/settings.yml`, or the fallback when it is not
+      #   loaded
       def dial(name, fallback)
         return fallback unless defined?(::QualityControlDials) && ::QualityControlDials.const_defined?(name)
 

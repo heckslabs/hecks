@@ -5,7 +5,8 @@ module Hecks
     module Driving
       module CliRunner
         # Lets a landing name the linked worktree it lands by its run id, rather than repeating its
-        # checkout and branch. An explicit checkout or branch always wins over the one the worktree holds.
+        # checkout and branch. An explicit checkout or branch always wins over the one the worktree
+        # holds.
         module RunReference
           # The aggregate whose record a landing's `from` names.
           SOURCE = "LinkedTree".freeze
@@ -29,7 +30,8 @@ module Hecks
           # @param runtime [Runtime::Registry] the booted domain the command runs against
           # @param spec [Hash] the resolved command
           # @param args [Hash] the parsed arguments, keyed by name
-          # @return [Hash] the arguments, with checkout and branch filled from the named worktree when the
+          # @return [Hash] the arguments, with checkout and branch filled from the named worktree
+          #   when the
           #   caller gave a `from` and left them out
           def fill(runtime, spec, args)
             from = args[:from]&.fetch(:value, nil)
@@ -44,7 +46,8 @@ module Hecks
                        branch:   args[:branch] || { value: value_of(record[:branch]) })
           end
 
-          # The ids a result names: the run key, the record written, and the references the command used,
+          # The ids a result names: the run key, the record written, and the references the command
+          # used,
           # with the checkout and branch it resolved. Absent ones are left out.
           #
           # @param args [Hash] the arguments the command ran with, after any reference was filled

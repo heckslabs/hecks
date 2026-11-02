@@ -1,13 +1,16 @@
 module Hecks
   module Storehouse
-    # The ids a call used, named in its result: the record it addressed, and the references its arguments
+    # The ids a call used, named in its result: the record it addressed, and the references its
+    # arguments
     # named. Extended onto `Storehouse`.
     module Identity
-      # The arguments that name an id a call used: a run key, an earlier run it refers to, and the checkout
+      # The arguments that name an id a call used: a run key, an earlier run it refers to, and the
+      # checkout
       # and branch it resolved to.
       IDENTITY_KEYS = %i[run from checkout branch].freeze
 
-      # The ids a call used: the record it addressed, and the references its arguments named, each unwrapped
+      # The ids a call used: the record it addressed, and the references its arguments named, each
+      # unwrapped
       # to its value. Absent ones are left out.
       # :nodoc:
       def ids_of(request, outcome)

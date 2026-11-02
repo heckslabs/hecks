@@ -18,7 +18,8 @@ module Hecks
     # The last constant name of a class's path, such as `NotFound` of `Hecks::Runtime::NotFound`.
     LAST_NAME = /\w+\z/
 
-    # The boundary between a lower-case or digit letter and a capital, where a snake-case word starts.
+    # The boundary between a lower-case or digit letter and a capital, where a snake-case word
+    # starts.
     CAMEL_BOUNDARY = /([a-z\d])([A-Z])/
 
     # @return [Symbol, nil] the attribute the refusal is about, when it is about one; the

@@ -3,7 +3,8 @@ module Hecks
     module CliProjector
       # The launcher's rename table: the old command names a bluebook's `launcher` setting lists as
       # `renamed`, each mapped to the command it became. An old spelling resolves to the new command
-      # and the launcher prints the new spelling once; an entry may also translate old argument names.
+      # and the launcher prints the new spelling once; an entry may also translate old argument
+      # names.
       #
       # The table resolves through 8.0; its removal is recorded in docs/compatibility.md.
       module Renames
@@ -13,7 +14,8 @@ module Hecks
         # @param commands [Hash{String => Hash}] the projected commands, keyed by snake-form name
         # @param renamed [Hash{String => String, Hash}, nil] old name to new name, or to a hash
         #   with `to:` and `arguments:` (old argument name to new)
-        # @return [Hash{Symbol => Hash{String => String}}] `:command` and `:question`, each mapping an
+        # @return [Hash{Symbol => Hash{String => String}}] `:command` and `:question`, each mapping
+        #   an
         #   old spelling to the name it became
         # @raise [Bluebook::DSL::Malformed] if an entry names no projected command
         def renamed_aliases(commands, questions, renamed)
