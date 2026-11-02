@@ -112,6 +112,10 @@ Hecks.bluebook "CiWorkflows" do
 
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "checkout", uses: "actions/checkout@v4"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "ruby", uses: "./.github/actions/setup-ruby"
+      member workflow: "ci-rspec.yml", job: "rspec_shard", name: "zsh",
+             title: "Install zsh",
+             run: "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh\n",
+             note: "cli_completion_spec checks the zsh completion script with `zsh -n`; the runner has no zsh,\nand the skip backstop turns an unrouted skip into a failure."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "environment",
              uses: "./.github/actions/hecks-environment"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "generated_rust",
