@@ -33,8 +33,8 @@ module Hecks
         #
         # @return [Array(String, Boolean)]
         def push(root)
-          run(TRAIN_LAUNCHER, "push_train.board!", "checkout=#{root}", "remote=origin", "branch=main",
-              "--wait", chdir: root)
+          run(TRAIN_LAUNCHER, "SendTrain.board!", "checkout=#{root}", "remote=origin", "branch=main",
+              "--confirm", "--wait", chdir: root)
         end
 
         def run(*argv, chdir:)

@@ -60,6 +60,7 @@ is cut from `origin/main`, not local `main`: check `git merge-base --is-ancestor
 
 Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
 model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
+While main CI is red, only a push that fixes a red-* Work row goes out (exe/hecks tickets query Work.undone lists them), through the push train; everything else lands locally with landing.land! and waits until CI on origin/main is green.
 
 ## Briefing a session
 
