@@ -250,6 +250,7 @@ fn context_label(context: &str) -> &'static str {
         "ExamplesFile" => "the top of an examples file",
         "Examples" => "an examples file",
         "Background" => "a background",
+        "Goal" => "a goal",
         "Example" => "an example",
         "Step" => "a step",
         "Outcome" => "an outcome",

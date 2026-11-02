@@ -1,6 +1,7 @@
 # A use case is a goal its examples pursue
 
-**Status:** Accepted (owner delegated the choice, 2026-11-02). Date: 2026-11-02. Adds one header to the
+**Status:** Accepted (owner delegated the choice, 2026-11-02). Date: 2026-11-02. Built 2026-11-02 except
+item 5 (see the addendum). Adds one header to the
 `.examples` form (ADR 0131), read by `hecks-parse examples`, the behaviors runner and narrate; no bluebook
 grammar word.
 
@@ -103,3 +104,19 @@ check that exist, and its check reads what someone wrote rather than demanding m
   cannot make.
 - **An `Actor:` header.** Rejected: the person is already named in `Background:` and in each step, so a
   header would restate it.
+
+## Addendum: what is built (2026-11-02)
+
+`Goal:` is a phrase of the `Examples` context (`examples_goal` in the Sentence bluebook, opening a
+`Goal` block whose examples are `goal_example`), read by `hecks-parse examples`
+(`rust/parser/src/sentence/examples.rs`), which the behaviors runner and the Ruby sentence form
+already call, so there is one reader. A goal must name a `Background:` person; `goal_without_success`
+and `extension_off_path` refuse the file with the line and the goal's words. The compiled `.behaviors`
+text is unchanged by a goal. The corpus use is `spec/fixtures/sentence_examples/shop/shop.examples`,
+whose first three examples now stand under `Goal: Remy serves a pizza someone ordered`, and
+`spec/sentence_examples_spec.rb` pins a goal that runs and each refusal. `docs/sentence-form.md` says
+how to write one.
+
+Not built: item 5, narration. The narrate projection reads a bluebook and never an `.examples` file,
+so rendering a goal as a use case needs that projection to read the examples beside a bluebook first.
+That is its own change; until it lands, a goal is checked and run but not narrated.
