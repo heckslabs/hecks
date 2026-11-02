@@ -187,7 +187,7 @@ RSpec.describe "the repository tooling commands" do
       out = StringIO.new
 
       expect(described_class.call(["--help"], root: Dir.pwd, out: out)).to eq(0)
-      expect(out.string).to include("Usage: hecks stress_concurrency")
+      expect(out.string).to include("Usage: hecks test_suite_run.stress_concurrency!")
     end
 
     it "exits 64 when the run count and first seed are not given, since the verb supplies them", :aggregate_failures do
