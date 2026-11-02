@@ -73,7 +73,15 @@ module Hecks
             return refuse_unheld!(context) if answer.status == "unheld"
             return context.record_resolved(mint!(context.with(latest: answer.latest))) if minting?(answer, context)
 
+            return refuse_breaking!(context, answer) if answer.breaking?
+
             record(context, answer)
+          end
+
+          # A breaking move no edge covers: the boot reads nothing and writes nothing. This stands
+          # in until the commit-time gate (ADR 0168) keeps such a move off main.
+          def refuse_breaking!(context, answer)
+            raise Runtime::WiringError, "cannot boot #{context.domain_name}: #{answer.reason}"
           end
 
           # Whether this check mints: a mint request, on a shape no held era holds.

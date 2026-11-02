@@ -3,6 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "hecks/fuzzing"
 require_relative "../support/scratch_postgres"
+require_relative "../support/first_era_hold"
 
 # Records written under the era fixtures' `base` shape, read back after the bluebook moves to
 # each other fixture. A store that holds eras reads a `same_*` shape through unchanged and
@@ -10,6 +11,8 @@ require_relative "../support/scratch_postgres"
 # shape it was not written in. A store with no eras reads a `same_*` or additive shape through
 # unchanged; it never refuses drift (spec/runtime/era_check_spec.rb).
 RSpec.describe "every era fixture, read through from its base", :aggregate_failures do
+  include FirstEraHold
+
   # The fixtures a store with no eras reads through unchanged: the same shape, or one only added to.
   ADDITIVE_ERA_FIXTURES = %w[same_behavior same_reordered bump_new_attribute].freeze
 
@@ -51,11 +54,18 @@ RSpec.describe "every era fixture, read through from its base", :aggregate_failu
   def read_through(fixture, **store)
     Dir.mktmpdir do |tmp|
       Hecks::Fuzzing::IsolatedBoot.call(base_domain(tmp), **store) do |copy|
+        hold_first_eras(copy, store)
         written = records(Hecks.boot(copy, environment: nil).tap { |runtime| write_records(runtime) })
         move_shape(copy, fixture)
         [written, reboot(copy)]
       end
     end
+  end
+
+  def hold_first_eras(copy, store)
+    return unless store[:database]
+
+    hold_domain_eras!(directory: File.join(copy, "bluebook"), url: store[:database], schema: store[:schema])
   end
 
   def move_shape(copy, fixture)
@@ -95,7 +105,8 @@ RSpec.describe "every era fixture, read through from its base", :aggregate_failu
     after(:context) { ScratchPostgres.drop([ERA_SCRATCH_DB]) if PostgresProbe.available? }
 
     def era_read_through(fixture)
-      read_through(fixture, adapter: :postgres_era, database: ERA_SCRATCH_DB, schema: "era_#{fixture}")
+      read_through(fixture, adapter: :postgres_era, database: ERA_SCRATCH_DB, schema: "era_#{fixture}",
+                                 scratch: { disposable: false })
     end
 
     fixtures.each do |fixture|

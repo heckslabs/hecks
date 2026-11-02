@@ -223,11 +223,9 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
       expect(boot(shape_added, disposable: false).unminted_eras["Ledger"]).to eq(1)
     end
 
-    it "still refuses a write under a moved shape, naming the mint entry point" do
-      registry = boot(shape_renamed, disposable: false)
-      settings = { database: url, domain: "Ledger", era: 1, unminted: registry.unminted_eras.key?("Ledger") }
-      writer = Hecks::Adapters::PostgresEra.new(aggregate: registry.bluebooks.values.first.aggregate("Acct"), settings:)
-      expect { writer.append(entry(acct(:title, "x"))) }.to raise_error(Hecks::Runtime::WiringError, /not minted yet/)
+    it "still refuses to boot under a moved shape no edge covers, naming the missing edge" do
+      expect { boot(shape_renamed, disposable: false) }
+        .to raise_error(Hecks::Runtime::WiringError, /no translation edge covers it/)
     end
 
     it "still refuses to boot a database that holds no era" do
