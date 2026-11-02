@@ -98,8 +98,7 @@ module Hecks
         # Mints one command as its own anonymous subclass of the class `declare` is called on.
         #
         # @param name [String, Symbol] the command's declared name
-        # @param role [String, nil] the declared role; `roles` all of them, `audience` who it is
-        #   listed for
+        # @param role [String, nil] the declared role; `roles` all of them, `audience` who it is for
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
         # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies
