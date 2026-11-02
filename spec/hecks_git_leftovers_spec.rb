@@ -38,14 +38,19 @@ RSpec.describe Hecks::Adapters::GitLeftovers do
 
   def landed(*branches) = allow(Hecks::Adapters::LandedBranches).to receive(:of).and_return(branches)
 
+  # A repository whose branch has a commit that main now carries, recorded as landed.
+  def merged_landing(branch = "work/a")
+    build_repo(branch, "a.rb")
+    git("merge", branch)
+    landed(branch)
+  end
+
   def report = landing.leftovers(checkout: repo).dig(:report, :value)
 
   def branch?(name) = !git("branch", "--list", name).strip.empty?
 
   it "names a landed worktree it would retire, and removes nothing", :aggregate_failures do
-    build_repo("work/a", "a.rb")
-    git("merge", "work/a")
-    landed("work/a")
+    merged_landing
 
     expect(report).to include("work/a: would retire it")
     expect(File.directory?(tree)).to be(true)
@@ -53,10 +58,8 @@ RSpec.describe Hecks::Adapters::GitLeftovers do
   end
 
   it "names a landed worktree it would keep, and why", :aggregate_failures do
-    build_repo("work/a", "a.rb")
-    git("merge", "work/a")
+    merged_landing
     File.write(File.join(tree, "scratch.txt"), "mine")
-    landed("work/a")
 
     expect(report).to include("work/a: would keep it", "scratch.txt")
     expect(File.read(File.join(tree, "scratch.txt"))).to eq("mine")
@@ -92,10 +95,8 @@ RSpec.describe Hecks::Adapters::GitLeftovers do
   end
 
   it "names each landed worktree on a line of its own" do
-    build_repo("work/a", "a.rb")
-    git("merge", "work/a")
-    second = File.join(dir, "second")
-    git("worktree", "add", "-b", "work/b", second)
+    merged_landing
+    git("worktree", "add", "-b", "work/b", File.join(dir, "second"))
     landed("work/a", "work/b")
 
     expect(report.lines.map(&:strip)).to eq(["work/a: would retire it", "work/b: would retire it"])

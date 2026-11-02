@@ -16,12 +16,14 @@ module Hecks
         aggregate = landing_aggregate(registry)
         return [] unless aggregate
 
-        registry.repository("Hecks", aggregate).all.filter_map { |record| branch(record) }.uniq
+        rows = registry.repository("Hecks", aggregate).all
+        rows.filter_map { |record| branch(record) }.uniq
       end
 
       # @return [Object, nil] the Landing aggregate, nil when no Hecks bluebook is booted
       def landing_aggregate(registry)
-        registry&.bluebook("Hecks")&.aggregates&.find { |candidate| candidate.hecks_name == "Landing" }
+        bluebook = registry&.bluebook("Hecks")
+        bluebook&.aggregates&.find { |candidate| candidate.hecks_name == "Landing" }
       end
 
       # @return [String, nil] the row's branch, nil unless the row landed and names one
