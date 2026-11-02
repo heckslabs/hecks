@@ -35,6 +35,8 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
   def build_repo
     FileUtils.mkdir_p(repo)
     git("init", "-b", "main")
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
     commit(repo, "README")
     git("worktree", "add", "-b", "work/a", tree)
     commit(tree, "a.txt")
