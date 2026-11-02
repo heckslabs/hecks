@@ -51,6 +51,12 @@ RSpec.describe "rehearsing a domain's next era" do
 
   def verdict_of(record) = record["verdict"]
 
+  # Rehearses the shop as `run`, then answers the RehearsalVerdict event that rehearsal recorded.
+  def recorded_verdict(run)
+    rehearse(run)
+    @hecks.registry.event_log.reverse.find { |event| event.name.to_s == "RehearsalVerdict" }
+  end
+
   def status_of(record) = record["status"]
 
   # Replaces what the shop's world says about its copy with `body`, inside `rehearsed_by`.
@@ -84,6 +90,17 @@ RSpec.describe "rehearsing a domain's next era" do
 
     expect([status_of(record), verdict_of(record)]).to eq(%w[judged would_mint])
     expect(record["minting"]).to eq("next")
+  end
+
+  # The mint reads a rehearsal's verdict from QualityControl's Maintenance, by the run (the mint plan's
+  # watermark guard), so a rehearsal that would mint records it there with the domain and the watermark it read.
+  it "records a would-mint verdict where the mint reads it", :aggregate_failures, :process do
+    run = "r-#{SecureRandom.hex(4)}"
+    recorded = recorded_verdict(run)
+
+    expect(recorded.aggregate).to eq("QualityControl::Maintenance")
+    expect(recorded.payload.slice(:domain, :watermark)).to eq(domain: "Shop", watermark: 0)
+    expect([recorded.payload[:run].value, recorded.payload[:rehearsal_verdict].value]).to eq([run, "would_mint"])
   end
 
   it "names the era held and the era a mint would hold", :aggregate_failures, :process do
