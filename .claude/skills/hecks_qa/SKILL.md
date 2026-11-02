@@ -18,7 +18,7 @@ person). What is left here is judgment.
 
 The former `qa_*` scripts are verbs on the launcher now: `exe/hecks quality_control <verb>`.
 A `--flag` a script took goes inside `arguments="--flag …"` on the `ask` verbs, and the
-ledger-writing verbs (`log`, `patch.open`, `improvement.open`) take `name=value` words instead
+ledger-writing verbs (`bug.log!`, `patch.open!`, `improvement.open!`) take `name=value` words instead
 of flags (`exe/hecks quality_control <verb> --help` prints each one's words; the mapping is in
 `lib/hecks/three_zero/forms.yml`). Where a step below still shows the old flag spelling
 (`--title`, `--angle`, `--from-dials`, `--promote`), pass it that way.
@@ -105,7 +105,7 @@ in order:
    uses for shrunk sequences) or committed alongside any fix work, then
    log it with `--reproduced no` (step 3) rather than leaving it
    unlogged.
-3. **Log it, triaged:** `exe/hecks quality_control bug.log sweep=<sweep-id> title.value=… \
+3. **Log it, triaged:** `exe/hecks quality_control bug.log! sweep=<sweep-id> title.value=… \
    --demonstration "<that command>" --symptom … --expectation … \
    --submitter <you> --triage self_contained|bigger [--reproduced no]`.
    It RUNS the demonstration and refuses a passing one — UNLESS
@@ -118,9 +118,9 @@ in order:
    call. Anything else is `bigger`.
 4. **If `self_contained`:** fix it on a fresh `qa/<slug>` branch in the
    runner worktree, cut after `exe/hecks LinkedTree.pull_main! --wait` (pull main first; `landing.land!`
-   refuses a branch behind `origin/main`); move the bug through `hecks run qa/bluebook
-   bug.investigate id=BUG#n …`, `fix id=BUG#n reference.value=BUG#n
-   commit.value=<sha>`, `verify id=BUG#n evidence.value="<what ran>"`;
+   refuses a branch behind `origin/main`); move the bug through `exe/hecks quality_control
+   bug.investigate! to=BUG#n site.value=… cause.value=…`, `bug.fix! to=BUG#n reference.value=BUG#n
+   commit.value=<sha>`, `bug.verify! to=BUG#n evidence.value="<what ran>"`;
    The Fixer refuses a fix without a failing reproduction: first run the
    real entry point the bug is reached through, print what that real path
    resolves (era, config, route), and record the exact command, its
@@ -128,7 +128,7 @@ in order:
    `reproduced`); then fix. Verify re-runs that same command and records
    it passing (`rerun`, `rerun_result`); passing only new tests is not
    verified.
-   then `exe/hecks quality_control patch.open bug=BUG#n title.value="…"`. It asks the ledger
+   then `exe/hecks quality_control patch.open! bug=BUG#n title.value="…"`. It asks the ledger
    first, as a dry run of `Patch.Open`, whose `given`s refuse a branch
    off `BRANCH_PREFIX` and a bug that is not `fixed`; the `GitPr` adapter
    refuses a fix commit not on HEAD and a day already at
@@ -174,9 +174,9 @@ subagent's judgments:
    Forgetting it is how ten stress domains went unswept. The next sweep of
    that target surprises the ordinary way, and the
    "On a finding" section above applies from there: the failing test, then
-   `exe/hecks quality_control bug.log`.
+   `exe/hecks quality_control bug.log!`.
 3. **If an artifact of the generator itself:** say so in your report. A
-   generator fix is deliberate work (`exe/hecks quality_control improvement.open`),
+   generator fix is deliberate work (`exe/hecks quality_control improvement.open!`),
    never a Bug.
 
 ## On a surviving mutant
@@ -191,7 +191,7 @@ per-finding subagent's judgments:
    (without `file:line:col:`) to `mutation_equivalent` in `qa/settings.yml`, with the reason in
    the commit.
 2. **Otherwise:** write the test that kills it, beside the code's other guard tests, and open it
-   as an Improvement (`exe/hecks quality_control improvement.open`). Never a Bug.
+   as an Improvement (`exe/hecks quality_control improvement.open!`). Never a Bug.
 
 The step needs `rust/src/generated` (`hecks regeneration_run.regenerate_corpus! --confirm`); without it the build
 fails before any mutant runs, and the step reports an operational error.
@@ -213,8 +213,8 @@ it and no dial turns it on.
 
 ## Authoring a new stress domain (occasional)
 
-Read the backlog first — `hecks run qa/bluebook ask backlog` and `ask
-resolved` — before inventing an angle; `ask citing citation.value="…"`
+Read the backlog first — `exe/hecks quality_control query angle.backlog` and
+`query angle.resolved` — before inventing an angle; `query angle.citing citation.value="…"`
 before proposing one. A new domain lives under `qa/stress_domains/<name>/
 bluebook/<name>.bluebook`, biases hard toward re-triggering a bug class
 already found (cite it), and is discarded unless it covers a construct
@@ -225,7 +225,7 @@ exists). Close the loop: `angle.investigate` when you pick a lead up,
 genuinely new angle. A surviving domain becomes a `Target` (`identify`)
 and enters the rotation like any other; `exe/hecks quality_control query sweep.run` picks its mode
 itself. Deliberate work with no Bug behind it is opened with
-`exe/hecks quality_control improvement.open [--angle ANGLE-n] --title …`.
+`exe/hecks quality_control improvement.open! [--angle ANGLE-n] --title …`.
 
 The sweep compares on three axes — Ruby vs the compiled Rust binary, an
 engine against ITSELF (self-consistency: cold rehydration, replay
@@ -248,8 +248,8 @@ depending only on a fork gem, e.g. `~/Projects/some_console_app`, is
 correctly excluded even though its bluebook reads `Hecks.bluebook` — that
 gem aliases `Hecks`, it is not the real `hecks` gem), cross-referenced against `Target.All` so an already-
 identified domain is never re-reported. **Report only** — it never
-calls `identify` itself; it prints the exact `hecks run qa/bluebook
-identify reference=… path=…` command for a person to review and run.
+calls `identify` itself; it prints the exact `exe/hecks quality_control
+target.identify! reference.value=… path.value=…` command for a person to review and run.
 `exe/hecks quality_control query sweep.tick` never runs it and no `qa/settings.yml` dial turns it on,
 same as `exe/hecks quality_control query target.mine_combinations arguments.value=` above. Before enrolling a real find,
 read its own header for a live limitation: `exe/hecks quality_control query sweep.run` resolves
@@ -258,7 +258,7 @@ whose real location is outside it needs that gap closed first.
 
 ## What this will never do
 
-- File a GitHub issue, or merge by hand (`exe/hecks quality_control patch.open` queues
+- File a GitHub issue, or merge by hand (`exe/hecks quality_control patch.open!` queues
   auto-merge per the dial; CI decides).
 - Waive a gate. `sweep.waive`/`bug.waive` now REFUSE `waived_by`
   `qa_sweep` and `nobody` — only a signed person gets through.
