@@ -92,6 +92,14 @@ unless a local hecksagon opts it into PostgresEra (ADR 0136), so the run needs n
 environment variable. Memory changes some behavior: two guide examples that retry a payment
 (`commands.md`, `policies-and-process-managers.md`) fail under it.
 
+**A spec never touches the owner's live state.** The Memory overlay switches the runtime's event tap
+off, spec_helper points a child's tap at the run's own temporary file (`HECKS_EVENT_TAP`), and
+`spec/support/live_state_guard.rb` fails by name a spec that opens the live tap
+(`~/.claude/hecks-dev/events.jsonl`), reaches the checkout's own red flag (`.git/hecks-red-flag.json`)
+or moves it during an example; `spec/support/live_ledger_guard.rb` does the same for the ticket and
+agent-run databases. A spec that needs a repository, a flag or a tap builds its own under a temporary
+directory and names it (`checkout:`, a world with a temporary `event_log` path).
+
 Several files cost one launcher boot, not one each:
 `exe/hecks test_suite_run.run_spec_files! "files.value=spec/a_spec.rb spec/b_spec.rb" --wait` reports each
 file's counts and a total, and fails naming the files that failed. `isolation.value=process` (the default)

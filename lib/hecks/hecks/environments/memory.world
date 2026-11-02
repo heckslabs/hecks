@@ -1,8 +1,13 @@
 # The Memory selection for the Hecks domain: nothing is written to a database. Specs and
 # pull-request runs use it (`HECKS_ENVIRONMENT=memory`); a real run keeps the PostgresEra
 # journal named in hecks.world. The overlay's `default_adapter` wins over the base's.
+#
+# The event tap is off as well: the log hecks.world names feeds the owner's pipeline board, and a
+# spec, a gate or a pull-request run must not show up there. A spec that wants the tap builds its
+# own world naming a temporary path.
 Hecks.world "Hecks" do
   default_adapter "Memory"
+  event_log "None"
 end
 
 Hecks.world "Governance" do

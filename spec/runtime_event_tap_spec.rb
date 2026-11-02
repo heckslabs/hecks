@@ -7,6 +7,8 @@ require "hecks/runtime/event_log"
 
 # The opt-in event log: off unless the Hecks world declares `event_log`, then one JSON line per
 # event and per policy delivery, never a payload, rotated by size, and never a refused command.
+# An override handed in at boot (the Assembly reads it from `HECKS_EVENT_TAP`) moves a declared
+# tap or, empty, switches it off.
 RSpec.describe Hecks::Runtime::EventTap do
   let(:dir) { Dir.mktmpdir("tap") }
   let(:path) { File.join(dir, "events.jsonl") }
@@ -32,6 +34,23 @@ RSpec.describe Hecks::Runtime::EventTap do
   it "installs nothing when no world declares an event log", :aggregate_failures do
     expect(described_class.install(registry_with(nil))).to be_nil
     expect(File.exist?(path)).to be(false)
+  end
+
+  it "writes where the override points, not where the world does", :aggregate_failures do
+    moved = File.join(dir, "moved.jsonl")
+    described_class.install(registry_with(world(path: path)), override: moved)
+    log << event
+
+    expect(File.exist?(moved)).to be(true)
+    expect(File.exist?(path)).to be(false)
+  end
+
+  it "installs nothing when the override is empty" do
+    expect(described_class.install(registry_with(world(path: path)), override: "")).to be_nil
+  end
+
+  it "leaves a world that declares no path alone, whatever the override says" do
+    expect(described_class.install(registry_with(world(path: "")), override: path)).to be_nil
   end
 
   it "writes one line for each event appended to the registry's log" do
