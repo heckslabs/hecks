@@ -218,8 +218,20 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     expect(CODEBASE_ROWS.map(&:aggregate) - CODEBASE_AGGREGATES).to be_empty
   end
 
+  # CorpusRun answers questions only: it declares queries and acknowledges :no_command_surface, so
+  # it has no command, no Accept, and nothing for the checkout rule to guard.
+  QUERY_ONLY_AGGREGATES = %w[CorpusRun].freeze
+
+  def command_aggregates = CODEBASE_AGGREGATES - QUERY_ONLY_AGGREGATES
+
+  it "names the aggregates that declare no command" do
+    commandless = CODEBASE_AGGREGATES.select { |name| @bluebook.aggregate(name).commands.empty? }
+
+    expect(commandless).to eq(QUERY_ONLY_AGGREGATES)
+  end
+
   it "guards every command of every Codebase aggregate with the one checkout rule", :aggregate_failures do
-    CODEBASE_AGGREGATES.each do |name|
+    command_aggregates.each do |name|
       accept = accept_of(name)
 
       expect(accept).not_to be_nil, "#{name} has no Accept"

@@ -284,8 +284,19 @@ section.searching > p { display: none; }
 <li><a href="#bug">Bug</a></li>
 <li><a href="#clearance">Clearance</a></li>
 <li><a href="#daily-quota">Daily quota</a></li>
+<li><a href="#event-cursor">Event cursor</a></li>
+<li><a href="#event-pump">Event pump</a></li>
+<li><a href="#event-reaction">Event reaction</a></li>
+<li><a href="#head">Head</a></li>
+<li><a href="#image-roll">Image roll</a></li>
 <li><a href="#improvement">Improvement</a></li>
+<li><a href="#main-check">Main check</a></li>
+<li><a href="#main-run">Main run</a></li>
+<li><a href="#maintenance">Maintenance</a></li>
 <li><a href="#patch">Patch</a></li>
+<li><a href="#push-nudge">Push nudge</a></li>
+<li><a href="#red-spec">Red spec</a></li>
+<li><a href="#release-pr">Release PR</a></li>
 <li><a href="#sweep">Sweep</a></li>
 <li><a href="#target">Target</a></li>
 <li><a href="#ticket">Ticket</a></li>
@@ -311,7 +322,18 @@ section.searching > p { display: none; }
     n_patch[&quot;Patch&quot;]
     n_daily_quota[&quot;Daily quota&quot;]
     n_improvement[&quot;Improvement&quot;]
+    n_main_check[&quot;Main check&quot;]
+    n_event_cursor[&quot;Event cursor&quot;]
+    n_event_reaction[&quot;Event reaction&quot;]
+    n_event_pump[&quot;Event pump&quot;]
+    n_maintenance[&quot;Maintenance&quot;]
+    n_release_pr[&quot;Release PR&quot;]
+    n_head[&quot;Head&quot;]
+    n_red_spec[&quot;Red spec&quot;]
+    n_main_run[&quot;Main run&quot;]
+    n_image_roll[&quot;Image roll&quot;]
     n_clearance[&quot;Clearance&quot;]
+    n_push_nudge[&quot;Push nudge&quot;]
     n_sweep --&gt;|&quot;target&quot;| n_target
     n_bug --&gt;|&quot;sweep&quot;| n_sweep
     n_ticket --&gt;|&quot;bug&quot;| n_bug
@@ -678,6 +700,11 @@ section.searching > p { display: none; }
 <p>Every bug ever logged — what a runner mints the next reference from.</p>
 <p>All bugs, sorted by bug sequence, lowest first.</p>
 </article>
+<article class="term" id="fix-and-land">
+<h4>Fix and land</h4>
+<p>Takes one self-contained bug through a fix on a fresh branch, the quick gate on that exact commit, a landing on local main and a push through the push train. A bigger bug stops here, untouched.</p>
+<p>All bugs, sorted by bug sequence, lowest first.</p>
+</article>
 <article class="term" id="found-in">
 <h4>Found in</h4>
 <p>Everything one sweep turned up, in the order it was found.</p>
@@ -878,6 +905,12 @@ section.searching > p { display: none; }
 <ul class="rules"><li>A run says what it ran and what came back.</li></ul>
 <h3 class="group" id="actions-2">Actions</h3>
 <div class="terms">
+<article class="term" id="check">
+<h4>Check</h4>
+<p>Put a commit through CI and record the verdict it gives. Done by the qa engineer.</p>
+<p>Needs a commit (<a href="#commit-ref-1">Commit ref</a>).</p>
+<p>Records <a href="#clearance-checked">Clearance checked</a>.</p>
+</article>
 <article class="term" id="failed">
 <h4>Failed</h4>
 <p>Record that the suite went red against this commit. Done by the system.</p>
@@ -901,6 +934,10 @@ section.searching > p { display: none; }
 </div>
 <h3 class="group" id="what-it-records-2">What it records</h3>
 <div class="terms">
+<article class="term" id="clearance-checked">
+<h4>Clearance checked</h4>
+<p>Recorded after <a href="#check">Check</a>. Prompts <a href="#run-when-checked">Run when checked</a>.</p>
+</article>
 <article class="term" id="clearance-given">
 <h4>Clearance given</h4>
 <p>Recorded after <a href="#passed">Passed</a>.</p>
@@ -912,6 +949,13 @@ section.searching > p { display: none; }
 <article class="term" id="clearance-started">
 <h4>Clearance started</h4>
 <p>Recorded after <a href="#start">Start</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-1">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="run-when-checked">
+<h4>Run when checked</h4>
+<p>When <a href="#clearance-checked">Clearance checked</a> happens, Clearance::ci is asked to Run.</p>
 </article>
 </div>
 <h3 class="group" id="lists-2">Lists</h3>
@@ -1015,6 +1059,344 @@ section.searching > p { display: none; }
 </article>
 </div>
 </section>
+<section id="event-cursor">
+<h2>Event cursor</h2>
+<p class="about">How far one consumer has read one domain&#39;s event log, as the count of entries it has reacted to. One row per (log, consumer).</p>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A cursor is keyed by its log and consumer.</li><li>A cursor names its domain.</li><li>A position is not negative.</li></ul>
+<h3 class="group" id="actions-4">Actions</h3>
+<div class="terms">
+<article class="term" id="advance">
+<h4>Advance</h4>
+<p>Move one consumer&#39;s cursor past the entries it has reacted to. Done by the qa engineer.</p>
+<p>Needs a position (<a href="#cursor-position">Cursor position</a>).</p>
+<p>Sets the position.</p>
+<p>Records <a href="#cursor-advanced">Cursor advanced</a>.</p>
+</article>
+<article class="term" id="start-1">
+<h4>Start</h4>
+<p>Open a consumer&#39;s cursor on one domain&#39;s event log, at the start of the log. Done by the qa engineer.</p>
+<p>Needs a key (<a href="#cursor-key">Cursor key</a>), a log (<a href="#cursor-domain">Cursor domain</a>), and a consumer (<a href="#cursor-domain">Cursor domain</a>).</p>
+<p>Records <a href="#cursor-started">Cursor started</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-4">What it records</h3>
+<div class="terms">
+<article class="term" id="cursor-advanced">
+<h4>Cursor advanced</h4>
+<p>Recorded after <a href="#advance">Advance</a>.</p>
+</article>
+<article class="term" id="cursor-started">
+<h4>Cursor started</h4>
+<p>Recorded after <a href="#start-1">Start</a>.</p>
+</article>
+</div>
+<h3 class="group" id="lists-4">Lists</h3>
+<div class="terms">
+<article class="term" id="all-3">
+<h4>All</h4>
+<p>Every cursor the event pump holds, with the position each consumer has read to.</p>
+<p>All event cursors, sorted by cursor key, A to Z.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-4">What it is made of</h3>
+<div class="terms">
+<article class="term" id="cursor-domain">
+<h4>Cursor domain</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a cursor names its domain.</p>
+</article>
+<article class="term" id="cursor-key">
+<h4>Cursor key</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a cursor is keyed by its log and consumer.</p>
+</article>
+<article class="term" id="cursor-position">
+<h4>Cursor position</h4>
+<p>A whole number.</p>
+<p class="rule">Always true: a position is not negative.</p>
+</article>
+<article class="term" id="cursor-read-at">
+<h4>Cursor read at</h4>
+<p>Text that must not be blank.</p>
+</article>
+</div>
+</section>
+<section id="event-pump">
+<h2>Event pump</h2>
+<p class="about">One run of the event pump: every attached domain&#39;s policies reacting to the events past their cursors, and what each reaction answered.</p>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A pump run is named.</li></ul>
+<h3 class="group" id="actions-5">Actions</h3>
+<div class="terms">
+<article class="term" id="pump">
+<h4>Pump</h4>
+<p>Run the event pump once: each attached domain&#39;s policies react to the events past their cursors, and every refusal is named. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#pump-run">Pump run</a>).</p>
+<p>Records <a href="#pump-requested">Pump requested</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-5">What it records</h3>
+<div class="terms">
+<article class="term" id="pump-requested">
+<h4>Pump requested</h4>
+<p>Recorded after <a href="#pump">Pump</a>. Prompts <a href="#pump-on-request">Pump on request</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-2">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="pump-on-request">
+<h4>Pump on request</h4>
+<p>When <a href="#pump-requested">Pump requested</a> happens, Event pump::pump tools is asked to Execute.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-5">What it is made of</h3>
+<div class="terms">
+<article class="term" id="pump-run">
+<h4>Pump run</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a pump run is named.</p>
+</article>
+</div>
+</section>
+<section id="event-reaction">
+<h2>Event reaction</h2>
+<p class="about">A policy&#39;s reaction to one event, once its command has answered. One row per (consumer, event, policy).</p>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A reaction is keyed by its consumer, event and policy.</li><li>A reaction names its consumer.</li><li>A reaction names the event it answered.</li><li>A reaction names its policy.</li></ul>
+<h3 class="group" id="actions-6">Actions</h3>
+<div class="terms">
+<article class="term" id="record">
+<h4>Record</h4>
+<p>Record that one consumer&#39;s policy has answered one event, so the pump does not run it again. Done by the qa engineer.</p>
+<p>Needs a key (<a href="#reaction-key">Reaction key</a>), a consumer (<a href="#reaction-consumer">Reaction consumer</a>), an event id (<a href="#reaction-event">Reaction event</a>), and a policy (<a href="#reaction-policy">Reaction policy</a>).</p>
+<p>Records <a href="#event-reacted">Event reacted</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-6">What it records</h3>
+<div class="terms">
+<article class="term" id="event-reacted">
+<h4>Event reacted</h4>
+<p>Recorded after <a href="#record">Record</a>.</p>
+</article>
+</div>
+<h3 class="group" id="lists-5">Lists</h3>
+<div class="terms">
+<article class="term" id="all-4">
+<h4>All</h4>
+<p>Every reaction the event pump has recorded, by its key.</p>
+<p>All event reactions, sorted by reaction key, A to Z.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-6">What it is made of</h3>
+<div class="terms">
+<article class="term" id="reaction-consumer">
+<h4>Reaction consumer</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a reaction names its consumer.</p>
+</article>
+<article class="term" id="reaction-event">
+<h4>Reaction event</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a reaction names the event it answered.</p>
+</article>
+<article class="term" id="reaction-key">
+<h4>Reaction key</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a reaction is keyed by its consumer, event and policy.</p>
+</article>
+<article class="term" id="reaction-policy">
+<h4>Reaction policy</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a reaction names its policy.</p>
+</article>
+</div>
+</section>
+<section id="head">
+<h2>Head</h2>
+<p class="about">One commit of a repository&#39;s main, and whether remote CI passed every job it ran for that commit.</p>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A head names its branch.</li></ul>
+<h3 class="group" id="actions-7">Actions</h3>
+<div class="terms">
+<article class="term" id="green">
+<h4>Green</h4>
+<p>Announce that remote CI passed every job it ran for one commit of main. Done by the system.</p>
+<p>Needs a commit (<a href="#head-commit">Head commit</a>), a branch (<a href="#head-branch">Head branch</a>), a repo (<a href="#head-repo">Head repo</a>), and a color (<a href="#color">Color</a>).</p>
+<p class="rule">Allowed only when: only a green verdict is announced.</p>
+<p>Records <a href="#ci-green">Ci green</a>.</p>
+</article>
+<article class="term" id="red-1">
+<h4>Red</h4>
+<p>Announce that remote CI refused one commit of main, and which jobs failed. Done by the system.</p>
+<p>Needs a commit (<a href="#head-commit">Head commit</a>), a repo (<a href="#head-repo">Head repo</a>), a color (<a href="#color">Color</a>), and a failing jobs (<a href="#failing-jobs">Failing jobs</a>).</p>
+<p class="rule">Allowed only when: only a red verdict names the jobs that failed.</p>
+<p>Records <a href="#ci-red">Ci red</a>.</p>
+</article>
+<article class="term" id="request">
+<h4>Request</h4>
+<p>Ask remote CI what it said about one commit of a repository&#39;s main. Done by the ci engineer.</p>
+<p>Needs a commit (<a href="#head-commit">Head commit</a>), a branch (<a href="#head-branch">Head branch</a>), and a repo (<a href="#head-repo">Head repo</a>).</p>
+<p class="rule">Allowed only when: only main is judged.</p>
+<p>Records <a href="#head-requested">Head requested</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-7">What it records</h3>
+<div class="terms">
+<article class="term" id="ci-green">
+<h4>Ci green</h4>
+<p>Recorded after <a href="#green">Green</a>. Prompts <a href="#roll-images">Roll images</a>.</p>
+</article>
+<article class="term" id="ci-red">
+<h4>Ci red</h4>
+<p>Recorded after <a href="#red-1">Red</a>.</p>
+</article>
+<article class="term" id="head-requested">
+<h4>Head requested</h4>
+<p>Recorded after <a href="#request">Request</a>. Prompts <a href="#check-head-on-request">Check head on request</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-3">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="check-head-on-request">
+<h4>Check head on request</h4>
+<p>When <a href="#head-requested">Head requested</a> happens, Head::ci head is asked to Check.</p>
+</article>
+<article class="term" id="roll-images">
+<h4>Roll images</h4>
+<p>When <a href="#ci-green">Ci green</a> happens, <a href="#image-roll">Image roll</a> is asked to <a href="#consider">Consider</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-7">What it is made of</h3>
+<div class="terms">
+<article class="term" id="color">
+<h4>Color</h4>
+<p>One of green or red.</p>
+</article>
+<article class="term" id="failing-jobs">
+<h4>Failing jobs</h4>
+<p>Text.</p>
+</article>
+<article class="term" id="head-branch">
+<h4>Head branch</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a head names its branch.</p>
+</article>
+<article class="term" id="head-commit">
+<h4>Head commit</h4>
+<p>Text that must follow a set format.</p>
+</article>
+<article class="term" id="head-repo">
+<h4>Head repo</h4>
+<p>Text that must follow a set format.</p>
+</article>
+</div>
+</section>
+<section id="image-roll">
+<h2>Image roll</h2>
+<p class="about">One commit of embryonaut_platform&#39;s main: whether its container image was rolled, or waits for a person.</p>
+<p>Starts out idle. Can be idle, requested, awaiting approval, or finished.</p>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    state &quot;awaiting approval&quot; as awaiting_approval
+    [*] --&gt; idle
+    idle --&gt; requested: Request
+    idle --&gt; awaiting_approval: Needs approval
+    requested --&gt; finished: Finish</pre>
+</figure>
+<ul class="rules"><li>Requesting an image roll moves it from idle to requested.</li><li>Needsing an approval moves the image roll from idle to awaiting approval.</li><li>Finishing an image roll moves it from requested to finished.</li></ul>
+<p class="caption">Always true</p>
+<ul class="rules"><li>An app is named.</li></ul>
+<h3 class="group" id="actions-8">Actions</h3>
+<div class="terms">
+<article class="term" id="consider">
+<h4>Consider</h4>
+<p>Take one green commit of embryonaut_platform&#39;s main into the image roll&#39;s chain. Done by the system.</p>
+<p>Needs a commit (<a href="#commit-ref-2">Commit ref</a>), a branch (<a href="#roll-branch">Roll branch</a>), and a repo (<a href="#roll-repo">Roll repo</a>).</p>
+<p>Records <a href="#roll-considered">Roll considered</a>.</p>
+</article>
+<article class="term" id="finish">
+<h4>Finish</h4>
+<p>Record how the image roll of one commit ended. Done by the system.</p>
+<p>Needs an app (<a href="#app-name">App name</a>) and a status (Status).</p>
+<p>Sets the outcome and moves the image roll from requested to finished.</p>
+<p>Records <a href="#roll-done">Roll done</a>.</p>
+</article>
+<article class="term" id="needs-approval">
+<h4>Needs approval</h4>
+<p>Hold one commit whose changes reach past the container&#39;s inputs for a person to approve. Done by the system.</p>
+<p>Needs a commit (<a href="#commit-ref-2">Commit ref</a>) and a paths (<a href="#changed-paths">Changed paths</a>).</p>
+<p>Moves the image roll from idle to awaiting approval.</p>
+<p>Records <a href="#roll-needs-approval">Roll needs approval</a>.</p>
+</article>
+<article class="term" id="request-1">
+<h4>Request</h4>
+<p>Start the image roll of one commit whose changes touch only the console container&#39;s inputs. Done by the system.</p>
+<p>Needs a commit (<a href="#commit-ref-2">Commit ref</a>) and an app (<a href="#app-name">App name</a>).</p>
+<p>Moves the image roll from idle to requested.</p>
+<p>Records <a href="#roll-requested">Roll requested</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-8">What it records</h3>
+<div class="terms">
+<article class="term" id="roll-considered">
+<h4>Roll considered</h4>
+<p>Recorded after <a href="#consider">Consider</a>. Prompts <a href="#classify-considered">Classify considered</a>.</p>
+</article>
+<article class="term" id="roll-done">
+<h4>Roll done</h4>
+<p>Recorded after <a href="#finish">Finish</a>.</p>
+</article>
+<article class="term" id="roll-needs-approval">
+<h4>Roll needs approval</h4>
+<p>Recorded after <a href="#needs-approval">Needs approval</a>.</p>
+</article>
+<article class="term" id="roll-requested">
+<h4>Roll requested</h4>
+<p>Recorded after <a href="#request-1">Request</a>. Prompts <a href="#run-roll-on-request">Run roll on request</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-4">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="classify-considered">
+<h4>Classify considered</h4>
+<p>When <a href="#roll-considered">Roll considered</a> happens, Image roll::image roll is asked to Classify.</p>
+</article>
+<article class="term" id="run-roll-on-request">
+<h4>Run roll on request</h4>
+<p>When <a href="#roll-requested">Roll requested</a> happens, Image roll::image roll is asked to Roll.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-8">What it is made of</h3>
+<div class="terms">
+<article class="term" id="app-name">
+<h4>App name</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: an app is named.</p>
+</article>
+<article class="term" id="changed-paths">
+<h4>Changed paths</h4>
+<p>Text.</p>
+</article>
+<article class="term" id="commit-ref-2">
+<h4>Commit ref</h4>
+<p>Text that must follow a set format.</p>
+</article>
+<article class="term" id="outcome">
+<h4>Outcome</h4>
+<p>One of done or failed.</p>
+</article>
+<article class="term" id="roll-branch">
+<h4>Roll branch</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="roll-repo">
+<h4>Roll repo</h4>
+<p>Text that must follow a set format.</p>
+</article>
+</div>
+</section>
 <section id="improvement">
 <h2>Improvement</h2>
 <p class="about">One pull request landed for deliberate, non-bugfix work — a domain-modeling addition, a tool, an aggregate this very practice needed — number, branch, and the exact commit that makes watching its CI a lookup instead of a guess, the same discipline `Patch` already keeps for a bug&#39;s own fix.</p>
@@ -1045,7 +1427,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Landing an improvement moves it from opened or needs fix to landed.</li><li>Regressing an improvement moves it from landed to needs fix.</li><li>Merging an improvement moves it from opened, landed, or needs fix to merged.</li><li>Closing an improvement moves it from opened, landed, or needs fix to closed.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each improvement can belong to one angle.</li><li>An instant is not before the epoch.</li><li>An improvement is numbered.</li><li>An improvement says where it lives.</li><li>An improvement says which branch it is on.</li><li>An improvement is titled.</li></ul>
-<h3 class="group" id="actions-4">Actions</h3>
+<h3 class="group" id="actions-9">Actions</h3>
 <div class="terms">
 <article class="term" id="close">
 <h4>Close</h4>
@@ -1056,7 +1438,7 @@ section.searching > p { display: none; }
 <article class="term" id="land">
 <h4>Land</h4>
 <p>Record the commit this PR is now at, so CI can be watched for it — whether that is the commit it was opened with, or a fresh one pushed after a NeedsFix. Done by the qa engineer.</p>
-<p>Needs a number (<a href="#improvement-number">Improvement number</a>) and a commit (<a href="#commit-ref-2">Commit ref</a>).</p>
+<p>Needs a number (<a href="#improvement-number">Improvement number</a>) and a commit (<a href="#commit-ref-3">Commit ref</a>).</p>
 <p>Sets the commit and moves the improvement from opened or needs fix to landed.</p>
 <p>Records <a href="#improvement-landed">Improvement landed</a>.</p>
 </article>
@@ -1081,7 +1463,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#improvement-regressed">Improvement regressed</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-4">What it records</h3>
+<h3 class="group" id="what-it-records-9">What it records</h3>
 <div class="terms">
 <article class="term" id="improvement-closed">
 <h4>Improvement closed</h4>
@@ -1104,16 +1486,16 @@ section.searching > p { display: none; }
 <p>Recorded after <a href="#regress-1">Regress</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-happens-on-its-own-1">What happens on its own</h3>
+<h3 class="group" id="what-happens-on-its-own-5">What happens on its own</h3>
 <div class="terms">
 <article class="term" id="improvement-ci-watch">
 <h4>Improvement ci watch</h4>
 <p>Begins when <a href="#improvement-landed">Improvement landed</a> happens and ends when <a href="#clearance-given">Clearance given</a> happens. Along the way it can be watching or regressed.</p>
 </article>
 </div>
-<h3 class="group" id="lists-4">Lists</h3>
+<h3 class="group" id="lists-6">Lists</h3>
 <div class="terms">
-<article class="term" id="all-3">
+<article class="term" id="all-5">
 <h4>All</h4>
 <p>Every improvement ever landed — what a runner reads back to reconcile against GitHub&#39;s own list.</p>
 <p>All improvements, sorted by improvement number, lowest first.</p>
@@ -1134,13 +1516,13 @@ section.searching > p { display: none; }
 <p>Improvements that are opened, landed, or needs fix, sorted by improvement number, lowest first.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-4">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-9">What it is made of</h3>
 <div class="terms">
 <article class="term" id="angle-ref">
 <h4>Angle ref</h4>
 <p>Text.</p>
 </article>
-<article class="term" id="commit-ref-2">
+<article class="term" id="commit-ref-3">
 <h4>Commit ref</h4>
 <p>Text that must be a commit id.</p>
 </article>
@@ -1171,6 +1553,257 @@ section.searching > p { display: none; }
 </article>
 </div>
 </section>
+<section id="main-check">
+<h2>Main check</h2>
+<p class="about">One run of the quick gate on local main at one commit, and whether every one of its checks came back green.</p>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A count of red checks is not negative.</li></ul>
+<h3 class="group" id="actions-10">Actions</h3>
+<div class="terms">
+<article class="term" id="record-1">
+<h4>Record</h4>
+<p>Write down what the quick gate said about one commit of main. Done by the qa engineer.</p>
+<p>Needs a reference (<a href="#main-commit">Main commit</a>), a verdict (<a href="#verdict">Verdict</a>), and a red checks (<a href="#red-count">Red count</a>).</p>
+<p class="rule">Allowed only when: a red verdict names a red check, and a green one names none.</p>
+<p>Records <a href="#main-check-recorded">Main check recorded</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-10">What it records</h3>
+<div class="terms">
+<article class="term" id="main-check-recorded">
+<h4>Main check recorded</h4>
+<p>Recorded after <a href="#record-1">Record</a>.</p>
+</article>
+</div>
+<h3 class="group" id="lists-7">Lists</h3>
+<div class="terms">
+<article class="term" id="all-6">
+<h4>All</h4>
+<p>Every commit of main the quick gate has been run on, with its verdict.</p>
+<p>All main checks, sorted by main commit, A to Z.</p>
+</article>
+<article class="term" id="check-main">
+<h4>Check main</h4>
+<p>Runs the quick gate on local main in a temporary worktree of it and records the verdict, logging each red check as a bug.</p>
+<p>All main checks, sorted by main commit, A to Z.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-10">What it is made of</h3>
+<div class="terms">
+<article class="term" id="main-commit">
+<h4>Main commit</h4>
+<p>Text that must be a commit id.</p>
+</article>
+<article class="term" id="red-count">
+<h4>Red count</h4>
+<p>A whole number.</p>
+<p class="rule">Always true: a count of red checks is not negative.</p>
+</article>
+<article class="term" id="verdict">
+<h4>Verdict</h4>
+<p>One of green or red.</p>
+</article>
+</div>
+</section>
+<section id="main-run">
+<h2>Main run</h2>
+<p class="about">One CI run of main, read for the spec files it failed.</p>
+<h3 class="group" id="actions-11">Actions</h3>
+<div class="terms">
+<article class="term" id="record-2">
+<h4>Record</h4>
+<p>Keep how a read run settled. Done by the system.</p>
+<p>Needs a commit (Spec commit) and a settled (<a href="#settled-flag">Settled flag</a>).</p>
+<p>Sets the commit and the settled.</p>
+<p>Records <a href="#main-run-recorded">Main run recorded</a>.</p>
+</article>
+<article class="term" id="request-2">
+<h4>Request</h4>
+<p>Ask for one CI run of main to be read for the spec files it failed. Done by the ci engineer.</p>
+<p>Needs a run (<a href="#main-run-id">Main run id</a>) and a repo (Head repo).</p>
+<p>Sets the run and the repo.</p>
+<p>Records <a href="#main-run-read-requested">Main run read requested</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-11">What it records</h3>
+<div class="terms">
+<article class="term" id="main-run-read-requested">
+<h4>Main run read requested</h4>
+<p>Recorded after <a href="#request-2">Request</a>. Prompts <a href="#read-run-on-request">Read run on request</a>.</p>
+</article>
+<article class="term" id="main-run-recorded">
+<h4>Main run recorded</h4>
+<p>Recorded after <a href="#record-2">Record</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-6">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="read-run-on-request">
+<h4>Read run on request</h4>
+<p>When <a href="#main-run-read-requested">Main run read requested</a> happens, Main run::reader is asked to Read.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-11">What it is made of</h3>
+<div class="terms">
+<article class="term" id="main-run-id">
+<h4>Main run id</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="settled-flag">
+<h4>Settled flag</h4>
+<p>Text.</p>
+</article>
+</div>
+</section>
+<section id="maintenance">
+<h2>Maintenance</h2>
+<p class="about">One run of local main&#39;s maintenance: the quick gate on a submitted commit, the reconcile, and the push through the train.</p>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A run names its branch.</li></ul>
+<h3 class="group" id="actions-12">Actions</h3>
+<div class="terms">
+<article class="term" id="mint-era">
+<h4>Mint era</h4>
+<p>Mint a domain&#39;s next era, against the rehearsal of that same era and the watermark it read. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#maintenance-run">Maintenance run</a>), a domain (text), an era (a whole number), a sha (<a href="#maintenance-sha">Maintenance sha</a>), a branch (text), a rehearsal ref (text), a watermark (a whole number), a rehearsal verdict (<a href="#mint-verdict">Mint verdict</a>), a refusal total (a whole number, optional), a ledger dir (text, optional), and a confirm (<a href="#confirmation">Confirmation</a>, optional).</p>
+<p>Records <a href="#mint-requested">Mint requested</a>.</p>
+</article>
+<article class="term" id="record-rehearsal-verdict">
+<h4>Record rehearsal verdict</h4>
+<p>Record what the rehearsal of a domain&#39;s next era concluded, and the watermark it read. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#maintenance-run">Maintenance run</a>), a domain (text), a watermark (a whole number), and a rehearsal verdict (<a href="#mint-verdict">Mint verdict</a>).</p>
+<p>Records <a href="#rehearsal-verdict">Rehearsal verdict</a>.</p>
+</article>
+<article class="term" id="refuse-gate">
+<h4>Refuse gate</h4>
+<p>Stop a run whose quick gate on main is red. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#maintenance-run">Maintenance run</a>) and a color (<a href="#color-1">Color</a>).</p>
+<p class="rule">Allowed only when: only a red verdict is refused.</p>
+<p>Records <a href="#gate-refused">Gate refused</a>.</p>
+</article>
+<article class="term" id="refuse-mint">
+<h4>Refuse mint</h4>
+<p>Stop a mint whose rehearsal did not say would_mint. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#maintenance-run">Maintenance run</a>), a domain (text), an era (a whole number), a rehearsal verdict (<a href="#mint-verdict">Mint verdict</a>), and a refusal (<a href="#mint-refusal">Mint refusal</a>, optional).</p>
+<p class="rule">Allowed only when: only a rehearsal that did not say would_mint is refused.</p>
+<p>Records <a href="#mint-refused">Mint refused</a>.</p>
+</article>
+<article class="term" id="request-push">
+<h4>Request push</h4>
+<p>Ask for the push of a commit whose gate is green and whose reconcile did not refuse. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#maintenance-run">Maintenance run</a>), a sha (<a href="#maintenance-sha">Maintenance sha</a>), a color (<a href="#color-1">Color</a>), and a verdict (<a href="#verdict-1">Verdict</a>).</p>
+<p class="rule">Allowed only when: the reconcile did not refuse and the gate is green.</p>
+<p>Records <a href="#push-requested">Push requested</a>.</p>
+</article>
+<article class="term" id="request-reconcile">
+<h4>Request reconcile</h4>
+<p>Ask for the reconcile of a commit whose quick gate is green. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#maintenance-run">Maintenance run</a>), a sha (<a href="#maintenance-sha">Maintenance sha</a>), and a color (<a href="#color-1">Color</a>).</p>
+<p class="rule">Allowed only when: only a green gate is reconciled.</p>
+<p>Records <a href="#reconcile-requested">Reconcile requested</a>.</p>
+</article>
+<article class="term" id="start-2">
+<h4>Start</h4>
+<p>Open the maintenance of main for one submitted commit. Done by the qa engineer.</p>
+<p>Needs a run (<a href="#maintenance-run">Maintenance run</a>) and a sha (<a href="#maintenance-sha">Maintenance sha</a>).</p>
+<p>Records <a href="#run-started">Run started</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-12">What it records</h3>
+<div class="terms">
+<article class="term" id="gate-refused">
+<h4>Gate refused</h4>
+<p>Recorded after <a href="#refuse-gate">Refuse gate</a>.</p>
+</article>
+<article class="term" id="mint-refused">
+<h4>Mint refused</h4>
+<p>Recorded after <a href="#refuse-mint">Refuse mint</a>. Prompts <a href="#ask-owner-approval-on-held-mint">Ask owner approval on held mint</a>.</p>
+</article>
+<article class="term" id="mint-requested">
+<h4>Mint requested</h4>
+<p>Recorded after <a href="#mint-era">Mint era</a>. Prompts <a href="#refuse-mint-without-verdict">Refuse mint without verdict</a> and <a href="#auto-mint-additive">Auto mint additive</a>.</p>
+</article>
+<article class="term" id="push-requested">
+<h4>Push requested</h4>
+<p>Recorded after <a href="#request-push">Request push</a>. Prompts <a href="#push-on-request">Push on request</a>.</p>
+</article>
+<article class="term" id="reconcile-requested">
+<h4>Reconcile requested</h4>
+<p>Recorded after <a href="#request-reconcile">Request reconcile</a>. Prompts <a href="#reconcile-on-request">Reconcile on request</a>.</p>
+</article>
+<article class="term" id="rehearsal-verdict">
+<h4>Rehearsal verdict</h4>
+<p>Recorded after <a href="#record-rehearsal-verdict">Record rehearsal verdict</a>.</p>
+</article>
+<article class="term" id="run-started">
+<h4>Run started</h4>
+<p>Recorded after <a href="#start-2">Start</a>. Prompts <a href="#gate-on-start">Gate on start</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-7">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="ask-owner-approval-on-held-mint">
+<h4>Ask owner approval on held mint</h4>
+<p>When <a href="#mint-refused">Mint refused</a> happens, Maintenance::main maintenance is asked to Approval.</p>
+</article>
+<article class="term" id="auto-mint-additive">
+<h4>Auto mint additive</h4>
+<p>When <a href="#mint-requested">Mint requested</a> happens, Maintenance::main maintenance is asked to Mint.</p>
+</article>
+<article class="term" id="gate-on-start">
+<h4>Gate on start</h4>
+<p>When <a href="#run-started">Run started</a> happens, Maintenance::main maintenance is asked to Gate.</p>
+</article>
+<article class="term" id="push-on-request">
+<h4>Push on request</h4>
+<p>When <a href="#push-requested">Push requested</a> happens, Maintenance::main maintenance is asked to Push.</p>
+</article>
+<article class="term" id="reconcile-on-request">
+<h4>Reconcile on request</h4>
+<p>When <a href="#reconcile-requested">Reconcile requested</a> happens, Maintenance::main maintenance is asked to Reconcile.</p>
+</article>
+<article class="term" id="refuse-mint-without-verdict">
+<h4>Refuse mint without verdict</h4>
+<p>When <a href="#mint-requested">Mint requested</a> happens, <a href="#maintenance">Maintenance</a> is asked to <a href="#refuse-mint">Refuse mint</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-12">What it is made of</h3>
+<div class="terms">
+<article class="term" id="color-1">
+<h4>Color</h4>
+<p>One of green or red.</p>
+</article>
+<article class="term" id="confirmation">
+<h4>Confirmation</h4>
+<p>Yes or no.</p>
+</article>
+<article class="term" id="maintenance-run">
+<h4>Maintenance run</h4>
+<p>Text that must not be blank.</p>
+<p class="rule">Always true: a run names its branch.</p>
+</article>
+<article class="term" id="maintenance-sha">
+<h4>Maintenance sha</h4>
+<p>Text that must be a commit id.</p>
+</article>
+<article class="term" id="mint-refusal">
+<h4>Mint refusal</h4>
+<p>Text.</p>
+</article>
+<article class="term" id="mint-verdict">
+<h4>Mint verdict</h4>
+<p>One of would_mint, would_refuse, needs_edge, cannot_boot, or empty_copy.</p>
+</article>
+<article class="term" id="minted-era">
+<h4>Minted era</h4>
+<p>A whole number.</p>
+</article>
+<article class="term" id="verdict-1">
+<h4>Verdict</h4>
+<p>One of reported, written, or refused.</p>
+</article>
+</div>
+</section>
 <section id="patch">
 <h2>Patch</h2>
 <p class="about">One pull request opened for a Bug&#39;s own fix — number, branch, and the exact commit that makes checking its CI status a lookup instead of a guess.</p>
@@ -1193,7 +1826,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Merging a patch moves it from opened to merged.</li><li>Closing a patch moves it from opened to closed.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each patch belongs to one bug.</li><li>An instant is not before the epoch.</li><li>A patch is numbered.</li><li>A patch says where it lives.</li><li>A patch says which branch it is on.</li><li>A patch is titled.</li></ul>
-<h3 class="group" id="actions-5">Actions</h3>
+<h3 class="group" id="actions-13">Actions</h3>
 <div class="terms">
 <article class="term" id="close-1">
 <h4>Close</h4>
@@ -1210,13 +1843,13 @@ section.searching > p { display: none; }
 <article class="term" id="open-3">
 <h4>Open</h4>
 <p>Record that a fix has been opened as a pull request, the moment its number, branch and commit are already known. Done by the qa engineer.</p>
-<p>Needs a bug (<a href="#bug">Bug</a>), a number (<a href="#patch-number">Patch number</a>), an url (<a href="#patch-url">Patch url</a>), a branch (<a href="#patch-branch">Patch branch</a>), a commit (<a href="#commit-ref-3">Commit ref</a>), a title (<a href="#patch-title">Patch title</a>), and a now (<a href="#instant-3">Instant</a>).</p>
+<p>Needs a bug (<a href="#bug">Bug</a>), a number (<a href="#patch-number">Patch number</a>), an url (<a href="#patch-url">Patch url</a>), a branch (<a href="#patch-branch">Patch branch</a>), a commit (<a href="#commit-ref-4">Commit ref</a>), a title (<a href="#patch-title">Patch title</a>), and a now (<a href="#instant-3">Instant</a>).</p>
 <p class="rule">Allowed only when: the branch is one this practice recognises as its own; the bug is fixed.</p>
 <p>Sets the opened at.</p>
 <p>Records <a href="#patch-opened">Patch opened</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-5">What it records</h3>
+<h3 class="group" id="what-it-records-13">What it records</h3>
 <div class="terms">
 <article class="term" id="patch-closed">
 <h4>Patch closed</h4>
@@ -1231,9 +1864,9 @@ section.searching > p { display: none; }
 <p>Recorded after <a href="#open-3">Open</a>.</p>
 </article>
 </div>
-<h3 class="group" id="lists-5">Lists</h3>
+<h3 class="group" id="lists-8">Lists</h3>
 <div class="terms">
-<article class="term" id="all-4">
+<article class="term" id="all-7">
 <h4>All</h4>
 <p>Every patch ever opened — what a runner reads back to reconcile against GitHub&#39;s own list.</p>
 <p>All patches, sorted by patch number, lowest first.</p>
@@ -1249,13 +1882,13 @@ section.searching > p { display: none; }
 <p>Patches that are opened, sorted by patch number, lowest first.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-5">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-13">What it is made of</h3>
 <div class="terms">
 <article class="term" id="bug-ref">
 <h4>Bug ref</h4>
 <p>Text.</p>
 </article>
-<article class="term" id="commit-ref-3">
+<article class="term" id="commit-ref-4">
 <h4>Commit ref</h4>
 <p>Text that must be a commit id.</p>
 </article>
@@ -1283,6 +1916,271 @@ section.searching > p { display: none; }
 <h4>Patch url</h4>
 <p>Text that must not be blank.</p>
 <p class="rule">Always true: a patch says where it lives.</p>
+</article>
+</div>
+</section>
+<section id="push-nudge">
+<h2>Push nudge</h2>
+<p class="about">One check of whether a push of local main is due: whether it is, whether the push-due Work row is already open, and the numbers.</p>
+<h3 class="group" id="actions-14">Actions</h3>
+<div class="terms">
+<article class="term" id="check-1">
+<h4>Check</h4>
+<p>Ask whether a push of local main is due, from the refs git already holds. Done by the qa engineer.</p>
+<p>Needs a nudge (<a href="#nudge-key">Nudge key</a>).</p>
+<p>Sets the nudge.</p>
+<p>Records <a href="#push-due-check-requested">Push due check requested</a>.</p>
+</article>
+<article class="term" id="record-3">
+<h4>Record</h4>
+<p>Keep what a check found. Done by the system.</p>
+<p>Needs a due (<a href="#nudge-flag">Nudge flag</a>), a raised (<a href="#nudge-flag">Nudge flag</a>), and a detail (<a href="#nudge-line">Nudge line</a>).</p>
+<p>Sets the due, the raised, and the detail.</p>
+<p>Records <a href="#push-due-recorded">Push due recorded</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-14">What it records</h3>
+<div class="terms">
+<article class="term" id="push-due-check-requested">
+<h4>Push due check requested</h4>
+<p>Recorded after <a href="#check-1">Check</a>. Prompts <a href="#read-push-due-on-check">Read push due on check</a>.</p>
+</article>
+<article class="term" id="push-due-recorded">
+<h4>Push due recorded</h4>
+<p>Recorded after <a href="#record-3">Record</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-8">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="read-push-due-on-check">
+<h4>Read push due on check</h4>
+<p>When <a href="#push-due-check-requested">Push due check requested</a> happens, Push nudge::push due is asked to Read.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-14">What it is made of</h3>
+<div class="terms">
+<article class="term" id="nudge-flag">
+<h4>Nudge flag</h4>
+<p>Text.</p>
+</article>
+<article class="term" id="nudge-key">
+<h4>Nudge key</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="nudge-line">
+<h4>Nudge line</h4>
+<p>Text.</p>
+</article>
+</div>
+</section>
+<section id="red-spec">
+<h2>Red spec</h2>
+<p class="about">One spec file that is red on main: how many examples fail, the first failure, the run that saw it last, and the day it first went red.</p>
+<p>Starts out red. Can be red or green.</p>
+<figure>
+<figcaption>How it moves</figcaption>
+<pre class="mermaid">stateDiagram-v2
+    [*] --&gt; red
+    red --&gt; green: Clear
+    green --&gt; red: Reopen</pre>
+</figure>
+<ul class="rules"><li>Clearing a red spec moves it from red to green.</li><li>Reopening a red spec moves it from green to red.</li></ul>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A red spec has failing examples.</li></ul>
+<h3 class="group" id="actions-15">Actions</h3>
+<div class="terms">
+<article class="term" id="clear">
+<h4>Clear</h4>
+<p>Record that a settled run of main no longer fails a spec file. Done by the system.</p>
+<p>Needs a run (<a href="#run-id">Run id</a>) and a seen in (<a href="#run-id">Run id</a>).</p>
+<p class="rule">Allowed only when: a run that still saw the file fail does not clear it.</p>
+<p>Sets the cleared by and moves the red spec from red to green.</p>
+<p>Records <a href="#spec-went-green">Spec went green</a>.</p>
+</article>
+<article class="term" id="open-4">
+<h4>Open</h4>
+<p>Record that a spec file is red on main. Done by the system.</p>
+<p>Needs a spec (<a href="#spec-key">Spec key</a>), a path (<a href="#spec-path">Spec path</a>), a failures (<a href="#failure-count">Failure count</a>), a first failure (<a href="#failure-line">Failure line</a>, optional), an examples (<a href="#failure-line">Failure line</a>, optional), a last run (<a href="#run-id">Run id</a>), a commit (<a href="#spec-commit">Spec commit</a>), a since (<a href="#seen-on">Seen on</a>), a title (<a href="#work-line">Work line</a>), and a detail (<a href="#work-line">Work line</a>).</p>
+<p>Sets the spec, the path, the failures, the first failure, the examples, the last run, the commit, the since, the title, and the detail.</p>
+<p>Records <a href="#spec-went-red">Spec went red</a>.</p>
+</article>
+<article class="term" id="reopen">
+<h4>Reopen</h4>
+<p>Record that a spec file cleared earlier is red on main again. Done by the system.</p>
+<p>Needs a failures (<a href="#failure-count">Failure count</a>), a first failure (<a href="#failure-line">Failure line</a>, optional), an examples (<a href="#failure-line">Failure line</a>, optional), a last run (<a href="#run-id">Run id</a>), a commit (<a href="#spec-commit">Spec commit</a>), a since (<a href="#seen-on">Seen on</a>), a title (<a href="#work-line">Work line</a>), and a detail (<a href="#work-line">Work line</a>).</p>
+<p>Sets the failures, the first failure, the examples, the last run, the commit, the since, the title, and the detail and moves the red spec from green to red.</p>
+<p>Records <a href="#spec-went-red-again">Spec went red again</a>.</p>
+</article>
+<article class="term" id="update">
+<h4>Update</h4>
+<p>Record what a later red run saw of a spec file that was already red. Done by the system.</p>
+<p>Needs a failures (<a href="#failure-count">Failure count</a>), a first failure (<a href="#failure-line">Failure line</a>, optional), an examples (<a href="#failure-line">Failure line</a>, optional), a last run (<a href="#run-id">Run id</a>), a commit (<a href="#spec-commit">Spec commit</a>), and a detail (<a href="#work-line">Work line</a>).</p>
+<p>Sets the failures, the first failure, the examples, the last run, the commit, and the detail.</p>
+<p>Records <a href="#spec-still-red">Spec still red</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-15">What it records</h3>
+<div class="terms">
+<article class="term" id="spec-still-red">
+<h4>Spec still red</h4>
+<p>Recorded after <a href="#update">Update</a>.</p>
+</article>
+<article class="term" id="spec-went-green">
+<h4>Spec went green</h4>
+<p>Recorded after <a href="#clear">Clear</a>.</p>
+</article>
+<article class="term" id="spec-went-red">
+<h4>Spec went red</h4>
+<p>Recorded after <a href="#open-4">Open</a>.</p>
+</article>
+<article class="term" id="spec-went-red-again">
+<h4>Spec went red again</h4>
+<p>Recorded after <a href="#reopen">Reopen</a>.</p>
+</article>
+</div>
+<h3 class="group" id="lists-9">Lists</h3>
+<div class="terms">
+<article class="term" id="on-main">
+<h4>On main</h4>
+<p>The red specs on main: every spec file still red, with the day it first went red and the run that last saw it fail.</p>
+<p>Red specs that are red, sorted by seen on, A to Z.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-15">What it is made of</h3>
+<div class="terms">
+<article class="term" id="failure-count">
+<h4>Failure count</h4>
+<p>A whole number.</p>
+<p class="rule">Always true: a red spec has failing examples.</p>
+</article>
+<article class="term" id="failure-line">
+<h4>Failure line</h4>
+<p>Text.</p>
+</article>
+<article class="term" id="run-id">
+<h4>Run id</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="seen-on">
+<h4>Seen on</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="spec-commit">
+<h4>Spec commit</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="spec-key">
+<h4>Spec key</h4>
+<p>Text that must follow a set format.</p>
+</article>
+<article class="term" id="spec-path">
+<h4>Spec path</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="work-line">
+<h4>Work line</h4>
+<p>Text that must not be blank.</p>
+</article>
+</div>
+</section>
+<section id="release-pr">
+<h2>Release PR</h2>
+<p class="about">One release PR: the version bump opened on GitHub, approved by the owner only when every auto-approval condition holds.</p>
+<p class="caption">Always true</p>
+<ul class="rules"><li>A release names a semantic version.</li></ul>
+<h3 class="group" id="actions-16">Actions</h3>
+<div class="terms">
+<article class="term" id="approve">
+<h4>Approve</h4>
+<p>Approve a release PR once every auto-approval condition holds, writing the release trailer for the owner. Done by the release owner.</p>
+<p>Needs a release (<a href="#release-version">Release version</a>), a sha (Maintenance sha), a condition (<a href="#release-condition">Release condition</a>), an approver (<a href="#release-approver">Release approver</a>), and a trailer (<a href="#release-trailer">Release trailer</a>).</p>
+<p class="rule">Allowed only when: only a release whose conditions all held is approved.</p>
+<p>Records <a href="#release-approved">Release approved</a>.</p>
+</article>
+<article class="term" id="check-2">
+<h4>Check</h4>
+<p>Record which auto-approval condition held for a release PR, naming the first one that failed. Done by the release owner.</p>
+<p>Needs a release (<a href="#release-version">Release version</a>), a sha (Maintenance sha), a condition (<a href="#release-condition">Release condition</a>), an approver (<a href="#release-approver">Release approver</a>), and a trailer (<a href="#release-trailer">Release trailer</a>).</p>
+<p>Records <a href="#release-checked">Release checked</a>.</p>
+</article>
+<article class="term" id="open-5">
+<h4>Open</h4>
+<p>Open the release PR for a version bump on main, so the owner can approve it on GitHub. Done by the release owner.</p>
+<p>Needs a release (<a href="#release-version">Release version</a>), a branch (<a href="#release-branch">Release branch</a>), and a sha (Maintenance sha).</p>
+<p>Records <a href="#release-open-requested">Release open requested</a>.</p>
+</article>
+<article class="term" id="refuse">
+<h4>Refuse</h4>
+<p>Refuse a release PR, naming the auto-approval condition that failed. Done by the release owner.</p>
+<p>Needs a release (<a href="#release-version">Release version</a>) and a condition (<a href="#release-condition">Release condition</a>).</p>
+<p class="rule">Allowed only when: only a release with a failed condition is refused.</p>
+<p>Records <a href="#release-refused">Release refused</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-records-16">What it records</h3>
+<div class="terms">
+<article class="term" id="release-approved">
+<h4>Release approved</h4>
+<p>Recorded after <a href="#approve">Approve</a>. Prompts <a href="#write-trailer-on-approved">Write trailer on approved</a>.</p>
+</article>
+<article class="term" id="release-checked">
+<h4>Release checked</h4>
+<p>Recorded after <a href="#check-2">Check</a>. Prompts <a href="#approve-on-conditions-met">Approve on conditions met</a> and <a href="#refuse-on-failed-condition">Refuse on failed condition</a>.</p>
+</article>
+<article class="term" id="release-open-requested">
+<h4>Release open requested</h4>
+<p>Recorded after <a href="#open-5">Open</a>. Prompts <a href="#open-on-release-request">Open on release request</a>.</p>
+</article>
+<article class="term" id="release-refused">
+<h4>Release refused</h4>
+<p>Recorded after <a href="#refuse">Refuse</a>.</p>
+</article>
+</div>
+<h3 class="group" id="what-happens-on-its-own-9">What happens on its own</h3>
+<div class="terms">
+<article class="term" id="approve-on-conditions-met">
+<h4>Approve on conditions met</h4>
+<p>When <a href="#release-checked">Release checked</a> happens, <a href="#release-pr">Release PR</a> is asked to <a href="#approve">Approve</a>.</p>
+</article>
+<article class="term" id="open-on-release-request">
+<h4>Open on release request</h4>
+<p>When <a href="#release-open-requested">Release open requested</a> happens, Release pr::release gh is asked to Open pull request.</p>
+</article>
+<article class="term" id="refuse-on-failed-condition">
+<h4>Refuse on failed condition</h4>
+<p>When <a href="#release-checked">Release checked</a> happens, <a href="#release-pr">Release PR</a> is asked to <a href="#refuse">Refuse</a>.</p>
+</article>
+<article class="term" id="write-trailer-on-approved">
+<h4>Write trailer on approved</h4>
+<p>When <a href="#release-approved">Release approved</a> happens, Release pr::release gh is asked to Write trailer.</p>
+</article>
+</div>
+<h3 class="group" id="what-it-is-made-of-16">What it is made of</h3>
+<div class="terms">
+<article class="term" id="release-approver">
+<h4>Release approver</h4>
+<p>One of Chris Young.</p>
+</article>
+<article class="term" id="release-branch">
+<h4>Release branch</h4>
+<p>Text that must not be blank.</p>
+</article>
+<article class="term" id="release-condition">
+<h4>Release condition</h4>
+<p>One of met, not_on_stable_head, checks_not_green, changelog_undated, or version_mismatch.</p>
+</article>
+<article class="term" id="release-trailer">
+<h4>Release trailer</h4>
+<p>One of Release-Approved-By.</p>
+</article>
+<article class="term" id="release-version">
+<h4>Release version</h4>
+<p>Text.</p>
+<p class="rule">Always true: a release names a semantic version.</p>
+</article>
+<article class="term" id="verdict-2">
+<h4>Verdict</h4>
+<p>One of open, approved, or refused.</p>
 </article>
 </div>
 </section>
@@ -1314,7 +2212,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Checking a sweep keeps it sweeping.</li><li>Waiving a sweep keeps it sweeping.</li><li>Concluding a sweep moves it from sweeping to concluded.</li><li>Abandoning a sweep moves it from sweeping to abandoned.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each sweep belongs to one target.</li><li>Each sweep holds a list of checks.</li><li>A sweep is referenced.</li><li>A sweep says who ran it.</li><li>A check count is not negative.</li><li>A waiver count is not negative.</li><li>A sweep says what it learned, in at least 40 characters.</li><li>A waived gate says why.</li><li>A gate is waived by a person, never by the loop.</li><li>A waiver is signed.</li><li>A check sequence is positive.</li><li>A check names what it put to the system.</li><li>A check says what it expected.</li><li>A domain is named by its path.</li><li>A data directory is named by its path.</li><li>A database is named.</li><li>A role is named.</li><li>A schema is named.</li><li>A step names its verb.</li><li>A step carries its arguments, `{}` for none.</li></ul>
-<h3 class="group" id="actions-6">Actions</h3>
+<h3 class="group" id="actions-17">Actions</h3>
 <div class="terms">
 <article class="term" id="abandon">
 <h4>Abandon</h4>
@@ -1322,7 +2220,7 @@ section.searching > p { display: none; }
 <p>Moves the sweep from sweeping to abandoned.</p>
 <p>Records <a href="#sweep-abandoned">Sweep abandoned</a>.</p>
 </article>
-<article class="term" id="check">
+<article class="term" id="check-3">
 <h4>Check</h4>
 <p>Put one thing to the system, saying what it should do before looking. Done by the qa engineer.</p>
 <p>Needs a subject (<a href="#subject">Subject</a>) and an expectation (<a href="#expectation-1">Expectation</a>).</p>
@@ -1345,7 +2243,7 @@ section.searching > p { display: none; }
 <p>Sets the observation and moves the check from made to held.</p>
 <p>Records <a href="#check-held">Check held</a>.</p>
 </article>
-<article class="term" id="open-4">
+<article class="term" id="open-6">
 <h4>Open</h4>
 <p>Begin a pass over one bluebook. Done by the qa engineer.</p>
 <p>Needs a target (<a href="#target">Target</a>), a reference (<a href="#sweep-reference">Sweep reference</a>), and an engineer (<a href="#engineer-1">Engineer</a>).</p>
@@ -1381,7 +2279,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#gate-waived">Gate waived</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-6">What it records</h3>
+<h3 class="group" id="what-it-records-17">What it records</h3>
 <div class="terms">
 <article class="term" id="check-held">
 <h4>Check held</h4>
@@ -1389,7 +2287,7 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="check-made">
 <h4>Check made</h4>
-<p>Recorded after <a href="#check">Check</a>.</p>
+<p>Recorded after <a href="#check-3">Check</a>.</p>
 </article>
 <article class="term" id="check-remade">
 <h4>Check remade</h4>
@@ -1417,19 +2315,19 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="sweep-opened">
 <h4>Sweep opened</h4>
-<p>Recorded after <a href="#open-4">Open</a>.</p>
+<p>Recorded after <a href="#open-6">Open</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-happens-on-its-own-2">What happens on its own</h3>
+<h3 class="group" id="what-happens-on-its-own-10">What happens on its own</h3>
 <div class="terms">
 <article class="term" id="suspend-on-surprise">
 <h4>Suspend on surprise</h4>
 <p>When <a href="#check-surprised">Check surprised</a> happens, <a href="#target">Target</a> is asked to <a href="#suspend">Suspend</a>.</p>
 </article>
 </div>
-<h3 class="group" id="lists-6">Lists</h3>
+<h3 class="group" id="lists-10">Lists</h3>
 <div class="terms">
-<article class="term" id="all-5">
+<article class="term" id="all-8">
 <h4>All</h4>
 <p>Every pass ever made — what a runner mints the next reference from.</p>
 <p>All sweeps, sorted by sweep reference, A to Z.</p>
@@ -1485,9 +2383,9 @@ section.searching > p { display: none; }
 <p>Sweeps whose waiver count is more than 0, sorted by sweep reference, A to Z.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-6">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-17">What it is made of</h3>
 <div class="terms">
-<article class="term" id="check-1">
+<article class="term" id="check-4">
 <h4>Check</h4>
 <p>One dispatch made against a written-down expectation, and what actually came back.</p>
 <p>Starts out made. Can be made, held, surprising, or unsettled.</p>
@@ -1631,7 +2529,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Claiming a target moves it from waiting or held to held.</li><li>Releasing a target moves it from held or suspended to waiting.</li><li>Suspending a target moves it from held to suspended.</li><li>Shelving a target moves it from waiting or held to shelved.</li><li>Restoring a target moves it from shelved to waiting.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>A target is referenced.</li><li>A target says where it is.</li><li>An instant is not before the epoch.</li><li>A sweep time is not before the epoch.</li><li>A streak is not negative.</li><li>Shelving a target says why.</li><li>A mode is named.</li><li>A yield score is not negative.</li><li>A staleness window is positive.</li><li>A domain is named by its path.</li></ul>
-<h3 class="group" id="actions-7">Actions</h3>
+<h3 class="group" id="actions-18">Actions</h3>
 <div class="terms">
 <article class="term" id="claim-1">
 <h4>Claim</h4>
@@ -1683,7 +2581,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#target-suspended">Target suspended</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-7">What it records</h3>
+<h3 class="group" id="what-it-records-18">What it records</h3>
 <div class="terms">
 <article class="term" id="target-claimed">
 <h4>Target claimed</h4>
@@ -1714,9 +2612,9 @@ section.searching > p { display: none; }
 <p>Recorded after <a href="#suspend">Suspend</a>.</p>
 </article>
 </div>
-<h3 class="group" id="lists-7">Lists</h3>
+<h3 class="group" id="lists-11">Lists</h3>
 <div class="terms">
-<article class="term" id="all-6">
+<article class="term" id="all-9">
 <h4>All</h4>
 <p>Every bluebook ever written down — the inventory a runner walking the repository checks its findings against.</p>
 <p>All targets, sorted by target reference, A to Z.</p>
@@ -1782,7 +2680,7 @@ section.searching > p { display: none; }
 <p>Targets that are waiting and whose swept in is 0, sorted by target reference, A to Z.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-7">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-18">What it is made of</h3>
 <div class="terms">
 <article class="term" id="capabilities">
 <h4>Capabilities</h4>
@@ -1881,7 +2779,7 @@ section.searching > p { display: none; }
 <ul class="rules"><li>Submitting a ticket moves it from raised or refused to submitting.</li><li>Marking a ticket filed moves it from submitting to filed.</li><li>Marking a ticket refused moves it from submitting to refused.</li><li>Retrying a ticket moves it from refused to submitting.</li><li>Abandoning a ticket moves it from raised, submitting, or refused to abandoned.</li><li>Closing a ticket moves it from filed to closed.</li></ul>
 <p class="caption">Always true</p>
 <ul class="rules"><li>Each ticket belongs to one bug.</li><li>A ticket is referenced.</li><li>A ticket is titled.</li><li>A ticket says something.</li><li>An issue number is not negative.</li><li>An attempt count is not negative.</li><li>A filing is attempted at least once.</li></ul>
-<h3 class="group" id="actions-8">Actions</h3>
+<h3 class="group" id="actions-19">Actions</h3>
 <div class="terms">
 <article class="term" id="abandon-1">
 <h4>Abandon</h4>
@@ -1930,7 +2828,7 @@ section.searching > p { display: none; }
 <p>Records <a href="#ticket-submitted">Ticket submitted</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-records-8">What it records</h3>
+<h3 class="group" id="what-it-records-19">What it records</h3>
 <div class="terms">
 <article class="term" id="ticket-closed">
 <h4>Ticket closed</h4>
@@ -1961,7 +2859,7 @@ section.searching > p { display: none; }
 <p>Recorded after <a href="#submit">Submit</a>. Prompts <a href="#file-when-submitted">File when submitted</a>.</p>
 </article>
 </div>
-<h3 class="group" id="what-happens-on-its-own-3">What happens on its own</h3>
+<h3 class="group" id="what-happens-on-its-own-11">What happens on its own</h3>
 <div class="terms">
 <article class="term" id="ask-again">
 <h4>Ask again</h4>
@@ -1976,14 +2874,14 @@ section.searching > p { display: none; }
 <p>When <a href="#ticket-submitted">Ticket submitted</a> happens, Ticket::issue tracker is asked to File.</p>
 </article>
 </div>
-<h3 class="group" id="lists-8">Lists</h3>
+<h3 class="group" id="lists-12">Lists</h3>
 <div class="terms">
 <article class="term" id="abandoned">
 <h4>Abandoned</h4>
 <p>Asked three times, refused three times. Every row belongs in the report, because nothing automatic will touch it again.</p>
 <p>Tickets that are abandoned, sorted by ticket reference, A to Z.</p>
 </article>
-<article class="term" id="all-7">
+<article class="term" id="all-10">
 <h4>All</h4>
 <p>Every ticket ever raised.</p>
 <p>All tickets, sorted by ticket reference, A to Z.</p>
@@ -2029,7 +2927,7 @@ section.searching > p { display: none; }
 <p>Tickets that are submitting, sorted by ticket reference, A to Z.</p>
 </article>
 </div>
-<h3 class="group" id="what-it-is-made-of-8">What it is made of</h3>
+<h3 class="group" id="what-it-is-made-of-19">What it is made of</h3>
 <div class="terms">
 <article class="term" id="attempt-count">
 <h4>Attempt count</h4>
@@ -2087,13 +2985,21 @@ section.searching > p { display: none; }
 <h2>Roles</h2>
 <p class="about">Who does what. Each role is listed once, with the actions it is responsible for.</p>
 <div class="terms">
+<article class="term" id="ci-engineer">
+<h4>CI engineer</h4>
+<p>Responsible for <a href="#request">Request (head)</a> and <a href="#request-2">Request (main run)</a>.</p>
+</article>
 <article class="term" id="qa-engineer">
 <h4>QA engineer</h4>
-<p>Responsible for <a href="#identify">Identify</a>, <a href="#claim-1">Claim (target)</a>, <a href="#release">Release</a>, <a href="#shelve">Shelve</a>, <a href="#restore">Restore</a>, <a href="#relocate">Relocate</a>, <a href="#open-4">Open (sweep)</a>, <a href="#check">Check</a>, <a href="#waive-1">Waive (sweep)</a>, <a href="#conclude">Conclude</a>, <a href="#abandon">Abandon (sweep)</a>, <a href="#held">Held</a>, <a href="#surprised">Surprised</a>, <a href="#unsettled-check">Unsettled (check)</a>, <a href="#remake">Remake</a>, <a href="#log">Log</a>, <a href="#rank">Rank</a>, <a href="#tag">Tag</a>, <a href="#triage">Triage</a>, <a href="#name">Name</a>, <a href="#claim">Claim (bug)</a>, <a href="#drop">Drop</a>, <a href="#investigate-1">Investigate (bug)</a>, <a href="#fix">Fix</a>, <a href="#verify">Verify</a>, <a href="#pause">Pause</a>, <a href="#withdraw">Withdraw</a>, <a href="#regress">Regress (bug)</a>, <a href="#revisit">Revisit</a>, <a href="#waive">Waive (bug)</a>, <a href="#propose">Propose</a>, <a href="#investigate">Investigate (angle)</a>, <a href="#build">Build</a>, <a href="#discard">Discard</a>, <a href="#raise">Raise</a>, <a href="#submit">Submit</a>, <a href="#abandon-1">Abandon (ticket)</a>, <a href="#close-2">Close (ticket)</a>, <a href="#open-3">Open (patch)</a>, <a href="#merge-1">Merge (patch)</a>, <a href="#close-1">Close (patch)</a>, <a href="#open-1">Open (daily quota)</a>, <a href="#take">Take</a>, <a href="#open-2">Open (improvement)</a>, <a href="#land">Land</a>, <a href="#regress-1">Regress (improvement)</a>, <a href="#merge">Merge (improvement)</a>, <a href="#close">Close (improvement)</a>, and <a href="#start">Start</a>.</p>
+<p>Responsible for <a href="#identify">Identify</a>, <a href="#claim-1">Claim (target)</a>, <a href="#release">Release</a>, <a href="#shelve">Shelve</a>, <a href="#restore">Restore</a>, <a href="#relocate">Relocate</a>, <a href="#open-6">Open (sweep)</a>, <a href="#check-3">Check (sweep)</a>, <a href="#waive-1">Waive (sweep)</a>, <a href="#conclude">Conclude</a>, <a href="#abandon">Abandon (sweep)</a>, <a href="#held">Held</a>, <a href="#surprised">Surprised</a>, <a href="#unsettled-check">Unsettled (check)</a>, <a href="#remake">Remake</a>, <a href="#log">Log</a>, <a href="#rank">Rank</a>, <a href="#tag">Tag</a>, <a href="#triage">Triage</a>, <a href="#name">Name</a>, <a href="#claim">Claim (bug)</a>, <a href="#drop">Drop</a>, <a href="#investigate-1">Investigate (bug)</a>, <a href="#fix">Fix</a>, <a href="#verify">Verify</a>, <a href="#pause">Pause</a>, <a href="#withdraw">Withdraw</a>, <a href="#regress">Regress (bug)</a>, <a href="#revisit">Revisit</a>, <a href="#waive">Waive (bug)</a>, <a href="#propose">Propose</a>, <a href="#investigate">Investigate (angle)</a>, <a href="#build">Build</a>, <a href="#discard">Discard</a>, <a href="#raise">Raise</a>, <a href="#submit">Submit</a>, <a href="#abandon-1">Abandon (ticket)</a>, <a href="#close-2">Close (ticket)</a>, <a href="#open-3">Open (patch)</a>, <a href="#merge-1">Merge (patch)</a>, <a href="#close-1">Close (patch)</a>, <a href="#open-1">Open (daily quota)</a>, <a href="#take">Take</a>, <a href="#open-2">Open (improvement)</a>, <a href="#land">Land</a>, <a href="#regress-1">Regress (improvement)</a>, <a href="#merge">Merge (improvement)</a>, <a href="#close">Close (improvement)</a>, <a href="#record-1">Record (main check)</a>, <a href="#start-1">Start (event cursor)</a>, <a href="#advance">Advance</a>, <a href="#record">Record (event reaction)</a>, <a href="#pump">Pump</a>, <a href="#start-2">Start (maintenance)</a>, <a href="#refuse-gate">Refuse gate</a>, <a href="#request-reconcile">Request reconcile</a>, <a href="#request-push">Request push</a>, <a href="#record-rehearsal-verdict">Record rehearsal verdict</a>, <a href="#mint-era">Mint era</a>, <a href="#refuse-mint">Refuse mint</a>, <a href="#start">Start (clearance)</a>, <a href="#check">Check (clearance)</a>, and <a href="#check-1">Check (push nudge)</a>.</p>
+</article>
+<article class="term" id="release-owner">
+<h4>Release owner</h4>
+<p>Responsible for <a href="#open-5">Open</a>, <a href="#check-2">Check</a>, <a href="#approve">Approve</a>, and <a href="#refuse">Refuse</a>.</p>
 </article>
 <article class="term" id="system">
 <h4>System</h4>
-<p>Responsible for <a href="#suspend">Suspend</a>, <a href="#filed">Filed</a>, <a href="#refused">Refused</a>, <a href="#retry">Retry</a>, <a href="#passed">Passed</a>, and <a href="#failed">Failed</a>.</p>
+<p>Responsible for <a href="#suspend">Suspend</a>, <a href="#filed">Filed</a>, <a href="#refused">Refused</a>, <a href="#retry">Retry</a>, <a href="#green">Green</a>, <a href="#red-1">Red</a>, <a href="#open-4">Open</a>, <a href="#update">Update</a>, <a href="#reopen">Reopen</a>, <a href="#clear">Clear</a>, <a href="#record-2">Record (main run)</a>, <a href="#consider">Consider</a>, <a href="#request-1">Request</a>, <a href="#needs-approval">Needs approval</a>, <a href="#finish">Finish</a>, <a href="#passed">Passed</a>, <a href="#failed">Failed</a>, and <a href="#record-3">Record (push nudge)</a>.</p>
 </article>
 </div>
 </section>
@@ -2131,21 +3037,93 @@ section.searching > p { display: none; }
 <h4>Clear on pass</h4>
 <p>When &quot;Suite passed&quot; arrives from outside, <a href="#clearance">Clearance</a> is asked to <a href="#passed">Passed</a>.</p>
 </article>
+<article class="term" id="clear-specs-on-settled-run">
+<h4>Clear specs on settled run</h4>
+<p>When &quot;Main run read&quot; arrives from outside, <a href="#red-spec">Red spec</a> is asked to <a href="#clear">Clear</a>, once for each row of <a href="#on-main">On main</a>.</p>
+</article>
 <article class="term" id="close-when-closed-upstream">
 <h4>Close when closed upstream</h4>
 <p>When &quot;Issue closed upstream&quot; arrives from outside, <a href="#ticket">Ticket</a> is asked to <a href="#close-2">Close</a>.</p>
+</article>
+<article class="term" id="finish-on-roll-answered">
+<h4>Finish on roll answered</h4>
+<p>When &quot;Roll answered&quot; arrives from outside, <a href="#image-roll">Image roll</a> is asked to <a href="#finish">Finish</a>.</p>
+</article>
+<article class="term" id="finish-on-roll-refused">
+<h4>Finish on roll refused</h4>
+<p>When &quot;Roll refused&quot; arrives from outside, <a href="#image-roll">Image roll</a> is asked to <a href="#finish">Finish</a>.</p>
+</article>
+<article class="term" id="green-on-head-checked">
+<h4>Green on head checked</h4>
+<p>When &quot;Head checked&quot; arrives from outside, <a href="#head">Head</a> is asked to <a href="#green">Green</a>.</p>
+</article>
+<article class="term" id="hold-when-infra">
+<h4>Hold when infra</h4>
+<p>When &quot;Image classified&quot; arrives from outside, <a href="#image-roll">Image roll</a> is asked to <a href="#needs-approval">Needs approval</a>.</p>
+</article>
+<article class="term" id="land-on-minted">
+<h4>Land on minted</h4>
+<p>When &quot;Minted&quot; arrives from outside, Maintenance::main maintenance is asked to Land.</p>
+</article>
+<article class="term" id="push-on-reconciled">
+<h4>Push on reconciled</h4>
+<p>When &quot;Reconcile done&quot; arrives from outside, <a href="#maintenance">Maintenance</a> is asked to <a href="#request-push">Request push</a>.</p>
+</article>
+<article class="term" id="reconcile-on-green-gate">
+<h4>Reconcile on green gate</h4>
+<p>When &quot;Gate verdict&quot; arrives from outside, <a href="#maintenance">Maintenance</a> is asked to <a href="#request-reconcile">Request reconcile</a>.</p>
+</article>
+<article class="term" id="record-claim-on-attempt-claimed">
+<h4>Record claim on attempt claimed</h4>
+<p>When &quot;Attempt claimed&quot; arrives from outside, <a href="#bug">Bug</a> is asked to <a href="#claim">Claim</a>.</p>
+</article>
+<article class="term" id="record-fix-on-fix-ready">
+<h4>Record fix on fix ready</h4>
+<p>When &quot;Fix ready&quot; arrives from outside, <a href="#bug">Bug</a> is asked to <a href="#fix">Fix</a>.</p>
+</article>
+<article class="term" id="record-investigation-on-attempt-investigated">
+<h4>Record investigation on attempt investigated</h4>
+<p>When &quot;Attempt investigated&quot; arrives from outside, <a href="#bug">Bug</a> is asked to <a href="#investigate-1">Investigate</a>.</p>
 </article>
 <article class="term" id="record-the-issue">
 <h4>Record the issue</h4>
 <p>When &quot;Issue filed&quot; arrives from outside, <a href="#ticket">Ticket</a> is asked to <a href="#filed">Filed</a>.</p>
 </article>
+<article class="term" id="record-the-push-due-read">
+<h4>Record the push due read</h4>
+<p>When &quot;Push due read&quot; arrives from outside, <a href="#push-nudge">Push nudge</a> is asked to <a href="#record-3">Record</a>.</p>
+</article>
 <article class="term" id="record-the-refusal">
 <h4>Record the refusal</h4>
 <p>When &quot;Issue filing refused&quot; arrives from outside, <a href="#ticket">Ticket</a> is asked to <a href="#refused">Refused</a>.</p>
 </article>
+<article class="term" id="record-the-run-read">
+<h4>Record the run read</h4>
+<p>When &quot;Main run read&quot; arrives from outside, <a href="#main-run">Main run</a> is asked to <a href="#record-2">Record</a>.</p>
+</article>
+<article class="term" id="record-verify-on-fix-verified">
+<h4>Record verify on fix verified</h4>
+<p>When &quot;Fix verified&quot; arrives from outside, <a href="#bug">Bug</a> is asked to <a href="#verify">Verify</a>.</p>
+</article>
+<article class="term" id="red-on-head-checked">
+<h4>Red on head checked</h4>
+<p>When &quot;Head checked&quot; arrives from outside, <a href="#head">Head</a> is asked to <a href="#red-1">Red</a>.</p>
+</article>
 <article class="term" id="refuse-on-fail">
 <h4>Refuse on fail</h4>
 <p>When &quot;Suite failed&quot; arrives from outside, <a href="#clearance">Clearance</a> is asked to <a href="#failed">Failed</a>.</p>
+</article>
+<article class="term" id="refuse-on-red-gate">
+<h4>Refuse on red gate</h4>
+<p>When &quot;Gate verdict&quot; arrives from outside, <a href="#maintenance">Maintenance</a> is asked to <a href="#refuse-gate">Refuse gate</a>.</p>
+</article>
+<article class="term" id="roll-when-image-only">
+<h4>Roll when image only</h4>
+<p>When &quot;Image classified&quot; arrives from outside, <a href="#image-roll">Image roll</a> is asked to <a href="#request-1">Request</a>.</p>
+</article>
+<article class="term" id="start-on-submission">
+<h4>Start on submission</h4>
+<p>When &quot;Work submitted&quot; arrives from outside, <a href="#maintenance">Maintenance</a> is asked to <a href="#start-2">Start</a>.</p>
 </article>
 </div>
 </section>

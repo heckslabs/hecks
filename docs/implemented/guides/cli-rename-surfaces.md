@@ -60,6 +60,14 @@ Three of these need a decision beyond a rewrite:
   matching, so the palette offers fewer tools and refuses nothing. A spec that checks every entry
   resolves would catch it, the same shape as the everyday-list check (ADR 0163 plan step 49).
 
+The Composer allowlist is the one list here a spec can check against this page. Every entry of
+`SAFE_COMMANDS` is named in the Composer row above:
+
+```ruby
+page = File.read("docs/implemented/guides/cli-rename-surfaces.md")
+Hecks::Composer::Toolbox::SAFE_COMMANDS.reject { |verb| page.include?(verb) }   # => []
+```
+
 ## Consumers outside the searched repositories
 
 The first search covered `~/Projects/hecks`, `lifeadelics`, `emaho`, `miette2`, `~/bin` and

@@ -1,6 +1,7 @@
 require_relative "fuzzing/target_capabilities"
 require_relative "corpus/adapters"
 require_relative "corpus/generated_key"
+require_relative "corpus/listing"
 require_relative "corpus/routes"
 require_relative "corpus/rust"
 require_relative "corpus/sources"
@@ -24,6 +25,9 @@ module Hecks
       # The Hecks domain (ADR 0080): its bluebooks share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
       hecks:     "lib/hecks/hecks",
+      # The Coder and Fixer domains keep their bluebook beside their hecksagon in their own folder.
+      coder:     "lib/hecks/coder",
+      fixer:     "lib/hecks/fixer",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
@@ -57,6 +61,7 @@ module Hecks
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
     extend Adapters
+    extend Listing
     extend Rust
     extend Sources
     extend Worlds
@@ -73,33 +78,6 @@ module Hecks
     def members(*kinds, root: ROOT)
       kinds = KINDS if kinds.empty?
       kinds.flat_map { |kind| kind_members(kind, root) }
-    end
-
-    # @return [Array<Member>] the members of one kind: a directory each, or a file each
-    # @raise [ArgumentError] if `kind` is not in `KINDS`
-    def kind_members(kind, root)
-      if (glob = DIRECTORY_KINDS[kind])
-        directory_members(kind, root, glob)
-      elsif (glob = FILE_KINDS[kind])
-        file_members(kind, root, glob)
-      else
-        raise ArgumentError, "unknown corpus kind #{kind.inspect} — known: #{KINDS.join(", ")}"
-      end
-    end
-
-    def directory_members(kind, root, glob)
-      directories(root, glob).map { |dir| Member.new(File.basename(dir), kind, dir) }
-    end
-
-    def directories(root, glob) = Dir.glob(File.join(root, glob)).select { |path| File.directory?(path) }.sort
-
-    # The part of a glob before its first wildcard.
-    GLOB_FIXED_PREFIX = /\A[^*]*/
-
-    def file_members(kind, root, glob)
-      prefix = File.join(root, glob[GLOB_FIXED_PREFIX].chomp("/"))
-      Dir.glob(File.join(root, glob))
-         .map { |file| Member.new(file.delete_prefix("#{prefix}/").delete_suffix(".bluebook"), kind, file) }
     end
 
     # What a boot loads for a member — a directory kind's bluebook
