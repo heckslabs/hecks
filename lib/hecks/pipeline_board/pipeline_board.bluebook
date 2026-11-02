@@ -1,6 +1,6 @@
 # PipelineBoard: the pipeline from coding to release, read live and shown on one local page. The
 # read side is six queries, each answered by an adapter behind a port: GitHub for the CI runs, Git
-# for local main and the train, Tickets for the Work rows, Jobs for the sessions, Journal for the
+# for local main and the train, Tickets for the Work items, Jobs for the sessions, Journal for the
 # events the tooling recorded. The bluebook names the questions and never fetches, shells out or
 # opens a file.
 #
@@ -41,13 +41,13 @@ Hecks.bluebook "PipelineBoard" do
       attribute :value, String
     end
 
-    # A JSON document: the rows of a query, or `unknown: <reason>` for a read that failed.
+    # A JSON document: the results of a query, or `unknown: <reason>` for a read that failed.
     value_object "Document" do
       attribute :text, String
     end
 
-    # How many rows a query answers, at most.
-    value_object "Rows" do
+    # How many results a query answers, at most.
+    value_object "Limit" do
       attribute :value, Integer, default: 20
     end
 
@@ -89,24 +89,24 @@ Hecks.bluebook "PipelineBoard" do
     end
 
     query "Stages" do
-      description "One row per stage, left to right: Work rows, Sessions, Local main, Train, CI, Promote, Release, each with its state, count and a one-line detail."
+      description "One entry per stage, left to right: Work items, Sessions, Local main, Train, CI, Promote, Release, each with its state, count and a one-line detail."
       returns Document
     end
 
     query "CiRuns" do
       description "The last CI runs on main, oldest first: sha, started, wall minutes, conclusion and how many jobs failed."
-      attribute :limit, Rows, optional: true
+      attribute :limit, Limit, optional: true
       returns Document
     end
 
     query "SlowestJobs" do
       description "The jobs of the last completed CI run, slowest first, in minutes."
-      attribute :limit, Rows, optional: true
+      attribute :limit, Limit, optional: true
       returns Document
     end
 
     query "OpenWork" do
-      description "The Work rows that are not done: slug, status and area."
+      description "The Work items that are not done: slug, status and area."
       returns Document
     end
 
@@ -117,7 +117,7 @@ Hecks.bluebook "PipelineBoard" do
 
     query "Events" do
       description "The most recent events the tooling recorded, newest first: time, aggregate, event, and the policy that reacted where the journal holds one."
-      attribute :limit, Rows, optional: true
+      attribute :limit, Limit, optional: true
       returns Document
     end
   end

@@ -9,7 +9,7 @@ module Hecks
         module_function
 
         # @param sessions [Array<Hash>] the board's sessions
-        # @param work [Array<Hash>] the open Work rows
+        # @param work [Array<Hash>] the open Work items
         # @param landed [Array<String>] the branches the Landing records say were merged
         # @param fill [Hash, nil] the Dispatch.Fill preview
         # @return [Array<Hash>] one row per open Work row: its claim, its sessions and its flags
@@ -40,7 +40,9 @@ module Hecks
           { kind: "unclaimed", detail: "#{on.first[:id]} runs on #{row[:slug]}, which has no claimed_by" }
         end
 
-        def twice(on) = { kind: "duplicate", detail: "#{on.size} sessions run on one row: #{on.map { |s| s[:id] }.join(", ")}" }
+        def twice(on)
+          { kind: "duplicate", detail: "#{on.size} sessions run on one work item: #{on.map { |s| s[:id] }.join(", ")}" }
+        end
 
         def overlapping(row, on, world)
           return [] if on.empty?

@@ -41,11 +41,11 @@ RSpec.describe Hecks::Adapters::PipelineStages do
 
   it "answers a row for every stage of the pipeline", :aggregate_failures do
     names = board.state[:stages].map { |row| row[:name] }
-    expect(names).to eq(["Work rows", "Sessions", "Local main", "Train", "CI", "Promote", "Release"])
+    expect(names).to eq(["Work items", "Sessions", "Local main", "Train", "CI", "Promote", "Release"])
   end
 
-  it "counts the Work rows by status" do
-    expect(stage("Work rows")).to include(count: "1/1/1")
+  it "counts the Work items by status" do
+    expect(stage("Work items")).to include(count: "1/1/1")
   end
 
   it "counts the commits local main is ahead of origin/main" do

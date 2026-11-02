@@ -138,7 +138,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
     <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
   </section>
 
-  <section aria-labelledby="h-work"><h2 id="h-work">Open Work rows</h2><div class="scroll" id="work"></div></section>
+  <section aria-labelledby="h-work"><h2 id="h-work">Open Work items</h2><div class="scroll" id="work"></div></section>
   <section aria-labelledby="h-sess"><h2 id="h-sess">Sessions</h2><div class="scroll" id="sessions"></div></section>
   <section aria-labelledby="h-ev"><h2 id="h-ev">Events and what answered them</h2><div class="feed" id="feed" aria-live="polite"></div></section>
 </main>
@@ -211,11 +211,11 @@ function renderCi(runs, slow) {
 }
 function renderWork(work) {
   if (isUnknown(work)) return put("work", unknown(work));
-  put("work", table(["Row", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"])));
+  put("work", table(["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"])));
 }
 function renderSessions(list) {
   if (isUnknown(list)) return put("sessions", unknown(list));
-  put("sessions", table(["Session", "Status", "Row", "Started", "Detail"], list.map((s) => [s.name, [badge(s.status === "busy" ? "working" : s.status === "failed" ? "failed" : "ok"), " ", s.state], s.row || "-", clock(s.started), s.detail])));
+  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [s.name, [badge(s.status === "busy" ? "working" : s.status === "failed" ? "failed" : "ok"), " ", s.state], s.row || "-", clock(s.started), s.detail])));
 }
 function renderFan(fan) {
   if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "fill", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
@@ -227,14 +227,14 @@ function renderFan(fan) {
     return h("div", { class: "lane" }, h("div", { class: "tag" }, (s.status === "busy" ? "◔ " : s.status === "failed" ? "✕ " : "✓ ") + s.name + (s.row ? " · " + s.row : "")),
       h("div", { class: "span " + s.status, style: "left:" + left + "%;width:" + width + "%", tip: s.name + " " + s.status + " " + clock(s.started) + " to " + (s.ended ? clock(s.ended) : "now") }));
   })), h("div", { class: "hours" }, h("span", {}, "-24 h"), h("span", {}, "-12 h"), h("span", {}, "now")));
-  put("lanetable", table(["Session", "Status", "Started", "Ended", "Row"], sessions.map((s) => [s.name, s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
+  put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [s.name, s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
   const fill = fan.fill, ok = fill && !isUnknown(fill), busy = sessions.filter((s) => s.status === "busy").length, cap = ok ? fill.cap : 8;
   put("meters", h("div", {}, h("div", {}, "Sessions busy: " + busy + " of " + cap), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
     ok ? [h("div", {}, "Machine load: " + fill.load + " of " + fill.limit), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * fill.load / fill.limit) + "%" }))] : h("div", { class: "unknown-note" }, "load: unknown")));
-  put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.row + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between rows and sessions"));
+  put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.row + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
   put("fill", ok ? [h("h2", { style: "margin-top:10px" }, "Dispatch.Fill dry run: would start " + fill.would_start.length),
-    table(["Row", "Result"], fill.would_start.map((w) => [w.slug, "would start"]).concat(fill.skipped.map((w) => [w.slug, "skipped: " + w.reason])))] : unknown(fill || { unknown: "none" }));
-  put("mapping", table(["Row", "Status", "Claimed by", "Claimed at", "Sessions", "Flags"], fan.rows.map((r) => [r.slug, r.status, r.claimed_by || "(nobody)", r.claimed_at || "-", r.sessions.join(", ") || "-", r.flags.map((f) => f.kind).join(", ") || "-"])));
+    table(["Work item", "Result"], fill.would_start.map((w) => [w.slug, "would start"]).concat(fill.skipped.map((w) => [w.slug, "skipped: " + w.reason])))] : unknown(fill || { unknown: "none" }));
+  put("mapping", table(["Work item", "Status", "Claimed by", "Claimed at", "Sessions", "Flags"], fan.rows.map((r) => [r.slug, r.status, r.claimed_by || "(nobody)", r.claimed_at || "-", r.sessions.join(", ") || "-", r.flags.map((f) => f.kind).join(", ") || "-"])));
 }
 
 const seen = new Map();

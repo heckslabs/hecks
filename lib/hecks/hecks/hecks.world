@@ -45,6 +45,9 @@
 # **test_scope** `suite_runs_in` names where the full suite runs ("ci": a local run of it is refused by name) and
 # `spec_files_limit` is the most spec files one local `run_spec_files!` or `run_impacted_specs!` call runs.
 #
+# **event_log** `path` is the append-only file the runtime writes events and policy deliveries to (one JSON line each,
+# names and outcomes, never payloads) and `max_bytes` the size at which it moves to `<path>.1`; absent, nothing is written.
+#
 # **landing** `stale_minutes` is how long a landing's ticket may go without a heartbeat before the next one treats
 # it as abandoned and removes it (30 when absent); `wait_minutes` is how long a landing waits for its turn in the
 # line before it gives up (40 when absent); `shell_lock` names a lock directory an older brief makes by hand,
@@ -64,6 +67,10 @@ Hecks.world "Hecks" do
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run at
   # most `spec_files_limit` files per call; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).
   test_scope "Local", suite_runs_in: "ci", spec_files_limit: 25
+  # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
+  # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
+  # world declares no `event_log`, so a client writes no file. The file rotates at `max_bytes`.
+  event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
