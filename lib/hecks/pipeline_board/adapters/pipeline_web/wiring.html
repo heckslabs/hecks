@@ -246,12 +246,12 @@ const SCOOT_REACH = 90, SCOOT_PUSH = 0.6;
 let cursor = null;
 const base = (n) => ({ x: n.x * view.s + view.x, y: n.y * view.s + view.y });
 function scoot() {
-  /* The shape the pointer is on stays where it is; only its neighbours make room. */
+  /* Nothing moves until the pointer is on a shape; then that shape stays and its neighbours make room. */
   let pinned = null, nearest = 14;
   if (cursor) for (const n of nodes) { if (blocks.has(keyOf(n))) continue; const b = base(n), d = Math.hypot(b.x - cursor.x, b.y - cursor.y); if (d < nearest) { nearest = d; pinned = n; } }
   for (const n of nodes) {
     let tx = 0, ty = 0;
-    if (cursor && n !== pinned && !blocks.has(keyOf(n)) && !reduceMotion) {
+    if (pinned && n !== pinned && !blocks.has(keyOf(n)) && !reduceMotion) {
       const b = base(n), dx = b.x - cursor.x, dy = b.y - cursor.y, d = Math.hypot(dx, dy);
       if (d < SCOOT_REACH && d > 0.5) { const push = (SCOOT_REACH - d) * SCOOT_PUSH; tx = dx / d * push; ty = dy / d * push; }
     }
