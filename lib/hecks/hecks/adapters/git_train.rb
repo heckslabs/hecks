@@ -3,6 +3,7 @@
 require_relative "git"
 require_relative "console_capture"
 require_relative "push_size"
+require_relative "red_flag_guard"
 require_relative "git_train/reading"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
@@ -88,7 +89,9 @@ module Hecks
 
       # The commit the branch names as the boarding begins, read once the line is held.
       def boarded_commit(held)
-        Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
+        head = Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
+        RedFlagGuard.new(read("rev-parse", "--path-format=absolute", "--git-common-dir")).boarding!(head)
+        head
       end
 
       # Brings the branch up to its remote and settles the shape ledger, then carries the settled

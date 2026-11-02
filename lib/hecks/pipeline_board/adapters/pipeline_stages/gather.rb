@@ -16,7 +16,7 @@ module Hecks
           train: %i[git train plain], stable: %i[git stable plain],
           open_work: [:tickets, :open_work, :query], counts: %i[tickets counts plain],
           landed: %i[tickets landed_branches plain], sessions: [:jobs, :sessions, :query],
-          fill: %i[fill preview plain], events: [:journal, :recent, :plain, 40],
+          red_flag: %i[git red_flag plain], fill: %i[fill preview plain], events: [:journal, :recent, :plain, 40],
           history: [:journal, :recent, :plain, 300]
         }.freeze
 

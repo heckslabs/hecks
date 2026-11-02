@@ -7,6 +7,7 @@ require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
 require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
+require_relative "git_landing/flagged"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -19,6 +20,7 @@ module Hecks
     class GitLanding
       include GitWorktrees
       include GitMainPull
+      include Flagged
 
       # Accepts the arguments every driven adapter is built with; only the registry and the
       # overrides are kept.
@@ -150,9 +152,8 @@ module Hecks
 
       def land_alone(branch, onto, note)
         refuse_unsaved(branch)
-        refuse_stale_base(branch) if onto == "main"
         refuse_rival(branch, onto)
-        said = tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto)
+        said = on_main(branch, onto) { tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto) }
         note ? said.merge(report: { value: "#{said[:report][:value]}; #{note}" }) : said
       end
 
