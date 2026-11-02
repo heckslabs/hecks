@@ -12,8 +12,11 @@ module Hecks
     # journal), so a reader such as the PipelineBoard can still see them.
     #
     # It is off unless a world declares it: `event_log "EventTap", path: "...", max_bytes: N`. A
-    # client's world declares nothing, so a client writes no file. The log holds names, identities
-    # and outcomes, never payloads. A write that fails is dropped: logging never refuses a command.
+    # client's world declares nothing, so a client writes no file. The boot may hand in an
+    # override for a process no hecks command runs (a spec run, and the children it starts): a
+    # path replaces the world's, and an empty value switches the tap off, so a spec never writes
+    # the owner's log. The log holds names, identities and outcomes, never payloads. A write
+    # that fails is dropped: logging never refuses a command.
     class EventTap
       # The world verb that switches the tap on.
       VERB = "event_log"
@@ -24,15 +27,29 @@ module Hecks
       # Switches the tap on for a registry whose Hecks world declares it.
       #
       # @param registry [Runtime::Registry] the registry whose events and reactions are tapped
+      # @param override [String, nil] a path in place of the world's; empty switches the tap off
       # @return [EventTap, nil] the tap, nil when no world asks for one
-      def self.install(registry)
-        settings = registry.world("Hecks")&.for_verb(VERB)
-        return nil if settings.to_h.empty? || settings[:path].to_s.empty?
+      def self.install(registry, override: nil)
+        settings = registry.world("Hecks")&.for_verb(VERB).to_h
+        path = path_for(settings, override)
+        return nil unless path
 
-        tap = new(path: settings[:path], max_bytes: settings.fetch(:max_bytes, DEFAULT_MAX_BYTES))
+        tap = new(path: path, max_bytes: settings.fetch(:max_bytes, DEFAULT_MAX_BYTES))
         registry.event_log.observer = tap.method(:event)
         registry.event_log.reaction_observer = tap.method(:reaction)
         tap
+      end
+
+      # Where a world's tap writes: the override when one is given, else the world's path.
+      #
+      # @param settings [Hash] the Hecks world's `event_log` settings
+      # @param override [String, nil] a path in place of the world's; empty switches the tap off
+      # @return [String, nil] the log file; nil for no declared tap or an empty override
+      def self.path_for(settings, override = nil)
+        return nil if settings.to_h[:path].to_s.empty?
+
+        path = override.nil? ? settings[:path] : override
+        path.to_s.empty? ? nil : path
       end
 
       # @param path [String] the log file; `~` is the home directory

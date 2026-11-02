@@ -134,6 +134,11 @@ uncached (`verdict_cache_spec`, `syntax_boot_memo_spec`, `cache_dir_spec`,
 `usage_cache_spec`). A person ruling a cache out as the cause empties it with
 `test_suite_run.clear_caches!`, so the switches are not deprecated and do not warn: they are
 how a test process, which no hecks command starts, asks for the uncached path.
+`HECKS_EVENT_TAP` is one more: the Hecks world names the runtime's event tap
+(`~/.claude/hecks-dev/events.jsonl`, which the pipeline board reads), and a spec run points it
+at the run's own temporary file for every child it starts, or switches it off with an empty
+value, so no spec writes the owner's log. The variable moves a declared tap only; a world that
+declares none stays off. `hecks config` prints the resolved path as `event tap`.
 
 **Kept (the whole remaining list):**
 - *Overrides with a derived default, nobody needs to set:* `HECKS_RUST_DIR`,

@@ -22,6 +22,13 @@ Hecks::Bluebook::MetaValidator::VerdictCache.define_singleton_method(:dir) { VER
 USAGE_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-usage-cache-spec")
 at_exit { FileUtils.rm_rf(USAGE_CACHE_SPEC_DIR) }
 ENV["HECKS_CACHE_DIR"] = USAGE_CACHE_SPEC_DIR
+
+# The runtime's event tap is private to the run as well, children included: a child that boots
+# the Hecks domain in its real world writes its lines here, never to the owner's log, which the
+# pipeline board reads. In this process the Memory overlay switches the tap off altogether.
+EVENT_TAP_SPEC_DIR = Dir.mktmpdir("hecks-event-tap-spec")
+at_exit { FileUtils.rm_rf(EVENT_TAP_SPEC_DIR) }
+ENV["HECKS_EVENT_TAP"] = File.join(EVENT_TAP_SPEC_DIR, "events.jsonl")
 require_relative "support/ci_skip_backstop"
 require_relative "support/hecks_memory_environment"
 require_relative "support/repo_tool"
@@ -31,6 +38,7 @@ require_relative "support/prism_source_memo"
 require_relative "support/memory_ports"
 require_relative "support/scratch_directory"
 require_relative "support/live_ledger_guard"
+require_relative "support/live_state_guard"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and
