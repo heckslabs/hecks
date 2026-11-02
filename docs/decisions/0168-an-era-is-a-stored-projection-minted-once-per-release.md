@@ -94,7 +94,9 @@ Read from the repository on 2026-11-01.
 **Already true.**
 
 - Boots are read-only. They no longer mint (`f5c68b489`), and an unminted shape boots as
-  unminted rather than superseded.
+  unminted rather than superseded, but only when the move is provably additive. A boot over a
+  breaking move no recorded edge covers refuses by name (`no translation edge covers it`), still
+  read-only; this stands in until the commit-time gate exists.
 - An era is its stored shape and hash (`a29caebcf`): a boot matches a held era by the projection
   the mint recorded, and held text decides nothing.
 - Every era tool resolves through one resolution against the domain's own database (`d7ecf4110`);

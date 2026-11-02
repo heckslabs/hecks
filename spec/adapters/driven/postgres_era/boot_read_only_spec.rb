@@ -115,10 +115,11 @@ RSpec.describe "a boot with no mint request in PostgresEra", :io do
       expect(registry.resolved_eras[DOMAIN]).to eq(1)
     end
 
-    it "keeps the shape's storage unchanged across an unheld boot, which records it as unminted" do
+    it "refuses a breaking move no edge covers, by name, and writes nothing", :aggregate_failures do
       before_rows = lineage_rows
-      registry = boot!(unheld_source)
-      expect([registry.unminted_eras[DOMAIN], lineage_rows]).to eq([1, before_rows])
+      expect { boot!(unheld_source) }
+        .to raise_error(Hecks::Runtime::WiringError, /cannot boot Ledger: no translation edge covers it/)
+      expect(lineage_rows).to eq(before_rows)
     end
   end
 
