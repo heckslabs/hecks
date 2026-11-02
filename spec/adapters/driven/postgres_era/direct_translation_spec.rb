@@ -103,8 +103,19 @@ RSpec.describe "PostgresEra direct translation against the edge chain", :io do
     expect(readings(chain).map(&:last).uniq).to eq([false])
   end
 
+  # A one-step edge declared here, since the committed edges no longer include a plain rename.
+  def rename_edge
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      Hecks.data_translation("Composer", from: "aaaaaa", to: "bbbbbb") do
+        aggregate("Draft") { rename :chapter_name, to: :bluebook_name }
+      end
+    end
+    registry.translations.first
+  end
+
   it "carries a rename that only the rules know" do
-    edges = self.class.edges_by_domain.fetch("Composer").map { |edge| { translation: edge } }
+    edges = [{ translation: rename_edge }]
     database.exec("INSERT INTO journal VALUES (1, 1, 'draft', 'a', 'save', '{\"chapter_name\":\"x\"}')")
     sql = DirectHost.new(database).direct_chain_sql(Aggregate.new("Draft", "draft"), 2, edges)
     expect(DirectHost.new(database).latest_of(sql)).to eq("a" => { "bluebook_name" => "x" })
