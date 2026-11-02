@@ -6,13 +6,13 @@ require_relative "../../hecks/adapters/started_work"
 
 module Hecks
   module Adapters
-    # The `Tickets` port's adapter: answers `OpenWork` with the Work rows that are not done, read
+    # The `Tickets` port's adapter: answers `OpenWork` with the Work items that are not done, read
     # through the booted Tickets domain's repository (never from its database), and reports which
     # session ran each row from the AgentRun records. It only reads.
     class PipelineTickets
       DONE = %w[done dropped].freeze
       ROW_LINE = /^ROW:\s*(\S+)/
-      EMPTY = "the Tickets store holds no Work rows here (Memory); run the board from the main checkout"
+      EMPTY = "the Tickets store holds no Work items here (Memory); run the board from the main checkout"
 
       # @param registry [Runtime::Registry, nil] the booted registry whose rows are read
       # @param aggregate [Object, nil] unused

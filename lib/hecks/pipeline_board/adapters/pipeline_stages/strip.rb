@@ -8,7 +8,7 @@ module Hecks
       # The pipeline strip: one row per stage, left to right, each with a state word, a count and a
       # one-line detail. A stage whose section could not be read says `unknown: <reason>` and the
       # others still answer.
-      module StageRows
+      module Strip
         module_function
 
         # @param data [Hash] the board's sections
@@ -29,10 +29,10 @@ module Hecks
         def bad?(section) = section.nil? || (section.is_a?(Hash) && section.key?(:unknown))
 
         def work(counts)
-          return unknown("Work rows", counts) if bad?(counts)
+          return unknown("Work items", counts) if bad?(counts)
 
           planned, started, done = %w[planned started done].map { |status| counts.fetch(status, 0) }
-          row("Work rows", started.positive? ? "working" : "ok", "#{planned}/#{started}/#{done}", "planned / started / done")
+          row("Work items", started.positive? ? "working" : "ok", "#{planned}/#{started}/#{done}", "planned / started / done")
         end
 
         def sessions(list)

@@ -19,7 +19,7 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     FileUtils.rm_rf(dir)
   end
 
-  def names = ["Work rows", "Sessions", "Local main", "Train", "CI", "Promote", "Release"]
+  def names = ["Work items", "Sessions", "Local main", "Train", "CI", "Promote", "Release"]
 
   def board
     journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: ->(_) { { events: [] } }, tap: log, ttl: 0 })

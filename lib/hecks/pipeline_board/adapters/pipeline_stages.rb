@@ -10,7 +10,7 @@ require_relative "pipeline_jobs"
 require_relative "pipeline_journal"
 require_relative "pipeline_fill"
 require_relative "pipeline_stages/gather"
-require_relative "pipeline_stages/stage_rows"
+require_relative "pipeline_stages/strip"
 require_relative "pipeline_stages/metrics"
 require_relative "pipeline_stages/fanout"
 
@@ -35,14 +35,14 @@ module Hecks
       end
 
       # @return [Hash{Symbol => String}] `text:` one row per stage as JSON
-      def stages = { text: JSON.generate(PipelineBoard::StageRows.build(sections, @now.call)) }
+      def stages = { text: JSON.generate(PipelineBoard::Strip.build(sections, @now.call)) }
 
       # @return [Hash] every section the page shows: `stages`, `metrics`, the four tables, the
       #   fan-out and the events, each an answer or `{unknown: reason}`
       def state
         data = sections
         now = @now.call
-        { generated_at: now.iso8601, stages: PipelineBoard::StageRows.build(data, now),
+        { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now),
           metrics: PipelineBoard::Metrics.tiles(data, now), ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events], fanout: fanout(data) }
       end

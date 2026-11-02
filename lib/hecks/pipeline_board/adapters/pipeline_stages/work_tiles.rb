@@ -37,7 +37,7 @@ module Hecks
           return unknown_tile("throughput", "Work finished", history) unless history.is_a?(Array)
 
           done = history.count { |event| event[:name] == "WorkFinished" && now - Time.parse(event[:at]) < DAY }
-          tile("throughput", "Work finished", done, "rows / 24 h", detail: "Work.WorkFinished events in the journal")
+          tile("throughput", "Work finished", done, "items / 24 h", detail: "Work.WorkFinished events in the journal")
         end
 
         def release(release, now)

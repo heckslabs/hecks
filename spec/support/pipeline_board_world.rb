@@ -6,7 +6,7 @@ require "tmpdir"
 require "hecks/pipeline_board/adapters/pipeline_stages"
 
 # Stand-ins for the outside the PipelineBoard readers reach: a canned `gh`, a temp git repository
-# with a bare remote and a train copy, a temp jobs directory and fixed Work rows.
+# with a bare remote and a train copy, a temp jobs directory and fixed Work items.
 module PipelineBoardWorld
   NOW = Time.utc(2026, 11, 2, 20, 0, 0)
 

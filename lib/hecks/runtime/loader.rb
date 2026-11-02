@@ -2,6 +2,7 @@ require_relative "../ports/loading"
 require_relative "../ports/persistence"
 require_relative "../ports/dispatch"
 require_relative "dispatcher"
+require_relative "event_tap"
 require_relative "boot_gates"
 require_relative "registry"
 require_relative "loader/boot_steps"
@@ -143,9 +144,17 @@ module Hecks
       # @raise [Runtime::WiringError] if the bound adapter cannot build a dispatcher
       def self.dispatcher_for(registry)
         settings = registry.world(registry.bluebooks.keys.first)&.for_verb(Ports::Dispatch::VERB) || {}
-        return Dispatcher.new(registry) unless settings[:adapter]
+        return local_dispatcher(registry) unless settings[:adapter]
 
         Ports::Dispatch.dispatcher(registry, settings)
+      end
+
+      # The local `Dispatcher`, with the opt-in event log tapped when the Hecks world asks for it.
+      #
+      # @param registry [Runtime::Registry] the booted registry
+      # @return [Runtime::Dispatcher]
+      def self.local_dispatcher(registry)
+        Dispatcher.new(registry).tap { EventTap.install(registry) }
       end
 
       # Installs the Ruby facade over a dispatcher built by hand. See `Hecks.bind_runtime`.

@@ -10,7 +10,7 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "SlowestJobs"
   end
 
-  # The Work rows, read through the Tickets domain.
+  # The Work items, read through the Tickets domain.
   PipelineBoard::PipelineBoard.port "Tickets" do
     answers_query "OpenWork"
   end
