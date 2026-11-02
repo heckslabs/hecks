@@ -1,0 +1,22 @@
+Hecks.bluebook "Lending" do
+  vision "Lend something and take it back."
+  supporting
+
+  aggregate "Loan" do
+    description "A thing lent out."
+    attribute :name, LoanName
+    identified_by :name
+
+    value_object "LoanName" do
+      attribute :value, String, matches: :present
+      invariant("a loan is named") { !value.to_s.empty? }
+    end
+
+    command "OpenLoan" do
+      goal "Lend something out"
+      attribute :name, LoanName
+      sets :name
+      emits "LoanOpened"
+    end
+  end
+end

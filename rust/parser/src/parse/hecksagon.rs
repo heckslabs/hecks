@@ -8,6 +8,10 @@ use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
 use crate::lex::{self, LineShape, Opener, SourceLine};
 
+/// The driving adapters a `driven_by` may name. Mirrors `Bluebook::Hecksagon::DRIVING_ADAPTERS`
+/// in lib/hecks/bluebook/hecksagon.rb; change both together.
+const DRIVING_ADAPTERS: [&str; 5] = ["Ruby", "Cli", "Json", "Mcp", "Web"];
+
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
     Diagnostic::not_yet_implemented(file, line, format!("Hecksagon.{word}"))
 }
@@ -146,8 +150,27 @@ pub fn apply(
                 }
                 // Consumer-owned bounded-context mark; a wiring fact, dropped like `subscribe`.
                 "bounded" => {}
-                // A driving adapter the domain admits; Ruby's boot enforces it, `ir.json` carries none.
-                "driven_by" => {}
+                // A driving adapter the domain admits; refused here as Ruby's boot refuses it, and
+                // `ir.json` carries none.
+                "driven_by" => {
+                    let adapter = super::positional_text(
+                        file,
+                        gated.line.number,
+                        "driven_by",
+                        &gated.args,
+                        1,
+                    )?;
+                    if !DRIVING_ADAPTERS.contains(&adapter.as_str()) {
+                        return Err(Diagnostic::new(
+                            file,
+                            gated.line.number,
+                            format!(
+                                "driven_by {adapter:?}, which no driving adapter answers to — the adapters are {}",
+                                DRIVING_ADAPTERS.join(", ")
+                            ),
+                        ));
+                    }
+                }
                 _ => {
                     return Err(super::not_built_yet(
                         "Hecksagon",
