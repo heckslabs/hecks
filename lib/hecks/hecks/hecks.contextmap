@@ -20,8 +20,16 @@ Hecks.context_map "Hecks" do
   context "QualityControl"
   context "Coder"
   context "Fixer"
+  context "PipelineBoard"
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
   relate "Deploy" => "Tenancy", as: :anticorruption_layer
+
+  # Hecks's migrate bluebook reacts to a rehearsal's audit with `across "QualityControl"`, so the
+  # Maintenance aggregate there supplies the command that keeps the would-mint verdict; Hecks is the
+  # customer. Hecks also attaches QualityControl, an edge that reads as a shared kernel, which the
+  # one relationship between the pair cannot also be, so the attach's kind is acknowledged.
+  relate "QualityControl" => "Hecks", as: :customer_supplier,
+         acknowledges: { relationship_kind_mismatch: "Hecks both attaches QualityControl and sends it the verdict" }
 end
