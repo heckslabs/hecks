@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # cli_completion_spec checks the zsh completion script with `zsh -n`; the runner has no zsh,
+      # cli_completion_spec checks the zsh completion script with `zsh -n`; CI has no zsh,
       # and the skip backstop turns an unrouted skip into a failure.
       - name: Install zsh
         run: |
