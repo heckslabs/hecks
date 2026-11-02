@@ -36,7 +36,7 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
 .legend b { color: var(--ink); font-weight: 600; }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
-canvas { width: 100%; height: 640px; display: block; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); }
+canvas { width: 100%; height: 720px; display: block; touch-action: none; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); }
 .log { list-style: none; margin: 0; padding: 0; font-size: 13px; max-height: 260px; overflow: auto; }
 .log li { padding: 4px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
 .log time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
@@ -60,6 +60,9 @@ th { color: var(--ink2); font-size: 12px; }
       <a href="/">Board</a>
       <span id="count">loading the wiring</span>
       <span id="live">stream: connecting</span>
+      <button id="zout" type="button" aria-label="Zoom out">&minus;</button>
+      <button id="zin" type="button" aria-label="Zoom in">+</button>
+      <button id="fit" type="button">Fit</button>
       <button id="bounds" type="button" aria-pressed="true">Hide boundaries</button>
       <button id="replay" type="button">Replay recent</button>
       <button id="toggle" type="button" aria-pressed="false">Show table</button>
@@ -72,6 +75,8 @@ th { color: var(--ink2); font-size: 12px; }
       <span><b style="color:var(--good)">&#10003;</b> delivered</span>
       <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
       <span><b style="color:var(--critical)">&#10005;</b> refused</span>
+      <span>a line rests in its domain's colour, lights in the outcome's colour when a message crosses it, and fades over 20 s</span>
+      <span>scroll to zoom, drag to pan, double-click to zoom in; names appear when zoomed in</span>
     </div>
     <div class="legend" id="domains"></div>
     <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
@@ -92,6 +97,8 @@ const pulses = new Map(), particles = [], seen = new Map();
 const SLOTS = { light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
                 dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] };
 let domains = [], domainColour = new Map(), showBounds = true;
+/* A lit line or node stays at full for LINGER - LINGER_FADE ms, then fades over LINGER_FADE ms. */
+const LINGER = 22000, LINGER_FADE = 14000;
 const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
 function colourOf(domain) { const i = domainColour.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
 
@@ -104,33 +111,45 @@ function h(tag, attrs, ...kids) {
 function clock(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 
 /* ---- domains: an adapter belongs to the domain of the port it answers, but sits outside its hull ---- */
+/* A context is a bluebook's domain module when it declares one, else the bluebook itself. */
+const keyOf = (n) => n.context ? n.domain + " / " + n.context : n.domain;
+let contexts = [];
 function assignDomains() {
-  for (const e of edges) if (e.kind === "adapter") { const p = byId.get(e.from), a = byId.get(e.to); if (p && a) a.domain = p.domain; }
-  const count = new Map(); for (const n of nodes) if (n.kind !== "adapter") count.set(n.domain, (count.get(n.domain) || 0) + 1);
+  for (const e of edges) if (e.kind === "adapter") { const p = byId.get(e.from), a = byId.get(e.to); if (p && a) { a.domain = p.domain; a.context = p.context; } }
+  const count = new Map(), ctx = new Map();
+  for (const n of nodes) if (n.kind !== "adapter") { count.set(n.domain, (count.get(n.domain) || 0) + 1); ctx.set(keyOf(n), (ctx.get(keyOf(n)) || 0) + 1); }
   domains = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
   domainColour = new Map(domains.map((d, i) => [d, i]));
+  contexts = [...ctx.keys()].sort((a, b) => ctx.get(b) - ctx.get(a));
 }
-/* ---- layout: one cluster per domain, aggregates inside, ports on the rim, adapters outside ---- */
+/* ---- layout: domains on a ring, their contexts on a ring around each, aggregates inside, ports on the rim, adapters outside ---- */
 let centre = new Map();
 function layout() {
-  const ring = domains.map((d, i) => [d, { x: Math.cos(i / domains.length * 6.283) * 420, y: Math.sin(i / domains.length * 6.283) * 300 }]);
-  centre = new Map(ring);
-  nodes.forEach((n, i) => { const c = centre.get(n.domain) || { x: 0, y: 0 }; n.x = c.x + Math.cos(i * 2.4) * 50; n.y = c.y + Math.sin(i * 2.4) * 50; n.vx = 0; n.vy = 0; });
-  for (let step = 0; step < 360; step++) tick(1 - step / 380);
+  centre = new Map();
+  domains.forEach((d, i) => {
+    const mine = contexts.filter((k) => k === d || k.startsWith(d + " / ")), size = nodes.filter((n) => n.domain === d).length;
+    const c = { x: Math.cos(i / domains.length * 6.283) * (640 + size * 3), y: Math.sin(i / domains.length * 6.283) * (460 + size * 2) };
+    const r = mine.length > 1 ? 90 + mine.length * 16 : 0;
+    mine.forEach((k, j) => centre.set(k, { x: c.x + Math.cos(j / mine.length * 6.283) * r, y: c.y + Math.sin(j / mine.length * 6.283) * r }));
+  });
+  nodes.forEach((n, i) => { const c = centre.get(keyOf(n)) || { x: 0, y: 0 }; n.x = c.x + Math.cos(i * 2.4) * 30; n.y = c.y + Math.sin(i * 2.4) * 30; n.vx = 0; n.vy = 0; });
+  for (let step = 0; step < 400; step++) tick(1 - step / 420);
 }
 function tick(heat) {
   for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
     const a = nodes[i], b = nodes[j]; let dx = a.x - b.x, dy = a.y - b.y; const d2 = Math.max(dx * dx + dy * dy, 36);
-    const f = (a.domain === b.domain ? 2200 : 5200) / d2, d = Math.sqrt(d2); dx /= d; dy /= d; a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    const f = (keyOf(a) === keyOf(b) ? 1800 : a.domain === b.domain ? 7000 : 5200) / d2, d = Math.sqrt(d2); dx /= d; dy /= d;
+    a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
   }
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
-    const rest = e.kind === "adapter" ? 34 : 70, dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1), f = (d - rest) * 0.014;
+    const rest = e.kind === "adapter" ? 30 : 60, dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1);
+    const f = (d - rest) * (a.domain === b.domain && keyOf(a) !== keyOf(b) ? 0.004 : 0.01);
     a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
   }
   for (const n of nodes) {
-    const c = centre.get(n.domain) || { x: 0, y: 0 }, dx = n.x - c.x, dy = n.y - c.y, d = Math.max(Math.hypot(dx, dy), 1);
-    const pull = n.kind === "aggregate" ? 0.012 : n.kind === "port" ? 0.006 : 0.003;
+    const c = centre.get(keyOf(n)) || { x: 0, y: 0 }, dx = n.x - c.x, dy = n.y - c.y, d = Math.max(Math.hypot(dx, dy), 1);
+    const pull = n.kind === "aggregate" ? 0.02 : n.kind === "port" ? 0.01 : 0.005;
     n.vx += (c.x - n.x) * pull; n.vy += (c.y - n.y) * pull;
     if (n.kind !== "aggregate") { const out = n.kind === "port" ? 0.9 : 1.6; n.vx += dx / d * out; n.vy += dy / d * out; }
     n.x += n.vx * 0.5 * heat; n.y += n.vy * 0.5 * heat; n.vx *= 0.82; n.vy *= 0.82;
@@ -144,35 +163,68 @@ function hull(points) {
   const upper = []; for (const q of p.slice().reverse()) { while (upper.length > 1 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
   return lower.slice(0, -1).concat(upper.slice(0, -1));
 }
+function outline(members, pad) {
+  const cx = members.reduce((s, q) => s + q[0], 0) / members.length, cy = members.reduce((s, q) => s + q[1], 0) / members.length;
+  const ring = hull(members).map(([x, y]) => { const dx = x - cx, dy = y - cy, l = Math.max(Math.hypot(dx, dy), 1); return [x + dx / l * pad, y + dy / l * pad]; });
+  ctx.beginPath();
+  if (ring.length === 1) ctx.arc(cx, cy, pad, 0, 6.283);
+  else if (ring.length === 2) ctx.ellipse(cx, cy, Math.hypot(ring[0][0] - ring[1][0], ring[0][1] - ring[1][1]) / 2 + pad, pad, Math.atan2(ring[1][1] - ring[0][1], ring[1][0] - ring[0][0]), 0, 6.283);
+  else { const m = (i) => [(ring[i][0] + ring[(i + 1) % ring.length][0]) / 2, (ring[i][1] + ring[(i + 1) % ring.length][1]) / 2];
+    ctx.moveTo(...m(ring.length - 1)); for (let i = 0; i < ring.length; i++) ctx.quadraticCurveTo(ring[i][0], ring[i][1], ...m(i)); }
+  ctx.closePath();
+  return { cx, top: Math.min(...members.map((q) => q[1])) - pad - 4 };
+}
+function paint(colour, fillAlpha, strokeAlpha, dash) {
+  ctx.globalAlpha = fillAlpha; ctx.fillStyle = colour; ctx.fill();
+  ctx.globalAlpha = strokeAlpha; ctx.lineWidth = 1.5; ctx.strokeStyle = colour; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+}
+function caption(text, x, y, weight) {
+  ctx.font = weight + " 12px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "center"; ctx.fillText(text, x, y); ctx.textAlign = "start";
+}
 function drawBounds() {
+  const inside = (n) => n.kind !== "adapter";
   for (const d of domains) {
-    const members = nodes.filter((n) => n.domain === d && n.kind !== "adapter").map((n) => [sx(n), sy(n)]);
+    const members = nodes.filter((n) => n.domain === d && inside(n)).map((n) => [sx(n), sy(n)]), split = contexts.filter((k) => k.startsWith(d + " / ")).length > 1;
+    if (!members.length || !split) continue;
+    const at = outline(members, 36); paint(colourOf(d), 0.04, 0.35, [2, 6]); caption(d, at.cx, at.top, "700");
+  }
+  for (const k of contexts) {
+    const members = nodes.filter((n) => keyOf(n) === k && inside(n)).map((n) => [sx(n), sy(n)]);
     if (!members.length) continue;
-    const cx = members.reduce((s, q) => s + q[0], 0) / members.length, cy = members.reduce((s, q) => s + q[1], 0) / members.length;
-    const pad = 22, ring = hull(members).map(([x, y]) => { const dx = x - cx, dy = y - cy, l = Math.max(Math.hypot(dx, dy), 1); return [x + dx / l * pad, y + dy / l * pad]; });
-    if (ring.length < 2) continue;
-    ctx.beginPath();
-    if (ring.length === 2) ctx.ellipse(cx, cy, Math.hypot(ring[0][0] - ring[1][0], ring[0][1] - ring[1][1]) / 2 + pad, pad, Math.atan2(ring[1][1] - ring[0][1], ring[1][0] - ring[0][0]), 0, 6.283);
-    else { const m = (i) => [(ring[i][0] + ring[(i + 1) % ring.length][0]) / 2, (ring[i][1] + ring[(i + 1) % ring.length][1]) / 2];
-      ctx.moveTo(...m(ring.length - 1)); for (let i = 0; i < ring.length; i++) ctx.quadraticCurveTo(ring[i][0], ring[i][1], ...m(i)); }
-    ctx.closePath();
-    const colour = colourOf(d); ctx.globalAlpha = 0.09; ctx.fillStyle = colour; ctx.fill();
-    ctx.globalAlpha = 0.7; ctx.lineWidth = 1.5; ctx.strokeStyle = colour; ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-    const top = Math.min(...ring.map((q) => q[1])) - 6;
-    ctx.font = "600 12px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "center"; ctx.fillText(d, cx, top); ctx.textAlign = "start";
+    const d = k.split(" / ")[0], name = k.split(" / ")[1] || d;
+    const at = outline(members, 20); paint(colourOf(d), 0.09, 0.7, [6, 4]); caption(name, at.cx, at.top, "600");
   }
 }
-function fit() {
+let touched = false, fitScale = 1;
+function size() {
   const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   canvas.width = r.width * dpr; canvas.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function fit() {
+  size(); touched = false;
+  const r = canvas.getBoundingClientRect();
   if (!nodes.length) return;
   const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y);
   const w = Math.max(...xs) - Math.min(...xs) + 120, hgt = Math.max(...ys) - Math.min(...ys) + 120;
-  view.s = Math.min(r.width / w, r.height / hgt);
+  view.s = Math.min(r.width / w, r.height / hgt); fitScale = view.s;
   view.x = r.width / 2 - (Math.max(...xs) + Math.min(...xs)) / 2 * view.s;
   view.y = r.height / 2 - (Math.max(...ys) + Math.min(...ys)) / 2 * view.s;
 }
 const sx = (n) => n.x * view.s + view.x, sy = (n) => n.y * view.s + view.y;
+/* ---- zoom with the wheel around the cursor, pan by dragging, or use the buttons ---- */
+function zoomAt(mx, my, k) { view.x = mx - (mx - view.x) * k; view.y = my - (my - view.y) * k; view.s *= k; touched = true; }
+function zoomCentre(k) { const r = canvas.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, k); }
+let drag = null;
+canvas.addEventListener("wheel", (e) => { e.preventDefault(); const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+canvas.addEventListener("mousedown", (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; });
+addEventListener("mousemove", (e) => { if (!drag) return; drag.moved = true; view.x = drag.vx + e.clientX - drag.x; view.y = drag.vy + e.clientY - drag.y; touched = true; });
+addEventListener("mouseup", () => { drag = null; });
+canvas.addEventListener("dblclick", (e) => { const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 1.6); });
+let placed = [];
+function free(x, y, w, hgt) {
+  if (placed.some((p) => x < p.x + p.w && x + w > p.x && y < p.y + p.hgt && y + hgt > p.y)) return false;
+  placed.push({ x, y, w, hgt }); return true;
+}
 
 /* ---- drawing ---- */
 function shape(n, x, y, r) {
@@ -182,13 +234,13 @@ function shape(n, x, y, r) {
   else ctx.roundRect(x - r, y - r * 0.7, r * 2, r * 1.4, 3);
 }
 function draw(now) {
-  const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height);
+  const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); placed = [];
   if (showBounds) drawBounds();
-  ctx.lineWidth = 1; ctx.strokeStyle = css("--axis");
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
-    ctx.globalAlpha = e.glow && e.glow > now ? 1 : 0.55; ctx.strokeStyle = e.glow && e.glow > now ? css("--series1") : css("--axis");
-    ctx.lineWidth = e.glow && e.glow > now ? 2 : 1;
+    const lit = e.lit && e.lit.until > now ? e.lit : null, heat = lit ? Math.min(1, (lit.until - now) / LINGER_FADE) : 0;
+    ctx.globalAlpha = 0.35 + 0.65 * heat; ctx.lineWidth = 1 + 1.5 * heat;
+    ctx.strokeStyle = lit ? css(lit.token) : (showBounds ? colourOf(a.domain) : css("--axis"));
     ctx.beginPath();
     if (a === b) ctx.arc(sx(a) + 9, sy(a) - 9, 7, 0, 6.283); else { ctx.moveTo(sx(a), sy(a)); ctx.lineTo(sx(b), sy(b)); }
     ctx.stroke();
@@ -196,35 +248,38 @@ function draw(now) {
   ctx.globalAlpha = 1;
   for (const n of nodes) drawNode(n, now);
   drawParticles(now);
-  ctx.fillStyle = css("--ink2"); ctx.font = "12px system-ui, sans-serif";
+  if (view.s >= fitScale * 2.2) for (const n of nodes) if (!(pulses.get(n.id) > now)) label(n, false, true);
   if (hover) label(hover, true);
   requestAnimationFrame(draw);
 }
 function drawNode(n, now) {
   const x = sx(n), y = sy(n), r = n.kind === "aggregate" ? 6 : 7, pulse = pulses.get(n.id);
-  const live = pulse && pulse > now;
-  shape(n, x, y, r + (live && !reduceMotion ? 3 * ((pulse - now) / 1800) : 0));
-  ctx.fillStyle = live ? css("--series1") : css("--surface"); ctx.fill();
+  const live = pulse && pulse > now, heat = live ? Math.min(1, (pulse - now) / LINGER_FADE) : 0;
+  shape(n, x, y, r + (live && !reduceMotion ? 3 * heat : 0));
+  ctx.fillStyle = live ? css("--series1") : css("--surface"); ctx.globalAlpha = live ? 0.4 + 0.6 * heat : 1; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : (showBounds ? colourOf(n.domain) : css("--ink2")); ctx.stroke();
-  if (live) label(n, false);
+  if (live && heat > 0.6) label(n, false);
 }
-function label(n, boxed) {
-  const x = sx(n) + 10, y = sy(n) - 8, text = n.label + (n.domain ? "  " + n.domain : "");
-  ctx.font = "12px system-ui, sans-serif";
-  if (boxed) { const w = ctx.measureText(text).width + 8; ctx.fillStyle = css("--surface"); ctx.fillRect(x - 4, y - 12, w, 18); ctx.strokeStyle = css("--axis"); ctx.strokeRect(x - 4, y - 12, w, 18); }
-  ctx.fillStyle = css("--ink"); ctx.fillText(text, x, y);
+function label(n, boxed, quiet) {
+  const x = sx(n) + 10, y = sy(n) - 8, text = quiet ? n.label : n.label + (n.domain ? "  " + keyOf(n) : "");
+  ctx.font = (quiet ? "11px" : "12px") + " system-ui, sans-serif";
+  const w = ctx.measureText(text).width + 8;
+  if (!boxed && !free(x - 4, y - 12, w, 18)) return;
+  if (boxed) { ctx.fillStyle = css("--surface"); ctx.fillRect(x - 4, y - 12, w, 18); ctx.strokeStyle = css("--axis"); ctx.strokeRect(x - 4, y - 12, w, 18); }
+  ctx.fillStyle = quiet ? css("--ink2") : css("--ink"); ctx.fillText(text, x, y);
 }
 const OUTCOME = { ok: ["--good", "✓ delivered"], wait: ["--warning", "▲ waiting"], bad: ["--critical", "✕ refused"] };
 function drawParticles(now) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i], t = (now - p.start) / p.ms;
-    if (t >= 1) { pulses.set(p.to.id, now + 1800); particles.splice(i, 1); continue; }
+    if (t >= 1) { pulses.set(p.to.id, now + LINGER); particles.splice(i, 1); continue; }
     if (t < 0) continue;
     const own = p.from === p.to, angle = t * 6.283 + 1.57;
     const x = own ? sx(p.from) + 9 + Math.cos(angle) * 7 : sx(p.from) + (sx(p.to) - sx(p.from)) * t;
     const y = own ? sy(p.from) - 9 + Math.sin(angle) * 7 : sy(p.from) + (sy(p.to) - sy(p.from)) * t, [token, word] = OUTCOME[p.kind];
     ctx.beginPath(); ctx.arc(x, y, 5, 0, 6.283); ctx.fillStyle = css(token); ctx.fill(); ctx.strokeStyle = css("--surface"); ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = css("--ink"); ctx.font = "11px system-ui, sans-serif"; ctx.fillText(word.slice(0, 1) + " " + p.text, x + 8, y - 6);
+    ctx.font = "11px system-ui, sans-serif"; const text = word.slice(0, 1) + " " + p.text;
+    if (free(x + 8, y - 16, ctx.measureText(text).width + 4, 14)) { ctx.fillStyle = css("--ink"); ctx.fillText(text, x + 8, y - 6); }
   }
 }
 
@@ -232,14 +287,14 @@ function drawParticles(now) {
 function outcomeKind(text) { return /deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait"; }
 function fire(ev, animate) {
   const now = performance.now(), node = byId.get(ev.aggregate);
-  if (node && animate) pulses.set(node.id, now + 1800);
+  if (node && animate) pulses.set(node.id, now + LINGER);
   for (const r of ev.reactions || []) {
     const bare = String(r.policy).split("::").pop(), kind = outcomeKind(r.outcome || "");
     const token = ev.key + "|" + bare + "|" + kind;
     if (seen.has(token)) continue; seen.set(token, true);
     for (const e of edges.filter((x) => x.label === bare)) {
       const a = byId.get(e.from), b = byId.get(e.to);
-      if (a && b && animate) { particles.push({ from: a, to: b, kind, text: ev.name, start: now + 150, ms: reduceMotion ? 1 : 1400 }); e.glow = now + 2400; }
+      if (a && b && animate) { particles.push({ from: a, to: b, kind, text: ev.name, start: now + 150, ms: reduceMotion ? 1 : 1400 }); e.lit = { until: now + LINGER, token: OUTCOME[kind][0] }; }
     }
     logLine(ev, r, kind);
   }
@@ -275,19 +330,22 @@ function renderTable() {
 canvas.addEventListener("mousemove", (e) => {
   const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
   hover = nodes.find((n) => Math.hypot(sx(n) - mx, sy(n) - my) < 10) || null;
-  canvas.style.cursor = hover ? "pointer" : "default";
+  canvas.style.cursor = drag ? "grabbing" : hover ? "pointer" : "grab";
 });
+$("fit").addEventListener("click", fit);
+$("zin").addEventListener("click", () => zoomCentre(1.4));
+$("zout").addEventListener("click", () => zoomCentre(1 / 1.4));
 canvas.addEventListener("mouseleave", () => { hover = null; });
 $("toggle").addEventListener("click", () => { const on = document.body.classList.toggle("tables-only"); $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show diagram" : "Show table"; });
 $("replay").addEventListener("click", () => replay(backlog.slice(-12), false));
 $("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
-addEventListener("resize", fit);
+addEventListener("resize", () => { if (touched) size(); else fit(); });
 
 fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
   if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; return; }
   nodes = g.nodes; edges = g.edges; byId = new Map(nodes.map((n) => [n.id, n]));
   assignDomains();
-  $("count").textContent = domains.length + " domains, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + edges.filter((e) => e.kind !== "adapter").length + " policies";
+  $("count").textContent = domains.length + " domains, " + contexts.length + " contexts, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + edges.filter((e) => e.kind !== "adapter").length + " policies";
   $("domains").replaceChildren(...domains.map((d) => h("span", {}, h("i", { class: "swatch", style: "background:" + colourOf(d) }), d)));
   layout(); fit(); renderTable(); requestAnimationFrame(draw); listen();
 }).catch((e) => { $("count").textContent = "unknown: " + e.message; });
