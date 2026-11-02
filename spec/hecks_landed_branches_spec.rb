@@ -6,8 +6,8 @@ require "hecks/hecks/adapters/landed_branches"
 RSpec.describe Hecks::Adapters::LandedBranches do
   let(:bluebook) { Hecks.describe(File.expand_path("../lib/hecks/hecks", __dir__)).registry.bluebooks["Hecks"] }
   let(:rows) { [] }
-  let(:repository) { double("repository", all: rows) }
-  let(:registry) { double("registry", bluebook: bluebook, repository: repository) }
+  let(:repository) { Struct.new(:all).new(rows) }
+  let(:registry) { instance_double(Hecks::Runtime::Registry, bluebook: bluebook, repository: repository) }
   let(:named) { Struct.new(:value) }
 
   def row(status, branch) = { status: named.new(status), branch: named.new(branch) }

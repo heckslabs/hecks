@@ -15,9 +15,9 @@ RSpec.describe "the push train's reaction chain" do
 
   # The policies that run at the depth of a step of the chain: the step's policy, and the event
   # they react to, which the step before it emits (the carry answers or refuses).
-  BESIDE = { "RecordTheRide"        => %w[RecordThePush SendTrain.TrainAnswered],
-             "RecordTheRefusedPush" => %w[RecordThePush SendTrain.TrainRefused],
-             "AnnounceWhenPushed"   => %w[KeepTheLauncherCurrent SendTrain.BranchPushed],
+  BESIDE = { "RecordTheRide"           => %w[RecordThePush SendTrain.TrainAnswered],
+             "RecordTheRefusedPush"    => %w[RecordThePush SendTrain.TrainRefused],
+             "AnnounceWhenPushed"      => %w[KeepTheLauncherCurrent SendTrain.BranchPushed],
              "ListLeftoversWhenPushed" => %w[KeepTheLauncherCurrent SendTrain.BranchPushed] }.freeze
 
   # Policies that would chain the mint through events; the carry runs it in sequence instead.
