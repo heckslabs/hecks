@@ -658,6 +658,7 @@ Hecks.bluebook "Hecks" do
       attribute :full_gate, Switch, optional: true
       attribute :boarded,  Word,   optional: true
       attribute :pushed,   Word,   optional: true
+      attribute :commits,  Count,  optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
       identified_by :run
@@ -677,6 +678,12 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch" do
         attribute :value, Boolean
+      end
+
+      # How many commits the branch held that the remote did not, as the boarding began.
+      value_object "Count" do
+        attribute :value, Integer
+        invariant("a count is not negative") { !value.negative? }
       end
 
       lifecycle :status, default: "requested" do
@@ -741,6 +748,7 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, Word, sets: true
         attribute :boarded,  Word, sets: true
         attribute :pushed,   Word, sets: true
+        attribute :commits,  Count, optional: true, sets: true
         attribute :report,   Report, sets: true
 
 
@@ -791,7 +799,8 @@ Hecks.bluebook "Hecks" do
     policy "RecordThePush" do
       on      "SendTrain.TrainAnswered"
       where   { outcome.value == "pushed" }
-      trigger SendTrain::Send, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
+      trigger SendTrain::Send, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, commits: :commits,
+                                       report: :report }
     end
 
     policy "RecordTheRide" do
@@ -825,6 +834,79 @@ Hecks.bluebook "Hecks" do
     policy "AnnounceWhenPushed" do
       on      "SendTrain.BranchPushed"
       ask     :announce, with: { run: :run, pushed: :pushed }
+    end
+
+    # The train runs in Memory, in a checkout of its own, so its outcome is recorded where the
+    # boarded checkout keeps its records: the `PushRecords` port runs that checkout's own
+    # `PushOutcome.Record`. A recording that fails is answered `OutcomeUnrecorded` and changes
+    # nothing about the push.
+    policy "RecordThePushedOutcome" do
+      on      "SendTrain.BranchPushed"
+      ask     :record_outcome, with: { run: :run }
+    end
+
+    policy "RecordTheCarriedOutcome" do
+      on      "SendTrain.CarriedByEarlierPush"
+      ask     :record_outcome, with: { run: :run }
+    end
+
+    policy "RecordTheFaultedOutcome" do
+      on      "SendTrain.PushFaulted"
+      ask     :record_outcome, with: { run: :run }
+    end
+
+    # How one boarding of the train ended, recorded by the checkout that boarded it. It is its own
+    # aggregate, not SendTrain, so recording a push in the checkout fires none of the reactions a
+    # push itself has (the launcher refresh, the deploy announcement, the GateAndBoard saga).
+    aggregate "PushOutcome" do
+      description "How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted."
+
+      attribute :run,      OutcomeKey
+      attribute :checkout, Locator
+      attribute :branch,   Locator, optional: true
+      attribute :outcome,  Ending
+      attribute :pushed,   Locator, optional: true
+      attribute :commits,  Tally,  optional: true
+      attribute :report,   Line,   optional: true
+      identified_by :run
+
+      # The boarding's run and how it ended, so a boarding run again is recorded beside the first.
+      value_object "OutcomeKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A checkout (written with its trailing slash), a branch or a commit.
+      value_object "Locator" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Ending" do
+        attribute :value, String, pattern: '\A(pushed|carried|faulted)\z'
+      end
+
+      value_object "Tally" do
+        attribute :value, Integer
+        invariant("a count is not negative") { !value.negative? }
+      end
+
+      value_object "Line" do
+        attribute :value, String
+      end
+
+      command "Record" do
+        role "Operator"
+        goal "Record how one boarding of the push train ended, in the checkout that boarded it"
+
+        attribute :run,      OutcomeKey, sets: true
+        attribute :checkout, Locator, sets: true
+        attribute :branch,   Locator, optional: true, sets: true
+        attribute :outcome,  Ending, sets: true
+        attribute :pushed,   Locator, optional: true, sets: true
+        attribute :commits,  Tally, optional: true, sets: true
+        attribute :report,   Line, optional: true, sets: true
+
+        emits PushRecorded
+      end
     end
 
     # The request that starts GateAndBoard, under its own identity so the Landing record it leads to

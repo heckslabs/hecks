@@ -106,7 +106,7 @@ module Hecks
       def push_size(held)
         ahead = read("rev-list", "--count", "#{remote_of(held)}/#{branch_of(held)}..#{branch_of(held)}").to_i
         sentence = PushSize.sentence(ahead, PushSize.thresholds(@registry))
-        sentence.empty? ? "pushing #{ahead} commits" : "pushing #{ahead} commits; #{sentence}"
+        [ahead, sentence.empty? ? "pushing #{ahead} commits" : "pushing #{ahead} commits; #{sentence}"]
       end
 
       def branch_of(held) = plain(held[:branch]) || "main"
@@ -115,11 +115,12 @@ module Hecks
 
       # The carriage's answer, its report opened with what the mint did and naming the boarded
       # commit (and the settled one when settlement moved the branch).
-      def after_mint(minted, boarded, carried, size = nil)
+      def after_mint(minted, boarded, carried, size)
         answer, settled = carried
+        commits, said = size
         named = settled == boarded ? "boarded #{boarded[0, 9]}" : "boarded #{boarded[0, 9]}, settled to #{settled[0, 9]}"
-        report = "#{"#{size}\n" if size}#{minted}, then #{named}: #{answer.dig(:report, :value)}"
-        answer.merge(boarded: { value: boarded }, report: { value: report })
+        report = "#{said}\n#{minted}, then #{named}: #{answer.dig(:report, :value)}"
+        answer.merge(boarded: { value: boarded }, commits: { value: commits }, report: { value: report })
       end
 
       # A git hook takes no arguments, so the argument reaches the pre-push hook as git

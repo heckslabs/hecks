@@ -28,9 +28,18 @@ commands:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!      Push this checkout's branch once the push ahead of it lands, unless that push already carried it
     survey!     List every checkout under a directory whose branch has commits its remote does not
+  PushOutcome:
+    How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
+    record!     Record how one boarding of the push train ended, in the checkout that boarded it
   Shipment:
     One request to fix, gate, land and board a branch: the gate-and-board saga starts on it.
     ship!       Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
+  Integration:
+    One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended.
+    advance!    Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one
+    verify!     Verify a landed commit in a clean detached copy of local main: the quick gate, the specs its changes touch, the command names, the CI pipeline and the generated corpus
+    board!      Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval
+    observe!    Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     open!       Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
@@ -69,7 +78,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 37 internal commands and queries
-  hecks --maintainer           also list the 385 commands and queries for working on hecks itself
+  hecks --all                  also list the 51 internal commands and queries
+  hecks --maintainer           also list the 390 commands and queries for working on hecks itself
   a command is called with its aggregate — Revision.make!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

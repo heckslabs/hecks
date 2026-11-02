@@ -4,6 +4,7 @@ require "tmpdir"
 require "hecks/hecks/adapters/git_rehearsal"
 require "hecks/hecks/adapters/git_train"
 require "hecks/hecks/adapters/dispatching"
+require "hecks/hecks/adapters/settings_reading"
 
 # How big a push is: the size class in the `push_rehearsal.due` line, the title of the `push-due`
 # row, the order the dispatch fill plans it in, the train's report line, and that no size refuses a
@@ -123,7 +124,7 @@ RSpec.describe Hecks::Adapters::PushSize, :io do
       adapter = train.tap { |t| t.instance_variable_set(:@checkout, work) }
 
       expect(adapter.send(:push_size, {})).to eq(
-        "pushing 41 commits; URGENT PUSH NOW: 41 commits is over the 15 you set (urgent at 40)"
+        [41, "pushing 41 commits; URGENT PUSH NOW: 41 commits is over the 15 you set (urgent at 40)"]
       )
     end
 
