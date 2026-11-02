@@ -1,4 +1,5 @@
 require "spec_helper"
+require "open3"
 require "tmpdir"
 require "hecks/tools/project_cli"
 
@@ -44,10 +45,16 @@ RSpec.describe "the launcher's pinned gems" do
     expect(run_block).to end_with(" false")
   end
 
-  it "leaves the gems at hand when the pinned set is not installed" do
+  it "stops with Bundler's own error when the pinned set is not installed" do
     add_checkout_files(gemfile_pinning("0.0.1"))
+    FileUtils.mkdir_p(File.join(root, "exe"))
+    script = File.join(root, "exe/launch.rb")
+    File.write(script, "#{pinned_block}\nrequire \"json\"\n")
 
-    expect(run_block).to start_with(ruby_output("-rjson", "-e", "print JSON::VERSION"))
+    _out, err, status = Open3.capture3(clean_env, "ruby", script)
+
+    expect(status).not_to be_success
+    expect(err).to include("Could not find gem")
   end
 
   it "is the block exe/hecks carries, so the committed launcher takes the pin" do
