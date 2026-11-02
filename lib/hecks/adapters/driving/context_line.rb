@@ -2,7 +2,6 @@
 
 require "open3"
 require_relative "launcher_options"
-require_relative "../../hecks/adapters/settings_reading"
 
 module Hecks
   module Adapters
@@ -29,6 +28,8 @@ module Hecks
         # @return [String, nil] the line printed, or nil when nothing was printed
         def announce(err, directory: Dir.pwd)
           return unless err.respond_to?(:tty?) && err.tty?
+
+          require_relative "../../hecks/adapters/settings_reading"
 
           text = line(directory: directory, stores: SettingsReading.new.stores(directory),
                       audience: audience(directory))
