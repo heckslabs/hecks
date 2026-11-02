@@ -103,7 +103,7 @@ RSpec.describe "PostgresEra direct translation against the edge chain", :io do
     expect(readings(chain).map(&:last).uniq).to eq([false])
   end
 
-  # A one-step edge declared here, since the committed edges no longer include a plain rename.
+  # A one-step edge declared here: the committed edges hold no plain rename to read.
   def rename_edge
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
