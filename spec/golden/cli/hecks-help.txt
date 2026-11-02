@@ -1,5 +1,5 @@
 Hecks — What this install is, what version it runs, and whether its grammar cache can be trusted.
-  hecks 6.0.0
+  hecks 7.0.0
 
   hecks <command>! [name=value …]       do something
   hecks query <query> [name=value …]    read something
