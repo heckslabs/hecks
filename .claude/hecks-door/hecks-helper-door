@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# MCP server command for the hecks-helper subagent: the restricted door (read-and-verify commands,
+# sandboxed) for a hecks checkout.
+#   HECKS_CHECKOUT   optional; default is the git top level of the current directory when it holds
+#                    exe/hecks, otherwise the checkout at ~/Projects/hecks (so a project that uses
+#                    Hecks, and is not Hecks, can still run its checks through the door)
+set -euo pipefail
+if [ -z "${HECKS_CHECKOUT:-}" ]; then
+  top="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+  if [ -x "$top/exe/hecks" ]; then HECKS_CHECKOUT="$top"; else HECKS_CHECKOUT="$HOME/Projects/hecks"; fi
+fi
+export HECKS_CHECKOUT
+exec "$(cd "$(dirname "$0")" && pwd)/hecks-door-helper"
