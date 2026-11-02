@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../push_size"
+require "hecks/runtime/asking"
 require_relative "reading"
 require_relative "record"
 
@@ -17,13 +19,16 @@ module Hecks
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
-        # @param branch [String] the local branch
-        # @param remote [String] the remote it is pushed to
-        def initialize(git, checkout, branch: "main", remote: "origin")
+        # @param place [Hash] `branch:` the local branch ("main"), `remote:` it is pushed to
+        # @param limits [Hash, nil] the push size thresholds; the booted world's when nil
+        # @param clock [#now] where the age of the oldest commit is read from
+        def initialize(git, checkout, limits: nil, clock: Time, **place)
+          @limits = limits || PushSize.thresholds(Runtime::Asking.registry)
+          @clock = clock
           @git = git
           @checkout = checkout
-          @branch = branch
-          @tracking = "#{remote}/#{branch}"
+          @branch = place.fetch(:branch, "main")
+          @tracking = "#{place.fetch(:remote, "origin")}/#{@branch}"
         end
 
         # @return [String] one line:
@@ -34,14 +39,20 @@ module Hecks
           return "push due: no; #{@branch} is level with #{@tracking}; #{last_rehearsal}" if ahead.zero?
 
           "push due: yes; #{ahead} commit(s) ahead of #{@tracking}; oldest unpushed #{age} hours old; " \
-            "#{last_rehearsal}#{full_needed}"
+            "#{size(ahead)}#{last_rehearsal}#{full_needed}"
         end
 
         private
 
+        # The size sentence and its separator once past the threshold, else nothing.
+        def size(ahead)
+          sentence = PushSize.sentence(ahead, @limits)
+          sentence.empty? ? "" : "#{sentence}; "
+        end
+
         def age
           oldest = read("log", "--reverse", "--format=%ct", "#{@tracking}..#{@branch}").lines.first.to_i
-          format("%.1f", (Time.now.to_i - oldest) / HOUR)
+          format("%.1f", (@clock.now.to_i - oldest) / HOUR)
         end
 
         # Both scopes' last result; a push needs a full one, so a missing or stale one says so.

@@ -254,6 +254,8 @@ commit must pass as `RequiredCheck` rows beside them.
   red on `origin/main` is reported, not failed). Its result is the `PushRehearsal` record, and
   `hecks push_rehearsal.due` says how far `main` is ahead of `origin/main`, how old the oldest
   unpushed commit is and how the last rehearsal of each scope ended. Nothing pushes by itself.
+  The size that counts as too big is the QualityControl world's `push_nudge` setting (`commits`, `hours`,
+  `urgent_commits`): past it the line and the train's report say `PUSH NOW`, and neither ever refuses a push.
 - **Red main is a standing Work row.** When the latest `CI` run on `main` fails, each QA tick files one
   open `red-main-<run id>` row naming the failing job, and finishes it when a later run passes. The
   dispatch fill plans `red-*` rows first and starts one before other planned work, and `push_rehearsal.due`
