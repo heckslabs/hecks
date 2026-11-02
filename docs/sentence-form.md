@@ -283,6 +283,30 @@ Example: Only an editor may take a page down
   the ask in an example, and the runtime refuses it, so an example of such a command is best
   about the order's state (`Then the order is submitted`) rather than the list of events.
 
+A `Goal:` gathers examples into a use case (ADR 0173). It names, in the domain's words, a goal one
+of the `Background:` people pursues, and the examples indented under it are that goal's: the first
+is its main scenario, the rest its extensions.
+
+```
+Goal: Dana publishes a page
+  Example: A drafted page can be published
+    Given Dana drafts a page with slug "about" and title "About us"
+    When Dana publishes it with published on 1700000000
+    Then the page is published
+
+  Example: A published page cannot be published again
+    Given Dana drafts a page with slug "about" and title "About us"
+    And Dana publishes it with published on 1700000000
+    When Dana tries to publish it with published on 1700000001
+    Then it is refused because only a draft can be published
+```
+
+The examples run exactly as they would without the goal; a goal adds two checks. A main scenario
+that ends in a refusal is refused (`goal_without_success`: nothing under the goal reaches it), and
+so is an extension whose `When` calls a command the main scenario never calls
+(`extension_off_path`: it is an example of another goal). Neither asks for an extension per rule.
+The person is the actor: their role is what each command checks, so a goal adds no role of its own.
+
 Run them like any behaviors file: `hecks run_behaviors target=page.examples`, or give a directory
 and every `.behaviors` and `.examples` file under it runs.
 
