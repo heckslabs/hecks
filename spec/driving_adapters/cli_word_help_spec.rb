@@ -31,6 +31,19 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner::WordHelp do
     expect(text).to eq("usage: hecks #{runner::TourWords::USAGE}")
   end
 
+  it "registers each first-word handler with a one-line usage", :aggregate_failures do
+    registry = runner.word_usages
+    expect(registry.keys).to match_array(%w[tour search completion resume])
+    expect(registry.values).to all(match(/\A\S.*\S\z/).and(satisfy { |usage| !usage.include?("\n") }))
+  end
+
+  it "answers before any handler is reached", :aggregate_failures do
+    handlers = %i[tour_answer search_answer completion_answer resume]
+    handlers.each { |handler| allow(runner).to receive(handler).and_raise("#{handler} reached") }
+    answers = runner.word_usages.keys.product(asks).map { |word, ask| runner.word_answer({ program: "hecks" }, [word, ask]) }
+    expect(answers.map { |answer| answer[:answer].last }.uniq).to eq([0])
+  end
+
   it "does not answer help for a word it does not know" do
     text, = answer_in_tmp("nonesuch", "--help").first
     expect(text).not_to start_with("usage: hecks nonesuch")

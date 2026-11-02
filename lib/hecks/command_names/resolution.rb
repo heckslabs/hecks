@@ -15,13 +15,15 @@ module Hecks
 
       # @param scope [Hash] one scope of `CliRunner.name_index`
       # @param typed [String] the word, with its `!` if it has one
-      # @param asking [Boolean] whether `query` came before it
-      def initialize(scope, typed, asking)
+      # @param asking [Boolean] whether `query` (or `ask`) came before it
+      # @param old_spelling [Boolean] whether the word before it was `query`, the old spelling
+      def initialize(scope, typed, asking, old_spelling: false)
         @scope = scope
         @cli = { names: { command: scope["command"], question: scope["question"] } }
         @typed = typed.chomp("!")
         @bang = typed.end_with?("!")
         @asking = asking
+        @old_spelling = old_spelling
         @name = RUNNER.canonical_name(@cli, @typed)
       end
 
@@ -29,7 +31,7 @@ module Hecks
       def problem
         return unknown unless command || question
 
-        bare_command || banged_query || query_of_command
+        bare_command || banged_query || query_of_command || query_word
       end
 
       private
@@ -47,7 +49,14 @@ module Hecks
       def banged_query
         return unless @bang && !@asking && !command && question
 
-        Problem.new("#{@typed}! is a query and reads; write it without the !", "query #{question}")
+        Problem.new("#{@typed}! is a query and reads; write it without the !", question.to_s)
+      end
+
+      # A query is written bare (ADR 0163 rule 6); `query` stays only where a command shares the name.
+      def query_word
+        return unless @old_spelling && question && !command
+
+        Problem.new("query is the old spelling; write #{@typed} bare", question.to_s)
       end
 
       def query_of_command
@@ -74,7 +83,7 @@ module Hecks
       def listed(near)
         return "#{@scope["command"][near]}!" if @scope["command"][near]
 
-        "query #{@scope["question"][near]}"
+        @scope["question"][near].to_s
       end
     end
   end

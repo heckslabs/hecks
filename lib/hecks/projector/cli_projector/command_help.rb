@@ -5,9 +5,9 @@ module Hecks
       module CommandHelp
         # Four independent blocks, concatenated in fixed order: meta, invocation,
         # arguments, refusals.
-        def command_help(program, name, spec, ask: false)
+        def command_help(program, name, spec, ask: false, qualified: false)
           out = command_help_meta_lines(name, spec)
-          out.concat(command_help_invocation_lines(program, name, spec, ask))
+          out.concat(command_help_invocation_lines(program, name, spec, [ask, qualified]))
           out.concat(command_help_argument_lines(spec))
           out.concat(command_help_refusal_lines(spec))
           out.join("\n")
@@ -28,8 +28,9 @@ module Hecks
         end
 
         # The example call with every argument as `path=…`.
-        def command_help_invocation_lines(program, name, spec, ask)
-          invocation = ask ? "#{program} query #{name}" : "#{program} #{name}!"
+        def command_help_invocation_lines(program, name, spec, asking)
+          ask, qualified = asking
+          invocation = ask ? [program, ("query" if qualified), name].compact.join(" ") : "#{program} #{name}!"
           ["", "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}", ""]
         end
 

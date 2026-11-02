@@ -2,7 +2,7 @@ Hecks — What this install is, what version it runs, and whether its grammar ca
   hecks 7.0.0
 
   hecks <command>! [name=value …]       do something
-  hecks query <query> [name=value …]    read something
+  hecks <query> [name=value …]          read something, written bare
 
 everyday:
   Operation.run!                    Dispatch a verb or a step list against a domain and keep what it…

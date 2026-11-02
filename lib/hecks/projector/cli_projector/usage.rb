@@ -25,7 +25,7 @@ module Hecks
           return unless only
 
           spec = help_spec(only, commands, questions, options[:ask])
-          command_help(program, verb_form(spec, spec[:short]), spec, ask: options[:ask]) if spec
+          command_help(program, verb_form(spec, spec[:short]), spec, ask: options[:ask], qualified: options[:query_word]) if spec
         end
 
         # `ask` picks the namespace when both hold the name; without it a
@@ -62,7 +62,7 @@ module Hecks
         def usage_header(bluebook, program)
           ["#{bluebook.name} — #{bluebook.vision}", "  hecks #{Hecks::VERSION}", "",
            "  #{program} <command>! [name=value …]       do something",
-           "  #{program} query <query> [name=value …]    read something", ""]
+           "  #{program} <query> [name=value …]          read something, written bare", ""]
         end
 
         # The pointers after the tables: `--help`, `--all`, `--maintainer` and an example call.

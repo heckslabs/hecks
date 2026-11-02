@@ -33,8 +33,7 @@ module Hecks
           # The answer a line gets without naming a command, or nil when it names one.
           def answer_for(scope, argv)
             json_answer(scope, argv) || usage_answer(scope, argv.first) || module_answer(scope, argv.first) ||
-              word_help(scope, argv) ||
-              search_answer(scope, argv) || completion_answer(scope, argv) || tour_answer(scope, argv) || resume(scope, argv)
+              word_answer(scope, argv)
           end
 
           # The answer to a line that is only a request for usage, or nil.
@@ -83,7 +82,7 @@ module Hecks
 
           # The usage of one command or question, which its `--help` asks for.
           def command_help(scope, name, asking)
-            options = scope[:options].merge(command: name, ask: asking)
+            options = scope[:options].merge(command: name, ask: asking, query_word: shared?(scope, name, asking))
             Projector.call(:cli, bluebook: scope[:bluebook], options: options)[:usage]
           end
 

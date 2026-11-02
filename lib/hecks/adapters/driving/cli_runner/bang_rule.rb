@@ -10,6 +10,9 @@ module Hecks
             CliRunner::QUERY_WORDS.include?(argv.first) ? argv[1] : argv.first
           end
 
+          # Whether a query shares its name with a command, the one case `query` is typed.
+          def shared?(scope, name, asking) = asking && scope[:cli][:names][:command].key?(name)
+
           # The answer a line gets before any command runs: its help, or its refusal for a
           # command written without its bang.
           def early_answer(scope, cli, line)
