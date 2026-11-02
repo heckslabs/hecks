@@ -198,14 +198,14 @@ land a change that touches a `.bluebook`, the DSL builder, the runtime, or the
 IR:
 
 ```sh
-bundle exec hecks model_check           # static analysis over the IR — unreachable states,
+bundle exec hecks model_check_run.model_check!           # static analysis over the IR — unreachable states,
                                         # dead transitions, sagas nothing reaches
 bundle exec hecks fuzz_run.fuzz!                  # generated command/query sequences, checked against
                                         # declared properties and interpreter crashes
 bundle exec hecks fuzz_run.mutate! examples/pizzas  # mutates the domain's rules and lists every change the
                                         # properties, corpus script and behaviors tests let through
 bundle exec hecks conformance_run.measure_doc_coverage!  # every live DSL word ships with a running example
-bundle exec hecks run examples/banking spec/corpus/banking.json   # the refusals someone already decided must hold
+bundle exec hecks operation.run! subject.value=examples/banking script.value=spec/corpus/banking.json   # the refusals someone already decided must hold
 ```
 
 The `hecks` command is the one entry point for all of this. Its verbs are
@@ -362,7 +362,7 @@ above:
 - the whole suite, and the fuzzing specs;
 - the Postgres and Rust `io` specs, against real databases and a real Rust
   build;
-- `hecks model_check`, the engine-agreement check, `hecks conformance_run.measure_doc_coverage!` and
+- `hecks model_check_run.model_check!`, the engine-agreement check, `hecks conformance_run.measure_doc_coverage!` and
   `rubocop`;
 - the Ruby/Rust parity specs and the golden IR (`spec/codegen_planted_gaps_spec.rb`,
   `spec/parser_parity_spec.rb`, `spec/rust_conformance_spec.rb`,
@@ -390,7 +390,7 @@ code.
   word: `hecks conformance_run.measure_doc_coverage!` clean, and a real prose section in
   `docs/implemented/reference/` — not the `TODO` sentinel — with a
   runnable example.
-- If you touched a lifecycle, saga, policy, or an attribute that copies another aggregate's key: `hecks model_check` clean (a `key_by_value` warning means `reference_to` fits better).
+- If you touched a lifecycle, saga, policy, or an attribute that copies another aggregate's key: `hecks model_check_run.model_check!` clean (a `key_by_value` warning means `reference_to` fits better).
 - A short note on *why*, not just *what* — this repo's own comments
   (Gemfile, `.rubocop.yml`, `.githooks/pre-push`) are the house style
   for that: explain the reasoning that would otherwise get silently
