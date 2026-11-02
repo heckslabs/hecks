@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "sqlite3"
-
 module Hecks
   module Adapters
     class JournalStore
@@ -18,6 +16,7 @@ module Hecks
             # @param path [String] a database file that exists
             # @return [SQLite3::Database] the open, read-only database; the caller closes it
             def self.open(path)
+              require "sqlite3"
               return SQLite3::Database.new(path, readonly: true) if File.exist?("#{path}-wal")
 
               SQLite3::Database.new("file:#{escape(path)}?immutable=1",

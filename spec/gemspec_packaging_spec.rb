@@ -115,6 +115,24 @@ RSpec.describe "gem packaging" do
     expect(symlinked).to be_empty, "symlink(s) under lib/: #{names.join(", ")} — #{SYMLINK_NOTE}"
   end
 
+  # Runs `exe/hecks --help` where the `pg` and `sqlite3` gems cannot load, as on a machine that
+  # installed only the gem's own dependency; a shim directory on the load path raises for each.
+  def help_without_database_gems
+    Dir.mktmpdir("hecks-gem-shim") do |shim|
+      %w[pg sqlite3].each do |gem|
+        File.write(File.join(shim, "#{gem}.rb"), "raise LoadError, \"cannot load such file -- #{gem}\"\n")
+      end
+      unbundled_ruby("-I", shim, File.join(root, "exe/hecks"), "--help", chdir: root)
+    end
+  end
+
+  it "answers --help without the pg or sqlite3 gem, which load only when a database opens", :aggregate_failures do
+    out, err, status = help_without_database_gems
+
+    expect(status).to be_success, err
+    expect(out).to include("hecks <command>! [name=value")
+  end
+
   # Copies the packaged files into `into`, creating the directories they need.
   def install_gem_files(into)
     gemspec.files.each do |file|
