@@ -542,9 +542,13 @@ Hecks.bluebook "Hecks" do
 
     # Many agents finish together and each would push, running every pre-push check at once. A
     # boarding waits its turn behind the push in flight from the same repository, then pushes the
-    # local branch with whatever else has landed on it, or finds an earlier push already carried it.
+    # local branch with whatever else has landed on it, or finds an earlier push already carried it. While it
+    # settles and pushes it holds main: it takes the landing line's front place (a landing that waits past
+    # the world's `landing` wait is refused by name, "landing is held by the push train") and sets the QA
+    # quiet marker so the dispatcher and the tick start nothing. Both are released by success, refusal or
+    # failure, and the line's place expires by itself when the session dies.
     aggregate "SendTrain" do
-      description "One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused."
+      description "One push of a checkout's branch, taken in turn while holding main: carried by an earlier push, pushed, or refused."
 
       attribute :run,      RunKey
       attribute :confirm, Switch, optional: true
@@ -678,7 +682,8 @@ Hecks.bluebook "Hecks" do
 
     # A boarding is carried by the train, which runs its steps in order while it holds the line: the
     # Hecks domain's mint, then the settlement and the push. A shape that did not move passes straight
-    # through; a refused mint is the train's refusal, named, and nothing is pushed.
+    # through; a refused mint is the train's refusal, named, and nothing is pushed. From the settlement to the
+    # push result the carry holds the landing line and the QA quiet marker, so local main cannot move under it.
     policy "CarryWhenBoarded" do
       on      "SendTrain.BoardingRequested"
       ask     :carry, with: { run: :run }

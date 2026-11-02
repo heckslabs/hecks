@@ -47,8 +47,30 @@ module Hecks
           ticket = @line.join(branch, checkout: checkout, onto: onto, ready: true)
           turn = waiting(ticket).run
           turn.verdict ? carried(turn) : yield(turn.note)
+        rescue Waiting::Held => e
+          raise ConsoleCapture::Failure, e.message
         rescue Waiting::Expired => e
           raise ConsoleCapture::Failure, "queue busy: #{branch} is not landed: #{e.message}; land again when the line clears"
+        ensure
+          @line.leave(ticket) if ticket
+        end
+
+        # Takes the front place right behind the landing in progress, ahead of those waiting, and
+        # keeps it, beating, for as long as the block runs: a push hold. Landings that join meanwhile
+        # wait behind it and, once their wait runs out, are refused by name.
+        #
+        # @param branch [String] the branch the push carries
+        # @param checkout [String] the repository's top level
+        # @yieldparam note [String, nil] what the wait was
+        # @yieldparam queued [Integer] how many branches are waiting behind the hold
+        # @return [Object] what the block answers
+        # @raise [ConsoleCapture::Failure] when the wait for the place runs out
+        def hold(branch, checkout:)
+          ticket = @line.join(branch, jump: true, hold: true, checkout: checkout, ready: false)
+          turn = waiting(ticket).run
+          yield turn.note, @line.behind(ticket).size
+        rescue Waiting::Expired => e
+          raise ConsoleCapture::Failure, "the push is not started: #{e.message}; board again when the line clears"
         ensure
           @line.leave(ticket) if ticket
         end

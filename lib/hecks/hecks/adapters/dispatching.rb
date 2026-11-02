@@ -6,6 +6,7 @@ require_relative "dispatching/rows"
 require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
 require_relative "dispatching/settler"
+require "hecks/quality_control/adapters/qa_quiesce_marker"
 
 module Hecks
   module Adapters
@@ -72,12 +73,22 @@ module Hecks
       def skipped_line(skip) = "#{skip.key} #{skip.reason}"
 
       def launch(plan, held)
+        quiet = quiet_line
+        return [quiet] if quiet
+
         launcher = launcher_for(held)
         minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
         plan.chosen.each_with_index.map do |row, index|
           launcher.launch(row, held: holding(plan, index), frozen: machine.frozen, minutes: minutes,
                           limit: machine.spec_files_limit)
         end
+      end
+
+      # Why nothing starts while the QA quiet marker is fresh (a mint window or the push train's hold), or nil.
+      def quiet_line
+        marker = @standins[:marker] || QaQuiesceMarker.new
+        hold = marker.active
+        "quiesced: nothing started (#{marker.describe(hold)})" if hold
       end
 
       # A line for each other row, started or chosen before this one, that holds an area.

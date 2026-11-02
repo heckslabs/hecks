@@ -10,6 +10,7 @@ require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
 require_relative "git_train/launcher_shape"
+require_relative "git_train/hold"
 
 module Hecks
   module Adapters
@@ -30,18 +31,22 @@ module Hecks
       # The lock's file, in the repository's common git directory.
       LOCK_FILE = "hecks-push-train.lock"
 
-      # Accepts the arguments every driven adapter is built with and keeps none of them.
+      # Accepts the arguments every driven adapter is built with.
       #
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] unused
+      # @param settings [Hash] `marker:` a `QaQuiesceMarker`, for a spec
       # @param root [String, nil] unused
-      # @param mint [MintStep, nil] the mint a boarding runs first; the Hecks domain's by default
-      # @param domain [String, nil] the launcher's Hecks domain directory the train's shape is read
-      #   from; the one this code runs from by default
-      def initialize(aggregate: nil, settings: {}, root: nil, mint: nil, domain: nil)
+      # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's by default);
+      #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one this
+      #   code runs from by default); `registry:` the booted registry whose world names the landing
+      #   queue's limits; any other key tunes the push hold's landing line (see `GitLanding::Lineup`)
+      def initialize(aggregate: nil, settings: {}, root: nil, **options)
+        @registry = options.delete(:registry)
+        @marker = settings[:marker] || QaQuiesceMarker.new
+        @mint = options.delete(:mint) || MintStep.new
+        @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
+        @tune = options
         @git = Git.new
-        @mint = mint || MintStep.new
-        @domain = domain || JournalStore::HeldMint::DOMAIN
       end
 
       # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
@@ -62,7 +67,7 @@ module Hecks
           boarded = boarded_commit(held)
           LauncherShape.new(@git, @checkout, domain: @domain).check!(boarded)
           minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
-          after_mint(minted, boarded, settle_and_carry(held, boarded))
+          after_mint(minted, boarded, holding_main(held, boarded))
         end
       end
 
@@ -87,13 +92,29 @@ module Hecks
         Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
       end
 
+      # Holds the landing line and QA quiet from the settlement to the push result, so local main
+      # cannot move between the final check and the push.
+      def holding_main(held, boarded)
+        settled = nil
+        hold = Hold.new(git_dir, @checkout, branch: branch_of(held), marker: @marker, setting: landing_setting, **@tune)
+        answer = hold.around do
+          carried, settled = settle_and_carry(held, boarded)
+          carried
+        end
+        [answer, settled]
+      end
+
+      def landing_setting = (@registry&.world("Hecks")&.settings || {})["landing"]
+
+      def git_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
+
       # Brings the branch up to its remote and settles the shape ledger, then carries the settled
       # commit.
       def settle_and_carry(held, boarded)
         branch = branch_of(held)
         remote = remote_of(held)
         settled = Settlement.new(@git, @checkout, branch: branch, remote: remote).run(boarded)
-        carriage = Carriage.new(@git, @checkout, branch: branch, remote: remote, config: gate_config(held))
+        carriage = Carriage.new(@git, @checkout, branch: branch, remote: remote, config: gate_config(held)).under_hold
         [carriage.carry(settled), settled]
       end
 
@@ -115,7 +136,7 @@ module Hecks
       def gate_config(held) = plain(held[:full_gate]) == true ? ["-c", "hecks.fullGate=true"] : []
 
       def in_turn
-        path = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir"), LOCK_FILE)
+        path = File.join(git_dir, LOCK_FILE)
         File.open(path, File::RDWR | File::CREAT) do |lock|
           lock.flock(File::LOCK_EX)
           yield
