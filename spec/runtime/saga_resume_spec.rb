@@ -6,7 +6,7 @@ RSpec.describe "resuming a faulted saga" do
   let(:registry) do
     Struct.new(:saga_instances, :saga_mutex, :blueprint, :store) do
       def bluebook(_domain) = blueprint
-      def saga_persistence(_domain) = store
+      def saga_persistence(_domain, _process_manager = nil) = store
     end.new(Hash.new { |h, k| h[k] = {} }, Mutex.new, blueprint, store)
   end
   let(:interpreter) { Hecks::Runtime::SagaInterpreter.new(registry, dispatcher: nil) }

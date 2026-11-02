@@ -807,6 +807,309 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # Main is integrated by a process: every landing onto local main starts a run keyed by the
+    # landed commit, and each run is verified in a clean copy, boarded on the push train and
+    # watched on CI, ending green or red, or parked in needs_human with the reason. The
+    # coordinator drives it with `Integration.advance!`, which dispatches each open run's next step
+    # at top level; a step records itself and waits, so no dispatch runs inside the saga and the
+    # reaction depth stays bounded. Shipment's path joins it: its landing starts a run too, and a
+    # boarding the train already carried is recorded as pushed. A run is checkpointed with the
+    # Landing records that start it, so a copy that keeps those keeps its runs across a restart.
+    # A run in needs_human is taken up again by verifying it again (`Integration.verify!`).
+    process_manager "MainIntegration" do
+      correlates_by :"landed.value"
+      starts_on Landing::BranchLanded
+
+      transition Integration::MainVerificationStarted => "verifying", from: %w[landed needs_human]
+      transition Integration::MainVerified => "verified", from: "verifying"
+      transition Integration::MainBoardingStarted => "boarding", from: "verified"
+      transition Integration::MainPushed => "pushed", from: "boarding"
+      transition Integration::CiObservationStarted => "ci_running", from: %w[pushed ci_running]
+      transition Integration::CiPassed => "green", from: "ci_running"
+      transition Integration::CiFailed => "red", from: "ci_running"
+
+      # A newer landing on main carries this one: the run stops, and the newer run integrates both.
+      transition Integration::IntegrationSuperseded => "superseded", from: %w[verifying boarding]
+
+      transition Integration::MainVerificationFailed => "needs_human", from: "verifying"
+      transition Integration::MainPushRefused => "needs_human", from: "boarding"
+    end
+
+    # One step of integrating main, or one advance of every open run: what was asked, and how it
+    # ended. A step names the landed commit its run is keyed by, and every event it emits carries
+    # it, so the MainIntegration saga hears each one. Each step emits the event that moves the saga
+    # before the one its adapter answers, because policies hear an event before sagas do. The port
+    # adapters do the work: a clean detached copy for a verification, the push train's own copy for
+    # a boarding, and GitHub for the CI run. A boarding refuses by name a range that carries an
+    # agent's trailer, a version change or a release approval, and boards only while no other run is
+    # being pushed or watched.
+    aggregate "Integration" do
+      description "One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended."
+
+      attribute :run,      RunKey
+      attribute :landed,   Word,   optional: true
+      attribute :checkout, Word,   optional: true
+      attribute :confirm,  Switch, optional: true
+      attribute :pushed,   Word,   optional: true
+      attribute :report,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A commit or a directory.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "failed", "refused", "red"
+        transition "Summarize" => "advanced",   from: "requested"
+        transition "Pass"      => "verified",   from: "requested"
+        transition "Fail"      => "failed",     from: "requested"
+        transition "Send"      => "pushed",     from: "requested"
+        transition "Reject"    => "refused",    from: "requested"
+        transition "Green"     => "passed",     from: "requested"
+        transition "Red"       => "red",        from: "requested"
+        transition "Supersede" => "superseded", from: "requested"
+        mark :terminal, "advanced", "verified", "failed", "pushed", "refused", "passed", "red", "superseded"
+      end
+
+      command "Advance" do
+        role "Operator"
+        goal "Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one"
+
+        attribute :run,     RunKey, sets: true
+        # Boarding pushes main, so an advance boards only when confirmed; unconfirmed, it says
+        # which boarding it would make.
+        attribute :confirm, Switch, optional: true, sets: true
+
+        emits AdvanceRequested
+      end
+
+      command "Summarize" do
+        role "System"
+        goal "Record what one advance dispatched for each open run"
+
+        reference_to Integration
+        attribute :report, Report, sets: true
+
+        emits IntegrationAdvanced
+      end
+
+      command "Verify" do
+        role "Operator"
+        goal "Verify a landed commit in a clean detached copy of local main: the quick gate, the specs its changes touch, the command names, the CI pipeline and the generated corpus"
+
+        attribute :run,      RunKey, sets: true
+        attribute :landed,   Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits MainVerificationStarted
+        emits MainVerificationRequested
+      end
+
+      command "Pass" do
+        role "System"
+        goal "Record that a landed commit passed its verification"
+
+        reference_to Integration
+        attribute :landed, Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits MainVerified
+      end
+
+      command "Fail" do
+        role "System"
+        goal "Record why a landed commit failed its verification, naming the failing checks and files"
+
+        reference_to Integration
+        attribute :landed,  Word,   sets: true
+        attribute :refusal, Report, sets: true
+
+        emits MainVerificationFailed
+      end
+
+      command "Board" do
+        role "Operator"
+        goal "Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval"
+
+        attribute :run,      RunKey, sets: true
+        attribute :landed,   Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("pushes main to the remote needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits MainBoardingStarted
+        emits MainBoardingRequested
+      end
+
+      command "Send" do
+        role "System"
+        goal "Record the commit the push train pushed, or found already carried"
+
+        reference_to Integration
+        attribute :landed, Word,   sets: true
+        attribute :pushed, Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits MainPushed
+      end
+
+      command "Reject" do
+        role "System"
+        goal "Record why a verified commit was not pushed"
+
+        reference_to Integration
+        attribute :landed,  Word,   sets: true
+        attribute :refusal, Report, sets: true
+
+        emits MainPushRefused
+      end
+
+      command "Observe" do
+        role "Operator"
+        goal "Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running"
+
+        attribute :run,      RunKey, sets: true
+        attribute :landed,   Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits CiObservationStarted
+        emits CiObservationRequested
+      end
+
+      command "Green" do
+        role "System"
+        goal "Record that CI passed on a pushed commit"
+
+        reference_to Integration
+        attribute :landed, Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits CiPassed
+      end
+
+      command "Red" do
+        role "System"
+        goal "Record that CI failed on a pushed commit, naming the failed jobs"
+
+        reference_to Integration
+        attribute :landed, Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits CiFailed
+      end
+
+      command "Supersede" do
+        role "System"
+        goal "Record that a newer commit on main carries a landed one, so its run stops"
+
+        reference_to Integration
+        attribute :landed, Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits IntegrationSuperseded
+      end
+
+      query "Outcome" do
+        description "How one integration step or advance ended: its report, or why it was refused."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+    end
+
+    policy "AdvanceWhenAsked" do
+      on      "Integration.AdvanceRequested"
+      ask     :step, with: { run: :run }
+    end
+
+    policy "RecordTheAdvance" do
+      on      "Integration.AdvanceAnswered"
+      trigger Integration::Summarize, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedAdvance" do
+      on      "Integration.AdvanceRefused"
+      trigger Integration::Summarize, with: { report: :refusal }
+    end
+
+    policy "VerifyMainWhenRequested" do
+      on      "Integration.MainVerificationRequested"
+      ask     :check, with: { run: :run, landed: :landed }
+    end
+
+    policy "RecordTheVerification" do
+      on      "Integration.VerifyAnswered"
+      where   { outcome.value == "verified" }
+      trigger Integration::Pass, with: { landed: :landed, report: :report }
+    end
+
+    policy "RecordTheSupersededVerification" do
+      on      "Integration.VerifyAnswered"
+      where   { outcome.value == "superseded" }
+      trigger Integration::Supersede, with: { landed: :landed, report: :report }
+    end
+
+    policy "RecordTheFailedVerification" do
+      on      "Integration.VerifyRefused"
+      trigger Integration::Fail, with: { landed: :landed, refusal: :refusal }
+    end
+
+    policy "BoardWhenRequested" do
+      on      "Integration.MainBoardingRequested"
+      ask     :embark, with: { run: :run, landed: :landed }
+    end
+
+    policy "RecordTheBoarding" do
+      on      "Integration.BoardAnswered"
+      where   { outcome.value == "pushed" }
+      trigger Integration::Send, with: { landed: :landed, pushed: :pushed, report: :report }
+    end
+
+    policy "RecordTheSupersededBoarding" do
+      on      "Integration.BoardAnswered"
+      where   { outcome.value == "superseded" }
+      trigger Integration::Supersede, with: { landed: :landed, report: :report }
+    end
+
+    policy "RecordTheRefusedBoarding" do
+      on      "Integration.BoardRefused"
+      trigger Integration::Reject, with: { landed: :landed, refusal: :refusal }
+    end
+
+    policy "ObserveWhenRequested" do
+      on      "Integration.CiObservationRequested"
+      ask     :watch, with: { run: :run, landed: :landed }
+    end
+
+    # A CI run still in progress answers `running` and nothing is recorded: the next advance reads
+    # it again.
+    policy "RecordThePassedCi" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "passed" }
+      trigger Integration::Green, with: { landed: :landed, report: :report }
+    end
+
+    policy "RecordTheFailedCi" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "failed" }
+      trigger Integration::Red, with: { landed: :landed, report: :report }
+    end
+
     aggregate "ReviewRequest" do
       description "One pull request opened or squash-merged on GitHub, and what GitHub answered."
 
