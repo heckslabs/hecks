@@ -76,18 +76,27 @@ module Hecks
         def link(from, to, label, kind)
           return unless to
 
-          node(from, from.split("::").first)
-          node(to, from.split("::").first)
+          origin = node(from, nil)
+          node(to, origin)
           @edges << { from: from, to: to, label: label, kind: kind }
         end
 
-        # A port belongs to the domain of the aggregate that asks through it; an aggregate to its
-        # own.
-        def node(id, asking_domain)
+        # An aggregate belongs to its own domain and to the module its bluebook declares it in,
+        # when there is one; a port to the domain and module of the aggregate that asks through it.
+        def node(id, asking)
           port = id.start_with?("port:")
-          domain = port ? asking_domain : id.split("::").first
           label = id.split("::").last.sub("port:", "")
-          @nodes[id] ||= { id: id, kind: port ? "port" : "aggregate", domain: domain, label: label }
+          domain = port ? asking[:domain] : id.split("::").first
+          context = port ? asking[:context] : module_of(domain, label)
+          @nodes[id] ||= { id: id, kind: port ? "port" : "aggregate", domain: domain, label: label, context: context }
+        end
+
+        def module_of(domain, aggregate)
+          book = @registry.bluebooks[domain]
+          return nil unless book.respond_to?(:modules)
+
+          row = book.modules.find { |held| held.aggregate.to_s == aggregate }
+          row && row.name.to_s
         end
 
         def adapter_edges

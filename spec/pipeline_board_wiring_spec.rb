@@ -9,9 +9,10 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 RSpec.describe Hecks::Adapters::PipelineWiring do
   def policy(name, heard, reaches) = double(name: name, event_qualifier: heard, reaches: reaches)
 
-  def registry(policies, ports: {}, adapters: {}, owned: [])
+  def registry(policies, ports: {}, adapters: {}, owned: [], modules: {})
     aggregate = double(ports: owned.map { |name| double(name: name) })
-    book = double(name: "Hecks", policies: policies, aggregates: [aggregate])
+    rows = modules.map { |name, held| double(name: held, aggregate: name) }
+    book = double(name: "Hecks", policies: policies, aggregates: [aggregate], modules: rows)
     instance_double(Hecks::Runtime::Registry, bluebooks: { "Hecks" => book }, ports: ports, adapters: adapters)
   end
 
@@ -43,6 +44,12 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
   it "finds a port an aggregate declares for itself, not only the registry's" do
     ask = policy("FetchWhenChecked", "Host", "Hecks::Host::HostHttp.Fetch")
     expect(graph([ask], owned: ["HostHttp"])[:edges].map { |edge| edge[:to] }).to eq(["port:HostHttp"])
+  end
+
+  it "names the module an aggregate is declared in, and gives its port the same", :aggregate_failures do
+    ask = policy("ListenWhenServed", "PipelineBoard", "Hecks::PipelineBoard::Web.Listen")
+    found = graph([ask], ports: { "Web" => :port }, modules: { "PipelineBoard" => "Serve" })
+    expect(found[:nodes].map { |node| node[:context] }).to eq(%w[Serve Serve])
   end
 
   it "leaves out an aggregate that nothing is wired to" do
