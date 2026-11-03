@@ -1,5 +1,6 @@
 require "hecks"
 require "hecks/composer/parse"
+require "hecks/composer/declared"
 
 module Hecks
   module Composer
@@ -8,13 +9,13 @@ module Hecks
     # on first use, and sends argv to the CLI runner one call at a time. A command that is not on
     # the safe list is guarded: it runs only when the caller echoes back a confirmation phrase.
     class Toolbox
-      SAFE_COMMANDS = %w[
-        model_check_run.model_check operation.run operation.run_behaviors operation.smoke_test
-        operation.refresh_projections fuzz_run.fuzz fuzz_run.bench build.check_conformance
-        build.fuzz_conformance conformance_run.check_engine_agreement
-        conformance_run.measure_doc_coverage kernel_run.measure_kernel_coverage
-        style_run.check_comments style_run.check_rust_comments style_run.check_comments_unchanged
-      ].freeze
+      # `SAFE_COMMANDS` is the list `composer.bluebook` declares (`Palette.SafeCommand`), read the
+      # first time it is named.
+      def self.const_missing(name)
+        return super unless name == :SAFE_COMMANDS
+
+        const_set(name, Declared.closed_set("Palette", "SafeCommand"))
+      end
 
       # A carriage return or line feed.
       LINE_BREAK = /[\r\n]/
