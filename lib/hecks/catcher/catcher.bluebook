@@ -6,6 +6,7 @@
 #
 # A drain asks the Spool port to read and keeps the lines as one sitting. The sitting then asks
 # the spool cursor to acknowledge the read, so the cursor moves only after the sitting is kept.
+# A read that holds no lines keeps no sitting and asks for no acknowledge: the drain completes.
 #
 # Roles are checked by Governance, which the Catcher hecksagon attaches. A role here is a
 # name Governance grants through its RoleAssignments, never a list kept in this domain.
@@ -396,10 +397,19 @@ Hecks.bluebook "Catcher" do
     ask     :read, with: { run: :run }
   end
 
-  # The lines the read answered are kept as one sitting, keyed by the drain's run.
+  # The lines the read answered are kept as one sitting, keyed by the drain's run. A read that
+  # holds no lines keeps none.
   policy "RecordTheSitting" do
     on      "Drain.SpoolRead"
+    where   { lines.size.positive? }
     trigger Observation::Record, with: { sitting: :run, calls: :lines, through: :through }
+  end
+
+  # A read that holds no lines has nothing to keep or acknowledge, so the drain completes here.
+  policy "CompleteWhenNothingRead" do
+    on      "Drain.SpoolRead"
+    where   { lines.size.zero? }
+    trigger Drain::Complete, with: { run: :run, through: :through }
   end
 
   policy "DeclineWhenSpoolRefused" do
