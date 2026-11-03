@@ -8,9 +8,19 @@ RSpec.describe "root policies" do
     Hecks::Bluebook::DSL::PolicyBuilder.build("Report", &block)
   end
 
-  it "builds a policy declared root, and a plain one as not root" do
-    expect(built { on "Thing.Broke"; root; across "Tickets" }.root).to be(true)
-    expect(built { on "Thing.Broke"; across "Tickets" }.root).to be(false)
+  it "builds a policy declared root as root" do
+    expect(built do
+      on "Thing.Broke"
+      root
+      across "Tickets"
+    end.root).to be(true)
+  end
+
+  it "builds a plain policy as not root" do
+    expect(built do
+      on "Thing.Broke"
+      across "Tickets"
+    end.root).to be(false)
   end
 
   describe Hecks::Runtime::Dispatcher do
@@ -24,14 +34,20 @@ RSpec.describe "root policies" do
       Thread.current[:hecks_reaction_depth] = previous
     end
 
-    it "runs a root reaction at depth zero and restores the cascade's depth" do
+    def reenter_at_cap
       Thread.current[:hecks_reaction_depth] = cap
       seen = nil
       allow(dispatcher).to receive(:dispatch_flat) { seen = Thread.current[:hecks_reaction_depth] }
-
       dispatcher.reenter_root("Tickets::Finding.ReportFailedRun", run: "r1")
+      seen
+    end
 
-      expect(seen).to eq(0)
+    it "runs a root reaction at depth zero" do
+      expect(reenter_at_cap).to eq(0)
+    end
+
+    it "restores the cascade's depth after a root reaction" do
+      reenter_at_cap
       expect(Thread.current[:hecks_reaction_depth]).to eq(cap)
     end
 

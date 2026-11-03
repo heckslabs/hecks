@@ -22,8 +22,8 @@ module Hecks
           readers:   %i[name on_event trigger_command ask target_domain expect_undelivered root where for_each with_spec],
           accessors: %i[aggregate],
           defaults:  { name: nil, on_event: "nil", trigger_command: "nil",
-                       ask: "nil", target_domain: "nil", expect_undelivered: "false", root: "false", where: "nil", for_each: "nil",
-                       with_spec: "[]", aggregate: "nil" },
+                       ask: "nil", target_domain: "nil", expect_undelivered: "false", root: "false",
+                       where: "nil", for_each: "nil", with_spec: "[]", aggregate: "nil" },
           # The language holds a flag as "true" and the builder as `true`; both become a boolean.
           coerce:    { name: ".to_s", aggregate: "&.to_s", expect_undelivered: ".to_s == \"true\"", root: ".to_s == \"true\"" },
           # Bindings render like `DispatchSpec#with_spec`; `render_value` keeps a Symbol's colon

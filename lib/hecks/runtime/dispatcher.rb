@@ -18,6 +18,7 @@ require_relative "dispatcher/queries"
 require_relative "declarations"
 require_relative "dry_run_plan"
 require_relative "dispatcher/planning"
+require_relative "dispatcher/root_reentry"
 require_relative "../naming"
 
 module Hecks
@@ -30,6 +31,7 @@ module Hecks
       include Queries
       include Declarations
       include Planning
+      include RootReentry
 
       MAX_REACTION_DEPTH = 5
 
@@ -164,39 +166,6 @@ module Hecks
         react(announced, domain, aggregate, :enqueue)
 
         announced
-      end
-
-      # Dispatches a reaction's command one level deeper in the cascade, as the system.
-      #
-      # The ambient caller is cleared (Runtime::Caller.without) so the triggering caller's role
-      # neither satisfies nor blocks the reaction. Depth lives in `Thread.current`, not an ivar or
-      # Mutex: the dispatcher is shared across threads. The reacting interpreter checks the limit.
-      #
-      # @param verb [String] the fully qualified verb of the reaction's target command
-      # @param saga_correlation [Hash{String => Object}, nil] set when a saga leg dispatches
-      # @param dispatch_key [String, nil] the saga dispatch's identity (`DispatchClaim.key`)
-      # @param args [Hash{Symbol => Object}] flat facts, as `dispatch_flat` reads them
-      # @return [Runtime::Dispatcher::Result] the nested dispatch's result
-      # @raise [StandardError] any `Runtime::DOMAIN_REFUSALS` class; interpreters rescue these
-      def reenter(verb, saga_correlation: nil, dispatch_key: nil, **args)
-        depth = Thread.current[:hecks_reaction_depth].to_i
-        Thread.current[:hecks_reaction_depth] = depth + 1
-        Caller.without { dispatch_flat(verb, args.merge(saga_correlation: saga_correlation, dispatch_key: dispatch_key)) }
-      ensure
-        Thread.current[:hecks_reaction_depth] = depth
-      end
-
-      # Like `reenter`, but the reaction starts at depth zero: it is not counted toward the cap, and
-      # the cascade's depth is restored when it returns. Only a policy declared `root` uses it.
-      #
-      # @param verb [String] the fully qualified verb of the reaction's target command
-      # @return [Runtime::Dispatcher::Result] the nested dispatch's result
-      def reenter_root(verb, saga_correlation: nil, dispatch_key: nil, **args)
-        depth = Thread.current[:hecks_reaction_depth].to_i
-        Thread.current[:hecks_reaction_depth] = 0
-        Caller.without { dispatch_flat(verb, args.merge(saga_correlation: saga_correlation, dispatch_key: dispatch_key)) }
-      ensure
-        Thread.current[:hecks_reaction_depth] = depth
       end
 
       # Finishes the saga legs a crash cut short in every domain whose sagas persist.
