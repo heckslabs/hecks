@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../declared"
+
 module Hecks
   module QualityControlCli
     class QaMainGate
@@ -7,15 +9,20 @@ module Hecks
       # check the
       # command can fix mechanically is `self_contained`; every other is `bigger`, for the owner.
       module Logging
-        # Checks with a mechanical fixer. `rubocop -a` fixes style offenses it can fix; metrics and
-        # the
-        # rest need a person.
-        SELF_CONTAINED = %w[rubocop].freeze
         SUBMITTER = "qa_main_gate"
         NAME_PREFIX = "main-red-"
 
-        # A bug already open for the same check is not logged again: the commit moved, the red did
-        # not.
+        # Whether a mechanical fixer exists for a check, as the QualityControl bluebook's `MechanicalFix`
+        # rows declare: `rubocop -a` fixes the style offenses it can; metrics and the rest need a person.
+        #
+        # @param check_id [String] the gate check, such as `rubocop`
+        # @param source [#bluebook, nil] the booted ledger, or nil to read this checkout's bluebook
+        def self.self_contained?(check_id, source = nil)
+          Declared.rows(source, "Bug", "MechanicalFix").any? { |row| row[:check] == check_id }
+        end
+
+        # A bug already open for the same check is not logged again (`Bug.OpenNamed`): the commit moved,
+        # the red did not.
         # @return [Array(String, String, Boolean)] the reference, its disposition, and whether it
         #   was new
         def log_red(sweep, result, sha)
@@ -34,7 +41,7 @@ module Hecks
 
         # @return [String] the bug's disposition as its triage writes it
         def disposition(check_id)
-          SELF_CONTAINED.include?(check_id) ? "self_contained" : "bigger"
+          Logging.self_contained?(check_id, @runtime) ?"self_contained" : "bigger"
         end
 
         private
@@ -58,7 +65,7 @@ module Hecks
         end
 
         def open_bug_named(name)
-          row = @runtime.query("QualityControl::Bug.Open").find { |bug| bug[:name]&.[](:value) == name }
+          row = @runtime.query("QualityControl::Bug.OpenNamed", name: { value: name }).first
           row && row[:reference][:value]
         end
 
