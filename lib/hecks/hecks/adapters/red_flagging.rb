@@ -71,7 +71,8 @@ module Hecks
       #   when no flag stands, a fix is landed, the batch cannot be told, a release is in it, the
       #   restore refuses, or local main holds foreign commits
       def evict(**held)
-        kick = RedFlagKick.new(marker(held), checkout(held), registry: @registry, **@tune.slice(:effects), runner: runner, run: plain(held[:run]))
+        kick = RedFlagKick.new(marker(held), checkout(held), registry: @registry, **@tune.slice(:effects), runner: runner,
+                                run: plain(held[:run]))
         kicked = kick.run
         answer(kicked[:restored] ? "restored" : "kicked", kicked[:flag],
                detail: kicked[:reverted].join(", "), work_items: kicked[:work_item])
