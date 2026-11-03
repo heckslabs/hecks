@@ -41,7 +41,7 @@ module Hecks
 
         # @return [String] the bug's disposition as its triage writes it
         def disposition(check_id)
-          Logging.self_contained?(check_id, @runtime) ?"self_contained" : "bigger"
+          Logging.self_contained?(check_id, @runtime) ? "self_contained" : "bigger"
         end
 
         private
