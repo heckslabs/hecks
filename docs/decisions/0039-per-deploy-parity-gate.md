@@ -1,6 +1,6 @@
 # A per-deploy Ruby/Rust parity gate — and the honest news about banking's own current artifact
 
-**Status:** Shipped. `bin/project_deploy`'s generated `deploy:` target now runs a new `verify-parity-<LogicalId>` target — `bin/rust_conformance <domain> spec/corpus/<domain>.json $(WASM)` — right after `build-<LogicalId>` produces `$(WASM)` and before `sam deploy` ever runs. `spec/project_deploy_parity_gate_spec.rb` proves both halves: the generated Makefile actually wires the target in, and the underlying mechanism (`bin/rust_conformance`'s own exit code) genuinely fails on a real, deliberately-mismatched artifact and passes on a real match.
+**Status:** Accepted. Shipped. `bin/project_deploy`'s generated `deploy:` target now runs a new `verify-parity-<LogicalId>` target — `bin/rust_conformance <domain> spec/corpus/<domain>.json $(WASM)` — right after `build-<LogicalId>` produces `$(WASM)` and before `sam deploy` ever runs. `spec/project_deploy_parity_gate_spec.rb` proves both halves: the generated Makefile actually wires the target in, and the underlying mechanism (`bin/rust_conformance`'s own exit code) genuinely fails on a real, deliberately-mismatched artifact and passes on a real match.
 
 ## The gap this closes
 

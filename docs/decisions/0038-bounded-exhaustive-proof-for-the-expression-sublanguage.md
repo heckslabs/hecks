@@ -1,6 +1,6 @@
 # A real "proven for all inputs" claim, scoped to the expression sublanguage
 
-**Status:** Shipped. `lib/hecks/fuzzing/bounded_exhaustive_expressions.rb` + `spec/bounded_exhaustive_expression_spec.rb`, in the default suite (no `io:`/`fuzzing:` tag — deterministic, ~2,300 cases, well under a second).
+**Status:** Accepted. Shipped. `lib/hecks/fuzzing/bounded_exhaustive_expressions.rb` + `spec/bounded_exhaustive_expression_spec.rb`, in the default suite (no `io:`/`fuzzing:` tag — deterministic, ~2,300 cases, well under a second).
 
 ## The claim, precisely
 

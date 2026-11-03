@@ -1,6 +1,6 @@
 # PostgresEra's `head_view`/`head_snapshot`/`matview` now domain-qualify, closing a cross-domain storage_name collision
 
-**Status:** Fixed, in both Ruby (`lib/hecks/ports/persistence/plugins/era/postgres_era/lineage.rb`, `.../lineage/field_cache.rb`) and Rust (`rust/host/src/journal.rs`, `rust/host/src/mint.rs`, plus their real callers in `auth.rs`, `dispatch.rs`, `web.rs`, `bin/lineage_harness.rs`) — two domains bound to `PostgresEra` against the same Postgres database, each declaring an aggregate whose own name snake_cases to the same `storage_name`, used to derive the EXACT SAME physical relations and silently share (and, worse, clobber) each other's data.
+**Status:** Accepted. Fixed, in both Ruby (`lib/hecks/ports/persistence/plugins/era/postgres_era/lineage.rb`, `.../lineage/field_cache.rb`) and Rust (`rust/host/src/journal.rs`, `rust/host/src/mint.rs`, plus their real callers in `auth.rs`, `dispatch.rs`, `web.rs`, `bin/lineage_harness.rs`) — two domains bound to `PostgresEra` against the same Postgres database, each declaring an aggregate whose own name snake_cases to the same `storage_name`, used to derive the EXACT SAME physical relations and silently share (and, worse, clobber) each other's data.
 
 ## The bug, found live
 

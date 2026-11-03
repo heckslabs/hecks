@@ -1,6 +1,6 @@
 # `uses_embryonaut_bluebook` proven Rust-conformant via a minimal vendoring demo domain
 
-**Status:** Shipped. New example corpus member `examples/embryonaut_vendoring_demo` (a
+**Status:** Accepted. Shipped. New example corpus member `examples/embryonaut_vendoring_demo` (a
 consuming domain, `Gadget`) plus a vendored package
 `examples/embryonaut_vendoring_demo/vendor/embryonaut_bluebooks/widgets` (a `Widget`
 aggregate) attached via `uses_embryonaut_bluebook "widgets"`. Real code changes, found

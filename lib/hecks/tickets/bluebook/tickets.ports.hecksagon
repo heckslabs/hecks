@@ -31,6 +31,16 @@ Hecks.hecksagon "Tickets" do
     end
   end
 
+  # Whether a step's decision stands, which reads the Adr row, as a Work rule cannot: it answers
+  # when the decision is accepted and refuses, naming the decision and its status, otherwise.
+  Tickets::Work.port "WorkDecisions" do
+    asks "CheckDecision", to: Work do
+      attribute :work, WorkKey
+      answers "DecisionCleared"
+      refuses "DecisionRefused"
+    end
+  end
+
   # The cap on started rows, which reads the other rows, as a bluebook rule cannot. The cap is the
   # world's `work_limit` setting.
   Tickets::Work.port "WorkLimits" do

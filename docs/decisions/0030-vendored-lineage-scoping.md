@@ -1,6 +1,6 @@
 # Closing the vendored-lineage gap named in 0030 — scoping, not executed
 
-**Status:** Scoping only. No code changed by this document. Written after
+**Status:** Proposed. Scoping only. No code changed by this document. Written after
 investigating far enough to find the fix touches more than it first
 looked like — recorded here so the next session (or this one, on
 explicit go-ahead) doesn't have to re-derive it.

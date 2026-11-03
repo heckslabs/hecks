@@ -1,6 +1,6 @@
 # `corrects` mutation op — ported for real, including its admissibility check
 
-**Status:** Shipped, with explicit user authorization for the design tradeoff below. ADR 0041/0048 identified that `corrects`'s own admissibility check (`CommandRules::Admissibility#enforce_correction_target`) needed either a production snapshot-format extension or a change to `dispatch()`'s own signature affecting every command in every domain — real, cross-cutting kernel work this session's own established discipline (never land a change with this blast radius, unreviewed, in an autonomous session) had declined to make unilaterally. The user was asked directly and chose "extend snapshot format." This ADR ships that.
+**Status:** Accepted. Shipped, with explicit user authorization for the design tradeoff below. ADR 0041/0048 identified that `corrects`'s own admissibility check (`CommandRules::Admissibility#enforce_correction_target`) needed either a production snapshot-format extension or a change to `dispatch()`'s own signature affecting every command in every domain — real, cross-cutting kernel work this session's own established discipline (never land a change with this blast radius, unreviewed, in an autonomous session) had declined to make unilaterally. The user was asked directly and chose "extend snapshot format." This ADR ships that.
 
 ## The design that made this tractable: a derived record field, not new dispatch plumbing
 

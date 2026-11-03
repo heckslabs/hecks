@@ -848,6 +848,11 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec rspec spec/adapter_words_spec.rb",
              script: "",
              blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
+      member name: "decision_records", id: "decision_records",
+             title: "decision records, each with a title, a lifecycle status, its own number and a successor that exists",
+             argv: "bundle exec rspec spec/decision_records_spec.rb",
+             script: "",
+             blocked: "a record under docs/decisions has no title, a status that leads with no state of the Adr lifecycle, a number another record holds, or a successor no record holds. Draft a record with `hecks tickets Adr.draft!` and move it with accept!, withdraw! or supersede! (ADR 0175)."
       member name: "rust_fmt", id: "rust_fmt",
              title: "rustfmt, every Rust crate laid out as `cargo fmt` would",
              argv: "",
@@ -1002,7 +1007,7 @@ Hecks.bluebook "Bluebook" do
 
       member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
-      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
+      member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,decision_records"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end

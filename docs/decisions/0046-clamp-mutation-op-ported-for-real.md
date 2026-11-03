@@ -1,6 +1,6 @@
 # `clamp` mutation op — ported for real (Integer fields only)
 
-**Status:** Shipped. ADR 0041 grouped `clamp` with `multiply`/`remove` as "structurally close [to `increment`/`decrement`], but zero real corpus motivation." `multiply` shipped first (ADR 0042, reusing `#arithmetic`'s own machinery directly). `clamp` is genuinely different — no "amount" argument at all — and needed its own eligibility check and emission, though it reuses the SAME target-field-eligibility half (`arithmetic_target_field`) `increment`/`decrement`/`multiply` already share.
+**Status:** Accepted. Shipped. ADR 0041 grouped `clamp` with `multiply`/`remove` as "structurally close [to `increment`/`decrement`], but zero real corpus motivation." `multiply` shipped first (ADR 0042, reusing `#arithmetic`'s own machinery directly). `clamp` is genuinely different — no "amount" argument at all — and needed its own eligibility check and emission, though it reuses the SAME target-field-eligibility half (`arithmetic_target_field`) `increment`/`decrement`/`multiply` already share.
 
 ## Ruby's real shape, read directly
 

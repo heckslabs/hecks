@@ -1,0 +1,10 @@
+# The decision record files of the checkout, as the store of `Tickets::Adr` (ADR 0175). `dir` is the
+# checkout holding `docs/decisions`; left out, the nearest one at or above the working directory.
+# `writes false` reads the files and keeps every change in memory: the memory environment sets it.
+require_relative "adr_files"
+
+Hecks.adapter "AdrFiles" do
+  port  "persistence"
+  field :dir, default: ""
+  field :writes, default: true
+end

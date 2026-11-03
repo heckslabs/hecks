@@ -1,6 +1,6 @@
 # Phase 10's sixth shipped capability — `sets :field, multiply: :arg`, ported for real (Integer fields)
 
-**Status:** Shipped, both generators, verified against a purpose-built fixture (no real corpus command declares `multiply` — see `docs/decisions/0041`'s own accounting of why that ADR flagged this item as "structurally close but zero real corpus motivation," and why it stayed scoped narrow here rather than trying to close that whole gap at once).
+**Status:** Accepted. Shipped, both generators, verified against a purpose-built fixture (no real corpus command declares `multiply` — see `docs/decisions/0041`'s own accounting of why that ADR flagged this item as "structurally close but zero real corpus motivation," and why it stayed scoped narrow here rather than trying to close that whole gap at once).
 
 ## What shipped
 
