@@ -15,7 +15,7 @@ RSpec.describe Hecks::Bluebook::DSL::HecksagonBuilder, ".build" do
   end
 
   before do
-    require_relative "../lib/hecks/release/gem_pin"
+    require_relative "../lib/hecks/release/lane"
     allow(Hecks).to receive(:current_registry).and_return(registry)
     @real = Hecks::Release
   end

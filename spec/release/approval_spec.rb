@@ -3,7 +3,7 @@ require "hecks/release/approval"
 
 # A release is the owner's decision: the commit that set the version must say so in its message.
 RSpec.describe Hecks::Release::Approval do
-  let(:bump) { "Release 3.11.0: something\n\nBody.\n\nRelease-Approved-By: Christopher Young\n" }
+  let(:bump) { "Release 3.11.0: something\n\nBody.\n\nRelease-Approved-By: Chris Young\n" }
   let(:plain) { "Release 3.11.0: something\n\nCo-Authored-By: Someone <a@b.c>\n" }
 
   it "takes its trailer from the Lane row a release is cut from" do
@@ -14,7 +14,7 @@ RSpec.describe Hecks::Release::Approval do
 
   describe ".approver" do
     it "names who approved, from the trailer line" do
-      expect(described_class.approver(bump)).to eq("Christopher Young")
+      expect(described_class.approver(bump)).to eq("Chris Young")
     end
 
     it "finds nothing in a message without the trailer, or with an empty one", :aggregate_failures do
@@ -41,8 +41,26 @@ RSpec.describe Hecks::Release::Approval do
       expect(described_class.verdict(message: plain, tag_exists: true).first).to be(true)
     end
 
+    it "refuses a trailer that names someone who is not a release owner", :aggregate_failures do
+      ok, words = described_class.verdict(message: "Release 1.0.0\n\nRelease-Approved-By: Someone Else\n")
+
+      expect(ok).to be(false)
+      expect(words).to include("'Someone Else'", "not a release owner", "Chris Young")
+    end
+
+    it "refuses a by-hand approval that names someone who is not a release owner", :aggregate_failures do
+      ok, words = described_class.verdict(message: plain, explicit: "Someone Else", tag_exists: true)
+
+      expect(ok).to be(false)
+      expect(words).to include("not a release owner")
+    end
+
+    it "takes who may approve from the ReleaseOwner rows" do
+      expect(described_class.owners).to eq(Hecks::Vocabulary.rows("ReleaseOwner").map { |row| row.fetch("name") })
+    end
+
     it "accepts a by-hand approval from the owner, and ignores a blank one", :aggregate_failures do
-      expect(described_class.verdict(message: plain, explicit: "Christopher").first).to be(true)
+      expect(described_class.verdict(message: plain, explicit: "Chris Young").first).to be(true)
       expect(described_class.verdict(message: plain, explicit: "  ").first).to be(false)
     end
   end
@@ -54,7 +72,7 @@ RSpec.describe Hecks::Release::Approval do
       status, text = run("COMMIT_MESSAGE" => bump, "TAG_EXISTS" => "false")
 
       expect(status).to eq(0)
-      expect(text).to include("approved by Christopher Young")
+      expect(text).to include("approved by Chris Young")
     end
 
     it "exits 1 with a workflow error line for an unapproved bump", :aggregate_failures do

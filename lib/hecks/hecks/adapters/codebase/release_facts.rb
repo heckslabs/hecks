@@ -4,6 +4,9 @@ require "json"
 require "hecks/release/runner"
 require "hecks/release/lane"
 require "hecks/release/approval"
+require "hecks/release/conditions"
+require "hecks/release/version_commit"
+require "hecks/release/runner/clean_tree"
 require_relative "tree"
 require_relative "../console_capture"
 
@@ -45,7 +48,8 @@ module Hecks
                     ir_version: word("#{Bluebook::Declaration::IR_VERSION}.0.0"), ships_from: { path: @tree.root } }
           return facts if operation == "publish_gem"
 
-          facts.merge(git_facts(version)).merge(changelog: flag(changelog?(version)))
+          facts.merge(git_facts(version)).merge(changelog:   flag(changelog?(version)),
+                                                files_agree: flag(files_agree?(version)))
         rescue Release::Runner::Refusal, Errno::ENOENT, JSON::ParserError, KeyError => e
           raise ConsoleCapture::Failure, e.message
         end
@@ -55,7 +59,7 @@ module Hecks
         def git_facts(version)
           fetch_origin!
           head = read("rev-parse", "HEAD")
-          lane_facts(head).merge(clean:     flag(read("status", "--porcelain").empty?),
+          lane_facts(head).merge(clean:     flag(clean?),
                                  approved:  flag(approved?),
                                  tag_state: word(tag_state("v#{version}", head)))
         end
@@ -72,12 +76,23 @@ module Hecks
             on_origin: flag(head == read("rev-parse", "origin/#{lane}")) }
         end
 
-        # Whether the newest commit on this checkout that set the version names who approved the
-        # release in its message (the trailer the `Lane` row names).
-        def approved?
-          message = read("log", "--first-parent", "-1", "--format=%B", "-G^ *VERSION = ", "--", "lib/hecks/version.rb")
-          !Release::Approval.approver(message).nil?
+        # Whether nothing is modified, and nothing untracked or ignored sits under the paths the gem
+        # packages, the same check the runner's preflight makes.
+        def clean?
+          read("status", "--porcelain").empty? && Release::Runner::CleanTree.new(git: @git).stray.empty?
         end
+
+        # Whether the commit that set the version (as `release.yml` finds it, `VersionCommit`) names
+        # a release owner in its trailer, the trailer the `Lane` row names.
+        def approved?
+          commit = Release::VersionCommit.commit(reader: @git)
+          !commit.empty? && Release::Approval.approved?(Release::VersionCommit.message(commit, reader: @git))
+        rescue Release::VersionCommit::GitFailed => e
+          raise Release::Runner::Refusal, e.message
+        end
+
+        # Whether every `ReleaseFile` row names the version (host release, README, lockfiles, client).
+        def files_agree?(version) = Release::Conditions.files_agree?(@tree.root, version)
 
         def tag_state(tag, head)
           tagger = Release::Runner::Tagger.new(git: @git, console: nil, dry_run: true)
@@ -99,7 +114,7 @@ module Hecks
         def client_version = JSON.parse(File.read(@tree.path(CLIENT_PACKAGE))).fetch("version")
 
         def changelog?(version)
-          File.read(@tree.path("CHANGELOG.md")).match?(/^## \[#{Regexp.escape(version)}\]/)
+          Release::Conditions.changelog_dated?(File.read(@tree.path("CHANGELOG.md")), version)
         end
 
         def word(text) = { value: text }
