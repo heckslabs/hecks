@@ -60,10 +60,22 @@ RSpec.describe Hecks::Runtime::EventTap do
                            "id" => "t1", "event" => "AddRequested" }])
   end
 
-  it "writes names and outcomes but never a payload" do
+  it "writes names and outcomes but no payload for an aggregate the world does not list" do
     described_class.install(registry_with(world(path: path)))
     log << event
     expect(File.read(path)).not_to include("secret")
+  end
+
+  it "writes the payload for an aggregate the world lists under payloads, as plain data" do
+    described_class.install(registry_with(world(path: path, payloads: %w[LinkedTree])))
+    log << event
+    expect(lines.first["payload"]).to eq("secret" => "x")
+  end
+
+  it "answers the declared tap to a reader without installing it", :aggregate_failures do
+    tap = described_class.declared(registry_with(world(path: path)))
+    expect(tap.path).to eq(path)
+    expect(log.observer).to be_nil
   end
 
   it "writes one line for each policy delivery, with the command it reached and its outcome" do
