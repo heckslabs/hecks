@@ -22,23 +22,33 @@ module Hecks
 
         # @param key [String] the Work row's key, which names the worktree and branch
         # @param area [Array<String>] the areas the session may edit
-        # @param held [Array<String>] a line for each area another started row holds
-        # @param frozen [Array<String>] the areas and aggregates whose shape may not move
         # @param limit [Integer, nil] the most spec files a session runs per call, from the world's
         #   `test_scope` setting; fills `{limit}`
+        # @param lines [Hash] `held:` a line for each area another started work item holds,
+        #   `frozen:` the areas and aggregates whose shape may not move, and `traps:` a line for
+        #   each known trap the work item's area meets; each is an Array of strings and defaults
+        #   to none
         # @return [String] the whole text
-        def render(key, area: [], held: [], frozen: [], limit: nil)
+        def render(key, area: [], limit: nil, **lines)
           parts = [first_line, labelled("Detail", plain("detail")), labelled("Area", area.join(", "))]
-          parts += SECTIONS.map { |name| plain(name) }
-          parts += [listed("coordination", held), listed("freeze", frozen)]
+          parts += SECTIONS.map { |name| plain(name) } + lists(lines)
           joined(parts).gsub("{work}", key).gsub("{limit}", limit&.to_s || "the world's spec_files_limit")
         end
 
         private
 
+        # The lists a caller fills, each under its heading, in the order the brief reads them.
+        def lists(lines)
+          [listed("known traps", lines.fetch(:traps, [])), listed("coordination", lines.fetch(:held, [])),
+           listed("freeze", lines.fetch(:frozen, []))]
+        end
+
         def labelled(label, text) = text.empty? ? nil : "#{label}: #{text}"
 
-        def listed(name, lines) = lines.empty? ? nil : ([plain(name)] + lines.map { |line| "- #{line}" }).join("\n")
+        def listed(name, lines) = lines.empty? ? nil : ([heading(name)] + lines.map { |line| "- #{line}" }).join("\n")
+
+        # The standing sections are read from the bluebook; a list a caller fills is headed here.
+        def heading(name) = name == "known traps" ? "Known traps:" : plain(name)
 
         def joined(parts) = parts.compact.reject(&:empty?).join("\n\n")
 
