@@ -7,7 +7,7 @@ module Hecks
         module EventTrace
           # Who listens to an event, read from the bluebooks alone: every policy (an `across` policy
           # and a `for_each` fan-out included, an `ask` as the verb the hecksagon resolved) and
-          # every process manager that starts, ends or handles the event. The consumer name is the
+          # every saga that starts, ends or handles the event. The consumer name is the
           # one the outbox records, so a subscriber and its row meet on it.
           class Subscribers
             # @param registry [Runtime::Registry] a described registry

@@ -1,6 +1,6 @@
 module Hecks
   module Bluebook
-    # Builds the runtime graph (aggregates, read models, process managers) from
+    # Builds the runtime graph (aggregates, read models, sagas) from
     # a bluebook's declared hash — the pure inverse of `Bluebook#to_h`.
     class Assembly
       # Builds the graph the runtime runs from one bluebook's declared hash.
@@ -8,7 +8,7 @@ module Hecks
       # @param declaration [Hash{Symbol => Object}] a bluebook's declarations, in the
       #   shape `Bluebook#to_h` spells
       # @return [Bluebook::Declaration] the assembled bluebook, with its aggregates, read
-      #   models and process managers built and wired
+      #   models and sagas built and wired
       def self.call(declaration) = new(declaration).bluebook
 
       # @param declaration [Hash{Symbol => Object}] a bluebook's declarations, in the
@@ -20,7 +20,7 @@ module Hecks
       # Assembles this instance's declared hash into the bluebook's runtime graph.
       #
       # @return [Bluebook::Declaration] the assembled bluebook, with its aggregates, read
-      #   models and process managers built and wired
+      #   models and sagas built and wired
       def bluebook
         aggregates = Array(@declaration[:aggregates]).map { |row| AggregateAssembly.new(row).aggregate }
         models     = Array(@declaration[:read_models]).map { |row| Build.call("ReadModel", row) }
@@ -48,7 +48,7 @@ module Hecks
       end
 
       def process_manager(row)
-        Build.call("ProcessManager", row,
+        Build.call("Saga", row,
                    handlers: Array(row[:handlers]).map { |leg| handler(leg) })
       end
 

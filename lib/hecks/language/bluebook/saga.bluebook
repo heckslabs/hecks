@@ -1,30 +1,30 @@
 Hecks.bluebook "Bluebook" do
-  aggregate "ProcessManager" do
-    description "One process manager — what correlates its instances, what starts and ends it, and the states it moves through."
+  aggregate "Saga" do
+    description "One saga — what correlates its instances, what starts and ends it, and the states it moves through."
 
     reference_to Bluebook
 
     # The bluebook it belongs to, and its name, as for a policy.
     identified_by :bluebook, :name
 
-    attribute :name,      ProcessManagerName
-    attribute :correlates_by, ProcessManagerText
-    attribute :starts_on,     ProcessManagerText
-    attribute :ends_on,       ProcessManagerText
+    attribute :name,      SagaName
+    attribute :correlates_by, SagaText
+    attribute :starts_on,     SagaText
+    attribute :ends_on,       SagaText
     # Every event that ends an instance, in declaration order; empty when only `ends_on` is declared.
-    attribute :endings,       list_of(ProcessManagerText), optional: true
+    attribute :endings,       list_of(SagaText), optional: true
     # The command that resumes each stage, one `stage=command` entry per stage; empty when none is declared.
-    attribute :resumes,       list_of(ProcessManagerText), optional: true
+    attribute :resumes,       list_of(SagaText), optional: true
     attribute :states,    list_of(SagaState)
     # Handler is a nested entity (below); list_of forward-references it.
     attribute :handlers,  list_of(Handler)
 
-    value_object "ProcessManagerName" do
+    value_object "SagaName" do
       attribute :value, String
-      invariant("a process manager is named") { !value.to_s.empty? }
+      invariant("a saga is named") { !value.to_s.empty? }
     end
 
-    value_object "ProcessManagerText" do
+    value_object "SagaText" do
       attribute :value, String
     end
 
@@ -47,7 +47,7 @@ Hecks.bluebook "Bluebook" do
       attribute :value, String
     end
 
-    # Orders one handler's dispatches; Position orders process managers within a bluebook.
+    # Orders one handler's dispatches; Position orders sagas within a bluebook.
     # Part of Dispatch identity: a handler may send the same command several times with different
     # `with:` bindings, so command_name alone collides.
     value_object "DispatchPosition" do
@@ -63,22 +63,22 @@ Hecks.bluebook "Bluebook" do
     attribute :position, Position
 
     query "DeclaredIn" do
-      attribute :bluebook, ProcessManagerText
+      attribute :bluebook, SagaText
       where(bluebook: :bluebook)
       order_by :position
     end
     command "Declare" do
       role "Language"
-      goal "Open a process manager on a bluebook"
+      goal "Open a saga on a bluebook"
 
       reference_to Bluebook
-      attribute :name,      ProcessManagerName
-      attribute :correlates_by, ProcessManagerText
-      attribute :starts_on,     ProcessManagerText
-      # A procedure need not declare an ending; ProcessManagerBuilder defaults @ends_on to nil.
-      attribute :ends_on,       ProcessManagerText, optional: true
-      attribute :endings,       list_of(ProcessManagerText), optional: true
-      attribute :resumes,       list_of(ProcessManagerText), optional: true
+      attribute :name,      SagaName
+      attribute :correlates_by, SagaText
+      attribute :starts_on,     SagaText
+      # A procedure need not declare an ending; SagaBuilder defaults @ends_on to nil.
+      attribute :ends_on,       SagaText, optional: true
+      attribute :endings,       list_of(SagaText), optional: true
+      attribute :resumes,       list_of(SagaText), optional: true
 
       attribute :position, Position, optional: true
       sets :bluebook
@@ -94,9 +94,9 @@ Hecks.bluebook "Bluebook" do
 
     command "State" do
       role "Language"
-      goal "Attach one state to the process manager"
+      goal "Attach one state to the saga"
 
-      attribute :name, ProcessManagerText
+      attribute :name, SagaText
 
       sets :states, append: { name: :name }
 
@@ -107,7 +107,7 @@ Hecks.bluebook "Bluebook" do
     # never by a dotted verb of its own.
     command "Handler" do
       role "Language"
-      goal "Open a handler inside a process manager"
+      goal "Open a handler inside a saga"
 
       attribute :event_type, HandlerText
       # A leg always names its from state: the runtime refuses a transition without exactly one
@@ -120,10 +120,10 @@ Hecks.bluebook "Bluebook" do
       emits LegDeclared
     end
 
-    # One handler, nested under its process manager. event_type alone is not identity: one
+    # One handler, nested under its saga. event_type alone is not identity: one
     # event can drive several legs from different states, so from_state joins it.
     entity "Handler" do
-      description "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings."
+      description "One handler inside a saga — the event it answers, the state move it makes, and the commands it sends. Nested under the saga because a handler holds nested dispatches, which hold nested bindings."
 
       attribute :event_type, HandlerText
       attribute :from_state, HandlerText
@@ -133,7 +133,7 @@ Hecks.bluebook "Bluebook" do
       identified_by :event_type, :from_state
 
       # Dispatch creation lives on the owner, reached as the dotted verb
-      # ProcessManager.Handler.Dispatch because Handler is an entity.
+      # Saga.Handler.Dispatch because Handler is an entity.
       command "Dispatch" do
         role "Language"
         goal "Open a dispatch inside a handler"
@@ -202,7 +202,7 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    # Keyword and argument rows for process managers and handlers.
+    # Keyword and argument rows for sagas and handlers.
     value_object "KeywordSeed" do
       attribute :word,          String
       attribute :context,       String, admits: "Syntax::Context"
@@ -216,14 +216,14 @@ Hecks.bluebook "Bluebook" do
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
 
       # correlates_by takes a dotted path or a bare aggregate name, so it routes through a hand-written impl.
-      member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "correlates_by_impl"
+      member word: "correlates_by",   context: "Saga", body: "none",     inner: "",        opens: "",        fills: "", calls: "correlates_by_impl"
       # starts_on and ends_on accept a bare constant or text; they route through hand-written impls
       # because COERCE_BY_KIND has no "constant" entry and Naming.event_ref must resolve it.
-      member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "starts_on_impl"
-      member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "ends_on_impl"
-      member word: "resumes",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "resumes_impl"
-      member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", calls: "transition_impl"
-      member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "transition_impl"
+      member word: "starts_on",       context: "Saga", body: "none",     inner: "",        opens: "",        fills: "", calls: "starts_on_impl"
+      member word: "ends_on",         context: "Saga", body: "none",     inner: "",        opens: "",        fills: "", calls: "ends_on_impl"
+      member word: "resumes",         context: "Saga", body: "none",     inner: "",        opens: "",        fills: "", calls: "resumes_impl"
+      member word: "transition",      context: "Saga", body: "keywords", inner: "Handler", opens: "Handler", fills: "", calls: "transition_impl"
+      member word: "transition",      context: "Saga", body: "none",     inner: "",        opens: "",        fills: "", calls: "transition_impl"
       # Two rows per dispatch: one with a block (opening `compensates`), one without.
       member word: "dispatch",        context: "Handler",        body: "keywords", inner: "Dispatch", opens: "Dispatch", fills: "", calls: "dispatch_impl"
       member word: "dispatch",        context: "Handler",        body: "none",     inner: "",        opens: "Dispatch", fills: "", calls: "dispatch_impl"
@@ -248,17 +248,17 @@ Hecks.bluebook "Bluebook" do
       attribute :coerce,           String
       attribute :blank_message,    String
 
-      member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
+      member keyword: "correlates_by",   context: "Saga", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
       # A bare aggregate name (`correlates_by Message`), which the bluebook resolves to its identity.
-      member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "correlates_by"
-      member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "starts_on"
-      member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
-      member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "ends_on"
-      member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
-      member keyword: "resumes",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "resumes"
-      member keyword: "transition",      context: "ProcessManager", at: "1", named: "",           kind: "pairs",  required: "true", fills: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields"
-      member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "text",   required: "true",  fills: "from_state"
-      member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "list",   required: "false", fills: "from_state"
+      member keyword: "correlates_by",   context: "Saga", at: "1", named: "",           kind: "constant", required: "true", fills: "correlates_by"
+      member keyword: "starts_on",       context: "Saga", at: "1", named: "",           kind: "constant", required: "true", fills: "starts_on"
+      member keyword: "starts_on",       context: "Saga", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
+      member keyword: "ends_on",         context: "Saga", at: "1", named: "",           kind: "constant", required: "true", fills: "ends_on"
+      member keyword: "ends_on",         context: "Saga", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
+      member keyword: "resumes",         context: "Saga", at: "1", named: "",           kind: "text",   required: "true", fills: "resumes"
+      member keyword: "transition",      context: "Saga", at: "1", named: "",           kind: "pairs",  required: "true", fills: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields"
+      member keyword: "transition",      context: "Saga", at: "",  named: "from",       kind: "text",   required: "true",  fills: "from_state"
+      member keyword: "transition",      context: "Saga", at: "",  named: "from",       kind: "list",   required: "false", fills: "from_state"
       member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "constant", required: "true", fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "1", named: "",     kind: "text",  required: "true",  fills: "command_name"
       member keyword: "dispatch",        context: "Handler", at: "",  named: "with", kind: "pairs", required: "false", fills: "with_spec", pairs_shape: "verbatim"

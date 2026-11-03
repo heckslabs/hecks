@@ -123,7 +123,7 @@ Hecks.bluebook "Wire" do
     end
   end
 
-  process_manager "Carry" do
+  saga "Carry" do
     # Names the field: Wire's `identified_by :reference` derives its id from the same scalar.
     correlates_by :"reference.value"
     starts_on "WireAsked"

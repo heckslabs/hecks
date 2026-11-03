@@ -37,8 +37,8 @@ module Hecks
       def to_s = "#{trigger} → #{to_state} (#{undoes.join(", ")})"
     end
 
-    # The built form of a `process_manager "Name" do ... end` block, made by
-    # `DSL::ProcessManagerBuilder`.
+    # The built form of a `saga "Name" do ... end` block, made by
+    # `DSL::SagaBuilder`.
     class ProcessManager
       # The trigger of a compensating leg. Not an event name: no aggregate announces a declined
       # leg. Held to the language's Trigger vocabulary by spec/vocabulary_conformance_spec.
@@ -79,7 +79,7 @@ module Hecks
         @name = name.to_s
       end
 
-      # Every event that ends an instance. A process manager that declares one `ends_on` has
+      # Every event that ends an instance. A saga that declares one `ends_on` has
       # that event alone; one that declares several ends on any of them.
       #
       # @return [Array<String>] the ending events, never empty when `ends_on` is set

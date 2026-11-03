@@ -59,7 +59,7 @@ module Hecks
 
       # Every saga instance this boot has started.
       #
-      # @return [Hash] the saga instances, by process manager and then correlation
+      # @return [Hash] the saga instances, by saga and then correlation
       def saga_instances = registry.saga_instances
     end
   end

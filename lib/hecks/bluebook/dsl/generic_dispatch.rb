@@ -18,9 +18,9 @@ module Hecks
         # Not derivable from `fills:` (these rows all carry `fills: ""`) — the append target
         # for each opens-block word must be named here explicitly.
         SAFE_OPENS_BLOCK = {
-          %w[Bluebook policy]          => :policies,
-          %w[Bluebook process_manager] => :process_managers,
-          %w[Bluebook read_model]      => :read_models
+          %w[Bluebook policy]     => :policies,
+          %w[Bluebook saga]       => :process_managers,
+          %w[Bluebook read_model] => :read_models
         }.freeze
 
         # Consulted only while `MetaValidator.bootstrapping?`, before the real grammar table

@@ -133,7 +133,7 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
      "presence invariant on a piece's own name; nothing dispatches Entity.Declare with name: \"\""],
     [["invariant", "Policy::PolicyName (declared)", "a policy is named"],
      "presence invariant on a policy's own name; no spec dispatches one blank"],
-    [["invariant", "ProcessManager::ProcessManagerName (declared)", "a process manager is named"],
+    [["invariant", "ProcessManager::ProcessManagerName (declared)", "a saga is named"],
      "presence invariant on a saga's own name; no spec dispatches one blank"],
     [["given", "ReadModel.GroupBy", "a group_by field is named"],
      "no spec dispatches ReadModel.GroupBy with a blank field name"],

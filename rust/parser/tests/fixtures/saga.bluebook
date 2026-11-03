@@ -1,8 +1,8 @@
-# One hand-written case per grammar form — ProcessManager (and, sharing
-# its own builder in Ruby, Handler — ProcessManagerBuilder::HandlerBuilder,
+# One hand-written case per grammar form — Saga (and, sharing
+# its own builder in Ruby, Handler — SagaBuilder::HandlerBuilder,
 # a nested class rather than a standalone one).
-Hecks.bluebook "FixtureProcessManager" do
-  process_manager "WidgetSetup" do
+Hecks.bluebook "FixtureSaga" do
+  saga "WidgetSetup" do
     correlates_by :"widget.id"
     starts_on "Widget.Created"
 

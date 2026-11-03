@@ -18,15 +18,15 @@ module Hecks
 
     # Mirrors the conformance spec's MODEL_CONSTRUCTS; kept here because a spec is not a library.
     CONSTRUCTS = {
-      "Bluebook"       => Hecks::Bluebook::Declaration,
-      "Aggregate"      => Hecks::Bluebook::Aggregate,
-      "Command"        => Hecks::Bluebook::Command,
-      "Entity"         => Hecks::Bluebook::Entity,
-      "ValueObject"    => Hecks::Bluebook::ValueObject,
-      "Policy"         => Hecks::Bluebook::Policy,
-      "Query"          => Hecks::Bluebook::Query,
-      "ReadModel"      => Hecks::Bluebook::ReadModel,
-      "ProcessManager" => Hecks::Bluebook::ProcessManager
+      "Bluebook"    => Hecks::Bluebook::Declaration,
+      "Aggregate"   => Hecks::Bluebook::Aggregate,
+      "Command"     => Hecks::Bluebook::Command,
+      "Entity"      => Hecks::Bluebook::Entity,
+      "ValueObject" => Hecks::Bluebook::ValueObject,
+      "Policy"      => Hecks::Bluebook::Policy,
+      "Query"       => Hecks::Bluebook::Query,
+      "ReadModel"   => Hecks::Bluebook::ReadModel,
+      "Saga"        => Hecks::Bluebook::ProcessManager
     }.freeze
 
     Rule = Struct.new(:kind, :description, :canonical, :location, keyword_init: true)

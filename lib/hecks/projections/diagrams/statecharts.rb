@@ -1,7 +1,7 @@
 module Hecks
   module Projections
     module Diagrams
-      # The state diagrams: an aggregate's declared lifecycle and a process manager's saga.
+      # The state diagrams: an aggregate's declared lifecycle and a saga's saga.
       module Statecharts
         module_function
 
@@ -23,7 +23,7 @@ module Hecks
         end
 
         # @param bluebook [Bluebook::Declaration] the assembled bluebook
-        # @param saga [Object] a process manager
+        # @param saga [Object] a saga
         # @return [String] the saga's states and what each transition dispatches
         def saga_diagram(bluebook, saga)
           edges = saga.handlers.map { |handler| saga_edge(handler, saga) }

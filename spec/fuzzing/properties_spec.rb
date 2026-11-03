@@ -119,7 +119,7 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
        { query: "Pizzas.some_read_model", args: {}, rows: [] }]
     end
 
-    # A saga advance of Banking's Settlement process manager, as recorded in `history[:sagas]`.
+    # A saga advance of Banking's Settlement saga, as recorded in `history[:sagas]`.
     def saga_advance(on, to)
       { process_manager: "Settlement", on: on, instance: "x", advanced: true, from: "requested", to: to }
     end
@@ -591,7 +591,7 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       expect(finding(:lifecycle_guard_and_given_violations_are_refused, history)).to be(true)
     end
 
-    it "sagas_rehydrate_cleanly names a live instance holding a state its process manager never declares" do
+    it "sagas_rehydrate_cleanly names a live instance holding a state its saga never declares" do
       result = finding(:sagas_rehydrate_cleanly, saga_history("teleported", { a: 1 }))
 
       expect(result).to be_a(String).and include("teleported")

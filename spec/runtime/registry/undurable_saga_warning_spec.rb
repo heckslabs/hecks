@@ -7,7 +7,7 @@ require_relative "../../support/memory_ports"
 RSpec.describe "verify! warning for an undurable process_manager" do
   WIRE_BLUEBOOK = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_BLUEBOOK)
 
-  UNDURABLE_SAGA_WARNING = /Wire declares process_manager\(s\) Carry but its resolved persistence adapter has no save_saga/
+  UNDURABLE_SAGA_WARNING = /Wire declares saga\(s\) Carry but its resolved persistence adapter has no save_saga/
 
   def load_wire(registry)
     Hecks.with_registry(registry) do

@@ -178,7 +178,7 @@ RSpec.describe "policy and process lexical visibility" do
     Hecks::Bluebook::MetaValidator.while_shadow_parsing do
       policy_builder = Hecks::Bluebook::DSL::PolicyBuilder.new("EmptyProjection")
       policy_builder.trigger("Meter.RaiseReading", with: {})
-      handler = Hecks::Bluebook::DSL::ProcessManagerBuilder::HandlerBuilder.new
+      handler = Hecks::Bluebook::DSL::SagaBuilder::HandlerBuilder.new
       handler.dispatch("Meter.RaiseReading", with: {})
       [policy_builder.build, handler.dispatches.first]
     end

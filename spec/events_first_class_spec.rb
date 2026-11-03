@@ -106,7 +106,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
 
   def lifecycle_on_constants
     proc do
-      process_manager "WidgetLifecycle" do
+      saga "WidgetLifecycle" do
         correlates_by :"number.value"
         starts_on Widget::WidgetMade
         ends_on   Widget::WidgetFinished
@@ -118,7 +118,7 @@ RSpec.describe "events first-class (ADR 0025, S6)" do
 
   def lifecycle_on_quoted
     proc do
-      process_manager "WidgetLifecycle" do
+      saga "WidgetLifecycle" do
         correlates_by :"number.value"
         starts_on "WidgetMade"
         ends_on   "WidgetMade"

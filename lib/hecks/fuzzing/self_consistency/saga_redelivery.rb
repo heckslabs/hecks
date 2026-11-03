@@ -14,7 +14,7 @@ module Hecks
           # @return [Runtime::Registry] the registry of the runtime the probe runs on
           def registry = runtime.registry
 
-          # @return [String] the name of the process manager the probe re-advances
+          # @return [String] the name of the saga the probe re-advances
           def process_manager_name = process_manager.name
 
           # @return [String] the name of the event the probe redelivers

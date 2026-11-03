@@ -14,7 +14,7 @@ require_relative "outbox"
 
 module Hecks
   module Runtime
-    # Runs one domain's declared process managers against a just-emitted
+    # Runs one domain's declared sagas against a just-emitted
     # event, checkpointing each transition durably before its dispatches run.
     class SagaInterpreter
       include Correlation
@@ -102,7 +102,7 @@ module Hecks
       attr_reader :registry
 
       # @param registry [Runtime::Registry] the booted registry whose declared
-      #   process managers and saga persistence this interpreter runs against
+      #   sagas and saga persistence this interpreter runs against
       # @param dispatcher [Runtime::Dispatcher] the dispatcher a saga leg's own dispatch
       #   re-enters through
       def initialize(registry, dispatcher:)
@@ -110,13 +110,13 @@ module Hecks
         @dispatcher = dispatcher
       end
 
-      # Runs `domain`'s declared process managers against `event`: begins,
+      # Runs `domain`'s declared sagas against `event`: begins,
       # advances or ends each matching saga instance.
       #
       # @param event [Runtime::Event] the just-emitted event to react to
-      # @param domain [String, Symbol] the domain whose declared process managers
+      # @param domain [String, Symbol] the domain whose declared sagas
       #   are checked
-      # @param only [Bluebook::ProcessManager, nil] one process manager to run
+      # @param only [Bluebook::ProcessManager, nil] one saga to run
       #   exactly, instead of every manager `domain` declares
       # @return [void]
       def advance(event, domain, only: nil)

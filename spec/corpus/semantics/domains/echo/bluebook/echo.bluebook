@@ -88,7 +88,7 @@ Hecks.bluebook "Echo" do
     end
   end
 
-  process_manager "Watch" do
+  saga "Watch" do
     correlates_by :"name.value"
     starts_on "LampInstalled"
     ends_on   "LampRetired"

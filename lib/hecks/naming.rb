@@ -241,7 +241,7 @@ module Hecks
     # @return [String] the dotted event reference
     def event_ref(value) = command_ref(value)
 
-    # Strips a process manager's event reference down to its bare event name.
+    # Strips a saga's event reference down to its bare event name.
     #
     # Not `event_ref`: saga matching compares against `event.name`, which is stamped
     # bare, so a dotted "Account.AccountDebited" would name an event nothing emits.

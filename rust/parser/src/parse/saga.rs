@@ -1,4 +1,4 @@
-//! The `ProcessManager`/`Handler` constructs: `transition` legs with optional `dispatch` blocks.
+//! The `Saga`/`Handler` constructs: `transition` legs with optional `dispatch` blocks.
 //! `states` is derived from the legs, not declared.
 
 use super::GatedLine;
@@ -8,10 +8,10 @@ use crate::lex::{Opener, SourceLine};
 use crate::ruby_value;
 
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
-    Diagnostic::not_yet_implemented(file, line, format!("ProcessManager.{word}"))
+    Diagnostic::not_yet_implemented(file, line, format!("Saga.{word}"))
 }
 
-/// Parses a `process_manager "Name" do ... end` body.
+/// Parses a `saga "Name" do ... end` body.
 pub fn parse_body(
     file: &str,
     lines: &[SourceLine],
@@ -24,7 +24,7 @@ pub fn parse_body(
     };
 
     loop {
-        let Some(gated) = super::next_line(file, lines, pos, "ProcessManager")? else {
+        let Some(gated) = super::next_line(file, lines, pos, "Saga")? else {
             pm.states = derived_states(&pm.handlers);
             return Ok(pm);
         };
@@ -88,7 +88,7 @@ pub fn parse_body(
             }
             _ => {
                 return Err(super::not_built_yet(
-                    "ProcessManager",
+                    "Saga",
                     gated.row,
                     file,
                     line,
@@ -151,7 +151,7 @@ fn parse_transition(
         Opener::None => Vec::new(),
         Opener::DoBlock { .. } => parse_dispatches(file, lines, pos)?,
         Opener::BraceBlock { .. } => {
-            unreachable!("body_gate never admits a BraceBlock for 'transition'/ProcessManager")
+            unreachable!("body_gate never admits a BraceBlock for 'transition'/Saga")
         }
     };
 

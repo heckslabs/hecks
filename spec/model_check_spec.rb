@@ -3,7 +3,7 @@ require "hecks/bluebook/model_check"
 require "hecks/fuzzing/target_capabilities"
 require "tmpdir"
 
-# Model-checks lifecycles and process managers: unreachable states, dead transitions,
+# Model-checks lifecycles and sagas: unreachable states, dead transitions,
 # unreachable compensations, dispatches to nowhere, handlers for events nothing emits.
 RSpec.describe "the model checker" do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)

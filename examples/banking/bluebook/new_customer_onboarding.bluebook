@@ -75,7 +75,7 @@ Hecks.bluebook "Banking" do
 
   # A saga with no compensating leg: a declined KYC case opened no account
   # and moved no money, so there is nothing to undo.
-  process_manager "Onboarding" do
+  saga "Onboarding" do
     correlates_by :"reference.value"
     starts_on OnboardingCase::OnboardingOpened
     ends_on   Account::AccountOpened

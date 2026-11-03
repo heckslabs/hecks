@@ -15,7 +15,7 @@ Hecks.bluebook "Bluebook", version: "1" do
     include Entity
     include Member
     include Policy
-    include ProcessManager
+    include Saga
     include Handler
     include Dispatch
     include ReadModel
@@ -232,7 +232,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: "", calls: "aggregate_impl"
       member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "report"
       member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
-      member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
+      member word: "saga",            context: "Bluebook", body: "keywords", inner: "Saga",           opens: "Saga",           fills: "", was: "process_manager"
 
 
       member word: "domain_module", context: "Bluebook", body: "keywords", inner: "Bluebook", opens: "Bluebook", fills: ""
@@ -278,7 +278,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "aggregate",       context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
       member keyword: "read_model", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name"
       member keyword: "policy",          context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
-      member keyword: "process_manager", context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
+      member keyword: "saga",            context: "Bluebook", at: "1", named: "",        kind: "text",     required: "true",  fills: "name"
 
 
       member keyword: "provides", context: "Bluebook", at: "", named: "live_assignments", kind: "text", required: "false", fills: "provides"

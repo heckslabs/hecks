@@ -940,7 +940,7 @@ RSpec.describe "the DSL surface" do
       thing = ref_amount_declaration
       build_bluebook(domain_name) do
         instance_eval(&thing)
-        process_manager("Broken", &process_manager_block)
+        saga("Broken", &process_manager_block)
       end
     end
 
@@ -987,6 +987,15 @@ RSpec.describe "the DSL surface" do
       expect_refusal(:bluebook, "ReportGone", "report is gone — read_model is the word now") do
         instance_eval(&customer)
         report("CustomerPortfolio") { reference_to Customer, as: :reference }
+      end
+    end
+
+    it "process_manager is gone — saga is the word now (ADR 0180)" do
+      customer = customer_declaration
+
+      expect_refusal(:bluebook, "ProcessManagerGone", "process_manager is gone — saga is the word now") do
+        instance_eval(&customer)
+        process_manager("Onboarding") { correlates_by :customer_id }
       end
     end
 
@@ -1261,7 +1270,7 @@ RSpec.describe "the DSL surface" do
     def several_endings_process_manager
       transition = checkout_transition
       build_bluebook("Converse") do
-        process_manager "Checkout" do
+        saga "Checkout" do
           correlates_by :"order.id"
           starts_on "OrderPlaced"
           ends_on   "OrderCompleted"
@@ -1274,7 +1283,7 @@ RSpec.describe "the DSL surface" do
     def checkout_process_manager
       transition = checkout_transition
       build_bluebook("Converse") do
-        process_manager "Checkout" do
+        saga "Checkout" do
           correlates_by :"order.id"
           starts_on "OrderPlaced"
           ends_on   "OrderCompleted"
@@ -1316,7 +1325,7 @@ RSpec.describe "the DSL surface" do
     def resumable_process_manager
       transition = checkout_transition
       build_bluebook("Converse") do
-        process_manager "Checkout" do
+        saga "Checkout" do
           correlates_by :"order.id"
           starts_on "OrderPlaced"
           resumes "gated=GateRun.Gate"
@@ -1342,18 +1351,18 @@ RSpec.describe "the DSL surface" do
         .to eq({ command_name: "Order.Confirm", with_spec: [["order", ":order_id"]], compensates: nil })
     end
 
-    # A process manager built straight from the IR class can carry a nil
+    # A saga built straight from the IR class can carry a nil
     # `correlates_by`, even though the DSL itself always refuses to mint
     # one without it; `to_h` must read back `nil`, not the ambiguous `""`.
-    it "a process manager's absent correlates_by survives to_h as nil, not an empty string" do
+    it "a saga's absent correlates_by survives to_h as nil, not an empty string" do
       expect(Hecks::Bluebook::ProcessManager.new(name: "Untethered").to_h[:correlates_by]).to be_nil
     end
 
-    # Builds a process manager that has already declared its correlation and start, then runs
+    # Builds a saga that has already declared its correlation and start, then runs
     # the block inside it, expecting the declaration to be refused.
     def expect_process_manager_refusal(message, &body)
       expect_refusal(:bluebook, "Broken", message, StandardError) do
-        process_manager("Broken") do
+        saga("Broken") do
           correlates_by :"id.value"
           starts_on "Started"
           instance_eval(&body) if body
@@ -1384,7 +1393,7 @@ RSpec.describe "the DSL surface" do
 
     def relay_process_manager
       build_bluebook("TwoLegs") do
-        process_manager "Relay" do
+        saga "Relay" do
           correlates_by :"id.value"
           starts_on "Started"
           transition "Next" => "b", from: "a"
@@ -1423,7 +1432,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    # The command that takes a sighting's code and emits the event the process manager starts on.
+    # The command that takes a sighting's code and emits the event the saga starts on.
     def raise_with_code
       proc do
         attribute :code, Code
@@ -1448,7 +1457,7 @@ RSpec.describe "the DSL surface" do
       sighting = sighting_declaration
       build_bluebook("BareIdentity") do
         instance_eval(&sighting)
-        process_manager("Keyed") do
+        saga("Keyed") do
           correlates_by Sighting
           starts_on "Started"
           transition("Started" => "b", from: "a") { dispatch Sighting::Raise }
@@ -1457,11 +1466,11 @@ RSpec.describe "the DSL surface" do
     end
 
     # A bare aggregate name (`correlates_by Thing`) means that aggregate's identity.
-    def bare_key_process_manager(domain_name, &declaration)
+    def bare_key_saga(domain_name, &declaration)
       thing = ref_amount_declaration
       build_bluebook(domain_name) do
         instance_eval(&thing)
-        process_manager("Keyed") do
+        saga("Keyed") do
           instance_eval(&declaration)
           starts_on "Started"
           transition("Started" => "b", from: "a") { dispatch Thing::Start }
@@ -1470,7 +1479,7 @@ RSpec.describe "the DSL surface" do
     end
 
     it "process_manager expands a bare aggregate name to its identity field", :aggregate_failures do
-      keyed = bare_key_process_manager("BareAggregate") { correlates_by Thing }
+      keyed = bare_key_saga("BareAggregate") { correlates_by Thing }
 
       expect(keyed.correlates_by).to eq(:"Thing.id")
       expect(keyed.correlation_head).to eq(:Thing)
@@ -1484,13 +1493,13 @@ RSpec.describe "the DSL surface" do
 
     it "process_manager refuses a bare name that names no aggregate of its bluebook" do
       expect do
-        bare_key_process_manager("BareValueObject") { correlates_by ThingId }
-      end.to raise_error(Hecks::Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager,
+        bare_key_saga("BareValueObject") { correlates_by ThingId }
+      end.to raise_error(Hecks::Bluebook::DSL::SagaBuilder::InvalidProcessManager,
                          /Keyed correlates_by ThingId, which names a whole field/)
     end
 
     it "process_manager leaves a dotted correlates_by unchanged" do
-      keyed = bare_key_process_manager("DottedKey") { correlates_by "Thing.ref.amount" }
+      keyed = bare_key_saga("DottedKey") { correlates_by "Thing.ref.amount" }
 
       expect(keyed.correlates_by).to eq(:"Thing.ref.amount")
     end

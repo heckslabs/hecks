@@ -41,7 +41,7 @@ module Hecks
             { answer: [text, status] }
           end
 
-          # The command the process manager's `resumes` list names for a stage, as a bang line.
+          # The command the saga's `resumes` list names for a stage, as a bang line.
           def resume_command(bluebook, stage)
             process_manager = bluebook.process_managers.find { |pm| pm.name == SAGA }
             entry = process_manager&.resumes&.find { |line| line.start_with?("#{stage}=") }

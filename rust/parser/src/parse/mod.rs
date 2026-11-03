@@ -13,7 +13,7 @@ pub mod hecksagon;
 pub mod lifecycle;
 pub mod needs;
 pub mod policy;
-pub mod process_manager;
+pub mod saga;
 pub mod query;
 pub mod read_model;
 pub mod value_object;
@@ -643,7 +643,7 @@ pub(crate) fn dispatch_stub(
         "ValueObject" | "OneOf" => value_object::not_implemented(file, line, word),
         "Lifecycle" => lifecycle::not_implemented(file, line, word),
         "Policy" => policy::not_implemented(file, line, word),
-        "ProcessManager" | "Handler" => process_manager::not_implemented(file, line, word),
+        "Saga" | "Handler" => saga::not_implemented(file, line, word),
         "ReadModel" => read_model::not_implemented(file, line, word),
         "DomainPort" | "PortOperation" => domain_port::not_implemented(file, line, word),
         // `World` is deliberately unmapped: its body is the open verb-setting catch-all, so it

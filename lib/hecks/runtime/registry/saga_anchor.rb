@@ -1,13 +1,13 @@
 module Hecks
   module Runtime
     class Registry
-      # Which aggregate's store holds a process manager's checkpoints: the one aggregate whose
-      # command emits the event the process manager starts on, when the domain's hecksagon binds
-      # that aggregate on its own. A process manager with no such aggregate is held by the
+      # Which aggregate's store holds a saga's checkpoints: the one aggregate whose
+      # command emits the event the saga starts on, when the domain's hecksagon binds
+      # that aggregate on its own. A saga with no such aggregate is held by the
       # domain's store. Mixed into {SagaPersistence}.
       module SagaAnchor
-        # @param domain [String, Symbol] the domain declaring the process manager
-        # @param process_manager [Bluebook::ProcessManager, String] the process manager or its name
+        # @param domain [String, Symbol] the domain declaring the saga
+        # @param process_manager [Bluebook::ProcessManager, String] the saga or its name
         # @return [Bluebook::Aggregate, nil] the starting aggregate with a bind of its own, or nil
         def saga_anchor(domain, process_manager)
           declared = declared_process_manager(domain, process_manager) or return nil
@@ -19,7 +19,7 @@ module Hecks
 
         private
 
-        # Every process manager of the domain whose store is not the domain's own, by name.
+        # Every saga of the domain whose store is not the domain's own, by name.
         def routed_sagas(domain)
           home = saga_persistence(domain)
           stores = process_managers_of(domain).to_h { |declared| [declared.name, saga_persistence(domain, declared)] }

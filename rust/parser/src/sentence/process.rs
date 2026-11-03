@@ -69,7 +69,7 @@ impl Parser<'_> {
                 "a process says what it is matched up by, like `It is matched up by reference.value`",
             ));
         }
-        pm.states = crate::parse::process_manager::derived_states(&pm.handlers);
+        pm.states = crate::parse::saga::derived_states(&pm.handlers);
         Ok(pm)
     }
 
@@ -128,7 +128,7 @@ pub(super) fn said(pm: &ir::ProcessManager) -> Result<String, String> {
             pm.name
         )
     };
-    if pm.states != crate::parse::process_manager::derived_states(&pm.handlers) {
+    if pm.states != crate::parse::saga::derived_states(&pm.handlers) {
         return Err(refused("states that are not the ones its steps name"));
     }
     if !pm
