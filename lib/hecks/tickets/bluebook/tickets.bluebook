@@ -579,11 +579,13 @@ Hecks.bluebook "Tickets" do
   # A conformance or gate run that faults files its own finding.
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
+    root
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 
   policy "ReportWhenGateFaulted" do
     on      "GateRun.GateFaulted"
+    root
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 

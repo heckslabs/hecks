@@ -963,6 +963,18 @@ pub static KEYWORDS: &[KeywordRow] = &[
         disambiguator: "",
     },
     KeywordRow {
+        word: "root",
+        context: "Policy",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "root",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordRow {
         word: "correlates_by",
         context: "ProcessManager",
         body: "none",

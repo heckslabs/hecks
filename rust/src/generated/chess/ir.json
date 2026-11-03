@@ -2312,6 +2312,7 @@
       "trigger_command": "Game.AdvanceTurn",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": "by.value == \"white\"",
       "for_each": null,
       "with_spec": [
@@ -2346,6 +2347,7 @@
       "trigger_command": "Game.AdvanceTurn",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": "by.value == \"black\"",
       "for_each": null,
       "with_spec": [
@@ -2380,6 +2382,7 @@
       "trigger_command": "Game.DeclareCheck",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": "outcome.value == \"check\"",
       "for_each": null,
       "with_spec": [
@@ -2414,6 +2417,7 @@
       "trigger_command": "Game.DeclareCheckmate",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": "outcome.value == \"checkmate\"",
       "for_each": null,
       "with_spec": [
@@ -2448,6 +2452,7 @@
       "trigger_command": "Game.DeclareStalemate",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": "outcome.value == \"stalemate\"",
       "for_each": null,
       "with_spec": [

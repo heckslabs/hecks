@@ -404,6 +404,7 @@
       "trigger_command": "Refund.Settle",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": "Refund.Tracking",
       "with_spec": [

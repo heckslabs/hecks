@@ -575,6 +575,7 @@
       "trigger_command": "Charge.Refund",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": "Charge.ForBooking",
       "with_spec": [

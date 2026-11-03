@@ -27,12 +27,16 @@ Hecks.bluebook "CiWorkflows" do
     end
 
     value_object "Workflow" do
-      attribute :name,         String
-      attribute :display_name, String
-      attribute :note,         String
+      attribute :name,               String
+      attribute :display_name,       String
+      attribute :note,               String
+      attribute :concurrency_group,  String
+      attribute :cancel_in_progress, Boolean
 
       member name: "ci-rspec.yml", display_name: "CI rspec (reusable)",
              note: "Reusable rspec gate behind the `rspec` required check; called from ci.yml.\n\nOne file per required check: a called workflow reports a single `.result` to its caller.\nSecrets are declared, not inherited: ci.yml must pass HECKS_CI_ATTEST_KEY and\nHECKS_JOURNAL_DATABASE at the call site."
+      member name: "candidate.yml", display_name: "Candidate", concurrency_group: "candidate", cancel_in_progress: false,
+             note: "The candidate gate (ADR 0181). The push train pushes local main's tip to `candidate`, not to\nmain; CI runs there (ci.yml triggers on a push to candidate). When that run completes green, this\nworkflow fast-forwards main onto the candidate's commit through the API, never forcing, and starts\npromote.yml so `stable` follows. A ref moved by the workflow's own token starts no workflow run, so\nmain does not run CI again on a commit CI just judged; promote.yml judges the commit by the checks\nrecorded against its sha, which the candidate run wrote. A red run promotes nothing: the\ncoordinator clears it with `Candidate.reject!`. The owner's HECKS_OWNER_PUSH stays the recovery\npath when the gate itself misbehaves, and `Candidate.disable!` turns the gate off."
     end
 
     value_object "Trigger" do
@@ -40,6 +44,7 @@ Hecks.bluebook "CiWorkflows" do
       attribute :event,    String
 
       member workflow: "ci-rspec.yml", event: "workflow_call"
+      member workflow: "candidate.yml", event: "ci_completed_candidate"
     end
 
     value_object "Secret" do
@@ -71,6 +76,10 @@ Hecks.bluebook "CiWorkflows" do
              condition: "always() && (needs.ci_attestation_rspec.result != 'success' || needs.ci_attestation_rspec.outputs.attested != 'true')",
              shard_total: 8, shard_axis: "group",
              note: "The suite is split across shards, each running parallel workers, to cut wall-clock time.\n\n`always()` and the `.result` check are both required: a failed detector would otherwise\nskip this required check instead of running it. Also skipped on push (cache warming\nneeds only the postgres_io_parallel shards) and when the tree is attested.\n\nNo Postgres service: specs that boot examples/pizzas against PostgresEra are tagged\n`io: true` and run in rspec_postgres_io. An untagged one fails here with\nPG::ConnectionBad."
+      member workflow: "candidate.yml", name: "promote_candidate", runner: "ubuntu-latest", timeout_minutes: 10,
+             permissions: "contents: write, actions: write",
+             condition: "github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository",
+             note: "Only a green push of this repository's candidate promotes: a fork's run, a cancelled or red run,\nand a pull request's run move nothing. `contents: write` moves main; `actions: write` starts\npromote.yml, since a ref moved by the token starts no workflow by itself."
     end
 
     value_object "Need" do
@@ -101,6 +110,7 @@ Hecks.bluebook "CiWorkflows" do
 
       member workflow: "ci-rspec.yml", job: "shard_plan", key: "GH_TOKEN", value: "${{ github.token }}"
       member workflow: "ci-rspec.yml", job: "rspec_shard", key: "GH_TOKEN", value: "${{ github.token }}"
+      member workflow: "candidate.yml", job: "promote_candidate", key: "GH_TOKEN", value: "${{ github.token }}"
     end
 
     value_object "Step" do
@@ -164,6 +174,11 @@ Hecks.bluebook "CiWorkflows" do
              title: "Upload this shard's runtime log (the next run's plan reads it)",
              condition: "always()", uses: "actions/upload-artifact@v4",
              note: "Artifact only, never restored by this run: the shard_plan job of the next run downloads\nthe artifacts of the newest successful run on main and balances the legs by these seconds."
+
+      member workflow: "candidate.yml", job: "promote_candidate", name: "promote",
+             title: "Fast-forward main onto the green candidate, then start Promote",
+             run: "SHA=${{ github.event.workflow_run.head_sha }}\nREPO=${{ github.repository }}\nSTATUS=$(gh api \"repos/$REPO/compare/main...$SHA\" --jq .status)\ncase \"$STATUS\" in\n  identical|behind) echo \"candidate $SHA is already on main ($STATUS)\"; exit 0 ;;\n  ahead) ;;\n  *) echo \"::error::candidate $SHA is not built on main ($STATUS): not promoted\"; exit 1 ;;\nesac\ngh api -X PATCH \"repos/$REPO/git/refs/heads/main\" -f sha=\"$SHA\" -F force=false\necho \"promoted candidate $SHA onto main\"\ngh workflow run promote.yml --ref main\n",
+             note: "No checkout: the commit is already on the remote as the candidate, so main is moved through the\nAPI as a fast-forward (`force=false`; a diverged main refuses by name). A candidate main already\nholds was promoted by `Candidate.promote!` from a checkout, which is not an error."
     end
 
     value_object "StepInput" do

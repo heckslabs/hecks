@@ -186,6 +186,19 @@ module Hecks
         Thread.current[:hecks_reaction_depth] = depth
       end
 
+      # Like `reenter`, but the reaction starts at depth zero: it is not counted toward the cap, and
+      # the cascade's depth is restored when it returns. Only a policy declared `root` uses it.
+      #
+      # @param verb [String] the fully qualified verb of the reaction's target command
+      # @return [Runtime::Dispatcher::Result] the nested dispatch's result
+      def reenter_root(verb, saga_correlation: nil, dispatch_key: nil, **args)
+        depth = Thread.current[:hecks_reaction_depth].to_i
+        Thread.current[:hecks_reaction_depth] = 0
+        Caller.without { dispatch_flat(verb, args.merge(saga_correlation: saga_correlation, dispatch_key: dispatch_key)) }
+      ensure
+        Thread.current[:hecks_reaction_depth] = depth
+      end
+
       # Finishes the saga legs a crash cut short in every domain whose sagas persist.
       #
       # @return [void]

@@ -20,10 +20,18 @@ name: CI
 # Every PR and every push to main runs the full job set; no job skips on a push, because a
 # skipped required check reports as passed and promote.yml would carry an untested commit to
 # `stable`. Path gates (the CiGate rows) still skip the work a change cannot affect.
+#
+# A push to `candidate` runs the same set (ADR 0181): while the candidate gate is on, the push
+# train queues local main's tip there, and candidate.yml fast-forwards main onto the commit once
+# this run is green. That move is made with the workflow token, so it starts no run of its own:
+# the checks recorded against the sha are the candidate run's, and promote.yml reads them.
 on:
   pull_request:
+  # GitHub's merge queue runs the same job set on each queued group (the synthetic merge
+  # commit), so a PR lands on main only after every required check passed on that commit.
+  merge_group:
   push:
-    branches: [main]
+    branches: [main, candidate]
   # Called by nightly-main.yml, which runs this same job set with attestation ignored
   # (.github/actions/check-attestation) and must write nothing (`github.workflow` below).
   workflow_call:
