@@ -638,7 +638,7 @@ Hecks.bluebook "Tickets" do
 
   # One kind of red cause the coordinator has triaged. Its signature says how to recognise it in CI
   # output, its check is the one that would have caught it before the push, and its fix is the
-  # recipe a coder follows. A lesson marked `always` or whose area overlaps a Work row's area is
+  # recipe a coder follows. A lesson marked `always` or whose area overlaps a work item's area is
   # briefed to that coder as a known trap. The count is never set: each run that hits the kind is a
   # `Sighting`, and the count is the sightings of the kind.
   aggregate "Lesson" do
