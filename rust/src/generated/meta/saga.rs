@@ -4,11 +4,11 @@
 use crate::kernel::Expr;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ProcessManagerName {
+pub struct SagaName {
     pub value: String,
 }
 
-impl crate::kernel::Fielded for ProcessManagerName {
+impl crate::kernel::Fielded for SagaName {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         use crate::kernel::Value;
@@ -34,7 +34,7 @@ impl crate::kernel::Fielded for ProcessManagerName {
     }
 }
 
-impl ProcessManagerName {
+impl SagaName {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
         {
             let ctx = crate::kernel::EvalContext {
@@ -56,8 +56,8 @@ impl ProcessManagerName {
                 let offered = offered.to_json_string();
                 return Err(crate::kernel::Refusal::InvariantViolation(
                     crate::kernel::refusal_wording::InvariantViolationValueObjectInvariantArgs {
-                        name: "ProcessManagerName",
-                        description: "a process manager is named",
+                        name: "SagaName",
+                        description: "a saga is named",
                         offered: offered.as_str(),
                     }
                     .render_args(),
@@ -68,7 +68,7 @@ impl ProcessManagerName {
     }
 }
 
-impl ProcessManagerName {
+impl SagaName {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![(
             "value".to_string(),
@@ -77,11 +77,11 @@ impl ProcessManagerName {
     }
 }
 
-impl ProcessManagerName {
+impl SagaName {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         if !matches!(v, crate::kernel::Json::Object(_)) {
             return Err(crate::kernel::Refusal::TypeMismatch(format!(
-                "ProcessManagerName expects an object, got {}",
+                "SagaName expects an object, got {}",
                 v.inspect()
             )));
         }
@@ -90,7 +90,7 @@ impl ProcessManagerName {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "ProcessManagerName",
+                    command: "SagaName",
                     unknown: &unknown,
                     declared: &["value"],
                 }
@@ -101,12 +101,12 @@ impl ProcessManagerName {
             value: {
                 let x = v.get("value").ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(
-                        "ProcessManagerName.value expects String, got nil".to_string(),
+                        "SagaName.value expects String, got nil".to_string(),
                     )
                 })?;
                 x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
-                        "ProcessManagerName.value expects String, got {}",
+                        "SagaName.value expects String, got {}",
                         x.describe()
                     ))
                 })?
@@ -116,11 +116,11 @@ impl ProcessManagerName {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ProcessManagerText {
+pub struct SagaText {
     pub value: String,
 }
 
-impl crate::kernel::Fielded for ProcessManagerText {
+impl crate::kernel::Fielded for SagaText {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::Field;
         use crate::kernel::Value;
@@ -146,13 +146,13 @@ impl crate::kernel::Fielded for ProcessManagerText {
     }
 }
 
-impl ProcessManagerText {
+impl SagaText {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
         Ok(())
     }
 }
 
-impl ProcessManagerText {
+impl SagaText {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![(
             "value".to_string(),
@@ -161,11 +161,11 @@ impl ProcessManagerText {
     }
 }
 
-impl ProcessManagerText {
+impl SagaText {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         if !matches!(v, crate::kernel::Json::Object(_)) {
             return Err(crate::kernel::Refusal::TypeMismatch(format!(
-                "ProcessManagerText expects an object, got {}",
+                "SagaText expects an object, got {}",
                 v.inspect()
             )));
         }
@@ -174,7 +174,7 @@ impl ProcessManagerText {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "ProcessManagerText",
+                    command: "SagaText",
                     unknown: &unknown,
                     declared: &["value"],
                 }
@@ -185,12 +185,12 @@ impl ProcessManagerText {
             value: {
                 let x = v.get("value").ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(
-                        "ProcessManagerText.value expects String, got nil".to_string(),
+                        "SagaText.value expects String, got nil".to_string(),
                     )
                 })?;
                 x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
-                        "ProcessManagerText.value expects String, got {}",
+                        "SagaText.value expects String, got {}",
                         x.describe()
                     ))
                 })?
@@ -728,7 +728,7 @@ pub struct KeywordSeed {
 pub const KEYWORD_SEED: &[KeywordSeed] = &[
     KeywordSeed {
         word: "correlates_by",
-        context: "ProcessManager",
+        context: "Saga",
         body: "none",
         inner: "",
         opens: "",
@@ -740,7 +740,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     },
     KeywordSeed {
         word: "starts_on",
-        context: "ProcessManager",
+        context: "Saga",
         body: "none",
         inner: "",
         opens: "",
@@ -752,7 +752,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     },
     KeywordSeed {
         word: "ends_on",
-        context: "ProcessManager",
+        context: "Saga",
         body: "none",
         inner: "",
         opens: "",
@@ -764,7 +764,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     },
     KeywordSeed {
         word: "resumes",
-        context: "ProcessManager",
+        context: "Saga",
         body: "none",
         inner: "",
         opens: "",
@@ -776,7 +776,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     },
     KeywordSeed {
         word: "transition",
-        context: "ProcessManager",
+        context: "Saga",
         body: "keywords",
         inner: "Handler",
         opens: "Handler",
@@ -788,7 +788,7 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
     },
     KeywordSeed {
         word: "transition",
-        context: "ProcessManager",
+        context: "Saga",
         body: "none",
         inner: "",
         opens: "",
@@ -1040,7 +1040,7 @@ pub struct ArgumentSeed {
 pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     ArgumentSeed {
         keyword: "correlates_by",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "symbol",
@@ -1057,7 +1057,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "correlates_by",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "constant",
@@ -1074,7 +1074,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "starts_on",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "constant",
@@ -1091,7 +1091,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "starts_on",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "text",
@@ -1108,7 +1108,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "ends_on",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "constant",
@@ -1125,7 +1125,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "ends_on",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "text",
@@ -1142,7 +1142,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "resumes",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "text",
@@ -1159,7 +1159,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "transition",
-        context: "ProcessManager",
+        context: "Saga",
         at: "1",
         named: "",
         kind: "pairs",
@@ -1176,7 +1176,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "transition",
-        context: "ProcessManager",
+        context: "Saga",
         at: "",
         named: "from",
         kind: "text",
@@ -1193,7 +1193,7 @@ pub const ARGUMENT_SEED: &[ArgumentSeed] = &[
     },
     ArgumentSeed {
         keyword: "transition",
-        context: "ProcessManager",
+        context: "Saga",
         at: "",
         named: "from",
         kind: "list",
@@ -2004,7 +2004,7 @@ impl DispatchBindNestedEntityArgs {
 }
 
 pub fn dispatch_entity_handler_dispatch_bind(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>,
+    repo: &mut impl crate::kernel::Repository<Saga>,
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
@@ -2014,7 +2014,7 @@ pub fn dispatch_entity_handler_dispatch_bind(
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
+) -> crate::kernel::DispatchResult<Saga> {
     args.key.check_invariants()?;
     args.value.check_invariants()?;
     let with_references = crate::kernel::WithReferences {
@@ -2023,17 +2023,17 @@ pub fn dispatch_entity_handler_dispatch_bind(
         owner_deref: &owner_deref,
     };
     let seed_projections =
-        crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+        crate::kernel::seeded_projections(&with_references, SAGA_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
         parent_id,
-        |r: &ProcessManager| &r.handlers,
-        |r: &mut ProcessManager| &mut r.handlers,
+        |r: &Saga| &r.handlers,
+        |r: &mut Saga| &mut r.handlers,
         |el: &Handler| el.identity() == hop1_id,
         "Bind",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
+        "Bluebook::Saga",
+        "Saga",
         "bluebook, name.value",
         "Handler",
         "event_type.value, from_state.value",
@@ -2049,8 +2049,8 @@ pub fn dispatch_entity_handler_dispatch_bind(
                 |r: &mut Handler| &mut r.dispatches,
                 |el: &Dispatch| el.identity() == hop2_id,
                 "Bind",
-                "Bluebook::ProcessManager",
-                "ProcessManager",
+                "Bluebook::Saga",
+                "Saga",
                 "Dispatch",
                 "command_name.value, position.value",
                 hop2_wants,
@@ -2069,7 +2069,7 @@ pub fn dispatch_entity_handler_dispatch_bind(
             )
         },
         &[],
-        &processmanager_invariants(),
+        &saga_invariants(),
         &["BindingAttached"],
         args.to_json(),
         mutations,
@@ -2234,7 +2234,7 @@ impl DispatchCompensatesNestedEntityArgs {
 }
 
 pub fn dispatch_entity_handler_dispatch_compensates(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>,
+    repo: &mut impl crate::kernel::Repository<Saga>,
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
@@ -2244,7 +2244,7 @@ pub fn dispatch_entity_handler_dispatch_compensates(
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
+) -> crate::kernel::DispatchResult<Saga> {
     args.compensates_command_name.check_invariants()?;
     let with_references = crate::kernel::WithReferences {
         command_deref: &command_deref,
@@ -2252,17 +2252,17 @@ pub fn dispatch_entity_handler_dispatch_compensates(
         owner_deref: &owner_deref,
     };
     let seed_projections =
-        crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+        crate::kernel::seeded_projections(&with_references, SAGA_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
         parent_id,
-        |r: &ProcessManager| &r.handlers,
-        |r: &mut ProcessManager| &mut r.handlers,
+        |r: &Saga| &r.handlers,
+        |r: &mut Saga| &mut r.handlers,
         |el: &Handler| el.identity() == hop1_id,
         "Compensates",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
+        "Bluebook::Saga",
+        "Saga",
         "bluebook, name.value",
         "Handler",
         "event_type.value, from_state.value",
@@ -2278,8 +2278,8 @@ pub fn dispatch_entity_handler_dispatch_compensates(
                 |r: &mut Handler| &mut r.dispatches,
                 |el: &Dispatch| el.identity() == hop2_id,
                 "Compensates",
-                "Bluebook::ProcessManager",
-                "ProcessManager",
+                "Bluebook::Saga",
+                "Saga",
                 "Dispatch",
                 "command_name.value, position.value",
                 hop2_wants,
@@ -2295,7 +2295,7 @@ pub fn dispatch_entity_handler_dispatch_compensates(
             )
         },
         &[],
-        &processmanager_invariants(),
+        &saga_invariants(),
         &["CompensationDeclared"],
         args.to_json(),
         mutations,
@@ -2486,7 +2486,7 @@ impl DispatchBindCompensationNestedEntityArgs {
 }
 
 pub fn dispatch_entity_handler_dispatch_bind_compensation(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>,
+    repo: &mut impl crate::kernel::Repository<Saga>,
     parent_id: &str,
     hop1_id: &str,
     hop1_wants: &str,
@@ -2496,7 +2496,7 @@ pub fn dispatch_entity_handler_dispatch_bind_compensation(
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
+) -> crate::kernel::DispatchResult<Saga> {
     args.key.check_invariants()?;
     args.value.check_invariants()?;
     let with_references = crate::kernel::WithReferences {
@@ -2505,17 +2505,17 @@ pub fn dispatch_entity_handler_dispatch_bind_compensation(
         owner_deref: &owner_deref,
     };
     let seed_projections =
-        crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+        crate::kernel::seeded_projections(&with_references, SAGA_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
         parent_id,
-        |r: &ProcessManager| &r.handlers,
-        |r: &mut ProcessManager| &mut r.handlers,
+        |r: &Saga| &r.handlers,
+        |r: &mut Saga| &mut r.handlers,
         |el: &Handler| el.identity() == hop1_id,
         "BindCompensation",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
+        "Bluebook::Saga",
+        "Saga",
         "bluebook, name.value",
         "Handler",
         "event_type.value, from_state.value",
@@ -2531,8 +2531,8 @@ pub fn dispatch_entity_handler_dispatch_bind_compensation(
                 |r: &mut Handler| &mut r.dispatches,
                 |el: &Dispatch| el.identity() == hop2_id,
                 "BindCompensation",
-                "Bluebook::ProcessManager",
-                "ProcessManager",
+                "Bluebook::Saga",
+                "Saga",
                 "Dispatch",
                 "command_name.value, position.value",
                 hop2_wants,
@@ -2551,7 +2551,7 @@ pub fn dispatch_entity_handler_dispatch_bind_compensation(
             )
         },
         &[],
-        &processmanager_invariants(),
+        &saga_invariants(),
         &["CompensationBindingAttached"],
         args.to_json(),
         mutations,
@@ -2793,7 +2793,7 @@ impl HandlerDispatchEntityArgs {
 }
 
 pub fn dispatch_entity_handler_dispatch(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>,
+    repo: &mut impl crate::kernel::Repository<Saga>,
     parent_id: &str,
     element_id: &str,
     element_wants: &str,
@@ -2801,7 +2801,7 @@ pub fn dispatch_entity_handler_dispatch(
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
+) -> crate::kernel::DispatchResult<Saga> {
     args.command_name.check_invariants()?;
     args.position.check_invariants()?;
     let with_references = crate::kernel::WithReferences {
@@ -2810,17 +2810,17 @@ pub fn dispatch_entity_handler_dispatch(
         owner_deref: &owner_deref,
     };
     let seed_projections =
-        crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+        crate::kernel::seeded_projections(&with_references, SAGA_PROJECTED_FIELDS);
 
     crate::kernel::dispatch_entity(
         repo,
         parent_id,
-        |r: &ProcessManager| &r.handlers,
-        |r: &mut ProcessManager| &mut r.handlers,
+        |r: &Saga| &r.handlers,
+        |r: &mut Saga| &mut r.handlers,
         |el: &Handler| el.identity() == element_id,
         "Dispatch",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
+        "Bluebook::Saga",
+        "Saga",
         "bluebook, name.value",
         "Handler",
         "event_type.value, from_state.value",
@@ -2855,7 +2855,7 @@ pub fn dispatch_entity_handler_dispatch(
             Ok(())
         },
         &[],
-        &processmanager_invariants(),
+        &saga_invariants(),
         &["SendDeclared"],
         args.to_json(),
         mutations,
@@ -2864,20 +2864,20 @@ pub fn dispatch_entity_handler_dispatch(
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ProcessManager {
+pub struct Saga {
     pub bluebook: Option<String>,
-    pub name: Option<ProcessManagerName>,
-    pub correlates_by: Option<ProcessManagerText>,
-    pub starts_on: Option<ProcessManagerText>,
-    pub ends_on: Option<ProcessManagerText>,
-    pub endings: Option<Vec<ProcessManagerText>>,
-    pub resumes: Option<Vec<ProcessManagerText>>,
+    pub name: Option<SagaName>,
+    pub correlates_by: Option<SagaText>,
+    pub starts_on: Option<SagaText>,
+    pub ends_on: Option<SagaText>,
+    pub endings: Option<Vec<SagaText>>,
+    pub resumes: Option<Vec<SagaText>>,
     pub states: Vec<SagaState>,
     pub handlers: Vec<Handler>,
     pub position: Option<Position>,
 }
 
-impl crate::kernel::Fielded for ProcessManager {
+impl crate::kernel::Fielded for Saga {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
@@ -2950,7 +2950,7 @@ impl crate::kernel::Fielded for ProcessManager {
     }
 }
 
-impl ProcessManager {
+impl Saga {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
             (
@@ -3019,11 +3019,11 @@ impl ProcessManager {
     }
 }
 
-impl ProcessManager {
+impl Saga {
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         if !matches!(v, crate::kernel::Json::Object(_)) {
             return Err(crate::kernel::Refusal::TypeMismatch(format!(
-                "ProcessManager expects an object, got {}",
+                "Saga expects an object, got {}",
                 v.inspect()
             )));
         }
@@ -3032,34 +3032,26 @@ impl ProcessManager {
                 Some(&crate::kernel::Json::Null) | None => None,
                 Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
                     crate::kernel::Refusal::TypeMismatch(format!(
-                        "ProcessManager.bluebook expects String, got {}",
+                        "Saga.bluebook expects String, got {}",
                         x.describe()
                     ))
                 })?),
             },
             name: match v.get("name") {
                 Some(&crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(ProcessManagerName::from_json(
-                    &x.coerce_single_field("value"),
-                )?),
+                Some(x) => Some(SagaName::from_json(&x.coerce_single_field("value"))?),
             },
             correlates_by: match v.get("correlates_by") {
                 Some(&crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(ProcessManagerText::from_json(
-                    &x.coerce_single_field("value"),
-                )?),
+                Some(x) => Some(SagaText::from_json(&x.coerce_single_field("value"))?),
             },
             starts_on: match v.get("starts_on") {
                 Some(&crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(ProcessManagerText::from_json(
-                    &x.coerce_single_field("value"),
-                )?),
+                Some(x) => Some(SagaText::from_json(&x.coerce_single_field("value"))?),
             },
             ends_on: match v.get("ends_on") {
                 Some(&crate::kernel::Json::Null) | None => None,
-                Some(x) => Some(ProcessManagerText::from_json(
-                    &x.coerce_single_field("value"),
-                )?),
+                Some(x) => Some(SagaText::from_json(&x.coerce_single_field("value"))?),
             },
             endings: match v.get("endings") {
                 Some(&crate::kernel::Json::Null) | None => None,
@@ -3067,13 +3059,11 @@ impl ProcessManager {
                     x.as_array()
                         .ok_or_else(|| {
                             crate::kernel::Refusal::TypeMismatch(
-                                "ProcessManager.endings: expected an array".to_string(),
+                                "Saga.endings: expected an array".to_string(),
                             )
                         })?
                         .iter()
-                        .map(|item| {
-                            ProcessManagerText::from_json(&item.coerce_single_field("value"))
-                        })
+                        .map(|item| SagaText::from_json(&item.coerce_single_field("value")))
                         .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
                 ),
             },
@@ -3083,13 +3073,11 @@ impl ProcessManager {
                     x.as_array()
                         .ok_or_else(|| {
                             crate::kernel::Refusal::TypeMismatch(
-                                "ProcessManager.resumes: expected an array".to_string(),
+                                "Saga.resumes: expected an array".to_string(),
                             )
                         })?
                         .iter()
-                        .map(|item| {
-                            ProcessManagerText::from_json(&item.coerce_single_field("value"))
-                        })
+                        .map(|item| SagaText::from_json(&item.coerce_single_field("value")))
                         .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
                 ),
             },
@@ -3115,13 +3103,13 @@ impl ProcessManager {
     }
 }
 
-impl crate::kernel::ToJson for ProcessManager {
+impl crate::kernel::ToJson for Saga {
     fn to_json(&self) -> crate::kernel::Json {
         Self::to_json(self)
     }
 }
 
-impl crate::kernel::SetProjectedField for ProcessManager {
+impl crate::kernel::SetProjectedField for Saga {
     fn set_projected_field(&mut self, name: &'static str, value: Option<crate::kernel::Value>) {
         match name {
             _ => {}
@@ -3129,9 +3117,9 @@ impl crate::kernel::SetProjectedField for ProcessManager {
     }
 }
 
-pub static PROCESS_MANAGER_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[];
+pub static SAGA_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[];
 
-impl ProcessManager {
+impl Saga {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
             let c0 = v.dig("bluebook")?.to_id_component().ok()?;
@@ -3139,17 +3127,20 @@ impl ProcessManager {
             Some([c0, c1].join(":"))
         })();
         let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
-        let by_reference_key = v
-            .get("process_manager")
-            .and_then(|j| j.to_id_component().ok());
+        let by_reference_key = v.get("saga").and_then(|j| j.to_id_component().ok());
 
-        by_identity.or(by_id_key).or(by_reference_key).ok_or_else(|| {
-            crate::kernel::Refusal::TypeMismatch("ProcessManager: no identity found (tried bluebook, name.value, id, process_manager)".to_string())
-        })
+        by_identity
+            .or(by_id_key)
+            .or(by_reference_key)
+            .ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Saga: no identity found (tried bluebook, name.value, id, saga)".to_string(),
+                )
+            })
     }
 }
 
-fn processmanager_invariants() -> crate::kernel::InvariantSet {
+fn saga_invariants() -> crate::kernel::InvariantSet {
     crate::kernel::InvariantSet {
         aggregate: vec![],
         entities: vec![],
@@ -3213,24 +3204,24 @@ impl crate::kernel::Fielded for DeclareArgs {
 #[derive(Debug, Clone)]
 pub struct DeclareArgs {
     pub bluebook: String,
-    pub name: ProcessManagerName,
-    pub correlates_by: ProcessManagerText,
-    pub starts_on: ProcessManagerText,
-    pub ends_on: Option<ProcessManagerText>,
-    pub endings: Option<Vec<ProcessManagerText>>,
-    pub resumes: Option<Vec<ProcessManagerText>>,
+    pub name: SagaName,
+    pub correlates_by: SagaText,
+    pub starts_on: SagaText,
+    pub ends_on: Option<SagaText>,
+    pub endings: Option<Vec<SagaText>>,
+    pub resumes: Option<Vec<SagaText>>,
     pub position: Option<Position>,
 }
 
 pub fn dispatch_declare(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>,
+    repo: &mut impl crate::kernel::Repository<Saga>,
     route: Option<&crate::kernel::RoutingEnvelope>,
     args: DeclareArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     tenant_boundary_check: Result<(), crate::kernel::Refusal>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
+) -> crate::kernel::DispatchResult<Saga> {
     args.name.check_invariants()?;
     args.correlates_by.check_invariants()?;
     args.starts_on.check_invariants()?;
@@ -3256,7 +3247,7 @@ pub fn dispatch_declare(
         owner_deref: &owner_deref,
     };
     let seed_projections =
-        crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+        crate::kernel::seeded_projections(&with_references, SAGA_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
@@ -3273,7 +3264,7 @@ pub fn dispatch_declare(
                 }
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ProcessManager {
+                    build: Box::new(|| Saga {
                         bluebook: Some(args.bluebook.clone()),
                         name: Some(args.name.clone()),
                         correlates_by: Some(args.correlates_by.clone()),
@@ -3292,7 +3283,7 @@ pub fn dispatch_declare(
                 let __hydrate_id: String = format!("{}:{}", args.bluebook, args.name.value);
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
-                    build: Box::new(|| ProcessManager {
+                    build: Box::new(|| Saga {
                         bluebook: Some(args.bluebook.clone()),
                         name: Some(args.name.clone()),
                         correlates_by: Some(args.correlates_by.clone()),
@@ -3309,8 +3300,8 @@ pub fn dispatch_declare(
             }
         },
         "Declare",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
+        "Bluebook::Saga",
+        "Saga",
         "bluebook, name.value",
         &with_references,
         &[],
@@ -3327,7 +3318,7 @@ pub fn dispatch_declare(
             Ok(())
         },
         &[],
-        &processmanager_invariants(),
+        &saga_invariants(),
         &["SagaDeclared"],
         args.to_json(),
         mutations,
@@ -3469,10 +3460,10 @@ impl DeclareArgs {
                 )
             })?
         };
-        let name = ProcessManagerName::from_json(
+        let name = SagaName::from_json(
             &(match v.get("name").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Declare.name expects ProcessManagerName, got nil".to_string(),
+                    "Declare.name expects SagaName, got nil".to_string(),
                 )
             })? {
                 crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
@@ -3481,10 +3472,10 @@ impl DeclareArgs {
             .coerce_single_field("value"),
         )?;
         name.check_invariants()?;
-        let correlates_by = ProcessManagerText::from_json(
+        let correlates_by = SagaText::from_json(
             &(match v.get("correlates_by").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Declare.correlates_by expects ProcessManagerText, got nil".to_string(),
+                    "Declare.correlates_by expects SagaText, got nil".to_string(),
                 )
             })? {
                 crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
@@ -3493,10 +3484,10 @@ impl DeclareArgs {
             .coerce_single_field("value"),
         )?;
         correlates_by.check_invariants()?;
-        let starts_on = ProcessManagerText::from_json(
+        let starts_on = SagaText::from_json(
             &(match v.get("starts_on").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Declare.starts_on expects ProcessManagerText, got nil".to_string(),
+                    "Declare.starts_on expects SagaText, got nil".to_string(),
                 )
             })? {
                 crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
@@ -3507,9 +3498,7 @@ impl DeclareArgs {
         starts_on.check_invariants()?;
         let ends_on = match v.get("ends_on") {
             Some(crate::kernel::Json::Null) | None => None,
-            Some(x) => Some(ProcessManagerText::from_json(
-                &x.coerce_single_field("value"),
-            )?),
+            Some(x) => Some(SagaText::from_json(&x.coerce_single_field("value"))?),
         };
         if let Some(v) = &ends_on {
             v.check_invariants()?;
@@ -3524,7 +3513,7 @@ impl DeclareArgs {
                         )
                     })?
                     .iter()
-                    .map(|item| ProcessManagerText::from_json(&item.coerce_single_field("value")))
+                    .map(|item| SagaText::from_json(&item.coerce_single_field("value")))
                     .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
             ),
         };
@@ -3543,7 +3532,7 @@ impl DeclareArgs {
                         )
                     })?
                     .iter()
-                    .map(|item| ProcessManagerText::from_json(&item.coerce_single_field("value")))
+                    .map(|item| SagaText::from_json(&item.coerce_single_field("value")))
                     .collect::<Result<Vec<_>, crate::kernel::Refusal>>()?,
             ),
         };
@@ -3677,18 +3666,18 @@ impl crate::kernel::Fielded for StateArgs {
 
 #[derive(Debug, Clone)]
 pub struct StateArgs {
-    pub name: ProcessManagerText,
+    pub name: SagaText,
 }
 
 pub fn dispatch_state(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>,
+    repo: &mut impl crate::kernel::Repository<Saga>,
     id: &str,
     args: StateArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     tenant_boundary_check: Result<(), crate::kernel::Refusal>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
+) -> crate::kernel::DispatchResult<Saga> {
     args.name.check_invariants()?;
     let with_references = crate::kernel::WithReferences {
         command_deref: &command_deref,
@@ -3696,14 +3685,14 @@ pub fn dispatch_state(
         owner_deref: &owner_deref,
     };
     let seed_projections =
-        crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+        crate::kernel::seeded_projections(&with_references, SAGA_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "State",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
+        "Bluebook::Saga",
+        "Saga",
         "bluebook, name.value",
         &with_references,
         &[],
@@ -3715,7 +3704,7 @@ pub fn dispatch_state(
             Ok(())
         },
         &[],
-        &processmanager_invariants(),
+        &saga_invariants(),
         &["SagaStateAttached"],
         args.to_json(),
         mutations,
@@ -3771,10 +3760,10 @@ impl StateArgs {
                 .render_args(),
             ));
         }
-        let name = ProcessManagerText::from_json(
+        let name = SagaText::from_json(
             &(match v.get("name").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "State.name expects ProcessManagerText, got nil".to_string(),
+                    "State.name expects SagaText, got nil".to_string(),
                 )
             })? {
                 crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
@@ -3872,14 +3861,14 @@ pub struct HandlerArgs {
 }
 
 pub fn dispatch_handler(
-    repo: &mut impl crate::kernel::Repository<ProcessManager>,
+    repo: &mut impl crate::kernel::Repository<Saga>,
     id: &str,
     args: HandlerArgs,
     mutations: &mut Vec<crate::kernel::MutationRecord>,
     owner_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     tenant_boundary_check: Result<(), crate::kernel::Refusal>,
-) -> crate::kernel::DispatchResult<ProcessManager> {
+) -> crate::kernel::DispatchResult<Saga> {
     args.event_type.check_invariants()?;
     args.from_state.check_invariants()?;
     args.to_state.check_invariants()?;
@@ -3889,14 +3878,14 @@ pub fn dispatch_handler(
         owner_deref: &owner_deref,
     };
     let seed_projections =
-        crate::kernel::seeded_projections(&with_references, PROCESS_MANAGER_PROJECTED_FIELDS);
+        crate::kernel::seeded_projections(&with_references, SAGA_PROJECTED_FIELDS);
 
     crate::kernel::dispatch(
         repo,
         crate::kernel::Hydrate::Act { id: id.to_string() },
         "Handler",
-        "Bluebook::ProcessManager",
-        "ProcessManager",
+        "Bluebook::Saga",
+        "Saga",
         "bluebook, name.value",
         &with_references,
         &[],
@@ -3911,7 +3900,7 @@ pub fn dispatch_handler(
                 return Err(crate::kernel::Refusal::AlreadyExists(
                     crate::kernel::refusal_wording::AlreadyExistsEntityDuplicateArgs {
                         entity: "Handler",
-                        aggregate: "ProcessManager",
+                        aggregate: "Saga",
                         identity: "event_type.value, from_state.value",
                         offered: &offered,
                     }
@@ -3927,7 +3916,7 @@ pub fn dispatch_handler(
             Ok(())
         },
         &[],
-        &processmanager_invariants(),
+        &saga_invariants(),
         &["LegDeclared"],
         args.to_json(),
         mutations,
