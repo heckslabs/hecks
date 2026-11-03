@@ -15,18 +15,19 @@ require "hecks/runtime/event_tap"
 # event tap see the same events with the flag, commit, run and jobs, and the owner's desktop is
 # told. The domain is in Memory, the repository a throwaway one, GitHub a stand-in fed the records.
 RSpec.describe "the red flag over a real CI cycle" do
-  FIXTURES = File.expand_path("fixtures/red_flag", __dir__) unless defined?(FIXTURES)
-  JOBS = JSON.parse(File.read(File.join(FIXTURES, "run_41540218609_jobs.json"))) unless defined?(JOBS)
-  RUNS = JSON.parse(File.read(File.join(FIXTURES, "main_runs.json"))) unless defined?(RUNS)
-  DOMAIN = File.join(InMemoryDomain::ROOT, "lib/hecks/hecks") unless defined?(DOMAIN)
+  # Named for this file: a top-level constant lands on Object, so the other specs' names are off limits.
+  CYCLE_FIXTURES = File.expand_path("fixtures/red_flag", __dir__) unless defined?(CYCLE_FIXTURES)
+  CYCLE_JOBS = JSON.parse(File.read(File.join(CYCLE_FIXTURES, "run_41540218609_jobs.json"))) unless defined?(CYCLE_JOBS)
+  CYCLE_RUNS = JSON.parse(File.read(File.join(CYCLE_FIXTURES, "main_runs.json"))) unless defined?(CYCLE_RUNS)
+  CYCLE_DOMAIN = File.join(InMemoryDomain::ROOT, "lib/hecks/hecks") unless defined?(CYCLE_DOMAIN)
 
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-red-flag-cycle")) }
   let(:repo) { File.join(dir, "main") }
-  let(:red) { RUNS.find { |run| run["conclusion"] == "failure" } }
-  let(:green) { RUNS.find { |run| run["conclusion"] == "success" } }
+  let(:red) { CYCLE_RUNS.find { |run| run["conclusion"] == "failure" } }
+  let(:green) { CYCLE_RUNS.find { |run| run["conclusion"] == "success" } }
 
   before(:all) do
-    @hecks = Hecks.boot(DOMAIN, install_driving: false, environment: HecksMemoryEnvironment::NAME)
+    @hecks = Hecks.boot(CYCLE_DOMAIN, install_driving: false, environment: HecksMemoryEnvironment::NAME)
   end
 
   before do
@@ -52,6 +53,9 @@ RSpec.describe "the red flag over a real CI cycle" do
   def open_repository
     git("init", "--bare", "-b", "main", File.join(dir, "origin.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "origin.git"), repo, chdir: dir)
+    # The kick's revert commits with the repository's own identity, which a CI runner lacks.
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
     git("commit", "--allow-empty", "-m", "start")
     git("push", "-q", "origin", "main")
   end
@@ -59,7 +63,7 @@ RSpec.describe "the red flag over a real CI cycle" do
   # GitHub as `gh` answers it: the run list, newest first, the successes alone when asked, and the
   # real jobs of the red run.
   def github(argv)
-    return [true, JSON.generate(JOBS)] if argv[1..2] == %w[run view]
+    return [true, JSON.generate(CYCLE_JOBS)] if argv[1..2] == %w[run view]
     return [true, JSON.generate(@runs.select { |run| run["conclusion"] == "success" }.first(1))] if argv.include?("success")
 
     [true, JSON.generate(@runs.first(1))]

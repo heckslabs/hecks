@@ -37,6 +37,9 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
   def build_repo
     FileUtils.mkdir_p(repo)
     git("init", "-q", "-b", "main")
+    # The reverter commits with the repository's own identity, which a CI runner lacks.
+    git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
     @green = commit("a.txt", "green")
     @bad = commit("b.txt", "bad")
     git("checkout", "-q", "-b", "feature")
