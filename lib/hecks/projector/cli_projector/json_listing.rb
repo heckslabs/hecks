@@ -5,8 +5,8 @@ module Hecks
   module Projector
     module CliProjector
       # `hecks --json` and `hecks <module> --json` (ADR 0163, plan step 9): the same entries the
-      # help lists, as JSON, so the MCP adapter, the docs and scripts read one projection. Each
-      # entry is one command or query, with the call to type and the module it sits under.
+      # help lists, as JSON, so the MCP door, the docs and scripts read one projection. Each entry
+      # is one command or query, with the call to type and the module it sits under.
       module JsonListing
         # The JSON document for the listing: one array of entries, in the order the help lists them.
         #

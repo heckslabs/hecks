@@ -342,7 +342,6 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
     target_verb: "FanOutRowFieldsFixture::Charge.Refund",
     for_each: Some("FanOutRowFieldsFixture::Charge.ForBooking"),
     for_each_key: Some("charge"),
-    for_each_heads: &[],
     with_spec: &[
         ("charge", ":charge"),
         ("refunded", ":charged"),

@@ -71,20 +71,6 @@ RSpec.describe Hecks::Adapters::Dispatching do
     expect(reasons(outcome)).to eq("a" => "skipped: load 23.4 > 12.0")
   end
 
-  it "fills only the work items whose id starts with `only`, leaving the rest unread" do
-    planned = [item("red-a", "x"), item("gap-a", "y"), item("gap-b", "z")]
-
-    text = report(work_items: [planned, []], record: { only: { value: "gap-" } })
-
-    expect(text).to include("would start gap-a", "would start gap-b").and(satisfy { |t| !t.include?("red-a") })
-  end
-
-  it "fills the whole queue when `only` is left out" do
-    text = report(work_items: [[item("red-a", "x"), item("gap-a", "y")], []], record: {})
-
-    expect(text).to include("would start red-a", "would start gap-a")
-  end
-
   it "lets a work item with no area start beside any other" do
     expect(plan([item("a")], started: [item("s", "lib")]).chosen.map(&:key)).to eq(["a"])
   end

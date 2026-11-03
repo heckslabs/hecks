@@ -1,4 +1,0 @@
-Hecks.hecksagon "Lending" do
-  Lending::Loan.persisted_by("Memory")
-  driven_by "Gopher"
-end

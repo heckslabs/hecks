@@ -69,8 +69,7 @@ module Hecks
           end
 
           def declared_entity_given(candidates, description, declared_by)
-            owner = Naming.demodulise(declared_by)
-            candidates[owner] || pending_bluebook_entity_given(description, declared_by: owner)
+            candidates[declared_by] || pending_bluebook_entity_given(description, declared_by: declared_by)
           end
 
           def ambiguous_entity_given_message(candidates, description)

@@ -12,21 +12,21 @@ module Hecks
 
         module_function
 
-        # Builds a command's nested, typed argument Hash from its `name=value` words:
-        # `["sequence.value=99"]` gives `{ sequence: { value: 99 } }`.
+        # Builds a command's nested, typed argument Hash from its `name=value` words.
+        #
+        #   arguments(spec, ["reference.value=A-1", "sequence.value=99"])
+        #   # => { reference: { value: "A-1" }, sequence: { value: 99 } }
+        #
         # @param spec [Hash{Symbol => Object}] one command's entry from `Projector::CliProjector`
         # @param pairs [Array<String>] the words after the command: `name=value` pairs (a path may
-        #   be a value object's short form), `--name` for a Boolean, at most one bare word for the
-        #   first argument, and `name=@stdin:/pointer` to read a field of the JSON on `input`
-        # @param input [IO, #read] the JSON an `@stdin:` value reads (ADR 0175); read only if asked
+        #   be the short form of a single-field value object), `--name` for a Boolean, and at most
+        #   one bare word, which fills the first argument
         # @return [Hash{Symbol => Object}] the arguments nested by path, leaves cast to type
         # @raise [Runtime::NotFound] if a path, flag or bare word does not fit the command
         # @raise [Runtime::TypeMismatch] if a value does not parse as its Integer or Float
-        def arguments(spec, pairs, input: $stdin)
+        def arguments(spec, pairs)
           options = declared_options(spec)
-          source = StdinSource.new(input)
-          Shorthand.normalize(spec, pairs, options).filter_map { |pair| source.resolve(pair) }
-                   .each_with_object({}) { |pair, args| store(args, pair, options) }
+          Shorthand.normalize(spec, pairs, options).each_with_object({}) { |pair, args| store(args, pair, options) }
         end
 
         # Every argument the command accepts, by path. Extra accepted arguments stay out of help,
@@ -125,4 +125,3 @@ module Hecks
 end
 require_relative "cli/nesting"
 require_relative "cli/shorthand"
-require_relative "cli/stdin_source"

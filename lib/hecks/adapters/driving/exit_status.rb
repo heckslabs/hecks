@@ -13,8 +13,8 @@ module Hecks
 
         # The domain said no, or the run failed: a refusal, a record that is not there, a
         # `--wait` run that ended in a failure state or whose reaction was refused or crashed, a
-        # question that reports a gap under `--wait`, the driving adapter refusing the caller, or
-        # a domain that cannot be opened.
+        # question that reports a gap under `--wait`, the door refusing the caller, or a domain
+        # that cannot be opened.
         REFUSED = 1
 
         # The line could not be read: no command named, a command or query the bluebook does not

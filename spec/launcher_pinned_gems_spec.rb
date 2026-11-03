@@ -53,27 +53,4 @@ RSpec.describe "the launcher's pinned gems" do
   it "is the block exe/hecks carries, so the committed launcher takes the pin" do
     expect(File.read(File.expand_path("../exe/hecks", __dir__))).to include(pinned_block)
   end
-
-  # A launcher beside a client's domain runs on what the client's own Gemfile pins, such as a
-  # local Hecks it is built alongside; with no Gemfile it runs on the gems at hand.
-  describe "beside a client's domain" do
-    def project_block = Hecks::Tools::ProjectCli.render(Hecks::Tools::ProjectCli::Templates::PROJECT_GEMS, up: "../")
-
-    def run_project_block
-      FileUtils.mkdir_p(File.join(root, "bluebook"))
-      script = File.join(root, "bluebook/launch.rb")
-      File.write(script, "#{project_block}\nrequire \"json\"\nprint JSON::VERSION, \" \", !!defined?(Bundler)\n")
-      ruby_output(script)
-    end
-
-    it "takes the gems the project's Gemfile pins" do
-      File.write(File.join(root, "Gemfile"), gemfile_pinning(json_pin))
-
-      expect(run_project_block).to eq("#{json_pin} true")
-    end
-
-    it "leaves the gems at hand where the project has no Gemfile" do
-      expect(run_project_block).to end_with(" false")
-    end
-  end
 end

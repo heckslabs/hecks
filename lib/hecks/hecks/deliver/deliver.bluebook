@@ -39,19 +39,9 @@ Hecks.bluebook "Hecks" do
       end
 
       query "History" do
-        description "The commits in a range, newest first (the last 20 when none is named), optionally only those that add or remove some text or touch a path."
-        attribute :checkout,   Place, optional: true
-        attribute :range,      Word,  optional: true
-        attribute :containing, Word,  optional: true
-        attribute :path,       Word,  optional: true
-        returns Document
-      end
-
-      query "Show" do
-        description "A file as it stood at a ref, or a listing of the repository's top level when no path is named: read from the repository's history with nothing checked out."
+        description "The commits in a range, newest first (the last 20 when none is named)."
         attribute :checkout, Place, optional: true
-        attribute :ref,      Word
-        attribute :path,     Word,  optional: true
+        attribute :range,    Word,  optional: true
         returns Document
       end
 
@@ -103,10 +93,6 @@ Hecks.bluebook "Hecks" do
         attribute :value, String
       end
 
-      value_object "CommitMessage" do
-        attribute :value, String, pattern: ".*[^ \\t\\n\\r].*"
-      end
-
       value_object "Report" do
         attribute :value, String
       end
@@ -124,8 +110,12 @@ Hecks.bluebook "Hecks" do
 
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
-        attribute :message,  CommitMessage, sets: true
+        attribute :message,  Text, sets: true
         attribute :paths,    Text, optional: true, sets: true
+
+        given("a commit says what it commits") do
+          message.value.to_s.strip != ""
+        end
 
         emits CommitRequested
       end
@@ -149,75 +139,6 @@ Hecks.bluebook "Hecks" do
         attribute :refusal, Report, sets: true
 
         emits CommitDeclined
-      end
-    end
-
-    # A tree copied out of a repository's history: the whole tree, or one path of it, as it stood at a ref,
-    # asked of the git port, then recorded or declined. It reads history and writes only into the new or empty
-    # directory named, never into a checkout, so old code can be read or built without a branch or a worktree.
-    aggregate "TreeCopy" do
-      description "One copy of a tree as it stood at a ref, written to a new directory, or declined with the reason."
-
-      attribute :run,         RunKey
-      attribute :checkout,    Word,   optional: true
-      attribute :ref,         Word,   optional: true
-      attribute :path,        Word,   optional: true
-      attribute :destination, Word,   optional: true
-      attribute :report,      Report, optional: true
-      attribute :refusal,     Report, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-      end
-
-      # A directory, a revision or a path.
-      value_object "Word" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Report" do
-        attribute :value, String
-      end
-
-      lifecycle :status, default: "requested" do
-        mark :failure, "declined"
-        transition "Record"  => "copied",   from: "requested"
-        transition "Decline" => "declined", from: "requested"
-        mark :terminal, "copied", "declined"
-      end
-
-      command "Make" do
-        role "Operator"
-        goal "Copy a tree, or one path of it, as it stood at a ref into a new directory: read from history, written nowhere else"
-
-        attribute :run,         RunKey, sets: true
-        attribute :checkout,    Word, optional: true, sets: true
-        attribute :ref,         Word, sets: true
-        attribute :path,        Word, optional: true, sets: true
-        attribute :destination, Word, sets: true
-
-        emits CopyRequested
-      end
-
-      command "Record" do
-        role "System"
-        goal "Record the copy a checkout made, by what it says"
-
-        reference_to TreeCopy
-        attribute :report, Report, sets: true
-
-        emits CopyRecorded
-      end
-
-      command "Decline" do
-        role "System"
-        goal "Record why a copy could not be made"
-
-        reference_to TreeCopy
-        attribute :refusal, Report, sets: true
-
-        emits CopyDeclined
       end
     end
 
@@ -713,22 +634,6 @@ Hecks.bluebook "Hecks" do
     policy "DeclineTheCommit" do
       on      "Revision.CommitRefused"
       trigger Revision::Decline, with: { refusal: :refusal }
-    end
-
-    # A copy that was asked for is made by the git port, which answers with what it copied or refuses with why.
-    policy "CopyWhenAsked" do
-      on      "TreeCopy.CopyRequested"
-      ask     :copy, with: { run: :run }
-    end
-
-    policy "RecordTheCopy" do
-      on      "TreeCopy.CopyAnswered"
-      trigger TreeCopy::Record, with: { report: :report }
-    end
-
-    policy "DeclineTheCopy" do
-      on      "TreeCopy.CopyRefused"
-      trigger TreeCopy::Decline, with: { refusal: :refusal }
     end
 
     # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the

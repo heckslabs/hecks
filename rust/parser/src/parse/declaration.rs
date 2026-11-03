@@ -161,9 +161,7 @@ pub fn parse_bluebook(
             .filter(|(_, given)| given.description.as_deref() == Some(pending.description.as_str()))
             .collect();
 
-        let resolved = if let Some(declared) = &pending.declared_by {
-            // Ruby's builders demodulise `declared_by:` (`Naming.demodulise`), so `Bank::Account.X` names `Account.X`.
-            let owner = declared.rsplit("::").next().unwrap_or(declared);
+        let resolved = if let Some(owner) = &pending.declared_by {
             candidates
                 .iter()
                 .find(|(candidate_owner, _)| candidate_owner == owner)
@@ -228,9 +226,7 @@ pub fn parse_bluebook(
             .filter(|(_, given)| given.description.as_deref() == Some(pending.description.as_str()))
             .collect();
 
-        let resolved = if let Some(declared) = &pending.declared_by {
-            // Ruby's builders demodulise `declared_by:` (`Naming.demodulise`), so `Bank::Account.X` names `Account.X`.
-            let owner = declared.rsplit("::").next().unwrap_or(declared);
+        let resolved = if let Some(owner) = &pending.declared_by {
             candidates
                 .iter()
                 .find(|(candidate_owner, _)| candidate_owner == owner)

@@ -6,7 +6,7 @@ module Hecks
       # `@name`.
       module AudienceWord
         # The audiences a command may be listed for: a person at a keyboard, an agent through the
-        # MCP adapter, a CI step, or the run's own bookkeeping.
+        # MCP door, a CI step, or the run's own bookkeeping.
         AUDIENCES = %w[person agent ci record].freeze
 
         # Names who a launcher lists the command for.
