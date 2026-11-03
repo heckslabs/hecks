@@ -8,7 +8,7 @@ require "hecks/pipeline_board/adapters/pipeline_stages"
 RSpec.describe Hecks::Adapters::PipelineBoard::Fanout do
   def row(slug, area = [], claimed = "") = { slug: slug, status: "planned", area: area, claimed_by: claimed, claimed_at: "" }
 
-  def session(id, work) = { id: id, name: id, status: "busy", row: work }
+  def session(id, work) = { id: id, name: id, status: "busy", work_item: work }
 
   def flags(sessions, work, landed: [], fill: nil)
     mapped = described_class.mapping(sessions: sessions, work: work, landed: landed, fill: fill)

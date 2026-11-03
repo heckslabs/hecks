@@ -11,7 +11,7 @@
 #   exe/hecks PipelineBoard.serve! port.value=4747 --wait
 
 Hecks.bluebook "PipelineBoard" do
-  vision "The pipeline from a Work row to a release is read live, stage by stage, and shown with the real events it emitted."
+  vision "The pipeline from a Work item to a release is read live, stage by stage, and shown with the real events it emitted."
 
   supporting
 

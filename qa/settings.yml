@@ -70,7 +70,7 @@ red_main_check: true
 event_pump: true
 
 # The push check, once per tick: a push of local main that is due beyond the QualityControl world's
-# `push_nudge` thresholds is one `push-due` Work row, revised while due and finished when not. It reads
+# `push_nudge` thresholds is one `push-due` Work item, revised while due and finished when not. It reads
 # refs git already holds and pushes nothing.
 push_nudge: true
 

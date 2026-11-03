@@ -251,11 +251,11 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # Filling the Work queue is one run too: the Work rows that may start a session now are chosen
+    # Filling the Work queue is one run too: the Work items that may start a session now are chosen
     # from the queue, the machine's load and the freeze, and without `confirm` that is all it does.
     # The choosing and the starting are the port's; whether a start is allowed stays with `Work`.
     aggregate "Dispatch" do
-      description "One filling of the Work queue: the planned rows that start a session now, and why each other waits."
+      description "One filling of the Work queue: the planned Work items that start a session now, and why each other waits."
 
       attribute :run,            DispatchKey
       attribute :repo,           Directory
@@ -295,7 +295,7 @@ Hecks.bluebook "Hecks" do
 
       command "Fill" do
         role "Operator"
-        goal "Choose the planned Work rows that start a session now and, with confirm, start them; without it, say what would start"
+        goal "Choose the planned Work items that start a session now and, with confirm, start them; without it, say what would start"
 
         attribute :run,            DispatchKey, sets: true
         attribute :repo,           Directory, sets: true
@@ -307,7 +307,7 @@ Hecks.bluebook "Hecks" do
 
       command "Settle" do
         role "Operator"
-        goal "Check the started sessions and finish the row of each that is done, or yield the row of one that stopped"
+        goal "Check the started sessions and finish the Work item of each that is done, or yield the Work item of one that stopped"
 
         attribute :run,  DispatchKey, sets: true
         attribute :repo, Directory, sets: true
@@ -404,7 +404,7 @@ Hecks.bluebook "Hecks" do
       ask     :read_job, with: { run: :run }
     end
 
-    # Each check is addressed by the row's key alone: the sweep's own `run` is not passed on.
+    # Each check is addressed by the Work item's key alone: the sweep's own `run` is not passed on.
     policy "CheckEveryStartedRun" do
       on       "SessionSweep.SweepRequested"
       for_each "AgentRun.Running"

@@ -20,7 +20,7 @@ module Hecks
       module Regeneration
         # Every operation this family carries out.
         OPERATIONS = %w[regenerate_corpus project_ci_gates project_ci_pipeline project_lanes project_tools_doc
-                        decide_ci_gate].freeze
+                        project_glossary decide_ci_gate].freeze
 
         # How many lines of a script's output a refusal keeps.
         KEPT_LINES = 60
@@ -40,13 +40,19 @@ module Hecks
         # @raise [ConsoleCapture::Failure] with the difference, when a check finds drift, or with
         #   what the script printed when it ends badly
         def call(operation, held, tree, shell: nil)
-          check = check_only?(held)
-          child = RubyChild.new(tree)
+          project(operation, held, tree, RubyChild.new(tree), check_only?(held))
+        end
+
+        # @param child [RubyChild] the checkout's tool runner
+        # @param check [Boolean] whether to only compare
+        # @return [String] what the operation's tool printed, or the corpus verdict
+        def project(operation, held, tree, child, check)
           case operation
           when "project_ci_gates" then project_ci_gates(child, check)
           when "project_ci_pipeline" then project_ci_pipeline(child, check)
           when "project_lanes" then project_lanes(child, check, set?(held, :live), set?(held, :confirm))
           when "project_tools_doc" then project_tools_doc(child, check)
+          when "project_glossary" then project_glossary(child, held, check)
           when "decide_ci_gate" then decide_ci_gate(child, held)
           else regenerate_remembered(child, tree, held, check)
           end
@@ -144,6 +150,19 @@ module Hecks
         def project_tools_doc(child, check)
           child.answer("project_tools_doc", *("--check" if check))
         end
+
+        # @param child [RubyChild] the checkout's tool runner
+        # @param held [Hash] the record's fields: `domain`, the directory, and `bluebook`, the name
+        # @param check [Boolean] whether to only compare
+        # @return [String] what the tool printed
+        # @raise [ConsoleCapture::Failure] naming the drifted files, when a check finds drift
+        def project_glossary(child, held, check)
+          child.answer("project_glossary", plain(held[:domain]).to_s, plain(held[:bluebook]).to_s, *("--check" if check))
+        end
+
+        # @param argument [Hash, Object] a record field, wrapped as `value:` or bare
+        # @return [Object] the bare value
+        def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
         # @param child [RubyChild] the checkout's tool runner
         # @param held [Hash] the record's fields: `gate`, a `CiGate` row's name

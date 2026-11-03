@@ -12,7 +12,7 @@ module Hecks
       # The thresholds when the world declares none.
       DEFAULTS = { commits: 15, hours: 6, urgent_commits: 40 }.freeze
 
-      # The word a Work row's title opens with when the push is past `urgent_commits`.
+      # The word a Work item's title opens with when the push is past `urgent_commits`.
       URGENT = "URGENT"
 
       module_function
@@ -44,7 +44,7 @@ module Hecks
           "(urgent at #{limits[:urgent_commits]})"
       end
 
-      # @return [String] the `push-due` Work row's title, naming the size class past the threshold
+      # @return [String] the `push-due` Work item's title, naming the size class past the threshold
       def title(base, ahead, limits)
         case size_class(ahead, limits)
         when :urgent then "#{URGENT}: #{base}, #{ahead} commits"
