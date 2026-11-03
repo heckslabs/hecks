@@ -311,6 +311,7 @@ Hecks.bluebook "Hecks" do
 
       transition SendTrain::BranchPushed => "boarded", from: "boarding"
       transition SendTrain::CarriedByEarlierPush => "boarded", from: "boarding"
+      transition SendTrain::BoardingQueued => "boarded", from: "boarding"
 
       transition StyleRun::StyleFaulted => "needs_human", from: "fixing"
       transition ConformanceRun::ConformanceFaulted => "needs_human", from: "checking"
@@ -690,9 +691,10 @@ Hecks.bluebook "Hecks" do
         mark :failure, "faulted"
         transition "Send"  => "pushed",  from: "requested"
         transition "Ride"  => "carried", from: "requested"
+        transition "Queue" => "queued",  from: "requested"
         transition "Fault" => "faulted", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"
-        mark :terminal, "carried", "faulted", "pushed", "surveyed"
+        mark :terminal, "carried", "faulted", "pushed", "queued", "surveyed"
       end
 
       command "Board" do
@@ -769,6 +771,22 @@ Hecks.bluebook "Hecks" do
         emits CarriedByEarlierPush
       end
 
+      # The candidate gate is on (ADR 0181): the boarded commit went to the remote's candidate ref,
+      # where CI judges it, and main moves only once that run is green.
+      command "Queue" do
+        role "System"
+        goal "Record that a boarding was queued as the candidate, for CI to judge before main moves"
+
+        reference_to SendTrain
+        attribute :checkout, Word, sets: true
+        attribute :boarded,  Word, sets: true
+        attribute :commits,  Count, optional: true, sets: true
+        attribute :report,   Report, sets: true
+
+
+        emits BoardingQueued
+      end
+
       command "Fault" do
         role "System"
         goal "Record why a boarding could not push"
@@ -807,6 +825,12 @@ Hecks.bluebook "Hecks" do
       on      "SendTrain.TrainAnswered"
       where   { outcome.value == "carried" }
       trigger SendTrain::Ride, with: { checkout: :checkout, boarded: :boarded, report: :report }
+    end
+
+    policy "RecordTheQueuedBoarding" do
+      on      "SendTrain.TrainAnswered"
+      where   { outcome.value == "queued" }
+      trigger SendTrain::Queue, with: { checkout: :checkout, boarded: :boarded, commits: :commits, report: :report }
     end
 
     policy "RecordTheRefusedPush" do
@@ -862,6 +886,11 @@ Hecks.bluebook "Hecks" do
       ask     :record_outcome, with: { run: :run }
     end
 
+    policy "RecordTheQueuedOutcome" do
+      on      "SendTrain.BoardingQueued"
+      ask     :record_outcome, with: { run: :run }
+    end
+
     # How one boarding of the train ended, recorded by the checkout that boarded it. It is its own
     # aggregate, not SendTrain, so recording a push in the checkout fires none of the reactions a
     # push itself has (the launcher refresh, the deploy announcement, the GateAndBoard saga).
@@ -888,7 +917,7 @@ Hecks.bluebook "Hecks" do
       end
 
       value_object "Ending" do
-        attribute :value, String, pattern: '\A(pushed|carried|faulted)\z'
+        attribute :value, String, pattern: '\A(pushed|carried|queued|faulted)\z'
       end
 
       value_object "Tally" do
@@ -1252,6 +1281,21 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheFailedCi" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "failed" }
+      trigger Integration::Red, with: { landed: :landed, report: :report }
+    end
+
+    # While the candidate gate is on (ADR 0181) the observation reads the candidate's run and says
+    # so by name, so the run ends green or red as it does for main while the red flag, which hears
+    # `passed` and `failed`, stays where it is: a red candidate is not a red main.
+    policy "RecordThePassedCandidateCi" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "candidate_passed" }
+      trigger Integration::Green, with: { landed: :landed, report: :report }
+    end
+
+    policy "RecordTheFailedCandidateCi" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "candidate_failed" }
       trigger Integration::Red, with: { landed: :landed, report: :report }
     end
 
