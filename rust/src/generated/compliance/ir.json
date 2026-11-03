@@ -342,10 +342,7 @@
   ],
   "lineage": {
     "capable_aggregates": [
-      {
-        "name": "Review",
-        "storage_name": "review"
-      }
+
     ]
   },
   "persistence": {
@@ -353,32 +350,22 @@
       {
         "name": "Review",
         "storage_name": "review",
-        "adapter": "PostgresEra"
+        "adapter": "Memory"
       }
     ]
   },
   "adapters": [
     {
-      "name": "PostgresEra",
+      "name": "Memory",
       "port": "persistence",
       "fields": [
-        "database",
-        "role",
-        "schema",
-        "formerly",
-        "allow_superuser",
-        "mint_eras",
-        "disposable_ledger",
-        "mints_era"
+
       ],
       "secrets": [
 
       ],
       "defaults": {
-      },
-      "provides": [
-        "set_transform"
-      ]
+      }
     }
   ],
   "world": {
