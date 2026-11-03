@@ -1,0 +1,8 @@
+# Binds the `SpoolCursor` port to `SpoolCursorFile`, which answers `Observation`'s `Acknowledge`
+# ask by moving the cursor beside the spool file. Required by name, not relative, so a copy of this
+# directory shares the one implementation loaded.
+require "hecks/catcher/adapters/spool_cursor_file"
+
+Hecks.adapter "SpoolCursorFile" do
+  port "SpoolCursor"
+end

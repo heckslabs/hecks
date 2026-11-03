@@ -1,0 +1,34 @@
+# The Catcher domain, bound so it boots standing alone (a model_check or behaviors boot of this
+# directory). Its records are held in Memory, like every standalone domain; Governance checks
+# the role each command names.
+Hecks.hecksagon "Catcher" do
+  attaches "Governance"
+  persisted_by "Memory"
+
+  # The outside a drain reaches: the spool file the hook appends to. `read` answers the lines the
+  # spool holds, through `through`, the number of lines consumed so far. The port never writes a
+  # line to the spool.
+  Catcher::Drain.port "Spool" do
+    asks "Read", to: Drain do
+      attribute :run, RunKey
+      answers "SpoolRead"
+      refuses "SpoolRefused"
+    end
+  end
+
+  # The spool cursor, asked by a sitting once it is kept: `acknowledge` moves the cursor to
+  # `through`, so the next read starts after the lines this sitting holds.
+  Catcher::Observation.port "SpoolCursor" do
+    asks "Acknowledge", to: Observation do
+      attribute :sitting, SittingKey
+      attribute :through, Count
+      answers "SpoolAcknowledged"
+      refuses "SpoolAckRefused"
+    end
+  end
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
