@@ -19,6 +19,8 @@ module Hecks
         HEAD = /\A(?<word>[A-Za-z]+)(?: by \[?(?:ADR )?(?<successor>\d{4})\]?(?:\([^)\s]*\))?)?\.?\s*/
         SETTLES = /Settles finding `(?<finding>[^`]+)`/
         NUMBER = /\A(?<number>\d{4})-/
+        TITLE = /\A# (?<title>.+)\z/
+        WORD = /[a-z0-9]+/
 
         # Reads a record's header.
         #
@@ -36,12 +38,13 @@ module Hecks
 
         # @param lines [Array<String>] the file's lines
         # @return [String, nil] the text after `# `, nil when the first line is no title
-        def title(lines) = lines.first.to_s[/\A# (.+)\z/, 1]
+        def title(lines) = lines.first.to_s[TITLE, :title]
 
         # @param lines [Array<String>] the file's lines
         # @return [String, nil] the status line's text after its label
         def status_text(lines)
-          lines.first(OPENING).lazy.filter_map { |line| STATUS_LINE.match(line)&.[](:text) }.first
+          found = lines.first(OPENING).find { |line| STATUS_LINE.match?(line) }
+          found && STATUS_LINE.match(found)[:text]
         end
 
         # Rewrites the title and the status line's leading word, keeping the author's prose after it.
@@ -83,7 +86,7 @@ module Hecks
         # @return [String] the slug a new record's file name takes: its words, joined by dashes, as
         #   many whole words as fit in {SLUG_LENGTH} characters
         def slug(title)
-          title.downcase.scan(/[a-z0-9]+/).reduce("") do |slug, word|
+          title.downcase.scan(WORD).reduce("") do |slug, word|
             longer = slug.empty? ? word : "#{slug}-#{word}"
             longer.length > SLUG_LENGTH ? (return slug) : longer
           end

@@ -80,7 +80,8 @@ RSpec.describe "the ci gate stage" do
     def ids(stage) = stages.dig(stage, "checks").map { |check| check["id"] }
 
     it "runs in the push the seconds-long checks and no others" do
-      expect(ids("quick")).to eq(%w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words decision_records])
+      expect(ids("quick")).to eq(%w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words
+                                    decision_records])
     end
 
     it "has no unguarded_push stage, so the hook and a rehearsal run the quick stage alone" do

@@ -4,14 +4,14 @@ require "hecks/adapters/driven/adr_files"
 
 # ADR 0175: a decision record is its file, and `Tickets::Adr` reads each one's header through the
 # AdrFiles adapter. This is the quick gate's `decision_records` check. Every record under
-# `docs/decisions` and `docs/implemented/decisions` has a `# Title` first line, a status line that
-# leads with a state of the Adr lifecycle, a number no other record holds, and, when it is superseded
-# by a named record, a successor that exists.
+# `docs/decisions` and `docs/implemented/decisions` has a `# Title` first line, a status line
+# that leads with a state of the Adr lifecycle, a number no other record holds, and, when it is
+# superseded by a named record, a successor that exists.
 module DecisionRecords
   ROOT = File.expand_path("..", __dir__)
   GLOB = "docs/{,implemented/}decisions/[0-9][0-9][0-9][0-9]-*.md".freeze
-  # Numbers two records shared before the check existed. Renumbering one would rewrite every citation
-  # of it, so the list only shrinks.
+  # Numbers two records shared before the check existed. Renumbering one would rewrite every
+  # citation of it, so the list only shrinks.
   KNOWN_DUPLICATES = %w[0018 0029 0030 0036 0054 0055 0058].freeze
   HEADER = Hecks::Adapters::AdrFiles::Header
 

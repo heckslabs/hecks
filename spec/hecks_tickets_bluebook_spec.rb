@@ -99,8 +99,8 @@ RSpec.describe "the Tickets bluebook" do
     expect(commands).to include("Plan", "Start", "Release", "Finish", "Drop", "Lapse", "Yield", "Reopen")
   end
 
-  # The WorkAreas, WorkLimits and WorkDecisions ports read Hecks's own rows and clock; nothing leaves
-  # the process.
+  # The WorkAreas, WorkLimits and WorkDecisions ports read Hecks's own rows and clock; nothing
+  # leaves the process.
   it "asks only Hecks's own ports from a Work step" do
     asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 

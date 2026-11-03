@@ -40,7 +40,8 @@ module Hecks
       # @param from [String] where to start looking
       # @return [String] that directory, or `from` when none above it holds one
       def self.checkout(from)
-        Pathname(from).expand_path.ascend.find { |dir| dir.join(DIRS.first).directory? }&.to_s || from
+        holding = Pathname.new(File.expand_path(from)).ascend.find { |dir| dir.join(DIRS.first).directory? }
+        holding ? holding.to_s : from
       end
 
       # Applies one entry and writes the record's header to its file.
@@ -116,10 +117,16 @@ module Hecks
 
       def new_path(id, title) = File.join(@base, DIRS.first, "#{id}-#{Header.slug(title.to_s)}.md")
 
-      def field(state, name)
-        value = state[name] || state[name.to_s]
+      def field(state, name) = plain(state.key?(name) ? state[name] : state[name.to_s])
+
+      # A field as the runtime holds it (a value object, a `{ value: }` or `{ id: }` hash, or a bare
+      # string), unwrapped to what it holds.
+      def plain(value)
         value = value.value if value.respond_to?(:value)
-        value.is_a?(Hash) ? (value[:value] || value["value"] || value[:id] || value["id"]) : value
+        return value unless value.is_a?(Hash)
+
+        symbols = value.transform_keys(&:to_sym)
+        symbols.key?(:value) ? symbols[:value] : symbols[:id]
       end
     end
   end
