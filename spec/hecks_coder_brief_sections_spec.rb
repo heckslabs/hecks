@@ -37,6 +37,11 @@ RSpec.describe "the Coder brief's standing sections" do
     expect(section(:restraints)).to include("Do not push", "Do not mint", "live database", "client data")
   end
 
+  it "hands the push to the coordinator: land locally, report the sha, never board the train" do
+    expect(section(:restraints)).to include("do not board the train", "Landing.finish!", "report the landed sha",
+                                            "the coordinator is the only pusher", "only the pusher boards")
+  end
+
   it "has the plan reviewed by the architect before any edit, and hands the row back on rethink" do
     expect(section(:review)).to include("Before you edit anything", "architect", "Sound with changes",
                                         "Work.yield! to={work}", "Quote the verdict")
