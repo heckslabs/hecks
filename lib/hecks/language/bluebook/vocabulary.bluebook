@@ -1412,5 +1412,139 @@ Hecks.bluebook "Bluebook" do
     value_object "PassingConclusion" do
       attribute :name, String, one_of: ["success", "neutral", "skipped"]
     end
+
+    # Every kind of finding `hecks model_check` reports, with the severity it carries and the check
+    # that emits it (ADR 0154 point 4: the rules a checker holds are declared, not only coded).
+    # `acknowledged_on` names the declaration that may acknowledge the kind (`aggregate`, or a
+    # context-map `relationship`; empty where none may), and `subject` what an acknowledgement must
+    # name with `of:` (empty where it names nothing). `rust_reserved_name` is a warning that is an
+    # error when the domain has a Rust target or the run is strict. `Bluebook::Acknowledgements`
+    # reads the acknowledgement columns; spec/model_check_findings_spec.rb holds this table to the
+    # kinds the checks emit, in both directions.
+    value_object "ModelCheckFinding" do
+      attribute :kind,            String
+      attribute :severity,        String
+      attribute :check,           String
+      attribute :acknowledged_on, String
+      attribute :subject,         String
+
+      member kind: "conformist_translates",         severity: "warning", check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
+      member kind: "context_cycle",                 severity: "warning", check: "context_checks",           acknowledged_on: "", subject: ""
+      member kind: "contradictory_relationship",    severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
+      member kind: "core_conforms",                 severity: "warning", check: "classification_checks",    acknowledged_on: "relationship", subject: ""
+      member kind: "dead_compensation",             severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
+      member kind: "dead_transition",               severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
+      member kind: "deaf_handler",                  severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
+      member kind: "deaf_policy",                   severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
+      member kind: "deaf_trigger",                  severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
+      member kind: "deep_reaction_chain",           severity: "warning", check: "reaction_depth_checks",    acknowledged_on: "", subject: ""
+      member kind: "external_query",                severity: "error",   check: "ask_checks",               acknowledged_on: "", subject: ""
+      member kind: "generic_depends_on_core",       severity: "error",   check: "classification_checks",    acknowledged_on: "", subject: ""
+      member kind: "key_by_value",                  severity: "warning", check: "reference_checks",         acknowledged_on: "aggregate", subject: "attribute"
+      member kind: "large_aggregate",               severity: "warning", check: "aggregate_checks",         acknowledged_on: "aggregate", subject: ""
+      member kind: "no_command_surface",            severity: "error",   check: "aggregate_checks",         acknowledged_on: "aggregate", subject: ""
+      member kind: "one_of_branch_unhandled",       severity: "error",   check: "one_of_checks",            acknowledged_on: "", subject: ""
+      member kind: "orphaned_reference",            severity: "warning", check: "orphan_checks",            acknowledged_on: "aggregate", subject: "referenced aggregate"
+      member kind: "port_trigger",                  severity: "warning", check: "ask_checks",               acknowledged_on: "", subject: ""
+      member kind: "reaction_chain_search_capped",  severity: "warning", check: "reaction_depth_checks",    acknowledged_on: "", subject: ""
+      member kind: "redundant_relationship",        severity: "warning", check: "redundant_relationships",  acknowledged_on: "relationship", subject: ""
+      member kind: "relationship_kind_mismatch",    severity: "error",   check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
+      member kind: "rust_reserved_name",            severity: "warning", check: "model_check",              acknowledged_on: "", subject: ""
+      member kind: "separate_ways_violated",        severity: "error",   check: "context_map_checks",       acknowledged_on: "", subject: ""
+      member kind: "stale_undelivered_expectation", severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
+      member kind: "stuck_state",                   severity: "warning", check: "lifecycle_checks",         acknowledged_on: "", subject: ""
+      member kind: "terminal_has_exit",             severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
+      member kind: "unacknowledged_relationship",   severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
+      member kind: "unacknowledged_source",         severity: "error",   check: "context_checks",           acknowledged_on: "", subject: ""
+      member kind: "unarmed_compensation",          severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
+      member kind: "unbounded_reaction_loop",       severity: "warning", check: "reaction_depth_checks",    acknowledged_on: "", subject: ""
+      member kind: "undeclared_coupling",           severity: "error",   check: "context_map_checks",       acknowledged_on: "", subject: ""
+      member kind: "unknown_command",               severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
+      member kind: "unknown_dispatch",              severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
+      member kind: "unknown_target_domain",         severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
+      member kind: "unknown_trigger",               severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
+      member kind: "unpublished_dependency",        severity: "error",   check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
+      member kind: "unreachable_pm_state",          severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
+      member kind: "unreachable_state",             severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
+      member kind: "unresolved_ask",                severity: "error",   check: "ask_checks",               acknowledged_on: "", subject: ""
+      member kind: "unused_ask",                    severity: "warning", check: "ask_checks",               acknowledged_on: "", subject: ""
+      member kind: "unused_relationship",           severity: "warning", check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
+    end
+
+    # The numbers `hecks model_check` compares a declaration against. `large_aggregate_weight` is
+    # the commands, entities and lifecycle states an aggregate may declare together before it is
+    # warned about; `suggested_commands` how many of the least-attached commands that warning
+    # names; `reaction_chain_search_work` the steps the reaction-chain search takes before it gives
+    # up and reports a lower bound.
+    value_object "ModelCheckLimit" do
+      attribute :name,  String
+      attribute :value, String
+
+      member name: "large_aggregate_weight",     value: "40"
+      member name: "suggested_commands",         value: "3"
+      member name: "reaction_chain_search_work", value: "10000"
+    end
+
+    # The relationship kinds a context map may declare (ADR 0135). `separate_ways` is not one: it
+    # is the absence of a relationship.
+    value_object "ContextRelationshipKind" do
+      attribute :name, String, one_of: ["customer_supplier", "conformist", "anticorruption_layer",
+                                        "shared_kernel", "open_host", "partnership"]
+    end
+
+    # The relationship kinds with no direction: either context may be the one that depends.
+    value_object "MutualRelationshipKind" do
+      attribute :name, String, one_of: ["shared_kernel", "partnership"]
+    end
+
+    # The declared relationship kinds each derived edge kind may implement. An attach and a
+    # subscription are `conformist` unless the map says another kind for the pair; `shared_kernel`
+    # is declared, never derived, since the wiring cannot tell a co-owned model from one taken as given.
+    value_object "EdgeImplementation" do
+      attribute :edge, String
+      attribute :kind, String
+
+      member edge: "customer_supplier", kind: "customer_supplier"
+      member edge: "acl",               kind: "anticorruption_layer"
+      member edge: "shared_kernel",     kind: "conformist"
+      member edge: "shared_kernel",     kind: "shared_kernel"
+      member edge: "shared_kernel",     kind: "open_host"
+      member edge: "subscription",      kind: "conformist"
+      member edge: "subscription",      kind: "customer_supplier"
+      member edge: "subscription",      kind: "open_host"
+    end
+
+    # The limits the language puts on a running or parsed declaration. The Ruby runtime reads them
+    # here; spec/language_limits_spec.rb holds each Rust constant equal to its row.
+    # `reaction_depth`: how deeply one command's reactions may nest before the next is refused.
+    # `reference_hops`: how many references a lookup follows. `chain_hops`: how long a query hop
+    # chain or a projection chain may be. `outbox_stalled_after_seconds`: how long an outbox row
+    # stays claimed before it counts as stalled (a claim that old was left by a process that is gone).
+    value_object "LanguageLimit" do
+      attribute :name,  String
+      attribute :value, String
+
+      member name: "reaction_depth",               value: "5"
+      member name: "reference_hops",               value: "4"
+      member name: "chain_hops",                   value: "8"
+      member name: "outbox_stalled_after_seconds", value: "600"
+    end
+
+    # The outside facts a command may declare with `needs`; the runtime fills each in as an attribute.
+    value_object "NeedableFact" do
+      attribute :name, String, one_of: ["now", "today"]
+    end
+
+    # Who a command may be listed for with `audience`: a person at a keyboard, an agent through
+    # the MCP door, a CI step, or the run's own bookkeeping.
+    value_object "CommandAudience" do
+      attribute :name, String, one_of: ["person", "agent", "ci", "record"]
+    end
+
+    # The states an outbox row passes through: pending, then claimed, then delivered, failed or
+    # refused (a reaction the domain declined, which is neither delivery nor a defect).
+    value_object "OutboxStatus" do
+      attribute :name, String, one_of: ["pending", "claimed", "delivered", "failed", "refused"]
+    end
   end
 end

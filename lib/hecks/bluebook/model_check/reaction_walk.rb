@@ -1,3 +1,5 @@
+require_relative "../../limit"
+
 module Hecks
   module Bluebook
     module ModelCheck
@@ -7,7 +9,7 @@ module Hecks
       # steps per chain, which `capped?` reports.
       class ReactionWalk
         # Policies visited by one search before it gives up and answers the best chain so far.
-        WORK_LIMIT = 10_000
+        WORK_LIMIT = Hecks::Limit.of("ModelCheckLimit", "reaction_chain_search_work")
 
         # @param graph [ReactionChains] answers `step(policy)` and `successors(policy)`
         # @param looping [Array] the policies that lie on a loop
