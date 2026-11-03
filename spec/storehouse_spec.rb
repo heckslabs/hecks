@@ -455,7 +455,7 @@ RSpec.describe Hecks::Storehouse do
                                         args: pizza_args, actor_id: "u1")
 
       expect(result[:ok]).to be false
-      expect(result[:error]).to include("actor_id")
+      expect(result[:error]).to include("refused", "an actor names the role it holds")
       expect(runtime.events).to be_empty
     end
 

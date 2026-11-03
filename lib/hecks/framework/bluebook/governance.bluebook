@@ -206,8 +206,8 @@ Hecks.bluebook "Governance" do
       attribute :actor_id,   IdentityId, optional: true
       attribute :role_gated, Gated
 
-      given("an actor names the role it holds") { actor_id.nil? || !role_name.nil? }
-      given("a role-gated command has a caller bound") { role_gated.value != "yes" || !role_name.nil? }
+      given("an actor names the role it holds") { actor_id.value.to_s.empty? || !role_name.value.to_s.empty? }
+      given("a role-gated command has a caller bound") { role_gated.value != "yes" || !role_name.value.to_s.empty? }
 
       emits CallAdmitted
     end

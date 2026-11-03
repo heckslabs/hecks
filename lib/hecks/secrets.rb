@@ -45,8 +45,13 @@ module Hecks
     def register_database(url)
       return unless url.is_a?(String) && (found = url.match(PASSWORD))
 
-      register("database password", found[1])
+      register(database_secret_name, found[1])
     end
+
+    # The name a database URL's password is masked under: the one `CarriedSecret` Privacy declares.
+    #
+    # @return [String] the declared name
+    def database_secret_name = Hecks::Framework.closed_set("Privacy", "Secret", "CarriedSecret").first
 
     # Replaces every held value in the text with its mask, longest value first so a value that
     # contains another is masked whole.

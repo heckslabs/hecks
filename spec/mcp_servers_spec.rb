@@ -180,7 +180,7 @@ RSpec.describe "the stdio MCP servers" do
       results = results_of(run)
 
       expect(results[1]["isError"]).to be true
-      expect(payload(results[1])["error"]).to include('requires role: "Chef"', "no caller")
+      expect(payload(results[1])["error"]).to include("refused", "a role-gated command has a caller bound")
       expect(run[:err]).to include("Identity is self-asserted", "not verified", "no role check at all")
     end
 

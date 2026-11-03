@@ -65,6 +65,22 @@ module Hecks
     end
     private_class_method :set_members
 
+    # One command a framework member declares, with its givens, read from the member's bluebook.
+    # The member loads once per process, as `closed_set`'s does.
+    #
+    # @param member [String] the member's name, such as `"Governance"`
+    # @param aggregate [String] the aggregate declaring the command
+    # @param command [String] the command, such as `"Admit"`
+    # @return [Bluebook::Command] the declared command, memoized
+    # @raise [Runtime::WiringError] if the member, aggregate or command is not declared
+    def self.command_of(member, aggregate, command)
+      @commands ||= {}
+      @commands[[member, aggregate, command]] ||= begin
+        declared = declaration(member).aggregate(aggregate)&.command(command)
+        declared || raise(Runtime::WiringError, "#{member} declares no #{aggregate}.#{command} command")
+      end
+    end
+
     # The values a closed-set value object declares in any loaded bluebook.
     #
     # @param declaration [Bluebook::Declaration] the bluebook holding the value object

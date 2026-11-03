@@ -25,7 +25,7 @@ module Hecks
       def perform_dispatch(request)
         validate_caller_fields!(request)
         spec = resolve!(cli_for(request.runtime, request.bluebook), request.name, asking: false)
-        require_caller_for_role_gated!(spec, request.role)
+        admit_command!(request, spec)
         envelope = command_envelope(request.args, spec)
 
         result = with_caller(request.role, request.actor_id) { carry_out(request, spec, envelope) }

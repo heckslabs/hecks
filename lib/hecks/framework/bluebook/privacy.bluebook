@@ -242,4 +242,25 @@ Hecks.bluebook "Privacy" do
     on      "SubjectKey.SubjectKeyDestructionRefused"
     trigger SubjectKey::FailShred, with: { refusal: :refusal }
   end
+
+  # A value no launcher prints: wherever a person or a log would see it, it is masked as
+  # «secret:NAME». The declared secrets of an adapter are its own `secret` settings; the one
+  # secret no adapter declares is the password a database URL carries, because the URL holds it.
+  # `Hecks::Secrets` reads that name from here and keeps no copy of it.
+  aggregate "Secret" do
+    description "A value no launcher prints: wherever a person or a log would see it, it is masked as a secret name."
+
+    attribute :name, SecretName
+
+    identified_by :name
+
+    value_object "SecretName" do
+      attribute :value, String, matches: :present
+    end
+
+    # The one secret a database URL carries without any adapter declaring it.
+    value_object "CarriedSecret" do
+      attribute :value, String, one_of: ["database password"]
+    end
+  end
 end

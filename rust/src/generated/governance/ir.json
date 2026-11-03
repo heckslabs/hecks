@@ -1167,31 +1167,43 @@
           "givens": [
             {
               "description": "an actor names the role it holds",
-              "canonical": "actor_id.nil? || !role_name.nil?",
+              "canonical": "actor_id.value.to_s.empty? || !role_name.value.to_s.empty?",
               "ast": {
                 "op": "or",
                 "left": {
-                  "op": "lookup",
-                  "path": [
-                    "actor_id",
-                    "nil?"
-                  ]
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "actor_id",
+                        "value"
+                      ]
+                    }
+                  }
                 },
                 "right": {
                   "op": "not",
                   "expr": {
-                    "op": "lookup",
-                    "path": [
-                      "role_name",
-                      "nil?"
-                    ]
+                    "op": "empty",
+                    "receiver": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": [
+                          "role_name",
+                          "value"
+                        ]
+                      }
+                    }
                   }
                 }
               }
             },
             {
               "description": "a role-gated command has a caller bound",
-              "canonical": "role_gated.value != \"yes\" || !role_name.nil?",
+              "canonical": "role_gated.value != \"yes\" || !role_name.value.to_s.empty?",
               "ast": {
                 "op": "or",
                 "left": {
@@ -1216,11 +1228,17 @@
                 "right": {
                   "op": "not",
                   "expr": {
-                    "op": "lookup",
-                    "path": [
-                      "role_name",
-                      "nil?"
-                    ]
+                    "op": "empty",
+                    "receiver": {
+                      "op": "to_s",
+                      "receiver": {
+                        "op": "lookup",
+                        "path": [
+                          "role_name",
+                          "value"
+                        ]
+                      }
+                    }
                   }
                 }
               }

@@ -912,8 +912,12 @@ pub fn dispatch_admit(
             crate::kernel::GivenSpec {
                 description: "an actor names the role it holds",
                 expr: Expr::Or(
-                    Box::new(Expr::Lookup("actor_id.nil?")),
-                    Box::new(Expr::Not(Box::new(Expr::Lookup("role_name.nil?")))),
+                    Box::new(Expr::Empty(Box::new(Expr::ToS(Box::new(Expr::Lookup(
+                        "actor_id.value",
+                    )))))),
+                    Box::new(Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(
+                        Box::new(Expr::Lookup("role_name.value")),
+                    )))))),
                 ),
                 corrects_event: None,
             },
@@ -929,7 +933,9 @@ pub fn dispatch_admit(
                         left: Box::new(Expr::Lookup("role_gated.value")),
                         right: Box::new(Expr::Str("yes".to_string())),
                     }),
-                    Box::new(Expr::Not(Box::new(Expr::Lookup("role_name.nil?")))),
+                    Box::new(Expr::Not(Box::new(Expr::Empty(Box::new(Expr::ToS(
+                        Box::new(Expr::Lookup("role_name.value")),
+                    )))))),
                 ),
                 corrects_event: None,
             },
