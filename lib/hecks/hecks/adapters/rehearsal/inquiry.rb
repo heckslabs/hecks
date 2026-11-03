@@ -85,7 +85,8 @@ module Hecks
                                  unchecked: unchecked).merge(report.facts).merge(record_facts)
         end
 
-        # The domain and the ledger watermark the copy held: what a mint's record of this rehearsal names.
+        # The domain and the ledger watermark the copy held: what a mint's record of this rehearsal
+        # names.
         def record_facts
           { rehearsed_domain: @subject.bluebook_name, watermark: @store.watermark(@subject) }
         end
