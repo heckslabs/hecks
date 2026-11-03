@@ -54,6 +54,12 @@ module Hecks
         {"name"=>"release_only", "workflow"=>"ci.yml", "mode"=>"release_only", "pattern"=>"", "push"=>"before_sha", "label"=>"is this change only a release bump on a certified base?"}.freeze,
         {"name"=>"postgres_io_relevant_changed", "workflow"=>"ci-postgres-io-parallel.yml", "mode"=>"skips_unless", "pattern"=>"^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", "push"=>"skip", "label"=>"does this change touch anything rspec_postgres_io_parallel covers?"}.freeze
       ].freeze,
+      "CommandAudience" => [
+        {"name"=>"person"}.freeze,
+        {"name"=>"agent"}.freeze,
+        {"name"=>"ci"}.freeze,
+        {"name"=>"record"}.freeze
+      ].freeze,
       "Comparison" => [
         {"symbol"=>">=", "compares_less_than"=>"true", "compares_equal"=>"false", "negated"=>"true"}.freeze,
         {"symbol"=>"<=", "compares_less_than"=>"true", "compares_equal"=>"true", "negated"=>"false"}.freeze,
@@ -61,6 +67,14 @@ module Hecks
         {"symbol"=>">", "compares_less_than"=>"true", "compares_equal"=>"true", "negated"=>"true"}.freeze,
         {"symbol"=>"==", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"false"}.freeze,
         {"symbol"=>"!=", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"true"}.freeze
+      ].freeze,
+      "ContextRelationshipKind" => [
+        {"name"=>"customer_supplier"}.freeze,
+        {"name"=>"conformist"}.freeze,
+        {"name"=>"anticorruption_layer"}.freeze,
+        {"name"=>"shared_kernel"}.freeze,
+        {"name"=>"open_host"}.freeze,
+        {"name"=>"partnership"}.freeze
       ].freeze,
       "DispatchStage" => [
         {"name"=>"request"}.freeze,
@@ -89,6 +103,16 @@ module Hecks
         {"name"=>"Unauthorized"}.freeze,
         {"name"=>"UnknownArgument"}.freeze,
         {"name"=>"UnknownVerb"}.freeze
+      ].freeze,
+      "EdgeImplementation" => [
+        {"edge"=>"customer_supplier", "kind"=>"customer_supplier"}.freeze,
+        {"edge"=>"acl", "kind"=>"anticorruption_layer"}.freeze,
+        {"edge"=>"shared_kernel", "kind"=>"conformist"}.freeze,
+        {"edge"=>"shared_kernel", "kind"=>"shared_kernel"}.freeze,
+        {"edge"=>"shared_kernel", "kind"=>"open_host"}.freeze,
+        {"edge"=>"subscription", "kind"=>"conformist"}.freeze,
+        {"edge"=>"subscription", "kind"=>"customer_supplier"}.freeze,
+        {"edge"=>"subscription", "kind"=>"open_host"}.freeze
       ].freeze,
       "EntityDispatchOrder" => [
         {"step"=>"decode_arguments"}.freeze,
@@ -169,6 +193,12 @@ module Hecks
         {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>""}.freeze,
         {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By"}.freeze
       ].freeze,
+      "LanguageLimit" => [
+        {"name"=>"reaction_depth", "value"=>"5"}.freeze,
+        {"name"=>"reference_hops", "value"=>"4"}.freeze,
+        {"name"=>"chain_hops", "value"=>"8"}.freeze,
+        {"name"=>"outbox_stalled_after_seconds", "value"=>"600"}.freeze
+      ].freeze,
       "LoadOrder" => [
         {"glob"=>"*.port"}.freeze,
         {"glob"=>"*.adapter"}.freeze,
@@ -177,6 +207,54 @@ module Hecks
         {"glob"=>"*.hecksagon"}.freeze,
         {"glob"=>"*.world"}.freeze,
         {"glob"=>"*.contextmap"}.freeze
+      ].freeze,
+      "ModelCheckFinding" => [
+        {"kind"=>"conformist_translates", "severity"=>"warning", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
+        {"kind"=>"context_cycle", "severity"=>"warning", "check"=>"context_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"contradictory_relationship", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"core_conforms", "severity"=>"warning", "check"=>"classification_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
+        {"kind"=>"dead_compensation", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"dead_transition", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"deaf_handler", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"deaf_policy", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"deaf_trigger", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"deep_reaction_chain", "severity"=>"warning", "check"=>"reaction_depth_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"external_query", "severity"=>"error", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"generic_depends_on_core", "severity"=>"error", "check"=>"classification_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"key_by_value", "severity"=>"warning", "check"=>"reference_checks", "acknowledged_on"=>"aggregate", "subject"=>"attribute"}.freeze,
+        {"kind"=>"large_aggregate", "severity"=>"warning", "check"=>"aggregate_checks", "acknowledged_on"=>"aggregate", "subject"=>""}.freeze,
+        {"kind"=>"no_command_surface", "severity"=>"error", "check"=>"aggregate_checks", "acknowledged_on"=>"aggregate", "subject"=>""}.freeze,
+        {"kind"=>"one_of_branch_unhandled", "severity"=>"error", "check"=>"one_of_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"orphaned_reference", "severity"=>"warning", "check"=>"orphan_checks", "acknowledged_on"=>"aggregate", "subject"=>"referenced aggregate"}.freeze,
+        {"kind"=>"port_trigger", "severity"=>"warning", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"reaction_chain_search_capped", "severity"=>"warning", "check"=>"reaction_depth_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"redundant_relationship", "severity"=>"warning", "check"=>"redundant_relationships", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
+        {"kind"=>"relationship_kind_mismatch", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
+        {"kind"=>"rust_reserved_name", "severity"=>"warning", "check"=>"model_check", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"separate_ways_violated", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"stale_undelivered_expectation", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"stuck_state", "severity"=>"warning", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"terminal_has_exit", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unacknowledged_relationship", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unacknowledged_source", "severity"=>"error", "check"=>"context_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unarmed_compensation", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unbounded_reaction_loop", "severity"=>"warning", "check"=>"reaction_depth_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"undeclared_coupling", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unknown_command", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unknown_dispatch", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unknown_target_domain", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unknown_trigger", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unpublished_dependency", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
+        {"kind"=>"unreachable_pm_state", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unreachable_state", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unresolved_ask", "severity"=>"error", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unused_ask", "severity"=>"warning", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
+        {"kind"=>"unused_relationship", "severity"=>"warning", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze
+      ].freeze,
+      "ModelCheckLimit" => [
+        {"name"=>"large_aggregate_weight", "value"=>"40"}.freeze,
+        {"name"=>"suggested_commands", "value"=>"3"}.freeze,
+        {"name"=>"reaction_chain_search_work", "value"=>"10000"}.freeze
       ].freeze,
       "MutationOp" => [
         {"name"=>"set", "sign"=>""}.freeze,
@@ -189,10 +267,25 @@ module Hecks
         {"name"=>"delegate", "sign"=>""}.freeze,
         {"name"=>"corrects", "sign"=>""}.freeze
       ].freeze,
+      "MutualRelationshipKind" => [
+        {"name"=>"shared_kernel"}.freeze,
+        {"name"=>"partnership"}.freeze
+      ].freeze,
+      "NeedableFact" => [
+        {"name"=>"now"}.freeze,
+        {"name"=>"today"}.freeze
+      ].freeze,
       "NormalisationStrategy" => [
         {"name"=>"collapse_whitespace"}.freeze,
         {"name"=>"replace"}.freeze,
         {"name"=>"scale_call"}.freeze
+      ].freeze,
+      "OutboxStatus" => [
+        {"name"=>"pending"}.freeze,
+        {"name"=>"claimed"}.freeze,
+        {"name"=>"delivered"}.freeze,
+        {"name"=>"failed"}.freeze,
+        {"name"=>"refused"}.freeze
       ].freeze,
       "PassingConclusion" => [
         {"name"=>"success"}.freeze,

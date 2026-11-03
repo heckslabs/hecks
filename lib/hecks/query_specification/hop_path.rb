@@ -1,4 +1,5 @@
 require_relative "../naming"
+require_relative "../limit"
 
 module Hecks
   module QuerySpecification
@@ -20,7 +21,7 @@ module Hecks
 
       # Bounds hop chains: a longer one is a mistake, not a runaway walk, since each
       # step consumes one segment of the typed path.
-      MAX_HOPS = 8
+      MAX_HOPS = Hecks::Limit.of("LanguageLimit", "chain_hops")
 
       # Names the path segment a reference attribute answers to.
       #
