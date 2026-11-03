@@ -56,6 +56,17 @@ RSpec.describe "PipelineBoard readings" do
     expect(throughput(rows)).to include(value: 2, unit: "items / 24 h")
   end
 
+  def working(sessions)
+    tiles = Hecks::Adapters::PipelineBoard::Metrics.tiles({ ci_runs: { unknown: "x" }, sessions: sessions }, now)
+    tiles.find { |tile| tile[:id] == "working" }
+  end
+
+  it "counts only sessions dispatched for a Work row against the cap, and says how many are alive" do
+    live = [{ status: "busy", row: "a" }, { status: "busy", row: "" }, { status: "blocked", row: "" },
+            { status: "done", row: "b" }]
+    expect(working(live)).to include(value: 1, unit: "of 8", detail: "3 sessions alive, 1 blocked on you; load unknown")
+  end
+
   it "says unknown when the journal could not be read" do
     expect(throughput({ unknown: "no store" })).to include(state: "unknown", detail: "unknown: no store")
   end
