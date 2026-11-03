@@ -8,9 +8,9 @@ module Hecks
     # The `WorkDecisions` port's adapter for `Tickets::Work`: says whether the decision a step was
     # planned or reopened under is accepted (ADR 0175).
     #
-    # It reads the step's `Tickets::Adr` row from the registry it is built with. An accepted decision
-    # clears the step; a proposed, withdrawn or superseded one refuses it by name, and the bluebook
-    # lapses the step with that refusal.
+    # It reads the work item's `Tickets::Adr` record from the registry it is built with. An accepted
+    # decision clears the work item; a proposed, withdrawn or superseded one refuses it by name, and
+    # the bluebook lapses the work item with that refusal.
     class WorkDecisions
       STANDING = "accepted"
 
@@ -22,8 +22,8 @@ module Hecks
 
       # Clears a step whose decision is accepted.
       #
-      # @param held [Hash] the Work row: `work` and `decision`
-      # @return [Hash{Symbol => Hash}] `output:` the line that says which decision the step carries out
+      # @param held [Hash] the work item: `work` and `decision`
+      # @return [Hash{Symbol => Hash}] `output:` the line naming the decision the item carries out
       # @raise [ConsoleCapture::Failure] naming the step, its decision and the decision's status
       def check_decision(**held)
         key = plain(held[:work])
