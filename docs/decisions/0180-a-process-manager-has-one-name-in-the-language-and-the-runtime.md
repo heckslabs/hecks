@@ -1,8 +1,8 @@
 # A process manager has one name in the language and the runtime
 
-**Status:** Proposed. Date: 2026-11-02. Found by the ubiquitous-language survey of the same day;
-Tickets finding `ul-saga-vs-process-manager`. The choice in the decision is the owner's; this
-record lays out both sides and recommends one.
+**Status:** Accepted (owner, 2026-11-02): saga. Date: 2026-11-02. Found by the ubiquitous-language
+survey of the same day; Tickets finding `ul-saga-vs-process-manager`. This record laid out both sides
+and recommended process manager; the owner picked saga, and the language slice is built.
 
 ## Context
 
@@ -36,45 +36,40 @@ construct has `correlates_by`, `starts_on`, `ends_on`, `resumes`, `transition`, 
 
 ## Decision
 
-The owner picks one word. Both ways are laid out so the pick is a pick, not a search.
+**The word is saga.** It is what the runtime, the stores and the two newest decisions already say,
+and it is the word the DDD community uses for this construct. The record's recommendation was
+process manager, as the broader term; the owner chose the shorter one. The language moves to the
+runtime's word; the runtime does not change.
 
-**Recommended: process manager.** The keyword a domain author writes is the ubiquitous language,
-and the author writes `process_manager`. It is the broader term and the one that matches what the
-construct does: coordinate, correlate, wait, and sometimes compensate. "Saga" then survives in one
-place, as the name for the compensation path (`compensates`, and a future `SagaRun` if a
-compensation run gets an identity), which is what the word meant to begin with.
+The rule that follows is the one ADR 0103 set for "door": one word in the code, the bluebooks and
+the live docs; dated records keep what they said.
 
-Under this choice the renames are:
+The renames, in two slices:
 
-| Today | Becomes |
-|---|---|
-| `SagaState` | `ProcessManagerState` |
-| `SagaDeclared`, `SagaStateAttached` | `ProcessManagerDeclared`, `ProcessManagerStateAttached` |
-| `Runtime::SagaInterpreter` | `Runtime::ProcessManagerInterpreter` |
-| `saga_pending_dispatch.rb` | `process_manager_pending_dispatch.rb` |
-| `saga_persistence.rb`, `save_saga`, `NULL_SAGA_STORE` | `process_manager_persistence.rb`, `save_process_manager`, `NULL_PROCESS_MANAGER_STORE` |
-| `SagaDurabilityRule` | `ProcessManagerDurabilityRule` |
-| `saga_log` (Ruby and Rust) | `process_manager_log` |
-| ADR 0169 and 0170 titles | kept, as dated records; a note under each says the word was settled by this ADR |
-
-**The other way: saga.** It is shorter, it is what the runtime and the two newest ADRs say, and
-the DDD community uses it loosely for exactly this construct. Under this choice the keyword
-`process_manager` becomes `saga`, `ProcessManager` becomes `Saga`, the `ProcessManager*` value
-objects follow, and the old keyword is refused by name. The language changes; the runtime does not.
-The cost is a breaking grammar word in every client bluebook that declares one, and a word that
-says less than the construct does.
-
-Either way, the rule that follows is the one ADR 0103 set for "door": one word in the code, the
-bluebooks and the live docs; dated records keep what they said.
+| Today | Becomes | Slice |
+|---|---|---|
+| keyword `process_manager "Name" do` | `saga "Name" do`; `process_manager` refused by name, answered only under shadow-parsing for frozen era text | built |
+| aggregate `ProcessManager` (`lib/hecks/language/bluebook/process_manager.bluebook`) | `Saga` (`saga.bluebook`); keyword rows carry `was: "process_manager"` | built |
+| `ProcessManagerName`, `ProcessManagerText` | `SagaName`, `SagaText` | built |
+| `DSL::ProcessManagerBuilder` | `DSL::SagaBuilder` | built |
+| Rust parser keyword and context `"ProcessManager"`; `parse/process_manager.rs` | `"saga"`, `"Saga"`; `parse/saga.rs` | built |
+| `policies-and-process-managers.md`, `reference/process_manager.md` | `policies-and-sagas.md`, `reference/saga.md` | built |
+| "process manager" in live docs, help text, comments | "saga" | built |
+| IR key `process_managers`; `ir::ProcessManager`; `Bluebook::ProcessManager` and its `Behaviour` | `sagas`; `ir::Saga`; `Bluebook::Saga` | open: Work `saga-internal-identifiers` |
+| saga stores' `process_manager` column (`hecks_saga_instances`, `hecks_lambda_sagas`) | kept: a column rename is a shape move under ADR 0133's seals, and the column already lives in a table called sagas | kept |
+| ADR 0169 and 0170 titles | kept, as dated records; a note under each says the word was settled here | built |
 
 ## Consequences
 
-- Under the recommendation: no client bluebook changes. The runtime renames are internal, except
-  `save_saga`, which a custom persistence adapter implements; that adapter keeps working under its
-  old name for one era with a deprecation refusal that names the new one.
-- Under the alternative: a 7.0.0 grammar change beside ADR 0163's, refused by name.
-- The differential specs that compare `saga_log` between Ruby and Rust rename their fixture key
-  in both at once.
+- A breaking grammar word, planned for 8.0.0 beside ADR 0163's: every client bluebook that
+  declares one (`process_manager "…" do`) writes `saga` when it takes the bump. Work
+  `saga-client-sweep` names lifeadelics, emaho and miette2.
+- Frozen era text that still says `process_manager` keeps booting, because the DSL answers the old
+  word under shadow-parsing, the way `report` still answers for `read_model`.
+- The IR key `process_managers` and the Rust `ir::ProcessManager` are the one spelling left in
+  code. They are compared byte-for-byte between Ruby and Rust and read by the kernel, the codegen
+  and the host, so they move in their own slice, both sides at once, with the goldens regenerated.
+- Custom persistence adapters are untouched: `save_saga` already carried the chosen word.
 
 ## Open question
 
