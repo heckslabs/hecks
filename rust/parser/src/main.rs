@@ -420,6 +420,7 @@ const COVERED_PAIRS: &[(&str, &str)] = &[
     ("across", "Policy"),
     ("where", "Policy"),
     ("for_each", "Policy"),
+    ("root", "Policy"),
     ("correlates_by", "ProcessManager"),
     ("starts_on", "ProcessManager"),
     ("ends_on", "ProcessManager"),
