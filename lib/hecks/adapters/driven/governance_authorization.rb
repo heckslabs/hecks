@@ -8,11 +8,9 @@ module Hecks
     module GovernanceAuthorization
       module_function
 
-      # Reports whether `actor_id` holds a live grant of `role`.
-      #
-      # Liveness (not revoked, started by `as_of`) and scope are the bluebook's two Governance
-      # queries; this reads them and decides neither. `as_of` defaults to the bound clock, so a
-      # grant that starts later does not count yet.
+      # Reports whether `actor_id` holds a live grant of `role`. Liveness (not revoked, started
+      # by `as_of`) and scope are the bluebook's Governance queries; this reads them and decides
+      # neither. `as_of` defaults to the bound clock, so a later grant does not count yet.
       #
       # @param registry [Runtime::Registry] the booted registry
       # @param actor_id [String] the actor whose grants are checked

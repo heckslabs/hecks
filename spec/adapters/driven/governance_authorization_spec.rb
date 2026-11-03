@@ -127,7 +127,8 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     end
 
     it "does not count a future-dated grant on the scoped check either" do
-      assign(business, actor: "officer-5", role: "Compliance officer", starts_at: "2099-01-01") # scope: "Branch-1"
+      # scope: "Branch-1"
+      assign(business, actor: "officer-5", role: "Compliance officer", starts_at: "2099-01-01")
 
       expect(
         described_class.holds_role?(business.registry, actor_id: "officer-5", role: "Compliance officer",
