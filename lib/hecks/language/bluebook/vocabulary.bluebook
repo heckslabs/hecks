@@ -1076,7 +1076,7 @@ Hecks.bluebook "Bluebook" do
     #
     # `attests` is the comma list of names a signed note may carry for the row, which CI's own note
     # writer and a release bump's inherited note (`ci.yml`, between the `attested_checks` markers
-    # `hecks project_ci_gates` keeps) hold beside the `GateCheck` rows marked `attests: "yes"`. The
+    # `RegenerationRun.project_ci_gates!` keeps) hold beside the `GateCheck` rows marked `attests: "yes"`. The
     # `checks` row stands in the sweeps it runs as jobs. Empty means no note stands in for the row:
     # `release_consistency` is rerun on every commit.
     value_object "RequiredCheck" do
@@ -1152,9 +1152,9 @@ Hecks.bluebook "Bluebook" do
       member name: "Chris Young"
     end
 
-    # The dials of the workflows `hecks project_lanes` writes for the lanes: `promote` (promote.yml,
-    # one job to a lane that follows another) and `watch` (lane-watch.yml, one job to a lane with an
-    # `alert_after`). `cron` is the schedule of a workflow that runs on one, empty for one that does
+    # The dials of the workflows `RegenerationRun.project_lanes!` writes for the lanes: `promote`
+    # (promote.yml, one job to a lane that follows another) and `watch` (lane-watch.yml, one job
+    # to a lane with an `alert_after`). `cron` is the schedule of a workflow that runs on one, empty for one that does
     # not, and `timeout_minutes` is how long each of its jobs may run before GitHub stops it.
     value_object "LaneWorkflow" do
       attribute :name,            String
