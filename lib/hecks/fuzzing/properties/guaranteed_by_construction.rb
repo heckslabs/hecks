@@ -15,7 +15,7 @@ module Hecks
         "Aggregate#value_objects" => "the shape being coerced above — same entry point, same guarantee",
         # S17, ADR 0026 — saga_advances_follow_declared_handlers already walks
         # this list to find event_type/from_state/to_state; same entry point, same guarantee.
-        "ProcessManager#handlers" => "saga_advances_follow_declared_handlers already walks this list to find " \
+        "Saga#handlers"           => "saga_advances_follow_declared_handlers already walks this list to find " \
                                      "event_type/from_state/to_state — same entry point, same guarantee",
         "Aggregate#identified_by" => "CommandInterpreter's data-driven dispatch order refuses AlreadyExists " \
                                      "(command_interpreter.rb, command.creates?) for every creating command uniformly, " \

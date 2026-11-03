@@ -39,7 +39,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     ValueObject#aggregate ValueObject#name
     Entity#aggregate Entity#owner Entity#name Entity#description
     Policy#bluebook Policy#name Policy#aggregate
-    ProcessManager#bluebook ProcessManager#name
+    Saga#bluebook Saga#name
     ReadModel#bluebook ReadModel#name ReadModel#description
     Vocabulary#name Syntax#name Syntax#bluebook
   ].concat(META_DOMAIN_ALL_FEATURES.select { |f| f.end_with?("#position") }).freeze
@@ -60,7 +60,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "fuzzed idempotent command twice with the same arguments and compare " \
                                            "the record's state after the first delivery with the state after the " \
                                            "second",
-    "ProcessManager#endings"            => "a saga ends on any of its declared endings (1a26fd7a6), and " \
+    "Saga#endings"                      => "a saga ends on any of its declared endings (1a26fd7a6), and " \
                                            "sagas_rehydrate_cleanly only round-trips the saga's memory, so no property " \
                                            "drives a fuzzed saga to each ending. A property would advance a fuzzed saga " \
                                            "until it reaches each declared ending and compare the instance's ended state " \
@@ -154,7 +154,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "shape no era holds yet; spec/adapters/driven/postgres_era/" \
                                            "mints_era_write_spec.rb holds it. The fuzzer runs in Memory, which has no " \
                                            "eras, so no fuzzed sequence can reach what the flag changes",
-    "ProcessManager#resumes"            => "the command that resumes each stage of a saga, read by the saga " \
+    "Saga#resumes"                      => "the command that resumes each stage of a saga, read by the saga " \
                                            "recovery path; spec/dsl_spec.rb and spec/syntax_conformance_spec.rb hold its " \
                                            "declaration and parse. The crash-recovery specs drive the resume path itself"
   }.freeze
