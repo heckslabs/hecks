@@ -74,7 +74,7 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
   def record(step, **args) = calls << [step, args]
 
   def stand_ins
-    %i[board plan dispatch].to_h { |step| [step, ->(**args) { record(step, **args) }] }.merge(
+    %i[board plan dispatch eject lift].to_h { |step| [step, ->(**args) { record(step, **args) }] }.merge(
       land:   ->(**args) { land(args) },
       brief:  ->(**args) { record(:brief, **args) && "brief for #{args[:work]}" },
       retire: ->(**args) { record(:retire, **args) && git("worktree", "remove", "--force", args[:checkout]) }
@@ -135,7 +135,7 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
   it "finishes the branch onto main, boards main, files a red-* Work item and dispatches one coder", :aggregate_failures do
     id = kicked_id
 
-    expect(steps).to eq(%i[land board plan brief dispatch retire])
+    expect(steps).to eq(%i[land board plan brief dispatch retire eject lift])
     expect(args_of(:land)).to include(branch: "red-main-#{id}", confirm: true)
     expect(args_of(:dispatch)).to include(brief: "brief for red-#{id}", repo: repo)
   end

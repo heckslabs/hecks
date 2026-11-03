@@ -60,17 +60,23 @@ module Hecks
       # (a red-* fix). The restored tree is a tree CI already passed, so the flag is cleared
       # without waiting for CI on the restore.
       #
+      # The kick records RedFlagKicked (and RedFlagCleared) itself, and a refusal is answered
+      # `declined` with its reason, so the answer starts no further reaction: a flag raised deep
+      # in CI's saga has none left.
+      #
       # @param held [Hash] the `RedFlag` record: `checkout`
       # @return [Hash{Symbol => Hash}] `outcome:` (`restored` when the tree match cleared the
       #   flag, else `kicked`), the flag's facts, `detail:` the commits undone and `work_items:`
-      #   the Work item filed to land them again
-      # @raise [ConsoleCapture::Failure] when no flag stands, a fix is landed, the batch cannot
-      #   be told, a release is in it, the restore refuses, or local main holds foreign commits
+      #   the Work item filed to land them again; or `outcome:` `declined` and `output:` the reason
+      #   when no flag stands, a fix is landed, the batch cannot be told, a release is in it, the
+      #   restore refuses, or local main holds foreign commits
       def evict(**held)
-        kick = RedFlagKick.new(marker(held), checkout(held), registry: @registry, **@tune.slice(:effects), runner: runner)
+        kick = RedFlagKick.new(marker(held), checkout(held), registry: @registry, **@tune.slice(:effects), runner: runner, run: plain(held[:run]))
         kicked = kick.run
         answer(kicked[:restored] ? "restored" : "kicked", kicked[:flag],
                detail: kicked[:reverted].join(", "), work_items: kicked[:work_item])
+      rescue ConsoleCapture::Failure => e
+        { outcome: { value: "declined" }, output: { value: e.message } }
       end
 
       # @param held [Hash] the `RedFlag` record: `session`, `taking`, `checkout`

@@ -5,8 +5,10 @@ require "hecks/runtime/dispatcher"
 module Hecks
   module Adapters
     class RedFlagKick
-      # The commands a kick runs once its revert is on the branch: the landing, the train, the
-      # Work item, the coder's brief and dispatch, and the retirement. Each is a dispatch of its
+      # The commands a kick runs once its restore is on the branch: the landing, the train, the
+      # Work item, the coder's brief and dispatch, the retirement, and the flag's own record of
+      # the kick and of the lowering (a flag raised deep in CI's saga has no reaction depth left
+      # for them). Each is a dispatch of its
       # own, as an operator would make it, so the reaction depth the kick's policy reached does
       # not count against it. A spec replaces any step with a callable that takes the same keywords.
       class Effects
@@ -17,7 +19,9 @@ module Hecks
           plan:     "Tickets::Work.Plan",
           brief:    "Coder::Brief.Compose",
           dispatch: "Hecks::AgentRun.Dispatch",
-          retire:   "Hecks::Landing.Retire"
+          retire:   "Hecks::Landing.Retire",
+          eject:    "Hecks::RedFlag.Eject",
+          lift:     "Hecks::RedFlag.Lift"
         }.freeze
 
         # @param registry [Runtime::Registry, nil] the booted registry the steps dispatch through
