@@ -27,6 +27,25 @@ RSpec.describe Hecks::Tools::Lanes do
     end
   end
 
+  describe "the workflow dials" do
+    def workflow_text(path) = File.read(File.join(root, path))
+
+    it "write the watch schedule and job timeouts from the LaneWorkflow and PrebuiltBinary rows", :aggregate_failures do
+      watch = described_class.workflow_row("watch")
+      promote = described_class.workflow_row("promote")
+
+      expect(workflow_text(".github/workflows/lane-watch.yml")).to include("cron: \"#{watch["cron"]}\"")
+                                                                .and include("timeout-minutes: #{watch["timeout_minutes"]}")
+      expect(workflow_text(".github/workflows/promote.yml")).to include("timeout-minutes: #{promote["timeout_minutes"]}")
+    end
+
+    it "refuse a dial row that is missing" do
+      allow(Hecks::Vocabulary).to receive(:rows).with("LaneWorkflow").and_return([])
+
+      expect { described_class.workflow_row("watch") }.to raise_error(SystemExit).and output(/no LaneWorkflow row/).to_stderr
+    end
+  end
+
   describe "the committed files" do
     it "hold exactly what the Lane rows project" do
       drifted = described_class.projection(root).reject { |path, text| File.exist?(path) && File.read(path) == text }

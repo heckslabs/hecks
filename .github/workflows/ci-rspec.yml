@@ -19,7 +19,7 @@ on:
 jobs:
   # Separate job because a job-level `if:` cannot read a step output from its own job.
   # Lets `rspec_shard` skip wholesale when a local run attested this tree.
-  # Safe to skip on push: `rspec_shard` never reads this result on that trigger.
+  # A push reads this result too: `rspec_shard` runs on a push unless the tree is attested.
   ci_attestation_rspec:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -90,8 +90,8 @@ jobs:
   # The suite is split across shards, each running parallel workers, to cut wall-clock time.
   #
   # `always()` and the `.result` check are both required: a failed detector would otherwise
-  # skip this required check instead of running it. Also skipped on push (cache warming
-  # needs only the postgres_io_parallel shards) and when the tree is attested.
+  # skip this required check instead of running it. Skipped only when the tree is attested;
+  # a push runs it like any other trigger.
   #
   # No Postgres service: specs that boot examples/pizzas against PostgresEra are tagged
   # `io: true` and run in rspec_postgres_io. An untagged one fails here with

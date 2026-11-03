@@ -36,6 +36,12 @@ RSpec.describe "Hecks::Tools::GateMemo inputs" do
     ran_green
   end
 
+  it "reads each check's globs from the inputs of its GateCheck row" do
+    declared = Hecks::Vocabulary.rows("GateCheck").select { |row| row["inputs"].to_s.split.any? }.map { |row| row["id"] }
+
+    expect(memo::INPUTS.keys).to match_array(declared.uniq)
+  end
+
   it "skips every memoised check on an unchanged tree" do
     expect(ran_green).to eq([])
   end
