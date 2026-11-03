@@ -43,7 +43,11 @@ module Hecks
         "#{key} names ADR #{number}, which is #{status}, not accepted: accept it first with Adr.accept!"
       end
 
-      def plain(argument) = (argument.is_a?(Hash) ? argument[:value] || argument[:id] : argument).to_s
+      def plain(argument)
+        return argument.to_s unless argument.is_a?(Hash)
+
+        (argument.key?(:value) ? argument[:value] : argument[:id]).to_s
+      end
 
       def status_of(number)
         record = adr_repository&.find(number)
@@ -51,8 +55,13 @@ module Hecks
       end
 
       def adr_repository
-        aggregate = @registry&.bluebook("Tickets")&.aggregates&.find { |candidate| candidate.hecks_name == "Adr" }
+        aggregate = adr_aggregate
         aggregate && @registry.repository("Tickets", aggregate)
+      end
+
+      def adr_aggregate
+        bluebook = @registry&.bluebook("Tickets")
+        bluebook&.aggregates&.find { |candidate| candidate.hecks_name == "Adr" }
       end
     end
   end
