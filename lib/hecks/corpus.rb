@@ -30,8 +30,6 @@ module Hecks
       fixer:     "lib/hecks/fixer",
       # The PipelineBoard domain keeps its bluebook beside its hecksagon and adapters.
       board:     "lib/hecks/pipeline_board",
-      # The Pipeline domain: one passage per change, moved by the other domains' events.
-      pipeline:  "lib/hecks/pipeline",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
