@@ -25,20 +25,24 @@ module Hecks
         end
 
         def working(data)
-          return unknown_tile("working", "Sessions busy", data[:sessions]) unless data[:sessions].is_a?(Array)
+          return unknown_tile("working", "Dispatched sessions", data[:sessions]) unless data[:sessions].is_a?(Array)
 
-          busy, blocked = counted(data[:sessions])
+          alive, dispatched, blocked = counted(data[:sessions])
           fill = readable?(data[:fill]) ? data[:fill] : {}
           cap = fill[:cap] || DEFAULT_CAP
-          note = "#{blocked} blocked on you; #{load_note(fill)}"
-          tile("working", "Sessions busy", busy, "of #{cap}", state: pressure(busy, cap, blocked), detail: note)
+          note = "#{alive} sessions alive, #{blocked} blocked on you; #{load_note(fill)}"
+          tile("working", "Dispatched sessions", dispatched, "of #{cap}", state: pressure(dispatched, cap, blocked), detail: note)
         end
 
-        # @return [Array(Integer, Integer)] the sessions holding a seat (busy or blocked), and the
-        #   blocked ones among them
+        # The cap (`work_limit`) bounds sessions dispatched for a Work row; a session started by
+        # hand holds no row and no seat.
+        #
+        # @return [Array(Integer, Integer, Integer)] the live sessions (busy or blocked), those
+        #   among them dispatched for a Work row, and the blocked ones
         def counted(sessions)
-          [sessions.count { |session| %w[busy blocked].include?(session[:status]) },
-           sessions.count { |session| session[:status] == "blocked" }]
+          alive = sessions.select { |session| %w[busy blocked].include?(session[:status]) }
+          dispatched = alive.count { |session| !session[:row].to_s.empty? }
+          [alive.size, dispatched, alive.count { |session| session[:status] == "blocked" }]
         end
 
         # Attention when the cap is reached or anyone is waiting on a person.

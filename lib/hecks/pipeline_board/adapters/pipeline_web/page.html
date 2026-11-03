@@ -237,8 +237,9 @@ function renderFan(fan) {
       h("div", { class: "span " + s.status, style: "left:" + left + "%;width:" + width + "%", tip: s.name + " " + s.status + " " + clock(s.started) + " to " + (s.ended ? clock(s.ended) : "now") }));
   })), h("div", { class: "hours" }, h("span", {}, "-24 h"), h("span", {}, "-12 h"), h("span", {}, "now")));
   put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [s.name, s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
-  const fill = fan.fill, ok = fill && !isUnknown(fill), busy = sessions.filter((s) => s.status === "busy" || s.status === "blocked").length, cap = ok ? fill.cap : 8;
-  put("meters", h("div", {}, h("div", {}, "Sessions busy: " + busy + " of " + cap), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
+  const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
+  const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
+  put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap + " (" + alive.length + " alive, " + alive.filter((s) => s.status === "blocked").length + " blocked on you)"), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
     ok ? [h("div", {}, "Machine load: " + fill.load + " of " + fill.limit), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * fill.load / fill.limit) + "%" }))] : h("div", { class: "unknown-note" }, "load: unknown")));
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.row + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
   put("fill", ok ? [h("h2", { style: "margin-top:10px" }, "Dispatch.Fill dry run: would start " + fill.would_start.length),
