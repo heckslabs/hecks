@@ -425,7 +425,7 @@ function draw(now) {
   for (const n of nodes) if (!blocks.has(keyOf(n))) drawNode(n, now);
   drawParticles(now);
   const named = view.s >= fitScale * 2.2;
-  for (const n of nodes) if (!blocks.has(keyOf(n)) && (named || scooted(n))) fadeLabel(n, now);
+  for (const n of nodes) if (!blocks.has(keyOf(n)) && !(pulses.get(n.id) > now) && (named || scooted(n))) label(n, false, true);
   if (hover && !blocks.has(keyOf(hover))) label(hover, true);
   requestAnimationFrame(draw);
 }
@@ -435,15 +435,7 @@ function drawNode(n, now) {
   shape(n, x, y, r + (live && !reduceMotion ? 3 * heat : 0));
   ctx.fillStyle = live ? css("--series1") : css("--surface"); ctx.globalAlpha = live ? 0.4 + 0.6 * heat : 1; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : (showBounds ? colourOf(n.domain) : css("--ink2")); ctx.stroke();
-}
-/* A label eases out while its node pulses and back in afterwards, so a busy node never blinks. */
-const labelOpacity = new Map();
-function fadeLabel(n, now) {
-  const target = pulses.get(n.id) > now ? 0 : 1, held = labelOpacity.has(n.id) ? labelOpacity.get(n.id) : 1;
-  const next = held + (target - held) * 0.06;
-  labelOpacity.set(n.id, Math.abs(next - target) < 0.01 ? target : next);
-  if (next < 0.02) return;
-  ctx.globalAlpha = next; label(n, false, true); ctx.globalAlpha = 1;
+  if (live && heat > 0.6) label(n, false);
 }
 function label(n, boxed, quiet) {
   const x = sx(n) + 10, y = sy(n) - 8, text = quiet ? n.label : n.label + (n.domain ? "  " + keyOf(n) : "");

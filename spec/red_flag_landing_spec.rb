@@ -11,8 +11,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
   let(:repo) { File.join(dir, "main") }
   let(:flagging) { Hecks::Adapters::RedFlagging.new(checkout: repo) }
 
-  # rm_rf, not remove_entry: a detached `git maintenance` may still hold a lock in the repository.
-  after { FileUtils.rm_rf(dir) }
+  after { FileUtils.remove_entry(dir) }
 
   def git(*args, chdir: repo)
     out, status = Open3.capture2e("git", "-c", "user.name=t", "-c", "user.email=t@t", *args, chdir: chdir)
@@ -32,8 +31,6 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
   def build_repo(*branches)
     FileUtils.mkdir_p(repo)
     git("init", "-b", "main")
-    git("config", "maintenance.auto", "false")
-    git("config", "gc.auto", "0")
     File.write(File.join(repo, "README"), "x")
     git("add", ".")
     git("commit", "-m", "first")
