@@ -117,7 +117,7 @@ Hecks.hecksagon "Hecks" do
   end
 
   Hecks::RedFlag.port "Flagging" do
-    %w[Hoist SignIn Lower Survey Evict].each do |step|
+    %w[Hoist SignIn Lower Survey].each do |step|
       asks step, to: RedFlag do
         attribute :run, RunKey
         answers "FlagAnswered"
@@ -126,34 +126,6 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Status"
-  end
-
-  # Who may board the push train: the assignment is a marker in the repository's git directory, and
-  # the waiting read lists what landed on local main and is not on the remote.
-  Hecks::Pusher.port "Pushing" do
-    asks "Mark", to: Pusher do
-      attribute :run, RunKey
-      answers "PusherAnswered"
-      refuses "PusherRefused"
-    end
-
-    answers_query "Current"
-    answers_query "Waiting"
-  end
-
-  # The owner's desktop hears the flag go up and come down; the ask carries the flag's facts, so
-  # it needs nothing the record has not been handed yet.
-  Hecks::RedFlag.port "Alerts" do
-    asks "Flag", to: RedFlag do
-      attribute :run,     RunKey
-      attribute :outcome, Word
-      attribute :flag,    Word
-      attribute :commit,  Word
-      attribute :ci_run,  Report, optional: true
-      attribute :jobs,    Report, optional: true
-      answers "AlertShown"
-      refuses "AlertRefused"
-    end
   end
 
   Hecks::QaQuiesce.port "Quiescing" do

@@ -5,7 +5,6 @@ require_relative "console_capture"
 require_relative "red_flag_marker"
 require_relative "red_flag_report"
 require_relative "red_flag_survey"
-require_relative "red_flag_kick"
 
 module Hecks
   module Adapters
@@ -18,60 +17,21 @@ module Hecks
       # The failed jobs in that report.
       JOBS = /failed jobs: (.*)\z/
 
-      class << self
-        # @return [#call, nil] takes `(argv, chdir:)` and answers `[ok, output]`; the command
-        #   runner when nil. A spec replaces it with a fake GitHub.
-        attr_accessor :runner
-      end
-
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      # @param registry [Runtime::Registry, nil] the booted registry a kick lands and files through
-      # @param tune [Hash] `checkout:` the repository, `clock:`, `runner:` and `effects:`
-      #   (the kick's steps, for a spec)
-      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **tune)
-        @registry = registry
+      # @param tune [Hash] `checkout:` the repository, `clock:` and `runner:` (for a spec)
+      def initialize(aggregate: nil, settings: {}, root: nil, **tune)
         @tune = tune
       end
 
-      # Raises the flag for a red run, or notes the run on the flag that stands. A run the flag
-      # already records is answered `idle`, so the same CI result may be reported twice.
-      #
       # @param held [Hash] the `RedFlag` record: `commit`, `detail`, `work_items`, `checkout`
-      # @return [Hash{Symbol => Hash}] `outcome:` (`raised`, `noted` or `idle`) and the flag's facts
+      # @return [Hash{Symbol => Hash}] `outcome:` (`raised` or `noted`) and the flag's facts
       def hoist(**held)
-        facts = run_facts(held)
-        state, flag = marker(held).raise!(commit: pick(held, :commit, :landed).to_s, run: facts)
-        return unchanged("run #{facts[:ci_run]} is already recorded on #{flag["id"]}") if state == :unchanged
-
-        answer(state.to_s, flag, facts)
-      end
-
-      # The CI run, failed jobs, red Work items, last green head and repository of a red answer.
-      def run_facts(held)
         detail = pick(held, :detail, :report).to_s
-        { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], work_items: plain(held[:work_items]),
-          last_green: held[:last_green],
-          checkout: checkout(held) }
-      end
-
-      # Rolls the push batch since the last green head off main at once, as one restore commit.
-      # The kick records RedFlagKicked (and RedFlagCleared) itself, and a refusal is answered
-      # `declined` with its reason, so the answer starts no further reaction.
-      #
-      # @param held [Hash] the `RedFlag` record: `checkout`
-      # @return [Hash{Symbol => Hash}] `outcome:` (`restored` or `kicked`) with the flag's facts,
-      #   `detail:` the commits undone and `work_items:` the Work item filed; or `outcome:`
-      #   `declined` and `output:` the reason
-      def evict(**held)
-        kick = RedFlagKick.new(marker(held), checkout(held), registry: @registry, **@tune.slice(:effects), runner: runner,
-                                run: plain(held[:run]))
-        kicked = kick.run
-        answer(kicked[:restored] ? "restored" : "kicked", kicked[:flag],
-               detail: kicked[:reverted].join(", "), work_items: kicked[:work_item])
-      rescue ConsoleCapture::Failure => e
-        { outcome: { value: "declined" }, output: { value: e.message } }
+        facts = { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], work_items: plain(held[:work_items]) }
+        state, flag = marker(held).raise!(commit: pick(held, :commit, :landed).to_s, run: facts)
+        answer(state.to_s, flag, facts)
       end
 
       # @param held [Hash] the `RedFlag` record: `session`, `taking`, `checkout`
@@ -97,12 +57,11 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `outcome:` as {#hoist} and {#lower}, or `idle` while a run is
       #   still going
       def survey(**held)
-        seen = RedFlagSurvey.new(runner: runner, checkout: checkout(held)).latest
-        case seen[:verdict]
-        when :red then hoist(**held, commit: seen[:commit], detail: seen[:detail], last_green: seen[:last_green])
-        when :green then lower(**held)
-        else unchanged(seen[:detail])
-        end
+        seen = RedFlagSurvey.new(runner: @tune[:runner], checkout: checkout(held)).latest
+        return hoist(commit: seen[:commit], detail: seen[:detail]) if seen[:verdict] == :red
+        return lower(**held) if seen[:verdict] == :green
+
+        { outcome: { value: "idle" }, output: { value: seen[:detail] } }
       end
 
       # @param held [Hash] `checkout`
@@ -117,14 +76,9 @@ module Hecks
       def answer(outcome, flag, facts)
         { outcome: { value: outcome }, flag: { value: flag["id"] }, commit: { value: flag["commit"].to_s },
           ci_run: { value: facts[:ci_run].to_s }, jobs: { value: facts[:jobs].to_s },
-          work_items: { value: facts[:work_items].to_s },
-          session: { value: facts[:session].to_s }, taking: { value: facts[:taking].to_s },
-          detail: { value: facts[:detail].to_s }, checkout: { value: facts[:checkout].to_s } }
+          work_items: { value: facts[:work_items].to_s }, session: { value: facts[:session].to_s },
+          taking: { value: facts[:taking].to_s } }
       end
-
-      def unchanged(why) = { outcome: { value: "idle" }, output: { value: why.to_s } }
-
-      def runner = @tune[:runner] || self.class.runner
 
       def marker(held) = RedFlagMarker.new(git_dir(held), **@tune.slice(:clock))
 

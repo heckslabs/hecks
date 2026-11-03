@@ -229,104 +229,6 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # A message between sessions travels as an event, so it is journaled, readable by any session
-    # without an approval hold, and heard through the same route as every other event. A message is
-    # information: it grants no approval, authorizes no push, and changes no permission, and no
-    # command here acts on its text. `to` is a session id, a work item id (every session on that
-    # item hears it), or `all`, which the red flag announcements use.
-    aggregate "Message" do
-      description "One message to a session or a work item: sent, read by those it reaches, and answered."
-      created_by "Message.send!"
-
-      attribute :run,     RunKey
-      attribute :sender,  Sender
-      attribute :recipient, Recipient
-      attribute :kind,    MessageKind
-      attribute :text,    Text
-      attribute :work,    WorkItem, optional: true
-      attribute :reader,  Reader, optional: true
-      identified_by :run
-
-      value_object "RunKey" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Sender" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "Recipient" do
-        attribute :value, String, matches: :present
-      end
-
-      value_object "MessageKind" do
-        attribute :value, String, one_of: ["info", "request", "answer"]
-      end
-
-      # Free text. Nothing reads it as a command: it reaches no port.
-      value_object "Text" do
-        attribute :value, String
-      end
-
-      value_object "WorkItem" do
-        attribute :value, String
-      end
-
-      # The session that marked a message read, so the coordinator can see who has it.
-      value_object "Reader" do
-        attribute :value, String, matches: :present
-      end
-
-      lifecycle :status, default: "sent" do
-        transition "Read"   => "read",     from: ["sent", "read"]
-        transition "Answer" => "answered", from: ["sent", "read"]
-        mark :terminal, "answered"
-      end
-
-      command "Send" do
-        role "Operator"
-        goal "Send a message to a session, or to a work item so every session on it hears it"
-
-        attribute :run,     RunKey, sets: true
-        attribute :sender,  Sender, sets: true
-        attribute :recipient, Recipient, sets: true
-        attribute :kind,    MessageKind, sets: true
-        attribute :text,    Text, sets: true
-        attribute :work,    WorkItem, optional: true, sets: true
-
-        given("a message says something") { !text.value.to_s.strip.empty? }
-
-        emits MessageSent
-      end
-
-      command "Read" do
-        role "Operator"
-        goal "Record that a session has read a message"
-
-        reference_to Message
-        attribute :reader, Reader, sets: true
-
-        emits MessageRead
-      end
-
-      command "Answer" do
-        role "Operator"
-        goal "Answer a message; the answer is a message of its own kind"
-
-        reference_to Message
-        attribute :text, Text, sets: true
-
-        given("an answer says something") { !text.value.to_s.strip.empty? }
-
-        emits MessageAnswered
-      end
-
-      query "Unread" do
-        description "Every message sent and not yet read; the inbox script narrows it to one session."
-        where(status: "sent")
-      end
-    end
-
     # One check of every run still started, for a driver that watches sessions. The launcher also
     # answers it as `agent_run.check_all!`.
     aggregate "SessionSweep" do
@@ -562,10 +464,5 @@ Hecks.bluebook "Hecks" do
       on      "AgentRun.RemoveRefused"
       trigger AgentRun::Retain, with: { refusal: :refusal }
     end
-
-    # The red flag reaches every session by this route too: `Message.Send` with sender `hecks` and
-    # recipient `all`, which every inbox hears. A policy on `RedFlagRaised`, `RedFlagCheckedIn` or
-    # `RedFlagCleared` would sit at reaction depth 5 on the CI path (`MainIntegration`), so the flag
-    # coders call `Message.Send` from a step with depth to spare instead.
   end
 end
