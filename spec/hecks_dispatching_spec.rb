@@ -21,7 +21,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
   def reasons(result) = result.skipped.to_h { |skip| [skip.key, skip.reason] }
 
   def work_items_double(planned, started = [])
-    instance_double(described_class::WorkItems, planned: planned, started: started, runs: {})
+    instance_double(described_class::WorkItems, planned: planned, started: started, runs: {}, lessons: [])
   end
 
   def result(out, err, success)
