@@ -34,8 +34,8 @@ RSpec.describe Hecks::Tools::Lanes do
       watch = described_class.workflow_row("watch")
       promote = described_class.workflow_row("promote")
 
-      expect(workflow_text(".github/workflows/lane-watch.yml")).to include("cron: \"#{watch["cron"]}\"")
-                                                                .and include("timeout-minutes: #{watch["timeout_minutes"]}")
+      expect(workflow_text(".github/workflows/lane-watch.yml"))
+        .to include("cron: \"#{watch["cron"]}\"").and include("timeout-minutes: #{watch["timeout_minutes"]}")
       expect(workflow_text(".github/workflows/promote.yml")).to include("timeout-minutes: #{promote["timeout_minutes"]}")
     end
 
