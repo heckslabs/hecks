@@ -1,3 +1,4 @@
+require "hecks/vocabulary"
 require_relative "redundant_relationships"
 
 module Hecks
@@ -9,18 +10,19 @@ module Hecks
       module ContextMapChecks
         include RedundantRelationships
 
+        # @param rows [Array<Hash>] the `EdgeImplementation` rows, one per edge and kind
+        # @return [Hash{String => Array<Symbol>}] each derived edge kind to the kinds it may implement
+        def self.kinds_by_edge(rows)
+          rows.group_by { |row| row["edge"] }.transform_values { |edge_rows| edge_rows.map { |row| row["kind"].to_sym } }
+        end
+
         # The declared kinds each derived edge kind may implement. An attach and a subscription are
         # `conformist` unless the map says another kind for the pair; `shared_kernel` is declared,
         # never derived, since the wiring cannot tell a co-owned model from one taken as given.
-        IMPLEMENTS = {
-          "customer_supplier" => %i[customer_supplier],
-          "acl"               => %i[anticorruption_layer],
-          "shared_kernel"     => %i[conformist shared_kernel open_host],
-          "subscription"      => %i[conformist customer_supplier open_host]
-        }.freeze
+        IMPLEMENTS = kinds_by_edge(Hecks::Vocabulary.rows("EdgeImplementation")).freeze
 
         # Kinds with no direction: either context may be the one that depends.
-        MUTUAL = %i[shared_kernel partnership].freeze
+        MUTUAL = Hecks::Vocabulary.symbols("MutualRelationshipKind").freeze
 
         # What separates a context or aggregate from an event's own name: `Billing.InvoicePaid`.
         QUALIFIER = /[.:]+/

@@ -1,3 +1,5 @@
+require "hecks/vocabulary"
+
 module Hecks
   module Bluebook
     # A context map as data: the contexts a system holds, who owns each, and how pairs of them
@@ -8,8 +10,7 @@ module Hecks
     class ContextMap
       # The relationship kinds a map may declare. `separate_ways` is not one: it is the absence
       # of a relationship, kept in {#separate_ways}.
-      KINDS = %i[customer_supplier conformist anticorruption_layer shared_kernel open_host
-                 partnership].freeze
+      KINDS = Hecks::Vocabulary.symbols("ContextRelationshipKind").freeze
 
       # The kind of the derived edge that an `attaches` makes.
       ATTACH = "shared_kernel".freeze

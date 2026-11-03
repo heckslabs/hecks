@@ -1,21 +1,28 @@
+require "hecks/vocabulary"
+
 module Hecks
   module Bluebook
     # The findings a declaration may acknowledge, and the rule an acknowledgement must meet: a
     # reason, and a kind the check really emits (ADR 0150).
     module Acknowledgements
+      # The rows of the language's ModelCheckFinding table (vocabulary.bluebook) that say what may
+      # be acknowledged; the kinds below are read from it.
+      FINDINGS = Hecks::Vocabulary.rows("ModelCheckFinding")
+
       # The finding kinds an aggregate may acknowledge.
-      AGGREGATE_KINDS = %i[large_aggregate key_by_value orphaned_reference no_command_surface].freeze
+      AGGREGATE_KINDS = FINDINGS.select { |row| row["acknowledged_on"] == "aggregate" }
+                                .map { |row| row["kind"].to_sym }.freeze
 
       # The kinds that are reported once per attribute or per referenced aggregate, so an
       # acknowledgement of one names which (`of:`): the attribute for `key_by_value`, the
       # referenced aggregate for `orphaned_reference`.
-      SUBJECT_KINDS = %i[key_by_value orphaned_reference].freeze
+      SUBJECT_KINDS = FINDINGS.reject { |row| row["subject"].empty? }.map { |row| row["kind"].to_sym }.freeze
 
       # The finding kinds a context-map relationship may acknowledge: those about the relationship
       # itself. An undeclared coupling or a separate-ways breach has no relationship to carry the
       # allowance; the fix is to declare one.
-      RELATIONSHIP_KINDS = %i[relationship_kind_mismatch conformist_translates unpublished_dependency
-                              unused_relationship redundant_relationship core_conforms].freeze
+      RELATIONSHIP_KINDS = FINDINGS.select { |row| row["acknowledged_on"] == "relationship" }
+                                   .map { |row| row["kind"].to_sym }.freeze
 
       # @param owner [String] the declaration carrying the word, for the message
       # @param finding [Symbol, String] the kind being acknowledged
