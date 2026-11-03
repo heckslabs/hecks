@@ -136,10 +136,14 @@ module Hecks
       # @return [Hash] the bluebook's `CacheMissRule` row: the step a job that materializes the
       #   generated Rust shows for its composite action, and the seconds beyond which the cache missed
       def miss_rule
-        @miss_rule ||= begin
-          bluebook = (@registry || Hecks.describe(BLUEBOOK_DIRECTORY)).bluebook("CiSpeed")
-          bluebook.aggregates.flat_map(&:value_objects).find { |object| object.hecks_name == "CacheMissRule" }.members.first
-        end
+        @miss_rule ||= rows_of("CacheMissRule").first
+      end
+
+      # @return [Array<Hash>] the `member` rows of one value object of the CiSpeed bluebook
+      def rows_of(object)
+        bluebook = (@registry || Hecks.describe(BLUEBOOK_DIRECTORY)).bluebook("CiSpeed")
+        declared = bluebook.aggregates.flat_map(&:value_objects)
+        declared.find { |candidate| candidate.hecks_name == object }.members
       end
 
       def seconds(from, to)
