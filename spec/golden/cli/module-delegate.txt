@@ -9,6 +9,11 @@ commands:
     dispatch!   Hand one brief to a background Claude session working in a directory
     check!      Read the state a started session's job is in, and record it when it changed
     tidy!       Remove the finished session of one run, unless it is unfinished or a person took it over
+  Message:
+    One message to a session or a work item: sent, read by those it reaches, and answered.
+    send!       Send a message to a session, or to a work item so every session on it hears it
+    read!       Record that a session has read a message
+    answer!     Answer a message; the answer is a message of its own kind
   SessionSweep:
     One check of every started run's session: each change of state is recorded on its run.
     check_all!  Check every run whose session was started and is not known to have ended (also: agent_run.check_all!)
@@ -18,6 +23,7 @@ commands:
     settle!     Check the started sessions and finish the Work item of each that is done, or yield the Work item of one that stopped
 
 queries (nothing here changes anything):
+  Message.unread  Every message sent and not yet read; the inbox script narrows it to one session.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
@@ -37,6 +43,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 21 internal commands and queries
-  hecks --maintainer           also list the 461 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 468 commands and queries for working on hecks itself
   a command is called with its aggregate — AgentRun.dispatch!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
