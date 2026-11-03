@@ -7,16 +7,9 @@ module Hecks
   module Tools
     # Blocks a push while a file it touches still carries a stub.
     #
-    # A bug found mid-task is filed as a Finding and stubbed in the code, so the coder can keep going
-    # locally. The stub is a comment that names the finding:
-    #
-    #   # hecks-stub: <finding key>        (Ruby)
-    #   // hecks-stub: <finding key>       (Rust)
-    #
-    # A push to main fails while any file in the pushed range (`base...HEAD`) holds such a marker,
-    # and a marker that names no finding fails too. Removing the marker is what the fix does, so
-    # the gate clears when the QA fix lands. Only touched files are checked: an old stub elsewhere
-    # does not block unrelated work.
+    # A stub is a comment naming the Finding it stands in for: `# hecks-stub: <key>` in Ruby,
+    # `// hecks-stub: <key>` in Rust. A push fails while a file in `base...HEAD` holds one, or a
+    # marker that names no finding. Removing the marker is what the fix does.
     #
     #   hecks ... script=stub_scope              # base defaults to origin/main
     #   hecks ... script=stub_scope base=REF     # any other base
@@ -56,11 +49,19 @@ module Hecks
         lines = grep_stubs(files, root)
         return lines if lines.is_a?(Integer)
 
-        stubs = find(lines)
+        report(find(lines))
+      end
+
+      # Prints the stubs the push still carries, with the instruction to clear them.
+      #
+      # @param stubs [Array<Stub>] the stubs found in the touched files
+      # @return [Integer] 0 when there are none, 1 otherwise
+      def report(stubs)
         return 0 if stubs.empty?
 
         stubs.each { |stub| $stdout.puts stub.to_s }
-        $stdout.puts "\n[stub_scope] #{stubs.size} stub(s) in files this push touches. Fix the finding and remove the marker before pushing to main."
+        $stdout.puts "\n[stub_scope] #{stubs.size} stub(s) in files this push touches."
+        $stdout.puts "Fix each finding and remove its marker before pushing to main."
         1
       end
 
