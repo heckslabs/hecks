@@ -3,9 +3,8 @@
 require "spec_helper"
 require "json"
 
-# The Pipeline bluebook through the booted Hecks domain, in Memory: a planned Work item opens a
-# passage, starting the Work item dispatches it, and the stages after that move in order and refuse
-# to
+# The Pipeline bluebook through the booted Hecks domain, in Memory: a planned Work row opens a
+# passage, starting the row dispatches it, and the stages after that move in order and refuse to
 # skip. The landing, push, flag, promotion and release policies are driven by events other
 # domains emit from real git and GitHub, so here their commands are sent directly.
 RSpec.describe "Pipeline passages" do
@@ -33,18 +32,18 @@ RSpec.describe "Pipeline passages" do
 
   def refusal(change, verb, *args) = launch("pipeline", "Passage.#{verb}!", "to=#{change}", *args, "--wait").join
 
-  it "opens a passage at planned when a Work item is planned" do
+  it "opens a passage at planned when a Work row is planned" do
     plan("p-plan")
     expect(passage("p-plan")).to include("stage" => "planned")
   end
 
-  it "dispatches the passage to the session that started the Work item", :aggregate_failures do
+  it "dispatches the passage to the session that started the row", :aggregate_failures do
     plan("p-start")
     start("p-start")
     expect(passage("p-start")).to include("stage" => "dispatched", "session" => "s1")
   end
 
-  it "dispatches a yielded Work item again to the session that starts it next", :aggregate_failures do
+  it "dispatches a yielded row again to the session that starts it next", :aggregate_failures do
     plan("p-again")
     start("p-again")
     yield_row("p-again")

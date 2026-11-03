@@ -5,8 +5,7 @@ require_relative "cache"
 
 module Hecks
   module Adapters
-    # Reads `Dispatch.Fill` as a dry run: which planned Work items it would start and which it skips
-    # and
+    # Reads `Dispatch.Fill` as a dry run: which planned rows it would start and which it skips and
     # why, plus the load and cap it saw. It never passes `confirm`, so nothing starts.
     class PipelineFill
       HEADER = /\Aload ([\d.]+) \(limit ([\d.]+), (\d+) cpus\); cap (\d+), (\d+) started/

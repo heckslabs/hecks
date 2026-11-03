@@ -135,12 +135,6 @@ Hecks.behaviors "Codebase" do
     expect refused: "must match"
   end
 
-  test "ProjectGlossary refuses a bluebook name that is not a constant" do
-    tests "ProjectGlossary", on: "RegenerationRun"
-    input run: { value: "glossary-1" }, domain: { value: "qa" }, bluebook: { value: "quality control" }
-    expect refused: "must match"
-  end
-
   test "DecideCiGate refuses a run that is not named" do
     tests "DecideCiGate", on: "RegenerationRun"
     input run: { value: "" }, gate: { value: "runtime_changed" }

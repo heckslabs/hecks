@@ -328,7 +328,7 @@ Hecks.bluebook "Hecks" do
     # `landing` wait window, saying its place and the holder. The holder beats a heartbeat while it works; a
     # ticket silent for the stale window is abandoned and removed, which the next landing's report says. A
     # train holds the front place and lands every ready branch behind it in order, skipping one that
-    # conflicts, fails the quick gate or overlaps a started Work item, and telling its waiting landing why.
+    # conflicts, fails the quick gate or overlaps a started row, and telling its waiting landing why.
     aggregate "Landing" do
       description "One branch landed on local main, or one worktree retired: done, or refused with the reason."
       acknowledges :key_by_value, "the run id of the LinkedTree this landing takes its checkout and branch from, and a landing whose id names no recorded tree falls back to the explicit checkout and branch, so a reference that refused an unknown tree would break the fallback",
@@ -581,10 +581,10 @@ Hecks.bluebook "Hecks" do
       trigger Landing::Refuse, with: { refusal: :refusal }
     end
 
-    # A landed branch finishes the Work item it was cut for. The LandedWork port finds the open Work item the
+    # A landed branch finishes the Work row it was cut for. The LandedWork port finds the open row the
     # branch names (the whole branch name, else the name without a leading `qa/`) and answers its key;
-    # a branch with no open Work item is refused by the port and nothing follows. The Tickets bluebook finishes
-    # the Work item that was found (FinishWorkWhenBranchLanded).
+    # a branch with no open row is refused by the port and nothing follows. The Tickets bluebook finishes
+    # the row that was found (FinishWorkWhenBranchLanded).
     policy "FindWorkWhenBranchLanded" do
       on      "Landing.BranchLanded"
       ask     :find_landed_work, with: { branch: :branch }

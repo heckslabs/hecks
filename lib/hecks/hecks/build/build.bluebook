@@ -305,18 +305,6 @@ Hecks.bluebook "Hecks" do
       attribute :gate,      GateName, optional: true
       attribute :domains,   DomainList, optional: true
       attribute :workers,   Count, optional: true
-      attribute :domain,    DomainPath, optional: true
-      attribute :bluebook,  BluebookName, optional: true
-
-      # A domain directory, as the caller stands: the one whose glossary is projected.
-      value_object "DomainPath" do
-        attribute :value, String, matches: :present
-      end
-
-      # The bluebook under that directory whose glossary is projected, by name.
-      value_object "BluebookName" do
-        attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*$'
-      end
 
       # A `CiGate` row of the Vocabulary bluebook, by name.
       value_object "GateName" do
@@ -406,24 +394,6 @@ Hecks.bluebook "Hecks" do
         emits ProjectToolsDocRequested
       end
 
-      # A domain's committed glossary is what `Introspection.glossary` answers for it, written under
-      # its `glossary/` folder; spec/glossary_spec.rb refuses a drift, so the files are regenerated
-      # here, never edited.
-      command "ProjectGlossary" do
-        role "Maintainer"
-        goal "Write a bluebook's Ubiquitous Language glossary into its domain's glossary folder, or with check only compare it"
-
-        attribute :domain,   DomainPath, sets: true
-        attribute :bluebook, BluebookName, sets: true
-        attribute :check,    Switch, optional: true, sets: true
-        attribute :run,      RunKey, sets: true
-        attribute :confirm,  Switch, optional: true, sets: true
-
-        sets :operation, to: "project_glossary"
-
-        emits ProjectGlossaryRequested
-      end
-
       command "DecideCiGate" do
         role "Maintainer"
         goal "Say whether this run's change touches what a CiGate row guards, as the gated job's detector"
@@ -459,11 +429,6 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenProjectToolsDocRequested" do
       on      "RegenerationRun.ProjectToolsDocRequested"
-      ask     :examine, with: { run: :run }
-    end
-
-    policy "ExamineWhenProjectGlossaryRequested" do
-      on      "RegenerationRun.ProjectGlossaryRequested"
       ask     :examine, with: { run: :run }
     end
 

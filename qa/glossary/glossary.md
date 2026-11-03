@@ -1907,7 +1907,7 @@ Always true: a patch says where it lives.
 
 ## Push nudge
 
-> One check of whether a push of local main is due: whether it is, whether the push-due Work item is already open, and the numbers.
+> One check of whether a push of local main is due: whether it is, whether the push-due Work row is already open, and the numbers.
 
 ### Actions
 

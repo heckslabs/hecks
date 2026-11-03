@@ -4,7 +4,7 @@ require "pathname"
 
 module Hecks
   module Adapters
-    # When two file areas overlap: the one rule behind a Work item's `area` claim and a Landing's
+    # When two file areas overlap: the one rule behind a Work row's `area` claim and a Landing's
     # changed files. An area is a path prefix (`lib/hecks`) or a glob (`lib/**/*.rb`), compared by
     # whole segments, so `lib/hecks` holds `lib/hecks/a` and not `lib/hecks_extra`.
     #

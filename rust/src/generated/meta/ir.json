@@ -36436,7 +36436,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work item; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
               ]
             ],
             [
@@ -38880,75 +38880,6 @@
               [
                 "note",
                 "not user-facing; ProcessPool starts it"
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "Term",
-          "attributes": [
-            {
-              "name": "term",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "aggregate",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "meaning",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "never",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": true,
-          "members": [
-            [
-              [
-                "term",
-                "work item"
-              ],
-              [
-                "aggregate",
-                "Work"
-              ],
-              [
-                "meaning",
-                "One planned, started or done piece of Work, keyed by its id: what the Tickets bluebook's Work aggregate holds, what a brief is composed for, what a branch is cut for and what a landing finishes."
-              ],
-              [
-                "never",
-                "row"
               ]
             ]
           ]

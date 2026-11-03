@@ -7,8 +7,7 @@ require "hecks/hecks/adapters/dispatching"
 require "hecks/hecks/adapters/settings_reading"
 
 # How big a push is: the size class in the `push_rehearsal.due` line, the title of the `push-due`
-# work item, the order the dispatch fill plans it in, the train's report line, and that no size
-# refuses a
+# row, the order the dispatch fill plans it in, the train's report line, and that no size refuses a
 # push. Temp repositories with a local bare remote; the clock is injected and the registry stubbed.
 RSpec.describe Hecks::Adapters::PushSize, :io do
   let(:scratch) { Dir.mktmpdir("hecks-push-size") }
@@ -81,7 +80,7 @@ RSpec.describe Hecks::Adapters::PushSize, :io do
     expect(line).to include("URGENT PUSH NOW: 41 commits is over the 15 you set (urgent at 40)")
   end
 
-  it "titles the push-due work item by size class", :aggregate_failures do
+  it "titles the push-due row by size class", :aggregate_failures do
     expect(title(3)).to eq("a push of main is due")
     expect(title(16)).to eq("a push of main is due, 16 commits")
     expect(title(41)).to eq("URGENT: a push of main is due, 41 commits")
@@ -96,24 +95,24 @@ RSpec.describe Hecks::Adapters::PushSize, :io do
   end
 
   describe "the dispatch fill" do
-    def item(key, title) = Hecks::Adapters::Dispatching::Plan::Item.new(key: key, title: title, detail: "", area: [])
+    def row(key, title) = Hecks::Adapters::Dispatching::Plan::Row.new(key: key, title: title, detail: "", area: [])
 
-    def work_items(pushing)
-      Hecks::Adapters::Dispatching::WorkItems.new(nil).tap do |items|
-        allow(items).to receive(:having).with("planned").and_return([[1, item("later", "later")], [2, pushing]])
+    def rows(pushing)
+      Hecks::Adapters::Dispatching::Rows.new(nil).tap do |rows|
+        allow(rows).to receive(:rows).with("planned").and_return([[1, row("later", "later")], [2, pushing]])
       end
     end
 
-    it "plans an urgent push-due work item first" do
-      due = item("push-due", "URGENT: a push of main is due, 41 commits")
+    it "plans an urgent push-due row first" do
+      due = row("push-due", "URGENT: a push of main is due, 41 commits")
 
-      expect(work_items(due).planned.map(&:key)).to eq(%w[push-due later])
+      expect(rows(due).planned.map(&:key)).to eq(%w[push-due later])
     end
 
-    it "leaves a plain push-due work item in plan order" do
-      plain = item("push-due", "a push of main is due")
+    it "leaves a plain push-due row in plan order" do
+      plain = row("push-due", "a push of main is due")
 
-      expect(work_items(plain).planned.map(&:key)).to eq(%w[later push-due])
+      expect(rows(plain).planned.map(&:key)).to eq(%w[later push-due])
     end
   end
 

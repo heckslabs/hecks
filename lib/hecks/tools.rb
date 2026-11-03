@@ -28,7 +28,6 @@ module Hecks
       "project_ci_pipeline"            => ["tools/ci_workflows", "CiWorkflows"],
       "project_lanes"                  => ["tools/lanes", "Lanes"],
       "project_tools_doc"              => ["tools/tools_doc", "ToolsDoc"],
-      "project_glossary"               => ["tools/project_glossary", "ProjectGlossary"],
       "project_deploy"                 => ["tools/deploy_recipe", "DeployRecipe"],
       "project_site"                   => ["tools/site_routes", "SiteRoutes"],
       "lint_deploy_recipes"            => ["tools/deploy_recipe_lint", "DeployRecipeLint"],

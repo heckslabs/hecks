@@ -4,7 +4,7 @@ require "tmpdir"
 require "open3"
 
 # A landing tidies up after itself, and refuses a branch that changes ground another started Work
-# item holds. Every example builds its own throwaway repository; the real repository is never read.
+# row holds. Every example builds its own throwaway repository; the real repository is never read.
 RSpec.describe Hecks::Adapters::GitLanding do
   let(:dir) { Dir.mktmpdir("hecks-landing-spec") }
   let(:repo) { File.join(dir, "main") }
@@ -40,7 +40,7 @@ RSpec.describe Hecks::Adapters::GitLanding do
   def report = land.dig(:report, :value)
 
   def holds(key, *area)
-    allow(Hecks::Adapters::StartedWork).to receive(:items).and_return([{ key: key, area: area }])
+    allow(Hecks::Adapters::StartedWork).to receive(:rows).and_return([{ key: key, area: area }])
   end
 
   it "removes the worktree and deletes the branch once they are on main", :aggregate_failures do
@@ -89,7 +89,7 @@ RSpec.describe Hecks::Adapters::GitLanding do
     expect(report).to include("kept work/a", "not on main")
   end
 
-  it "refuses a branch that changes files another started work item holds, naming both", :aggregate_failures do
+  it "refuses a branch that changes files another started row holds, naming both", :aggregate_failures do
     build_repo("lib/hecks/tickets/a.rb")
     holds("work/other", "lib/hecks/tickets")
 
@@ -97,14 +97,14 @@ RSpec.describe Hecks::Adapters::GitLanding do
     expect(File.exist?(tree)).to be(true)
   end
 
-  it "lands a branch whose changes are outside every other work item's area" do
+  it "lands a branch whose changes are outside every other row's area" do
     build_repo("lib/a.rb")
     holds("work/other", "spec")
 
     expect(report).to include("onto main")
   end
 
-  it "does not count the landing's own work item as a rival" do
+  it "does not count the landing's own row as a rival" do
     build_repo("lib/a.rb")
     holds("work/a", "lib")
 

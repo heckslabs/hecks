@@ -236,7 +236,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Unlanded"
   end
 
-  # The Work item a landed branch was cut for: the port reads the Work items and answers the open
+  # The Tickets row a landed branch was cut for: the port reads the Work rows and answers the open
   # one the branch names, refusing when there is none.
   Hecks::Landing.port "LandedWork" do
     asks "FindLandedWork", to: Landing do
@@ -299,7 +299,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
-  # The outside a filling of the queue reaches: the Work items, the machine's load and the freeze.
+  # The outside a filling of the queue reaches: the Work rows, the machine's load and the freeze.
   Hecks::Dispatch.port "Dispatching" do
     asks "Choose", to: Dispatch do
       attribute :run, DispatchKey

@@ -20,7 +20,7 @@ module Hecks
         # The world verb that carries what every session starts with.
         SESSION = "session_environment"
 
-        # Minutes a started work item may run when the caller names no budget.
+        # Minutes a started row may run when the caller names no budget.
         BUDGET_MINUTES = 90
 
         # What `uptime` prints before the 1-minute load, on macOS and Linux.
@@ -57,7 +57,7 @@ module Hecks
         #   count
         def max_load = (declared(MAX_LOAD)[:limit] || @cpus).to_f
 
-        # @return [Integer] the cap on started work items
+        # @return [Integer] the cap on started rows
         def cap = WorkLimits.cap(@registry)
 
         # @return [Integer, nil] the most spec files a session may run per call, from the Hecks

@@ -5,8 +5,7 @@ module Hecks
     class Dispatching
       # The words a session is started with, laid out from a composed brief. Every sentence in it is
       # the
-      # Coder bluebook's; this only orders the sections, fills in the work item's key and lists the
-      # areas
+      # Coder bluebook's; this only orders the sections, fills in the row's key and lists the areas
       # the
       # caller knows.
       class BriefText
@@ -21,9 +20,9 @@ module Hecks
         # @return [String] the first line of the text: the outcome
         def first_line = "Outcome: #{plain("outcome")}"
 
-        # @param key [String] the Work item's key, which names the worktree and branch
+        # @param key [String] the Work row's key, which names the worktree and branch
         # @param area [Array<String>] the areas the session may edit
-        # @param held [Array<String>] a line for each area another started work item holds
+        # @param held [Array<String>] a line for each area another started row holds
         # @param frozen [Array<String>] the areas and aggregates whose shape may not move
         # @param limit [Integer, nil] the most spec files a session runs per call, from the world's
         #   `test_scope` setting; fills `{limit}`

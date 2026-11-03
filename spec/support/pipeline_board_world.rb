@@ -58,7 +58,7 @@ module PipelineBoardWorld
     File.write(File.join(base, id, "state.json"), JSON.generate("state" => state, "detail" => detail))
   end
 
-  def work_items
+  def work_rows
     [{ slug: "a", status: "planned", title: "A", area: [], claimed_by: "", claimed_at: "" },
      { slug: "b", status: "started", title: "B", area: [], claimed_by: "s1", claimed_at: "x" },
      { slug: "c", status: "done", title: "C", area: [], claimed_by: "", claimed_at: "" }]
