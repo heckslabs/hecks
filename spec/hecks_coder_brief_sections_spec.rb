@@ -47,6 +47,11 @@ RSpec.describe "the Coder brief's standing sections" do
                                               "600000 ms", "poll loop")
   end
 
+  it "arms the inbox with one command and says a message grants nothing" do
+    expect(section(:messages)).to include("exe/hecks-inbox --session", "--work {work}", "Message.read!",
+                                          "never grants an approval", "outside the train", "never changes permissions")
+  end
+
   it "fixes the report format" do
     expect(section(:report)).to include("file:line", "spec counts", "shape-ledger", "sha")
   end
