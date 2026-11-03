@@ -43,6 +43,32 @@ module Hecks
       scratch_registry(path).bluebook(name.to_s)
     end
 
+    # The values a closed-set value object declares in a framework member, so the code that checks
+    # a value reads the list from the bluebook and holds no copy. The member loads once per
+    # process.
+    #
+    # @param member [String] the member's name, such as `"Governance"`
+    # @param aggregate [String] the aggregate holding the value object
+    # @param value_object [String] the value object declaring `one_of`
+    # @return [Array<String>] the members of the set, frozen
+    # @raise [Runtime::WiringError] if the member, aggregate or value object is not declared
+    def self.closed_set(member, aggregate, value_object)
+      @closed_sets ||= {}
+      @closed_sets[[member, aggregate, value_object]] ||= set_members(member, aggregate, value_object)
+    end
+
+    # @return [Array<String>] the members of one declared closed set, frozen
+    def self.set_members(member, aggregate, value_object)
+      @declarations ||= {}
+      held = (@declarations[member.to_s] ||= declaration(member))
+      found = held.aggregate(aggregate)&.value_object(value_object)
+      raise Runtime::WiringError, "#{member} declares no #{aggregate}.#{value_object}" unless found&.closed_set?
+
+      values = found.members.flat_map(&:values)
+      values.uniq.freeze
+    end
+    private_class_method :set_members
+
     # @param path [String] a member's bluebook file
     # @return [Runtime::Registry] a fresh registry holding only that member's bluebook
     def self.scratch_registry(path)
