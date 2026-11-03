@@ -389,6 +389,7 @@ Hecks.bluebook "Hecks" do
         attribute :confirm,  Switch, optional: true, sets: true
 
         given("merges the branch onto local main needs --confirm; without it this only reports") { confirm.value == true }
+        given("a branch never lands onto itself") { branch.value.to_s != onto.value.to_s }
 
         emits LandingRequested
       end
@@ -404,6 +405,7 @@ Hecks.bluebook "Hecks" do
         attribute :confirm,  Switch, optional: true, sets: true
 
         given("rebases, lands and tidies needs --confirm; without it this only reports") { confirm.value == true }
+        given("a branch never lands onto itself") { branch.value.to_s != onto.value.to_s }
 
         emits FinishRequested
       end
