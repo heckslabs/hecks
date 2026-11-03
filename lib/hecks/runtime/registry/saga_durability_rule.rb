@@ -8,7 +8,7 @@ module Hecks
         private
 
         # Reads every declared bluebook, not each hecksagon: a domain kept by its world's
-        # `default_adapter` or by an attaching chapter has process managers too.
+        # `default_adapter` or by an attaching bluebook has process managers too.
         def refuse_forgetful_sagas!
           @declared.bluebooks.each_key do |domain|
             process_managers_of(domain).each { |process_manager| refuse_forgetful_saga!(domain, process_manager) }
