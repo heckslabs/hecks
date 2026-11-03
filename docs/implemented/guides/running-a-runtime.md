@@ -782,7 +782,7 @@ new shapes:
 Sagas, policies, and the query DSL are real parts of the IR
 (`process_managers`, `policies`, and each aggregate's own `queries`
 key) that this page does not walk — they're
-[policies-and-process-managers.md](policies-and-process-managers.md)
+[policies-and-sagas.md](policies-and-sagas.md)
 and [queries-and-read-models.md](queries-and-read-models.md)'s
 subjects, written for a domain author rather than a port author, but
 the IR shapes those pages describe are the same ones

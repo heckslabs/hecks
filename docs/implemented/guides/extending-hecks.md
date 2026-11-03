@@ -262,7 +262,7 @@ same reflex: review the diff before you believe it.)
 
 Sometimes the thing you're adding to the language isn't a new word but
 a new *check* — a way for `hecks ModelCheckRun.model_check!` to catch something a
-lifecycle or a process manager could declare and get wrong. This is
+lifecycle or a saga could declare and get wrong. This is
 static analysis over the IR (no bluebook boots twice, nothing here
 touches a runtime), so it lives in
 `lib/hecks/bluebook/model_check.rb` and its `model_check/*_checks.rb` modules, and the shape is the same for
@@ -307,7 +307,7 @@ can't drift apart the way the syntax table and the old hand-written
 parser once did.
 
 If you're adding a genuinely new finding kind — say, hypothetically, a
-check that a process manager's `correlates_by` field is never actually
+check that a saga's `correlates_by` field is never actually
 readable off any event it handles — the mechanical steps are: write the
 check function in the right section (lifecycle / saga / policy, or a
 new section if it's none of those), have it return `Finding.new(kind:

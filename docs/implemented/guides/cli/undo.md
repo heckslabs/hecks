@@ -12,13 +12,13 @@ $ exe/hecks Introspection.undo domain.value=lib/hecks/hecks bluebook.value=Hecks
 Landing.land has no undo declared: its bluebook names no compensating command.
 ```
 
-The answer comes only from a declared `compensates` on a process manager's dispatch. It never
+The answer comes only from a declared `compensates` on a saga's dispatch. It never
 invents an undo, and it changes nothing. It answers per command, not per run: a run record does
 not yet name the command it dispatched, so the run-level question waits on that.
 
 ## Where undo is declared
 
-A process manager dispatches a command and may name the command that reverses it:
+A saga dispatches a command and may name the command that reverses it:
 
 ```ruby
 dispatch Account::Debit, with: { … } do
@@ -37,7 +37,7 @@ answered by this query.
 | `Landing.land!` | merges a branch onto local main | none declared; a fast-forward is reverted by hand, a merge commit by a new commit | git, outside the bluebook |
 | `Commit.make!` | a commit on a checkout | none; a commit is never rewritten, a fix is a new commit | git, outside the bluebook |
 | `Launch.init!` | stub files of a new domain | none declared; the files are removed by hand | files, outside the bluebook |
-| `Operation.run!` | dispatches a verb against a domain | only where the target domain declares a `compensates` for it | the target's process manager |
+| `Operation.run!` | dispatches a verb against a domain | only where the target domain declares a `compensates` for it | the target's saga |
 | `Shipment.ship!` | gate, land and board a branch | none declared | saga; no compensation in the Hecks domain |
 | `Operation.abandon_outbox_row!` | settles one stalled outbox row as failed | not an undo: it is itself the settle | outbox |
 | `Finding.reopen!` | returns a resolved or dismissed finding to triaged | reopen is the inverse of resolve or dismiss | a declared transition, in the Tickets bluebook |

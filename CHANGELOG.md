@@ -5,7 +5,16 @@ Dates are when a change landed on `main`, not when this file was written.
 Entries below are grouped by theme, not itemized commit-by-commit; see
 `git log` for the full history.
 
-## [Unreleased]
+## [Unreleased] - planned 8.0.0
+
+### Changed
+
+- **Breaking.** The bluebook word for a coordinator of several aggregates over time is `saga`;
+  `process_manager` is refused by name (`process_manager is gone — saga is the word now`). The
+  language's aggregate is `Saga`, with `SagaName` and `SagaText`; the guide is
+  `docs/implemented/guides/policies-and-sagas.md` and the reference `docs/implemented/reference/saga.md`.
+  Client bluebooks that declare one change the word when they take this version (ADR 0180). The runtime,
+  the IR key `process_managers` and the saga stores' `process_manager` column are unchanged.
 
 ## [7.1.0] - 2026-11-02
 

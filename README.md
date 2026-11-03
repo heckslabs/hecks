@@ -584,7 +584,7 @@ against the code before assuming it is missing or present.
 - [Guides](docs/implemented/guides/index.md)
 - [Language versioning](docs/implemented/guides/language-versioning.md)
 - [Lifecycles](docs/implemented/guides/lifecycles.md)
-- [Policies and process managers](docs/implemented/guides/policies-and-process-managers.md)
+- [Policies and sagas](docs/implemented/guides/policies-and-sagas.md)
 - [Project status](docs/implemented/guides/project-status.md)
 - [Projections: Rust and WebAssembly](docs/implemented/guides/projections.md)
 - [Queries and read models](docs/implemented/guides/queries-and-read-models.md)

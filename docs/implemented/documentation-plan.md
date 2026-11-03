@@ -119,7 +119,7 @@ inline `# =>` assertion convention; full guide set this pass.
    reference_to/include (absorb docs/query-dsl.md's factual half)
 5. `lifecycles.md` — lifecycle/transition, terminal states, what model_check flags
 6. `entities.md` — entity, own commands/queries/lifecycle, addressing
-7. `policies-and-process-managers.md` — policy on/trigger/across; PM
+7. `policies-and-sagas.md` — policy on/trigger/across; PM
    correlates_by (dotted-scalar rule)/starts_on/ends_on/state/on…transition:/
    dispatch with:/compensation (absorb event-storming doc's mapping table)
 8. `wiring.md` — .hecksagon (persisted_by, subscribe, port/operation),

@@ -186,7 +186,7 @@ with zero findings, none allowed on purpose. It wasn't always: banking's
 unreachable through the handler chain the checker walks, even though
 the underlying transfer genuinely settles, because a `state "sent"`
 line named no handler's own `from:`/target — declaration drift the
-process manager's own `state` word could carry and this checker caught.
+saga's own `state` word could carry and this checker caught.
 S7 (ADR 0025) retired `state` in favor of one shared `transition` word
 that DERIVES a saga's states from the transitions that name them, the
 same way an aggregate's own lifecycle states already are — a state
@@ -391,7 +391,7 @@ every step, and reports the first expectation that did not hold.
 
 The same check, run in process against an isolated copy of banking —
 the flagship corpus member, composite identity, entities, two read
-models, three process managers, walking every declared command and
+models, three sagas, walking every declared command and
 query including its refusal paths:
 
 ```ruby

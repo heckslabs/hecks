@@ -90,7 +90,7 @@ exe/hecks test_suite_run.run_spec_example! \
 every example. The report ends with the example and failure counts. Hecks runs in Memory
 unless a local hecksagon opts it into PostgresEra (ADR 0136), so the run needs no database and no
 environment variable. Memory changes some behavior: two guide examples that retry a payment
-(`commands.md`, `policies-and-process-managers.md`) fail under it.
+(`commands.md`, `policies-and-sagas.md`) fail under it.
 
 **A spec never touches the owner's live state.** The Memory overlay switches the runtime's event tap
 off, spec_helper points a child's tap at the run's own temporary file (`HECKS_EVENT_TAP`), and
