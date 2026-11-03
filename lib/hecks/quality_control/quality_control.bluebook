@@ -914,6 +914,17 @@ Hecks.bluebook "QualityControl" do
       transition "Regress"     => "investigating", from: ["fixed", "verified"]
       transition "Revisit"     => "investigating", from: "paused"
       mark :terminal, "withdrawn"
+      # The states the fix command takes a bug from. `Fix` itself moves only an investigating bug, so a
+      # logged one is investigated first (`Investigate` is the move that leads to it).
+      mark :auto_fixable, "logged", "investigating"
+    end
+
+    # The red-main checks a mechanical fixer exists for, so a bug logged for one is triaged
+    # `self_contained`; a red check named by no row is `bigger`, for the owner.
+    value_object "MechanicalFix" do
+      attribute :check, String
+
+      member check: "rubocop"
     end
 
     command "Log" do
@@ -1140,6 +1151,15 @@ Hecks.bluebook "QualityControl" do
 
     query "Open" do
       description "Every bug still owed work — the open ledger, derived rather than maintained."
+      where(status: { in: "logged,investigating,paused" })
+      order_by :sequence
+    end
+
+    # A red check already holding an open bug is not logged twice: the commit moved, the red did not.
+    query "OpenNamed" do
+      description "The open bugs carrying one name, such as main-red-rubocop: what a second log of the same red check looks for first."
+      attribute :name, BugName
+      where(name: :name)
       where(status: { in: "logged,investigating,paused" })
       order_by :sequence
     end

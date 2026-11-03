@@ -3,6 +3,7 @@
 require_relative "../../../hecks"
 # The era subsystem does not load with core (ADR 0033); the QualityControl ledger binds it.
 require_relative "../../ports/persistence/plugins/era"
+require_relative "declared"
 require_relative "qa_main_gate/gate_run"
 require_relative "qa_main_gate/worktree"
 require_relative "qa_main_gate/shell"
@@ -118,9 +119,15 @@ module Hecks
         return "no such bug #{reference}" unless row
         return "#{reference} is triaged #{row[:disposition][:value]}; a bigger bug is left for the owner" unless
           row[:disposition][:value] == "self_contained"
-        return "#{reference} is #{row[:status]}; nothing to fix" unless %w[logged investigating].include?(row[:status])
+        return "#{reference} is #{row[:status]}; nothing to fix" unless fixable_states.include?(row[:status])
 
-        "no mechanical fixer for #{check_id(row)}" unless QaMainGate::Logging::SELF_CONTAINED.include?(check_id(row))
+        "no mechanical fixer for #{check_id(row)}" unless QaMainGate::Logging.self_contained?(check_id(row), @runtime)
+      end
+
+      # The states the Bug lifecycle marks `auto_fixable`: the command investigates a logged bug before
+      # it fixes it, because `Bug.Fix` moves only an investigating one.
+      def fixable_states
+        @fixable_states ||= Declared.marked(@runtime, "Bug", :auto_fixable)
       end
 
       # @return [String] the gate check the bug is about, such as `rubocop`
