@@ -1,8 +1,11 @@
-# The Catcher bluebook: the actions a session takes outside any declared command. Each
-# is kept as it was seen (Observation), judged as a pattern against the declared rules
-# (Audit), and, once a person accepts the audit, led to a corrective action
+# The Catcher bluebook: the actions a session takes outside any declared command. The calls a
+# drain of the spool reads are kept as one sitting (Observation), judged as a pattern against the
+# declared rules (Audit), and, once a person accepts the audit, led to a corrective action
 # (CorrectiveAction). The judgment keeps the ISO vocabulary: nonconformity,
 # opportunity_for_improvement, or observation_only.
+#
+# A drain asks the Spool port to read, keeps the sitting and marks the drain recorded, then asks
+# the port to acknowledge the read, so the spool's cursor moves only after the sitting is kept.
 #
 # Roles are checked by Governance, which the Catcher hecksagon attaches. A role here is a
 # name Governance grants through its RoleAssignments, never a list kept in this domain.
@@ -11,83 +14,58 @@
 Hecks.bluebook "Catcher" do
   vision "Raw actions seen outside any declared command are kept, judged, and either brought under a declared command or dismissed."
 
+  # One sitting: the tool calls one drain read from the spool, kept as they were seen. The word
+  # Observation names the sitting, which holds many calls.
   aggregate "Observation" do
-    description "One action seen outside any declared command, recorded as it was seen and never changed."
+    description "One sitting: many tool calls drained from the spool at once, kept as seen."
 
-    attribute :observation_id, ObservationId
-    attribute :source,         Source
-    attribute :tool,           Tool
-    attribute :subject,        Subject
-    attribute :succeeded,      Succeeded
-    attribute :observed_in,    Session
-    attribute :observed_at,    Timestamp
+    attribute :sitting, SittingKey
+    attribute :calls,   list_of(Call)
+    attribute :through, Count
+    identified_by :sitting
 
-    identified_by :observation_id
-
-    # The caller supplies observation_id, and it must be unique. Two identical actions in one
-    # second are two observations.
-    value_object "ObservationId" do
-      attribute :value, String
-      invariant("an observation is identified") { !value.to_s.empty? }
+    # The drain's run key. One drain is one sitting, so a drain read again is a second sitting.
+    value_object "SittingKey" do
+      attribute :value, String, matches: :present
     end
 
-    # Where the action was seen, such as `bash`, `git`, `gh`, `make`, an MCP tool or a file edit.
-    value_object "Source" do
-      attribute :value, String
-      invariant("an observation names where it was seen") { !value.to_s.empty? }
+    # One tool call in a sitting, as the spool line held it. `call_id` is the line's own id,
+    # unique to that call. The fields are flat, so a list of calls takes each one as it is.
+    value_object "Call" do
+      # The line's own id, unique to one call.
+      attribute :call_id,     String, matches: :present
+      # Where the action was seen: `bash`, `git`, `gh`, `make`, an MCP tool or a file edit.
+      attribute :source,      String, matches: :present
+      # The program that ran, such as `git`.
+      attribute :tool,        String, matches: :present
+      # The subcommand words of the action, with its arguments blanked: `git status`, never the
+      # arguments themselves.
+      attribute :subject,     String, matches: :present
+      attribute :succeeded,   Boolean
+      # The session the action was seen in, as its identifier.
+      attribute :observed_in, String, matches: :present
+      # A UTC instant to the second, ending in Z: the moment the action was seen.
+      attribute :observed_at, String,
+                pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
     end
 
-    # The program that ran, such as `git`.
-    value_object "Tool" do
-      attribute :value, String
-      invariant("an observation names its tool") { !value.to_s.empty? }
+    # How far into the spool the drain read when it kept this sitting.
+    value_object "Count" do
+      attribute :value, Integer
+      invariant("a count is not negative") { !value.negative? }
     end
 
-    # The subcommand words of the action, with its arguments blanked: `git status`, never the
-    # arguments themselves.
-    value_object "Subject" do
-      attribute :value, String
-      invariant("an observation names its subject") { !value.to_s.empty? }
-    end
-
-    value_object "Succeeded" do
-      attribute :value, Boolean
-    end
-
-    # The session the action was seen in, as its identifier.
-    value_object "Session" do
-      attribute :value, String
-      invariant("an observation names its session") { !value.to_s.empty? }
-    end
-
-    # A UTC instant to the second, ending in Z: the moment the action was seen.
-    value_object "Timestamp" do
-      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
-      invariant("a timestamp is present") { !value.to_s.empty? }
-    end
-
-    # One action seen outside any declared command, kept as it was seen. Nothing here changes or
-    # removes an observation: the only command adds one, so the log only grows.
+    # One sitting, recorded from one drain's answer. Nothing here changes or removes a sitting:
+    # the only command adds one, so the log only grows.
     command "Record" do
       role "System"
-      goal "Keep one raw action seen outside any declared command"
+      goal "Keep one sitting: the tool calls one drain read from the spool"
 
-      sets :observation_id
-      sets :source
-      sets :tool
-      sets :subject
-      sets :succeeded
-      sets :observed_in
-      sets :observed_at
+      sets :sitting
+      sets :calls
+      sets :through
 
       emits ObservationRecorded
-    end
-
-    query "OfSubject" do
-      description "Every observation of one subject, oldest first."
-      attribute :subject, String
-      where(subject: :subject)
-      order_by :observed_at
     end
   end
 
@@ -270,13 +248,14 @@ Hecks.bluebook "Catcher" do
     end
   end
 
-  # One reading of the spool file the hook appends to. The Spool port answers the lines it holds;
-  # the bluebook says what a drain is and how it ends. The port only reads, and never records.
+  # One reading of the spool file the hook appends to. The Spool port answers each ask: a read
+  # answers the lines the spool holds, and an acknowledge moves its cursor past them. The port
+  # never writes a line; the bluebook says what a drain is and how it ends.
   aggregate "Drain" do
-    description "One reading of the spool: drained, or refused with the reason it could not read."
+    description "One reading of the spool: read and kept as a sitting, or refused with the reason."
 
     attribute :run,     DrainKey
-    attribute :drained, Count,  optional: true
+    attribute :through, Count,  optional: true
     attribute :refusal, Reason, optional: true
     identified_by :run
 
@@ -284,7 +263,7 @@ Hecks.bluebook "Catcher" do
       attribute :value, String, matches: :present
     end
 
-    # How many spooled lines the drain read.
+    # How far into the spool a drain read: the spool lines consumed so far, from its first line.
     value_object "Count" do
       attribute :value, Integer
       invariant("a count is not negative") { !value.negative? }
@@ -295,42 +274,42 @@ Hecks.bluebook "Catcher" do
       invariant("a refusal gives its reason") { !value.to_s.empty? }
     end
 
-    # One line the hook appended, with the fields an Observation takes. observed_at is the UTC
-    # second the action was seen, ending in Z.
-    value_object "SpoolLine" do
-      attribute :observation_id, String
-      attribute :source,         String
-      attribute :tool,           String
-      attribute :subject,        String
-      attribute :succeeded,      Boolean
-      attribute :observed_in,    String
-      attribute :observed_at,    String,
-                pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
-    end
-
     lifecycle :status, default: "requested" do
       mark :failure, "refused"
-      transition "Complete" => "drained", from: "requested"
-      transition "Decline"  => "refused", from: "requested"
+      transition "Recorded" => "recorded", from: "requested"
+      transition "Complete" => "drained",  from: "recorded"
+      transition "Decline"  => "refused",  from: ["requested", "recorded"]
       mark :terminal, "drained", "refused"
     end
 
     # A person asks for one drain of the spool.
     command "Request" do
       role "Operator"
-      goal "Read the spool once, so that each line it holds is kept as an observation"
+      goal "Read the spool once, so that the lines it holds are kept as one sitting"
 
       sets :run
 
       emits DrainRequested
     end
 
-    command "Complete" do
+    # The sitting is kept: the drain records that, and the spool position it read through.
+    command "Recorded" do
       role "System"
-      goal "Record how many spooled lines the drain read"
+      goal "Record that the drain's sitting is kept, and the spool position it read through"
 
       reference_to Drain
-      attribute :drained, Count, sets: true
+      attribute :through, Count, sets: true
+
+      emits DrainRecorded
+    end
+
+    # Runs once the spool is acknowledged, so the drain ends after its work.
+    command "Complete" do
+      role "System"
+      goal "Record how far into the spool the drain read, once its sitting is kept"
+
+      reference_to Drain
+      attribute :through, Count, sets: true
 
       emits DrainCompleted
     end
@@ -344,17 +323,50 @@ Hecks.bluebook "Catcher" do
 
       emits DrainDeclined
     end
-
-    # The lines the spool holds, answered by the Spool port's adapter. Nothing here stores them,
-    # and each line is kept as an observation only through Observation.Record.
-    query "Lines" do
-      description "Every line the spool file holds, in the order the hook wrote them."
-      returns list_of(SpoolLine)
-    end
   end
 
   policy "StartWhenAccepted" do
     on      "Audit.AuditAccepted"
     trigger CorrectiveAction::Start, with: { audit: :id }
+  end
+
+  # A requested drain asks the Spool port to read the spool. Each answer moves the drain on.
+  policy "ReadWhenRequested" do
+    on      "Drain.DrainRequested"
+    ask     :read, with: { run: :run }
+  end
+
+  # The lines the read answered are kept as one sitting, keyed by the drain's run.
+  policy "RecordTheSitting" do
+    on      "Drain.SpoolRead"
+    trigger Observation::Record, with: { sitting: :run, calls: :lines, through: :through }
+  end
+
+  policy "DeclineWhenSpoolRefused" do
+    on      "Drain.SpoolRefused"
+    trigger Drain::Decline, with: { refusal: :refusal }
+  end
+
+  # The sitting is kept, so the drain records that and carries the spool position it read through.
+  policy "RecordTheDrainWhenSitting" do
+    on      "Observation.ObservationRecorded"
+    trigger Drain::Recorded, with: { run: :sitting, through: :through }
+  end
+
+  # The cursor moves only once the drain records its sitting: a crash before that reads the lines
+  # again.
+  policy "AcknowledgeWhenDrainRecorded" do
+    on      "Drain.DrainRecorded"
+    ask     :acknowledge, with: { run: :run, through: :through }
+  end
+
+  policy "CompleteWhenAcknowledged" do
+    on      "Drain.SpoolAcknowledged"
+    trigger Drain::Complete, with: { through: :through }
+  end
+
+  policy "DeclineWhenAckRefused" do
+    on      "Drain.SpoolAckRefused"
+    trigger Drain::Decline, with: { refusal: :refusal }
   end
 end
