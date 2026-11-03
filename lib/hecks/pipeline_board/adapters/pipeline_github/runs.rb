@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require "hecks/vocabulary"
 
 module Hecks
   module Adapters
@@ -11,7 +12,7 @@ module Hecks
         RUN_FIELDS = "databaseId,headSha,startedAt,updatedAt,conclusion,status"
 
         # Conclusions of a completed run that holds no failed job, so its jobs are never fetched.
-        CLEAN = %w[success skipped].freeze
+        CLEAN = Hecks::Vocabulary.fetch("PassingConclusion")
 
         private
 

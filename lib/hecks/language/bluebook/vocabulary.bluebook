@@ -1472,5 +1472,13 @@ Hecks.bluebook "Bluebook" do
                          "features", "package", "lib", "bin", "dependencies", "dev-dependencies",
                          "build-dependencies", "workspace"]
     end
+
+    # The conclusions of a CI run, job or check run that count as passed, as GitHub counts them for a
+    # required check. `skipped` is a path-gated check that had nothing to do; `neutral` is a check that
+    # ran and chose not to fail the commit. Read by the promotion, the red flag, the pipeline board,
+    # CI speed and the release-only check, so none keeps a list of its own.
+    value_object "PassingConclusion" do
+      attribute :name, String, one_of: ["success", "neutral", "skipped"]
+    end
   end
 end
