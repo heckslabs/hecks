@@ -97,16 +97,17 @@ Hecks.bluebook "Hecks" do
     aggregate "Finding" do
       description "One pattern of observed actions, judged against the declared rules: raised, then accepted or dismissed, never deleted."
 
-      attribute :subject,       Subject
-      attribute :kind,          FindingKind
-      attribute :count,         Count
-      attribute :sessions,      Count
-      attribute :success_rate,  SuccessRate
-      attribute :proposal,      Proposal
-      attribute :proposed_kind, ProposedKind
-      attribute :raised_at,     Timestamp
-      attribute :decided_by,    DecidedBy, optional: true
-      attribute :reason,        Reason, optional: true
+      attribute :subject,        Subject
+      attribute :kind,           FindingKind
+      attribute :count,          Count
+      attribute :sessions,       Count
+      attribute :success_rate,   SuccessRate
+      attribute :proposal,       Proposal
+      attribute :proposed_kind,  ProposedKind
+      attribute :aggregate_name, AggregateName
+      attribute :raised_at,      Timestamp
+      attribute :decided_by,     DecidedBy, optional: true
+      attribute :reason,         Reason, optional: true
 
       # The subject and the moment it was raised: a pattern raised again after a dismissal is a
       # second finding, the same way a role granted again is a second assignment.
@@ -135,14 +136,24 @@ Hecks.bluebook "Hecks" do
         invariant("a success rate is between 0 and 1") { value >= 0 && value <= 1 }
       end
 
-      # The DSL block that would bring the pattern under a declared command, aggregate, lifecycle or
-      # invariant. Text for a person to read and paste; nothing here evaluates it.
+      # The DSL block that would bring the pattern under a declared command, aggregate, lifecycle
+      # or invariant. For a command, lifecycle or invariant, the text is meant to sit inside the
+      # aggregate named by aggregate_name; for an aggregate, the text is that aggregate. Text for a
+      # person to read and paste; nothing here evaluates it.
       value_object "Proposal" do
         attribute :value, String
       end
 
+      # command, lifecycle or invariant: the proposal text is meant to sit inside the aggregate
+      # named by aggregate_name. aggregate: the proposal text is meant to be that aggregate.
       value_object "ProposedKind" do
         attribute :value, String, one_of: ["command", "aggregate", "lifecycle", "invariant"]
+      end
+
+      # The PascalCase name of the aggregate the proposal sits in, or is, such as `Finding`.
+      value_object "AggregateName" do
+        attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*$'
+        invariant("an aggregate name is present") { !value.to_s.empty? }
       end
 
       value_object "Timestamp" do
@@ -183,6 +194,7 @@ Hecks.bluebook "Hecks" do
         sets :success_rate
         sets :proposal
         sets :proposed_kind
+        sets :aggregate_name
         sets :raised_at
 
         emits FindingRaised
