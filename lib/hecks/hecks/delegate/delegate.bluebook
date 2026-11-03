@@ -261,11 +261,18 @@ Hecks.bluebook "Hecks" do
       attribute :repo,           Directory
       attribute :confirm,        Switch, optional: true
       attribute :budget_minutes, Minutes, optional: true
+      attribute :only,           Prefix, optional: true
       attribute :report,         Outcome, optional: true
       attribute :refusal,        Outcome, optional: true
       identified_by :run
 
       value_object "DispatchKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # Fill only the planned Work items whose id starts with it, e.g. "bluebook-gap-"; the others
+      # are not read, so they neither start nor count as waiting. Left out, the whole queue fills.
+      value_object "Prefix" do
         attribute :value, String, matches: :present
       end
 
@@ -300,6 +307,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,            DispatchKey, sets: true
         attribute :repo,           Directory, sets: true
         attribute :budget_minutes, Minutes, optional: true, sets: true
+        attribute :only,           Prefix, optional: true, sets: true
         attribute :confirm,        Switch, optional: true, sets: true
 
         emits FillRequested
