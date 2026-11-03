@@ -4,8 +4,8 @@
 # (CorrectiveAction). The judgment keeps the ISO vocabulary: nonconformity,
 # opportunity_for_improvement, or observation_only.
 #
-# A drain asks the Spool port to read, keeps the sitting and marks the drain recorded, then asks
-# the port to acknowledge the read, so the spool's cursor moves only after the sitting is kept.
+# A drain asks the Spool port to read and keeps the lines as one sitting. The sitting then asks
+# the spool cursor to acknowledge the read, so the cursor moves only after the sitting is kept.
 #
 # Roles are checked by Governance, which the Catcher hecksagon attaches. A role here is a
 # name Governance grants through its RoleAssignments, never a list kept in this domain.
@@ -214,7 +214,7 @@ Hecks.bluebook "Catcher" do
 
     attribute :audit, AuditKey
     attribute :work,  WorkKey, optional: true
-    attribute :state, ActionState
+    attribute :phase, ActionPhase
 
     identified_by :audit
 
@@ -230,10 +230,10 @@ Hecks.bluebook "Catcher" do
       attribute :value, String
     end
 
-    # Started is the only state the model declares; more may be added.
-    value_object "ActionState" do
+    # Started is the only phase the model declares; more may be added.
+    value_object "ActionPhase" do
       attribute :value, String
-      invariant("an action has a state") { !value.to_s.empty? }
+      invariant("an action has a phase") { !value.to_s.empty? }
     end
 
     command "Start" do
@@ -242,7 +242,7 @@ Hecks.bluebook "Catcher" do
 
       sets :audit
       sets :work
-      sets :state, to: "started"
+      sets :phase, to: "started"
 
       emits CorrectiveActionStarted
     end
@@ -276,9 +276,8 @@ Hecks.bluebook "Catcher" do
 
     lifecycle :status, default: "requested" do
       mark :failure, "refused"
-      transition "Recorded" => "recorded", from: "requested"
-      transition "Complete" => "drained",  from: "recorded"
-      transition "Decline"  => "refused",  from: ["requested", "recorded"]
+      transition "Complete" => "drained", from: "requested"
+      transition "Decline"  => "refused", from: "requested"
       mark :terminal, "drained", "refused"
     end
 
@@ -292,18 +291,7 @@ Hecks.bluebook "Catcher" do
       emits DrainRequested
     end
 
-    # The sitting is kept: the drain records that, and the spool position it read through.
-    command "Recorded" do
-      role "System"
-      goal "Record that the drain's sitting is kept, and the spool position it read through"
-
-      reference_to Drain
-      attribute :through, Count, sets: true
-
-      emits DrainRecorded
-    end
-
-    # Runs once the spool is acknowledged, so the drain ends after its work.
+    # Runs once the sitting is kept and the spool acknowledged, so the drain ends after its work.
     command "Complete" do
       role "System"
       goal "Record how far into the spool the drain read, once its sitting is kept"
@@ -347,26 +335,20 @@ Hecks.bluebook "Catcher" do
     trigger Drain::Decline, with: { refusal: :refusal }
   end
 
-  # The sitting is kept, so the drain records that and carries the spool position it read through.
-  policy "RecordTheDrainWhenSitting" do
+  # The cursor moves only once the sitting is kept: a crash before that reads the lines again.
+  policy "AcknowledgeWhenRecorded" do
     on      "Observation.ObservationRecorded"
-    trigger Drain::Recorded, with: { run: :sitting, through: :through }
+    ask     :acknowledge, with: { sitting: :sitting, through: :through }
   end
 
-  # The cursor moves only once the drain records its sitting: a crash before that reads the lines
-  # again.
-  policy "AcknowledgeWhenDrainRecorded" do
-    on      "Drain.DrainRecorded"
-    ask     :acknowledge, with: { run: :run, through: :through }
-  end
-
+  # The answer lives on the sitting, so the drain is completed by the run the sitting was read for.
   policy "CompleteWhenAcknowledged" do
-    on      "Drain.SpoolAcknowledged"
-    trigger Drain::Complete, with: { through: :through }
+    on      "Observation.SpoolAcknowledged"
+    trigger Drain::Complete, with: { run: :sitting, through: :through }
   end
 
   policy "DeclineWhenAckRefused" do
-    on      "Drain.SpoolAckRefused"
-    trigger Drain::Decline, with: { refusal: :refusal }
+    on      "Observation.SpoolAckRefused"
+    trigger Drain::Decline, with: { run: :sitting, refusal: :refusal }
   end
 end
