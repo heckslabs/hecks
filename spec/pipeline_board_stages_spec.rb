@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
     work = repo_one_ahead(base)
     { github: Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, ttl: 0 }),
       git: Hecks::Adapters::PipelineGit.new(root: work, settings: { train: work, ttl: 0 }),
-      tickets: Hecks::Adapters::PipelineTickets.new(settings: { rows: work_rows, landings: [] }),
+      tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       jobs: jobs_reader, journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: []),
       fill: fill_reader }.merge(overrides)
   end

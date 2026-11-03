@@ -6,7 +6,7 @@ module Hecks
   module Adapters
     module PipelineBoard
       # The tiles that read the work: commits not yet pushed, sessions against the cap and the load
-      # against its limit, rows finished in a day, and the latest release.
+      # against its limit, Work items finished in a day, and the latest release.
       module WorkTiles
         include TileKit
 
@@ -34,14 +34,14 @@ module Hecks
           tile("working", "Dispatched sessions", dispatched, "of #{cap}", state: pressure(dispatched, cap, blocked), detail: note)
         end
 
-        # The cap (`work_limit`) bounds sessions dispatched for a Work row; a session started by
-        # hand holds no row and no seat.
+        # The cap (`work_limit`) bounds sessions dispatched for a Work item; a session started by
+        # hand holds no Work item and no seat.
         #
         # @return [Array(Integer, Integer, Integer)] the live sessions (busy or blocked), those
-        #   among them dispatched for a Work row, and the blocked ones
+        #   among them dispatched for a Work item, and the blocked ones
         def counted(sessions)
           alive = sessions.select { |session| %w[busy blocked].include?(session[:status]) }
-          dispatched = alive.count { |session| !session[:row].to_s.empty? }
+          dispatched = alive.count { |session| !session[:work_item].to_s.empty? }
           [alive.size, dispatched, alive.count { |session| session[:status] == "blocked" }]
         end
 

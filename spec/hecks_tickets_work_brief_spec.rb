@@ -1,8 +1,8 @@
 require "spec_helper"
 
-# A planned Work row is briefed by the Coder module: the brief is composed from the row's title,
+# A planned Work item is briefed by the Coder module: the brief is composed from its title,
 # detail and area, and a row with no area gets a brief with none.
-RSpec.describe "the brief of a planned Work row" do
+RSpec.describe "the brief of a planned Work item" do
   let(:root) { InMemoryDomain::ROOT }
 
   let(:runtime) do
@@ -24,7 +24,7 @@ RSpec.describe "the brief of a planned Work row" do
                         detail: { value: "Map it first" }, **extra)
   end
 
-  def brief_for(key) = Coder::Brief.for(row: { value: key }).first
+  def brief_for(key) = Coder::Brief.for(work: { value: key }).first
 
   it "composes the brief from the row's title, detail and area", :aggregate_failures do
     plan("brief/a", area: [{ value: "lib/hecks/coder" }])
