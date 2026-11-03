@@ -40,7 +40,8 @@ module Hecks
       # @param marker [RedFlagMarker] the repository's flag
       # @param checkout [String] a directory in the repository
       # @param registry [Runtime::Registry, nil] the booted registry the steps dispatch through
-      # @param tune [Hash] `runner:` (reads GitHub) replaces the default, for a spec
+      # @param tune [Hash] `runner:` (reads GitHub) replaces the default, for a spec; `run:` is the
+      #   flag request whose record the kick's events act on
       def initialize(marker, checkout, registry: nil, **tune)
         @marker = marker
         @checkout = checkout
@@ -71,8 +72,18 @@ module Hecks
       def kicked(flag, batch, branch, restored)
         item = WorkItem.new(flag, batch, branch).key
         held = @marker.kicked!(branch: branch, reverted: batch, work_item: item)
-        @marker.clear! if restored
+        record(flag, batch.join(", "), item, restored)
         { flag: held, restored: restored, reverted: batch, branch: branch, work_item: item }
+      end
+
+      # The flag's events: the kick, then, when the restored tree is a tree CI already passed, the
+      # flag coming down.
+      def record(flag, reverted, item, restored)
+        steps.run(:eject, run: @tune[:run], flag: flag["id"], commit: flag["commit"].to_s, detail: reverted, work_items: item)
+        return unless restored
+
+        @marker.clear!
+        steps.run(:lift, run: @tune[:run], flag: flag["id"], commit: flag["commit"].to_s)
       end
 
       def standing
