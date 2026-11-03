@@ -70,7 +70,15 @@ Hecks.world "Hecks" do
   # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
   # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
   # world declares no `event_log`, so a client writes no file. The file rotates at `max_bytes`.
-  event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
+  # `payloads` names the aggregates whose events carry their payload: the red flag's, so every
+  # session that follows the log learns the flag, commit, CI run, failed jobs and who checked in
+  # from the event itself (`Operation.follow` reads this log when a world declares it).
+  event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000, payloads: %w[RedFlag]
+  # The red flag's own settings: `kick_after_minutes` is how long a flag may stand with no fix landed
+  # before `RedFlag.kick!` reverts the push batch off main (ADR 0174). `board_sync_seconds` is how
+  # often the PipelineBoard server, while it runs, reads main's newest CI run and asks
+  # `RedFlag.sync!` to raise or lower the flag to match it; 0 switches that off.
+  red_flag "Flag", kick_after_minutes: 60, board_sync_seconds: 60
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
