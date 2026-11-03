@@ -2,3 +2,5 @@
 # lane push_gate full_gate train (- is none)
 main quick pre_push yes
 stable - - no
+# the checks a signed note may stand in for, from the GateCheck rows marked attests
+@attests engine_agreement,model_check,doc_coverage,rubocop
