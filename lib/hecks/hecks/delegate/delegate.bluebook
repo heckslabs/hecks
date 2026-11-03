@@ -261,6 +261,7 @@ Hecks.bluebook "Hecks" do
       attribute :repo,           Directory
       attribute :confirm,        Switch, optional: true
       attribute :budget_minutes, Minutes, optional: true
+      attribute :only,           Prefix, optional: true
       attribute :report,         Outcome, optional: true
       attribute :refusal,        Outcome, optional: true
       identified_by :run
@@ -282,6 +283,11 @@ Hecks.bluebook "Hecks" do
         invariant("a time budget is positive") { value.positive? }
       end
 
+      # The start of a work item's key that a filling is held to.
+      value_object "Prefix" do
+        attribute :value, String, matches: :present
+      end
+
       value_object "Outcome" do
         attribute :value, String
       end
@@ -301,6 +307,10 @@ Hecks.bluebook "Hecks" do
         attribute :repo,           Directory, sets: true
         attribute :budget_minutes, Minutes, optional: true, sets: true
         attribute :confirm,        Switch, optional: true, sets: true
+        # Only the planned work items whose key starts with this are chosen, so one item, or one
+        # family of them, can be started on its own. It is set on the record, and the ask reads it
+        # from the record it is handed, so the policy does not carry it in its `with:`.
+        attribute :only,           Prefix, optional: true, sets: true
 
         emits FillRequested
       end
