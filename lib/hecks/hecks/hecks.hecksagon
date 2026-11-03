@@ -202,6 +202,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::LinkedTree.port "Publishing" do
+    asks "Push", to: LinkedTree do
+      attribute :run, RunKey
+      answers "BranchPublishAnswered"
+      refuses "BranchPublishRefused"
+    end
+  end
+
   Hecks::Landing.port "Worktrees" do
     asks "Merge", to: Landing do
       attribute :run, RunKey
