@@ -1,8 +1,8 @@
 require "spec_helper"
 
-# The finding kinds `hecks model_check` reports are declared in vocabulary.bluebook (ModelCheckFinding).
-# This holds that table to the kinds the checks emit, in both directions, so a check cannot report a
-# kind nobody declared and a declared kind cannot outlive its check.
+# The finding kinds `hecks model_check` reports are declared in vocabulary.bluebook
+# (ModelCheckFinding). This holds that table to the kinds the checks emit, in both directions, so
+# a check cannot report a kind nobody declared and a declared kind cannot outlive its check.
 RSpec.describe "The model_check finding kinds" do
   # Each `Finding.new(kind:, severity:)` in the checks as [kind, severity, check file]. A severity
   # that is not a literal (rust_reserved_name takes the run's) reads "severity".
