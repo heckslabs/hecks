@@ -18,12 +18,10 @@ RSpec.describe "the brief of a planned Work row" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  # Plans a row under a decision accepted in this runtime's own Memory store.
   def plan(key, **extra)
-    runtime.dispatch_flat("Tickets::Adr.Draft", adr: "0001", title: "Brief the work")
-    runtime.dispatch_flat("Tickets::Adr.Accept", adr: "0001")
+    runtime
     Tickets::Work.plan!(work: { value: key }, title: { value: "Retire #{key}" },
-                        detail: { value: "Map it first" }, decision: "0001", **extra)
+                        detail: { value: "Map it first" }, **extra)
   end
 
   def brief_for(key) = Coder::Brief.for(row: { value: key }).first

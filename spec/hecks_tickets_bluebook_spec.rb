@@ -9,15 +9,14 @@ RSpec.describe "the Tickets bluebook" do
     @bluebook = @hecks.registry.bluebook("Tickets")
   end
 
-  it "declares Finding, Adr, Work, Lesson and Sighting, and leaves Release to the Hecks domain and Ticket to QualityControl" do
-    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work", "Lesson", "Sighting")
+  it "declares Finding, Adr and Work, and leaves Release to the Hecks domain and Ticket to QualityControl" do
+    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
   end
 
   it "boots standing alone, as a fuzz or model_check boot of its directory does" do
     standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_driving: false)
 
-    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name))
-      .to contain_exactly("Finding", "Adr", "Work", "Lesson", "Sighting")
+    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
   end
 
   it "gives a Finding the commands of its lifecycle" do
@@ -100,25 +99,11 @@ RSpec.describe "the Tickets bluebook" do
     expect(commands).to include("Plan", "Start", "Release", "Finish", "Drop", "Lapse", "Yield", "Reopen")
   end
 
-  # The WorkAreas, WorkLimits and WorkDecisions ports read Hecks's own rows and clock; nothing
-  # leaves the process.
+  # The WorkAreas and WorkLimits ports read Hecks's own rows and clock; nothing leaves the process.
   it "asks only Hecks's own ports from a Work step" do
     asks = @bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Work") }
 
-    expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted",
-                                                      "CheckDecisionWhenPlanned", "CheckDecisionWhenReopened")
-  end
-
-  it "gives a decision the commands of its lifecycle" do
-    commands = @bluebook.aggregate("Adr").commands.map(&:hecks_name)
-
-    expect(commands).to contain_exactly("Draft", "Accept", "Withdraw", "Supersede")
-  end
-
-  it "lapses a step whose decision the WorkDecisions port refuses" do
-    policies = @bluebook.policies.to_h { |policy| [policy.hecks_name, policy.event_name] }
-
-    expect(policies["LapseWhenDecisionRefused"]).to eq("DecisionRefused")
+    expect(asks.map(&:hecks_name)).to contain_exactly("CheckAreaWhenStarted", "CheckCapWhenStarted")
   end
 
   it "lapses a superseded decision's undone steps" do

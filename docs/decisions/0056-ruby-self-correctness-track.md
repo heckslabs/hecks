@@ -1,6 +1,6 @@
 # A Ruby self-correctness track, separate from Rust parity
 
-**Status:** Accepted. Investigated in full; one real, scoped piece shipped (`:set` closes in `mutations_match_recompute`); the rest of this document is a plan for what remains, prioritized.
+**Status:** Investigated in full; one real, scoped piece shipped (`:set` closes in `mutations_match_recompute`); the rest of this document is a plan for what remains, prioritized.
 
 ## The gap, in the user's own words
 

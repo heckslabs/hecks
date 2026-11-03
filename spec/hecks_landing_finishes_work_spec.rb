@@ -47,7 +47,7 @@ RSpec.describe "a landing followed by its Work row" do
     Thread.current[:hecks_reaction_depth] = outer
   end
 
-  def plan(key) = launch("tickets", "work.plan!", "work.value=#{key}", "title.value=Step #{key}", "decision=0174", "--wait")
+  def plan(key) = launch("tickets", "work.plan!", "work.value=#{key}", "title.value=Step #{key}", "--wait")
 
   def status_of(key)
     out, = launch("tickets", "work.undone")

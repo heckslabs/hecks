@@ -1,6 +1,6 @@
 # `group_by` read-model support — ported for real, for the one real corpus shape
 
-**Status:** Accepted. Shipped, with explicit user authorization. ADR 0041 named `group_by`/`count`/`median` as the last open items in Phase 10's read-model backlog. The user was asked directly whether to build real code-generation support for them now; the answer was "yes, implement it now." This ADR ships `group_by` for the one shape the real corpus actually declares — a single, rootless aggregate head, grouped, with no `count`/`median`/`where`/`order_by`/`authorization` alongside it (`Banking::AccountsByKind`). `count`/`median` need a genuinely separate, harder two-head-join framework and remain explicitly out of scope for this round, same as ADR 0041 already scoped them.
+**Status:** Shipped, with explicit user authorization. ADR 0041 named `group_by`/`count`/`median` as the last open items in Phase 10's read-model backlog. The user was asked directly whether to build real code-generation support for them now; the answer was "yes, implement it now." This ADR ships `group_by` for the one shape the real corpus actually declares — a single, rootless aggregate head, grouped, with no `count`/`median`/`where`/`order_by`/`authorization` alongside it (`Banking::AccountsByKind`). `count`/`median` need a genuinely separate, harder two-head-join framework and remain explicitly out of scope for this round, same as ADR 0041 already scoped them.
 
 ## Why this needed a second, real code-generation strategy, not one more field
 

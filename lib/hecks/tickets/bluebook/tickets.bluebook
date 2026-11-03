@@ -192,17 +192,13 @@ Hecks.bluebook "Tickets" do
     end
   end
 
-  # A decision record is its file, `docs/decisions/NNNN-slug.md`: the Hecks domain binds this
-  # aggregate to the AdrFiles adapter, which reads the number, title and status from each file's
-  # header and writes them back, and never touches the prose below (ADR 0175). Every Work step
-  # carries out one decision that stands, so a decision is drafted here before its work is planned.
   aggregate "Adr" do
-    description "A decision record: proposed, then accepted or withdrawn, and possibly superseded; every planned step carries one out."
+    description "A decision record: drafted, accepted, and possibly superseded, linked to the tickets it settles."
     created_by "Adr.draft!"
 
-    attribute :adr,           AdrNumber
-    attribute :title,         AdrTitle
-    attribute :superseded_by, AdrNumber, optional: true
+    attribute :adr,       AdrNumber
+    attribute :title,     AdrTitle
+    attribute :supersedes, AdrNumber, optional: true
     reference_to Finding, as: :settles, optional: true
     identified_by :adr
 
@@ -216,16 +212,15 @@ Hecks.bluebook "Tickets" do
       invariant("a decision has a title") { !value.to_s.empty? }
     end
 
-    lifecycle :status, default: "proposed" do
-      transition "Accept"    => "accepted",   from: "proposed"
-      transition "Withdraw"  => "withdrawn",  from: "proposed"
+    lifecycle :status, default: "draft" do
+      transition "Accept"    => "accepted",   from: "draft"
       transition "Supersede" => "superseded", from: "accepted"
-      mark :terminal, "superseded", "withdrawn"
+      mark :terminal, "superseded"
     end
 
     command "Draft" do
       role "Maintainer"
-      goal "Propose a decision, writing its record, optionally for the finding it settles"
+      goal "Open a decision record, optionally for the finding it settles"
 
       attribute :adr,       AdrNumber, sets: true
       attribute :title,     AdrTitle, sets: true
@@ -245,36 +240,20 @@ Hecks.bluebook "Tickets" do
       emits "AdrAccepted"
     end
 
-    command "Withdraw" do
-      role "Maintainer"
-      goal "Record that a proposed decision was not taken"
-
-      reference_to Adr
-
-      emits "AdrWithdrawn"
-    end
-
     command "Supersede" do
       role "Maintainer"
       goal "Record that a later decision replaces this one"
 
       reference_to Adr
-      attribute :superseded_by, AdrNumber, sets: true
+      attribute :supersedes, AdrNumber, sets: true
 
-      given("a decision is not superseded by itself") { superseded_by.value != adr.value }
 
       emits "AdrSuperseded"
     end
 
     query "Standing" do
-      description "Every decision that is accepted and not superseded: the ones work may be planned under."
+      description "Every decision that is accepted and not superseded."
       where(status: "accepted")
-      order_by :adr
-    end
-
-    query "Proposed" do
-      description "Every decision still proposed, waiting to be accepted or withdrawn."
-      where(status: "proposed")
       order_by :adr
     end
   end
@@ -361,11 +340,9 @@ Hecks.bluebook "Tickets" do
       transition "Reopen" => "planned", from: %w[done dropped]
     end
 
-    # A step names the decision it carries out, and the decision must stand: an unknown number is
-    # refused here, and one not accepted lapses the step at once (CheckDecisionWhenPlanned).
     command "Plan" do
       role "Maintainer"
-      goal "Enter a step of a plan under the decision it carries out"
+      goal "Enter a step of a plan, optionally under the decision it carries out"
 
       attribute :work,   WorkKey, sets: true
       attribute :title,  WorkTitle, sets: true
@@ -374,7 +351,7 @@ Hecks.bluebook "Tickets" do
       attribute :detail, WorkText, optional: true, sets: true, default: { value: "" }
       attribute :step,   Step, optional: true, sets: true
       attribute :area,   list_of(Word), optional: true, sets: true, default: []
-      reference_to Adr, as: :decision
+      reference_to Adr, as: :decision, optional: true
 
       sets :decision
 
@@ -473,13 +450,13 @@ Hecks.bluebook "Tickets" do
       emits "WorkReopened"
     end
 
-    # A step whose decision does not stand is dropped with it: the decision was superseded, or the
-    # step was planned or reopened under one that is not accepted.
+    # A superseded decision's plan no longer stands, so its undone steps are dropped with it.
     command "Lapse" do
-      goal "Drop a step whose decision does not stand, with the reason"
+      goal "Drop a step whose decision was superseded"
 
       reference_to Work
-      attribute :reason, WorkText, sets: true
+
+      sets :reason, to: "its decision was superseded"
 
       emits "WorkLapsed"
     end
@@ -577,24 +554,7 @@ Hecks.bluebook "Tickets" do
   policy "LapseWorkWhenSuperseded" do
     on       "Adr.AdrSuperseded"
     for_each "Work.UndoneUnder"
-    trigger  Work::Lapse, with: { work: :work, reason: "its decision was superseded" }
-  end
-
-  # A step planned or reopened asks the WorkDecisions port whether its decision is accepted; the
-  # check reads the Adr row, which one Work command cannot. A refused step lapses with the refusal.
-  policy "CheckDecisionWhenPlanned" do
-    on      "Work.WorkPlanned"
-    ask     :check_decision, with: { work: :work }
-  end
-
-  policy "CheckDecisionWhenReopened" do
-    on      "Work.WorkReopened"
-    ask     :check_decision, with: { work: :work }
-  end
-
-  policy "LapseWhenDecisionRefused" do
-    on      "Work.DecisionRefused"
-    trigger Work::Lapse, with: { reason: :refusal }
+    trigger  Work::Lapse, with: { work: :work }
   end
 
   # A coder's submitted branch is named for its work step, so the branch is the step's key and the
@@ -625,11 +585,10 @@ Hecks.bluebook "Tickets" do
   end
 
   # A spec file that went red on main is a step QA picks up: `Work.undone` lists it. The spec's own key is
-  # the step's key, so a second red run, which only updates the spec, plans nothing twice. The step
-  # carries out ADR 0174, under which a red main stops landing until it is green.
+  # the step's key, so a second red run, which only updates the spec, plans nothing twice.
   policy "PlanWorkWhenSpecWentRed" do
     on      "RedSpec.SpecWentRed"
-    trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail, decision: "0174" }
+    trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail }
   end
 
   # A file that fails again after it was cleared plans its finished step again.
@@ -646,12 +605,10 @@ Hecks.bluebook "Tickets" do
 
   # QA's push check: a push that is due beyond the world's thresholds is one step, `push-due`. A look
   # that finds it already open revises its detail; a look that finds it no longer due finishes it.
-  # No decision of its own records the push nudge, so the step is filed under ADR 0175, which
-  # requires every step to name one, until such a decision is written.
   policy "PlanWorkWhenPushDue" do
     on      "PushNudge.PushDueRead"
     where   { due.value == "yes" && raised.value == "no" }
-    trigger Work::Plan, with: { work: :work, title: :title, detail: :detail, decision: "0175" }
+    trigger Work::Plan, with: { work: :work, title: :title, detail: :detail }
   end
 
   policy "ReviseWorkWhenPushStillDue" do

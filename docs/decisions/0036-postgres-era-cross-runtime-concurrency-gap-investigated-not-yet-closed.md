@@ -1,6 +1,6 @@
 # PostgresEra's cross-runtime concurrency gap — investigated, two real implementation hazards found, not yet safely closeable in one pass
 
-**Status:** Accepted. RESOLVED (2026-09-09) — see the final UPDATE at the bottom of this document for the shipped fix and its proof. The body below is kept verbatim as the investigation record; a future reader wanting the current state should jump to that update first.
+**Status:** RESOLVED (2026-09-09) — see the final UPDATE at the bottom of this document for the shipped fix and its proof. The body below is kept verbatim as the investigation record; a future reader wanting the current state should jump to that update first.
 
 ## Context
 
