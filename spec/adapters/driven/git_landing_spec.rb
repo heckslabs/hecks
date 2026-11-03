@@ -185,7 +185,8 @@ RSpec.describe "the Checkout and Landing adapters", :io do
     end
 
     # The copies that are declined: a relative destination, one inside the checkout, one that
-    # already holds files, an option for a ref, a path that leaves the repository, and an unknown ref.
+    # already holds files, an option for a ref, a path that leaves the repository, and an
+    # unknown ref.
     def declined_copies
       File.write(File.join(scratch, "occupied"), "x")
       [{ ref: { value: "HEAD" }, destination: { value: "relative/dir" } },
