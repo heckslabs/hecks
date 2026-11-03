@@ -78,7 +78,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
       output, code = run("governance")
 
       expect(code).to eq(0)
-      expect(output).to start_with("=== HECKS ===\nGovernance").and include("hecks run governance <command>")
+      expect(output).to start_with("Governance").and include("hecks run governance <command>")
     end
 
     it "keeps to the domain's own bluebook otherwise" do

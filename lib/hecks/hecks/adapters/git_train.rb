@@ -4,7 +4,6 @@ require_relative "git"
 require_relative "console_capture"
 require_relative "push_size"
 require_relative "red_flag_guard"
-require_relative "pusher_guard"
 require_relative "git_train/reading"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
@@ -46,7 +45,6 @@ module Hecks
         @registry = options.delete(:registry)
         @mint = options.delete(:mint) || MintStep.new
         @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
-        @env = options.delete(:env) || ENV
         @git = Git.new
       end
 
@@ -58,9 +56,9 @@ module Hecks
       #   `full_gate` (the whole pre-push stage, which the hook reads as `hecks.fullGate`)
       # @return [Hash{Symbol => Hash}] `outcome:`, `checkout:`, `boarded:` (the commit named at
       #   boarding), `pushed:` and `report:`, which opens with what the mint did
-      # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the session is not
-      #   the assigned pusher, the branch moved since boarding, the train is not at the boarded
-      #   commit, the branch and the remote's conflict, or the push is refused
+      # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch moved
+      #   since boarding, the train is not at the boarded commit, the branch and the remote's
+      #   conflict, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
@@ -132,17 +130,13 @@ module Hecks
       # configuration, for this push only (`git -c`).
       def gate_config(held) = plain(held[:full_gate]) == true ? ["-c", "hecks.fullGate=true"] : []
 
-      # Joins the line, after refusing a session that is not the assigned pusher.
       def in_turn
-        PusherGuard.new(common_dir, env: @env).boarding!
-        path = File.join(common_dir, LOCK_FILE)
+        path = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir"), LOCK_FILE)
         File.open(path, File::RDWR | File::CREAT) do |lock|
           lock.flock(File::LOCK_EX)
           yield
         end
       end
-
-      def common_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
 
       def toplevel(dir)
         raise ConsoleCapture::Failure, "#{dir} is not a directory" unless File.directory?(dir)

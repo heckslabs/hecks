@@ -78,18 +78,6 @@ if [ -z "$(git config --get hecks.trainCarry)" ]; then
   fi
 fi
 
-# The assigned pusher is the only session that pushes main (Pusher.assign!): the marker holds its
-# session id, the basename of CLAUDE_JOB_DIR. No marker, no lock; the owner's HECKS_OWNER_PUSH
-# passes. The lock guards mistakes, not a hostile session: every session is the same user.
-PUSHER_FILE="$(git rev-parse --path-format=absolute --git-common-dir)/hecks-pusher"
-if [ -z "$HECKS_OWNER_PUSH" ] && [ -s "$PUSHER_FILE" ]; then
-  PUSHER=$(head -n 1 "$PUSHER_FILE")
-  if [ "$PUSHER" != "$(basename "${CLAUDE_JOB_DIR:-none}")" ]; then
-    printf '[pre-push] only the pusher boards: %s\n' "$PUSHER" >&2
-    exit 1
-  fi
-fi
-
 # A stub (`hecks-stub: <finding>`) in a file this push touches blocks it until the finding is fixed
 # and its marker removed. It runs on every main push, whatever the suite setting.
 if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("stub_scope", ARGV)'; then

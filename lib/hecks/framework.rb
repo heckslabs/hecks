@@ -89,11 +89,6 @@ module Hecks
     # @return [void]
     def self.load_wiring(path)
       stem = File.join(File.dirname(path), File.basename(path, ".bluebook"))
-      # The members' own `attaches` and sibling wiring (Governance, Identity, Privacy) live in
-      # framework.hecksagon, which an attaching domain never otherwise loads; without it an attached
-      # member's `attaches` has no sibling to satisfy the wiring check.
-      shared = File.join(File.dirname(path), "framework.hecksagon")
-      Kernel.load(shared) if File.file?(shared)
       ports = "#{stem}.ports.hecksagon"
       Kernel.load(ports) if File.file?(ports)
       Dir.glob("#{stem}.*.adapter").each { |adapter| Kernel.load(adapter) }
