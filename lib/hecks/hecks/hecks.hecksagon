@@ -189,6 +189,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::TreeCopy.port "Copying" do
+    asks "Copy", to: TreeCopy do
+      attribute :run, RunKey
+      answers "CopyAnswered"
+      refuses "CopyRefused"
+    end
+  end
+
   Hecks::LinkedTree.port "WorktreeAdding" do
     asks "Create", to: LinkedTree do
       attribute :run, RunKey

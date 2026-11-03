@@ -4,6 +4,7 @@ require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/git_landing"
 require "hecks/hecks/adapters/git_checkout"
+require "hecks/hecks/adapters/git_copy"
 
 # The Checkout and Landing adapters, against a throwaway repository: a landing fast-forwards or
 # merges onto main and reports a conflict, a retirement keeps unmerged or dirty work, and the
@@ -150,6 +151,46 @@ RSpec.describe "the Checkout and Landing adapters", :io do
     expect(log.call(containing: "needle", path: "third")).to eq("\n")
     expect { log.call(path: "../first") }.to raise_error(Hecks::Runtime::NotFound)
     expect { log.call(containing: "a\nb") }.to raise_error(Hecks::Runtime::NotFound)
+  end
+
+  describe "copying a tree as it stood at a ref" do
+    let(:copier) { Hecks::Adapters::GitCopy.new }
+    let(:destination) { File.join(scratch, "copy") }
+
+    def copy(**held) = copier.copy(checkout: { value: feature_tree }, **held)
+
+    it "writes a path, or the whole tree, into a new directory and reports it", :aggregate_failures do
+      commit("second", dir: feature_tree, text: "two")
+
+      report = copy(ref: { value: "HEAD" }, path: { value: "second" }, destination: { value: destination })[:report][:value]
+
+      expect(File.read(File.join(destination, "second"))).to eq("two")
+      expect(File).not_to exist(File.join(destination, "first"))
+      expect(report).to match(/\Acopied 1 files of second at \h+ into #{Regexp.escape(destination)}\z/)
+    end
+
+    it "copies the tree as it stood at a parent revision", :aggregate_failures do
+      commit("second", dir: feature_tree)
+      other = File.join(scratch, "earlier")
+
+      copy(ref: { value: "HEAD^" }, destination: { value: other })
+
+      expect(File).to exist(File.join(other, "first"))
+      expect(File).not_to exist(File.join(other, "second"))
+    end
+
+    it "declines a relative destination, one inside the checkout, a full one and a bad ref or path", :aggregate_failures do
+      File.write(File.join(scratch, "occupied"), "x")
+      [{ ref: { value: "HEAD" }, destination: { value: "relative/dir" } },
+       { ref: { value: "HEAD" }, destination: { value: File.join(feature_tree, "inside") } },
+       { ref: { value: "HEAD" }, destination: { value: File.join(scratch, "occupied") } },
+       { ref: { value: "--all" }, destination: { value: destination } },
+       { ref: { value: "HEAD" }, path: { value: "../first" }, destination: { value: destination } },
+       { ref: { value: "nosuchref" }, destination: { value: destination } }].each do |held|
+        expect { copy(**held) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure), held.inspect
+      end
+      expect(File).not_to exist(destination)
+    end
   end
 
   describe "showing a file as it stood at a ref" do

@@ -88,6 +88,13 @@ Hecks.behaviors "Custodian" do
     expect emits: %w[CommitRequested CommitRefused CommitDeclined]
   end
 
+  test "Make keeps a checkout that is not there as a declined copy" do
+    tests "Make", on: "TreeCopy"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          ref: { value: "HEAD" }, destination: { value: "/tmp/hecks-behaviors-absent/copy" }
+    expect emits: %w[CopyRequested CopyRefused CopyDeclined]
+  end
+
   test "Make refuses a commit that says nothing" do
     tests "Make", on: "Revision"
     input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
