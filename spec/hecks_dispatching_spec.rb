@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
   def reasons(result) = result.skipped.to_h { |skip| [skip.key, skip.reason] }
 
   def rows_double(planned, started = [])
-    instance_double(described_class::Rows, planned: planned, started: started, runs: {})
+    instance_double(described_class::Rows, planned: planned, started: started, runs: {}, lessons: [])
   end
 
   def result(out, err, success)
