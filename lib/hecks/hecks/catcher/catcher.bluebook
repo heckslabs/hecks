@@ -10,7 +10,7 @@ Hecks.bluebook "Hecks" do
     # Roles are the Hecks domain's own. The Hecks hecksagon attaches Governance, which checks each
     # command's role against the RoleAssignments it holds. A role here is a name Governance grants,
     # never a list kept in this module. Accept and Dismiss are a person's decisions, so they run as
-    # Operator and record the actor_id the role check read in `decided_by`.
+    # Operator. `decided_by` is the actor_id the caller names; the runtime does not fill it.
 
     aggregate "Observation" do
       description "One action seen outside any declared command, recorded as it was seen and never changed."
@@ -25,8 +25,8 @@ Hecks.bluebook "Hecks" do
 
       identified_by :observation_id
 
-      # Minted by the recording adapter, so two identical actions in one second are two
-      # observations.
+      # The caller supplies observation_id, and it must be unique. Two identical actions in one
+      # second are two observations.
       value_object "ObservationId" do
         attribute :value, String
         invariant("an observation is identified") { !value.to_s.empty? }
@@ -82,6 +82,13 @@ Hecks.bluebook "Hecks" do
         sets :observed_at
 
         emits ObservationRecorded
+      end
+
+      query "OfSubject" do
+        description "Every observation of one subject, oldest first."
+        attribute :subject, String
+        where(subject: :subject)
+        order_by :observed_at
       end
     end
 
@@ -143,8 +150,9 @@ Hecks.bluebook "Hecks" do
         invariant("a timestamp is present") { !value.to_s.empty? }
       end
 
-      # The actor_id the Governance role check read for the person who accepted or dismissed the
-      # finding. Governance's own IdentityId is not shared across bluebooks, so this restates it.
+      # The actor_id the caller names for the person who accepted or dismissed the finding. The
+      # runtime does not fill it. Governance's own IdentityId is not shared across bluebooks, so
+      # this restates it.
       value_object "DecidedBy" do
         attribute :value, String, matches: :present
       end
@@ -163,6 +171,10 @@ Hecks.bluebook "Hecks" do
       command "Raise" do
         role "System"
         goal "Record a pattern of observed actions as a finding, judged against the declared rules"
+
+        given("a pattern has at least 3 calls") { count.value >= 3 }
+        given("a pattern is seen in at least 2 sessions") { sessions.value >= 2 }
+        given("a pattern has a success rate of at least 0.8") { success_rate.value >= 0.8 }
 
         sets :subject
         sets :kind
@@ -196,6 +208,14 @@ Hecks.bluebook "Hecks" do
 
         emits FindingDismissed
       end
+
+      # A new raise reads this first, so the same pattern is not raised twice.
+      query "RaisedFor" do
+        description "Every raised finding of one subject, oldest first."
+        attribute :subject, String
+        where(status: "raised", subject: :subject)
+        order_by :raised_at
+      end
     end
 
     # The action one accepted finding leads to: one corrective action per finding, started by a
@@ -221,7 +241,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String
       end
 
-      # Started is the only state the model declares for now.
+      # Started is the only state the model declares; more may be added.
       value_object "ActionState" do
         attribute :value, String
         invariant("an action has a state") { !value.to_s.empty? }
