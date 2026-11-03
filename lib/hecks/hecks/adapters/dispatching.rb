@@ -32,14 +32,15 @@ module Hecks
 
       # Says which planned work items start now, and starts them when confirmed.
       #
-      # @param held [Hash] the `Dispatch` record: `repo`, `budget_minutes`, `confirm`
+      # @param held [Hash] the `Dispatch` record: `repo`, `budget_minutes`, `confirm`, and the
+      #   request's `only`, the key prefix the choice is held to
       # @return [Hash{Symbol => Hash}] `report:` the load, the work items started or that would be,
       #   and
       #   the
       #   work items left waiting with the reason
       def choose(**held)
-        plan = plan_for
-        lines = [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + plan.skipped.map { |skip| skipped_line(skip) }
+        plan = plan_for(prefix(held))
+        lines = report_lines(plan)
         lines += launch(plan, held) if plain(held[:confirm]) == true
         { report: { value: lines.join("\n") } }
       end
@@ -61,10 +62,21 @@ module Hecks
 
       def launcher_for(held) = Launcher.new(plain(held[:repo]), runner: @standins[:runner])
 
-      def plan_for
-        Plan.new(work_items.planned, work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                             frozen: machine.frozen)
+      def plan_for(only = "")
+        Plan.new(planned(only), work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
+                                                    frozen: machine.frozen)
       end
+
+      # The key prefix a filling is held to; empty when none is named.
+      def prefix(held) = plain(held[:only]).to_s
+
+      # The load, then each work item that starts or would, then each left waiting with its reason.
+      def report_lines(plan)
+        [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + plan.skipped.map { |skip| skipped_line(skip) }
+      end
+
+      # The planned work items, held to those whose key starts with `only` when one is named.
+      def planned(only) = work_items.planned.select { |item| only.empty? || item.key.to_s.start_with?(only) }
 
       def header(plan)
         "#{load_line}; cap #{machine.cap}, #{work_items.started.size} started; frozen: #{frozen_line}; " \
