@@ -1,6 +1,6 @@
 # A quoted member cell stays a string
 
-**Status:** Proposed. Built: `Assembly::Scalars.mark` and `unmark`, the `member_pair_rows` reader, the Rust parser's `cell_value`, and `spec/dispatch_load_spec.rb`. Date: 2026-10-16.
+**Status:** Accepted, built (code present in the tree). Built: `Assembly::Scalars.mark` and `unmark`, the `member_pair_rows` reader, the Rust parser's `cell_value`, and `spec/dispatch_load_spec.rb`. Date: 2026-10-16.
 
 ## Context
 

@@ -2,8 +2,8 @@ require "digest"
 
 module Hecks
   module EmbryonautBluebook
-    # The digest here must match the source repo's own bin/bluebook_digest
-    # output for the same tag, or a vendored copy cannot be trusted.
+    # The digest here must match the one the source repo's own digest script
+    # prints for the same tag, or a vendored copy cannot be trusted.
     Lock = Struct.new(:package, :version, :tag, :commit, :digest, :shape, keyword_init: true) do
       # What a package's `bluebook/` directory ships and a project vendors: its bluebooks, and the
       # plugin adapters and wasm modules that answer their queries.

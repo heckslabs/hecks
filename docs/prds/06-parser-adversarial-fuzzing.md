@@ -7,7 +7,7 @@ starting-point survey that found no parser fuzzing.
 ## The problem
 
 `spec/parser_parity_spec.rb`, `spec/parser_coverage_spec.rb`,
-`spec/codegen_parity_spec.rb`, and `rust/parser/tests/gates.rs` are all real
+and `rust/parser/tests/gates.rs` (the codegen parity spec the first draft named is gone) are all real
 and all valuable — but every one of them compares against **valid,
 hand-written, or deliberately hand-picked-invalid** bluebook fixtures. None
 of them throw genuinely adversarial input at the parser: malformed syntax,
@@ -31,7 +31,7 @@ fixture for, as opposed to input someone remembered to test.
 3. Run it for a bounded budget locally (minutes, not hours) to establish it
    works and catches something in the seed corpus's own mutated
    neighborhood; the real, ongoing value comes from running it on a
-   schedule (CI nightly, or a dedicated `bin/` target a session can kick off
+   schedule (CI nightly, or a dedicated launcher command a session can kick off
    on demand) rather than a one-time pass.
 4. Any crash found gets minimized (`cargo-fuzz` does this natively) and
    turned into a `rust/parser/tests/fixtures/` regression case — the parser
@@ -52,7 +52,7 @@ fixture for, as opposed to input someone remembered to test.
 - Fuzzing dispatch/runtime semantics (PRD 04's territory) — this is parser
   robustness only: does malformed/adversarial *syntax* ever crash the
   parser, not "does a valid-but-fuzzed command sequence behave correctly."
-- Coverage-guided generation feeding back into `bin/fuzz` (PRD 08) — that's
+- Coverage-guided generation feeding back into `fuzz_run.fuzz!` (PRD 08) — that's
   the Ruby-side generator's own separate concern; `cargo-fuzz` already does
   coverage-guided mutation internally for this PRD's own target, which is a
   different system entirely.

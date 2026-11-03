@@ -43,7 +43,7 @@ module Hecks
         # Reads a bluebook's `launcher` setting.
         #
         # @param runtime [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted domain
-        # @param bluebook [String] the bluebook the command line speaks to
+        # @param declaration [String] the bluebook the command line speaks to
         # @return [Hash{Symbol => Object}, nil] the setting, or nil when the bluebook did not opt in
         def settings(runtime, declaration)
           return unless runtime.respond_to?(:registry)

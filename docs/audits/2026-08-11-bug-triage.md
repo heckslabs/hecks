@@ -1,5 +1,7 @@
 # Bug triage — 2026-08-10 audit, prioritized
 
+> **Historical snapshot:** dated record; paths and commands below may have moved.
+
 _2026-08-11._ Every finding in [`2026-08-10-main-bug-audit.md`](2026-08-10-main-bug-audit.md),
 reorganized into priority tiers. That file stays the source of truth for
 detail (reproductions, code snippets, confidence); this file is an index and

@@ -31,9 +31,9 @@ side to hide behind.
    Rust subprocess spawn per generated sequence) — budget for it running as
    its own `io: true`-tagged spec (subprocess spawn qualifies under the
    existing convention) rather than joining the everyday local loop, the
-   same reasoning that moved `spec/fuzzing` itself to a post-commit hook
-   this session.
-4. On a real divergence, don't just report it — run it through `bin/fuzz`'s
+   same reasoning that moved `spec/fuzzing` itself out of the everyday loop
+   (the post-commit hook it used was dropped).
+4. On a real divergence, don't just report it — run it through `fuzz_run.fuzz!`'s
    own existing shrinker (already built, already proven) to get a minimal
    repro before filing it as a finding.
 

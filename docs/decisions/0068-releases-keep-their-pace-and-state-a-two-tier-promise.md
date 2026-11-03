@@ -1,5 +1,7 @@
 # Releases keep their pace, and the stability promise is stated as two tiers
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/release_gem` is `exe/hecks publishing_run.publish_gem!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented. The promise text is in `docs/1.0-readiness.md`, `v2.5.0` is tagged, the `2.0.0` CHANGELOG date is corrected, and the GitHub Releases page lists every tag from 1.0.1 (each with its CHANGELOG section as notes). The release steps in `CONTRIBUTING.md` now include creating the GitHub Release. Date: 2026-09-27.
 
 ## Context

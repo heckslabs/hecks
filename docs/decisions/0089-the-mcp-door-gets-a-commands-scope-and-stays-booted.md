@@ -1,6 +1,6 @@
 # The MCP door gets a commands scope and stays booted
 
-**Status:** Proposed. Date: 2026-10-03. A spawned door can already be narrowed to reader tools (ADR 0072). A third scope serves `dispatch` for a closed list of commands, so an agent can run the Hecks chapter's own verbs through typed tools, and a restricted door keeps each named domain booted for the session.
+**Status:** Accepted, built (code present in the tree). Date: 2026-10-03. A spawned door can already be narrowed to reader tools (ADR 0072). A third scope serves `dispatch` for a closed list of commands, so an agent can run the Hecks chapter's own verbs through typed tools, and a restricted door keeps each named domain booted for the session.
 
 ## Context
 

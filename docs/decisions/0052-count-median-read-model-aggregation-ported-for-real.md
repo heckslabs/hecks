@@ -1,5 +1,7 @@
 # `count`/`median` read-model aggregation — ported for real, reusing existing machinery rather than a new two-head-join framework
 
+> Historical: `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Shipped, with explicit user authorization. `docs/decisions/0050` (`group_by`) explicitly deferred `count`/`median` as needing "a genuinely separate, harder two-head-join framework." That framing turns out to have been wrong, found only by actually looking at the real corpus shape and Ruby's own interpreter closely: `count`/`median` need NO new join framework at all. This ADR ships both, for the real corpus's two declarations (`Banking::DisputedPaymentCount`, `Banking::DisputedPaymentMedian`).
 
 ## The framing that was wrong, and what's actually true

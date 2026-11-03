@@ -1,6 +1,6 @@
 # A client downloads the host hecks already built
 
-**Status:** Proposed. Built: the `PrebuiltBinary` rows, `Hecks::RustBuild::PrebuiltBinary`, the download in `build_host` and the
+**Status:** Accepted, built (code present in the tree). Built: the `PrebuiltBinary` rows, `Hecks::RustBuild::PrebuiltBinary`, the download in `build_host` and the
 generated `publish-host.yml`. Date: 2026-10-16.
 
 ## Context

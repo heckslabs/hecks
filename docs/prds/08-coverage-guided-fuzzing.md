@@ -1,4 +1,4 @@
-# PRD 08 — Coverage-guided fuzzing for `bin/fuzz`
+# PRD 08 — Coverage-guided fuzzing for `fuzz_run.fuzz!`
 
 **Status:** Shipped: `lib/hecks/fuzzing/runtime_coverage.rb` and `coverage_campaign.rb`
 steer seeds by real runtime line coverage. The text below is the original proposal,
@@ -6,7 +6,7 @@ sequenced last on purpose.
 
 ## The problem
 
-`bin/fuzz` is a real, working fuzzer with a real shrinker (repeatedly drops
+`fuzz_run.fuzz!` is a real, working fuzzer with a real shrinker (repeatedly drops
 whole steps, then individual step arguments, keeping only removals that
 still reproduce the same failure signature) — but generation itself is pure
 random draw (seed-indexed) through a domain-aware weighted picker, with no
@@ -17,7 +17,7 @@ nothing steers it toward code paths it hasn't exercised yet.
 ## Why this is sequenced last
 
 Coverage-guidance is only as valuable as the surface area worth guiding
-toward. Today, `bin/fuzz` (via `IsolatedBoot`) only ever reaches Memory-
+toward. Today, `fuzz_run.fuzz!` (via `IsolatedBoot`) only ever reaches Memory-
 adapter, Ruby-only code paths — the same surface area `03`
 (fuzzer-real-adapters) and `05` (rust-conformance-fuzzing) are about to
 widen substantially. Building coverage-guidance before those land means
@@ -28,7 +28,7 @@ stops this PRD from starting today, it's just less valuable to.
 
 ## Approach
 
-1. Instrument `bin/fuzz`'s own generation loop with real code-coverage
+1. Instrument `fuzz_run.fuzz!`'s own generation loop with real code-coverage
    feedback — the mechanics depend on what's practical for Ruby (a
    `coverage`-stdlib-backed tracker keeping a running set of hit
    lines/branches across the whole run, informing the picker's own weights
@@ -51,14 +51,14 @@ stops this PRD from starting today, it's just less valuable to.
       like "fraction of declared mutation ops reached") demonstrably
       improves with guidance versus the current pure-random baseline, on
       the same seed budget.
-- [ ] The existing shrinker (`bin/fuzz`'s own step/argument-dropping
+- [ ] The existing shrinker (`fuzz_run.fuzz!`'s own step/argument-dropping
       mechanism) is unaffected.
 - [ ] Any new bug this surfaces (which is the actual point) gets its own
       fix, same as every other PRD in this set.
 
 ## Non-goals
 
-- Replacing `bin/fuzz`'s existing weighted-picker generation entirely —
+- Replacing `fuzz_run.fuzz!`'s existing weighted-picker generation entirely —
   coverage-guidance augments it, doesn't need to replace the domain-aware
   "act on what exists" weighting that already makes generated sequences
   realistic.

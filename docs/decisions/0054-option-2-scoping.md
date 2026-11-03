@@ -1,5 +1,7 @@
 # Option 2 scoping — making `hecks-codegen` the sole Rust generator
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/project_wasm` is `exe/hecks build.build_wasm!`, `bin/project_deploy` is `exe/hecks deploy recipe.project!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Scoping addendum to 0054, not a decision. Option 2 was adopted by
 [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md) and then
 reversed by [0054b](0054b-the-ruby-generator-stays-primary.md): the Ruby

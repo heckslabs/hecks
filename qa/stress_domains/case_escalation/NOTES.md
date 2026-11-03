@@ -1,5 +1,7 @@
 # `CaseEscalation` — retention note
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 **Kept.** Realizes ANGLE-12 (`ask backlog`, QualityControl ledger): two
 feature-coverage gaps (`spec/fuzzing/meta_domain_coverage_spec.rb`
 `META_DOMAIN_KNOWN_GAPS`) meet on nothing in the corpus today —

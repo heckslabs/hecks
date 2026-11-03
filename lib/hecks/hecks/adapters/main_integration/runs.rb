@@ -32,7 +32,7 @@ module Hecks
         # @return [Run, nil] the run keyed by it
         def find(landed) = all.find { |run| run.landed == landed.to_s }
 
-        # @param landed [String] the run to leave out
+        # @param except [String, nil] the landed commit whose run to leave out
         # @return [Array<Run>] the other runs that are being pushed or watched
         def in_flight(except: nil) = all.select { |run| run.landed != except.to_s && IN_FLIGHT.include?(run.state) }
 

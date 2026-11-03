@@ -51,7 +51,7 @@ module Hecks
 
     module_function
 
-    # @return [Hecks::Bluebook::Structure::Domain] banking's bluebook, loaded once
+    # @return [Hecks::Bluebook::Declaration] banking's bluebook, loaded once
     def bluebook
       @bluebook ||= load_banking.bluebook("Banking")
     end

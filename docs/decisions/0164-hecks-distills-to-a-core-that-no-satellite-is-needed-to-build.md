@@ -1,7 +1,7 @@
 # Hecks distills to a core that no satellite is needed to build
 
-**Status:** Proposed. Date: 2026-10-30.
-Planned for 7.0.0. Meets [ADR 0163](0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md)
+**Status:** Proposed. Date: 2026-10-30. Not built: 7.0.0 and 7.1.0 have shipped and neither CHANGELOG entry nor `packages/` carries the split.
+Planned for 7.0.0 when written. Meets [ADR 0163](0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md)
 where the Hecks context is classified by module.
 
 ## Context

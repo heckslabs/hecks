@@ -833,6 +833,11 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait",
              script: "",
              blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines."
+      member name: "doc_staleness", id: "doc_staleness",
+             title: "doc staleness, every repo path, Hecks constant and @param tag a doc or comment cites still exists",
+             argv: "bundle exec exe/hecks conformance_run.check_doc_staleness! --wait",
+             script: "",
+             blocked: "a doc or comment cites a path, a Hecks:: constant or a @param that is gone. The failure names each file:line and the reason. Fix the citation; mark one that is shown and not meant to exist with `staleness-check: skip` on its line or the one before, and a whole page that records a past state with a leading `> Historical:` quote, a `Status: Superseded|Historical|Rejected` line, or `staleness-check: skip-file` in its first lines."
       member name: "workflow_pagination", id: "workflow_pagination",
              title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone",
              argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait",
@@ -1004,7 +1009,7 @@ Hecks.bluebook "Bluebook" do
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
-      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+      member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,doc_staleness,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
     # What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalStage` is one
@@ -1228,7 +1233,7 @@ Hecks.bluebook "Bluebook" do
       member script: "project_diagrams", section: "Custodian", aggregate: "Introspection", verb: "project_diagrams"
       member script: "project_glossary", section: "Custodian", aggregate: "Introspection", verb: "glossary"
       member script: "model_check", section: "Custodian", aggregate: "ModelCheckRun", verb: "model_check"
-      member script: "run", section: "Custodian", aggregate: "Operation", verb: "run", form: "hecks run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>"
+      member script: "run", section: "Custodian", aggregate: "Operation", verb: "run", form: "hecks operation.run! [subject.value=<domain>] verb.value=<verb> [arguments.value=name=value …]; or script.value=<file>"
       member script: "project", section: "Custodian", aggregate: "Operation", verb: "refresh_projections"
       member script: "behaviors", section: "Custodian", aggregate: "Operation", verb: "run_behaviors"
       member script: "console", section: "Custodian", aggregate: "Operation", verb: "open_console"

@@ -495,7 +495,7 @@ impl ToStringType {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -614,7 +614,7 @@ impl SizedType {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -729,7 +729,7 @@ impl Primitive {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -840,7 +840,7 @@ impl NormalisationStrategy {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -1084,7 +1084,7 @@ impl QueryComparator {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -1378,7 +1378,7 @@ impl LoadOrder {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -1541,7 +1541,7 @@ impl AggregateDispatchOrder {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -1721,7 +1721,7 @@ impl EntityDispatchOrder {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -1896,7 +1896,7 @@ impl DomainRefusal {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -2036,7 +2036,7 @@ impl RefusalKind {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -2164,7 +2164,7 @@ impl DispatchStage {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -4406,7 +4406,7 @@ impl Trigger {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -4804,6 +4804,7 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "comment_style", id: "comment_style", title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", script: "", blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.", runs_in: "" },
     GateCheck { name: "comment_blocks", id: "comment_blocks", title: "comment blocks, no run of comment lines past ADR 0075's cap", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", script: "", blocked: "a comment block ran past the cap; shorten it.", runs_in: "" },
     GateCheck { name: "command_names", id: "command_names", title: "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait", script: "", blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines.", runs_in: "" },
+    GateCheck { name: "doc_staleness", id: "doc_staleness", title: "doc staleness, every repo path, Hecks constant and @param tag a doc or comment cites still exists", argv: "bundle exec exe/hecks conformance_run.check_doc_staleness! --wait", script: "", blocked: "a doc or comment cites a path, a Hecks:: constant or a @param that is gone. The failure names each file:line and the reason. Fix the citation; mark one that is shown and not meant to exist with `staleness-check: skip` on its line or the one before, and a whole page that records a past state with a leading `> Historical:` quote, a `Status: Superseded|Historical|Rejected` line, or `staleness-check: skip-file` in its first lines.", runs_in: "" },
     GateCheck { name: "workflow_pagination", id: "workflow_pagination", title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone", argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", script: "", blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=.", runs_in: "" },
     GateCheck { name: "secret_output", id: "secret_output", title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints", argv: "bundle exec rspec spec/secret_output_spec.rb", script: "", blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream.", runs_in: "" },
     GateCheck { name: "adapter_words", id: "adapter_words", title: "adapter words, no domain name equal to a technology word the adapters are named for", argv: "bundle exec rspec spec/adapter_words_spec.rb", script: "", blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter.", runs_in: "" },
@@ -4953,6 +4954,7 @@ impl GateCheck {
                     "comment_style",
                     "comment_blocks",
                     "command_names",
+                    "doc_staleness",
                     "workflow_pagination",
                     "secret_output",
                     "adapter_words",
@@ -4999,7 +5001,7 @@ pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec" },
     GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
-    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
+    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,doc_staleness,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
 
 impl GateStage {
@@ -5826,7 +5828,7 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "project_diagrams", section: "Custodian", aggregate: "Introspection", verb: "project_diagrams", passes: "", note: "", form: "" },
     RetiredScript { script: "project_glossary", section: "Custodian", aggregate: "Introspection", verb: "glossary", passes: "", note: "", form: "" },
     RetiredScript { script: "model_check", section: "Custodian", aggregate: "ModelCheckRun", verb: "model_check", passes: "", note: "", form: "" },
-    RetiredScript { script: "run", section: "Custodian", aggregate: "Operation", verb: "run", passes: "", note: "", form: "hecks run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>" },
+    RetiredScript { script: "run", section: "Custodian", aggregate: "Operation", verb: "run", passes: "", note: "", form: "hecks operation.run! [subject.value=<domain>] verb.value=<verb> [arguments.value=name=value …]; or script.value=<file>" },
     RetiredScript { script: "project", section: "Custodian", aggregate: "Operation", verb: "refresh_projections", passes: "", note: "", form: "" },
     RetiredScript { script: "behaviors", section: "Custodian", aggregate: "Operation", verb: "run_behaviors", passes: "", note: "", form: "" },
     RetiredScript { script: "console", section: "Custodian", aggregate: "Operation", verb: "open_console", passes: "", note: "", form: "" },
@@ -6502,7 +6504,7 @@ impl RustReservedWord {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -6706,7 +6708,7 @@ impl CargoReservedName {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before

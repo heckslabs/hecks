@@ -1,5 +1,7 @@
 # Issue-tracker reconciliation plan — 2026-08-26
 
+> **Historical snapshot:** dated record; paths and commands below may have moved.
+
 _Prompted by a critique agent's claim of "186 open issues." That count was
 correct as a raw `gh issue list --state open` tally, but it was not a live
 backlog — see below. **Update, same day:** Phase 1 executed for the

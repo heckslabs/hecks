@@ -4,7 +4,8 @@ require_relative "../behaviors"
 module Hecks
   module Tools
     # The command behind `hecks run_behaviors` and Custodian's `Operation.RunBehaviors`: runs
-    # `.behaviors` files and reports pass, fail or error per test (docs/guides/behaviors.md).
+    # `.behaviors` files and reports pass, fail or error per test
+    # (docs/implemented/guides/behaviors.md).
     module Behaviors
       module_function
 

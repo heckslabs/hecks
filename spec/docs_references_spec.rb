@@ -41,7 +41,7 @@ module DocReferences
 
   # Words the launcher took unqualified before it retired them; they are not qualified names.
   RETIRED = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
-  UNQUALIFIED = (RETIRED + %w[console init interview version help]).freeze
+  UNQUALIFIED = (RETIRED + %w[console init interview version help tour search completion doctor usage config]).freeze
 
   # Launchers that take a verb of their own after them: `hecks deploy recipe.project`.
   BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control].freeze

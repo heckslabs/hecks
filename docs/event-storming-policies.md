@@ -24,7 +24,7 @@ of wrong guesses made while investigating it, and names the one real gap.
 | External System (pink) | **not modeled — the one real gap, see below** |
 
 `Policy` is declared as part of the language's own self-description
-(`lib/hecks/language/bluebook/reaction.bluebook`), the same way every other
+(`lib/hecks/language/bluebook/policy.bluebook`), the same way every other
 construct in this language is. Its DSL surface is exactly three methods
 (`PolicyBuilder`):
 

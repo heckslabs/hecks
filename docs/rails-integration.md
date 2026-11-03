@@ -62,7 +62,7 @@ one maps to a specific thing this design avoids **structurally**, not by convent
 ## Architecture: Rails is a driving adapter, not a special one
 
 Per the hexagonal (ports & adapters) reading: a Rails controller calling into the
-domain is structurally identical to `hecks console` or `hecks run` — just another driving
+domain is structurally identical to `hecks console!` or `hecks operation.run!` — just another driving
 adapter. The domain doesn't know or need to know which one called it. This has one
 hard consequence for the design: **core `Handle`/`AggregateModule` must never gain a
 Rails or ActiveModel dependency.** Anything Rails-specific lives in a decoration layer
@@ -70,12 +70,12 @@ built on top of the core driving adapters, applied once at boot — never inside
 `lib/hecks/adapters/driving/`.
 
 ```ruby skip
-lib/hecks/adapters/driving/handle.rb   core, adapter-agnostic, used by hecks console too
+lib/hecks/adapters/driving/handle.rb   core, adapter-agnostic, used by hecks console! too
   ↑ wrapped by
 Hecks::Rails::Model (packages/hecks-rails)   ActiveModel::Conversion + a real ActiveModel::Errors
 ```
 
-`hecks console`/`hecks run` use the plain `Handle` and never load ActiveModel. A Rails
+`hecks console!`/`hecks operation.run!` use the plain `Handle` and never load ActiveModel. A Rails
 app's model wraps the same `Handle`, so by the time a controller sees a record the
 wrapping already happened.
 

@@ -8,7 +8,7 @@ require_relative "command_schemas"
 module Hecks
   module RustBuild
     # Regenerates a domain's Rust source and cross-compiles it to `wasm32-wasip1`
-    # (docs/decisions/0012-wasm-via-wasi-stdio.md).
+    # (docs/implemented/decisions/0012-wasm-via-wasi-stdio.md).
     #
     #   Wasm.call(["path/to/domain"])
     #

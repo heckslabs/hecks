@@ -1,5 +1,7 @@
 # `checks_codegen_drift` auto-discovers its own domain list, instead of a maintained one
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/regen_codegen_domains` is `exe/hecks regeneration_run.regenerate_corpus!`, `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/doc_coverage` is `exe/hecks conformance_run.measure_doc_coverage!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Adopted. `bin/regen_codegen_domains` (2026-09-13) replaces `.github/workflows/ci-checks.yml`'s `checks_codegen_drift` step's hand-maintained list of `bin/project_rust <domain>` lines with a walk over `examples/`, `qa/stress_domains/`, and `spec/fixtures/rust_project/` that regenerates any domain already carrying committed output under `rust/src/generated/<name>/`.
 
 ## The recurring failure this closes

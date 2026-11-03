@@ -2,8 +2,8 @@
 
 Scoped 2026-08-16, after a survey of what bug-hunting infrastructure already
 exists for the Ruby runtime and the Rust parser (`lib/hecks/fuzzing/`,
-`spec/adapters/query_agreement_spec.rb`, `bin/model_check`, the parser
-parity/coverage specs, `bin/fuzz`'s own shrinker). That survey is the "what's
+`spec/adapters/query_agreement_spec.rb`, `model_check_run.model_check!`, the parser
+parity/coverage specs, `fuzz_run.fuzz!`'s own shrinker). That survey is the "what's
 already covered" baseline every PRD below cites against — none of these
 duplicate an existing gate.
 
@@ -16,16 +16,18 @@ first in the fuzzer plan: it's not "add a test," it's "there's a hole."
 
 ## The eight
 
-| # | PRD | Size | Blocked on |
+| # | PRD | Size | Status |
 |---|---|---|---|
-| 1 | [`reaction-depth-race`](01-reaction-depth-race.md) — fix the known unguarded thread race + a general concurrent-dispatch stress test | small | nothing — ready now |
-| 2 | [`numeric-boundary-coverage`](05-numeric-boundary-coverage.md) | small | nothing — ready now |
-| 3 | [`fuzzer-real-adapters`](02-fuzzer-real-adapters.md) — run the whole property suite against Sqlite/Postgres, not just Memory | large | nothing — ready now |
-| 4 | [`mutation-application-agreement`](03-mutation-application-agreement.md) | medium | benefits from #3, not blocked by it |
-| 5 | [`rust-conformance-fuzzing`](04-rust-conformance-fuzzing.md) — feed generated sequences through the Ruby/Rust differential harness | medium | nothing — ready now |
-| 6 | [`parser-adversarial-fuzzing`](06-parser-adversarial-fuzzing.md) — `cargo-fuzz` against the Rust parser | medium | nothing — ready now |
-| 7 | [`ruby-mutation-testing`](07-ruby-mutation-testing.md) | medium | nothing — ready now, but sequenced late on purpose |
-| 8 | [`coverage-guided-fuzzing`](08-coverage-guided-fuzzing.md) | large | genuinely benefits from #3 and #5 landing first |
+| 1 | [`reaction-depth-race`](01-reaction-depth-race.md) — fix the known unguarded thread race + a general concurrent-dispatch stress test | small | Done |
+| 2 | [`numeric-boundary-coverage`](05-numeric-boundary-coverage.md) | small | Done |
+| 3 | [`fuzzer-real-adapters`](02-fuzzer-real-adapters.md) — run the whole property suite against Sqlite/Postgres, not just Memory | large | Done (Sqlite, Postgres, PostgresEra) |
+| 4 | [`mutation-application-agreement`](03-mutation-application-agreement.md) | medium | Not started |
+| 5 | [`rust-conformance-fuzzing`](04-rust-conformance-fuzzing.md) — feed generated sequences through the Ruby/Rust differential harness | medium | Shipped as `hecks build.fuzz_conformance!` |
+| 6 | [`parser-adversarial-fuzzing`](06-parser-adversarial-fuzzing.md) — `cargo-fuzz` against the Rust parser | medium | Shipped |
+| 7 | [`ruby-mutation-testing`](07-ruby-mutation-testing.md) | medium | Partly: the Rust kernel pass is done; the Ruby side is not started |
+| 8 | [`coverage-guided-fuzzing`](08-coverage-guided-fuzzing.md) | large | Shipped |
+
+The sections below are the original sequencing, kept for the one PRD still open and the one half-open.
 
 (Numbering above is priority order, the order I'd pick work in with one
 worker. The wave plan below is execution order once more than one worker is
@@ -39,8 +41,8 @@ Only two genuine sequencing constraints exist in this set — everything else
 is priority, not blocking:
 
 - **`08` coverage-guided-fuzzing** is technically buildable standalone, but
-  its whole value proposition is "guide `bin/fuzz` toward code coverage it
-  isn't reaching yet" — that payoff is much bigger once `bin/fuzz` already
+  its whole value proposition is "guide `fuzz_run.fuzz!` toward code coverage it
+  isn't reaching yet" — that payoff is much bigger once `fuzz_run.fuzz!` already
   reaches real-adapter code paths (`03`) and the Rust runtime (`05`).
   Building it first would mean guiding generation toward surface area
   (Memory-only, Ruby-only) that's already the best-covered part of the
@@ -65,11 +67,11 @@ None of these seriously collide. The rough file footprint per PRD:
 - `01` — `lib/hecks/runtime/dispatcher.rb`, `lib/hecks/runtime/registry.rb`, one new concurrency spec.
 - `02` — `lib/hecks/fuzzing/value_generator.rb`, `lib/hecks/fuzzing/invalid_value_generator.rb`, existing growth specs.
 - `03` — `lib/hecks/fuzzing/isolated_boot.rb`, `lib/hecks/fuzzing/sequence_generator.rb`, `spec/fuzzing/properties_spec.rb`.
-- `04` — a new `spec/adapters/mutation_agreement_spec.rb` (hand-written path) or `lib/hecks/fuzzing/properties.rb` (fuzzer-extension path, only if built after `03`).
-- `05` — `spec/rust_conformance_spec.rb`, possibly a new `bin/` script bridging `SequenceGenerator` output to the Rust conformance binary.
+- `04` — a new `mutation_agreement_spec.rb` under `spec/adapters/` (hand-written path) or `lib/hecks/fuzzing/properties.rb` (fuzzer-extension path, only if built after `03`).
+- `05` — `spec/rust_conformance_spec.rb`, the `build.fuzz_conformance!` command bridging `SequenceGenerator` output to the Rust conformance binary.
 - `06` — `rust/` only (a new `fuzz/` crate under `rust/parser/` or similar). Zero Ruby-side files.
 - `07` — a new `Gemfile` entry + config, scoped narrowly to `lib/hecks/runtime/command_interpreter.rb` first.
-- `08` — `bin/fuzz` itself, plus whatever coverage-instrumentation hook it needs.
+- `08` — `fuzz_run.fuzz!` itself, plus whatever coverage-instrumentation hook it needs.
 
 The only real overlap is `03` and `05` both touching the fuzzer's own
 boot/replay path at a glance (`isolated_boot.rb`/`replay.rb` for `03`,

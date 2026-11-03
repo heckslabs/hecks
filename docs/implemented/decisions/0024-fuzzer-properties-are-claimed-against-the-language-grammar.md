@@ -1,5 +1,7 @@
 # A fuzzer property declares which language feature it covers, and the meta-domain enforces that every feature is claimed
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/fuzz` is `exe/hecks fuzz_run.fuzz!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented. `lib/hecks/fuzzing/properties.rb` (`Properties::FEATURE_COVERAGE`), `spec/fuzzing/meta_domain_coverage_spec.rb`.
 
 ## Context

@@ -13,7 +13,7 @@ module Hecks
         module Composition
           module_function
 
-          # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks, in the order the row
+          # @param declarations [Array<Bluebook::Declaration>] the bluebooks, in the order the row
           #   names them
           # @param skip [Array<String>] `Name` (in every bluebook) or `Bluebook::Name` to leave out
           # @param roles [Hash{String => Array<String>}] the roles each bluebook is limited to

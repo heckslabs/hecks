@@ -1,5 +1,7 @@
 # The comment linter becomes a CI gate, and it bounds block length against a baseline
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now, see `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented in 2.8.0 (2026-09-27). The history phrases, the CI gate and the `long_block` rule with its baseline shipped; the block-length threshold (50) is provisional, and trimming old blocks stays opportunistic. This ADR records the maintainer's answer to `docs/wayfinder/review-followup/tickets/06-comment-policy.md` and the order in which the work happened.
 
 ## Context

@@ -1352,7 +1352,7 @@ fn identity_paths(aggregate: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-// IR::Attribute -> Field, mirroring Hecks::Presentation::FieldShape.
+// IR::Attribute -> Field, mirroring Hecks::Forms::FieldShape.
 
 #[derive(Clone, Debug)]
 struct Field {
@@ -1765,7 +1765,7 @@ fn command_fields(domain_ir: &Value, aggregate: &Value, command: &Value) -> Vec<
 }
 
 // Flat dotted form body -> nested JSON args, mirroring
-// Hecks::Presentation::Params.
+// Hecks::Forms::Params.
 
 // `Err`, never a panic, on a path-prefix collision — see `nest`'s own doc.
 fn extract_args(fields: &[Field], raw: &HashMap<String, String>) -> Result<Value, String> {

@@ -292,6 +292,12 @@ Hecks.bluebook "Hecks" do
 
       attribute :confirm,   Switch, optional: true
       attribute :additive,  Switch, optional: true
+      attribute :paths,     PathList, optional: true
+
+      # Files or directories, comma separated.
+      value_object "PathList" do
+        attribute :value, String, matches: :csv_list
+      end
 
       command "CheckEngineAgreement" do
         role "Maintainer"
@@ -340,6 +346,18 @@ Hecks.bluebook "Hecks" do
         emits CheckCommandNamesRequested
       end
 
+      command "CheckDocStaleness" do
+        role "Maintainer"
+        goal "Check that no doc or comment cites a repo path, Hecks constant or @param that is gone"
+
+        attribute :paths, PathList, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "check_doc_staleness"
+
+        emits CheckDocStalenessRequested
+      end
+
       command "CheckWorkflowPagination" do
         role "Maintainer"
         goal "Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page"
@@ -381,6 +399,11 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenCheckCommandNamesRequested" do
       on      "ConformanceRun.CheckCommandNamesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCheckDocStalenessRequested" do
+      on      "ConformanceRun.CheckDocStalenessRequested"
       ask     :examine, with: { run: :run }
     end
 

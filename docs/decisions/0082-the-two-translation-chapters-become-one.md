@@ -1,6 +1,6 @@
 # The two Translation chapters become one
 
-**Status:** Proposed. Date: 2026-09-28. Split out of [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md), which attaches chapters by name and so cannot attach two chapters that share one. Nothing below is built yet.
+**Status:** Partly built. The `Translation` bluebook now loads from `lib/hecks/grammar/translation.bluebook` and `lib/hecks/language/translation/` as one, since a bluebook is all of the files that declare one name ([ADR 0134](0134-a-bluebook-is-all-of-its-files-and-chapter-is-retired.md)). Not verified as done: that `Map` and the `Translation` aggregate no longer overlap (both aggregates still exist). Date: 2026-09-28. "Chapter" below is the retired word. Split out of [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md), which attaches chapters by name and so cannot attach two chapters that share one.
 
 ## Context
 

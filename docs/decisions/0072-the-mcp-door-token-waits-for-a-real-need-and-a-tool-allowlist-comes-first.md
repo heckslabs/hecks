@@ -1,5 +1,7 @@
 # The MCP door's caller token waits for a network door or multi-agent wiring, and a tool allowlist comes first
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/hecks_mcp_door` is `exe/hecks mcp!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — partly implemented. Date: 2026-09-27. Both triggers below were answered by the maintainer (2026-09-27). Multi-agent use is near, so decision 2, the allowlist, shipped in 2.8.0 as the door's reader mode (`HECKS_DOOR_TOOLS=readers`). A network door is wanted, so decision 1's token design is a prerequisite; it is decided in ADR 0076 and ADR 0077, and none of it is built. This ADR builds on [ADR 0062](0062-mcp-servers-need-real-authentication-before-any-network-transport.md) and changes none of it: the servers stay stdio-only, and the token design stays as 0062 lays it out.
 
 ## Context

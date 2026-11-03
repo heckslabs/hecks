@@ -1,6 +1,6 @@
 # `Vercel` is a deploy kind: the domain's host as one function
 
-**Status:** Proposed. Date: 2026-10-06. `hecks deploy project` generates AWS stacks. A project whose front end already lives on Vercel can run its domain there too, as one function reading a Postgres database it does not own.
+**Status:** Accepted, built (code present in the tree). Date: 2026-10-06. `hecks deploy project` generates AWS stacks. A project whose front end already lives on Vercel can run its domain there too, as one function reading a Postgres database it does not own.
 
 ## Context
 

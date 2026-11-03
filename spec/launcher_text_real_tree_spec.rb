@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/command_names"
 require "hecks/workflow_pagination"
+require "hecks/doc_staleness"
 
 # The two text checks held against this checkout: the gate runs the same on every push, and this
 # keeps a name the launcher dropped, or a list counted from its first page, from coming back.
@@ -14,6 +15,10 @@ RSpec.describe "this checkout's launcher names and workflow list calls" do
 
   it "invokes only launcher names the launcher accepts", :io do
     expect { Hecks::CommandNames.check(root: root, runtime: runtime) }.not_to raise_error
+  end
+
+  it "cites only repo paths, constants and parameters that exist" do
+    expect { Hecks::DocStaleness.check(root: root) }.not_to raise_error
   end
 
   it "indexes every name the launcher lists", :io do

@@ -545,7 +545,7 @@ fn fan_out_verb_expr(domain_name: &str, policy: &Json) -> String {
 }
 
 // The name a matched row's ID is minted under, per `Behaviour::Command#addressing_key_for`
-// read off the exported IR; `spec/codegen_parity_spec.rb` holds it identical to the Ruby side.
+// read off the exported IR; `spec/bluebook/behaviour/command_addressing_key_spec.rb` pins the Ruby side.
 fn fan_out_key_expr(policy: &Json, aggregates: &[Json]) -> String {
     let for_each = policy.get("for_each").map(Json::to_s).unwrap_or_default();
     if for_each.is_empty() {
@@ -628,7 +628,7 @@ fn with_spec_expr(policy: &Json) -> String {
 mod tests {
     use super::*;
 
-    // Mirrors the fixtures in `spec/rust_project/reactions_merge_spec.rb`; no real corpus
+    // Mirrors a merged-bluebook shape of the Ruby runtime's reactions; no real corpus
     // domain exercises this merged-bluebook shape.
     fn policy(
         name: &str,

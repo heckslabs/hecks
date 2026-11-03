@@ -1,5 +1,7 @@
 # Re-verification: M1-M19, L1-L24, Rust-parity divergence list — 2026-08-28
 
+> **Historical snapshot:** dated record; paths and commands below may have moved.
+
 `docs/future-features.md`'s own "Bug audits" section flagged these three
 groups explicitly as **not re-verified** in the 2026-08-27 reconciliation
 pass, warning that status drift in this project runs in both directions —

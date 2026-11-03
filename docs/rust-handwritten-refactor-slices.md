@@ -7,7 +7,7 @@ Trigger: `rust/parser/src/parse/mod.rs` had grown to 1196 lines. Investigating i
 same shape of problem (big hand-written files with real internal seams, organized the old
 `foo/mod.rs` way) across the rest of the hand-written Rust surface — `rust/parser/`, `rust/src/`,
 `rust/host/`, `rust/codegen/`, `rust/build/`. This plan covers all of it. Generated files
-(`rust/src/generated/**`, `rust/parser/src/keywords.rs`, `rust/host/src/field_hints.rs`,
+(`rust/src/generated/**`, `rust/parser/src/keywords.rs`, `rust/host/core/src/field_hints.rs`,
 `rust/src/kernel/{attribute_shapes,expression_operators}/mod.rs`, `rust/src/kernel/vocab/*.rs`)
 are **out of scope** — they're regenerated from the bluebook grammar, not hand-refactored.
 `rust/parser/src/build/` is also out of scope — it already mirrors the Ruby DSL builders 1:1,
@@ -209,13 +209,13 @@ rust/build/src/
 - `rust/codegen/src/json.rs`: `impl fmt::Display for Json` — no call site found by grep, but
   `Display` impls can be picked up by generic bounds a plain grep won't catch. Run
   `cargo build` with dead-code warnings on the finished refactor and delete if confirmed unused.
-- `rust/build/src/json.rs`: `Json::as_array` — no caller found (`as_array_mut` is used
+- `Json::as_array` (in `rust/build`, whose `json.rs` no longer exists) — no caller found (`as_array_mut` is used
   exclusively), but it may be deliberate symmetry with `as_array_mut`/`as_object`/`as_str`. Same
   treatment: verify via compiler warning, then a human call on keep-for-symmetry vs. delete.
 
 ## Out of scope for this pass (noted so it isn't silently lost)
 
-- `rust/host/src/lambda_client.rs`: extracting `AwsLambdaInvoker` into `lambda_client/aws_invoker.rs`
+- `rust/host/core/src/lambda_client.rs`: extracting `AwsLambdaInvoker` into `lambda_client/aws_invoker.rs`
   is a real, documented future seam (only if the crate wants to feature-gate the AWS SDK
   dependency) — not a readability problem today.
 - `rust/codegen/src/domain_generator.rs`, `prelude.rs`, `main.rs`: `puts_str`/`puts_blank` are
@@ -270,7 +270,7 @@ S-K needs no integration slice — it's a pure rename, `crate::kernel::X` paths 
 | Slice | Crate | Does |
 |---|---|---|
 | I-PARSER | `rust/parser` | Shrink `parse/mod.rs` → delete, replace with the new `parse.rs`; delete `walk_body`/`handle_call`; wire `pub mod gates;` etc. Update every call site in `parse/{file,hecksagon,process_manager,read_model,query,domain_port,policy,command,aggregate,bluebook,value_object,lifecycle,entity}.rs` and `build/{query_options,query_derive,closed_sets}.rs` to the new qualified paths. Update `main.rs`'s module doc (`parse::word_gate` → `parse::gates::word::gate`, etc.; "see parse/mod.rs" → "see parse/gates.rs"/"lex.rs"). Update `tests/gates.rs` header prose if it names moved functions. `cargo build`, then `cargo test`. |
-| I-HOST | `rust/host` | Shrink `auth.rs`/`web.rs`/`journal.rs` to their thin spines. Update the ~35 call sites across `web.rs`↔`auth.rs`↔`journal.rs`↔`dispatch.rs`↔`main.rs`. Do a pass over the stray file-path mentions in `hecks deploy recipe.project`, `hecks project_field_hints`, `hecks rust_coverage`, `deploy/*/template.yaml` doc comments (cosmetic, non-blocking). `cargo build`, then `cargo test`. |
+| I-HOST | `rust/host` | Shrink `auth.rs`/`web.rs`/`journal.rs` to their thin spines. Update the ~35 call sites across `web.rs`↔`auth.rs`↔`journal.rs`↔`dispatch.rs`↔`main.rs`. Do a pass over the stray file-path mentions in `hecks deploy recipe.project!`, `hecks language_run.project_field_hints!`, `hecks build.rust_coverage`, `deploy/*/template.yaml` doc comments (cosmetic, non-blocking). `cargo build`, then `cargo test`. |
 | I-CODEGEN | `rust/codegen` | Shrink `json.rs` to its thin spine + `json/parser.rs`. Zero external call-site churn (`Json`'s public API is unchanged; `Parser` was already fully private). Delete confirmed-dead `as_f64`/`as_i64`. Run `cargo build -W dead_code` and act on the `Display` impl per the flag above. `cargo test`. |
 | I-BUILD | `rust/build` | Shrink `json.rs` to its thin spine + `json/{parser,writer}.rs`. Update the 2 `write` call sites in `pipeline.rs`. Run `cargo build -W dead_code` and act on `as_array` per the flag above. `cargo test`. |
 

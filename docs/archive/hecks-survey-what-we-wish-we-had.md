@@ -1,5 +1,7 @@
 # hecks survey: what it has that hecks doesn't
 
+> **Historical snapshot:** dated record; paths and commands below may have moved.
+
 > **Editor's note.** This survey uses the word "hecks" for two different projects, and
 > the body was not rewritten to separate them. Wherever a sentence describes the
 > organism, its daemons, its `hecks_conception/` bluebooks, its private fork or the

@@ -1,5 +1,7 @@
 # generated_reaction_wording
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 Promoted from a `bin/qa_generated_domains` finding — generated, not
 hand-written. The bluebook is the domain-shrunk minimal form of the
 generated domain that surprised; `QaGenerated` was renamed to

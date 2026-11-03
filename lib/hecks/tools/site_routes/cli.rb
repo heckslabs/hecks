@@ -47,7 +47,7 @@ module Hecks
 
         # @param stale [Array<String>] absolute paths whose text differs from the table
         # @param project [String] the project directory
-        # @param check [Boolean] whether this is a `--check` run
+        # @param _check [Boolean] whether this is a `--check` run; unused, the report reads the same
         # @return [Integer] 0 when current, else 1 with the stale files on stderr
         def report(stale, project, _check)
           if stale.empty?

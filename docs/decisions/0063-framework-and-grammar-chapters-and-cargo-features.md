@@ -1,5 +1,7 @@
 # Should the framework and grammar chapters get Cargo features of their own?
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/regen_codegen_domains` is `exe/hecks regeneration_run.regenerate_corpus!`, `bin/run` is `exe/hecks run`; the rest in `docs/tools.md`); "chapter" is retired (ADR 0134: a bluebook is all of the files that declare one name); paths below name what existed when this was decided.
+
 **Status:** Proposed — draft for review. Design only; nothing in this document is
 implemented, and no Cargo feature, corpus kind or generated module changes with it.
 It answers item 6 of an outside production-readiness review, which said `chess` had

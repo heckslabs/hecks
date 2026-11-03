@@ -1,5 +1,7 @@
 # Open bugs catalog — 2026-08-26
 
+> **Historical snapshot:** dated record; paths and commands below may have moved.
+
 _Every issue from the original 186 has now been investigated live against
 current `main` (see
 [`2026-08-26-issue-tracker-reconciliation-plan.md`](2026-08-26-issue-tracker-reconciliation-plan.md)

@@ -99,7 +99,7 @@ RSpec.describe "the ci gate stage" do
       rows = Hecks::Vocabulary.rows("GateCheck").map { |row| row["id"] }
 
       expect(rows - listed).to be_empty
-      expect(ids("ci")).to include("command_names", "workflow_pagination")
+      expect(ids("ci")).to include("command_names", "doc_staleness", "workflow_pagination")
       expect(ids("quick") & ids("ci")).to include("shape_ledger", "rubocop", "comment_style", "comment_blocks")
     end
   end

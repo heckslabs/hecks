@@ -34,7 +34,7 @@ module Hecks
         controllers.merge("config/routes.rb" => routes(options[:route_bluebooks] || [bluebook]))
       end
 
-      # @param bluebook [Bluebook::Declaration] a bluebook
+      # @param declaration [Bluebook::Declaration] a bluebook
       # @return [Array<Bluebook::Aggregate>] its aggregates that take commands; one that only holds
       #   rows, such as an `App` row, has no page
       def driven(declaration) = declaration.aggregates.select { |aggregate| aggregate.commands.any? }
@@ -48,7 +48,7 @@ module Hecks
          "class #{name} < ApplicationController\nend\n"]
       end
 
-      # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks to draw
+      # @param declarations [Array<Bluebook::Declaration>] the bluebooks to draw
       # @return [String] the routes file's text
       def routes(declarations)
         resources = resources_of(declarations)
@@ -57,14 +57,14 @@ module Hecks
           "Rails.application.routes.draw do\n#{drawn.join("\n")}\nend\n"
       end
 
-      # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks to draw
+      # @param declarations [Array<Bluebook::Declaration>] the bluebooks to draw
       # @return [Array<Array(String, String)>] each driven aggregate's name and resource name
       def resources_of(declarations)
         aggregates = declarations.flat_map { |declaration| driven(declaration) }
         aggregates.map { |aggregate| [aggregate.hecks_name, Naming.plural(Naming.snake(aggregate.hecks_name))] }
       end
 
-      # @param bluebooks [Array<Bluebook::Declaration>] the bluebooks to draw
+      # @param declarations [Array<Bluebook::Declaration>] the bluebooks to draw
       # @param resources [Array<Array(String, String)>] each aggregate's name and resource name
       # @return [String] the resource the root path lists: the `App` row's home, else the first
       def home(declarations, resources)

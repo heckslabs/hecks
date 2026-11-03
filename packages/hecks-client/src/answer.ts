@@ -21,7 +21,7 @@ export interface ValidationRefusal {
   refusal?: string | null;
   /** The domain's own words for why. */
   message: string | null;
-  /** The attribute it is about, when the host knows (the Ruby runtime does; the Rust host does not yet). */
+  /** The attribute it is about, when the host knows (an argument refusal names it; any other is null). */
   attribute?: string | null;
   /** A JSON Pointer to the offending value, when the host knows. */
   path?: string | null;
@@ -31,8 +31,8 @@ export interface ValidationRefusal {
 
 /**
  * Whether a command would be accepted right now and, if not, why. Advisory: the state it was judged
- * on can change before the real dispatch, which stays authoritative. The Rust host stops at the
- * first refusal, so `refusals` holds at most one there.
+ * on can change before the real dispatch, which stays authoritative. The Rust host lists every refusal the
+ * failing stage collected, and just the one when the stage raised without collecting.
  */
 export interface Validation {
   ok: boolean;

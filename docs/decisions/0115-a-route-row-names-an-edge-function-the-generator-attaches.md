@@ -1,6 +1,6 @@
 # A route row names an edge function, and the site generator emits both the function and its attachment
 
-**Status:** Proposed. Built on this branch, not released. Date: 2026-10-16.
+**Status:** Accepted, built (code present in the tree). Built. Date: 2026-10-16.
 
 ## Context
 

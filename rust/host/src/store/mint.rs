@@ -1504,8 +1504,7 @@ async fn fill_snapshot_lifecycle_defaults<C: GenericClient>(
 #[allow(clippy::items_after_statements)] // reason: tests declare a one-off fixture next to the statement that uses it
 mod tests {
 
-    /// A throwaway database of its own — `mint.rs` also compiles into
-    /// `bin/mint_harness`, which has no `dispatch` module to borrow a helper from.
+    /// A throwaway database of its own, recreated under the given name for each test.
     async fn own_scratch_db(name: &str) -> tokio_postgres::Client {
         let (admin, connection) =
             tokio_postgres::connect(&crate::test_pg::conninfo("postgres"), NoTls)

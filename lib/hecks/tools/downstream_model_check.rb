@@ -8,8 +8,9 @@ module Hecks
     # it:
     # the client profile, over the domain's bluebooks, from the hecks the Gemfile pins.
     #
-    # A downstream repository commits the file this writes (`.github/workflows/model-check.yml`) and
-    # never edits it; a change to the check is made here, and every repository regenerates from it.
+    # A downstream repository commits the file this writes (`model-check.yml` under its
+    # `.github/workflows`) and never edits it;
+    # a change to the check is made here, and every repository regenerates from it.
     #
     #   ruby lib/hecks/tools/downstream_model_check.rb <checkout> <domain-directory> [--check]
     #

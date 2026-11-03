@@ -1,5 +1,7 @@
 # Commands declare the outside facts they need, and a rule across records gets an aggregate that owns it
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now, see `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Partly built (section 1, for `now` and `today` on commands and queries; section 2 and port-answered facts are not). Date: 2026-09-28. Builds on item 5 of `docs/HECKS_IMPLEMENTATION_PLAN.md` (identity generation and replay) and stage 2 of its execution pipeline, "Runtime enrichment (UUIDs, clock, caller, external facts)". Unblocks two QualityControl rules in [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md). Ships in a 3.x minor after 3.0: every change here is additive, so it needs no major version. Section 1 is built for `needs :now` on commands, as the first slice (see "What is built"); the rest below is not.
 
 ## Context

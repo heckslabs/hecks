@@ -1,6 +1,8 @@
 # Bin scripts become adapters on a Hecks bluebook
 
-**Status:** Proposed. Date: 2026-09-28. Amends [ADR 0066](0066-the-gem-ships-a-hecks-executable-and-dev-tooling-stays-in-the-repo.md): the gem ships the development tooling too, and the `dev_tooling` filter in `hecks.gemspec` goes (section 3). Builds on [ADR 0053](0053-transactional-outbox-for-domain-events-and-effects.md) (the journal every command writes). Nothing below is built yet.
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/compact` is `exe/hecks era.compact!`, `bin/project_cli` is `exe/hecks launch.project_cli!`, `bin/project_deploy` is `exe/hecks deploy recipe.project!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
+**Status:** Accepted, carried out. `bin/` is gone (removed in 3.0.0) and each script is a command of the `Hecks` bluebook or one it attaches (`docs/tools.md` maps script to command); `hecks.gemspec` no longer carries a `dev_tooling` filter. Date: 2026-09-28. The text below is the proposal as decided, in the future tense. Amends [ADR 0066](0066-the-gem-ships-a-hecks-executable-and-dev-tooling-stays-in-the-repo.md): the gem ships the development tooling too, and the `dev_tooling` filter in `hecks.gemspec` goes (section 3). Builds on [ADR 0053](0053-transactional-outbox-for-domain-events-and-effects.md) (the journal every command writes).
 
 ## Context
 

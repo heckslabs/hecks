@@ -34,6 +34,7 @@ module Hecks
                                     extra_args: "", cwd: "$(ROOT)", run_prefix: "HECKS_ENVIRONMENT=memory ruby",
                                     db_env_blind: true, domain_arg: "domain=$(DOMAIN) ")
             # An app-owned one-time migration script instead of a hecks tool:
+            # staleness-check: skip (an app-owned path, not a hecks file)
             # `bin/migrate_console_settings` belongs to the domain's own application, not to hecks.
             # Harmless when the domain has none: `bundle exec ruby` on a missing file just fails
             # loudly.

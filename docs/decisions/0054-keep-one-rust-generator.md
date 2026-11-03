@@ -1,5 +1,7 @@
 # Keep one Rust generator — decided against; a Ruby-free toolchain is required
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_rust` is `exe/hecks build.project_rust!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Decided (status quo) — the maintainer confirmed a Ruby-free build
 toolchain is a product requirement, so `rust/codegen` stays. DECISION
 SUPERSEDED IN PART by

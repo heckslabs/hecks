@@ -1,12 +1,14 @@
 # PostgresEra's cross-runtime concurrency gap — investigated, two real implementation hazards found, not yet safely closeable in one pass
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_deploy` is `exe/hecks deploy recipe.project!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** RESOLVED (2026-09-09) — see the final UPDATE at the bottom of this document for the shipped fix and its proof. The body below is kept verbatim as the investigation record; a future reader wanting the current state should jump to that update first.
 
 ## Context
 
 ADR 0035 gave Ruby's plain `Postgres` adapter real optimistic concurrency (`hecks_version` + `expected_version:` + bounded `StaleWrite` retry) and explicitly, deliberately left `PostgresEra` out of scope: it falls back to `Runtime::AggregateLock`, an in-process Ruby `Mutex` keyed `[domain, aggregate, id]` (`lib/hecks/runtime/aggregate_lock.rb`), held for the whole `run_dispatch_order` (hydrate through save) by `Interpreting#run_dispatch_order_with_isolation` (`lib/hecks/runtime/interpreting.rb:59-65`). ADR 0035's own text calls this "correct... but coarser than a CAS-capable path would be" — correct because it assumed one process per bound adapter instance, same as Heki/Memory.
 
-That assumption is false the moment `rust/host` exists. `rust/host/src/dispatch.rs` independently dispatches against the same `PostgresEra`-bound tables from a separate OS process (a Lambda), using `pg_advisory_xact_lock(hashtext('hecks_lambda_journal.' || $1::text))` held for its own whole hydrate-then-append sequence (`dispatch.rs:134-135`, comment at `:73-84` explicit about why: "two concurrent Lambda invocations... could both rehydrate against the same prior steps... and both append"). Ruby's in-process `Mutex` is invisible to Postgres and to Rust's advisory lock — if the same aggregate is ever dispatched by both a Ruby process and a Rust process concurrently, there is no protection against a lost update between them at all. ADR 0035 never mentions Rust; this is the actual live gap a "Ruby and Rust behave identically" claim has to close.
+That assumption is false the moment `rust/host` exists. `rust/host/core/src/dispatch.rs` independently dispatches against the same `PostgresEra`-bound tables from a separate OS process (a Lambda), using `pg_advisory_xact_lock(hashtext('hecks_lambda_journal.' || $1::text))` held for its own whole hydrate-then-append sequence (`dispatch.rs:134-135`, comment at `:73-84` explicit about why: "two concurrent Lambda invocations... could both rehydrate against the same prior steps... and both append"). Ruby's in-process `Mutex` is invisible to Postgres and to Rust's advisory lock — if the same aggregate is ever dispatched by both a Ruby process and a Rust process concurrently, there is no protection against a lost update between them at all. ADR 0035 never mentions Rust; this is the actual live gap a "Ruby and Rust behave identically" claim has to close.
 
 ## What already exists, closer than expected
 

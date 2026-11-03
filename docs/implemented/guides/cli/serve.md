@@ -3,8 +3,8 @@
 Open something on a port or stdio. Use it to run the Composer, a preview of a static site, the
 banking example's forms, or an MCP server.
 
-**Status: not yet a module.** The servers are listed today under other aggregates. Until step 5
-of ADR 0163 moves them, use the commands below. The module page will name the new ones then.
+**Status: a module.** The servers are commands of the `Server` aggregate (`exe/hecks serve`):
+`present!`, `compose!`, `preview!`, `serve_query_ir_mcp!` and `serve_mcp!`, moved there by ADR 0163 in 7.0.0.
 
 **Concept.** A server holds a port open until you stop it, or until the client on stdio closes.
 Each one answers the same kind of request its name says.

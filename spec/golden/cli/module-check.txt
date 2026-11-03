@@ -19,6 +19,7 @@ commands:
     measure_doc_coverage!       Check that every live word of the language has prose and a running example in the reference
     check_shape_ledger!         Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed
     check_command_names!        Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
+    check_doc_staleness!        Check that no doc or comment cites a repo path, Hecks constant or @param that is gone
     check_workflow_pagination!  Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
     argument_gate_matrix!       Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
   StyleRun:
@@ -62,6 +63,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 38 internal commands and queries
-  hecks --maintainer           also list the 424 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 429 commands and queries for working on hecks itself
   a command is called with its aggregate — GateRun.gate!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

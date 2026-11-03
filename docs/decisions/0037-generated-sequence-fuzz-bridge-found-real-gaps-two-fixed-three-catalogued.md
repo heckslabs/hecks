@@ -1,5 +1,7 @@
 # The generated-sequence Rust conformance bridge (PRD 04) — what it found, what shipped, what's catalogued
 
+> Historical: `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status (see the 2026-09-08 sections below for the current, superseding word):** Bridge built and working (`spec/rust_conformance_fuzz_spec.rb`), now gating clean at its own default seed count — findings 1-7 are all closed (5 turned out to already be moot by the time it was re-verified live; the rest were fixed in both generators and re-verified against the real differential harness, not just re-read source). Two divergence classes wide sampling turns up beyond the gating default remain open and uninvestigated — see the Finding-7 status section's own addendum. This is real, budgeted findings-work, not a stalled feature: see "Why pending, not filtered, not fixed," below, for the reasoning that shaped how each finding got closed (or, for the two still open, left honestly catalogued instead of forced).
 
 ## Context

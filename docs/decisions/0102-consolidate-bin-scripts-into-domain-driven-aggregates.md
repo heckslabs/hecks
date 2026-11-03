@@ -1,6 +1,8 @@
 # Consolidate 92 bin scripts into domain-driven aggregates and utility classes
 
-**Status:** Proposed. Part of the larger Codebase and Custodian meta-domain effort.
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/model_check` is `exe/hecks model_check_run.model_check!`, `bin/check_engine_agreement` is `exe/hecks conformance_run.check_engine_agreement!`, `bin/check_era` is `exe/hecks host.check_era!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
+**Status:** Superseded by [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md)'s route, carried out: `bin/` is gone (removed in 3.0.0) and its scripts are commands, mapped in `docs/tools.md`, not the aggregates and utility classes proposed here. Originally Proposed as part of the larger Codebase and Custodian meta-domain effort.
 
 ## Context
 

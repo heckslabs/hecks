@@ -7,6 +7,8 @@ claimed_by:
 
 # MCP door auth: a caller token before any multi-agent wiring
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 ## Question
 
 ADR 0062 says MCP servers need real authentication before any network transport. Even over
@@ -27,7 +29,7 @@ input, not the decision.
   (`storehouse.rb:276`).
 - Caller-asserted: `role`, `actor_id` and `source` (`lib/hecks/doors/mcp_door.rb:74-76,104-106,324-334`), and the
   audit log records those claims. Read tools (`state`, `events`, `history`, `follow`,
-  `describe`, `catalog`) take no role, and `hecks corpus_run.serve_query_ir_mcp` has no identity at all.
+  `describe`, `catalog`) take no role, and `hecks server.serve_query_ir_mcp!` has no identity at all.
 - Any stdin writer can run Ruby: `domain:` calls `Kernel.load` under the boot root, and
   `HECKS_STOREHOUSE_ROOT` widens that root (ADR 0062:24).
 - Identity reaches the grant check through `Hecks.as_caller(role:, actor_id:)`

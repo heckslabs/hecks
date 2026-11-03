@@ -1,5 +1,7 @@
 # The Rust experiment: what it found, and why it's retired
 
+> Historical: `bin/` is gone (removed in 3.0.0; see `docs/tools.md`), so the `bin/ir_structs`, `bin/ir_vocabulary`, `bin/ir_rust` and `bin/parity` scripts named below no longer exist; the Ruby Rust generator is gone too (generation lives in `rust/codegen`, ADR 0086).
+
 > **REVERSED, 2026-08-07.** This document is a historical record of the
 > FIRST Rust attempt's retirement (2026-08-03) — the decision below did not
 > hold. Rust was restarted fresh on `feat/rust-projection` days later and is
