@@ -5774,7 +5774,7 @@
             [
               [
                 "word",
-                "process_manager"
+                "saga"
               ],
               [
                 "context",
@@ -5786,15 +5786,23 @@
               ],
               [
                 "inner",
-                "ProcessManager"
+                "Saga"
               ],
               [
                 "opens",
-                "ProcessManager"
+                "Saga"
               ],
               [
                 "fills",
                 ""
+              ],
+              [
+                "was",
+                "process_manager"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -6689,7 +6697,7 @@
             [
               [
                 "keyword",
-                "process_manager"
+                "saga"
               ],
               [
                 "context",
@@ -15998,2054 +16006,6 @@
       ]
     },
     {
-      "name": "ProcessManager",
-      "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
-      "identified_by": [
-        "bluebook",
-        "name.value"
-      ],
-      "attributes": [
-        {
-          "name": "bluebook",
-          "type": "Reference<Bluebook>",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": "reference_to"
-        },
-        {
-          "name": "name",
-          "type": "ProcessManagerName",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "correlates_by",
-          "type": "ProcessManagerText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "starts_on",
-          "type": "ProcessManagerText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "ends_on",
-          "type": "ProcessManagerText",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "endings",
-          "type": "ProcessManagerText",
-          "list": true,
-          "default": null,
-          "optional": true,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "resumes",
-          "type": "ProcessManagerText",
-          "list": true,
-          "default": null,
-          "optional": true,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "states",
-          "type": "SagaState",
-          "list": true,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "handlers",
-          "type": "Handler",
-          "list": true,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        },
-        {
-          "name": "position",
-          "type": "Position",
-          "list": false,
-          "default": null,
-          "optional": false,
-          "pattern": null,
-          "admits": null,
-          "relationship": null
-        }
-      ],
-      "value_objects": [
-        {
-          "name": "ProcessManagerName",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-            {
-              "description": "a process manager is named",
-              "canonical": "!value.to_s.empty?",
-              "ast": {
-                "op": "not",
-                "expr": {
-                  "op": "empty",
-                  "receiver": {
-                    "op": "to_s",
-                    "receiver": {
-                      "op": "lookup",
-                      "path": [
-                        "value"
-                      ]
-                    }
-                  }
-                }
-              }
-            }
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "ProcessManagerText",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "SagaState",
-          "attributes": [
-            {
-              "name": "name",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "HandlerText",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "DispatchText",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "Binding",
-          "attributes": [
-            {
-              "name": "key",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "value",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "DispatchPosition",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "Position",
-          "attributes": [
-            {
-              "name": "value",
-              "type": "Integer",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": false,
-          "members": [
-
-          ]
-        },
-        {
-          "name": "KeywordSeed",
-          "attributes": [
-            {
-              "name": "word",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "context",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::Context",
-              "relationship": null
-            },
-            {
-              "name": "body",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::Body",
-              "relationship": null
-            },
-            {
-              "name": "inner",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "opens",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "fills",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "status",
-              "type": "String",
-              "list": false,
-              "default": "admitted",
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::Status",
-              "relationship": null
-            },
-            {
-              "name": "was",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "resolves_via",
-              "type": "String",
-              "list": false,
-              "default": "",
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::ResolutionScope",
-              "relationship": null
-            },
-            {
-              "name": "disambiguator",
-              "type": "String",
-              "list": false,
-              "default": "",
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::Disambiguator",
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": true,
-          "members": [
-            [
-              [
-                "word",
-                "correlates_by"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "correlates_by_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "starts_on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "starts_on_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "ends_on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "ends_on_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "resumes"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "resumes_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "transition"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "keywords"
-              ],
-              [
-                "inner",
-                "Handler"
-              ],
-              [
-                "opens",
-                "Handler"
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "transition_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "transition"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "transition_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "dispatch"
-              ],
-              [
-                "context",
-                "Handler"
-              ],
-              [
-                "body",
-                "keywords"
-              ],
-              [
-                "inner",
-                "Dispatch"
-              ],
-              [
-                "opens",
-                "Dispatch"
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "dispatch_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "dispatch"
-              ],
-              [
-                "context",
-                "Handler"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                "Dispatch"
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "dispatch_impl"
-              ]
-            ],
-            [
-              [
-                "word",
-                "compensates"
-              ],
-              [
-                "context",
-                "Dispatch"
-              ],
-              [
-                "body",
-                "none"
-              ],
-              [
-                "inner",
-                ""
-              ],
-              [
-                "opens",
-                ""
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "calls",
-                "compensates_impl"
-              ]
-            ]
-          ]
-        },
-        {
-          "name": "ArgumentSeed",
-          "attributes": [
-            {
-              "name": "keyword",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "context",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::Context",
-              "relationship": null
-            },
-            {
-              "name": "at",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "named",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "kind",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::ArgumentKind",
-              "relationship": null
-            },
-            {
-              "name": "required",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "fills",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "selects",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "pair_key_fills",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "pair_value_fills",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "pairs_shape",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::PairsShape",
-              "relationship": null
-            },
-            {
-              "name": "status",
-              "type": "String",
-              "list": false,
-              "default": "admitted",
-              "optional": false,
-              "pattern": null,
-              "admits": "Syntax::Status",
-              "relationship": null
-            },
-            {
-              "name": "variadic",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "coerce",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "blank_message",
-              "type": "String",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "invariants": [
-
-          ],
-          "closed_set": true,
-          "members": [
-            [
-              [
-                "keyword",
-                "correlates_by"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "symbol"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "correlates_by"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "correlates_by"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "constant"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "correlates_by"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "starts_on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "constant"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "starts_on"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "starts_on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "starts_on"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "ends_on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "constant"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "ends_on"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "ends_on"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "ends_on"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "resumes"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "resumes"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "transition"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "pairs"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                ""
-              ],
-              [
-                "pair_key_fills",
-                "event_type"
-              ],
-              [
-                "pair_value_fills",
-                "to_state"
-              ],
-              [
-                "pairs_shape",
-                "fields"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "transition"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "from"
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "from_state"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "transition"
-              ],
-              [
-                "context",
-                "ProcessManager"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "from"
-              ],
-              [
-                "kind",
-                "list"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "from_state"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "dispatch"
-              ],
-              [
-                "context",
-                "Handler"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "constant"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "command_name"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "dispatch"
-              ],
-              [
-                "context",
-                "Handler"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "command_name"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "dispatch"
-              ],
-              [
-                "context",
-                "Handler"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "with"
-              ],
-              [
-                "kind",
-                "pairs"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "with_spec"
-              ],
-              [
-                "pairs_shape",
-                "verbatim"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "compensates"
-              ],
-              [
-                "context",
-                "Dispatch"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "constant"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "command_name"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "compensates"
-              ],
-              [
-                "context",
-                "Dispatch"
-              ],
-              [
-                "at",
-                "1"
-              ],
-              [
-                "named",
-                ""
-              ],
-              [
-                "kind",
-                "text"
-              ],
-              [
-                "required",
-                "true"
-              ],
-              [
-                "fills",
-                "command_name"
-              ]
-            ],
-            [
-              [
-                "keyword",
-                "compensates"
-              ],
-              [
-                "context",
-                "Dispatch"
-              ],
-              [
-                "at",
-                ""
-              ],
-              [
-                "named",
-                "with"
-              ],
-              [
-                "kind",
-                "pairs"
-              ],
-              [
-                "required",
-                "false"
-              ],
-              [
-                "fills",
-                "with_spec"
-              ],
-              [
-                "pairs_shape",
-                "verbatim"
-              ]
-            ]
-          ]
-        }
-      ],
-      "commands": [
-        {
-          "name": "Declare",
-          "role": "Language",
-          "goal": "Open a process manager on a bluebook",
-          "references": null,
-          "attributes": [
-            {
-              "name": "bluebook",
-              "type": "Reference<Bluebook>",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "name",
-              "type": "ProcessManagerName",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "correlates_by",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "starts_on",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "ends_on",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "endings",
-              "type": "ProcessManagerText",
-              "list": true,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "resumes",
-              "type": "ProcessManagerText",
-              "list": true,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "position",
-              "type": "Position",
-              "list": false,
-              "default": null,
-              "optional": true,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "needs": [
-
-          ],
-          "mutations": [
-            {
-              "target": "bluebook",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "bluebook"
-              }
-            },
-            {
-              "target": "name",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "name"
-              }
-            },
-            {
-              "target": "correlates_by",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "correlates_by"
-              }
-            },
-            {
-              "target": "starts_on",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "starts_on"
-              }
-            },
-            {
-              "target": "ends_on",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "ends_on"
-              }
-            },
-            {
-              "target": "endings",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "endings"
-              }
-            },
-            {
-              "target": "resumes",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "resumes"
-              }
-            },
-            {
-              "target": "position",
-              "op": "set",
-              "sign": "",
-              "source": {
-                "kind": "argument",
-                "name": "position"
-              }
-            }
-          ],
-          "emits": [
-            "SagaDeclared"
-          ],
-          "from": null,
-          "provenance": null,
-          "idempotent": false,
-          "mints_era": false
-        },
-        {
-          "name": "State",
-          "role": "Language",
-          "goal": "Attach one state to the process manager",
-          "references": null,
-          "attributes": [
-            {
-              "name": "name",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "needs": [
-
-          ],
-          "mutations": [
-            {
-              "target": "states",
-              "op": "append",
-              "sign": "",
-              "fields": {
-                "name": ":name"
-              }
-            }
-          ],
-          "emits": [
-            "SagaStateAttached"
-          ],
-          "from": null,
-          "provenance": null,
-          "idempotent": false,
-          "mints_era": false
-        },
-        {
-          "name": "Handler",
-          "role": "Language",
-          "goal": "Open a handler inside a process manager",
-          "references": null,
-          "attributes": [
-            {
-              "name": "event_type",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "from_state",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "to_state",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "givens": [
-
-          ],
-          "ensures": [
-
-          ],
-          "needs": [
-
-          ],
-          "mutations": [
-            {
-              "target": "handlers",
-              "op": "append",
-              "sign": "",
-              "fields": {
-                "event_type": ":event_type",
-                "from_state": ":from_state",
-                "to_state": ":to_state"
-              }
-            }
-          ],
-          "emits": [
-            "LegDeclared"
-          ],
-          "from": null,
-          "provenance": null,
-          "idempotent": false,
-          "mints_era": false
-        }
-      ],
-      "invariants": [
-
-      ],
-      "preconditions": [
-
-      ],
-      "projected_fields": [
-
-      ],
-      "lifecycle": null,
-      "entities": [
-        {
-          "name": "Handler",
-          "description": "One handler inside a process manager — the event it answers, the state move it makes, and the commands it sends. Nested under the process manager because a handler holds nested dispatches, which hold nested bindings.",
-          "identified_by": [
-            "event_type.value",
-            "from_state.value"
-          ],
-          "attributes": [
-            {
-              "name": "event_type",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "from_state",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "to_state",
-              "type": "HandlerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            },
-            {
-              "name": "dispatches",
-              "type": "Dispatch",
-              "list": true,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "commands": [
-            {
-              "name": "Dispatch",
-              "role": "Language",
-              "goal": "Open a dispatch inside a handler",
-              "references": null,
-              "attributes": [
-                {
-                  "name": "command_name",
-                  "type": "DispatchText",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null,
-                  "relationship": null
-                },
-                {
-                  "name": "position",
-                  "type": "DispatchPosition",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null,
-                  "relationship": null
-                }
-              ],
-              "givens": [
-
-              ],
-              "ensures": [
-
-              ],
-              "needs": [
-
-              ],
-              "mutations": [
-                {
-                  "target": "dispatches",
-                  "op": "append",
-                  "sign": "",
-                  "fields": {
-                    "command_name": ":command_name",
-                    "position": ":position"
-                  }
-                }
-              ],
-              "emits": [
-                "SendDeclared"
-              ],
-              "from": null,
-              "provenance": null,
-              "idempotent": false,
-              "mints_era": false
-            }
-          ],
-          "queries": [
-
-          ],
-          "entities": [
-            {
-              "name": "Dispatch",
-              "description": "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold.",
-              "identified_by": [
-                "command_name.value",
-                "position.value"
-              ],
-              "attributes": [
-                {
-                  "name": "command_name",
-                  "type": "DispatchText",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null,
-                  "relationship": null
-                },
-                {
-                  "name": "position",
-                  "type": "DispatchPosition",
-                  "list": false,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null,
-                  "relationship": null
-                },
-                {
-                  "name": "with_spec",
-                  "type": "Binding",
-                  "list": true,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null,
-                  "relationship": null
-                },
-                {
-                  "name": "compensates_command_name",
-                  "type": "DispatchText",
-                  "list": false,
-                  "default": null,
-                  "optional": true,
-                  "pattern": null,
-                  "admits": null,
-                  "relationship": null
-                },
-                {
-                  "name": "compensates_with_spec",
-                  "type": "Binding",
-                  "list": true,
-                  "default": null,
-                  "optional": false,
-                  "pattern": null,
-                  "admits": null,
-                  "relationship": null
-                }
-              ],
-              "commands": [
-                {
-                  "name": "Bind",
-                  "role": "Language",
-                  "goal": "Bind one argument of the dispatched command",
-                  "references": null,
-                  "attributes": [
-                    {
-                      "name": "key",
-                      "type": "DispatchText",
-                      "list": false,
-                      "default": null,
-                      "optional": false,
-                      "pattern": null,
-                      "admits": null,
-                      "relationship": null
-                    },
-                    {
-                      "name": "value",
-                      "type": "DispatchText",
-                      "list": false,
-                      "default": null,
-                      "optional": false,
-                      "pattern": null,
-                      "admits": null,
-                      "relationship": null
-                    }
-                  ],
-                  "givens": [
-
-                  ],
-                  "ensures": [
-
-                  ],
-                  "needs": [
-
-                  ],
-                  "mutations": [
-                    {
-                      "target": "with_spec",
-                      "op": "append",
-                      "sign": "",
-                      "fields": {
-                        "key": ":key",
-                        "value": ":value"
-                      }
-                    }
-                  ],
-                  "emits": [
-                    "BindingAttached"
-                  ],
-                  "from": null,
-                  "provenance": null,
-                  "idempotent": false,
-                  "mints_era": false
-                },
-                {
-                  "name": "Compensates",
-                  "role": "Language",
-                  "goal": "Name the command this dispatch compensates for",
-                  "references": null,
-                  "attributes": [
-                    {
-                      "name": "compensates_command_name",
-                      "type": "DispatchText",
-                      "list": false,
-                      "default": null,
-                      "optional": false,
-                      "pattern": null,
-                      "admits": null,
-                      "relationship": null
-                    }
-                  ],
-                  "givens": [
-
-                  ],
-                  "ensures": [
-
-                  ],
-                  "needs": [
-
-                  ],
-                  "mutations": [
-                    {
-                      "target": "compensates_command_name",
-                      "op": "set",
-                      "sign": "",
-                      "source": {
-                        "kind": "argument",
-                        "name": "compensates_command_name"
-                      }
-                    }
-                  ],
-                  "emits": [
-                    "CompensationDeclared"
-                  ],
-                  "from": null,
-                  "provenance": null,
-                  "idempotent": false,
-                  "mints_era": false
-                },
-                {
-                  "name": "BindCompensation",
-                  "role": "Language",
-                  "goal": "Bind one argument of the compensation's own dispatched command",
-                  "references": null,
-                  "attributes": [
-                    {
-                      "name": "key",
-                      "type": "DispatchText",
-                      "list": false,
-                      "default": null,
-                      "optional": false,
-                      "pattern": null,
-                      "admits": null,
-                      "relationship": null
-                    },
-                    {
-                      "name": "value",
-                      "type": "DispatchText",
-                      "list": false,
-                      "default": null,
-                      "optional": false,
-                      "pattern": null,
-                      "admits": null,
-                      "relationship": null
-                    }
-                  ],
-                  "givens": [
-
-                  ],
-                  "ensures": [
-
-                  ],
-                  "needs": [
-
-                  ],
-                  "mutations": [
-                    {
-                      "target": "compensates_with_spec",
-                      "op": "append",
-                      "sign": "",
-                      "fields": {
-                        "key": ":key",
-                        "value": ":value"
-                      }
-                    }
-                  ],
-                  "emits": [
-                    "CompensationBindingAttached"
-                  ],
-                  "from": null,
-                  "provenance": null,
-                  "idempotent": false,
-                  "mints_era": false
-                }
-              ],
-              "queries": [
-
-              ],
-              "entities": [
-
-              ],
-              "preconditions": [
-
-              ],
-              "invariants": [
-
-              ],
-              "lifecycle": null
-            }
-          ],
-          "preconditions": [
-
-          ],
-          "invariants": [
-
-          ],
-          "lifecycle": null
-        }
-      ],
-      "queries": [
-        {
-          "name": "DeclaredIn",
-          "description": null,
-          "attributes": [
-            {
-              "name": "bluebook",
-              "type": "ProcessManagerText",
-              "list": false,
-              "default": null,
-              "optional": false,
-              "pattern": null,
-              "admits": null,
-              "relationship": null
-            }
-          ],
-          "wheres": [
-            {
-              "field": "bluebook",
-              "op": "eq",
-              "value": ":bluebook"
-            }
-          ],
-          "order_by": {
-            "field": "position",
-            "direction": "asc"
-          },
-          "limit": null
-        }
-      ],
-      "ports": [
-
-      ],
-      "provenance": null,
-      "formerly_known_as": null,
-      "created_by": null,
-      "acknowledgements": [
-
-      ]
-    },
-    {
       "name": "ReadModel",
       "description": "One read model — the aggregate heads it gathers and the reference it hangs from.",
       "identified_by": [
@@ -23229,6 +21189,2110 @@
       ]
     },
     {
+      "name": "Saga",
+      "description": "One saga — what correlates its instances, what starts and ends it, and the states it moves through.",
+      "identified_by": [
+        "bluebook",
+        "name.value"
+      ],
+      "attributes": [
+        {
+          "name": "bluebook",
+          "type": "Reference<Bluebook>",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": "reference_to"
+        },
+        {
+          "name": "name",
+          "type": "SagaName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "correlates_by",
+          "type": "SagaText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "starts_on",
+          "type": "SagaText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "ends_on",
+          "type": "SagaText",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "endings",
+          "type": "SagaText",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "resumes",
+          "type": "SagaText",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "states",
+          "type": "SagaState",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "handlers",
+          "type": "Handler",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "position",
+          "type": "Position",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "SagaName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a saga is named",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "SagaText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "SagaState",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "HandlerText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "DispatchText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Binding",
+          "attributes": [
+            {
+              "name": "key",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "DispatchPosition",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Position",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "KeywordSeed",
+          "attributes": [
+            {
+              "name": "word",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "context",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Context",
+              "relationship": null
+            },
+            {
+              "name": "body",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Body",
+              "relationship": null
+            },
+            {
+              "name": "inner",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "opens",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "fills",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "status",
+              "type": "String",
+              "list": false,
+              "default": "admitted",
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Status",
+              "relationship": null
+            },
+            {
+              "name": "was",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "resolves_via",
+              "type": "String",
+              "list": false,
+              "default": "",
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::ResolutionScope",
+              "relationship": null
+            },
+            {
+              "name": "disambiguator",
+              "type": "String",
+              "list": false,
+              "default": "",
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disambiguator",
+              "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "word",
+                "correlates_by"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "correlates_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "starts_on"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "starts_on_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "ends_on"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "ends_on_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "resumes"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "resumes_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "transition"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Handler"
+              ],
+              [
+                "opens",
+                "Handler"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "transition_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "transition"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "transition_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Dispatch"
+              ],
+              [
+                "opens",
+                "Dispatch"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "dispatch_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                "Dispatch"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "dispatch_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "word",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "compensates_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "ArgumentSeed",
+          "attributes": [
+            {
+              "name": "keyword",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "context",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Context",
+              "relationship": null
+            },
+            {
+              "name": "at",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "named",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "kind",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::ArgumentKind",
+              "relationship": null
+            },
+            {
+              "name": "required",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "fills",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "selects",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "pair_key_fills",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "pair_value_fills",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "pairs_shape",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::PairsShape",
+              "relationship": null
+            },
+            {
+              "name": "status",
+              "type": "String",
+              "list": false,
+              "default": "admitted",
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Status",
+              "relationship": null
+            },
+            {
+              "name": "variadic",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "coerce",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "blank_message",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "keyword",
+                "correlates_by"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "correlates_by"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "correlates_by"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "correlates_by"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "starts_on"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "starts_on"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "starts_on"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "starts_on"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "ends_on"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "ends_on"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "ends_on"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "ends_on"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "resumes"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "resumes"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "transition"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "pair_key_fills",
+                "event_type"
+              ],
+              [
+                "pair_value_fills",
+                "to_state"
+              ],
+              [
+                "pairs_shape",
+                "fields"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "transition"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "from_state"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "transition"
+              ],
+              [
+                "context",
+                "Saga"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "from"
+              ],
+              [
+                "kind",
+                "list"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "from_state"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command_name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command_name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "dispatch"
+              ],
+              [
+                "context",
+                "Handler"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "with"
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "with_spec"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command_name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command_name"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "compensates"
+              ],
+              [
+                "context",
+                "Dispatch"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "with"
+              ],
+              [
+                "kind",
+                "pairs"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "with_spec"
+              ],
+              [
+                "pairs_shape",
+                "verbatim"
+              ]
+            ]
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Declare",
+          "role": "Language",
+          "goal": "Open a saga on a bluebook",
+          "references": null,
+          "attributes": [
+            {
+              "name": "bluebook",
+              "type": "Reference<Bluebook>",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "name",
+              "type": "SagaName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "correlates_by",
+              "type": "SagaText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "starts_on",
+              "type": "SagaText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "ends_on",
+              "type": "SagaText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "endings",
+              "type": "SagaText",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "resumes",
+              "type": "SagaText",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "position",
+              "type": "Position",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "bluebook",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "bluebook"
+              }
+            },
+            {
+              "target": "name",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "name"
+              }
+            },
+            {
+              "target": "correlates_by",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "correlates_by"
+              }
+            },
+            {
+              "target": "starts_on",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "starts_on"
+              }
+            },
+            {
+              "target": "ends_on",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ends_on"
+              }
+            },
+            {
+              "target": "endings",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "endings"
+              }
+            },
+            {
+              "target": "resumes",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "resumes"
+              }
+            },
+            {
+              "target": "position",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "position"
+              }
+            }
+          ],
+          "emits": [
+            "SagaDeclared"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "State",
+          "role": "Language",
+          "goal": "Attach one state to the saga",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "SagaText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "states",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":name"
+              }
+            }
+          ],
+          "emits": [
+            "SagaStateAttached"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Handler",
+          "role": "Language",
+          "goal": "Open a handler inside a saga",
+          "references": null,
+          "attributes": [
+            {
+              "name": "event_type",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "from_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "to_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "handlers",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "event_type": ":event_type",
+                "from_state": ":from_state",
+                "to_state": ":to_state"
+              }
+            }
+          ],
+          "emits": [
+            "LegDeclared"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+        {
+          "name": "Handler",
+          "description": "One handler inside a saga — the event it answers, the state move it makes, and the commands it sends. Nested under the saga because a handler holds nested dispatches, which hold nested bindings.",
+          "identified_by": [
+            "event_type.value",
+            "from_state.value"
+          ],
+          "attributes": [
+            {
+              "name": "event_type",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "from_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "to_state",
+              "type": "HandlerText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "dispatches",
+              "type": "Dispatch",
+              "list": true,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "commands": [
+            {
+              "name": "Dispatch",
+              "role": "Language",
+              "goal": "Open a dispatch inside a handler",
+              "references": null,
+              "attributes": [
+                {
+                  "name": "command_name",
+                  "type": "DispatchText",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "position",
+                  "type": "DispatchPosition",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "givens": [
+
+              ],
+              "ensures": [
+
+              ],
+              "needs": [
+
+              ],
+              "mutations": [
+                {
+                  "target": "dispatches",
+                  "op": "append",
+                  "sign": "",
+                  "fields": {
+                    "command_name": ":command_name",
+                    "position": ":position"
+                  }
+                }
+              ],
+              "emits": [
+                "SendDeclared"
+              ],
+              "from": null,
+              "provenance": null,
+              "idempotent": false,
+              "mints_era": false
+            }
+          ],
+          "queries": [
+
+          ],
+          "entities": [
+            {
+              "name": "Dispatch",
+              "description": "One command a handler dispatches, with the arguments it binds. Nested under the handler because the bindings are an open map, which no value object can hold.",
+              "identified_by": [
+                "command_name.value",
+                "position.value"
+              ],
+              "attributes": [
+                {
+                  "name": "command_name",
+                  "type": "DispatchText",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "position",
+                  "type": "DispatchPosition",
+                  "list": false,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "with_spec",
+                  "type": "Binding",
+                  "list": true,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "compensates_command_name",
+                  "type": "DispatchText",
+                  "list": false,
+                  "default": null,
+                  "optional": true,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                },
+                {
+                  "name": "compensates_with_spec",
+                  "type": "Binding",
+                  "list": true,
+                  "default": null,
+                  "optional": false,
+                  "pattern": null,
+                  "admits": null,
+                  "relationship": null
+                }
+              ],
+              "commands": [
+                {
+                  "name": "Bind",
+                  "role": "Language",
+                  "goal": "Bind one argument of the dispatched command",
+                  "references": null,
+                  "attributes": [
+                    {
+                      "name": "key",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    },
+                    {
+                      "name": "value",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    }
+                  ],
+                  "givens": [
+
+                  ],
+                  "ensures": [
+
+                  ],
+                  "needs": [
+
+                  ],
+                  "mutations": [
+                    {
+                      "target": "with_spec",
+                      "op": "append",
+                      "sign": "",
+                      "fields": {
+                        "key": ":key",
+                        "value": ":value"
+                      }
+                    }
+                  ],
+                  "emits": [
+                    "BindingAttached"
+                  ],
+                  "from": null,
+                  "provenance": null,
+                  "idempotent": false,
+                  "mints_era": false
+                },
+                {
+                  "name": "Compensates",
+                  "role": "Language",
+                  "goal": "Name the command this dispatch compensates for",
+                  "references": null,
+                  "attributes": [
+                    {
+                      "name": "compensates_command_name",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    }
+                  ],
+                  "givens": [
+
+                  ],
+                  "ensures": [
+
+                  ],
+                  "needs": [
+
+                  ],
+                  "mutations": [
+                    {
+                      "target": "compensates_command_name",
+                      "op": "set",
+                      "sign": "",
+                      "source": {
+                        "kind": "argument",
+                        "name": "compensates_command_name"
+                      }
+                    }
+                  ],
+                  "emits": [
+                    "CompensationDeclared"
+                  ],
+                  "from": null,
+                  "provenance": null,
+                  "idempotent": false,
+                  "mints_era": false
+                },
+                {
+                  "name": "BindCompensation",
+                  "role": "Language",
+                  "goal": "Bind one argument of the compensation's own dispatched command",
+                  "references": null,
+                  "attributes": [
+                    {
+                      "name": "key",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    },
+                    {
+                      "name": "value",
+                      "type": "DispatchText",
+                      "list": false,
+                      "default": null,
+                      "optional": false,
+                      "pattern": null,
+                      "admits": null,
+                      "relationship": null
+                    }
+                  ],
+                  "givens": [
+
+                  ],
+                  "ensures": [
+
+                  ],
+                  "needs": [
+
+                  ],
+                  "mutations": [
+                    {
+                      "target": "compensates_with_spec",
+                      "op": "append",
+                      "sign": "",
+                      "fields": {
+                        "key": ":key",
+                        "value": ":value"
+                      }
+                    }
+                  ],
+                  "emits": [
+                    "CompensationBindingAttached"
+                  ],
+                  "from": null,
+                  "provenance": null,
+                  "idempotent": false,
+                  "mints_era": false
+                }
+              ],
+              "queries": [
+
+              ],
+              "entities": [
+
+              ],
+              "preconditions": [
+
+              ],
+              "invariants": [
+
+              ],
+              "lifecycle": null
+            }
+          ],
+          "preconditions": [
+
+          ],
+          "invariants": [
+
+          ],
+          "lifecycle": null
+        }
+      ],
+      "queries": [
+        {
+          "name": "DeclaredIn",
+          "description": null,
+          "attributes": [
+            {
+              "name": "bluebook",
+              "type": "SagaText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "bluebook",
+              "op": "eq",
+              "value": ":bluebook"
+            }
+          ],
+          "order_by": {
+            "field": "position",
+            "direction": "asc"
+          },
+          "limit": null
+        }
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
+      "acknowledgements": [
+
+      ]
+    },
+    {
       "name": "ValueObject",
       "description": "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can.",
       "identified_by": [
@@ -25362,7 +25426,7 @@
             [
               [
                 "name",
-                "ProcessManager"
+                "Saga"
               ]
             ],
             [
@@ -39486,8 +39550,8 @@
           "many": true
         },
         {
-          "aggregate": "ProcessManager",
-          "as": "process_managers",
+          "aggregate": "Saga",
+          "as": "sagas",
           "many": true
         },
         {
