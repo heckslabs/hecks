@@ -70,6 +70,10 @@ RSpec.describe Hecks::Adapters::ImageRoll do
 
       expect(classify).to include(kind: { value: "infra" })
     end
+
+    it "refuses a branch other than main" do
+      expect { classify(branch: "feature") }.to raise_error(described_class::Refused, /only main rolls/)
+    end
   end
 
   describe "#roll" do

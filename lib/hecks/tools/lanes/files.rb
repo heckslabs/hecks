@@ -16,9 +16,9 @@ module Hecks
 
         # @return [Hash{String => String}] each file's absolute path to the text it should hold
         def projection
-          promote = workflow(Lanes::WORKFLOW, "follows") { |lanes| Lanes.workflow(lanes) }
-          watch = workflow(Lanes::WATCH_WORKFLOW, "alert_after") { |lanes| WatchWorkflow.text(lanes) }
-          [rulesets, promote, watch, prebuilt, hook_table].reduce(:merge)
+          rulesets.merge(workflow(Lanes::WORKFLOW, "follows") { |lanes| Lanes.workflow(lanes) })
+                  .merge(workflow(Lanes::WATCH_WORKFLOW, "alert_after") { |lanes| WatchWorkflow.text(lanes) })
+                  .merge(prebuilt)
         end
 
         # @param files [Hash{String => String}] the projection
@@ -44,9 +44,6 @@ module Hecks
         def rulesets
           Lanes.rulesets.to_h { |name, ruleset| [ruleset_path(name), "#{JSON.pretty_generate(ruleset)}\n"] }
         end
-
-        # The table the pre-push hook reads, which says what a push of each lane runs.
-        def hook_table = { File.join(@root, HookTable::PATH) => HookTable.text(Lanes.lanes) }
 
         # The workflow that publishes each `PrebuiltBinary` row.
         def prebuilt

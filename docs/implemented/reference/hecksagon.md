@@ -136,7 +136,7 @@ runtime.registry.hecksagon("Banking").attachments.map { |a| [a.name, a.source] }
 And its bluebook is really loaded: `Governance` is a domain in this registry now, dispatchable like any other, though nothing in `banking.bluebook` mentions it:
 
 ```ruby
-runtime.registry.bluebook("Governance").aggregates.map(&:hecks_name).sort  # => ["Call", "Door", "RoleAssignment", "RoleTransition"]
+runtime.registry.bluebook("Governance").aggregates.map(&:hecks_name).sort  # => ["RoleAssignment", "RoleTransition"]
 ```
 
 Outside a real, rooted project (the doctest registry above, say) there is nowhere to vendor from, and `from: :vendor` refuses rather than silently finding nothing:

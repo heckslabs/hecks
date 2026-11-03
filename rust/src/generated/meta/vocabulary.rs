@@ -4789,50 +4789,47 @@ pub struct GateCheck {
     pub script: &'static str,
     pub blocked: &'static str,
     pub runs_in: &'static str,
-    pub attests: &'static str,
-    pub inputs: &'static str,
 }
 
 pub const GATE_CHECK: &[GateCheck] = &[
-    GateCheck { name: "rspec", id: "rspec", title: "rspec (parallel)", argv: "", script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", blocked: "the suite is red.", runs_in: "ci", attests: "", inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml" },
-    GateCheck { name: "fuzzing", id: "fuzzing", title: "spec/fuzzing, which the parallel run above excludes", argv: "bundle exec rspec spec/fuzzing --tag fuzzing", script: "", blocked: "spec/fuzzing is red.", runs_in: "", attests: "", inputs: "lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec qa/**/*" },
-    GateCheck { name: "query_agreement", id: "query_agreement", title: "adapter agreement, one declared query and every engine giving the same answer", argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io", script: "", blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which.", runs_in: "", attests: "", inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml" },
-    GateCheck { name: "engine_agreement", id: "engine_agreement", title: "engine agreement, every declared comparator on both engines", argv: "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait", script: "", blocked: "a comparator is missing a shared case or a cross-engine spec.", runs_in: "", attests: "yes", inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml" },
-    GateCheck { name: "shape_ledger", id: "shape_ledger", title: "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge", argv: "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait", script: "", blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first.", runs_in: "", attests: "", inputs: "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world lib/**/*.json lib/**/*.adapter" },
-    GateCheck { name: "model_check", id: "model_check", title: "model check, unreachable states, dead transitions and orphaned handlers", argv: "bundle exec exe/hecks ModelCheckRun.model_check! --wait", script: "", blocked: "the model checker found something.", runs_in: "", attests: "yes", inputs: "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world examples/**/*" },
-    GateCheck { name: "doc_coverage", id: "doc_coverage", title: "docs coverage, words with no running example", argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait", script: "", blocked: "the language ships something undocumented; write the missing sections and examples.", runs_in: "", attests: "yes", inputs: "lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec" },
-    GateCheck { name: "rubocop", id: "rubocop", title: "rubocop, the static style and correctness gate", argv: "bundle exec rubocop -c .rubocop.yml", script: "", blocked: "rubocop found an offense.", runs_in: "", attests: "yes", inputs: "" },
-    GateCheck { name: "codegen_drift", id: "codegen_drift", title: "codegen drift, rust/src/generated/ must match a fresh regeneration", argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed.", runs_in: "", attests: "", inputs: "lib/**/* examples/**/* qa/**/* packages/**/* spec/fixtures/**/* spec/corpus/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec" },
-    GateCheck { name: "comment_style", id: "comment_style", title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", script: "", blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.", runs_in: "", attests: "", inputs: "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md" },
-    GateCheck { name: "comment_blocks", id: "comment_blocks", title: "comment blocks, no run of comment lines past ADR 0075's cap", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", script: "", blocked: "a comment block ran past the cap; shorten it.", runs_in: "", attests: "", inputs: "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md examples/**/*.rb" },
-    GateCheck { name: "command_names", id: "command_names", title: "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait", script: "", blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "workflow_pagination", id: "workflow_pagination", title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone", argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", script: "", blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "secret_output", id: "secret_output", title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints", argv: "bundle exec rspec spec/secret_output_spec.rb", script: "", blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream.", runs_in: "", attests: "", inputs: "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/secret_output_spec.rb" },
-    GateCheck { name: "adapter_words", id: "adapter_words", title: "adapter words, no domain name equal to a technology word the adapters are named for", argv: "bundle exec rspec spec/adapter_words_spec.rb", script: "", blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter.", runs_in: "", attests: "", inputs: "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/adapter_words_spec.rb" },
-    GateCheck { name: "rust_fmt", id: "rust_fmt", title: "rustfmt, every Rust crate laid out as `cargo fmt` would", argv: "", script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", blocked: "a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output.", runs_in: "", attests: "", inputs: "rust/**/*.rs rust/**/Cargo.toml rust/**/Cargo.lock rust/rust-toolchain.toml rust-toolchain.toml" },
-    GateCheck { name: "rust_io", id: "rust_io", title: "rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity", argv: "", script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n", blocked: "a Rust io spec failed, or skipped; the crate it built is under rust/target.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "ci_codegen_drift", id: "codegen_drift", title: "codegen drift, the committed generated Rust must match the regeneration this job holds", argv: "git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "generated_tree", id: "generated_tree", title: "whole-tree specs, the examples tagged generated_all against every domain's generated Rust", argv: "bundle exec rspec --tag generated_all", script: "", blocked: "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "rust_clippy", id: "rust_clippy", title: "clippy, every Rust crate with its warnings as errors", argv: "", script: "for crate in . parser codegen lsp host web build; do\n  cargo clippy --all-targets --manifest-path \"rust/$crate/Cargo.toml\" -- -D warnings\ndone\n", blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "lint_deploy_recipes", id: "lint_deploy_recipes", title: "generated deploy recipes, a command with no checked exit status or no echo", argv: "bundle exec exe/hecks deploy MakefileCheck.lint! --wait", script: "", blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_1_of_3", id: "fuzz_1_of_3", title: "fuzz, shard 1 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=1/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_2_of_3", id: "fuzz_2_of_3", title: "fuzz, shard 2 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=2/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_3_of_3", id: "fuzz_3_of_3", title: "fuzz, shard 3 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=3/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_sqlite_1_of_3", id: "fuzz_sqlite_1_of_3", title: "fuzz, shard 1 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=1/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_sqlite_2_of_3", id: "fuzz_sqlite_2_of_3", title: "fuzz, shard 2 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=2/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_sqlite_3_of_3", id: "fuzz_sqlite_3_of_3", title: "fuzz, shard 3 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=3/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_shards", id: "fuzz_shards", title: "fuzz shards, the three shards together hold every domain of the sweep once", argv: "bundle exec exe/hecks fuzz_run.fuzz! list_shards=3 --wait", script: "", blocked: "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2", title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2", title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "vocabulary_drift", id: "vocabulary_drift", title: "vocabulary, the reserved-name tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n", blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "ci_gates", id: "ci_gates", title: "ci gates, the CiGate rows must match the marked regions of the workflows", argv: "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait", script: "", blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "ci_pipeline", id: "ci_pipeline", title: "ci pipeline, the workflow rows must match the files they project", argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait", script: "", blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "tools_doc", id: "tools_doc", title: "tools doc, docs/tools.md must match the RetiredScript rows", argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait", script: "", blocked: "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "rust_coverage", id: "rust_coverage", title: "rust coverage, every generated module", argv: "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait", script: "", blocked: "a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "rust_coverage_codegen", id: "rust_coverage_codegen", title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", argv: "", script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", blocked: "hecks-codegen generated nothing for a construct a domain declares.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "kernel_coverage", id: "kernel_coverage", title: "rust kernel coverage, every capability variant has a kernel file", argv: "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait", script: "", blocked: "a capability's enum variant has no rust/src/kernel file behind it.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "rust_vocabulary_drift", id: "rust_vocabulary_drift", title: "rust vocabulary, the kernel vocab tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result.", runs_in: "", attests: "", inputs: "" },
-    GateCheck { name: "release_consistency", id: "release_consistency", title: "release consistency, the version files, the changelog and the release workflow agree", argv: "bundle exec rspec spec/readme_version_spec.rb spec/hecks_client_version_spec.rb spec/changelog_planned_release_spec.rb spec/docs_stale_version_spec.rb spec/release_workflow_spec.rb", script: "", blocked: "a half-done release bump: the files a bump edits by hand disagree with each other; the failure names the spec.", runs_in: "", attests: "", inputs: "" },
+    GateCheck { name: "rspec", id: "rspec", title: "rspec (parallel)", argv: "", script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", blocked: "the suite is red.", runs_in: "ci" },
+    GateCheck { name: "fuzzing", id: "fuzzing", title: "spec/fuzzing, which the parallel run above excludes", argv: "bundle exec rspec spec/fuzzing --tag fuzzing", script: "", blocked: "spec/fuzzing is red.", runs_in: "" },
+    GateCheck { name: "query_agreement", id: "query_agreement", title: "adapter agreement, one declared query and every engine giving the same answer", argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io", script: "", blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which.", runs_in: "" },
+    GateCheck { name: "engine_agreement", id: "engine_agreement", title: "engine agreement, every declared comparator on both engines", argv: "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait", script: "", blocked: "a comparator is missing a shared case or a cross-engine spec.", runs_in: "" },
+    GateCheck { name: "shape_ledger", id: "shape_ledger", title: "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge", argv: "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait", script: "", blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first.", runs_in: "" },
+    GateCheck { name: "model_check", id: "model_check", title: "model check, unreachable states, dead transitions and orphaned handlers", argv: "bundle exec exe/hecks ModelCheckRun.model_check! --wait", script: "", blocked: "the model checker found something.", runs_in: "" },
+    GateCheck { name: "doc_coverage", id: "doc_coverage", title: "docs coverage, words with no running example", argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait", script: "", blocked: "the language ships something undocumented; write the missing sections and examples.", runs_in: "" },
+    GateCheck { name: "rubocop", id: "rubocop", title: "rubocop, the static style and correctness gate", argv: "bundle exec rubocop -c .rubocop.yml", script: "", blocked: "rubocop found an offense.", runs_in: "" },
+    GateCheck { name: "codegen_drift", id: "codegen_drift", title: "codegen drift, rust/src/generated/ must match a fresh regeneration", argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed.", runs_in: "" },
+    GateCheck { name: "comment_style", id: "comment_style", title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", script: "", blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.", runs_in: "" },
+    GateCheck { name: "comment_blocks", id: "comment_blocks", title: "comment blocks, no run of comment lines past ADR 0075's cap", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", script: "", blocked: "a comment block ran past the cap; shorten it.", runs_in: "" },
+    GateCheck { name: "command_names", id: "command_names", title: "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait", script: "", blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines.", runs_in: "" },
+    GateCheck { name: "workflow_pagination", id: "workflow_pagination", title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone", argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", script: "", blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=.", runs_in: "" },
+    GateCheck { name: "secret_output", id: "secret_output", title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints", argv: "bundle exec rspec spec/secret_output_spec.rb", script: "", blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream.", runs_in: "" },
+    GateCheck { name: "adapter_words", id: "adapter_words", title: "adapter words, no domain name equal to a technology word the adapters are named for", argv: "bundle exec rspec spec/adapter_words_spec.rb", script: "", blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter.", runs_in: "" },
+    GateCheck { name: "rust_fmt", id: "rust_fmt", title: "rustfmt, every Rust crate laid out as `cargo fmt` would", argv: "", script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", blocked: "a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output.", runs_in: "" },
+    GateCheck { name: "rust_io", id: "rust_io", title: "rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity", argv: "", script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n", blocked: "a Rust io spec failed, or skipped; the crate it built is under rust/target.", runs_in: "" },
+    GateCheck { name: "ci_codegen_drift", id: "codegen_drift", title: "codegen drift, the committed generated Rust must match the regeneration this job holds", argv: "git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed.", runs_in: "" },
+    GateCheck { name: "generated_tree", id: "generated_tree", title: "whole-tree specs, the examples tagged generated_all against every domain's generated Rust", argv: "bundle exec rspec --tag generated_all", script: "", blocked: "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`.", runs_in: "" },
+    GateCheck { name: "rust_clippy", id: "rust_clippy", title: "clippy, every Rust crate with its warnings as errors", argv: "", script: "for crate in . parser codegen lsp host web build; do\n  cargo clippy --all-targets --manifest-path \"rust/$crate/Cargo.toml\" -- -D warnings\ndone\n", blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator.", runs_in: "" },
+    GateCheck { name: "lint_deploy_recipes", id: "lint_deploy_recipes", title: "generated deploy recipes, a command with no checked exit status or no echo", argv: "bundle exec exe/hecks deploy MakefileCheck.lint! --wait", script: "", blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen.", runs_in: "" },
+    GateCheck { name: "fuzz_1_of_3", id: "fuzz_1_of_3", title: "fuzz, shard 1 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=1/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
+    GateCheck { name: "fuzz_2_of_3", id: "fuzz_2_of_3", title: "fuzz, shard 2 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=2/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
+    GateCheck { name: "fuzz_3_of_3", id: "fuzz_3_of_3", title: "fuzz, shard 3 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=3/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
+    GateCheck { name: "fuzz_sqlite_1_of_3", id: "fuzz_sqlite_1_of_3", title: "fuzz, shard 1 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=1/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "" },
+    GateCheck { name: "fuzz_sqlite_2_of_3", id: "fuzz_sqlite_2_of_3", title: "fuzz, shard 2 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=2/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "" },
+    GateCheck { name: "fuzz_sqlite_3_of_3", id: "fuzz_sqlite_3_of_3", title: "fuzz, shard 3 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=3/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "" },
+    GateCheck { name: "fuzz_shards", id: "fuzz_shards", title: "fuzz shards, the three shards together hold every domain of the sweep once", argv: "bundle exec exe/hecks fuzz_run.fuzz! list_shards=3 --wait", script: "", blocked: "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log.", runs_in: "" },
+    GateCheck { name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2", title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "" },
+    GateCheck { name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2", title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "" },
+    GateCheck { name: "vocabulary_drift", id: "vocabulary_drift", title: "vocabulary, the reserved-name tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n", blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result.", runs_in: "" },
+    GateCheck { name: "ci_gates", id: "ci_gates", title: "ci gates, the CiGate rows must match the marked regions of the workflows", argv: "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait", script: "", blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`.", runs_in: "" },
+    GateCheck { name: "ci_pipeline", id: "ci_pipeline", title: "ci pipeline, the workflow rows must match the files they project", argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait", script: "", blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`.", runs_in: "" },
+    GateCheck { name: "tools_doc", id: "tools_doc", title: "tools doc, docs/tools.md must match the RetiredScript rows", argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait", script: "", blocked: "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`.", runs_in: "" },
+    GateCheck { name: "rust_coverage", id: "rust_coverage", title: "rust coverage, every generated module", argv: "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait", script: "", blocked: "a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted.", runs_in: "" },
+    GateCheck { name: "rust_coverage_codegen", id: "rust_coverage_codegen", title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", argv: "", script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", blocked: "hecks-codegen generated nothing for a construct a domain declares.", runs_in: "" },
+    GateCheck { name: "kernel_coverage", id: "kernel_coverage", title: "rust kernel coverage, every capability variant has a kernel file", argv: "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait", script: "", blocked: "a capability's enum variant has no rust/src/kernel file behind it.", runs_in: "" },
+    GateCheck { name: "rust_vocabulary_drift", id: "rust_vocabulary_drift", title: "rust vocabulary, the kernel vocab tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result.", runs_in: "" },
 ];
 
 impl GateCheck {
@@ -4866,14 +4863,6 @@ impl GateCheck {
                 "runs_in".to_string(),
                 crate::kernel::Json::Str(self.runs_in.to_string()),
             ),
-            (
-                "attests".to_string(),
-                crate::kernel::Json::Str(self.attests.to_string()),
-            ),
-            (
-                "inputs".to_string(),
-                crate::kernel::Json::Str(self.inputs.to_string()),
-            ),
         ])
     }
 
@@ -4881,7 +4870,7 @@ impl GateCheck {
         // `validate!`'s order: a name the set does not declare, then a field left out, then
         // membership of the whole row.
         let unknown = v.unknown_keys(&[
-            "name", "id", "title", "argv", "script", "blocked", "runs_in", "attests", "inputs",
+            "name", "id", "title", "argv", "script", "blocked", "runs_in",
         ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
@@ -4890,8 +4879,7 @@ impl GateCheck {
                     command: "GateCheck",
                     unknown: &unknown,
                     declared: &[
-                        "name", "id", "title", "argv", "script", "blocked", "runs_in", "attests",
-                        "inputs",
+                        "name", "id", "title", "argv", "script", "blocked", "runs_in",
                     ],
                 }
                 .render_args(),
@@ -4932,16 +4920,6 @@ impl GateCheck {
                 "GateCheck.runs_in expects String, got nil".to_string(),
             ));
         }
-        if matches!(v.get("attests"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "GateCheck.attests expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("inputs"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "GateCheck.inputs expects String, got nil".to_string(),
-            ));
-        }
         for row in GATE_CHECK {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("id").and_then(crate::kernel::Json::as_str) == Some(row.id)
@@ -4950,8 +4928,6 @@ impl GateCheck {
                 && v.get("script").and_then(crate::kernel::Json::as_str) == Some(row.script)
                 && v.get("blocked").and_then(crate::kernel::Json::as_str) == Some(row.blocked)
                 && v.get("runs_in").and_then(crate::kernel::Json::as_str) == Some(row.runs_in)
-                && v.get("attests").and_then(crate::kernel::Json::as_str) == Some(row.attests)
-                && v.get("inputs").and_then(crate::kernel::Json::as_str) == Some(row.inputs)
             {
                 return Ok(row.clone());
             }
@@ -5003,7 +4979,6 @@ impl GateCheck {
                     "rust_coverage_codegen",
                     "kernel_coverage",
                     "rust_vocabulary_drift",
-                    "release_consistency",
                 ],
                 offered: offered.as_str(),
             }
@@ -5024,7 +4999,6 @@ pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec" },
     GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
-    GateStage { name: "release", env: "", checks: "release_consistency" },
     GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
 
@@ -5092,7 +5066,7 @@ impl GateStage {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "GateStage",
-                admitted: &["pre_push", "ci_suite", "quick", "rust_io", "release", "ci"],
+                admitted: &["pre_push", "ci_suite", "quick", "rust_io", "ci"],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -5275,59 +5249,48 @@ impl RehearsalScope {
 pub struct RequiredCheck {
     pub name: &'static str,
     pub runs: &'static str,
-    pub attests: &'static str,
 }
 
 pub const REQUIRED_CHECK: &[RequiredCheck] = &[
     RequiredCheck {
         name: "rspec",
         runs: "",
-        attests: "rspec",
     },
     RequiredCheck {
         name: "checks",
         runs: "",
-        attests: "checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift",
     },
     RequiredCheck {
         name: "rspec_postgres_io",
         runs: "",
-        attests: "rspec_postgres_io",
     },
     RequiredCheck {
         name: "rspec_postgres_io_parallel",
         runs: "",
-        attests: "rspec_postgres_io_parallel",
     },
     RequiredCheck {
         name: "rspec_rust_io",
         runs: "",
-        attests: "rspec_rust_io",
     },
     RequiredCheck {
         name: "rspec_rust_parser",
         runs: "",
-        attests: "rspec_rust_parser",
     },
     RequiredCheck {
         name: "rspec_rust_codegen",
         runs: "",
-        attests: "rspec_rust_codegen",
     },
     RequiredCheck {
         name: "rspec_rust_host",
         runs: "",
-        attests: "rspec_rust_host",
     },
     RequiredCheck {
         name: "rspec_fuzzing",
         runs: "",
-        attests: "rspec_fuzzing",
     },
     RequiredCheck {
         name: "release_consistency",
         runs: "always",
-        attests: "",
     },
 ];
 
@@ -5342,24 +5305,20 @@ impl RequiredCheck {
                 "runs".to_string(),
                 crate::kernel::Json::Str(self.runs.to_string()),
             ),
-            (
-                "attests".to_string(),
-                crate::kernel::Json::Str(self.attests.to_string()),
-            ),
         ])
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         // `validate!`'s order: a name the set does not declare, then a field left out, then
         // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "runs", "attests"]);
+        let unknown = v.unknown_keys(&["name", "runs"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "RequiredCheck",
                     unknown: &unknown,
-                    declared: &["name", "runs", "attests"],
+                    declared: &["name", "runs"],
                 }
                 .render_args(),
             ));
@@ -5374,15 +5333,9 @@ impl RequiredCheck {
                 "RequiredCheck.runs expects String, got nil".to_string(),
             ));
         }
-        if matches!(v.get("attests"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "RequiredCheck.attests expects String, got nil".to_string(),
-            ));
-        }
         for row in REQUIRED_CHECK {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("runs").and_then(crate::kernel::Json::as_str) == Some(row.runs)
-                && v.get("attests").and_then(crate::kernel::Json::as_str) == Some(row.attests)
             {
                 return Ok(row.clone());
             }
@@ -5423,9 +5376,6 @@ pub struct Lane {
     pub follows: &'static str,
     pub alert_after: &'static str,
     pub release_trailer: &'static str,
-    pub push_gate: &'static str,
-    pub full_gate: &'static str,
-    pub train: &'static str,
 }
 
 pub const LANE: &[Lane] = &[
@@ -5437,9 +5387,6 @@ pub const LANE: &[Lane] = &[
         follows: "",
         alert_after: "",
         release_trailer: "",
-        push_gate: "quick",
-        full_gate: "pre_push",
-        train: "yes",
     },
     Lane {
         name: "stable",
@@ -5449,9 +5396,6 @@ pub const LANE: &[Lane] = &[
         follows: "main",
         alert_after: "4",
         release_trailer: "Release-Approved-By",
-        push_gate: "",
-        full_gate: "",
-        train: "no",
     },
 ];
 
@@ -5486,18 +5430,6 @@ impl Lane {
                 "release_trailer".to_string(),
                 crate::kernel::Json::Str(self.release_trailer.to_string()),
             ),
-            (
-                "push_gate".to_string(),
-                crate::kernel::Json::Str(self.push_gate.to_string()),
-            ),
-            (
-                "full_gate".to_string(),
-                crate::kernel::Json::Str(self.full_gate.to_string()),
-            ),
-            (
-                "train".to_string(),
-                crate::kernel::Json::Str(self.train.to_string()),
-            ),
         ])
     }
 
@@ -5512,9 +5444,6 @@ impl Lane {
             "follows",
             "alert_after",
             "release_trailer",
-            "push_gate",
-            "full_gate",
-            "train",
         ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
@@ -5530,9 +5459,6 @@ impl Lane {
                         "follows",
                         "alert_after",
                         "release_trailer",
-                        "push_gate",
-                        "full_gate",
-                        "train",
                     ],
                 }
                 .render_args(),
@@ -5576,21 +5502,6 @@ impl Lane {
                 "Lane.release_trailer expects String, got nil".to_string(),
             ));
         }
-        if matches!(v.get("push_gate"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "Lane.push_gate expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("full_gate"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "Lane.full_gate expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("train"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "Lane.train expects String, got nil".to_string(),
-            ));
-        }
         for row in LANE {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("guarded").and_then(crate::kernel::Json::as_str) == Some(row.guarded)
@@ -5602,9 +5513,6 @@ impl Lane {
                 && v.get("release_trailer")
                     .and_then(crate::kernel::Json::as_str)
                     == Some(row.release_trailer)
-                && v.get("push_gate").and_then(crate::kernel::Json::as_str) == Some(row.push_gate)
-                && v.get("full_gate").and_then(crate::kernel::Json::as_str) == Some(row.full_gate)
-                && v.get("train").and_then(crate::kernel::Json::as_str) == Some(row.train)
             {
                 return Ok(row.clone());
             }
@@ -5625,204 +5533,6 @@ impl Lane {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReleaseOwner {
-    ChrisYoung,
-}
-
-impl crate::kernel::Fielded for ReleaseOwner {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::{Field, Value};
-        match name {
-            "value" => Some(Field::Value(Value::Str(match self {
-                Self::ChrisYoung => "Chris Young".to_string(),
-            }))),
-            _ => None,
-        }
-    }
-    fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") {
-            Some(crate::kernel::Field::Value(v)) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-impl ReleaseOwner {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        let member = match self {
-            Self::ChrisYoung => "Chris Young",
-        };
-        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
-        // does in `validate!`: before a missing field, and before membership.
-        let unknown = v.unknown_keys(&["name"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "ReleaseOwner",
-                    unknown: &unknown,
-                    declared: &["name"],
-                }
-                .render_args(),
-            ));
-        }
-        // A `one_of` closed set is admission-checked on the raw offered
-        // value, no shape check first — `Value::Admission#admit_member`
-        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
-        // the sole attribute's slot (a bare Array, a Bool, anything), never
-        // on a value already known to be a String. `v.dig` gives the same
-        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
-        // `{"name": ...}` shape's inner value if `v` is an
-        // object, or `v` itself untouched if it isn't (matching
-        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only then is admission checked — a non-member value
-        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
-        // never `TypeMismatch` for a shape a member set never declared.
-        //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
-        // is not "a shape a member set never declared" the way a present-
-        // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs before
-        // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a required command argument of this type is translated
-        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an empty object — "build the value object from no fields at all",
-        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
-        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
-        // genuinely indistinguishable, at this point, from a Hash-shaped
-        // caller argument that simply never named the sole field's own key
-        // either way: both are that field's own absence, not a member
-        // mismatch.
-        // Without this explicit null check, that absence would still fall
-        // through to the admission match below, stringified as
-        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
-        // required-but-omitted closed-set argument would misreport
-        // `InvariantViolation` where Ruby raises `TypeMismatch`
-        // ("{type}.{field} expects {expected}, got nil" — the same
-        // `numeric_field` wording `required_field_expr` already gives
-        // every other composite field's own missing-key case).
-        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
-        if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ReleaseOwner.name expects String, got nil".to_string(),
-            ));
-        }
-        match candidate.ruby_to_s().as_str() {
-            "Chris Young" => Ok(Self::ChrisYoung),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(
-                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                    r#type: "ReleaseOwner",
-                    admitted: &["Chris Young"],
-                    offered: candidate.inspect().as_str(),
-                }
-                .render_args(),
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct LaneWorkflow {
-    pub name: &'static str,
-    pub cron: &'static str,
-    pub timeout_minutes: &'static str,
-}
-
-pub const LANE_WORKFLOW: &[LaneWorkflow] = &[
-    LaneWorkflow {
-        name: "promote",
-        cron: "",
-        timeout_minutes: "15",
-    },
-    LaneWorkflow {
-        name: "watch",
-        cron: "17 * * * *",
-        timeout_minutes: "10",
-    },
-];
-
-impl LaneWorkflow {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "name".to_string(),
-                crate::kernel::Json::Str(self.name.to_string()),
-            ),
-            (
-                "cron".to_string(),
-                crate::kernel::Json::Str(self.cron.to_string()),
-            ),
-            (
-                "timeout_minutes".to_string(),
-                crate::kernel::Json::Str(self.timeout_minutes.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "cron", "timeout_minutes"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "LaneWorkflow",
-                    unknown: &unknown,
-                    declared: &["name", "cron", "timeout_minutes"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "LaneWorkflow.name expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("cron"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "LaneWorkflow.cron expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(
-            v.get("timeout_minutes"),
-            None | Some(crate::kernel::Json::Null)
-        ) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "LaneWorkflow.timeout_minutes expects String, got nil".to_string(),
-            ));
-        }
-        for row in LANE_WORKFLOW {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
-                && v.get("cron").and_then(crate::kernel::Json::as_str) == Some(row.cron)
-                && v.get("timeout_minutes")
-                    .and_then(crate::kernel::Json::as_str)
-                    == Some(row.timeout_minutes)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("name")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "LaneWorkflow",
-                admitted: &["promote", "watch"],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrebuiltBinary {
     pub name: &'static str,
@@ -5830,7 +5540,6 @@ pub struct PrebuiltBinary {
     pub executable: &'static str,
     pub target: &'static str,
     pub runner: &'static str,
-    pub timeout_minutes: &'static str,
 }
 
 pub const PREBUILT_BINARY: &[PrebuiltBinary] = &[
@@ -5840,7 +5549,6 @@ pub const PREBUILT_BINARY: &[PrebuiltBinary] = &[
         executable: "bootstrap",
         target: "x86_64-unknown-linux-gnu",
         runner: "ubuntu-24.04",
-        timeout_minutes: "40",
     },
     PrebuiltBinary {
         name: "host-arm64",
@@ -5848,7 +5556,6 @@ pub const PREBUILT_BINARY: &[PrebuiltBinary] = &[
         executable: "bootstrap",
         target: "aarch64-unknown-linux-gnu",
         runner: "ubuntu-22.04-arm",
-        timeout_minutes: "40",
     },
 ];
 
@@ -5875,38 +5582,20 @@ impl PrebuiltBinary {
                 "runner".to_string(),
                 crate::kernel::Json::Str(self.runner.to_string()),
             ),
-            (
-                "timeout_minutes".to_string(),
-                crate::kernel::Json::Str(self.timeout_minutes.to_string()),
-            ),
         ])
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         // `validate!`'s order: a name the set does not declare, then a field left out, then
         // membership of the whole row.
-        let unknown = v.unknown_keys(&[
-            "name",
-            "crate",
-            "executable",
-            "target",
-            "runner",
-            "timeout_minutes",
-        ]);
+        let unknown = v.unknown_keys(&["name", "crate", "executable", "target", "runner"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "PrebuiltBinary",
                     unknown: &unknown,
-                    declared: &[
-                        "name",
-                        "crate",
-                        "executable",
-                        "target",
-                        "runner",
-                        "timeout_minutes",
-                    ],
+                    declared: &["name", "crate", "executable", "target", "runner"],
                 }
                 .render_args(),
             ));
@@ -5936,23 +5625,12 @@ impl PrebuiltBinary {
                 "PrebuiltBinary.runner expects String, got nil".to_string(),
             ));
         }
-        if matches!(
-            v.get("timeout_minutes"),
-            None | Some(crate::kernel::Json::Null)
-        ) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "PrebuiltBinary.timeout_minutes expects String, got nil".to_string(),
-            ));
-        }
         for row in PREBUILT_BINARY {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("crate").and_then(crate::kernel::Json::as_str) == Some(row.crate_)
                 && v.get("executable").and_then(crate::kernel::Json::as_str) == Some(row.executable)
                 && v.get("target").and_then(crate::kernel::Json::as_str) == Some(row.target)
                 && v.get("runner").and_then(crate::kernel::Json::as_str) == Some(row.runner)
-                && v.get("timeout_minutes")
-                    .and_then(crate::kernel::Json::as_str)
-                    == Some(row.timeout_minutes)
             {
                 return Ok(row.clone());
             }
@@ -7094,1412 +6772,6 @@ impl CargoReservedName {
                         "build-dependencies",
                         "workspace",
                     ],
-                    offered: candidate.inspect().as_str(),
-                }
-                .render_args(),
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PassingConclusion {
-    Success,
-    Neutral,
-    Skipped,
-}
-
-impl crate::kernel::Fielded for PassingConclusion {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::{Field, Value};
-        match name {
-            "value" => Some(Field::Value(Value::Str(match self {
-                Self::Success => "success".to_string(),
-                Self::Neutral => "neutral".to_string(),
-                Self::Skipped => "skipped".to_string(),
-            }))),
-            _ => None,
-        }
-    }
-    fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") {
-            Some(crate::kernel::Field::Value(v)) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-impl PassingConclusion {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        let member = match self {
-            Self::Success => "success",
-            Self::Neutral => "neutral",
-            Self::Skipped => "skipped",
-        };
-        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
-        // does in `validate!`: before a missing field, and before membership.
-        let unknown = v.unknown_keys(&["name"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "PassingConclusion",
-                    unknown: &unknown,
-                    declared: &["name"],
-                }
-                .render_args(),
-            ));
-        }
-        // A `one_of` closed set is admission-checked on the raw offered
-        // value, no shape check first — `Value::Admission#admit_member`
-        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
-        // the sole attribute's slot (a bare Array, a Bool, anything), never
-        // on a value already known to be a String. `v.dig` gives the same
-        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
-        // `{"name": ...}` shape's inner value if `v` is an
-        // object, or `v` itself untouched if it isn't (matching
-        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only then is admission checked — a non-member value
-        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
-        // never `TypeMismatch` for a shape a member set never declared.
-        //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
-        // is not "a shape a member set never declared" the way a present-
-        // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs before
-        // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a required command argument of this type is translated
-        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an empty object — "build the value object from no fields at all",
-        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
-        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
-        // genuinely indistinguishable, at this point, from a Hash-shaped
-        // caller argument that simply never named the sole field's own key
-        // either way: both are that field's own absence, not a member
-        // mismatch.
-        // Without this explicit null check, that absence would still fall
-        // through to the admission match below, stringified as
-        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
-        // required-but-omitted closed-set argument would misreport
-        // `InvariantViolation` where Ruby raises `TypeMismatch`
-        // ("{type}.{field} expects {expected}, got nil" — the same
-        // `numeric_field` wording `required_field_expr` already gives
-        // every other composite field's own missing-key case).
-        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
-        if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "PassingConclusion.name expects String, got nil".to_string(),
-            ));
-        }
-        match candidate.ruby_to_s().as_str() {
-            "success" => Ok(Self::Success),
-            "neutral" => Ok(Self::Neutral),
-            "skipped" => Ok(Self::Skipped),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(
-                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                    r#type: "PassingConclusion",
-                    admitted: &["success", "neutral", "skipped"],
-                    offered: candidate.inspect().as_str(),
-                }
-                .render_args(),
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ModelCheckFinding {
-    pub kind: &'static str,
-    pub severity: &'static str,
-    pub check: &'static str,
-    pub acknowledged_on: &'static str,
-    pub subject: &'static str,
-}
-
-pub const MODEL_CHECK_FINDING: &[ModelCheckFinding] = &[
-    ModelCheckFinding {
-        kind: "conformist_translates",
-        severity: "warning",
-        check: "context_map_checks",
-        acknowledged_on: "relationship",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "context_cycle",
-        severity: "warning",
-        check: "context_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "contradictory_relationship",
-        severity: "error",
-        check: "policy_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "core_conforms",
-        severity: "warning",
-        check: "classification_checks",
-        acknowledged_on: "relationship",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "dead_compensation",
-        severity: "error",
-        check: "saga_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "dead_transition",
-        severity: "error",
-        check: "lifecycle_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "deaf_handler",
-        severity: "error",
-        check: "saga_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "deaf_policy",
-        severity: "error",
-        check: "policy_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "deaf_trigger",
-        severity: "error",
-        check: "saga_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "deep_reaction_chain",
-        severity: "warning",
-        check: "reaction_depth_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "external_query",
-        severity: "error",
-        check: "ask_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "generic_depends_on_core",
-        severity: "error",
-        check: "classification_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "key_by_value",
-        severity: "warning",
-        check: "reference_checks",
-        acknowledged_on: "aggregate",
-        subject: "attribute",
-    },
-    ModelCheckFinding {
-        kind: "large_aggregate",
-        severity: "warning",
-        check: "aggregate_checks",
-        acknowledged_on: "aggregate",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "no_command_surface",
-        severity: "error",
-        check: "aggregate_checks",
-        acknowledged_on: "aggregate",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "one_of_branch_unhandled",
-        severity: "error",
-        check: "one_of_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "orphaned_reference",
-        severity: "warning",
-        check: "orphan_checks",
-        acknowledged_on: "aggregate",
-        subject: "referenced aggregate",
-    },
-    ModelCheckFinding {
-        kind: "port_trigger",
-        severity: "warning",
-        check: "ask_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "reaction_chain_search_capped",
-        severity: "warning",
-        check: "reaction_depth_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "redundant_relationship",
-        severity: "warning",
-        check: "redundant_relationships",
-        acknowledged_on: "relationship",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "relationship_kind_mismatch",
-        severity: "error",
-        check: "context_map_checks",
-        acknowledged_on: "relationship",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "rust_reserved_name",
-        severity: "warning",
-        check: "model_check",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "separate_ways_violated",
-        severity: "error",
-        check: "context_map_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "stale_undelivered_expectation",
-        severity: "error",
-        check: "policy_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "stuck_state",
-        severity: "warning",
-        check: "lifecycle_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "terminal_has_exit",
-        severity: "error",
-        check: "lifecycle_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unacknowledged_relationship",
-        severity: "error",
-        check: "policy_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unacknowledged_source",
-        severity: "error",
-        check: "context_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unarmed_compensation",
-        severity: "error",
-        check: "saga_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unbounded_reaction_loop",
-        severity: "warning",
-        check: "reaction_depth_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "undeclared_coupling",
-        severity: "error",
-        check: "context_map_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unknown_command",
-        severity: "error",
-        check: "lifecycle_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unknown_dispatch",
-        severity: "error",
-        check: "saga_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unknown_target_domain",
-        severity: "error",
-        check: "policy_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unknown_trigger",
-        severity: "error",
-        check: "policy_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unpublished_dependency",
-        severity: "error",
-        check: "context_map_checks",
-        acknowledged_on: "relationship",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unreachable_pm_state",
-        severity: "error",
-        check: "saga_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unreachable_state",
-        severity: "error",
-        check: "lifecycle_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unresolved_ask",
-        severity: "error",
-        check: "ask_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unused_ask",
-        severity: "warning",
-        check: "ask_checks",
-        acknowledged_on: "",
-        subject: "",
-    },
-    ModelCheckFinding {
-        kind: "unused_relationship",
-        severity: "warning",
-        check: "context_map_checks",
-        acknowledged_on: "relationship",
-        subject: "",
-    },
-];
-
-impl ModelCheckFinding {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "kind".to_string(),
-                crate::kernel::Json::Str(self.kind.to_string()),
-            ),
-            (
-                "severity".to_string(),
-                crate::kernel::Json::Str(self.severity.to_string()),
-            ),
-            (
-                "check".to_string(),
-                crate::kernel::Json::Str(self.check.to_string()),
-            ),
-            (
-                "acknowledged_on".to_string(),
-                crate::kernel::Json::Str(self.acknowledged_on.to_string()),
-            ),
-            (
-                "subject".to_string(),
-                crate::kernel::Json::Str(self.subject.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["kind", "severity", "check", "acknowledged_on", "subject"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "ModelCheckFinding",
-                    unknown: &unknown,
-                    declared: &["kind", "severity", "check", "acknowledged_on", "subject"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("kind"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ModelCheckFinding.kind expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("severity"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ModelCheckFinding.severity expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("check"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ModelCheckFinding.check expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(
-            v.get("acknowledged_on"),
-            None | Some(crate::kernel::Json::Null)
-        ) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ModelCheckFinding.acknowledged_on expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("subject"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ModelCheckFinding.subject expects String, got nil".to_string(),
-            ));
-        }
-        for row in MODEL_CHECK_FINDING {
-            if v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind)
-                && v.get("severity").and_then(crate::kernel::Json::as_str) == Some(row.severity)
-                && v.get("check").and_then(crate::kernel::Json::as_str) == Some(row.check)
-                && v.get("acknowledged_on")
-                    .and_then(crate::kernel::Json::as_str)
-                    == Some(row.acknowledged_on)
-                && v.get("subject").and_then(crate::kernel::Json::as_str) == Some(row.subject)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("kind")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "ModelCheckFinding",
-                admitted: &[
-                    "conformist_translates",
-                    "context_cycle",
-                    "contradictory_relationship",
-                    "core_conforms",
-                    "dead_compensation",
-                    "dead_transition",
-                    "deaf_handler",
-                    "deaf_policy",
-                    "deaf_trigger",
-                    "deep_reaction_chain",
-                    "external_query",
-                    "generic_depends_on_core",
-                    "key_by_value",
-                    "large_aggregate",
-                    "no_command_surface",
-                    "one_of_branch_unhandled",
-                    "orphaned_reference",
-                    "port_trigger",
-                    "reaction_chain_search_capped",
-                    "redundant_relationship",
-                    "relationship_kind_mismatch",
-                    "rust_reserved_name",
-                    "separate_ways_violated",
-                    "stale_undelivered_expectation",
-                    "stuck_state",
-                    "terminal_has_exit",
-                    "unacknowledged_relationship",
-                    "unacknowledged_source",
-                    "unarmed_compensation",
-                    "unbounded_reaction_loop",
-                    "undeclared_coupling",
-                    "unknown_command",
-                    "unknown_dispatch",
-                    "unknown_target_domain",
-                    "unknown_trigger",
-                    "unpublished_dependency",
-                    "unreachable_pm_state",
-                    "unreachable_state",
-                    "unresolved_ask",
-                    "unused_ask",
-                    "unused_relationship",
-                ],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ModelCheckLimit {
-    pub name: &'static str,
-    pub value: &'static str,
-}
-
-pub const MODEL_CHECK_LIMIT: &[ModelCheckLimit] = &[
-    ModelCheckLimit {
-        name: "large_aggregate_weight",
-        value: "40",
-    },
-    ModelCheckLimit {
-        name: "suggested_commands",
-        value: "3",
-    },
-    ModelCheckLimit {
-        name: "reaction_chain_search_work",
-        value: "10000",
-    },
-];
-
-impl ModelCheckLimit {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "name".to_string(),
-                crate::kernel::Json::Str(self.name.to_string()),
-            ),
-            (
-                "value".to_string(),
-                crate::kernel::Json::Str(self.value.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "value"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "ModelCheckLimit",
-                    unknown: &unknown,
-                    declared: &["name", "value"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ModelCheckLimit.name expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("value"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ModelCheckLimit.value expects String, got nil".to_string(),
-            ));
-        }
-        for row in MODEL_CHECK_LIMIT {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
-                && v.get("value").and_then(crate::kernel::Json::as_str) == Some(row.value)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("name")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "ModelCheckLimit",
-                admitted: &[
-                    "large_aggregate_weight",
-                    "suggested_commands",
-                    "reaction_chain_search_work",
-                ],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ContextRelationshipKind {
-    CustomerSupplier,
-    Conformist,
-    AnticorruptionLayer,
-    SharedKernel,
-    OpenHost,
-    Partnership,
-}
-
-impl crate::kernel::Fielded for ContextRelationshipKind {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::{Field, Value};
-        match name {
-            "value" => Some(Field::Value(Value::Str(match self {
-                Self::CustomerSupplier => "customer_supplier".to_string(),
-                Self::Conformist => "conformist".to_string(),
-                Self::AnticorruptionLayer => "anticorruption_layer".to_string(),
-                Self::SharedKernel => "shared_kernel".to_string(),
-                Self::OpenHost => "open_host".to_string(),
-                Self::Partnership => "partnership".to_string(),
-            }))),
-            _ => None,
-        }
-    }
-    fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") {
-            Some(crate::kernel::Field::Value(v)) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-impl ContextRelationshipKind {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        let member = match self {
-            Self::CustomerSupplier => "customer_supplier",
-            Self::Conformist => "conformist",
-            Self::AnticorruptionLayer => "anticorruption_layer",
-            Self::SharedKernel => "shared_kernel",
-            Self::OpenHost => "open_host",
-            Self::Partnership => "partnership",
-        };
-        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
-        // does in `validate!`: before a missing field, and before membership.
-        let unknown = v.unknown_keys(&["name"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "ContextRelationshipKind",
-                    unknown: &unknown,
-                    declared: &["name"],
-                }
-                .render_args(),
-            ));
-        }
-        // A `one_of` closed set is admission-checked on the raw offered
-        // value, no shape check first — `Value::Admission#admit_member`
-        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
-        // the sole attribute's slot (a bare Array, a Bool, anything), never
-        // on a value already known to be a String. `v.dig` gives the same
-        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
-        // `{"name": ...}` shape's inner value if `v` is an
-        // object, or `v` itself untouched if it isn't (matching
-        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only then is admission checked — a non-member value
-        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
-        // never `TypeMismatch` for a shape a member set never declared.
-        //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
-        // is not "a shape a member set never declared" the way a present-
-        // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs before
-        // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a required command argument of this type is translated
-        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an empty object — "build the value object from no fields at all",
-        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
-        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
-        // genuinely indistinguishable, at this point, from a Hash-shaped
-        // caller argument that simply never named the sole field's own key
-        // either way: both are that field's own absence, not a member
-        // mismatch.
-        // Without this explicit null check, that absence would still fall
-        // through to the admission match below, stringified as
-        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
-        // required-but-omitted closed-set argument would misreport
-        // `InvariantViolation` where Ruby raises `TypeMismatch`
-        // ("{type}.{field} expects {expected}, got nil" — the same
-        // `numeric_field` wording `required_field_expr` already gives
-        // every other composite field's own missing-key case).
-        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
-        if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "ContextRelationshipKind.name expects String, got nil".to_string(),
-            ));
-        }
-        match candidate.ruby_to_s().as_str() {
-            "customer_supplier" => Ok(Self::CustomerSupplier),
-            "conformist" => Ok(Self::Conformist),
-            "anticorruption_layer" => Ok(Self::AnticorruptionLayer),
-            "shared_kernel" => Ok(Self::SharedKernel),
-            "open_host" => Ok(Self::OpenHost),
-            "partnership" => Ok(Self::Partnership),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(
-                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                    r#type: "ContextRelationshipKind",
-                    admitted: &[
-                        "customer_supplier",
-                        "conformist",
-                        "anticorruption_layer",
-                        "shared_kernel",
-                        "open_host",
-                        "partnership",
-                    ],
-                    offered: candidate.inspect().as_str(),
-                }
-                .render_args(),
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum MutualRelationshipKind {
-    SharedKernel,
-    Partnership,
-}
-
-impl crate::kernel::Fielded for MutualRelationshipKind {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::{Field, Value};
-        match name {
-            "value" => Some(Field::Value(Value::Str(match self {
-                Self::SharedKernel => "shared_kernel".to_string(),
-                Self::Partnership => "partnership".to_string(),
-            }))),
-            _ => None,
-        }
-    }
-    fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") {
-            Some(crate::kernel::Field::Value(v)) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-impl MutualRelationshipKind {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        let member = match self {
-            Self::SharedKernel => "shared_kernel",
-            Self::Partnership => "partnership",
-        };
-        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
-        // does in `validate!`: before a missing field, and before membership.
-        let unknown = v.unknown_keys(&["name"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "MutualRelationshipKind",
-                    unknown: &unknown,
-                    declared: &["name"],
-                }
-                .render_args(),
-            ));
-        }
-        // A `one_of` closed set is admission-checked on the raw offered
-        // value, no shape check first — `Value::Admission#admit_member`
-        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
-        // the sole attribute's slot (a bare Array, a Bool, anything), never
-        // on a value already known to be a String. `v.dig` gives the same
-        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
-        // `{"name": ...}` shape's inner value if `v` is an
-        // object, or `v` itself untouched if it isn't (matching
-        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only then is admission checked — a non-member value
-        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
-        // never `TypeMismatch` for a shape a member set never declared.
-        //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
-        // is not "a shape a member set never declared" the way a present-
-        // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs before
-        // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a required command argument of this type is translated
-        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an empty object — "build the value object from no fields at all",
-        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
-        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
-        // genuinely indistinguishable, at this point, from a Hash-shaped
-        // caller argument that simply never named the sole field's own key
-        // either way: both are that field's own absence, not a member
-        // mismatch.
-        // Without this explicit null check, that absence would still fall
-        // through to the admission match below, stringified as
-        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
-        // required-but-omitted closed-set argument would misreport
-        // `InvariantViolation` where Ruby raises `TypeMismatch`
-        // ("{type}.{field} expects {expected}, got nil" — the same
-        // `numeric_field` wording `required_field_expr` already gives
-        // every other composite field's own missing-key case).
-        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
-        if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "MutualRelationshipKind.name expects String, got nil".to_string(),
-            ));
-        }
-        match candidate.ruby_to_s().as_str() {
-            "shared_kernel" => Ok(Self::SharedKernel),
-            "partnership" => Ok(Self::Partnership),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(
-                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                    r#type: "MutualRelationshipKind",
-                    admitted: &["shared_kernel", "partnership"],
-                    offered: candidate.inspect().as_str(),
-                }
-                .render_args(),
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct EdgeImplementation {
-    pub edge: &'static str,
-    pub kind: &'static str,
-}
-
-pub const EDGE_IMPLEMENTATION: &[EdgeImplementation] = &[
-    EdgeImplementation {
-        edge: "customer_supplier",
-        kind: "customer_supplier",
-    },
-    EdgeImplementation {
-        edge: "acl",
-        kind: "anticorruption_layer",
-    },
-    EdgeImplementation {
-        edge: "shared_kernel",
-        kind: "conformist",
-    },
-    EdgeImplementation {
-        edge: "shared_kernel",
-        kind: "shared_kernel",
-    },
-    EdgeImplementation {
-        edge: "shared_kernel",
-        kind: "open_host",
-    },
-    EdgeImplementation {
-        edge: "subscription",
-        kind: "conformist",
-    },
-    EdgeImplementation {
-        edge: "subscription",
-        kind: "customer_supplier",
-    },
-    EdgeImplementation {
-        edge: "subscription",
-        kind: "open_host",
-    },
-];
-
-impl EdgeImplementation {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "edge".to_string(),
-                crate::kernel::Json::Str(self.edge.to_string()),
-            ),
-            (
-                "kind".to_string(),
-                crate::kernel::Json::Str(self.kind.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["edge", "kind"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "EdgeImplementation",
-                    unknown: &unknown,
-                    declared: &["edge", "kind"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("edge"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "EdgeImplementation.edge expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("kind"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "EdgeImplementation.kind expects String, got nil".to_string(),
-            ));
-        }
-        for row in EDGE_IMPLEMENTATION {
-            if v.get("edge").and_then(crate::kernel::Json::as_str) == Some(row.edge)
-                && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("edge")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "EdgeImplementation",
-                admitted: &[
-                    "customer_supplier",
-                    "acl",
-                    "shared_kernel",
-                    "shared_kernel",
-                    "shared_kernel",
-                    "subscription",
-                    "subscription",
-                    "subscription",
-                ],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct LanguageLimit {
-    pub name: &'static str,
-    pub value: &'static str,
-}
-
-pub const LANGUAGE_LIMIT: &[LanguageLimit] = &[
-    LanguageLimit {
-        name: "reaction_depth",
-        value: "5",
-    },
-    LanguageLimit {
-        name: "reference_hops",
-        value: "4",
-    },
-    LanguageLimit {
-        name: "chain_hops",
-        value: "8",
-    },
-    LanguageLimit {
-        name: "outbox_stalled_after_seconds",
-        value: "600",
-    },
-];
-
-impl LanguageLimit {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "name".to_string(),
-                crate::kernel::Json::Str(self.name.to_string()),
-            ),
-            (
-                "value".to_string(),
-                crate::kernel::Json::Str(self.value.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "value"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "LanguageLimit",
-                    unknown: &unknown,
-                    declared: &["name", "value"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "LanguageLimit.name expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("value"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "LanguageLimit.value expects String, got nil".to_string(),
-            ));
-        }
-        for row in LANGUAGE_LIMIT {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
-                && v.get("value").and_then(crate::kernel::Json::as_str) == Some(row.value)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("name")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "LanguageLimit",
-                admitted: &[
-                    "reaction_depth",
-                    "reference_hops",
-                    "chain_hops",
-                    "outbox_stalled_after_seconds",
-                ],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NeedableFact {
-    Now,
-    Today,
-}
-
-impl crate::kernel::Fielded for NeedableFact {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::{Field, Value};
-        match name {
-            "value" => Some(Field::Value(Value::Str(match self {
-                Self::Now => "now".to_string(),
-                Self::Today => "today".to_string(),
-            }))),
-            _ => None,
-        }
-    }
-    fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") {
-            Some(crate::kernel::Field::Value(v)) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-impl NeedableFact {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        let member = match self {
-            Self::Now => "now",
-            Self::Today => "today",
-        };
-        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
-        // does in `validate!`: before a missing field, and before membership.
-        let unknown = v.unknown_keys(&["name"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "NeedableFact",
-                    unknown: &unknown,
-                    declared: &["name"],
-                }
-                .render_args(),
-            ));
-        }
-        // A `one_of` closed set is admission-checked on the raw offered
-        // value, no shape check first — `Value::Admission#admit_member`
-        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
-        // the sole attribute's slot (a bare Array, a Bool, anything), never
-        // on a value already known to be a String. `v.dig` gives the same
-        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
-        // `{"name": ...}` shape's inner value if `v` is an
-        // object, or `v` itself untouched if it isn't (matching
-        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only then is admission checked — a non-member value
-        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
-        // never `TypeMismatch` for a shape a member set never declared.
-        //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
-        // is not "a shape a member set never declared" the way a present-
-        // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs before
-        // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a required command argument of this type is translated
-        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an empty object — "build the value object from no fields at all",
-        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
-        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
-        // genuinely indistinguishable, at this point, from a Hash-shaped
-        // caller argument that simply never named the sole field's own key
-        // either way: both are that field's own absence, not a member
-        // mismatch.
-        // Without this explicit null check, that absence would still fall
-        // through to the admission match below, stringified as
-        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
-        // required-but-omitted closed-set argument would misreport
-        // `InvariantViolation` where Ruby raises `TypeMismatch`
-        // ("{type}.{field} expects {expected}, got nil" — the same
-        // `numeric_field` wording `required_field_expr` already gives
-        // every other composite field's own missing-key case).
-        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
-        if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "NeedableFact.name expects String, got nil".to_string(),
-            ));
-        }
-        match candidate.ruby_to_s().as_str() {
-            "now" => Ok(Self::Now),
-            "today" => Ok(Self::Today),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(
-                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                    r#type: "NeedableFact",
-                    admitted: &["now", "today"],
-                    offered: candidate.inspect().as_str(),
-                }
-                .render_args(),
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CommandAudience {
-    Person,
-    Agent,
-    Ci,
-    Record,
-}
-
-impl crate::kernel::Fielded for CommandAudience {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::{Field, Value};
-        match name {
-            "value" => Some(Field::Value(Value::Str(match self {
-                Self::Person => "person".to_string(),
-                Self::Agent => "agent".to_string(),
-                Self::Ci => "ci".to_string(),
-                Self::Record => "record".to_string(),
-            }))),
-            _ => None,
-        }
-    }
-    fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") {
-            Some(crate::kernel::Field::Value(v)) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-impl CommandAudience {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        let member = match self {
-            Self::Person => "person",
-            Self::Agent => "agent",
-            Self::Ci => "ci",
-            Self::Record => "record",
-        };
-        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
-        // does in `validate!`: before a missing field, and before membership.
-        let unknown = v.unknown_keys(&["name"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "CommandAudience",
-                    unknown: &unknown,
-                    declared: &["name"],
-                }
-                .render_args(),
-            ));
-        }
-        // A `one_of` closed set is admission-checked on the raw offered
-        // value, no shape check first — `Value::Admission#admit_member`
-        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
-        // the sole attribute's slot (a bare Array, a Bool, anything), never
-        // on a value already known to be a String. `v.dig` gives the same
-        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
-        // `{"name": ...}` shape's inner value if `v` is an
-        // object, or `v` itself untouched if it isn't (matching
-        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only then is admission checked — a non-member value
-        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
-        // never `TypeMismatch` for a shape a member set never declared.
-        //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
-        // is not "a shape a member set never declared" the way a present-
-        // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs before
-        // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a required command argument of this type is translated
-        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an empty object — "build the value object from no fields at all",
-        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
-        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
-        // genuinely indistinguishable, at this point, from a Hash-shaped
-        // caller argument that simply never named the sole field's own key
-        // either way: both are that field's own absence, not a member
-        // mismatch.
-        // Without this explicit null check, that absence would still fall
-        // through to the admission match below, stringified as
-        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
-        // required-but-omitted closed-set argument would misreport
-        // `InvariantViolation` where Ruby raises `TypeMismatch`
-        // ("{type}.{field} expects {expected}, got nil" — the same
-        // `numeric_field` wording `required_field_expr` already gives
-        // every other composite field's own missing-key case).
-        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
-        if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "CommandAudience.name expects String, got nil".to_string(),
-            ));
-        }
-        match candidate.ruby_to_s().as_str() {
-            "person" => Ok(Self::Person),
-            "agent" => Ok(Self::Agent),
-            "ci" => Ok(Self::Ci),
-            "record" => Ok(Self::Record),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(
-                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                    r#type: "CommandAudience",
-                    admitted: &["person", "agent", "ci", "record"],
-                    offered: candidate.inspect().as_str(),
-                }
-                .render_args(),
-            )),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OutboxStatus {
-    Pending,
-    Claimed,
-    Delivered,
-    Failed,
-    Refused,
-}
-
-impl crate::kernel::Fielded for OutboxStatus {
-    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
-        use crate::kernel::{Field, Value};
-        match name {
-            "value" => Some(Field::Value(Value::Str(match self {
-                Self::Pending => "pending".to_string(),
-                Self::Claimed => "claimed".to_string(),
-                Self::Delivered => "delivered".to_string(),
-                Self::Failed => "failed".to_string(),
-                Self::Refused => "refused".to_string(),
-            }))),
-            _ => None,
-        }
-    }
-    fn as_scalar(&self) -> Option<crate::kernel::Value> {
-        match self.field("value") {
-            Some(crate::kernel::Field::Value(v)) => Some(v),
-            _ => None,
-        }
-    }
-}
-
-impl OutboxStatus {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        let member = match self {
-            Self::Pending => "pending",
-            Self::Claimed => "claimed",
-            Self::Delivered => "delivered",
-            Self::Failed => "failed",
-            Self::Refused => "refused",
-        };
-        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
-        // does in `validate!`: before a missing field, and before membership.
-        let unknown = v.unknown_keys(&["name"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "OutboxStatus",
-                    unknown: &unknown,
-                    declared: &["name"],
-                }
-                .render_args(),
-            ));
-        }
-        // A `one_of` closed set is admission-checked on the raw offered
-        // value, no shape check first — `Value::Admission#admit_member`
-        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
-        // the sole attribute's slot (a bare Array, a Bool, anything), never
-        // on a value already known to be a String. `v.dig` gives the same
-        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
-        // `{"name": ...}` shape's inner value if `v` is an
-        // object, or `v` itself untouched if it isn't (matching
-        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
-        // whatever). Only then is admission checked — a non-member value
-        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
-        // never `TypeMismatch` for a shape a member set never declared.
-        //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
-        // is not "a shape a member set never declared" the way a present-
-        // but-wrong value is; it is `Value::Coercion#check_required_fields`
-        // (runtime/value/coercion.rb) firing, and that check runs before
-        // `admit_member` in `validate!`'s own order. A caller-supplied
-        // `null` for a required command argument of this type is translated
-        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
-        // an empty object — "build the value object from no fields at all",
-        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
-        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
-        // genuinely indistinguishable, at this point, from a Hash-shaped
-        // caller argument that simply never named the sole field's own key
-        // either way: both are that field's own absence, not a member
-        // mismatch.
-        // Without this explicit null check, that absence would still fall
-        // through to the admission match below, stringified as
-        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
-        // required-but-omitted closed-set argument would misreport
-        // `InvariantViolation` where Ruby raises `TypeMismatch`
-        // ("{type}.{field} expects {expected}, got nil" — the same
-        // `numeric_field` wording `required_field_expr` already gives
-        // every other composite field's own missing-key case).
-        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
-        if matches!(candidate, crate::kernel::Json::Null) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "OutboxStatus.name expects String, got nil".to_string(),
-            ));
-        }
-        match candidate.ruby_to_s().as_str() {
-            "pending" => Ok(Self::Pending),
-            "claimed" => Ok(Self::Claimed),
-            "delivered" => Ok(Self::Delivered),
-            "failed" => Ok(Self::Failed),
-            "refused" => Ok(Self::Refused),
-            _ => Err(crate::kernel::Refusal::InvariantViolation(
-                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                    r#type: "OutboxStatus",
-                    admitted: &["pending", "claimed", "delivered", "failed", "refused"],
                     offered: candidate.inspect().as_str(),
                 }
                 .render_args(),

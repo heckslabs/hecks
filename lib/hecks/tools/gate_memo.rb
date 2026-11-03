@@ -5,7 +5,6 @@ require "fileutils"
 require "json"
 require "open3"
 require "time"
-require "hecks/vocabulary"
 require_relative "gate_memo/local_files"
 
 module Hecks
@@ -14,7 +13,7 @@ module Hecks
     # as
     # the inputs of its last green run is reported as skipped, never as passed. The inputs of a
     # check
-    # are the files it reads (the `inputs` of its `GateCheck` row, hashed by content), together with the command
+    # are the files it reads (the globs in `INPUTS`, hashed by content), together with the command
     # and
     # the environment it runs under. A red result is never kept, so a red check runs again next
     # time.
@@ -29,12 +28,51 @@ module Hecks
       # Where the memo is kept, unless `HECKS_GATE_MEMO` names another file.
       DEFAULT_PATH = File.join(Dir.home, ".claude", "hecks-dev", "gate_memo.json")
 
-      # The files each check reads, as globs under the checkout, by check id: the `inputs` of the
-      # `GateCheck` rows. A check whose row names none is never skipped.
-      INPUTS = Hecks::Vocabulary.rows("GateCheck").each_with_object({}) do |row, found|
-        globs = row["inputs"].to_s.split
-        found[row["id"]] ||= globs.freeze unless globs.empty?
-      end.freeze
+      # The files each check reads, as globs under the checkout. A glob is wide where the check
+      # reads a whole tree: a change to any file a check could read reruns it, and a check is
+      # skipped only when none of them moved. A check with no entry here is never skipped.
+      SHAPE = %w[lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world lib/**/*.json
+                 lib/**/*.adapter translations/**/*].freeze
+      STYLE = %w[lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md].freeze
+      SPEC = %w[spec/spec_helper.rb spec/support/**/*.rb].freeze
+      LIBRARY = %w[lib/**/*].freeze
+      SOURCE = %w[lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/*
+                  Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml].freeze
+      RUST = %w[rust/**/*.rs rust/**/Cargo.toml rust/**/Cargo.lock rust/rust-toolchain.toml
+                rust-toolchain.toml].freeze
+      MODEL = %w[lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world examples/**/*].freeze
+
+      # What the code, the rust tree and the bundle hold: everything the whole-tree checks read
+      # except prose, workflows and lint settings.
+      CODE = %w[lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec].freeze
+      # `spec/fuzzing` runs the specs and the corpus against the library and the rust tree
+      # (`rust/` is read for the target capabilities), and boots the stress domains, the QA bluebook
+      # and the settings under `qa/`. No spec in it reads `docs/` or `.github/`.
+      FUZZING = CODE + %w[qa/**/*]
+      # The reference-docs check reads the words of the language (`lib/`) against the pages of
+      # `docs/implemented/reference/` and nothing else.
+      DOC_COVERAGE = %w[lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec].freeze
+      # Regenerating the corpus reads its bluebooks, hecksagons and worlds (`lib/`, `examples/`,
+      # `qa/`, `packages/`, the fixtures and corpus specs the corpus routes name), the generator
+      # (`lib/`, `rust/codegen`) and the committed output (`rust/`). It reads no prose.
+      CODEGEN = %w[lib/**/* examples/**/* qa/**/* packages/**/* spec/fixtures/**/* spec/corpus/**/* exe/**/*
+                   bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec].freeze
+
+      INPUTS = {
+        "shape_ledger"     => SHAPE,
+        "comment_style"    => STYLE,
+        "comment_blocks"   => STYLE + %w[examples/**/*.rb],
+        "secret_output"    => LIBRARY + SPEC + %w[spec/secret_output_spec.rb],
+        "adapter_words"    => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
+        "rspec"            => SOURCE,
+        "fuzzing"          => FUZZING,
+        "query_agreement"  => SOURCE,
+        "engine_agreement" => SOURCE,
+        "model_check"      => MODEL,
+        "doc_coverage"     => DOC_COVERAGE,
+        "codegen_drift"    => CODEGEN,
+        "rust_fmt"         => RUST
+      }.freeze
 
       # The sha of each file this process has hashed, by path, modification time, size and inode, so
       # the checks of one run that read the same tree hash each file once.

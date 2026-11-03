@@ -54,12 +54,6 @@ module Hecks
         {"name"=>"release_only", "workflow"=>"ci.yml", "mode"=>"release_only", "pattern"=>"", "push"=>"before_sha", "label"=>"is this change only a release bump on a certified base?"}.freeze,
         {"name"=>"postgres_io_relevant_changed", "workflow"=>"ci-postgres-io-parallel.yml", "mode"=>"skips_unless", "pattern"=>"^(docs/|editors/|release/|deploy/|\\.claude/|\\.githooks/|rust/(parser|codegen|host|build|lsp|web|tests)/|\\.rubocop\\.yml$|\\.rubocop_todo\\.yml$|\\.mcp\\.json$|\\.rspec-local\\.example$|README\\.md$|CHANGELOG\\.md$|CONTRIBUTING\\.md$|SECURITY\\.md$|LICENSE$|\\.gitignore$)", "push"=>"skip", "label"=>"does this change touch anything rspec_postgres_io_parallel covers?"}.freeze
       ].freeze,
-      "CommandAudience" => [
-        {"name"=>"person"}.freeze,
-        {"name"=>"agent"}.freeze,
-        {"name"=>"ci"}.freeze,
-        {"name"=>"record"}.freeze
-      ].freeze,
       "Comparison" => [
         {"symbol"=>">=", "compares_less_than"=>"true", "compares_equal"=>"false", "negated"=>"true"}.freeze,
         {"symbol"=>"<=", "compares_less_than"=>"true", "compares_equal"=>"true", "negated"=>"false"}.freeze,
@@ -67,14 +61,6 @@ module Hecks
         {"symbol"=>">", "compares_less_than"=>"true", "compares_equal"=>"true", "negated"=>"true"}.freeze,
         {"symbol"=>"==", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"false"}.freeze,
         {"symbol"=>"!=", "compares_less_than"=>"false", "compares_equal"=>"true", "negated"=>"true"}.freeze
-      ].freeze,
-      "ContextRelationshipKind" => [
-        {"name"=>"customer_supplier"}.freeze,
-        {"name"=>"conformist"}.freeze,
-        {"name"=>"anticorruption_layer"}.freeze,
-        {"name"=>"shared_kernel"}.freeze,
-        {"name"=>"open_host"}.freeze,
-        {"name"=>"partnership"}.freeze
       ].freeze,
       "DispatchStage" => [
         {"name"=>"request"}.freeze,
@@ -104,16 +90,6 @@ module Hecks
         {"name"=>"UnknownArgument"}.freeze,
         {"name"=>"UnknownVerb"}.freeze
       ].freeze,
-      "EdgeImplementation" => [
-        {"edge"=>"customer_supplier", "kind"=>"customer_supplier"}.freeze,
-        {"edge"=>"acl", "kind"=>"anticorruption_layer"}.freeze,
-        {"edge"=>"shared_kernel", "kind"=>"conformist"}.freeze,
-        {"edge"=>"shared_kernel", "kind"=>"shared_kernel"}.freeze,
-        {"edge"=>"shared_kernel", "kind"=>"open_host"}.freeze,
-        {"edge"=>"subscription", "kind"=>"conformist"}.freeze,
-        {"edge"=>"subscription", "kind"=>"customer_supplier"}.freeze,
-        {"edge"=>"subscription", "kind"=>"open_host"}.freeze
-      ].freeze,
       "EntityDispatchOrder" => [
         {"step"=>"decode_arguments"}.freeze,
         {"step"=>"refuse_unknown_arguments"}.freeze,
@@ -139,22 +115,22 @@ module Hecks
         {"name"=>"textarea", "pattern"=>"\\b(text|body|note|notes|description|message|comment)\\b", "resolves_to"=>"kind"}.freeze
       ].freeze,
       "GateCheck" => [
-        {"name"=>"rspec", "id"=>"rspec", "inputs"=>"lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml", "title"=>"rspec (parallel)", "runs_in"=>"ci", "argv"=>"", "script"=>"# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", "blocked"=>"the suite is red."}.freeze,
-        {"name"=>"fuzzing", "id"=>"fuzzing", "inputs"=>"lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec qa/**/*", "title"=>"spec/fuzzing, which the parallel run above excludes", "argv"=>"bundle exec rspec spec/fuzzing --tag fuzzing", "script"=>"", "blocked"=>"spec/fuzzing is red."}.freeze,
-        {"name"=>"query_agreement", "id"=>"query_agreement", "inputs"=>"lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml", "title"=>"adapter agreement, one declared query and every engine giving the same answer", "argv"=>"bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io", "script"=>"", "blocked"=>"the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which."}.freeze,
-        {"name"=>"engine_agreement", "id"=>"engine_agreement", "attests"=>"yes", "inputs"=>"lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml", "title"=>"engine agreement, every declared comparator on both engines", "argv"=>"bundle exec exe/hecks conformance_run.check_engine_agreement! --wait", "script"=>"", "blocked"=>"a comparator is missing a shared case or a cross-engine spec."}.freeze,
-        {"name"=>"shape_ledger", "id"=>"shape_ledger", "inputs"=>"lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world lib/**/*.json lib/**/*.adapter", "title"=>"shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge", "argv"=>"bundle exec exe/hecks conformance_run.check_shape_ledger! --wait", "script"=>"", "blocked"=>"a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."}.freeze,
-        {"name"=>"model_check", "id"=>"model_check", "attests"=>"yes", "inputs"=>"lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world examples/**/*", "title"=>"model check, unreachable states, dead transitions and orphaned handlers", "argv"=>"bundle exec exe/hecks ModelCheckRun.model_check! --wait", "script"=>"", "blocked"=>"the model checker found something."}.freeze,
-        {"name"=>"doc_coverage", "id"=>"doc_coverage", "attests"=>"yes", "inputs"=>"lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec", "title"=>"docs coverage, words with no running example", "argv"=>"bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait", "script"=>"", "blocked"=>"the language ships something undocumented; write the missing sections and examples."}.freeze,
-        {"name"=>"rubocop", "id"=>"rubocop", "attests"=>"yes", "title"=>"rubocop, the static style and correctness gate", "argv"=>"bundle exec rubocop -c .rubocop.yml", "script"=>"", "blocked"=>"rubocop found an offense."}.freeze,
-        {"name"=>"codegen_drift", "id"=>"codegen_drift", "inputs"=>"lib/**/* examples/**/* qa/**/* packages/**/* spec/fixtures/**/* spec/corpus/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec", "title"=>"codegen drift, rust/src/generated/ must match a fresh regeneration", "argv"=>"bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait", "script"=>"", "blocked"=>"regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."}.freeze,
-        {"name"=>"comment_style", "id"=>"comment_style", "inputs"=>"lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md", "title"=>"comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", "argv"=>"bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", "script"=>"", "blocked"=>"a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."}.freeze,
-        {"name"=>"comment_blocks", "id"=>"comment_blocks", "inputs"=>"lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md examples/**/*.rb", "title"=>"comment blocks, no run of comment lines past ADR 0075's cap", "argv"=>"bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", "script"=>"", "blocked"=>"a comment block ran past the cap; shorten it."}.freeze,
+        {"name"=>"rspec", "id"=>"rspec", "title"=>"rspec (parallel)", "runs_in"=>"ci", "argv"=>"", "script"=>"# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", "blocked"=>"the suite is red."}.freeze,
+        {"name"=>"fuzzing", "id"=>"fuzzing", "title"=>"spec/fuzzing, which the parallel run above excludes", "argv"=>"bundle exec rspec spec/fuzzing --tag fuzzing", "script"=>"", "blocked"=>"spec/fuzzing is red."}.freeze,
+        {"name"=>"query_agreement", "id"=>"query_agreement", "title"=>"adapter agreement, one declared query and every engine giving the same answer", "argv"=>"bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io", "script"=>"", "blocked"=>"the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which."}.freeze,
+        {"name"=>"engine_agreement", "id"=>"engine_agreement", "title"=>"engine agreement, every declared comparator on both engines", "argv"=>"bundle exec exe/hecks conformance_run.check_engine_agreement! --wait", "script"=>"", "blocked"=>"a comparator is missing a shared case or a cross-engine spec."}.freeze,
+        {"name"=>"shape_ledger", "id"=>"shape_ledger", "title"=>"shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge", "argv"=>"bundle exec exe/hecks conformance_run.check_shape_ledger! --wait", "script"=>"", "blocked"=>"a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."}.freeze,
+        {"name"=>"model_check", "id"=>"model_check", "title"=>"model check, unreachable states, dead transitions and orphaned handlers", "argv"=>"bundle exec exe/hecks ModelCheckRun.model_check! --wait", "script"=>"", "blocked"=>"the model checker found something."}.freeze,
+        {"name"=>"doc_coverage", "id"=>"doc_coverage", "title"=>"docs coverage, words with no running example", "argv"=>"bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait", "script"=>"", "blocked"=>"the language ships something undocumented; write the missing sections and examples."}.freeze,
+        {"name"=>"rubocop", "id"=>"rubocop", "title"=>"rubocop, the static style and correctness gate", "argv"=>"bundle exec rubocop -c .rubocop.yml", "script"=>"", "blocked"=>"rubocop found an offense."}.freeze,
+        {"name"=>"codegen_drift", "id"=>"codegen_drift", "title"=>"codegen drift, rust/src/generated/ must match a fresh regeneration", "argv"=>"bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait", "script"=>"", "blocked"=>"regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."}.freeze,
+        {"name"=>"comment_style", "id"=>"comment_style", "title"=>"comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", "argv"=>"bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", "script"=>"", "blocked"=>"a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."}.freeze,
+        {"name"=>"comment_blocks", "id"=>"comment_blocks", "title"=>"comment blocks, no run of comment lines past ADR 0075's cap", "argv"=>"bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", "script"=>"", "blocked"=>"a comment block ran past the cap; shorten it."}.freeze,
         {"name"=>"command_names", "id"=>"command_names", "title"=>"command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", "argv"=>"bundle exec exe/hecks conformance_run.check_command_names! --wait", "script"=>"", "blocked"=>"a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines."}.freeze,
         {"name"=>"workflow_pagination", "id"=>"workflow_pagination", "title"=>"workflow pagination, no step counts or waits for GitHub list items from the first page alone", "argv"=>"bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", "script"=>"", "blocked"=>"a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."}.freeze,
-        {"name"=>"secret_output", "id"=>"secret_output", "inputs"=>"lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/secret_output_spec.rb", "title"=>"secret output, no value a world hands an adapter as a secret reaches what a launcher prints", "argv"=>"bundle exec rspec spec/secret_output_spec.rb", "script"=>"", "blocked"=>"a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."}.freeze,
-        {"name"=>"adapter_words", "id"=>"adapter_words", "inputs"=>"lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/adapter_words_spec.rb", "title"=>"adapter words, no domain name equal to a technology word the adapters are named for", "argv"=>"bundle exec rspec spec/adapter_words_spec.rb", "script"=>"", "blocked"=>"a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."}.freeze,
-        {"name"=>"rust_fmt", "id"=>"rust_fmt", "inputs"=>"rust/**/*.rs rust/**/Cargo.toml rust/**/Cargo.lock rust/rust-toolchain.toml rust-toolchain.toml", "title"=>"rustfmt, every Rust crate laid out as `cargo fmt` would", "argv"=>"", "script"=>"# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", "blocked"=>"a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output."}.freeze,
+        {"name"=>"secret_output", "id"=>"secret_output", "title"=>"secret output, no value a world hands an adapter as a secret reaches what a launcher prints", "argv"=>"bundle exec rspec spec/secret_output_spec.rb", "script"=>"", "blocked"=>"a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."}.freeze,
+        {"name"=>"adapter_words", "id"=>"adapter_words", "title"=>"adapter words, no domain name equal to a technology word the adapters are named for", "argv"=>"bundle exec rspec spec/adapter_words_spec.rb", "script"=>"", "blocked"=>"a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."}.freeze,
+        {"name"=>"rust_fmt", "id"=>"rust_fmt", "title"=>"rustfmt, every Rust crate laid out as `cargo fmt` would", "argv"=>"", "script"=>"# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", "blocked"=>"a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output."}.freeze,
         {"name"=>"rust_io", "id"=>"rust_io", "title"=>"rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity", "argv"=>"", "script"=>"# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n", "blocked"=>"a Rust io spec failed, or skipped; the crate it built is under rust/target."}.freeze,
         {"name"=>"ci_codegen_drift", "id"=>"codegen_drift", "title"=>"codegen drift, the committed generated Rust must match the regeneration this job holds", "argv"=>"git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml", "script"=>"", "blocked"=>"regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."}.freeze,
         {"name"=>"generated_tree", "id"=>"generated_tree", "title"=>"whole-tree specs, the examples tagged generated_all against every domain's generated Rust", "argv"=>"bundle exec rspec --tag generated_all", "script"=>"", "blocked"=>"a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."}.freeze,
@@ -176,15 +152,13 @@ module Hecks
         {"name"=>"rust_coverage", "id"=>"rust_coverage", "title"=>"rust coverage, every generated module", "argv"=>"bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait", "script"=>"", "blocked"=>"a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted."}.freeze,
         {"name"=>"rust_coverage_codegen", "id"=>"rust_coverage_codegen", "title"=>"rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", "argv"=>"", "script"=>"for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", "blocked"=>"hecks-codegen generated nothing for a construct a domain declares."}.freeze,
         {"name"=>"kernel_coverage", "id"=>"kernel_coverage", "title"=>"rust kernel coverage, every capability variant has a kernel file", "argv"=>"bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait", "script"=>"", "blocked"=>"a capability's enum variant has no rust/src/kernel file behind it."}.freeze,
-        {"name"=>"rust_vocabulary_drift", "id"=>"rust_vocabulary_drift", "title"=>"rust vocabulary, the kernel vocab tables regenerated must match the committed ones", "argv"=>"", "script"=>"bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", "blocked"=>"the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."}.freeze,
-        {"name"=>"release_consistency", "id"=>"release_consistency", "title"=>"release consistency, the version files, the changelog and the release workflow agree", "argv"=>"bundle exec rspec spec/readme_version_spec.rb spec/hecks_client_version_spec.rb spec/changelog_planned_release_spec.rb spec/docs_stale_version_spec.rb spec/release_workflow_spec.rb", "script"=>"", "blocked"=>"a half-done release bump: the files a bump edits by hand disagree with each other; the failure names the spec."}.freeze
+        {"name"=>"rust_vocabulary_drift", "id"=>"rust_vocabulary_drift", "title"=>"rust vocabulary, the kernel vocab tables regenerated must match the committed ones", "argv"=>"", "script"=>"bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", "blocked"=>"the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."}.freeze
       ].freeze,
       "GateStage" => [
         {"name"=>"pre_push", "env"=>"HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", "checks"=>"fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"}.freeze,
         {"name"=>"ci_suite", "env"=>"HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", "checks"=>"rspec"}.freeze,
         {"name"=>"quick", "env"=>"HECKS_ENVIRONMENT=memory", "checks"=>"shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"}.freeze,
         {"name"=>"rust_io", "env"=>"CI=true HECKS_ENVIRONMENT=memory", "checks"=>"rust_io"}.freeze,
-        {"name"=>"release", "env"=>"", "checks"=>"release_consistency"}.freeze,
         {"name"=>"ci", "env"=>"", "checks"=>"model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"}.freeze
       ].freeze,
       "IncludeHaystack" => [
@@ -192,18 +166,8 @@ module Hecks
         {"type"=>"String", "strategy"=>"substring"}.freeze
       ].freeze,
       "Lane" => [
-        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>"", "push_gate"=>"quick", "full_gate"=>"pre_push", "train"=>"yes"}.freeze,
-        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By", "push_gate"=>"", "full_gate"=>"", "train"=>"no"}.freeze
-      ].freeze,
-      "LaneWorkflow" => [
-        {"name"=>"promote", "cron"=>"", "timeout_minutes"=>"15"}.freeze,
-        {"name"=>"watch", "cron"=>"17 * * * *", "timeout_minutes"=>"10"}.freeze
-      ].freeze,
-      "LanguageLimit" => [
-        {"name"=>"reaction_depth", "value"=>"5"}.freeze,
-        {"name"=>"reference_hops", "value"=>"4"}.freeze,
-        {"name"=>"chain_hops", "value"=>"8"}.freeze,
-        {"name"=>"outbox_stalled_after_seconds", "value"=>"600"}.freeze
+        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>""}.freeze,
+        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By"}.freeze
       ].freeze,
       "LoadOrder" => [
         {"glob"=>"*.port"}.freeze,
@@ -213,54 +177,6 @@ module Hecks
         {"glob"=>"*.hecksagon"}.freeze,
         {"glob"=>"*.world"}.freeze,
         {"glob"=>"*.contextmap"}.freeze
-      ].freeze,
-      "ModelCheckFinding" => [
-        {"kind"=>"conformist_translates", "severity"=>"warning", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
-        {"kind"=>"context_cycle", "severity"=>"warning", "check"=>"context_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"contradictory_relationship", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"core_conforms", "severity"=>"warning", "check"=>"classification_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
-        {"kind"=>"dead_compensation", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"dead_transition", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"deaf_handler", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"deaf_policy", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"deaf_trigger", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"deep_reaction_chain", "severity"=>"warning", "check"=>"reaction_depth_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"external_query", "severity"=>"error", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"generic_depends_on_core", "severity"=>"error", "check"=>"classification_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"key_by_value", "severity"=>"warning", "check"=>"reference_checks", "acknowledged_on"=>"aggregate", "subject"=>"attribute"}.freeze,
-        {"kind"=>"large_aggregate", "severity"=>"warning", "check"=>"aggregate_checks", "acknowledged_on"=>"aggregate", "subject"=>""}.freeze,
-        {"kind"=>"no_command_surface", "severity"=>"error", "check"=>"aggregate_checks", "acknowledged_on"=>"aggregate", "subject"=>""}.freeze,
-        {"kind"=>"one_of_branch_unhandled", "severity"=>"error", "check"=>"one_of_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"orphaned_reference", "severity"=>"warning", "check"=>"orphan_checks", "acknowledged_on"=>"aggregate", "subject"=>"referenced aggregate"}.freeze,
-        {"kind"=>"port_trigger", "severity"=>"warning", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"reaction_chain_search_capped", "severity"=>"warning", "check"=>"reaction_depth_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"redundant_relationship", "severity"=>"warning", "check"=>"redundant_relationships", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
-        {"kind"=>"relationship_kind_mismatch", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
-        {"kind"=>"rust_reserved_name", "severity"=>"warning", "check"=>"model_check", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"separate_ways_violated", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"stale_undelivered_expectation", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"stuck_state", "severity"=>"warning", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"terminal_has_exit", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unacknowledged_relationship", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unacknowledged_source", "severity"=>"error", "check"=>"context_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unarmed_compensation", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unbounded_reaction_loop", "severity"=>"warning", "check"=>"reaction_depth_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"undeclared_coupling", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unknown_command", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unknown_dispatch", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unknown_target_domain", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unknown_trigger", "severity"=>"error", "check"=>"policy_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unpublished_dependency", "severity"=>"error", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze,
-        {"kind"=>"unreachable_pm_state", "severity"=>"error", "check"=>"saga_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unreachable_state", "severity"=>"error", "check"=>"lifecycle_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unresolved_ask", "severity"=>"error", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unused_ask", "severity"=>"warning", "check"=>"ask_checks", "acknowledged_on"=>"", "subject"=>""}.freeze,
-        {"kind"=>"unused_relationship", "severity"=>"warning", "check"=>"context_map_checks", "acknowledged_on"=>"relationship", "subject"=>""}.freeze
-      ].freeze,
-      "ModelCheckLimit" => [
-        {"name"=>"large_aggregate_weight", "value"=>"40"}.freeze,
-        {"name"=>"suggested_commands", "value"=>"3"}.freeze,
-        {"name"=>"reaction_chain_search_work", "value"=>"10000"}.freeze
       ].freeze,
       "MutationOp" => [
         {"name"=>"set", "sign"=>""}.freeze,
@@ -273,34 +189,14 @@ module Hecks
         {"name"=>"delegate", "sign"=>""}.freeze,
         {"name"=>"corrects", "sign"=>""}.freeze
       ].freeze,
-      "MutualRelationshipKind" => [
-        {"name"=>"shared_kernel"}.freeze,
-        {"name"=>"partnership"}.freeze
-      ].freeze,
-      "NeedableFact" => [
-        {"name"=>"now"}.freeze,
-        {"name"=>"today"}.freeze
-      ].freeze,
       "NormalisationStrategy" => [
         {"name"=>"collapse_whitespace"}.freeze,
         {"name"=>"replace"}.freeze,
         {"name"=>"scale_call"}.freeze
       ].freeze,
-      "OutboxStatus" => [
-        {"name"=>"pending"}.freeze,
-        {"name"=>"claimed"}.freeze,
-        {"name"=>"delivered"}.freeze,
-        {"name"=>"failed"}.freeze,
-        {"name"=>"refused"}.freeze
-      ].freeze,
-      "PassingConclusion" => [
-        {"name"=>"success"}.freeze,
-        {"name"=>"neutral"}.freeze,
-        {"name"=>"skipped"}.freeze
-      ].freeze,
       "PrebuiltBinary" => [
-        {"name"=>"host", "crate"=>"rust/host", "executable"=>"bootstrap", "target"=>"x86_64-unknown-linux-gnu", "runner"=>"ubuntu-24.04", "timeout_minutes"=>"40"}.freeze,
-        {"name"=>"host-arm64", "crate"=>"rust/host", "executable"=>"bootstrap", "target"=>"aarch64-unknown-linux-gnu", "runner"=>"ubuntu-22.04-arm", "timeout_minutes"=>"40"}.freeze
+        {"name"=>"host", "crate"=>"rust/host", "executable"=>"bootstrap", "target"=>"x86_64-unknown-linux-gnu", "runner"=>"ubuntu-24.04"}.freeze,
+        {"name"=>"host-arm64", "crate"=>"rust/host", "executable"=>"bootstrap", "target"=>"aarch64-unknown-linux-gnu", "runner"=>"ubuntu-22.04-arm"}.freeze
       ].freeze,
       "Primitive" => [
         {"name"=>"String"}.freeze,
@@ -590,19 +486,16 @@ module Hecks
         {"path"=>"packages/hecks-client/package.json", "lines"=>"^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"}.freeze,
         {"path"=>"packages/hecks-client/package-lock.json", "lines"=>"^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"}.freeze
       ].freeze,
-      "ReleaseOwner" => [
-        {"name"=>"Chris Young"}.freeze
-      ].freeze,
       "RequiredCheck" => [
-        {"name"=>"rspec", "attests"=>"rspec"}.freeze,
-        {"name"=>"checks", "attests"=>"checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift"}.freeze,
-        {"name"=>"rspec_postgres_io", "attests"=>"rspec_postgres_io"}.freeze,
-        {"name"=>"rspec_postgres_io_parallel", "attests"=>"rspec_postgres_io_parallel"}.freeze,
-        {"name"=>"rspec_rust_io", "attests"=>"rspec_rust_io"}.freeze,
-        {"name"=>"rspec_rust_parser", "attests"=>"rspec_rust_parser"}.freeze,
-        {"name"=>"rspec_rust_codegen", "attests"=>"rspec_rust_codegen"}.freeze,
-        {"name"=>"rspec_rust_host", "attests"=>"rspec_rust_host"}.freeze,
-        {"name"=>"rspec_fuzzing", "attests"=>"rspec_fuzzing"}.freeze,
+        {"name"=>"rspec"}.freeze,
+        {"name"=>"checks"}.freeze,
+        {"name"=>"rspec_postgres_io"}.freeze,
+        {"name"=>"rspec_postgres_io_parallel"}.freeze,
+        {"name"=>"rspec_rust_io"}.freeze,
+        {"name"=>"rspec_rust_parser"}.freeze,
+        {"name"=>"rspec_rust_codegen"}.freeze,
+        {"name"=>"rspec_rust_host"}.freeze,
+        {"name"=>"rspec_fuzzing"}.freeze,
         {"name"=>"release_consistency", "runs"=>"always"}.freeze
       ].freeze,
       "RetiredScript" => [

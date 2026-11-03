@@ -763,17 +763,6 @@ Hecks.bluebook "Bluebook" do
     # `runs_in` says where a check runs. `ci` marks a check that only CI runs: no local stage may
     # list it, and the owner's decision is that the full spec suite runs in CI on production. Empty
     # means a local stage may list the check.
-    #
-    # `attests` is `yes` for a check a signed note may stand in for: the pre-push hook writes a note
-    # naming these checks after it ran them green on the tree (`.githooks/pre-push.lanes` carries
-    # the names), and CI skips a check whose name the note holds. A check not marked `yes` is never
-    # skipped on a note's word, and a marked one must be in the `pre_push` stage, since a note may
-    # only vouch for what the hook ran.
-    #
-    # `inputs` is the space-separated globs, under the checkout, of the files a check reads. The
-    # gate's memo (`Hecks::Tools::GateMemo`) reports a check as skipped when these files, with the
-    # command and the environment, hash as they did in its last green run; a glob is wide where the
-    # check reads a whole tree. Empty means the check is never skipped.
     value_object "GateCheck" do
       attribute :name, String
       attribute :id, String
@@ -782,71 +771,59 @@ Hecks.bluebook "Bluebook" do
       attribute :script, String
       attribute :blocked, String
       attribute :runs_in, String
-      attribute :attests, String
-      attribute :inputs, String
 
       member name: "rspec", id: "rspec",
-             inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml",
              title: "rspec (parallel)",
              runs_in: "ci",
              argv: "",
              script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n",
              blocked: "the suite is red."
       member name: "fuzzing", id: "fuzzing",
-             inputs: "lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec qa/**/*",
              title: "spec/fuzzing, which the parallel run above excludes",
              argv: "bundle exec rspec spec/fuzzing --tag fuzzing",
              script: "",
              blocked: "spec/fuzzing is red."
       member name: "query_agreement", id: "query_agreement",
-             inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml",
              title: "adapter agreement, one declared query and every engine giving the same answer",
              argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io",
              script: "",
              blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which."
-      member name: "engine_agreement", id: "engine_agreement", attests: "yes",
-             inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml",
+      member name: "engine_agreement", id: "engine_agreement",
              title: "engine agreement, every declared comparator on both engines",
              argv: "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait",
              script: "",
              blocked: "a comparator is missing a shared case or a cross-engine spec."
       member name: "shape_ledger", id: "shape_ledger",
-             inputs: "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world lib/**/*.json lib/**/*.adapter",
              title: "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge",
              argv: "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait",
              script: "",
              blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
-      member name: "model_check", id: "model_check", attests: "yes",
-             inputs: "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world examples/**/*",
+      member name: "model_check", id: "model_check",
              title: "model check, unreachable states, dead transitions and orphaned handlers",
              argv: "bundle exec exe/hecks ModelCheckRun.model_check! --wait",
              script: "",
              blocked: "the model checker found something."
-      member name: "doc_coverage", id: "doc_coverage", attests: "yes",
-             inputs: "lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec",
+      member name: "doc_coverage", id: "doc_coverage",
              title: "docs coverage, words with no running example",
              argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait",
              script: "",
              blocked: "the language ships something undocumented; write the missing sections and examples."
-      member name: "rubocop", id: "rubocop", attests: "yes",
+      member name: "rubocop", id: "rubocop",
              title: "rubocop, the static style and correctness gate",
              argv: "bundle exec rubocop -c .rubocop.yml",
              script: "",
              blocked: "rubocop found an offense."
       member name: "codegen_drift", id: "codegen_drift",
-             inputs: "lib/**/* examples/**/* qa/**/* packages/**/* spec/fixtures/**/* spec/corpus/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec",
              title: "codegen drift, rust/src/generated/ must match a fresh regeneration",
              argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait",
              script: "",
              blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
       member name: "comment_style", id: "comment_style",
-             inputs: "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md",
              title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md",
              argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait",
              script: "",
              blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
       member name: "comment_blocks", id: "comment_blocks",
-             inputs: "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md examples/**/*.rb",
              title: "comment blocks, no run of comment lines past ADR 0075's cap",
              argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait",
              script: "",
@@ -862,19 +839,16 @@ Hecks.bluebook "Bluebook" do
              script: "",
              blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."
       member name: "secret_output", id: "secret_output",
-             inputs: "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/secret_output_spec.rb",
              title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints",
              argv: "bundle exec rspec spec/secret_output_spec.rb",
              script: "",
              blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
       member name: "adapter_words", id: "adapter_words",
-             inputs: "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/adapter_words_spec.rb",
              title: "adapter words, no domain name equal to a technology word the adapters are named for",
              argv: "bundle exec rspec spec/adapter_words_spec.rb",
              script: "",
              blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
       member name: "rust_fmt", id: "rust_fmt",
-             inputs: "rust/**/*.rs rust/**/Cargo.toml rust/**/Cargo.lock rust/rust-toolchain.toml rust-toolchain.toml",
              title: "rustfmt, every Rust crate laid out as `cargo fmt` would",
              argv: "",
              script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n",
@@ -998,11 +972,6 @@ Hecks.bluebook "Bluebook" do
              argv: "",
              script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n",
              blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."
-      member name: "release_consistency", id: "release_consistency",
-             title: "release consistency, the version files, the changelog and the release workflow agree",
-             argv: "bundle exec rspec spec/readme_version_spec.rb spec/hecks_client_version_spec.rb spec/changelog_planned_release_spec.rb spec/docs_stale_version_spec.rb spec/release_workflow_spec.rb",
-             script: "",
-             blocked: "a half-done release bump: the files a bump edits by hand disagree with each other; the failure names the spec."
     end
 
     # The stages of the gate: the `checks` a stage runs, as a comma list of `GateCheck` names in
@@ -1025,10 +994,7 @@ Hecks.bluebook "Bluebook" do
     # `ci-rust-io.yml` runs in its `rspec_rust_io` job, for a push that wants their answer first; no
     # hook or workflow runs it. `ci` is the checks `ci-checks.yml` runs, each step with
     # `hecks gate_run.gate! stage=ci only=<ids> --wait`; several of them write generated files and
-    # compare, so the stage is not meant to run whole in one checkout. `release` is the one check
-    # `ci.yml` runs in its own `release_consistency` job (`gate_run.gate! stage=release`): it is a
-    # `RequiredCheck` with `runs: always`, so a release bump reruns it, and it lives outside `ci`
-    # because that stage is exactly what `ci-checks.yml` runs, which a bump inherits.
+    # compare, so the stage is not meant to run whole in one checkout.
     value_object "GateStage" do
       attribute :name, String
       attribute :env, String
@@ -1038,7 +1004,6 @@ Hecks.bluebook "Bluebook" do
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
-      member name: "release", env: "", checks: "release_consistency"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
@@ -1073,26 +1038,19 @@ Hecks.bluebook "Bluebook" do
     #
     # `runs` is `always` for a check a release bump still runs (it is not inherited from the base);
     # empty for a check a bump may inherit.
-    #
-    # `attests` is the comma list of names a signed note may carry for the row, which CI's own note
-    # writer and a release bump's inherited note (`ci.yml`, between the `attested_checks` markers
-    # `RegenerationRun.project_ci_gates!` keeps) hold beside the `GateCheck` rows marked `attests: "yes"`. The
-    # `checks` row stands in the sweeps it runs as jobs. Empty means no note stands in for the row:
-    # `release_consistency` is rerun on every commit.
     value_object "RequiredCheck" do
       attribute :name, String
       attribute :runs, String
-      attribute :attests, String
 
-      member name: "rspec", attests: "rspec"
-      member name: "checks", attests: "checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift"
-      member name: "rspec_postgres_io", attests: "rspec_postgres_io"
-      member name: "rspec_postgres_io_parallel", attests: "rspec_postgres_io_parallel"
-      member name: "rspec_rust_io", attests: "rspec_rust_io"
-      member name: "rspec_rust_parser", attests: "rspec_rust_parser"
-      member name: "rspec_rust_codegen", attests: "rspec_rust_codegen"
-      member name: "rspec_rust_host", attests: "rspec_rust_host"
-      member name: "rspec_fuzzing", attests: "rspec_fuzzing"
+      member name: "rspec"
+      member name: "checks"
+      member name: "rspec_postgres_io"
+      member name: "rspec_postgres_io_parallel"
+      member name: "rspec_rust_io"
+      member name: "rspec_rust_parser"
+      member name: "rspec_rust_codegen"
+      member name: "rspec_rust_host"
+      member name: "rspec_fuzzing"
       member name: "release_consistency", runs: "always"
     end
 
@@ -1111,15 +1069,6 @@ Hecks.bluebook "Bluebook" do
     # (`Release-Approved-By: <name>`) before a release is cut from this lane, or empty for a lane
     # nothing is released from: the owner decides when a release happens by writing that line in
     # the bump commit, and `release.yml` and `publishing_run.publish` both refuse a bump without it.
-    #
-    # What a push of the lane runs on the pusher's machine is also the row's, and the git pre-push
-    # hook reads it from the `.githooks/pre-push.lanes` file `project_lanes` writes. `push_gate` is
-    # the `GateStage` every push of the lane runs, or empty for a lane whose pushes run nothing
-    # locally: `stable` is moved only by a `Promotion` of a commit every `RequiredCheck` has passed,
-    # and its ruleset refuses anything else, so a local gate would only repeat CI. `full_gate` is the
-    # stage a person asks for instead (`full_gate.value=true`, git config `hecks.fullGate`), or
-    # empty for none. `train` is `yes` for a lane pushed only by boarding the push train; the hook
-    # refuses a plain push of it. A push that names no lane (a topic branch, a tag) runs nothing.
     value_object "Lane" do
       attribute :name,        String
       attribute :guarded,     String
@@ -1128,41 +1077,11 @@ Hecks.bluebook "Bluebook" do
       attribute :follows,     String
       attribute :alert_after, String
       attribute :release_trailer, String
-      attribute :push_gate,       String
-      attribute :full_gate,       String
-      attribute :train,           String
 
       member name: "main",   guarded: "no",  pushers: "anyone", feeds: "",     follows: "",     alert_after: "",
-             release_trailer: "", push_gate: "quick", full_gate: "pre_push", train: "yes"
+             release_trailer: ""
       member name: "stable", guarded: "yes", pushers: "green",  feeds: "edge", follows: "main", alert_after: "4",
-             release_trailer: "Release-Approved-By", push_gate: "", full_gate: "", train: "no"
-    end
-
-    # Who may approve a release: the name a `Release-Approved-By:` trailer (or a by-hand run's
-    # `approved_by`) must carry. `Hecks::Release::Approval` reads these rows, so a name that is not
-    # here approves nothing, in `release.yml`, in `publishing_run.publish` and in the release PR
-    # policy alike. The trailer's key is the `release_trailer` of the `Lane` row that feeds a tag.
-    #
-    # Two ways round a missing trailer are declared in `PublishingRun.Accept`, not here: a tag for
-    # the version already points at the release commit (a release that was begun was approved when it
-    # began), and a by-hand run names one of these rows.
-    value_object "ReleaseOwner" do
-      attribute :name, String
-
-      member name: "Chris Young"
-    end
-
-    # The dials of the workflows `RegenerationRun.project_lanes!` writes for the lanes: `promote`
-    # (promote.yml, one job to a lane that follows another) and `watch` (lane-watch.yml, one job
-    # to a lane with an `alert_after`). `cron` is the schedule of a workflow that runs on one, empty for one that does
-    # not, and `timeout_minutes` is how long each of its jobs may run before GitHub stops it.
-    value_object "LaneWorkflow" do
-      attribute :name,            String
-      attribute :cron,            String
-      attribute :timeout_minutes, String
-
-      member name: "promote", cron: "", timeout_minutes: "15"
-      member name: "watch",   cron: "17 * * * *", timeout_minutes: "10"
+             release_trailer: "Release-Approved-By"
     end
 
     # A binary hecks builds once per change to its crate and publishes, so a client that needs the
@@ -1175,7 +1094,6 @@ Hecks.bluebook "Bluebook" do
     # `executable` is the Cargo binary and `target` the Rust triple it is built for. `runner` is the
     # GitHub-hosted image it is built on, pinned (never `-latest`) because a binary links the
     # runner's glibc and must run on every host that runs that image or a newer one.
-    # `timeout_minutes` is how long the build job may run before GitHub stops it.
     # The release is tagged `<name>-<key>` and carries `<executable>-<target>` and its `.sha256`.
     # A crate can have one row a target; a build takes the row for its crate and target. The arm64
     # host builds on Ubuntu 22.04 (glibc 2.35) so it runs in a Debian bookworm (glibc 2.36) image.
@@ -1185,12 +1103,11 @@ Hecks.bluebook "Bluebook" do
       attribute :executable, String
       attribute :target, String
       attribute :runner, String
-      attribute :timeout_minutes, String
 
       member name: "host", crate: "rust/host", executable: "bootstrap", target: "x86_64-unknown-linux-gnu",
-             runner: "ubuntu-24.04", timeout_minutes: "40"
+             runner: "ubuntu-24.04"
       member name: "host-arm64", crate: "rust/host", executable: "bootstrap", target: "aarch64-unknown-linux-gnu",
-             runner: "ubuntu-22.04-arm", timeout_minutes: "40"
+             runner: "ubuntu-22.04-arm"
     end
 
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it
@@ -1472,148 +1389,6 @@ Hecks.bluebook "Bluebook" do
                 one_of: ["name", "version", "edition", "path", "authors", "license", "description", "default",
                          "features", "package", "lib", "bin", "dependencies", "dev-dependencies",
                          "build-dependencies", "workspace"]
-    end
-
-    # The conclusions of a CI run, job or check run that count as passed, as GitHub counts them for a
-    # required check. `skipped` is a path-gated check that had nothing to do; `neutral` is a check that
-    # ran and chose not to fail the commit. Read by the promotion, the red flag, the pipeline board,
-    # CI speed and the release-only check, so none keeps a list of its own.
-    value_object "PassingConclusion" do
-      attribute :name, String, one_of: ["success", "neutral", "skipped"]
-    end
-
-    # Every kind of finding `hecks model_check` reports, with the severity it carries and the check
-    # that emits it (ADR 0154 point 4: the rules a checker holds are declared, not only coded).
-    # `acknowledged_on` names the declaration that may acknowledge the kind (`aggregate`, or a
-    # context-map `relationship`; empty where none may), and `subject` what an acknowledgement must
-    # name with `of:` (empty where it names nothing). `rust_reserved_name` is a warning that is an
-    # error when the domain has a Rust target or the run is strict. `Bluebook::Acknowledgements`
-    # reads the acknowledgement columns; spec/model_check_findings_spec.rb holds this table to the
-    # kinds the checks emit, in both directions.
-    value_object "ModelCheckFinding" do
-      attribute :kind,            String
-      attribute :severity,        String
-      attribute :check,           String
-      attribute :acknowledged_on, String
-      attribute :subject,         String
-
-      member kind: "conformist_translates",         severity: "warning", check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
-      member kind: "context_cycle",                 severity: "warning", check: "context_checks",           acknowledged_on: "", subject: ""
-      member kind: "contradictory_relationship",    severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
-      member kind: "core_conforms",                 severity: "warning", check: "classification_checks",    acknowledged_on: "relationship", subject: ""
-      member kind: "dead_compensation",             severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
-      member kind: "dead_transition",               severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
-      member kind: "deaf_handler",                  severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
-      member kind: "deaf_policy",                   severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
-      member kind: "deaf_trigger",                  severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
-      member kind: "deep_reaction_chain",           severity: "warning", check: "reaction_depth_checks",    acknowledged_on: "", subject: ""
-      member kind: "external_query",                severity: "error",   check: "ask_checks",               acknowledged_on: "", subject: ""
-      member kind: "generic_depends_on_core",       severity: "error",   check: "classification_checks",    acknowledged_on: "", subject: ""
-      member kind: "key_by_value",                  severity: "warning", check: "reference_checks",         acknowledged_on: "aggregate", subject: "attribute"
-      member kind: "large_aggregate",               severity: "warning", check: "aggregate_checks",         acknowledged_on: "aggregate", subject: ""
-      member kind: "no_command_surface",            severity: "error",   check: "aggregate_checks",         acknowledged_on: "aggregate", subject: ""
-      member kind: "one_of_branch_unhandled",       severity: "error",   check: "one_of_checks",            acknowledged_on: "", subject: ""
-      member kind: "orphaned_reference",            severity: "warning", check: "orphan_checks",            acknowledged_on: "aggregate", subject: "referenced aggregate"
-      member kind: "port_trigger",                  severity: "warning", check: "ask_checks",               acknowledged_on: "", subject: ""
-      member kind: "reaction_chain_search_capped",  severity: "warning", check: "reaction_depth_checks",    acknowledged_on: "", subject: ""
-      member kind: "redundant_relationship",        severity: "warning", check: "redundant_relationships",  acknowledged_on: "relationship", subject: ""
-      member kind: "relationship_kind_mismatch",    severity: "error",   check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
-      member kind: "rust_reserved_name",            severity: "warning", check: "model_check",              acknowledged_on: "", subject: ""
-      member kind: "separate_ways_violated",        severity: "error",   check: "context_map_checks",       acknowledged_on: "", subject: ""
-      member kind: "stale_undelivered_expectation", severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
-      member kind: "stuck_state",                   severity: "warning", check: "lifecycle_checks",         acknowledged_on: "", subject: ""
-      member kind: "terminal_has_exit",             severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
-      member kind: "unacknowledged_relationship",   severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
-      member kind: "unacknowledged_source",         severity: "error",   check: "context_checks",           acknowledged_on: "", subject: ""
-      member kind: "unarmed_compensation",          severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
-      member kind: "unbounded_reaction_loop",       severity: "warning", check: "reaction_depth_checks",    acknowledged_on: "", subject: ""
-      member kind: "undeclared_coupling",           severity: "error",   check: "context_map_checks",       acknowledged_on: "", subject: ""
-      member kind: "unknown_command",               severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
-      member kind: "unknown_dispatch",              severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
-      member kind: "unknown_target_domain",         severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
-      member kind: "unknown_trigger",               severity: "error",   check: "policy_checks",            acknowledged_on: "", subject: ""
-      member kind: "unpublished_dependency",        severity: "error",   check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
-      member kind: "unreachable_pm_state",          severity: "error",   check: "saga_checks",              acknowledged_on: "", subject: ""
-      member kind: "unreachable_state",             severity: "error",   check: "lifecycle_checks",         acknowledged_on: "", subject: ""
-      member kind: "unresolved_ask",                severity: "error",   check: "ask_checks",               acknowledged_on: "", subject: ""
-      member kind: "unused_ask",                    severity: "warning", check: "ask_checks",               acknowledged_on: "", subject: ""
-      member kind: "unused_relationship",           severity: "warning", check: "context_map_checks",       acknowledged_on: "relationship", subject: ""
-    end
-
-    # The numbers `hecks model_check` compares a declaration against. `large_aggregate_weight` is
-    # the commands, entities and lifecycle states an aggregate may declare together before it is
-    # warned about; `suggested_commands` how many of the least-attached commands that warning
-    # names; `reaction_chain_search_work` the steps the reaction-chain search takes before it gives
-    # up and reports a lower bound.
-    value_object "ModelCheckLimit" do
-      attribute :name,  String
-      attribute :value, String
-
-      member name: "large_aggregate_weight",     value: "40"
-      member name: "suggested_commands",         value: "3"
-      member name: "reaction_chain_search_work", value: "10000"
-    end
-
-    # The relationship kinds a context map may declare (ADR 0135). `separate_ways` is not one: it
-    # is the absence of a relationship.
-    value_object "ContextRelationshipKind" do
-      attribute :name, String, one_of: ["customer_supplier", "conformist", "anticorruption_layer",
-                                        "shared_kernel", "open_host", "partnership"]
-    end
-
-    # The relationship kinds with no direction: either context may be the one that depends.
-    value_object "MutualRelationshipKind" do
-      attribute :name, String, one_of: ["shared_kernel", "partnership"]
-    end
-
-    # The declared relationship kinds each derived edge kind may implement. An attach and a
-    # subscription are `conformist` unless the map says another kind for the pair; `shared_kernel`
-    # is declared, never derived, since the wiring cannot tell a co-owned model from one taken as given.
-    value_object "EdgeImplementation" do
-      attribute :edge, String
-      attribute :kind, String
-
-      member edge: "customer_supplier", kind: "customer_supplier"
-      member edge: "acl",               kind: "anticorruption_layer"
-      member edge: "shared_kernel",     kind: "conformist"
-      member edge: "shared_kernel",     kind: "shared_kernel"
-      member edge: "shared_kernel",     kind: "open_host"
-      member edge: "subscription",      kind: "conformist"
-      member edge: "subscription",      kind: "customer_supplier"
-      member edge: "subscription",      kind: "open_host"
-    end
-
-    # The limits the language puts on a running or parsed declaration. The Ruby runtime reads them
-    # here; spec/language_limits_spec.rb holds each Rust constant equal to its row.
-    # `reaction_depth`: how deeply one command's reactions may nest before the next is refused.
-    # `reference_hops`: how many references a lookup follows. `chain_hops`: how long a query hop
-    # chain or a projection chain may be. `outbox_stalled_after_seconds`: how long an outbox row
-    # stays claimed before it counts as stalled (a claim that old was left by a process that is gone).
-    value_object "LanguageLimit" do
-      attribute :name,  String
-      attribute :value, String
-
-      member name: "reaction_depth",               value: "5"
-      member name: "reference_hops",               value: "4"
-      member name: "chain_hops",                   value: "8"
-      member name: "outbox_stalled_after_seconds", value: "600"
-    end
-
-    # The outside facts a command may declare with `needs`; the runtime fills each in as an attribute.
-    value_object "NeedableFact" do
-      attribute :name, String, one_of: ["now", "today"]
-    end
-
-    # Who a command may be listed for with `audience`: a person at a keyboard, an agent through
-    # the MCP door, a CI step, or the run's own bookkeeping.
-    value_object "CommandAudience" do
-      attribute :name, String, one_of: ["person", "agent", "ci", "record"]
-    end
-
-    # The states an outbox row passes through: pending, then claimed, then delivered, failed or
-    # refused (a reaction the domain declined, which is neither delivery nor a defect).
-    value_object "OutboxStatus" do
-      attribute :name, String, one_of: ["pending", "claimed", "delivered", "failed", "refused"]
     end
   end
 end

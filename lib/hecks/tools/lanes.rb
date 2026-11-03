@@ -2,7 +2,6 @@
 
 require "hecks/vocabulary"
 require_relative "../tools"
-require_relative "attested_checks"
 require_relative "../hecks/adapters/github_rulesets"
 
 module Hecks
@@ -54,14 +53,6 @@ module Hecks
       # @return [Array<Hash{String => String}>] the `Lane` rows
       def lanes = Rows.all
 
-      # @param name [String] a `LaneWorkflow` row's name, `promote` or `watch`
-      # @return [Hash{String => String}] its schedule and job timeout
-      # @raise [SystemExit] when there is no such row
-      def workflow_row(name)
-        Hecks::Vocabulary.rows("LaneWorkflow").find { |row| row["name"] == name } ||
-          abort("lanes: no LaneWorkflow row named #{name}")
-      end
-
       # @param lane [Hash{String => String}] a guarded `Lane` row
       # @return [Hash] the ruleset GitHub is given for it
       def ruleset(lane) = Ruleset.build(lane)
@@ -88,6 +79,5 @@ require_relative "lanes/ruleset"
 require_relative "lanes/workflow"
 require_relative "lanes/watch_workflow"
 require_relative "lanes/prebuilt_workflow"
-require_relative "lanes/hook_table"
 require_relative "lanes/files"
 require_relative "lanes/live"
