@@ -1077,7 +1077,7 @@ Hecks.bluebook "CiSpeed" do
   # An experiment runs as soon as it is asked for: the port runs it and answers with the numbers.
   policy "MeasureWhenRequested" do
     on      "Experiment.ExperimentRequested"
-    trigger Experiment::LocalRunner::Measure, with: { name: :name }
+    ask     :measure, with: { name: :name }
   end
 
   policy "RecordTheMeasure" do
