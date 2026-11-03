@@ -2758,6 +2758,27 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
     end
 
+    # The console container's inputs, as the platform's Dockerfile copies them. `file` is one path, `dir`
+    # a prefix inside the image, `outside` a prefix inside an image directory that is still not part of
+    # it (the bluebook's translation edges move a box's data, so a person releases them). A changed path
+    # no row covers is infrastructure: default-deny, so a new top-level directory waits for a person.
+    value_object "ImageInput" do
+      attribute :kind, String
+      attribute :path, String
+
+      member kind: "file",    path: "Dockerfile"
+      member kind: "file",    path: "Gemfile"
+      member kind: "file",    path: "Gemfile.lock"
+      member kind: "file",    path: "lib/telemetry_ingress.rb"
+      member kind: "file",    path: "lib/site_roster.rb"
+      member kind: "dir",     path: "bluebook/"
+      member kind: "dir",     path: "vendor/"
+      member kind: "dir",     path: "deploy/console/"
+      member kind: "dir",     path: "lib/telemetry_ingress/"
+      member kind: "dir",     path: "lib/site_roster/"
+      member kind: "outside", path: "bluebook/translations/"
+    end
+
     # The changed paths of the commit, newline-separated, as the classifier read them.
     value_object "ChangedPaths" do
       attribute :value, String, default: ""
@@ -2772,6 +2793,10 @@ Hecks.bluebook "QualityControl" do
       attribute :commit, CommitRef
       attribute :branch, RollBranch
       attribute :repo,   RollRepo
+
+      # The classifier no longer refuses these: the command does, before the chain asks anything.
+      given("only main rolls") { branch.value == "main" }
+      given("only embryonaut_platform rolls") { repo.value == "heckslabs/embryonaut_platform" }
 
       emits "RollConsidered"
     end
