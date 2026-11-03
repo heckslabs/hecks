@@ -4,7 +4,8 @@ require "spec_helper"
 require "json"
 require "hecks/pipeline_board/adapters/pipeline_github"
 
-# The first read of the board: a run that succeeded has no failed job, so its jobs are never fetched.
+# The first read of the board: a run that succeeded has no failed job, so its jobs are not fetched,
+# and a settled count is read once, even across a restart.
 RSpec.describe Hecks::Adapters::PipelineGitHub do
   def run(id, conclusion, status = "completed")
     { "databaseId" => id, "headSha" => "abcdef123", "startedAt" => "2026-11-03T10:00:00Z",
