@@ -33,11 +33,31 @@ module Hecks
           name = lane["name"]
           return "#{name} has pushers #{lane["pushers"].inspect}" unless Lanes::PUSHERS.include?(lane["pushers"])
           return "#{name} has guarded #{lane["guarded"].inspect}" unless %w[yes no].include?(lane["guarded"])
+
+          watch_problem(lane) || local_gate_problem(lane) || follows_problem(lane, names)
+        end
+
+        # @param lane [Hash{String => String}] a `Lane` row
+        # @return [String, nil] what is wrong with the lane's alert threshold or release trailer, or nil
+        def watch_problem(lane)
+          name = lane["name"]
           return "#{name} has alert_after #{lane["alert_after"].inspect}, not whole hours" unless hours?(lane)
 
-          return "#{name} has release_trailer #{lane["release_trailer"].inspect}, not a trailer word" unless trailer?(lane)
+          "#{name} has release_trailer #{lane["release_trailer"].inspect}, not a trailer word" unless trailer?(lane)
+        end
 
-          follows_problem(lane, names)
+        # @param lane [Hash{String => String}] a `Lane` row
+        # @return [String, nil] what is wrong with the lane's local gate columns, or nil
+        def local_gate_problem(lane)
+          gate_problem(lane) || (train_problem(lane) unless %w[yes no].include?(lane["train"].to_s))
+        end
+
+        def train_problem(lane) = "#{lane["name"]} has train #{lane["train"].inspect}, not yes or no"
+
+        def gate_problem(lane)
+          stages = Hecks::Vocabulary.rows("GateStage").map { |stage| stage["name"] }
+          column = %w[push_gate full_gate].find { |key| !lane[key].to_s.empty? && !stages.include?(lane[key]) }
+          "#{lane["name"]} has #{column} #{lane[column].inspect}, which is not a GateStage row" if column
         end
 
         # @return [Boolean] whether `release_trailer` is empty (nothing is released from the lane)
