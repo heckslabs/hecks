@@ -42,6 +42,13 @@ RSpec.describe "the Coder brief's standing sections" do
                                             "the coordinator is the only pusher", "only the pusher boards")
   end
 
+  it "tells the session to hear the red flag as events, stop and check in, and resume when it clears" do
+    expect(section(:restraints)).to include(
+      "Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600",
+      "On RedFlagRaised stop feature work and check in", "RedFlag.check_in!", "Resume on RedFlagCleared"
+    )
+  end
+
   it "has the plan reviewed by the architect before any edit, and hands the row back on rethink" do
     expect(section(:review)).to include("Before you edit anything", "architect", "Sound with changes",
                                         "Work.yield! to={work}", "Quote the verdict")

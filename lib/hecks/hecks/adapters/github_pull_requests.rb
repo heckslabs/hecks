@@ -19,8 +19,8 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      # @param runner [#call, nil] runs `gh` with its arguments, answering `[stdout, stderr, success]`;
-      #   the real `gh` when nil. A spec replaces it.
+      # @param runner [#call, nil] runs `gh` with its arguments, answering
+      #   `[stdout, stderr, success]`; the real `gh` when nil. A spec replaces it.
       def initialize(aggregate: nil, settings: {}, root: nil, runner: nil)
         @runner = runner || method(:run_gh)
       end
