@@ -23,7 +23,13 @@ module Hecks
             "# lane push_gate full_gate train (- is none)"
           ]
           rows = lanes.map { |lane| %w[name push_gate full_gate train].map { |key| cell(lane[key]) }.join(" ") }
-          "#{(header + rows).join("\n")}\n"
+          "#{(header + rows + attests).join("\n")}\n"
+        end
+
+        # @return [Array<String>] the line naming the checks a note the hook writes may stand in for
+        def attests
+          ["# the checks a signed note may stand in for, from the GateCheck rows marked attests",
+           "@attests #{AttestedChecks.local.join(",")}"]
         end
 
         # @param value [String, nil] a column of a `Lane` row

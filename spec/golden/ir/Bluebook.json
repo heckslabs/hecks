@@ -34403,6 +34403,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "attests",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -34502,6 +34512,10 @@
                 "engine_agreement"
               ],
               [
+                "attests",
+                "yes"
+              ],
+              [
                 "title",
                 "engine agreement, every declared comparator on both engines"
               ],
@@ -34554,6 +34568,10 @@
                 "model_check"
               ],
               [
+                "attests",
+                "yes"
+              ],
+              [
                 "title",
                 "model check, unreachable states, dead transitions and orphaned handlers"
               ],
@@ -34580,6 +34598,10 @@
                 "doc_coverage"
               ],
               [
+                "attests",
+                "yes"
+              ],
+              [
                 "title",
                 "docs coverage, words with no running example"
               ],
@@ -34604,6 +34626,10 @@
               [
                 "id",
                 "rubocop"
+              ],
+              [
+                "attests",
+                "yes"
               ],
               [
                 "title",
@@ -35657,6 +35683,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "attests",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -35668,17 +35704,29 @@
               [
                 "name",
                 "rspec"
+              ],
+              [
+                "attests",
+                "rspec"
               ]
             ],
             [
               [
                 "name",
                 "checks"
+              ],
+              [
+                "attests",
+                "checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift"
               ]
             ],
             [
               [
                 "name",
+                "rspec_postgres_io"
+              ],
+              [
+                "attests",
                 "rspec_postgres_io"
               ]
             ],
@@ -35686,11 +35734,19 @@
               [
                 "name",
                 "rspec_postgres_io_parallel"
+              ],
+              [
+                "attests",
+                "rspec_postgres_io_parallel"
               ]
             ],
             [
               [
                 "name",
+                "rspec_rust_io"
+              ],
+              [
+                "attests",
                 "rspec_rust_io"
               ]
             ],
@@ -35698,11 +35754,19 @@
               [
                 "name",
                 "rspec_rust_parser"
+              ],
+              [
+                "attests",
+                "rspec_rust_parser"
               ]
             ],
             [
               [
                 "name",
+                "rspec_rust_codegen"
+              ],
+              [
+                "attests",
                 "rspec_rust_codegen"
               ]
             ],
@@ -35710,11 +35774,19 @@
               [
                 "name",
                 "rspec_rust_host"
+              ],
+              [
+                "attests",
+                "rspec_rust_host"
               ]
             ],
             [
               [
                 "name",
+                "rspec_fuzzing"
+              ],
+              [
+                "attests",
                 "rspec_fuzzing"
               ]
             ],

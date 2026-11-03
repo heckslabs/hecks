@@ -57,7 +57,7 @@ while read -r _local_ref _local_oid remote_ref _remote_oid; do
   lane=${remote_ref#refs/heads/}
   [ "$lane" = "$remote_ref" ] && continue
   while read -r name gate full train; do
-    case "$name" in '' | '#'*) continue ;; esac
+    case "$name" in '' | '#'* | '@'*) continue ;; esac
     [ "$name" = "$lane" ] || continue
     stage=$gate
     if [ "$FULL_GATE" = "true" ] && [ "$full" != "-" ]; then stage=$full; fi
@@ -126,7 +126,13 @@ if [ -n "$ATTEST_DIRTY" ]; then
   printf '[pre-push] the working tree has uncommitted changes, so the checks did not run on HEAD alone — no CI attestation note written\n\n'
 elif [ -n "$ATTEST_KEY" ]; then
   ATTEST_TREE=$(git rev-parse HEAD^{tree})
-  ATTEST_CHECKS="doc_coverage,engine_agreement,model_check,rubocop"
+  # The names are the GateCheck rows marked `attests`, which pre-push.lanes carries on its @attests
+  # line; none declared writes no note, since a note with no names would vouch for nothing.
+  ATTEST_CHECKS=$(awk '$1 == "@attests" { print $2 }' "$LANE_TABLE")
+  if [ -z "$ATTEST_CHECKS" ]; then
+    printf '[pre-push] no GateCheck row declares attests — no CI attestation note written\n\n'
+    exit 0
+  fi
   ATTEST_HMAC=$(printf '%s:%s' "$ATTEST_TREE" "$ATTEST_CHECKS" | openssl dgst -sha256 -hmac "$ATTEST_KEY" -r | awk '{print $1}')
 
   if git notes --ref=ci add -f -m "checks=$ATTEST_CHECKS

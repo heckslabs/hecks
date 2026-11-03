@@ -763,6 +763,12 @@ Hecks.bluebook "Bluebook" do
     # `runs_in` says where a check runs. `ci` marks a check that only CI runs: no local stage may
     # list it, and the owner's decision is that the full spec suite runs in CI on production. Empty
     # means a local stage may list the check.
+    #
+    # `attests` is `yes` for a check a signed note may stand in for: the pre-push hook writes a note
+    # naming these checks after it ran them green on the tree (`.githooks/pre-push.lanes` carries
+    # the names), and CI skips a check whose name the note holds. A check not marked `yes` is never
+    # skipped on a note's word, and a marked one must be in the `pre_push` stage, since a note may
+    # only vouch for what the hook ran.
     value_object "GateCheck" do
       attribute :name, String
       attribute :id, String
@@ -771,6 +777,7 @@ Hecks.bluebook "Bluebook" do
       attribute :script, String
       attribute :blocked, String
       attribute :runs_in, String
+      attribute :attests, String
 
       member name: "rspec", id: "rspec",
              title: "rspec (parallel)",
@@ -788,7 +795,7 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io",
              script: "",
              blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which."
-      member name: "engine_agreement", id: "engine_agreement",
+      member name: "engine_agreement", id: "engine_agreement", attests: "yes",
              title: "engine agreement, every declared comparator on both engines",
              argv: "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait",
              script: "",
@@ -798,17 +805,17 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait",
              script: "",
              blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
-      member name: "model_check", id: "model_check",
+      member name: "model_check", id: "model_check", attests: "yes",
              title: "model check, unreachable states, dead transitions and orphaned handlers",
              argv: "bundle exec exe/hecks ModelCheckRun.model_check! --wait",
              script: "",
              blocked: "the model checker found something."
-      member name: "doc_coverage", id: "doc_coverage",
+      member name: "doc_coverage", id: "doc_coverage", attests: "yes",
              title: "docs coverage, words with no running example",
              argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait",
              script: "",
              blocked: "the language ships something undocumented; write the missing sections and examples."
-      member name: "rubocop", id: "rubocop",
+      member name: "rubocop", id: "rubocop", attests: "yes",
              title: "rubocop, the static style and correctness gate",
              argv: "bundle exec rubocop -c .rubocop.yml",
              script: "",
@@ -1038,19 +1045,26 @@ Hecks.bluebook "Bluebook" do
     #
     # `runs` is `always` for a check a release bump still runs (it is not inherited from the base);
     # empty for a check a bump may inherit.
+    #
+    # `attests` is the comma list of names a signed note may carry for the row, which CI's own note
+    # writer and a release bump's inherited note (`ci.yml`, between the `attested_checks` markers
+    # `hecks project_ci_gates` keeps) hold beside the `GateCheck` rows marked `attests: "yes"`. The
+    # `checks` row stands in the sweeps it runs as jobs. Empty means no note stands in for the row:
+    # `release_consistency` is rerun on every commit.
     value_object "RequiredCheck" do
       attribute :name, String
       attribute :runs, String
+      attribute :attests, String
 
-      member name: "rspec"
-      member name: "checks"
-      member name: "rspec_postgres_io"
-      member name: "rspec_postgres_io_parallel"
-      member name: "rspec_rust_io"
-      member name: "rspec_rust_parser"
-      member name: "rspec_rust_codegen"
-      member name: "rspec_rust_host"
-      member name: "rspec_fuzzing"
+      member name: "rspec", attests: "rspec"
+      member name: "checks", attests: "checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift"
+      member name: "rspec_postgres_io", attests: "rspec_postgres_io"
+      member name: "rspec_postgres_io_parallel", attests: "rspec_postgres_io_parallel"
+      member name: "rspec_rust_io", attests: "rspec_rust_io"
+      member name: "rspec_rust_parser", attests: "rspec_rust_parser"
+      member name: "rspec_rust_codegen", attests: "rspec_rust_codegen"
+      member name: "rspec_rust_host", attests: "rspec_rust_host"
+      member name: "rspec_fuzzing", attests: "rspec_fuzzing"
       member name: "release_consistency", runs: "always"
     end
 

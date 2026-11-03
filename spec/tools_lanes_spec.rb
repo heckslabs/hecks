@@ -21,7 +21,7 @@ RSpec.describe Hecks::Tools::Lanes do
 
   describe "the pre-push hook table" do
     it "holds a line for each lane, with - for a gate it does not run", :aggregate_failures do
-      table = Hecks::Tools::Lanes::HookTable.text(described_class.lanes).lines.reject { |line| line.start_with?("#") }
+      table = Hecks::Tools::Lanes::HookTable.text(described_class.lanes).lines.grep_v(/\A[#@]/)
 
       expect(table).to eq(["main quick pre_push yes\n", "stable - - no\n"])
     end

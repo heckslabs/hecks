@@ -103,7 +103,9 @@ jobs:
       - name: Attest this tree for the checks its certified base already passed
         uses: ./.github/actions/write-attestation
         with:
-          checks: doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel
+          # BEGIN GENERATED attested_checks (GateCheck and RequiredCheck rows; hecks project_ci_gates). Do not hand-edit.
+          checks: engine_agreement,model_check,doc_coverage,rubocop,rspec,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing
+          # END GENERATED attested_checks
           hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
   # Runs on every commit, release bump or not, so a half-done bump cannot be certified: the files
@@ -218,7 +220,9 @@ jobs:
       - name: Write and push a CI-verified attestation note for this tree
         uses: ./.github/actions/write-attestation
         with:
-          checks: doc_coverage,engine_agreement,model_check,rspec,rubocop,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel
+          # BEGIN GENERATED attested_checks (GateCheck and RequiredCheck rows; hecks project_ci_gates). Do not hand-edit.
+          checks: engine_agreement,model_check,doc_coverage,rubocop,rspec,checks_fuzz,checks_fuzz_postgres,checks_fuzz_sqlite,checks_codegen_drift,rspec_postgres_io,rspec_postgres_io_parallel,rspec_rust_io,rspec_rust_parser,rspec_rust_codegen,rspec_rust_host,rspec_fuzzing
+          # END GENERATED attested_checks
           hmac-key: ${{ secrets.HECKS_CI_ATTEST_KEY }}
 
   # Aggregator that keeps `rspec_postgres_io` the required-status-check name; the work is in
