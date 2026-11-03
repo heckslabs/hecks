@@ -1069,6 +1069,15 @@ Hecks.bluebook "Bluebook" do
     # (`Release-Approved-By: <name>`) before a release is cut from this lane, or empty for a lane
     # nothing is released from: the owner decides when a release happens by writing that line in
     # the bump commit, and `release.yml` and `publishing_run.publish` both refuse a bump without it.
+    #
+    # What a push of the lane runs on the pusher's machine is also the row's, and the git pre-push
+    # hook reads it from the `.githooks/pre-push.lanes` file `project_lanes` writes. `push_gate` is
+    # the `GateStage` every push of the lane runs, or empty for a lane whose pushes run nothing
+    # locally: `stable` is moved only by a `Promotion` of a commit every `RequiredCheck` has passed,
+    # and its ruleset refuses anything else, so a local gate would only repeat CI. `full_gate` is the
+    # stage a person asks for instead (`full_gate.value=true`, git config `hecks.fullGate`), or
+    # empty for none. `train` is `yes` for a lane pushed only by boarding the push train; the hook
+    # refuses a plain push of it. A push that names no lane (a topic branch, a tag) runs nothing.
     value_object "Lane" do
       attribute :name,        String
       attribute :guarded,     String
@@ -1077,11 +1086,14 @@ Hecks.bluebook "Bluebook" do
       attribute :follows,     String
       attribute :alert_after, String
       attribute :release_trailer, String
+      attribute :push_gate,       String
+      attribute :full_gate,       String
+      attribute :train,           String
 
       member name: "main",   guarded: "no",  pushers: "anyone", feeds: "",     follows: "",     alert_after: "",
-             release_trailer: ""
+             release_trailer: "", push_gate: "quick", full_gate: "pre_push", train: "yes"
       member name: "stable", guarded: "yes", pushers: "green",  feeds: "edge", follows: "main", alert_after: "4",
-             release_trailer: "Release-Approved-By"
+             release_trailer: "Release-Approved-By", push_gate: "", full_gate: "", train: "no"
     end
 
     # Who may approve a release: the name a `Release-Approved-By:` trailer (or a by-hand run's
