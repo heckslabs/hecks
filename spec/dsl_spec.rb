@@ -990,7 +990,7 @@ RSpec.describe "the DSL surface" do
       end
     end
 
-    it "process_manager is gone — saga is the word now (ADR 0180)" do
+    it "process_manager is gone — saga is the word now (ADR 0178)" do
       customer = customer_declaration
 
       expect_refusal(:bluebook, "ProcessManagerGone", "process_manager is gone — saga is the word now") do

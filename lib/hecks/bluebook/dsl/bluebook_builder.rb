@@ -169,7 +169,7 @@ module Hecks
         end
 
         # Answered only under shadow-parsing, so frozen era text spelled `process_manager`
-        # keeps booting; live source refuses it and names `saga` as the replacement (ADR 0180).
+        # keeps booting; live source refuses it and names `saga` as the replacement (ADR 0178).
         #
         # @param name [String] the saga's own name
         # @yield the saga body, evaluated against a new `SagaBuilder`

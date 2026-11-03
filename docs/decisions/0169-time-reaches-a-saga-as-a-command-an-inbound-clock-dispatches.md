@@ -3,7 +3,7 @@
 **Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds no bluebook grammar word; it settles how a deadline is
 modelled and names the one missing piece, the inbound clock.
 Built 2026-11-02 as the worked example `examples/order_deadline` (see the addendum); the inbound clock
-remains open. The word was settled by [ADR 0180](0180-a-process-manager-has-one-name-in-the-language-and-the-runtime.md):
+remains open. The word was settled by [ADR 0178](0178-a-process-manager-has-one-name-in-the-language-and-the-runtime.md):
 `process_manager` in this record's text is the old keyword, now `saga`.
 
 ## Context

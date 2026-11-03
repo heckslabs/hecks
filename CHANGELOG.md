@@ -13,7 +13,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
   `process_manager` is refused by name (`process_manager is gone — saga is the word now`). The
   language's aggregate is `Saga`, with `SagaName` and `SagaText`; the guide is
   `docs/implemented/guides/policies-and-sagas.md` and the reference `docs/implemented/reference/saga.md`.
-  Client bluebooks that declare one change the word when they take this version (ADR 0180). The runtime,
+  Client bluebooks that declare one change the word when they take this version (ADR 0178). The runtime,
   the IR key `process_managers` and the saga stores' `process_manager` column are unchanged.
 
 ## [7.1.0] - 2026-11-02

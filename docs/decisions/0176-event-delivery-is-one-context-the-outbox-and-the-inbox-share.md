@@ -69,7 +69,7 @@ the Rust runtime, has neither.
 - A domain outside Hecks can declare `attaches "EventDelivery"` and get a durable outbox without
   the Ruby runtime, once an implementation binds the adapter.
 - The era machinery is unaffected: deliveries are tooling rows, and the context declares
-  `disposable_ledger true` (or whatever [ADR 0179](0179-ledger-names-the-seal-chain-only.md) renames
+  `disposable_ledger true` (or whatever [ADR 0177](0177-ledger-names-the-seal-chain-only.md) renames
   it to) in its world.
 
 ## Alternatives considered

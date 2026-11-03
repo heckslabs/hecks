@@ -82,7 +82,7 @@ module Hecks
                   :modules
 
       # The sagas, under the language's word: the judge reads a `Saga` category's collection
-      # by that name (ADR 0180). The IR key stays `process_managers` until its own slice moves
+      # by that name (ADR 0178). The IR key stays `process_managers` until its own slice moves
       # it on both sides of the Ruby/Rust comparison.
       #
       # @return [Array<Bluebook::ProcessManager>] every saga this bluebook declares

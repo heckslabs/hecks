@@ -56,7 +56,7 @@ was kept.
    - The world verb `event_log` becomes `event_tap`, after the class that implements it, so the
      verb and the thing it switches on have one name.
    - QualityControl's descriptions say "journal" where they read a persisted history and "log"
-     where they read a tap's file; [ADR 0178](0178-event-delivery-is-one-context-the-outbox-and-the-inbox-share.md)
+     where they read a tap's file; [ADR 0176](0176-event-delivery-is-one-context-the-outbox-and-the-inbox-share.md)
      moves those aggregates and takes the wording with them.
 
 4. **Audit is the walk; the call log is the trace.** The `Audit` aggregate keeps its name: it
