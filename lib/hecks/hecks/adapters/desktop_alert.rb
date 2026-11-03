@@ -4,6 +4,7 @@ require_relative "shell"
 require_relative "console_capture"
 require_relative "git"
 require_relative "desktop_alert/alert"
+require_relative "desktop_alert/flag_alert"
 
 module Hecks
   module Adapters
@@ -42,6 +43,20 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no desktop alert could be shown
       def announce(**held)
         alert = Alert.new(title: title(held), subtitle: subtitle(held), body: body(held), link: runs(held))
+        shown = alert.show(@shell)
+        raise ConsoleCapture::Failure, "no desktop alert was shown: #{shown.err.strip}" unless shown.ok?
+
+        { report: { value: "#{alert.title}: #{alert.subtitle}" } }
+      end
+
+      # Shows that main's red flag went up, or came down.
+      #
+      # @param held [Hash] the `RedFlag` ask: `outcome` (`raised` or `cleared`), `flag`, `commit`,
+      #   `ci_run`, `jobs` and `checkout`
+      # @return [Hash{Symbol => Hash}] `report:` the alert's title and subtitle
+      # @raise [ConsoleCapture::Failure] when no desktop alert could be shown
+      def flag(**held)
+        alert = FlagAlert.new(held, github: github(held.merge(remote: "origin", checkout: checkout_of(held)))).alert
         shown = alert.show(@shell)
         raise ConsoleCapture::Failure, "no desktop alert was shown: #{shown.err.strip}" unless shown.ok?
 
@@ -92,6 +107,8 @@ module Hecks
       end
 
       def git(held, *) = @git.capture(*, chdir: plain(held[:checkout]))
+
+      def checkout_of(held) = plain(held[:checkout]) || Dir.pwd
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

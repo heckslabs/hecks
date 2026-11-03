@@ -3,28 +3,35 @@ Hecks.bluebook "Hecks" do
     vision "Main red is a red flag: everyone working hears it, checks in to help, and stops landing until CI is green again."
 
     # One request against the standing flag of the repository: raise it, note another red run on it,
-    # check in to help, or lower it. The flag itself is a marker in the repository's git directory, so
-    # Landing and SendTrain read it from every worktree. A CI run of main that completes red raises it
-    # (Integration.CiFailed, or `RedFlag.sync!`), and one that completes green lowers it. One flag
-    # stands at a time: a second red run is recorded on it. Anything can listen to the events
-    # RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn and RedFlagCleared through the ordinary journal.
+    # check in to help, lower it, or kick the red push batch off main. The flag itself is a marker in
+    # the repository's git directory, so Landing and SendTrain read it from every worktree. A CI run
+    # of main that completes red raises it (Integration.CiFailed, or `RedFlag.sync!`, which the
+    # PipelineBoard server asks on each new run), and one that completes green lowers it. One flag
+    # stands at a time: a second red run is recorded on it, and the same run reported twice changes
+    # nothing. Every session hears RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn, RedFlagKicked
+    # and RedFlagCleared through the event log, and the owner through a desktop alert.
     aggregate "RedFlag" do
-      description "One request against main's red flag: raised, noted, checked in to, lowered, or refused."
+      description "One request against main's red flag: raised, noted, checked in to, kicked, lowered, or refused."
       created_by "RedFlag.raise!"
 
       attribute :run,      RunKey
       attribute :commit,   Word,   optional: true
       attribute :detail,   Report, optional: true
-      attribute :rows,     Report, optional: true
+      attribute :work_items, Report, optional: true
       attribute :session,  Word,   optional: true
       attribute :taking,   Word,   optional: true
       attribute :checkout, Word,   optional: true
+      attribute :force,    Switch, optional: true
       attribute :flag,     Word,   optional: true
       attribute :ci_run,   Report, optional: true
       attribute :jobs,     Report, optional: true
       attribute :output,   Report, optional: true
       attribute :refusal,  Report, optional: true
       identified_by :run
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
 
       value_object "RunKey" do
         attribute :value, String, matches: :present
@@ -48,9 +55,10 @@ Hecks.bluebook "Hecks" do
         transition "Note"    => "noted",      from: "requested"
         transition "Welcome" => "checked_in", from: "requested"
         transition "Lift"    => "cleared",    from: "requested"
+        transition "Eject"   => "kicked",     from: "requested"
         transition "Settle"  => "idle",       from: "requested"
         transition "Decline" => "refused",    from: "requested"
-        mark :terminal, "raised", "noted", "checked_in", "cleared", "idle", "refused"
+        mark :terminal, "raised", "noted", "checked_in", "cleared", "kicked", "idle", "refused"
       end
 
       command "Raise" do
@@ -60,7 +68,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,      RunKey, sets: true
         attribute :commit,   Word, sets: true
         attribute :detail,   Report, optional: true, sets: true
-        attribute :rows,     Report, optional: true, sets: true
+        attribute :work_items, Report, optional: true, sets: true
         attribute :checkout, Word, optional: true, sets: true
 
         emits RaiseRequested
@@ -68,7 +76,7 @@ Hecks.bluebook "Hecks" do
 
       command "CheckIn" do
         role "Operator"
-        goal "Say who is helping with the red flag and what they take (a red-* Work row or a cause), so nobody fixes the same thing twice"
+        goal "Say who is helping with the red flag and what they take (a red-* Work item or a cause), so nobody fixes the same thing twice"
 
         attribute :run,      RunKey, sets: true
         attribute :session,  Word, sets: true
@@ -99,16 +107,28 @@ Hecks.bluebook "Hecks" do
         emits SyncRequested
       end
 
+      command "Kick" do
+        role "Operator"
+        goal "Revert the push batch since the last green head off main as a red-main-* fix, finish it onto main, board it, file a red-* Work item for the batch and dispatch one coder to bring it back green"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :force,    Switch, default: false, sets: true
+
+        emits KickRequested
+      end
+
       command "Record" do
         role "System"
-        goal "Record that the red flag was raised, with the main commit, CI run, failed jobs and red Work rows"
+        goal "Record that the red flag was raised, with the main commit, CI run, failed jobs and red Work items"
 
         reference_to RedFlag
         attribute :flag,   Word, sets: true
         attribute :commit, Word, sets: true
         attribute :ci_run, Report, optional: true, sets: true
         attribute :jobs,   Report, optional: true, sets: true
-        attribute :rows,   Report, optional: true, sets: true
+        attribute :work_items, Report, optional: true, sets: true
+        attribute :checkout,   Report, optional: true, sets: true
 
         emits RedFlagRaised
       end
@@ -147,6 +167,19 @@ Hecks.bluebook "Hecks" do
         attribute :commit, Word, optional: true, sets: true
 
         emits RedFlagCleared
+      end
+
+      command "Eject" do
+        role "System"
+        goal "Record that the red push batch was reverted off main, naming the commits reverted and the Work item filed to land them again"
+
+        reference_to RedFlag
+        attribute :flag,   Word, sets: true
+        attribute :commit, Word, sets: true
+        attribute :detail, Report, optional: true, sets: true
+        attribute :work_items, Report, optional: true, sets: true
+
+        emits RedFlagKicked
       end
 
       command "Settle" do
@@ -199,7 +232,8 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRaisedFlag" do
       on      "RedFlag.FlagAnswered"
       where   { outcome.value == "raised" }
-      trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs, rows: :rows }
+      trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs,
+                                       work_items: :work_items, checkout: :checkout }
     end
 
     policy "RecordTheNotedRun" do
@@ -229,6 +263,39 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedFlag" do
       on      "RedFlag.FlagRefused"
       trigger RedFlag::Decline, with: { refusal: :refusal }
+    end
+
+    # A flag that goes up is kicked at once, by its own event: the kick needs no hand, and it refuses
+    # by name when it cannot (no green head, a release commit, a conflicting revert, a fix in flight).
+    policy "KickWhenRaised" do
+      on      "RedFlag.RedFlagRaised"
+      trigger RedFlag::Kick, with: { run: :flag, checkout: :checkout }
+    end
+
+    policy "EvictWhenKicked" do
+      on      "RedFlag.KickRequested"
+      ask     :evict, with: { run: :run }
+    end
+
+    policy "RecordTheKick" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "kicked" }
+      trigger RedFlag::Eject, with: { flag: :flag, commit: :commit, detail: :detail, work_items: :work_items }
+    end
+
+    # The owner hears the flag go up and come down on the desktop. The alert is asked beside the
+    # recording, on the same answer, so the chain stays within the reaction depth bound; an alert
+    # that cannot be shown is recorded as refused and changes nothing about the flag.
+    policy "TellTheOwnerWhenRaised" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "raised" }
+      ask     :flag, with: { run: :run, outcome: :outcome, flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs }
+    end
+
+    policy "TellTheOwnerWhenCleared" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "cleared" }
+      ask     :flag, with: { run: :run, outcome: :outcome, flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs }
     end
 
     # A CI observation that ends red raises the flag; one that ends green lowers it. The policies hear
