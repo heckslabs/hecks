@@ -75,6 +75,7 @@ Hecks.bluebook "Catcher" do
   aggregate "Audit" do
     description "One pattern of observed actions, judged against the declared rules: raised, then accepted or dismissed, never deleted."
 
+    attribute :audit_id,       AuditId
     attribute :subject,        Subject
     attribute :kind,           AuditKind
     attribute :count,          Count
@@ -89,10 +90,19 @@ Hecks.bluebook "Catcher" do
     # The detection run that raised this audit. The run concludes once the audit is recorded.
     reference_to Detection
 
-    # The subject and the moment it was raised: a pattern raised again after a dismissal is a
-    # second audit, the same way a role granted again is a second assignment.
-    identified_by :subject, :raised_at
+    # The audit's identity: one token the caller supplies, so a command can name the audit as a
+    # single argument. A pattern raised again after a dismissal gets a new audit_id.
+    identified_by :audit_id
 
+    # One token of letters, digits, dots, underscores, colons and hyphens, with no spaces. For
+    # example `git-add-2026-11-03T06:41:25Z`: the subject with its spaces as hyphens, then the
+    # raised time.
+    value_object "AuditId" do
+      attribute :value, String, pattern: '^[A-Za-z0-9._:-]+$'
+    end
+
+    # The subject of the audit, kept as an ordinary attribute: the pattern's words, blanked of
+    # their arguments.
     value_object "Subject" do
       attribute :value, String
       invariant("an audit names the pattern it concerns") { !value.to_s.empty? }
@@ -167,6 +177,7 @@ Hecks.bluebook "Catcher" do
       given("a pattern is seen in at least 2 sessions") { sessions.value >= 2 }
       given("a pattern has a success rate of at least 0.8") { success_rate.value >= 0.8 }
 
+      sets :audit_id
       sets :subject
       sets :kind
       sets :count
@@ -187,6 +198,7 @@ Hecks.bluebook "Catcher" do
       role "Operator"
       goal "Take an audit on, so that a corrective action is started for it"
 
+      # The audit is named by its audit_id, the single key the caller passes.
       reference_to Audit
       attribute :decided_by, DecidedBy, sets: true
 
@@ -197,6 +209,7 @@ Hecks.bluebook "Catcher" do
       role "Operator"
       goal "Decline an audit, and say why"
 
+      # The audit is named by its audit_id, the single key the caller passes.
       reference_to Audit
       attribute :decided_by, DecidedBy, sets: true
       attribute :reason, Reason, sets: true
@@ -224,8 +237,8 @@ Hecks.bluebook "Catcher" do
 
     identified_by :audit
 
-    # The audit's identity as the Audit record writes it: its subject and raised_at, joined by a
-    # colon.
+    # The audit's audit_id, as the Audit record names it: one token, such as
+    # `git-add-2026-11-03T06:41:25Z`.
     value_object "AuditKey" do
       attribute :value, String
       invariant("a corrective action names its audit") { !value.to_s.empty? }
@@ -388,7 +401,7 @@ Hecks.bluebook "Catcher" do
 
   policy "StartWhenAccepted" do
     on      "Audit.AuditAccepted"
-    trigger CorrectiveAction::Start, with: { audit: :id }
+    trigger CorrectiveAction::Start, with: { audit: :audit_id }
   end
 
   # A requested drain asks the Spool port to read the spool. Each answer moves the drain on.
@@ -442,11 +455,13 @@ Hecks.bluebook "Catcher" do
 
   # A pattern that recurs enough is raised as an audit. Audit::Raise keeps its own givens, so
   # the run concludes only after the audit is recorded. The run is passed by its id: the tallied
-  # `run` field arrives wrapped, and a reference or key takes the plain id.
+  # `run` field arrives wrapped, and a reference or key takes the plain id. The tallied
+  # `audit_id` arrives wrapped too, as the value object it is.
   policy "RaiseWhenRecurring" do
     on      "Detection.Tallied"
     where   { calls.value >= 3 && sessions.value >= 2 && success_rate.value >= 0.8 }
     trigger Audit::Raise, with: {
+      audit_id: :audit_id,
       subject: :subject, kind: { value: "opportunity_for_improvement" }, count: :calls,
       sessions: :sessions, success_rate: :success_rate, proposal: :proposal,
       proposed_kind: :proposed_kind, aggregate_name: :aggregate_name, raised_at: :raised_at,

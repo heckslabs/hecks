@@ -13,7 +13,7 @@ RSpec.describe Hecks::Adapters::PatternTally do
   let(:wrapped) { described_class.new(settings: { path: path }).tally(run: { value: "d1" }) }
   let(:answer) { wrapped.transform_values { |held| held[:value] } }
   let(:nothing) do
-    { subject: "", calls: 0, sessions: 0, success_rate: 0.0, proposal: "", proposed_kind: "",
+    { audit_id: "none", subject: "", calls: 0, sessions: 0, success_rate: 0.0, proposal: "", proposed_kind: "",
       aggregate_name: "", raised_at: "" }
   end
 
