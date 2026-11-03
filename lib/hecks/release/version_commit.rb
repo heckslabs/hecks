@@ -20,20 +20,37 @@ module Hecks
 
       module_function
 
+      # The one definition of "the commit that set the version": the newest first-parent commit
+      # that touches the `VERSION =` line. `release.yml` (through `ruby -r hecks/release/version_commit`)
+      # and `publishing_run.publish` (the release facts) both ask this, so a bump that arrives in a
+      # merge is judged the same way by both.
+      #
+      # @param dir [String] the git work tree
+      # @param ref [String] where the search starts, `HEAD` unless a run stands elsewhere
+      # @return [String] the commit's id, empty when no commit sets the version
+      def commit(dir: Dir.pwd, ref: "HEAD", reader: nil)
+        ask(dir, reader, "log", "--first-parent", "-1", "--format=%H", "-G#{VERSION_LINE}", ref, "--", VERSION_FILE).strip
+      end
+
       # @param commit [String] the first-parent commit that touches the version file
       # @param dir [String] the git work tree
       # @return [String] the message of the commit that set the version
-      def message(commit, dir: Dir.pwd)
-        parents = git(dir, "rev-list", "--parents", "-n", "1", commit).split.drop(1)
-        side = parents.size > 1 ? side_message(dir, commit, parents) : ""
-        side.strip.empty? ? git(dir, "log", "-1", "--format=%B", commit) : side
+      def message(commit, dir: Dir.pwd, reader: nil)
+        parents = ask(dir, reader, "rev-list", "--parents", "-n", "1", commit).split.drop(1)
+        side = parents.size > 1 ? side_message(dir, reader, commit, parents) : ""
+        side.strip.empty? ? ask(dir, reader, "log", "-1", "--format=%B", commit) : side
       end
 
       # @return [String] the newest non-merge bump on the merged side, or "" when it has none
-      def side_message(dir, commit, parents)
-        git(dir, "log", "--no-merges", "-1", "--format=%B", "-G#{VERSION_LINE}", "#{parents.first}..#{commit}",
+      def side_message(dir, reader, commit, parents)
+        ask(dir, reader, "log", "--no-merges", "-1", "--format=%B", "-G#{VERSION_LINE}", "#{parents.first}..#{commit}",
             "--", VERSION_FILE)
       end
+
+      # @param reader [#read, nil] answers a git command in the checkout, as the release facts' runner
+      #   does; nil runs `git` in `dir`
+      # @return [String] what git prints for the arguments
+      def ask(dir, reader, *) = reader ? reader.read(*) : git(dir, *)
 
       # @return [String] what `git` prints in `dir`
       # @raise [GitFailed] when git refuses

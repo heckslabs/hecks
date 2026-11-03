@@ -491,6 +491,9 @@ module Hecks
         {"path"=>"packages/hecks-client/package.json", "lines"=>"^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"}.freeze,
         {"path"=>"packages/hecks-client/package-lock.json", "lines"=>"^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"}.freeze
       ].freeze,
+      "ReleaseOwner" => [
+        {"name"=>"Chris Young"}.freeze
+      ].freeze,
       "RequiredCheck" => [
         {"name"=>"rspec"}.freeze,
         {"name"=>"checks"}.freeze,

@@ -1084,6 +1084,20 @@ Hecks.bluebook "Bluebook" do
              release_trailer: "Release-Approved-By"
     end
 
+    # Who may approve a release: the name a `Release-Approved-By:` trailer (or a by-hand run's
+    # `approved_by`) must carry. `Hecks::Release::Approval` reads these rows, so a name that is not
+    # here approves nothing, in `release.yml`, in `publishing_run.publish` and in the release PR
+    # policy alike. The trailer's key is the `release_trailer` of the `Lane` row that feeds a tag.
+    #
+    # Two ways round a missing trailer are declared in `PublishingRun.Accept`, not here: a tag for
+    # the version already points at the release commit (a release that was begun was approved when it
+    # began), and a by-hand run names one of these rows.
+    value_object "ReleaseOwner" do
+      attribute :name, String
+
+      member name: "Chris Young"
+    end
+
     # A binary hecks builds once per change to its crate and publishes, so a client that needs the
     # same binary downloads it instead of compiling it (ADR 0110). `hecks regeneration_run.project_lanes!`
     # writes .github/workflows/publish-<name>.yml from each row; `Hecks::RustBuild::PrebuiltBinary`

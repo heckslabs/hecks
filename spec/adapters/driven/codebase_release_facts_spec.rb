@@ -37,9 +37,58 @@ RSpec.describe Hecks::Adapters::Codebase::ReleaseFacts do
   it "reads whether the commit that set the version carries the approval trailer", :aggregate_failures do
     expect(found[:approved]).to eq(value: false)
 
-    commands.answer("git", "log", "--first-parent", "-1", "--format=%B", "-G^ *VERSION = ", "--", "lib/hecks/version.rb",
-                    stdout: "Release 9.9.9\n\nRelease-Approved-By: Someone\n")
+    commands.answer("git", "log", "--first-parent", "-1", "--format=%H", stdout: "#{"d" * 40}\n")
+    commands.answer("git", "log", "-1", "--format=%B", "d" * 40,
+                    stdout: "Release 9.9.9\n\nRelease-Approved-By: Chris Young\n")
     expect(facts.gather("publish")[:approved]).to eq(value: true)
+  end
+
+  it "does not count a trailer written by someone who is not a release owner" do
+    commands.answer("git", "log", "--first-parent", "-1", "--format=%H", stdout: "#{"d" * 40}\n")
+    commands.answer("git", "log", "-1", "--format=%B", "d" * 40,
+                    stdout: "Release 9.9.9\n\nRelease-Approved-By: Someone\n")
+
+    expect(facts.gather("publish")[:approved]).to eq(value: false)
+  end
+
+  it "reports a CHANGELOG heading without a date as no changelog" do
+    File.write(File.join(root, "CHANGELOG.md"), "## [#{version}]\n")
+
+    expect(found[:changelog]).to eq(value: false)
+  end
+
+  it "reports whether every ReleaseFile row names the version", :aggregate_failures do
+    expect(found[:files_agree]).to eq(value: false)
+
+    write_release_files
+
+    expect(facts.gather("publish")[:files_agree]).to eq(value: true)
+  end
+
+  it "counts an ignored file under a packaged path as an unclean tree" do
+    commands.answer("git", "status", "--porcelain", "--ignored", stdout: "!! lib/stray.rb\n")
+
+    expect(found[:clean]).to eq(value: false)
+  end
+
+  def write_release_files
+    Hecks::Vocabulary.rows("ReleaseFile").each do |row|
+      path = File.join(root, row.fetch("path"))
+      FileUtils.mkdir_p(File.dirname(path))
+      File.write(path, release_file_text(row.fetch("path")))
+    end
+  end
+
+  # The line each ReleaseFile row looks for, naming the scratch version.
+  def release_file_text(path)
+    case path
+    when "CHANGELOG.md" then "## [#{version}] - 2026-01-01\n"
+    when "lib/hecks/version.rb" then %(  VERSION = "#{version}".freeze\n)
+    when "README.md" then "Current release: `#{version}`\n"
+    when "Gemfile.lock" then "    hecks (#{version})\n"
+    when "rust/host/HECKS_RELEASE" then "#{version}\n"
+    else %({\n  "version": "#{version}"\n}\n)
+    end
   end
 
   it "reads the IR version as a dotted number" do

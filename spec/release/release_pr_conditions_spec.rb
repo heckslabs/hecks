@@ -1,4 +1,7 @@
 require "spec_helper"
+require "fileutils"
+require "stringio"
+require "tmpdir"
 require "hecks/release/approval"
 require "hecks/release/conditions"
 
@@ -47,5 +50,59 @@ RSpec.describe Hecks::Release::Conditions do
 
     expect(Hecks::Release::Approval.verdict(message: message).first).to be(true)
     expect(Hecks::Release::Approval.approver(message)).to eq("Chris Young")
+  end
+
+  # The ReleaseFile rows are the one list of version files; `unmet` holds a checkout against them.
+  describe "against a checkout" do
+    let(:root) { Dir.mktmpdir("hecks-release-files") }
+    let(:version) { "9.9.9" }
+
+    after { FileUtils.remove_entry(root) }
+
+    def write(path, text)
+      FileUtils.mkdir_p(File.dirname(File.join(root, path)))
+      File.write(File.join(root, path), text)
+    end
+
+    def write_every_file
+      write("lib/hecks/version.rb", %(module Hecks\n  VERSION = "#{version}".freeze\nend\n))
+      write("CHANGELOG.md", "## [Unreleased]\n\n## [#{version}] - 2026-01-01\n")
+      write("README.md", "**Status:** Current release: `#{version}`. See x\n")
+      write("Gemfile.lock", "PATH\n    hecks (#{version})\n")
+      write("rust/host/HECKS_RELEASE", "#{version}\n")
+      %w[package.json package-lock.json].each do |file|
+        write("packages/hecks-client/#{file}", %({\n  "name": "@hecks/client",\n  "version": "#{version}",\n}\n))
+      end
+    end
+
+    it "finds nothing unmet when every ReleaseFile row names the version", :aggregate_failures do
+      write_every_file
+
+      expect(described_class.unmet(root, version)).to be_empty
+      expect(described_class.check(root: root, out: StringIO.new)).to eq(0)
+    end
+
+    it "names the host release file when it is at another version" do
+      write_every_file
+      write("rust/host/HECKS_RELEASE", "9.9.8\n")
+
+      expect(described_class.unmet(root, version).join).to include("rust/host/HECKS_RELEASE says \"9.9.8\"")
+    end
+
+    it "names a changelog heading that has no date", :aggregate_failures do
+      write_every_file
+      write("CHANGELOG.md", "## [#{version}]\n")
+      out = StringIO.new
+
+      expect(described_class.check(root: root, out: out)).to eq(1)
+      expect(out.string).to start_with("::error::").and include("dated")
+    end
+
+    it "names a file that is missing" do
+      write_every_file
+      FileUtils.rm(File.join(root, "Gemfile.lock"))
+
+      expect(described_class.unmet(root, version)).to include("Gemfile.lock is missing")
+    end
   end
 end
