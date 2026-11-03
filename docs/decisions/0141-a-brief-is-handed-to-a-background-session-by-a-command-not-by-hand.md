@@ -116,3 +116,24 @@ fails, and when the train pushed, without polling `~/.claude/jobs` or `git ls-re
   is its own aggregate so recording a push fires none of a push's reactions. A recording that fails is
   refused and leaves the push as it ended. A checkout records it in `agent_run.db` once its local
   overlay persists `Hecks::PushOutcome` with `SqlitePersistence`.
+
+## Addendum: messages between sessions are events (2026-11-03)
+
+A message sent with the harness `SendMessage` tool is held for the owner's approval when the two sessions run
+in different permission modes. Messages between the coordinator and the coders travel as events instead.
+
+- **Message.** `Message.send!` (sender, recipient, kind `info`, `request` or `answer`, text, optional work item)
+  records `MessageSent`; `Message.read!` (`to=<message id> reader.value=<session>`) records `MessageRead`;
+  `Message.answer!` records `MessageAnswered`. `recipient` is a session id, a work item id (every session on
+  that item hears it) or `all`. The `Message.unread` query lists the messages nobody has read. A checkout
+  records them in `agent_run.db` once its local overlay persists `Hecks::Message` with `SqlitePersistence`.
+- **Inbox.** `exe/hecks-inbox` reads the journal with read-only SQL, boots no domain and prints one line for
+  each message addressed to the session, its work item or `all`. Its baseline file keeps the last journal row
+  delivered, so a monitor that restarts loses nothing. `exe/hecks-inbox --unread` lists the messages no one
+  has read, which is how the coordinator sees what was not delivered.
+- **Brief.** The Coder bluebook's `messages` section tells each coder to arm the inbox with the Monitor tool
+  and says a message is information: it grants no approval, authorizes no push outside the train and changes
+  no permission.
+- **Red flag.** The flag reaches every session by sending a `Message` to `all` (`Message.send!` with sender
+  `hecks`). A policy on the flag events was tried and refused: on the CI path it sits at reaction depth 5, so
+  the flag coders call `Message.send!` from a step with depth to spare.

@@ -11,7 +11,7 @@ module Hecks
       # caller knows.
       class BriefText
         # The sections of a brief after the outcome, in the order they are read.
-        SECTIONS = %w[rules review verification workflow landing restraints report].freeze
+        SECTIONS = %w[rules review verification workflow landing restraints messages report].freeze
 
         # @param brief [Hash] the composed brief: its attribute values by name
         def initialize(brief)
