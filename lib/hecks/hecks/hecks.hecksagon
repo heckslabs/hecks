@@ -317,6 +317,7 @@ Hecks.hecksagon "Hecks" do
   Hecks::Dispatch.port "Dispatching" do
     asks "Choose", to: Dispatch do
       attribute :run, DispatchKey
+      attribute :only, Prefix, optional: true
       answers "DispatchReported"
       refuses "DispatchRefused"
     end
