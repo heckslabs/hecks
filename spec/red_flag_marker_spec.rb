@@ -46,9 +46,9 @@ RSpec.describe Hecks::Adapters::RedFlagMarker do
 
   it "records the kick: the branch, the commits reverted and the row filed", :aggregate_failures do
     marker.raise!(commit: "aaaaaaaaaaaa", run: run)
-    flag = marker.kicked!(branch: "red-kick-flag-aaaaaaaaaa", reverted: %w[a2 a1], row: "reland-flag-aaaaaaaaaa")
+    flag = marker.kicked!(branch: "red-main-flag-aaaaaaaaaa", reverted: %w[a2 a1], row: "red-flag-aaaaaaaaaa")
 
-    expect(flag["kicked"]).to include("branch" => "red-kick-flag-aaaaaaaaaa", "reverted" => %w[a2 a1])
+    expect(flag["kicked"]).to include("branch" => "red-main-flag-aaaaaaaaaa", "reverted" => %w[a2 a1])
     expect(marker.kicked!(branch: "x", reverted: [], row: "y")).to include("kicked")
   end
 

@@ -109,11 +109,11 @@ Hecks.bluebook "Hecks" do
 
       command "Kick" do
         role "Operator"
-        goal "Revert the push batch since the last green head off main as a red-* fix, once the flag has stood past kick_after_minutes with no fix landed, and file the batch as a Work row to land again"
+        goal "Revert the push batch since the last green head off main as a red-main-* fix, finish it onto main, board it, file a red-* Work row for the batch and dispatch one coder to bring it back green"
 
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
-        attribute :force,    Switch, optional: true, sets: true
+        attribute :force,    Switch, default: false, sets: true
 
         emits KickRequested
       end
@@ -128,6 +128,7 @@ Hecks.bluebook "Hecks" do
         attribute :ci_run, Report, optional: true, sets: true
         attribute :jobs,   Report, optional: true, sets: true
         attribute :work_items, Report, optional: true, sets: true
+        attribute :checkout,   Report, optional: true, sets: true
 
         emits RedFlagRaised
       end
@@ -231,7 +232,8 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRaisedFlag" do
       on      "RedFlag.FlagAnswered"
       where   { outcome.value == "raised" }
-      trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs, work_items: :work_items }
+      trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs,
+                                       work_items: :work_items, checkout: :checkout }
     end
 
     policy "RecordTheNotedRun" do
@@ -261,6 +263,13 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedFlag" do
       on      "RedFlag.FlagRefused"
       trigger RedFlag::Decline, with: { refusal: :refusal }
+    end
+
+    # A flag that goes up is kicked at once, by its own event: the kick needs no hand, and it refuses
+    # by name when it cannot (no green head, a release commit, a conflicting revert, a fix in flight).
+    policy "KickWhenRaised" do
+      on      "RedFlag.RedFlagRaised"
+      trigger RedFlag::Kick, with: { run: :flag, checkout: :checkout }
     end
 
     policy "EvictWhenKicked" do

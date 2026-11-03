@@ -2,42 +2,49 @@
 
 require "securerandom"
 require "time"
-require "hecks/runtime/dispatcher"
 require_relative "git"
 require_relative "console_capture"
 require_relative "red_flag_survey"
 require_relative "red_flag_kick/reverter"
+require_relative "red_flag_kick/effects"
+require_relative "red_flag_kick/work_row"
 
 module Hecks
   module Adapters
-    # Kicks the red push batch off main for a fixer: every first-parent commit since the last
-    # green head of main is reverted, newest first, on a branch named for the flag
-    # (`red-kick-<flag>`, a red row's fix, so Landing takes it while the flag stands), the branch
-    # lands on local main, and a Work row (`reland-<flag>`) is filed with the commits for their
-    # owner to land again once fixed. The push train boards the landed tip as the flag's fix, and
-    # the green run that follows lowers the flag. Nothing is force-pushed: the revert is a new
-    # commit.
+    # Kicks the red push batch off main for a standing flag, with no hand in it. Every first-parent
+    # commit since the last green head of main is reverted, newest first, on `red-main-<cause>`,
+    # a red row's fix. The branch is finished onto local main, the train boards the landed tip,
+    # a Work row `red-<cause>` is filed naming the failing jobs and the CI run, one coder is
+    # dispatched on its brief to bring the batch back green, and the kick's worktree is retired
+    # if it is still there. The revert is a new commit; nothing is force-pushed.
     #
     # It refuses, naming why, when no flag stands, a fix has already landed, the batch was already
-    # kicked, the flag has stood less than the world's `kick_after_minutes` (unless forced), the
-    # last green head cannot be told, or a revert conflicts; a refused kick leaves main as it was.
+    # kicked, a session is already fixing the flag, the flag has stood less than the world's
+    # `kick_after_minutes` (unless forced), the last green head cannot be told, the batch holds a
+    # release commit, or a revert or landing refuses. A refused kick leaves main as it was.
     class RedFlagKick
-      # The lead of the revert branch's name.
-      BRANCH = "red-kick-"
+      class << self
+        # @return [Hash{Symbol => #call}, nil] the steps a spec replaces (see {Effects})
+        attr_accessor :effects
+      end
 
-      # The lead of the Work row filed for the owner of the kicked batch.
-      ROW = "reland-"
+      # The lead of the revert branch's name.
+      BRANCH = "red-main-"
+
+      # The lead of the Work row filed for the batch.
+      ROW = "red-"
+
+      # The trailer that marks a release commit, which the owner alone may land.
+      RELEASE_TRAILER = /^Release-Approved-By:/
 
       # How long a flag stands before a kick, when the world says nothing.
       DEFAULT_MINUTES = 60
 
       # @param marker [RedFlagMarker] the repository's flag
       # @param checkout [String] a directory in the repository
-      # @param registry [Runtime::Registry, nil] the booted registry the landing and the row go
-      #   through
-      # @param tune [Hash] `clock:`, `runner:` (reads GitHub), `kick_after:` (minutes), `lander:`
-      #   (takes the branch and its worktree) and `filer:` (takes the flag, the batch and the
-      #   branch, answers the row) replace the defaults, for a spec
+      # @param registry [Runtime::Registry, nil] the booted registry the steps dispatch through
+      # @param tune [Hash] `clock:`, `runner:` (reads GitHub) and `kick_after:` (minutes)
+      #   replace the defaults, for a spec
       def initialize(marker, checkout, registry: nil, **tune)
         @marker = marker
         @checkout = checkout
@@ -53,29 +60,42 @@ module Hecks
       def run(force: false)
         flag = standing(force)
         batch = commits_since(last_green(flag))
+        refuse_release!(batch)
         branch = "#{BRANCH}#{flag["id"]}"
         tree = reverter.revert(branch, batch)
-        lander.call(branch, tree)
-        row = filer.call(flag, batch, branch)
-        reverter.tidy(branch, tree)
-        { flag: @marker.kicked!(branch: branch, reverted: batch, row: row), reverted: batch, branch: branch, row: row }
+        land(branch, tree)
+        publish(flag, batch, branch)
+        retire(branch, tree)
+        kicked(flag, batch, branch)
       end
 
       private
+
+      def kicked(flag, batch, branch)
+        row = WorkRow.new(flag, batch, branch).key
+        { flag: @marker.kicked!(branch: branch, reverted: batch, row: row), reverted: batch, branch: branch, row: row }
+      end
 
       def standing(force)
         flag = @marker.read or refuse("no red flag stands: nothing to kick")
         refuse("a fix is already landed at #{flag["fix_tip"][0, 10]} (#{flag["fix_branch"]}); board it") if flag["fix_tip"]
         refuse("the batch was already kicked to #{flag.dig("kicked", "branch")}") if flag["kicked"]
+        refuse_fixing!(flag)
         ripe!(flag) unless force
         flag
+      end
+
+      def refuse_fixing!(flag)
+        taking = Array(flag["checkins"]).map { |held| held["taking"].to_s }.find { |word| word.start_with?(ROW) }
+        refuse("#{taking} is already being fixed; the batch is not reverted") if taking
       end
 
       def ripe!(flag)
         stood = elapsed_minutes(flag)
         return if stood >= kick_after
 
-        refuse("#{flag["id"]} has stood #{stood} min, less than kick_after_minutes (#{kick_after}); force.value=true kicks now")
+        refuse("#{flag["id"]} has stood #{stood} min, less than kick_after_minutes (#{kick_after}); " \
+               "force.value=true kicks now")
       end
 
       def elapsed_minutes(flag)
@@ -105,38 +125,43 @@ module Hecks
         listed
       end
 
+      # A release is the owner's: a commit with a Release-Approved-By trailer is never reverted.
+      def refuse_release!(batch)
+        held = batch.find { |sha| out("log", "-1", "--format=%B", sha).match?(RELEASE_TRAILER) }
+        refuse("#{held[0, 10]} is a release commit; releases are the owner's, so the batch is not reverted") if held
+      end
+
       def reverter = Reverter.new(@git, @checkout)
 
-      def lander
-        @tune[:lander] || lambda do |branch, tree|
-          top_level("Hecks::Landing.Land", run: SecureRandom.uuid, checkout: tree, branch: branch, confirm: true)
-        end
+      def steps = @steps ||= Effects.new(@registry, @tune[:effects] || self.class.effects || {})
+
+      # A refused landing takes the kick's branch and worktree away, so main and the repository
+      # are as they were.
+      def land(branch, tree)
+        steps.run(:land, run: SecureRandom.uuid, checkout: tree, branch: branch, confirm: true)
+      rescue ConsoleCapture::Failure
+        reverter.tidy(branch, tree)
+        raise
       end
 
-      def filer
-        @tune[:filer] || lambda do |flag, batch, branch|
-          row = "#{ROW}#{flag["id"]}"
-          top_level("Tickets::Work.Plan", work: row, title: title(flag), detail: detail(flag, batch, branch))
-          row
-        end
+      def publish(flag, batch, branch)
+        work = WorkRow.new(flag, batch, branch)
+        steps.run(:board, run: SecureRandom.uuid, checkout: @checkout, confirm: true)
+        steps.run(:plan, work: work.key, title: work.title, detail: work.detail)
+        dispatch(work)
       end
 
-      # The landing and the row are dispatches of their own, as an operator would make them, not
-      # reactions of the kick: each starts its own reaction chain, so the depth the kick's ask
-      # reached does not count against the landing's.
-      def top_level(verb, **args)
-        depth = Thread.current[:hecks_reaction_depth]
-        Thread.current[:hecks_reaction_depth] = 0
-        Runtime::Dispatcher.new(@registry).dispatch_flat(verb, args)
-      ensure
-        Thread.current[:hecks_reaction_depth] = depth
+      # One coder, briefed on the row, with no agent named: the pipeline picks the agent.
+      def dispatch(work)
+        brief = steps.run(:brief, work: work.key, outcome: work.title, detail: work.detail)
+        steps.run(:dispatch, run: SecureRandom.uuid, repo: @checkout, brief: brief)
       end
 
-      def title(flag) = "Land again the push batch kicked off main for #{flag["id"]}, once its CI failure is fixed"
+      # A landing that finished has removed the worktree; one that left it is retired here.
+      def retire(branch, tree)
+        return unless File.directory?(tree)
 
-      def detail(flag, batch, branch)
-        "Main was red at #{flag["commit"]} (#{flag["id"]}); #{branch} reverted these commits, newest first: " \
-          "#{batch.join(", ")}. Fix the failure on a branch that reapplies them and land it; the revert stays on main."
+        steps.run(:retire, run: SecureRandom.uuid, checkout: tree, branch: branch, confirm: true)
       end
 
       def refuse(why) = raise(ConsoleCapture::Failure, why)

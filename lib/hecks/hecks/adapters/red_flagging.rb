@@ -28,8 +28,8 @@ module Hecks
       # @param settings [Hash] unused
       # @param root [String, nil] unused
       # @param registry [Runtime::Registry, nil] the booted registry a kick lands and files through
-      # @param tune [Hash] `checkout:` the repository, `clock:`, `runner:`, `lander:` and `filer:`
-      #   (for a spec)
+      # @param tune [Hash] `checkout:` the repository, `clock:`, `runner:` and `effects:`
+      #   (the kick's steps, for a spec)
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **tune)
         @registry = registry
         @tune = tune
@@ -41,17 +41,23 @@ module Hecks
       # @param held [Hash] the `RedFlag` record: `commit`, `detail`, `work_items`, `checkout`
       # @return [Hash{Symbol => Hash}] `outcome:` (`raised`, `noted` or `idle`) and the flag's facts
       def hoist(**held)
-        detail = pick(held, :detail, :report).to_s
-        facts = { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], work_items: plain(held[:work_items]),
-                  last_green: held[:last_green] }
+        facts = run_facts(held)
         state, flag = marker(held).raise!(commit: pick(held, :commit, :landed).to_s, run: facts)
         return unchanged("run #{facts[:ci_run]} is already recorded on #{flag["id"]}") if state == :unchanged
 
         answer(state.to_s, flag, facts)
       end
 
-      # Reverts the push batch since the last green head off main, as a red-* fix, once the flag
-      # has stood past the world's `kick_after_minutes` with no fix landed.
+      # The CI run, failed jobs, red Work items, last green head and repository of a red answer.
+      def run_facts(held)
+        detail = pick(held, :detail, :report).to_s
+        { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], work_items: plain(held[:work_items]),
+          last_green: held[:last_green],
+          checkout: checkout(held) }
+      end
+
+      # Reverts the push batch since the last green head off main, as a red-* fix, once the
+      # flag has stood past the world's `kick_after_minutes` with no fix landed.
       #
       # @param held [Hash] the `RedFlag` record: `checkout` and `force` (kick before the time is up)
       # @return [Hash{Symbol => Hash}] `outcome:` (`kicked`), the flag's facts, `detail:` the
@@ -109,7 +115,7 @@ module Hecks
           ci_run: { value: facts[:ci_run].to_s }, jobs: { value: facts[:jobs].to_s },
           work_items: { value: facts[:work_items].to_s },
           session: { value: facts[:session].to_s }, taking: { value: facts[:taking].to_s },
-          detail: { value: facts[:detail].to_s } }
+          detail: { value: facts[:detail].to_s }, checkout: { value: facts[:checkout].to_s } }
       end
 
       def unchanged(why) = { outcome: { value: "idle" }, output: { value: why.to_s } }

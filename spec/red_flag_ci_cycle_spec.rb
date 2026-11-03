@@ -33,12 +33,15 @@ RSpec.describe "the red flag over a real CI cycle" do
   before do
     open_repository
     @runs = [red]
+    @dispatched = []
     Hecks::Adapters::RedFlagging.runner = ->(argv, **) { github(argv) }
+    Hecks::Adapters::RedFlagKick.effects = cycle_effects
     QuietDesktopAlert.reset!
   end
 
   after do
     Hecks::Adapters::RedFlagging.runner = nil
+    Hecks::Adapters::RedFlagKick.effects = nil
     @hecks.registry.event_log.observer = nil
     FileUtils.remove_entry(dir)
   end
@@ -67,6 +70,26 @@ RSpec.describe "the red flag over a real CI cycle" do
     return [true, JSON.generate(@runs.select { |run| run["conclusion"] == "success" }.first(1))] if argv.include?("success")
 
     [true, JSON.generate(@runs.first(1))]
+  end
+
+  # The kick's steps, with the train, the coder and the quick gate left out: the landing is the real
+  # local one, so the fix's tip is recorded on the flag as it is in production.
+  def cycle_effects
+    {
+      land:     ->(**args) { cycle_dispatch("Hecks::Landing.Land", args) },
+      board:    ->(**) {},
+      brief:    ->(**args) { "brief for #{args[:work]}" },
+      dispatch: ->(**args) { @dispatched << args },
+      retire:   ->(**args) { git("worktree", "remove", "--force", args[:checkout]) && git("branch", "-D", args[:branch]) }
+    }
+  end
+
+  def cycle_dispatch(verb, args)
+    depth = Thread.current[:hecks_reaction_depth]
+    Thread.current[:hecks_reaction_depth] = 0
+    Hecks::Runtime::Dispatcher.new(@hecks.registry).dispatch_flat(verb, args)
+  ensure
+    Thread.current[:hecks_reaction_depth] = depth
   end
 
   def launch(*argv)
@@ -224,29 +247,30 @@ RSpec.describe "the red flag over a real CI cycle" do
     expect(@hecks.registry.reaction_log.drop(seen).map { |entry| entry[:reason].to_s }.grep(/reaction depth/)).to be_empty
   end
 
-  # A feature lands on a green main, CI turns red on it, and the flag is kicked at once.
+  # A feature lands on a green main and CI turns red on it: the red run raises the flag, and the
+  # flag's own event kicks the batch at once, with no hand in it.
   def kick_batch
     green_head = git("rev-parse", "main")
     bad = land("feature-bad")
     @runs = [red.merge("headSha" => bad), green.merge("headSha" => green_head)]
     sync
-    launch("RedFlag.kick!", "run=k-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "force.value=true", "--wait")
     [green_head, bad]
   end
 
-  it "kicks the push batch off main as a red row's fix", :aggregate_failures do
+  it "kicks the push batch off main as a red row's fix, from the flag's own event", :aggregate_failures do
     green_head, bad = kick_batch
 
     expect(git("rev-parse", "main^{tree}")).to eq(git("rev-parse", "#{green_head}^{tree}"))
-    expect(flag).to include("fix_tip" => git("rev-parse", "main"), "fix_branch" => "red-kick-flag-#{bad[0, 10]}")
+    expect(flag).to include("fix_tip" => git("rev-parse", "main"), "fix_branch" => "red-main-flag-#{bad[0, 10]}")
     expect(flag["kicked"]).to include("reverted" => [bad])
   end
 
-  it "files the kicked batch as a Work row to land again, and says so in the event", :aggregate_failures do
+  it "dispatches one coder on the Work row it files, and says so in the event", :aggregate_failures do
     _green_head, bad = kick_batch
 
-    expect(flag["kicked"]).to include("row" => "reland-flag-#{bad[0, 10]}")
-    expect(payload(events("RedFlagKicked").last).dig(:rows, :value)).to eq("reland-flag-#{bad[0, 10]}")
-    expect(payload(events("WorkPlanned").last).dig(:work, :value)).to eq("reland-flag-#{bad[0, 10]}")
+    expect(flag["kicked"]).to include("row" => "red-flag-#{bad[0, 10]}")
+    expect(payload(events("RedFlagKicked").last).dig(:rows, :value)).to eq("red-flag-#{bad[0, 10]}")
+    expect(payload(events("WorkPlanned").last).dig(:work, :value)).to eq("red-flag-#{bad[0, 10]}")
+    expect(@dispatched.map { |args| args[:brief] }).to eq(["brief for red-flag-#{bad[0, 10]}"])
   end
 end

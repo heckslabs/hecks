@@ -75,10 +75,11 @@ Hecks.world "Hecks" do
   # from the event itself (`Operation.follow` reads this log when a world declares it).
   event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000, payloads: %w[RedFlag]
   # The red flag's own settings: `kick_after_minutes` is how long a flag may stand with no fix landed
-  # before `RedFlag.kick!` reverts the push batch off main (ADR 0174). `board_sync_seconds` is how
+  # before the policy KickWhenRaised reverts the push batch off main (ADR 0174); 0 kicks as the flag
+  # goes up, and `RedFlag.kick!` by hand obeys the same wait. `board_sync_seconds` is how
   # often the PipelineBoard server, while it runs, reads main's newest CI run and asks
   # `RedFlag.sync!` to raise or lower the flag to match it; 0 switches that off.
-  red_flag "Flag", kick_after_minutes: 60, board_sync_seconds: 60
+  red_flag "Flag", kick_after_minutes: 0, board_sync_seconds: 60
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
