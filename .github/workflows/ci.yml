@@ -22,6 +22,9 @@ name: CI
 # `stable`. Path gates (the CiGate rows) still skip the work a change cannot affect.
 on:
   pull_request:
+  # GitHub's merge queue runs the same job set on each queued group (the synthetic merge
+  # commit), so a PR lands on main only after every required check passed on that commit.
+  merge_group:
   push:
     branches: [main]
   # Called by nightly-main.yml, which runs this same job set with attestation ignored
