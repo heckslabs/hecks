@@ -22,6 +22,11 @@
     "routed": true
   },
   {
+    "kind": "aggregate",
+    "id": "Identity::SignInSettings",
+    "generated": true
+  },
+  {
     "kind": "query",
     "id": "Identity::ExternalIdentifier.ResolvedBy",
     "generated": true

@@ -435,6 +435,235 @@
       "acknowledgements": [
 
       ]
+    },
+    {
+      "name": "SignInSettings",
+      "description": "The lifetimes, in whole seconds, and the email rule that sign-in reads from the bluebook that attaches it.",
+      "identified_by": [
+        "settings_key.value"
+      ],
+      "attributes": [
+        {
+          "name": "settings_key",
+          "type": "SettingsKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "session_seconds",
+          "type": "Seconds",
+          "list": false,
+          "default": {
+            "value": 1209600
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "handoff_seconds",
+          "type": "Seconds",
+          "list": false,
+          "default": {
+            "value": 60
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "sso_token_seconds",
+          "type": "Seconds",
+          "list": false,
+          "default": {
+            "value": 60
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "google_state_seconds",
+          "type": "Seconds",
+          "list": false,
+          "default": {
+            "value": 600
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "email_pattern",
+          "type": "EmailPattern",
+          "list": false,
+          "default": {
+            "value": "\\A[^@[:space:]]+@[^[:space:]]*[.][^[:space:]]*\\z"
+          },
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "SettingsKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a settings key is present",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Seconds",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "Integer",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "a lifetime is a positive number of seconds",
+              "canonical": "value.to_i.positive?",
+              "ast": {
+                "op": "sign_test",
+                "cmp": {
+                  "less_than": true,
+                  "equal": true,
+                  "negated": true
+                },
+                "receiver": {
+                  "op": "lookup",
+                  "path": [
+                    "value",
+                    "to_i"
+                  ]
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "EmailPattern",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an email pattern is present",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
+      "acknowledgements": [
+
+      ]
     }
   ],
   "read_models": [
@@ -464,6 +693,31 @@
       "capability": "identity",
       "key": "resolve",
       "verb": "ExternalIdentifier.ResolvedBy"
+    },
+    {
+      "capability": "sign_in",
+      "key": "session",
+      "verb": "SignInSettings.session_seconds"
+    },
+    {
+      "capability": "sign_in",
+      "key": "handoff",
+      "verb": "SignInSettings.handoff_seconds"
+    },
+    {
+      "capability": "sign_in",
+      "key": "sso_token",
+      "verb": "SignInSettings.sso_token_seconds"
+    },
+    {
+      "capability": "sign_in",
+      "key": "google_state",
+      "verb": "SignInSettings.google_state_seconds"
+    },
+    {
+      "capability": "sign_in",
+      "key": "email",
+      "verb": "SignInSettings.email_pattern"
     }
   ],
   "canonical_form": [

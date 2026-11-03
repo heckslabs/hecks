@@ -3,3 +3,4 @@ pub mod externalidentifier;
 pub mod identity;
 pub mod metadata;
 pub mod registry;
+pub mod signinsettings;

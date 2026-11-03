@@ -44,6 +44,9 @@ pub struct Store {
     pub externalidentifier: crate::kernel::InMemoryRepository<
         crate::generated::identity::externalidentifier::ExternalIdentifier,
     >,
+    pub signinsettings: crate::kernel::InMemoryRepository<
+        crate::generated::identity::signinsettings::SignInSettings,
+    >,
     pub bulkrun: crate::kernel::InMemoryRepository<crate::generated::bulk::bulkrun::BulkRun>,
 }
 
@@ -65,6 +68,7 @@ impl Store {
             roletransition: crate::kernel::InMemoryRepository::new(),
             identity: crate::kernel::InMemoryRepository::new(),
             externalidentifier: crate::kernel::InMemoryRepository::new(),
+            signinsettings: crate::kernel::InMemoryRepository::new(),
             bulkrun: crate::kernel::InMemoryRepository::new(),
         }
     }
@@ -142,6 +146,12 @@ impl Store {
         for (id, record) in self.externalidentifier.entries() {
             instances.push((
                 format!("{}{}", "Identity::ExternalIdentifier#", id),
+                record.to_json(),
+            ));
+        }
+        for (id, record) in self.signinsettings.entries() {
+            instances.push((
+                format!("{}{}", "Identity::SignInSettings#", id),
                 record.to_json(),
             ));
         }
@@ -272,6 +282,15 @@ impl Store {
                 }
                 if let Some(id) = key.strip_prefix("Identity::ExternalIdentifier#") {
                     store.externalidentifier.save(id, crate::generated::identity::externalidentifier::ExternalIdentifier::from_json(value)?);
+                    continue;
+                }
+                if let Some(id) = key.strip_prefix("Identity::SignInSettings#") {
+                    store.signinsettings.save(
+                        id,
+                        crate::generated::identity::signinsettings::SignInSettings::from_json(
+                            value,
+                        )?,
+                    );
                     continue;
                 }
                 if let Some(id) = key.strip_prefix("Bulk::BulkRun#") {
@@ -418,6 +437,14 @@ impl crate::kernel::AggregateScan for Store {
                     .collect(),
             );
         }
+        if aggregate == "Identity::SignInSettings" {
+            return Some(
+                self.signinsettings
+                    .json_entries(|record| record.to_json())
+                    .map(|(id, json)| (id.clone(), json.clone()))
+                    .collect(),
+            );
+        }
         if aggregate == "Bulk::BulkRun" {
             return Some(
                 self.bulkrun
@@ -529,6 +556,12 @@ impl crate::kernel::AggregateScan for Store {
                 .externalidentifier
                 .json_entries(|record| record.to_json())
             {
+                visit(id, json);
+            }
+            return true;
+        }
+        if aggregate == "Identity::SignInSettings" {
+            for (id, json) in self.signinsettings.json_entries(|record| record.to_json()) {
                 visit(id, json);
             }
             return true;
@@ -4931,6 +4964,7 @@ pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
             target: "Identity::Identity",
         }],
     ),
+    ("Identity::SignInSettings", &[]),
     ("Bulk::BulkRun", &[]),
 ];
 
@@ -5023,6 +5057,12 @@ impl crate::kernel::ReferenceLookup for Store {
         if target == "Identity::ExternalIdentifier" {
             return self
                 .externalidentifier
+                .find(id)
+                .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
+        }
+        if target == "Identity::SignInSettings" {
+            return self
+                .signinsettings
                 .find(id)
                 .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
         }
@@ -5338,6 +5378,7 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Governance::RoleTransition" => Some("role_transition"),
         "Identity::Identity" => Some("identity"),
         "Identity::ExternalIdentifier" => Some("external_identifier"),
+        "Identity::SignInSettings" => Some("sign_in_settings"),
         "Bulk::BulkRun" => Some("bulk_run"),
         _ => None,
     }
@@ -5433,6 +5474,7 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Banking::ScheduledPayment" => Some("instruction"),
         "Identity::Identity" => Some("identity_id"),
         "Identity::ExternalIdentifier" => Some("key"),
+        "Identity::SignInSettings" => Some("settings_key"),
         "Bulk::BulkRun" => Some("run"),
         _ => None,
     }
@@ -7128,6 +7170,7 @@ pub fn present(aggregate: &str, state: crate::kernel::Json) -> crate::kernel::Js
         "Identity::ExternalIdentifier" => {
             crate::generated::identity::externalidentifier::present(state)
         }
+        "Identity::SignInSettings" => crate::generated::identity::signinsettings::present(state),
         "Bulk::BulkRun" => crate::generated::bulk::bulkrun::present(state),
         _ => state,
     }

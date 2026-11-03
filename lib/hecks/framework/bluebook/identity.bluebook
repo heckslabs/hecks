@@ -83,4 +83,45 @@ Hecks.bluebook "Identity" do
       where(issuer: :issuer, subject: :subject)
     end
   end
+
+  # What a sign-in host reads from this bluebook, declared rather than hard-coded in the host:
+  # how long a session and each token it mints stays valid, and the one rule an email address must
+  # meet. The host reads each verb's resolved `default:` from `ir.json`'s `provides` map. The
+  # 30-second clock skew and the 60-second maximum token life are protocol constants of the
+  # platform sign-in verifier, not settings, and stay in the host.
+  provides "sign_in",
+           session:      "SignInSettings.session_seconds",
+           handoff:      "SignInSettings.handoff_seconds",
+           sso_token:    "SignInSettings.sso_token_seconds",
+           google_state: "SignInSettings.google_state_seconds",
+           email:        "SignInSettings.email_pattern"
+
+  # The settings a sign-in host reads. Each is one declared default, never edited at runtime.
+  aggregate "SignInSettings" do
+    description "The lifetimes, in whole seconds, and the email rule that sign-in reads from the bluebook that attaches it."
+
+    attribute :settings_key,         SettingsKey
+    attribute :session_seconds,      Seconds,      default: { value: 1_209_600 }
+    attribute :handoff_seconds,      Seconds,      default: { value: 60 }
+    attribute :sso_token_seconds,    Seconds,      default: { value: 60 }
+    attribute :google_state_seconds, Seconds,      default: { value: 600 }
+    attribute :email_pattern,        EmailPattern, default: { value: '\A[^@[:space:]]+@[^[:space:]]*[.][^[:space:]]*\z' }
+
+    identified_by :settings_key
+
+    value_object "SettingsKey" do
+      attribute :value, String
+      invariant("a settings key is present") { !value.to_s.empty? }
+    end
+
+    value_object "Seconds" do
+      attribute :value, Integer
+      invariant("a lifetime is a positive number of seconds") { value.to_i.positive? }
+    end
+
+    value_object "EmailPattern" do
+      attribute :value, String
+      invariant("an email pattern is present") { !value.to_s.empty? }
+    end
+  end
 end

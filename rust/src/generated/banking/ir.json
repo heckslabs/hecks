@@ -11249,9 +11249,31 @@
   "attaches_to": [
 
   ],
-  "provides": [
-
-  ],
+  "provides": {
+    "sign_in": {
+      "provider": "Identity",
+      "session": {
+        "attribute": "session_seconds",
+        "default": 1209600
+      },
+      "handoff": {
+        "attribute": "handoff_seconds",
+        "default": 60
+      },
+      "sso_token": {
+        "attribute": "sso_token_seconds",
+        "default": 60
+      },
+      "google_state": {
+        "attribute": "google_state_seconds",
+        "default": 600
+      },
+      "email": {
+        "attribute": "email_pattern",
+        "default": "\\A[^@[:space:]]+@[^[:space:]]*[.][^[:space:]]*\\z"
+      }
+    }
+  },
   "canonical_form": [
     {
       "strategy": "collapse_whitespace",
