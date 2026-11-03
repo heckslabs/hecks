@@ -61,9 +61,9 @@ RSpec.describe "PipelineBoard readings" do
     tiles.find { |tile| tile[:id] == "working" }
   end
 
-  it "counts only sessions dispatched for a Work row against the cap, and says how many are alive" do
-    live = [{ status: "busy", row: "a" }, { status: "busy", row: "" }, { status: "blocked", row: "" },
-            { status: "done", row: "b" }]
+  it "counts only sessions dispatched for a Work item against the cap, and says how many are alive" do
+    live = [{ status: "busy", work_item: "a" }, { status: "busy", work_item: "" }, { status: "blocked", work_item: "" },
+            { status: "done", work_item: "b" }]
     expect(working(live)).to include(value: 1, unit: "of 8", detail: "3 sessions alive, 1 blocked on you; load unknown")
   end
 

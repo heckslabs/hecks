@@ -206,7 +206,7 @@ jobs:
       # representative fixture domains itself; no real AWS or Postgres
       # touched, so this belongs here rather than in `rspec`.
       # `command_names` and `workflow_pagination` also run here, not in the push: they read the tree
-      # for launcher names and list calls, and a red one files a Work row, not a blocked push.
+      # for launcher names and list calls, and a red one files a Work item, not a blocked push.
       - name: lint generated deploy recipes
         run: bundle exec exe/hecks gate_run.gate! stage=ci only=lint_deploy_recipes,command_names,workflow_pagination --wait
 

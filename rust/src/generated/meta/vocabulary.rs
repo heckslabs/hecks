@@ -5692,7 +5692,7 @@ pub const QA_DIAL: &[QaDial] = &[
     QaDial { name: "structural_refusal_boundary", r#type: "Array", meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest." },
     QaDial { name: "red_main_check", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step." },
     QaDial { name: "event_pump", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless." },
-    QaDial { name: "push_nudge", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting." },
+    QaDial { name: "push_nudge", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work item; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting." },
     QaDial { name: "quiesced", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step." },
     QaDial { name: "main_maintenance", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain." },
     QaDial { name: "maintenance_confirm", r#type: "Boolean", meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing." },
@@ -6194,6 +6194,100 @@ impl RetiredScript {
                     "qa_fix_main_bug",
                     "qa_concurrency_racer",
                 ],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Term {
+    pub term: &'static str,
+    pub aggregate: &'static str,
+    pub meaning: &'static str,
+    pub never: &'static str,
+}
+
+pub const TERM: &[Term] = &[
+    Term { term: "work item", aggregate: "Work", meaning: "One planned, started or done piece of Work, keyed by its id: what the Tickets bluebook's Work aggregate holds, what a brief is composed for, what a branch is cut for and what a landing finishes.", never: "row" },
+];
+
+impl Term {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "term".to_string(),
+                crate::kernel::Json::Str(self.term.to_string()),
+            ),
+            (
+                "aggregate".to_string(),
+                crate::kernel::Json::Str(self.aggregate.to_string()),
+            ),
+            (
+                "meaning".to_string(),
+                crate::kernel::Json::Str(self.meaning.to_string()),
+            ),
+            (
+                "never".to_string(),
+                crate::kernel::Json::Str(self.never.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["term", "aggregate", "meaning", "never"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Term",
+                    unknown: &unknown,
+                    declared: &["term", "aggregate", "meaning", "never"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("term"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Term.term expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("aggregate"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Term.aggregate expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("meaning"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Term.meaning expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("never"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Term.never expects String, got nil".to_string(),
+            ));
+        }
+        for row in TERM {
+            if v.get("term").and_then(crate::kernel::Json::as_str) == Some(row.term)
+                && v.get("aggregate").and_then(crate::kernel::Json::as_str) == Some(row.aggregate)
+                && v.get("meaning").and_then(crate::kernel::Json::as_str) == Some(row.meaning)
+                && v.get("never").and_then(crate::kernel::Json::as_str) == Some(row.never)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("term")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "Term",
+                admitted: &["work item"],
                 offered: offered.as_str(),
             }
             .render_args(),

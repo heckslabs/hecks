@@ -1,10 +1,10 @@
 Hecks.behaviors "Tickets" do
-  vision "A decision is proposed, then accepted or withdrawn, and possibly superseded. A step of a plan carries out " \
+  vision "A decision is proposed, then accepted or withdrawn, and possibly superseded. A work item of a plan carries out " \
          "an accepted decision and moves planned, started, done; or it is dropped with a reason, or lapses with its decision."
 
   loads "tickets.bluebook", "tickets.hecksagon", "tickets.ports.hecksagon"
 
-  test "Plan enters a step as planned" do
+  test "Plan enters a work item as planned" do
     tests "Plan", on: "Work"
     setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
     setup  "Tickets::Adr.Accept", adr: { value: "0001" }
@@ -12,7 +12,7 @@ Hecks.behaviors "Tickets" do
     expect status: "planned"
   end
 
-  test "Plan refuses a step with no title" do
+  test "Plan refuses a work item with no title" do
     tests "Plan", on: "Work"
     input work: { value: "w2" }, title: { value: "" }, decision: "0001"
     expect refused: "a piece of work has a title"
@@ -24,7 +24,7 @@ Hecks.behaviors "Tickets" do
     expect refused: "a step is not negative"
   end
 
-  test "Start moves a planned step to started" do
+  test "Start moves a planned work item to started" do
     tests "Start", on: "Work"
     setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
     setup  "Tickets::Adr.Accept", adr: { value: "0001" }
@@ -34,7 +34,7 @@ Hecks.behaviors "Tickets" do
     expect status: "started"
   end
 
-  test "Finish closes a started step as done" do
+  test "Finish closes a started work item as done" do
     tests "Finish", on: "Work"
     setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
     setup  "Tickets::Adr.Accept", adr: { value: "0001" }
@@ -45,7 +45,7 @@ Hecks.behaviors "Tickets" do
     expect status: "done"
   end
 
-  test "Finish closes a planned step that was never started" do
+  test "Finish closes a planned work item that was never started" do
     tests "Finish", on: "Work"
     setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
     setup  "Tickets::Adr.Accept", adr: { value: "0001" }
@@ -54,7 +54,7 @@ Hecks.behaviors "Tickets" do
     expect status: "done"
   end
 
-  test "Drop sets a step aside with the reason" do
+  test "Drop sets a work item aside with the reason" do
     tests "Drop", on: "Work"
     setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
     setup  "Tickets::Adr.Accept", adr: { value: "0001" }
@@ -63,7 +63,7 @@ Hecks.behaviors "Tickets" do
     expect status: "dropped"
   end
 
-  test "Lapse drops a step whose decision does not stand" do
+  test "Lapse drops a work item whose decision does not stand" do
     tests "Lapse", on: "Work"
     setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
     setup  "Tickets::Adr.Accept", adr: { value: "0001" }
@@ -72,7 +72,7 @@ Hecks.behaviors "Tickets" do
     expect status: "dropped"
   end
 
-  test "Start refuses a step that is already done" do
+  test "Start refuses a work item that is already done" do
     tests "Start", on: "Work"
     setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
     setup  "Tickets::Adr.Accept", adr: { value: "0001" }

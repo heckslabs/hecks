@@ -11,8 +11,8 @@
 # or not GitHub answers: each lifecycle event asks the port, and a refused ask is recorded on the
 # finding as a sync failure that a later run retries.
 #
-# An Adr is a decision record with its own lifecycle, linked to the finding it settles. A Work is a
-# step of the plan a decision carries, and stays inside Hecks.
+# An Adr is a decision record with its own lifecycle, linked to the finding it settles. A Work is a work item:
+# one step of the plan a decision carries, and it stays inside Hecks.
 Hecks.bluebook "Tickets" do
   vision "Track what Hecks needs, decide it, ship it, and drive GitHub from the record."
 
@@ -279,10 +279,11 @@ Hecks.bluebook "Tickets" do
     end
   end
 
-  # A step of a plan, held under the decision it carries out. It drives nothing outside: planned
-  # work is the maintainer's own list, not an issue.
+  # A work item: one planned, started or done piece of Work, keyed by its id and held under the
+  # decision it carries out. It drives nothing outside: planned work is the maintainer's own list, not
+  # an issue.
   aggregate "Work" do
-    description "One step of a plan: planned, started, then done or dropped, under the decision it carries out."
+    description "One work item: a planned, started or done piece of Work, keyed by its id, under the decision it carries out."
     created_by "Work.plan!"
 
     attribute :work,   WorkKey
@@ -298,24 +299,24 @@ Hecks.bluebook "Tickets" do
     identified_by :work
 
     # A path prefix or glob a claim covers. Two areas overlap by `Hecks::Adapters::AreaOverlap`;
-    # a row with no area claims nothing.
+    # a work item with no area claims nothing.
     value_object "Word" do
       attribute :value, String, matches: :present
     end
 
-    # The session that claimed a started step, named as the session names itself. A step back in the
-    # plan holds the empty claimant; `Start` refuses one that names nobody.
+    # The session that claimed a started work item, named as the session names itself. One back in
+    # the plan holds the empty claimant; `Start` refuses one that names nobody.
     value_object "Claimant" do
       attribute :value, String, default: ""
     end
 
     # When the claim was taken, as the caller reads the clock: an ISO 8601 instant. Empty while the
-    # step is unclaimed.
+    # work item is unclaimed.
     value_object "ClaimedAt" do
       attribute :value, String, default: ""
     end
 
-    # How long a claim may run, in whole minutes. A row with none, or zero, has no budget; a step
+    # How long a claim may run, in whole minutes. A work item with none, or zero, has no budget; one
     # back in the plan holds zero.
     value_object "Minutes" do
       attribute :value, Integer
@@ -365,7 +366,7 @@ Hecks.bluebook "Tickets" do
     # refused here, and one not accepted lapses the step at once (CheckDecisionWhenPlanned).
     command "Plan" do
       role "Maintainer"
-      goal "Enter a step of a plan under the decision it carries out"
+      goal "Enter a work item of a plan under the decision it carries out"
 
       attribute :work,   WorkKey, sets: true
       attribute :title,  WorkTitle, sets: true
@@ -381,10 +382,10 @@ Hecks.bluebook "Tickets" do
       emits "WorkPlanned"
     end
 
-    # A step still open takes what a later look at it found: the row stays one, its title and
+    # A work item still open takes what a later look at it found: the item stays one, its title and
     # detail move.
     command "Revise" do
-      goal "Replace an open step's title and detail with what a later look found"
+      goal "Replace an open work item's title and detail with what a later look found"
 
       reference_to Work
       attribute :title,  WorkTitle, sets: true
@@ -393,10 +394,11 @@ Hecks.bluebook "Tickets" do
       emits "WorkRevised"
     end
 
-    # A started step is claimed: the second Start on it is refused, since only a planned step starts.
+    # A started work item is claimed: the second Start on it is refused, since only a planned one
+    # starts.
     command "Start" do
       role "Maintainer"
-      goal "Claim a planned step for one session, recording who claimed it and when"
+      goal "Claim a planned work item for one session, recording who claimed it and when"
 
       reference_to Work
       attribute :claimed_by, Claimant, sets: true
@@ -410,12 +412,12 @@ Hecks.bluebook "Tickets" do
       emits "WorkStarted"
     end
 
-    # A started step that may not go on goes back to the plan with the refusal as its reason: its
-    # area overlapped another started step's, it would start more steps than the cap allows (the
-    # WorkAreas or WorkLimits port refuses it by name), or the architect's review of its plan said
-    # rethink and the coder session handed it back.
+    # A started work item that may not go on goes back to the plan with the refusal as its reason:
+    # its area overlapped another started work item's, it would start more work items than the cap
+    # allows (the WorkAreas or WorkLimits port refuses it by name), or the architect's review of its
+    # plan said rethink and the coder session handed it back.
     command "Yield" do
-      goal "Return a started step to the plan, with the refusal that sent it back"
+      goal "Return a started work item to the plan, with the refusal that sent it back"
 
       reference_to Work
       attribute :reason, WorkText, sets: true
@@ -428,9 +430,9 @@ Hecks.bluebook "Tickets" do
       emits "WorkYielded"
     end
 
-    # A claim gone stale returns its step to the plan, so the next session can claim it.
+    # A claim gone stale returns its work item to the plan, so the next session can claim it.
     command "Release" do
-      goal "Return a started step to planned, releasing its claim"
+      goal "Return a started work item to planned, releasing its claim"
 
       reference_to Work
 
@@ -444,7 +446,7 @@ Hecks.bluebook "Tickets" do
 
     command "Finish" do
       role "Maintainer"
-      goal "Record that a step is done"
+      goal "Record that a work item is done"
 
       reference_to Work
 
@@ -453,7 +455,7 @@ Hecks.bluebook "Tickets" do
 
     command "Drop" do
       role "Maintainer"
-      goal "Set a step aside without doing it, with the reason"
+      goal "Set a work item aside without doing it, with the reason"
 
       reference_to Work
       attribute :reason, WorkText, sets: true
@@ -461,10 +463,10 @@ Hecks.bluebook "Tickets" do
       emits "WorkDropped"
     end
 
-    # A step whose cause came back (a spec red again after it was cleared) is planned again, with
-    # the new title and detail.
+    # A work item whose cause came back (a spec red again after it was cleared) is planned again,
+    # with the new title and detail.
     command "Reopen" do
-      goal "Return a finished or dropped step to planned because its cause returned"
+      goal "Return a finished or dropped work item to planned because its cause returned"
 
       reference_to Work
       attribute :title,  WorkTitle, sets: true
@@ -473,10 +475,10 @@ Hecks.bluebook "Tickets" do
       emits "WorkReopened"
     end
 
-    # A step whose decision does not stand is dropped with it: the decision was superseded, or the
-    # step was planned or reopened under one that is not accepted.
+    # A work item whose decision does not stand is dropped with it: the decision was superseded,
+    # or the work item was planned or reopened under one that is not accepted.
     command "Lapse" do
-      goal "Drop a step whose decision does not stand, with the reason"
+      goal "Drop a work item whose decision does not stand, with the reason"
 
       reference_to Work
       attribute :reason, WorkText, sets: true
@@ -485,28 +487,28 @@ Hecks.bluebook "Tickets" do
     end
 
     query "Undone" do
-      description "Every step not yet done or dropped, in plan order."
+      description "Every work item not yet done or dropped, in plan order."
       where(status: { in: "planned,started" })
       order_by :step
     end
 
-    # The first step still planned in plan order: the next one a coder session claims.
+    # The first work item still planned in plan order: the next one a coder session claims.
     query "NextPlanned" do
-      description "The oldest step not yet claimed, in plan order: the brief a coder session reads next."
+      description "The oldest work item not yet claimed, in plan order: the brief a coder session reads next."
       where(status: "planned")
       order_by :step
       limit 1
     end
 
     query "Under" do
-      description "Every step of the plan one decision carries, in plan order."
+      description "Every work item of the plan one decision carries, in plan order."
       attribute :adr, String
       where(decision: :adr)
       order_by :step
     end
 
     query "UndoneUnder" do
-      description "The steps of one decision's plan not yet done or dropped: the ones its superseding drops."
+      description "The work items of one decision's plan not yet done or dropped: the ones its superseding drops."
       attribute :adr, String
       where(decision: :adr, status: { in: "planned,started" })
       order_by :step
@@ -549,7 +551,8 @@ Hecks.bluebook "Tickets" do
     ask     :reopen_issue, with: { finding: :finding }
   end
 
-  # A started step with an area asks the WorkAreas port whether another started step holds any of it.
+  # A started work item with an area asks the WorkAreas port whether another started one holds any
+  # of it.
   policy "CheckAreaWhenStarted" do
     on      "Work.WorkStarted"
     ask     :check_area, with: { work: :work }
@@ -560,9 +563,9 @@ Hecks.bluebook "Tickets" do
     trigger Work::Yield, with: { reason: :refusal }
   end
 
-  # A started step asks the WorkLimits port whether it is one too many for the concurrency cap. It is
-  # declared after the area check, so a step that clashes is already back in the plan when the cap
-  # looks, and the cap yields only a step still started.
+  # A started work item asks the WorkLimits port whether it is one too many for the concurrency cap.
+  # It is declared after the area check, so a work item that clashes is already back in the plan when
+  # the cap looks, and the cap yields only a work item still started.
   policy "CheckCapWhenStarted" do
     on      "Work.WorkStarted"
     ask     :check_cap, with: { work: :work }
@@ -573,7 +576,7 @@ Hecks.bluebook "Tickets" do
     trigger Work::Yield, with: { reason: :refusal }
   end
 
-  # A superseded decision takes its undone steps with it.
+  # A superseded decision takes its undone work items with it.
   policy "LapseWorkWhenSuperseded" do
     on       "Adr.AdrSuperseded"
     for_each "Work.UndoneUnder"
@@ -597,17 +600,17 @@ Hecks.bluebook "Tickets" do
     trigger Work::Lapse, with: { reason: :refusal }
   end
 
-  # A coder's submitted branch is named for its work step, so the branch is the step's key and the
-  # policy routes it with no parsing (`with:` only routes fields). A branch naming no step is refused
+  # A coder's submitted branch is named for its work item, so the branch is the work item's key and the
+  # policy routes it with no parsing (`with:` only routes fields). A branch naming no work item is refused
   # by the Finish command: the refusal names Work.
   policy "FinishWhenWorkSubmitted" do
     on      "Submission.WorkSubmitted"
     trigger Work::Finish, with: { work: :branch }
   end
 
-  # A branch that landed on local main finishes the step it was cut for. The Landing's LandedWork
-  # port found the open step the branch names (the whole branch name, else the name without a leading
-  # `qa/`) and answered its key; a branch with no open step is refused there and never reaches here.
+  # A branch that landed on local main finishes the work item it was cut for. The Landing's LandedWork
+  # port found the open work item the branch names (the whole branch name, else the name without a leading
+  # `qa/`) and answered its key; a branch with no open work item is refused there and never reaches here.
   policy "FinishWorkWhenBranchLanded" do
     on      "Landing.LandedWorkFound"
     trigger Work::Finish, with: { work: :branch }
@@ -624,27 +627,28 @@ Hecks.bluebook "Tickets" do
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 
-  # A spec file that went red on main is a step QA picks up: `Work.undone` lists it. The spec's own key is
-  # the step's key, so a second red run, which only updates the spec, plans nothing twice. The step
-  # carries out ADR 0174, under which a red main stops landing until it is green.
+  # A spec file that went red on main is a work item QA picks up: `Work.undone` lists it. The spec's
+  # own key is the work item's key, so a second red run, which only updates the spec, plans nothing
+  # twice. The work item carries out ADR 0174, under which a red main stops landing until it is
+  # green.
   policy "PlanWorkWhenSpecWentRed" do
     on      "RedSpec.SpecWentRed"
     trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail, decision: "0174" }
   end
 
-  # A file that fails again after it was cleared plans its finished step again.
+  # A file that fails again after it was cleared plans its finished work item again.
   policy "ReopenWorkWhenSpecWentRedAgain" do
     on      "RedSpec.SpecWentRedAgain"
     trigger Work::Reopen, with: { work: :spec, title: :title, detail: :detail }
   end
 
-  # The run that no longer fails the file closes its step.
+  # The run that no longer fails the file closes its work item.
   policy "FinishWorkWhenSpecWentGreen" do
     on      "RedSpec.SpecWentGreen"
     trigger Work::Finish, with: { work: :spec }
   end
 
-  # QA's push check: a push that is due beyond the world's thresholds is one step, `push-due`. A look
+  # QA's push check: a push that is due beyond the world's thresholds is one work item, `push-due`. A look
   # that finds it already open revises its detail; a look that finds it no longer due finishes it.
   # No decision of its own records the push nudge, so the step is filed under ADR 0175, which
   # requires every step to name one, until such a decision is written.

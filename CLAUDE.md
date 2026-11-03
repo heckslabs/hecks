@@ -66,12 +66,12 @@ is cut from `origin/main`, not local `main`: check `git merge-base --is-ancestor
 
 Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
 model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
-A red main stands a **red flag** (`RedFlag`, `lib/hecks/hecks/redflag/redflag.bluebook`): a CI run of main that completes red raises it (`Integration.CiFailed`, or `exe/hecks RedFlag.sync! run.value=<id>`), and one that completes green lowers it. While it stands, `Landing` and `SendTrain` refuse by name (`main is red: flag <id>`) everything except the fix of a red-* Work row (exe/hecks tickets Work.undone lists them): a branch named for the row lands and its tip is the one commit the train boards. A session listens with `exe/hecks Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600` (RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn, RedFlagCleared), says it helps with `exe/hecks RedFlag.check_in! run.value=<id> session.value=<name> taking.value=<row or cause>`, and resumes on RedFlagCleared; `exe/hecks RedFlag.status` prints the flag, the red time and who is helping. Everything else lands locally with landing.land! once the flag is down.
+A red main stands a **red flag** (`RedFlag`, `lib/hecks/hecks/redflag/redflag.bluebook`): a CI run of main that completes red raises it (`Integration.CiFailed`, or `exe/hecks RedFlag.sync! run.value=<id>`), and one that completes green lowers it. While it stands, `Landing` and `SendTrain` refuse by name (`main is red: flag <id>`) everything except the fix of a red-* Work item (exe/hecks tickets Work.undone lists them): a branch named for the Work item lands and its tip is the one commit the train boards. A session listens with `exe/hecks Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600` (RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn, RedFlagCleared), says it helps with `exe/hecks RedFlag.check_in! run.value=<id> session.value=<name> taking.value=<Work item or cause>`, and resumes on RedFlagCleared; `exe/hecks RedFlag.status` prints the flag, the red time and who is helping. Everything else lands locally with landing.land! once the flag is down.
 
 ## Briefing a session
 
 A brief is an outcome, not a list of stop signs. `Coder::Brief.compose!` (`lib/hecks/coder/coder.bluebook`)
-builds it from a Work row: the title and detail as the outcome, the row's `area` (omitted when the row has
+builds it from a Work item: the title and detail as the outcome, its `area` (omitted when the item has
 none), and the standing rules, which live in that bluebook and are not restated in agent prompts. Map the
 whole picture, act on everything in the area, stop only for a risk of losing data, an owner-only action, or
 a change outside the area, and report what was stuck first.
@@ -225,9 +225,9 @@ impacted specs through the launcher. Branch worktrees through `LinkedTree.add!`,
 (`era.rename_domain!`) moves a renamed domain's history. The world words are `disposable_ledger`,
 `stored_as` (the table an aggregate's rows keep after a rename), `formerly` (a domain's former name) and
 `minting` (the command an unminted boot may write). **QA and dispatch:** `qa_quiesce.hold!`, `release!`
-and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Work rows and
+and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Work items and
 `Dispatch.Settle` finishes the rows of sessions that ended (`delegate/delegate.bluebook`); a landed
-branch finishes the Work row of the same name (or the same name without a leading `qa/`). The Tickets
+branch finishes the Work item of the same name (or the same name without a leading `qa/`). The Tickets
 world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
 CI checks `command_names` and `workflow_pagination` keep the names in docs, workflows and guides
 resolvable and lists paged; the spec suite holds the meta-domain covered.
@@ -270,7 +270,7 @@ commit must pass as `RequiredCheck` rows beside them.
   `hecks gate_run.gate! stage=quick --wait` runs it by hand and is worth running before every
   commit. Everything slower (fuzzing, the engine and model checks, command names, workflow
   pagination, the spec suite, the push-chain specs) runs after the push, in CI and the nightly run,
-  and blocks promotion to `stable`, never the push; a red one files a Work row. `hecks send_train.board!
+  and blocks promotion to `stable`, never the push; a red one files a Work item. `hecks send_train.board!
   --confirm full_gate.value=true` runs the whole `pre_push` stage when you ask for it. Never
   force-push `main`, and never use `--admin`.
   **The push is isolated.** `send_train.board!` pushes the boarded commit, by its id, from a throwaway detached
