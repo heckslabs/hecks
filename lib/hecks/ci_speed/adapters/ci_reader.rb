@@ -3,6 +3,7 @@
 require "json"
 require "open3"
 require "time"
+require "hecks/vocabulary"
 require "hecks/runtime/errors"
 
 module Hecks
@@ -74,7 +75,7 @@ module Hecks
         JSON.parse(out)
       end
 
-      PASSING_JOB_CONCLUSIONS = %w[success skipped].freeze
+      PASSING_JOB_CONCLUSIONS = Hecks::Vocabulary.fetch("PassingConclusion")
       private_constant :PASSING_JOB_CONCLUSIONS
 
       # Everything up to the first line break.
