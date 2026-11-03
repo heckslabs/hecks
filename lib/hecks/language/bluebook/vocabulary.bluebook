@@ -937,6 +937,13 @@ Hecks.bluebook "Bluebook" do
              argv: "",
              script: "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n",
              blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result."
+      # The read-only form of `vocabulary_drift`, for a stage that must not write (`boarding`): each
+      # projection runs in dry-run, and a table that would change refuses the stage with its name.
+      member name: "vocabulary_check", id: "vocabulary_drift",
+             title: "vocabulary, the reserved-name tables must match their projections (read only)",
+             argv: "",
+             script: "for projection in project_vocabulary project_reserved_names; do\n  out=\"$(bundle exec exe/hecks language_run.$projection! --wait)\"\n  printf '%s\\n' \"$out\"\n  case \"$out\" in *'dry run'*) echo \"$projection: a generated table is stale; regenerate it outside the boarding and commit what it changed\"; exit 1;; esac\ndone\n",
+             blocked: "a generated vocabulary table is stale; regenerate it with `hecks language_run.project_vocabulary! --confirm` (or project_reserved_names) and commit what it changed."
       member name: "ci_gates", id: "ci_gates",
              title: "ci gates, the CiGate rows must match the marked regions of the workflows",
              argv: "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait",
@@ -1005,6 +1012,9 @@ Hecks.bluebook "Bluebook" do
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+      # The drift checks a push train runs before it carries a branch (`SendTrain.Board`). Every check
+      # here only compares: none writes a file, so a boarding never dirties the checkout it carries.
+      member name: "boarding", env: "", checks: "codegen_drift,vocabulary_check,ci_gates"
     end
 
     # What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalStage` is one
