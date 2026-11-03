@@ -12,31 +12,31 @@ RSpec.describe "Hecks::Tools::StubScope" do
 
   describe ".find" do
     it "reads the finding key from a Ruby comment marker" do
-      stubs = described_class.find([grep_line("lib/a.rb", 3, "  # hecks-stub: dc-main")])
+      stubs = tool.find([grep_line("lib/a.rb", 3, "  # hecks-stub: dc-main")])
 
       expect(stubs.map { |s| [s.path, s.line, s.key] }).to eq([["lib/a.rb", 3, "dc-main"]])
     end
 
     it "reads a Rust marker" do
-      stubs = described_class.find([grep_line("src/a.rs", 9, "    // hecks-stub: BUG-152")])
+      stubs = tool.find([grep_line("src/a.rs", 9, "    // hecks-stub: BUG-152")])
 
       expect(stubs.map(&:key)).to eq(["BUG-152"])
     end
 
     it "flags a marker that names no finding" do
-      stubs = described_class.find([grep_line("lib/a.rb", 1, "# hecks-stub:")])
+      stubs = tool.find([grep_line("lib/a.rb", 1, "# hecks-stub:")])
 
       expect(stubs.first.to_s).to include("names no finding")
     end
 
     it "leaves out the files that define the marker" do
-      stubs = described_class.find([grep_line("lib/hecks/tools/stub_scope.rb", 1, "# hecks-stub: x")])
+      stubs = tool.find([grep_line("lib/hecks/tools/stub_scope.rb", 1, "# hecks-stub: x")])
 
       expect(stubs).to be_empty
     end
 
     it "ignores text that is not a marker comment" do
-      expect(described_class.find([grep_line("lib/a.rb", 1, "x = 'hecks-stub: nope'")])).to be_empty
+      expect(tool.find([grep_line("lib/a.rb", 1, "x = 'hecks-stub: nope'")])).to be_empty
     end
   end
 end
