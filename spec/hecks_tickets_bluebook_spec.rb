@@ -1,22 +1,24 @@
 require "spec_helper"
 
-# The Tickets bluebook is attached to the Hecks domain: Finding, Adr and Work are declared in it,
-# the finding's lifecycle drives GitHub through the GitHubIssues port, a refused ask never blocks
-# the finding, and a Work step stays inside Hecks.
+# The Tickets bluebook is attached to the Hecks domain: Finding, Adr, Work, Lesson and Sighting are
+# declared in it, the finding's lifecycle drives GitHub through the GitHubIssues port, a refused ask
+# never blocks the finding, and a Work step stays inside Hecks.
 RSpec.describe "the Tickets bluebook" do
+  def declared = %w[Finding Adr Work Lesson Sighting]
+
   before(:all) do
     @hecks = InMemoryDomain.boot_hecks_in_memory
     @bluebook = @hecks.registry.bluebook("Tickets")
   end
 
-  it "declares Finding, Adr and Work, and leaves Release to the Hecks domain and Ticket to QualityControl" do
-    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
+  it "declares its aggregates, and leaves Release to the Hecks domain and Ticket to QualityControl" do
+    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly(*declared)
   end
 
   it "boots standing alone, as a fuzz or model_check boot of its directory does" do
     standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_driving: false)
 
-    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
+    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly(*declared)
   end
 
   it "gives a Finding the commands of its lifecycle" do
