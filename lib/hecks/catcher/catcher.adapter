@@ -1,7 +1,0 @@
-# Binds the `Spool` port to `SpoolFile`, which answers `Drain`'s `Read` ask from the spool file.
-# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
-require "hecks/catcher/adapters/spool_file"
-
-Hecks.adapter "SpoolFile" do
-  port "Spool"
-end

@@ -4813,18 +4813,6 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "generated_tree", id: "generated_tree", title: "whole-tree specs, the examples tagged generated_all against every domain's generated Rust", argv: "bundle exec rspec --tag generated_all", script: "", blocked: "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`.", runs_in: "" },
     GateCheck { name: "rust_clippy", id: "rust_clippy", title: "clippy, every Rust crate with its warnings as errors", argv: "", script: "for crate in . parser codegen lsp host web build; do\n  cargo clippy --all-targets --manifest-path \"rust/$crate/Cargo.toml\" -- -D warnings\ndone\n", blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator.", runs_in: "" },
     GateCheck { name: "lint_deploy_recipes", id: "lint_deploy_recipes", title: "generated deploy recipes, a command with no checked exit status or no echo", argv: "bundle exec exe/hecks deploy MakefileCheck.lint! --wait", script: "", blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen.", runs_in: "" },
-    GateCheck { name: "landing_context_map_hecks", id: "landing_context_map_hecks", title: "context map, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/context_map_hecks_spec.rb", script: "", blocked: "spec/context_map_hecks_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_reference_doctest", id: "landing_reference_doctest", title: "reference doctests, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/reference_doctest_spec.rb", script: "", blocked: "spec/reference_doctest_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_mcp_argument_policy", id: "landing_mcp_argument_policy", title: "MCP argument policy, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/mcp_argument_policy_spec.rb", script: "", blocked: "spec/mcp_argument_policy_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_glossary", id: "landing_glossary", title: "glossary, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/glossary_spec.rb", script: "", blocked: "spec/glossary_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_reference_golden", id: "landing_reference_golden", title: "reference golden, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/reference_golden_spec.rb", script: "", blocked: "spec/reference_golden_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_cli_help_snapshot", id: "landing_cli_help_snapshot", title: "CLI help snapshot, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/cli_help_snapshot_spec.rb", script: "", blocked: "spec/cli_help_snapshot_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_hecks_model_check", id: "landing_hecks_model_check", title: "model check, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/hecks_model_check_spec.rb", script: "", blocked: "spec/hecks_model_check_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_dsl_coverage", id: "landing_dsl_coverage", title: "DSL coverage, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/dsl_coverage_spec.rb", script: "", blocked: "spec/dsl_coverage_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_word_coverage", id: "landing_word_coverage", title: "word coverage, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/word_coverage_spec.rb", script: "", blocked: "spec/word_coverage_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_load_hygiene", id: "landing_load_hygiene", title: "load hygiene, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/load_hygiene_spec.rb", script: "", blocked: "spec/load_hygiene_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_hecks_tickets_bluebook", id: "landing_hecks_tickets_bluebook", title: "tickets bluebook, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/hecks_tickets_bluebook_spec.rb", script: "", blocked: "spec/hecks_tickets_bluebook_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
-    GateCheck { name: "landing_bounded_context", id: "landing_bounded_context", title: "bounded context, on a depth-1 clone of the branch (landing)", argv: "bundle exec rspec spec/bounded_context_spec.rb", script: "", blocked: "spec/bounded_context_spec.rb is red on a shallow clone of the branch; the first failure line names it.", runs_in: "" },
     GateCheck { name: "fuzz_1_of_3", id: "fuzz_1_of_3", title: "fuzz, shard 1 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=1/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
     GateCheck { name: "fuzz_2_of_3", id: "fuzz_2_of_3", title: "fuzz, shard 2 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=2/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
     GateCheck { name: "fuzz_3_of_3", id: "fuzz_3_of_3", title: "fuzz, shard 3 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=3/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
@@ -4974,18 +4962,6 @@ impl GateCheck {
                     "generated_tree",
                     "rust_clippy",
                     "lint_deploy_recipes",
-                    "landing_context_map_hecks",
-                    "landing_reference_doctest",
-                    "landing_mcp_argument_policy",
-                    "landing_glossary",
-                    "landing_reference_golden",
-                    "landing_cli_help_snapshot",
-                    "landing_hecks_model_check",
-                    "landing_dsl_coverage",
-                    "landing_word_coverage",
-                    "landing_load_hygiene",
-                    "landing_hecks_tickets_bluebook",
-                    "landing_bounded_context",
                     "fuzz_1_of_3",
                     "fuzz_2_of_3",
                     "fuzz_3_of_3",
@@ -5022,7 +4998,6 @@ pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt" },
     GateStage { name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec" },
     GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words" },
-    GateStage { name: "landing", env: "HECKS_ENVIRONMENT=memory", checks: "landing_context_map_hecks,landing_reference_doctest,landing_mcp_argument_policy,landing_glossary,landing_reference_golden,landing_cli_help_snapshot,landing_hecks_model_check,landing_dsl_coverage,landing_word_coverage,landing_load_hygiene,landing_hecks_tickets_bluebook,landing_bounded_context,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
     GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
@@ -5091,7 +5066,7 @@ impl GateStage {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "GateStage",
-                admitted: &["pre_push", "ci_suite", "quick", "landing", "rust_io", "ci"],
+                admitted: &["pre_push", "ci_suite", "quick", "rust_io", "ci"],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -5263,113 +5238,6 @@ impl RehearsalScope {
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "RehearsalScope",
                 admitted: &["quick", "deep"],
-                offered: offered.as_str(),
-            }
-            .render_args(),
-        ))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct LandingTrigger {
-    pub name: &'static str,
-    pub pattern: &'static str,
-}
-
-pub const LANDING_TRIGGER: &[LandingTrigger] = &[
-    LandingTrigger {
-        name: "bluebook",
-        pattern: "\\.bluebook\\z",
-    },
-    LandingTrigger {
-        name: "hecksagon",
-        pattern: "\\.hecksagon\\z",
-    },
-    LandingTrigger {
-        name: "behaviors",
-        pattern: "\\.behaviors\\z",
-    },
-    LandingTrigger {
-        name: "world",
-        pattern: "\\.world\\z",
-    },
-    LandingTrigger {
-        name: "context_map",
-        pattern: "\\.contextmap\\z",
-    },
-    LandingTrigger {
-        name: "spec",
-        pattern: "\\Aspec/.*_spec\\.rb\\z",
-    },
-    LandingTrigger {
-        name: "generator",
-        pattern: "\\Alib/hecks/.*(generat|command|projection).*\\.rb\\z",
-    },
-];
-
-impl LandingTrigger {
-    pub fn to_json(&self) -> crate::kernel::Json {
-        crate::kernel::Json::Object(vec![
-            (
-                "name".to_string(),
-                crate::kernel::Json::Str(self.name.to_string()),
-            ),
-            (
-                "pattern".to_string(),
-                crate::kernel::Json::Str(self.pattern.to_string()),
-            ),
-        ])
-    }
-
-    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
-        // `validate!`'s order: a name the set does not declare, then a field left out, then
-        // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "pattern"]);
-        if !unknown.is_empty() {
-            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
-            return Err(crate::kernel::Refusal::UnknownArgument(
-                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
-                    command: "LandingTrigger",
-                    unknown: &unknown,
-                    declared: &["name", "pattern"],
-                }
-                .render_args(),
-            ));
-        }
-        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "LandingTrigger.name expects String, got nil".to_string(),
-            ));
-        }
-        if matches!(v.get("pattern"), None | Some(crate::kernel::Json::Null)) {
-            return Err(crate::kernel::Refusal::TypeMismatch(
-                "LandingTrigger.pattern expects String, got nil".to_string(),
-            ));
-        }
-        for row in LANDING_TRIGGER {
-            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
-                && v.get("pattern").and_then(crate::kernel::Json::as_str) == Some(row.pattern)
-            {
-                return Ok(row.clone());
-            }
-        }
-        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
-        let offered = v
-            .get("name")
-            .map(|offered| offered.inspect())
-            .unwrap_or_else(|| "nil".to_string());
-        Err(crate::kernel::Refusal::InvariantViolation(
-            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
-                r#type: "LandingTrigger",
-                admitted: &[
-                    "bluebook",
-                    "hecksagon",
-                    "behaviors",
-                    "world",
-                    "context_map",
-                    "spec",
-                    "generator",
-                ],
                 offered: offered.as_str(),
             }
             .render_args(),

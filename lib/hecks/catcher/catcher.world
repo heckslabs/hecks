@@ -1,9 +1,0 @@
-# Where the Catcher records live: one SQLite file in the ~/.claude/hecks-dev directory, beside the
-# spool and its cursor. `File.expand_path` resolves the home directory when the world loads, so no
-# user's path is written here. SQLite does not expand `~` itself.
-Hecks.world "Catcher" do
-  # Every aggregate binds to SQLite unless its own hecksagon says otherwise.
-  default_adapter "SqlitePersistence"
-  # The one file all four aggregates keep their rows in.
-  default_database File.expand_path("~/.claude/hecks-dev/catcher.db")
-end
