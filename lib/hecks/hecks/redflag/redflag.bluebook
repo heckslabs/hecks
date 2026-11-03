@@ -49,8 +49,8 @@ Hecks.bluebook "Hecks" do
         transition "Record"  => "raised",     from: "requested"
         transition "Note"    => "noted",      from: "requested"
         transition "Welcome" => "checked_in", from: "requested"
-        transition "Lift"    => "cleared",    from: ["requested", "kicked"]
-        transition "Eject"   => "kicked",     from: "requested"
+        transition "Lift"    => "cleared",    from: %w[requested raised noted checked_in kicked]
+        transition "Eject"   => "kicked",     from: %w[requested raised noted checked_in]
         transition "Settle"  => "idle",       from: "requested"
         transition "Decline" => "refused",    from: "requested"
         mark :terminal, "raised", "noted", "checked_in", "cleared", "idle", "refused"
@@ -259,43 +259,10 @@ Hecks.bluebook "Hecks" do
       trigger RedFlag::Decline, with: { refusal: :refusal }
     end
 
-    # A flag that goes up is kicked at once, by its own event: the kick rolls main back to the last
-    # green tree and needs no hand. It refuses by name when it cannot (no green head, a release
-    # commit, a restore that fails, foreign commits on local main, a fix in flight).
-    policy "KickWhenRaised" do
-      on      "RedFlag.RedFlagRaised"
-      trigger RedFlag::Kick, with: { run: :flag, checkout: :checkout }
-    end
-
-    # A restore whose tree is a tree CI already passed is green at once: the kick is recorded, the
-    # flag lowered and the owner told, all on the one answer.
-    policy "RecordTheRestoredKick" do
-      on      "RedFlag.FlagAnswered"
-      where   { outcome.value == "restored" }
-      trigger RedFlag::Eject, with: { flag: :flag, commit: :commit, detail: :detail, work_items: :work_items }
-    end
-
-    policy "LowerTheFlagWhenRestored" do
-      on      "RedFlag.FlagAnswered"
-      where   { outcome.value == "restored" }
-      trigger RedFlag::Lift, with: { flag: :flag, commit: :commit }
-    end
-
-    policy "TellTheOwnerWhenRestored" do
-      on      "RedFlag.FlagAnswered"
-      where   { outcome.value == "restored" }
-      ask     :flag, with: { run: :run, outcome: :outcome, flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs }
-    end
-
+    # `RedFlag.kick!` by hand asks the same rollback the raised flag asks for below.
     policy "EvictWhenKicked" do
       on      "RedFlag.KickRequested"
       ask     :evict, with: { run: :run }
-    end
-
-    policy "RecordTheKick" do
-      on      "RedFlag.FlagAnswered"
-      where   { outcome.value == "kicked" }
-      trigger RedFlag::Eject, with: { flag: :flag, commit: :commit, detail: :detail, work_items: :work_items }
     end
 
     # The owner hears the flag go up and come down on the desktop. The alert is asked beside the
@@ -311,6 +278,19 @@ Hecks.bluebook "Hecks" do
       on      "RedFlag.FlagAnswered"
       where   { outcome.value == "cleared" }
       ask     :flag, with: { run: :run, outcome: :outcome, flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs }
+    end
+
+    # A flag that goes up is kicked at once, on the answer that raised it, last among the policies
+    # that hear it (the record and the owner's alert come first). Hearing the answer rather than
+    # the event keeps a flag raised by CI's saga within the reaction depth bound. The kick rolls
+    # main back to the last green tree and needs no hand; it records its own events (RedFlagKicked,
+    # then RedFlagCleared when the restored tree is a tree CI already passed) and declines by name
+    # when it cannot (no green head, a release commit, a restore that fails, foreign commits on
+    # local main, a fix in flight), and the answer says why.
+    policy "KickWhenRaised" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "raised" }
+      ask     :evict, with: { run: :run }
     end
 
     # A CI observation that ends red raises the flag; one that ends green lowers it. The policies hear
