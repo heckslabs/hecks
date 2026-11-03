@@ -1,0 +1,473 @@
+# The Catcher bluebook: the actions a session takes outside any declared command. The calls a
+# drain of the spool reads are kept as one sitting (Observation), judged as a pattern against the
+# declared rules (Audit), and, once a person accepts the audit, led to a corrective action
+# (CorrectiveAction). The judgment keeps the ISO vocabulary: nonconformity,
+# opportunity_for_improvement, or observation_only.
+#
+# A drain asks the Spool port to read and keeps the lines as one sitting. The sitting then asks
+# the spool cursor to acknowledge the read, so the cursor moves only after the sitting is kept.
+# A read that holds no lines keeps no sitting and asks for no acknowledge: the drain completes.
+#
+# Roles are checked by Governance, which the Catcher hecksagon attaches. A role here is a
+# name Governance grants through its RoleAssignments, never a list kept in this domain.
+# Accept and Dismiss are a person's decisions, so they run as Operator. `decided_by` is the
+# actor_id the caller names; the runtime does not fill it.
+Hecks.bluebook "Catcher" do
+  vision "Raw actions seen outside any declared command are kept, judged, and either brought under a declared command or dismissed."
+
+  # One sitting: the tool calls one drain read from the spool, kept as they were seen. The word
+  # Observation names the sitting, which holds many calls.
+  aggregate "Observation" do
+    description "One sitting: many tool calls drained from the spool at once, kept as seen."
+
+    attribute :sitting, SittingKey
+    attribute :calls,   list_of(Call)
+    attribute :through, Count
+    identified_by :sitting
+
+    # The drain's run key. One drain is one sitting, so a drain read again is a second sitting.
+    value_object "SittingKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # One tool call in a sitting, as the spool line held it. `call_id` is the line's own id,
+    # unique to that call. The fields are flat, so a list of calls takes each one as it is.
+    value_object "Call" do
+      # The line's own id, unique to one call.
+      attribute :call_id,     String, matches: :present
+      # Where the action was seen: `bash`, `git`, `gh`, `make`, an MCP tool or a file edit.
+      attribute :source,      String, matches: :present
+      # The program that ran, such as `git`.
+      attribute :tool,        String, matches: :present
+      # The subcommand words of the action, with its arguments blanked: `git status`, never the
+      # arguments themselves.
+      attribute :subject,     String, matches: :present
+      attribute :succeeded,   Boolean
+      # The session the action was seen in, as its identifier.
+      attribute :observed_in, String, matches: :present
+      # A UTC instant to the second, ending in Z: the moment the action was seen.
+      attribute :observed_at, String,
+                pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+    end
+
+    # How far into the spool the drain read when it kept this sitting.
+    value_object "Count" do
+      attribute :value, Integer
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    # One sitting, recorded from one drain's answer. Nothing here changes or removes a sitting:
+    # the only command adds one, so the log only grows.
+    command "Record" do
+      role "System"
+      goal "Keep one sitting: the tool calls one drain read from the spool"
+
+      sets :sitting
+      sets :calls
+      sets :through
+
+      emits ObservationRecorded
+    end
+  end
+
+  # The judgment of a pattern of observations against the declared rules. An adapter counts the
+  # recurrence and raises an audit; a person accepts it into corrective action or dismisses it.
+  aggregate "Audit" do
+    description "One pattern of observed actions, judged against the declared rules: raised, then accepted or dismissed, never deleted."
+
+    attribute :subject,        Subject
+    attribute :kind,           AuditKind
+    attribute :count,          Count
+    attribute :sessions,       Count
+    attribute :success_rate,   SuccessRate
+    attribute :proposal,       Proposal
+    attribute :proposed_kind,  ProposedKind
+    attribute :aggregate_name, AggregateName
+    attribute :raised_at,      Timestamp
+    attribute :decided_by,     DecidedBy, optional: true
+    attribute :reason,         Reason, optional: true
+    # The detection run that raised this audit. The run concludes once the audit is recorded.
+    reference_to Detection
+
+    # The subject and the moment it was raised: a pattern raised again after a dismissal is a
+    # second audit, the same way a role granted again is a second assignment.
+    identified_by :subject, :raised_at
+
+    value_object "Subject" do
+      attribute :value, String
+      invariant("an audit names the pattern it concerns") { !value.to_s.empty? }
+    end
+
+    # nonconformity: an observed action breaks a declared rule. opportunity_for_improvement: a
+    # pattern a declared command would serve better. observation_only: seen, not yet judged.
+    value_object "AuditKind" do
+      attribute :value, String,
+                one_of: ["nonconformity", "opportunity_for_improvement", "observation_only"]
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    # The share of the pattern's observations that succeeded, from 0.0 to 1.0.
+    value_object "SuccessRate" do
+      attribute :value, Float
+      invariant("a success rate is between 0 and 1") { value >= 0 && value <= 1 }
+    end
+
+    # The DSL block that would bring the pattern under a declared command, aggregate, lifecycle
+    # or invariant. For a command, lifecycle or invariant, the text is meant to sit inside the
+    # aggregate named by aggregate_name; for an aggregate, the text is that aggregate. Text for a
+    # person to read and paste; nothing here evaluates it.
+    value_object "Proposal" do
+      attribute :value, String
+    end
+
+    # command, lifecycle or invariant: the proposal text is meant to sit inside the aggregate
+    # named by aggregate_name. aggregate: the proposal text is meant to be that aggregate.
+    value_object "ProposedKind" do
+      attribute :value, String, one_of: ["command", "aggregate", "lifecycle", "invariant"]
+    end
+
+    # The PascalCase name of the aggregate the proposal sits in, or is, such as `Audit`.
+    value_object "AggregateName" do
+      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*$'
+      invariant("an aggregate name is present") { !value.to_s.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+      invariant("a timestamp is present") { !value.to_s.empty? }
+    end
+
+    # The actor_id the caller names for the person who accepted or dismissed the audit. The
+    # runtime does not fill it. Governance's own IdentityId is not shared across bluebooks, so
+    # this restates it.
+    value_object "DecidedBy" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a dismissal gives its reason") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "raised" do
+      transition "Accept"  => "accepted",  from: "raised"
+      transition "Dismiss" => "dismissed", from: "raised"
+      mark :terminal, "accepted", "dismissed"
+    end
+
+    command "Raise" do
+      role "System"
+      goal "Record a pattern of observed actions as an audit, judged against the declared rules"
+
+      given("a pattern has at least 3 calls") { count.value >= 3 }
+      given("a pattern is seen in at least 2 sessions") { sessions.value >= 2 }
+      given("a pattern has a success rate of at least 0.8") { success_rate.value >= 0.8 }
+
+      sets :subject
+      sets :kind
+      sets :count
+      sets :sessions
+      sets :success_rate
+      sets :proposal
+      sets :proposed_kind
+      sets :aggregate_name
+      reference_to Detection
+
+      sets :raised_at
+      sets :detection
+
+      emits AuditRaised
+    end
+
+    command "Accept" do
+      role "Operator"
+      goal "Take an audit on, so that a corrective action is started for it"
+
+      reference_to Audit
+      attribute :decided_by, DecidedBy, sets: true
+
+      emits AuditAccepted
+    end
+
+    command "Dismiss" do
+      role "Operator"
+      goal "Decline an audit, and say why"
+
+      reference_to Audit
+      attribute :decided_by, DecidedBy, sets: true
+      attribute :reason, Reason, sets: true
+
+      emits AuditDismissed
+    end
+
+    # A new raise reads this first, so the same pattern is not raised twice.
+    query "RaisedFor" do
+      description "Every raised audit of one subject, oldest first."
+      attribute :subject, String
+      where(status: "raised", subject: :subject)
+      order_by :raised_at
+    end
+  end
+
+  # The action one accepted audit leads to: one corrective action per audit, started by a
+  # policy when the audit is accepted.
+  aggregate "CorrectiveAction" do
+    description "The corrective action one accepted audit leads to, and the Work row that carries it out."
+
+    attribute :audit, AuditKey
+    attribute :work,  WorkKey, optional: true
+    attribute :phase, ActionPhase
+
+    identified_by :audit
+
+    # The audit's identity as the Audit record writes it: its subject and raised_at, joined by a
+    # colon.
+    value_object "AuditKey" do
+      attribute :value, String
+      invariant("a corrective action names its audit") { !value.to_s.empty? }
+    end
+
+    # The identifier of the Work row this action started, when one was started for it.
+    value_object "WorkKey" do
+      attribute :value, String
+    end
+
+    # Started is the only phase the model declares; more may be added.
+    value_object "ActionPhase" do
+      attribute :value, String
+      invariant("an action has a phase") { !value.to_s.empty? }
+    end
+
+    command "Start" do
+      role "System"
+      goal "Begin the corrective action an accepted audit leads to"
+
+      sets :audit
+      sets :work
+      sets :phase, to: "started"
+
+      emits CorrectiveActionStarted
+    end
+  end
+
+  # One reading of the spool file the hook appends to. The Spool port answers each ask: a read
+  # answers the lines the spool holds, and an acknowledge moves its cursor past them. The port
+  # never writes a line; the bluebook says what a drain is and how it ends.
+  aggregate "Drain" do
+    description "One reading of the spool: read and kept as a sitting, or refused with the reason."
+
+    attribute :run,     DrainKey
+    attribute :through, Count,  optional: true
+    attribute :refusal, Reason, optional: true
+    identified_by :run
+
+    value_object "DrainKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # How far into the spool a drain read: the spool lines consumed so far, from its first line.
+    value_object "Count" do
+      attribute :value, Integer
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a refusal gives its reason") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Complete" => "drained", from: "requested"
+      transition "Decline"  => "refused", from: "requested"
+      mark :terminal, "drained", "refused"
+    end
+
+    # A person asks for one drain of the spool.
+    command "Request" do
+      role "Operator"
+      goal "Read the spool once, so that the lines it holds are kept as one sitting"
+
+      sets :run
+
+      emits DrainRequested
+    end
+
+    # Runs once the sitting is kept and the spool acknowledged, so the drain ends after its work.
+    command "Complete" do
+      role "System"
+      goal "Record how far into the spool the drain read, once its sitting is kept"
+
+      reference_to Drain
+      attribute :through, Count, sets: true
+
+      emits DrainCompleted
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why the spool could not be read"
+
+      reference_to Drain
+      attribute :refusal, Reason, sets: true
+
+      emits DrainDeclined
+    end
+  end
+
+  # One detection run: an adapter tallies the recurring patterns in the sittings and names the best
+  # candidate with no audit yet. The run raises that candidate as an audit, settles as quiet when
+  # nothing recurs enough, or is refused. One run raises at most one audit.
+  aggregate "Detection" do
+    description "One detection run: a candidate raised as an audit, settled as quiet, or refused."
+
+    attribute :run,     RunKey
+    attribute :refusal, Reason, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a refusal gives its reason") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Conclude" => "raised",  from: "requested"
+      transition "Settle"   => "quiet",   from: "requested"
+      transition "Decline"  => "refused", from: "requested"
+      mark :terminal, "raised", "quiet", "refused"
+    end
+
+    # A person asks for one detection run.
+    command "Request" do
+      role "Operator"
+      goal "Tally the recurring patterns in the sittings, so that one may be raised as an audit"
+
+      sets :run
+
+      emits DetectionRequested
+    end
+
+    # Runs once the audit it raised is recorded, so the run ends after the audit exists.
+    command "Conclude" do
+      role "System"
+      goal "Record that the run raised an audit for the pattern it found"
+
+      reference_to Detection
+
+      emits DetectionRaised
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Record that no pattern recurred enough to raise an audit"
+
+      reference_to Detection
+
+      emits DetectionQuiet
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why the patterns could not be tallied"
+
+      reference_to Detection
+      attribute :refusal, Reason, sets: true
+
+      emits DetectionDeclined
+    end
+  end
+
+  policy "StartWhenAccepted" do
+    on      "Audit.AuditAccepted"
+    trigger CorrectiveAction::Start, with: { audit: :id }
+  end
+
+  # A requested drain asks the Spool port to read the spool. Each answer moves the drain on.
+  policy "ReadWhenRequested" do
+    on      "Drain.DrainRequested"
+    ask     :read, with: { run: :run }
+  end
+
+  # The lines the read answered are kept as one sitting, keyed by the drain's run. A read that
+  # holds no lines keeps none.
+  policy "RecordTheSitting" do
+    on      "Drain.SpoolRead"
+    where   { lines.size.positive? }
+    trigger Observation::Record, with: { sitting: :run, calls: :lines, through: :through }
+  end
+
+  # A read that holds no lines has nothing to keep or acknowledge, so the drain completes here.
+  policy "CompleteWhenNothingRead" do
+    on      "Drain.SpoolRead"
+    where   { lines.size.zero? }
+    trigger Drain::Complete, with: { run: :run, through: :through }
+  end
+
+  policy "DeclineWhenSpoolRefused" do
+    on      "Drain.SpoolRefused"
+    trigger Drain::Decline, with: { refusal: :refusal }
+  end
+
+  # The cursor moves only once the sitting is kept: a crash before that reads the lines again.
+  policy "AcknowledgeWhenRecorded" do
+    on      "Observation.ObservationRecorded"
+    ask     :acknowledge, with: { sitting: :sitting, through: :through }
+  end
+
+  # The answer lives on the sitting, so the drain is completed by the run the sitting was read for.
+  policy "CompleteWhenAcknowledged" do
+    on      "Observation.SpoolAcknowledged"
+    trigger Drain::Complete, with: { run: :sitting, through: :through }
+  end
+
+  policy "DeclineWhenAckRefused" do
+    on      "Observation.SpoolAckRefused"
+    trigger Drain::Decline, with: { run: :sitting, refusal: :refusal }
+  end
+
+  # A requested run asks the Tally port for the best candidate. Each answer moves the run on.
+  policy "TallyWhenRequested" do
+    on      "Detection.DetectionRequested"
+    ask     :tally, with: { run: :run }
+  end
+
+  # A pattern that recurs enough is raised as an audit. Audit::Raise keeps its own givens, so
+  # the run concludes only after the audit is recorded. The run is passed by its id: the tallied
+  # `run` field arrives wrapped, and a reference or key takes the plain id.
+  policy "RaiseWhenRecurring" do
+    on      "Detection.Tallied"
+    where   { calls.value >= 3 && sessions.value >= 2 && success_rate.value >= 0.8 }
+    trigger Audit::Raise, with: {
+      subject: :subject, kind: { value: "opportunity_for_improvement" }, count: :calls,
+      sessions: :sessions, success_rate: :success_rate, proposal: :proposal,
+      proposed_kind: :proposed_kind, aggregate_name: :aggregate_name, raised_at: :raised_at,
+      detection: :id
+    }
+  end
+
+  # The complement of the raise rule: a run whose pattern does not recur enough settles as quiet.
+  policy "SettleWhenNothingRecurs" do
+    on      "Detection.Tallied"
+    where   { calls.value < 3 || sessions.value < 2 || success_rate.value < 0.8 }
+    trigger Detection::Settle, with: { run: :id }
+  end
+
+  policy "DeclineWhenTallyRefused" do
+    on      "Detection.TallyRefused"
+    trigger Detection::Decline, with: { run: :id, refusal: :refusal }
+  end
+
+  policy "ConcludeWhenAuditRaised" do
+    on      "Audit.AuditRaised"
+    trigger Detection::Conclude, with: { run: :detection }
+  end
+end
