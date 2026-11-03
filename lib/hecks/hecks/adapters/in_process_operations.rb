@@ -4,6 +4,8 @@ require "json"
 require "time"
 require_relative "console_capture"
 require_relative "in_process_operations/tailing"
+require_relative "in_process_operations/tap_log"
+require "hecks/runtime/event_tap"
 require "hecks/tools/run"
 require "hecks/tools/model_check"
 require "hecks/tools/smoke_test"
@@ -124,7 +126,8 @@ module Hecks
 
       # A domain's event log past a cursor, answered once: what the stream yielded before it
       # ended. Pass the answered `cursor` back as `since` to keep tailing. `wait` bounds the stream
-      # and it ends at the first entries, so a call returns as soon as there is something to say.
+      # and it ends at the first entries. The log is the event tap when the domain's world declares
+      # one (every process's events, Memory domains included), else the persisted journal.
       #
       # @param domain [Hash, String] a domain directory
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
@@ -133,7 +136,6 @@ module Hecks
       # @param wait [Hash, Integer, nil] seconds to wait for a new entry, at most 60
       # @param interval [Hash, Float, nil] seconds between checks of the log
       # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
-      # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil)
         registry = boot(domain).registry
         entries = []
@@ -207,8 +209,22 @@ module Hecks
         root if File.exist?(File.join(root, CHECKOUT_MARKER))
       end
 
+      # The log a tail reads: the event tap when the domain's world declares one, since it holds
+      # every event of every process, the Memory domains' included; else the first persisted
+      # journal.
       def event_repository(domain, registry = nil)
         registry ||= boot(domain).registry
+        tapped_log(registry) || journal(domain, registry)
+      end
+
+      # The tap this process writes, which is the one it reads: the boot's override (a spec run's
+      # own file) moves it, exactly as it moves the writer.
+      def tapped_log(registry)
+        tap = Runtime::EventTap.declared(registry, override: Assembly.event_tap_override)
+        TapLog.new(tap.path) if tap
+      end
+
+      def journal(domain, registry)
         repositories = registry.bluebooks.flat_map do |name, bluebook|
           bluebook.aggregates.map { |aggregate| registry.repository(name, aggregate) }
         end

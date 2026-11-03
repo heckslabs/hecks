@@ -1,0 +1,127 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Pusher" do
+    vision "One session is the pusher: only it boards the push train, and every other session lands locally and hands off."
+
+    # The assignment of the pusher for a repository: the session id (the job id, the basename of the
+    # session's `CLAUDE_JOB_DIR`) kept in a marker in the repository's common git directory, so every
+    # worktree of the repository sees the same pusher. SendTrain and the pre-push hook read it. A
+    # repository with no pusher assigned is not locked. The lock guards mistakes: every session runs
+    # as the same user on the same machine, so it does not stop a hostile one.
+    aggregate "Pusher" do
+      description "One request against the repository's pusher: assigned to a session, or a boarding refused for not being it."
+      created_by "Pusher.assign!"
+
+      attribute :run,      RunKey
+      attribute :session,  Word,   optional: true
+      attribute :boarder,  Word,   optional: true
+      attribute :reason,   Report, optional: true
+      attribute :checkout, Word,   optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Record"  => "assigned", from: "requested"
+        transition "Decline" => "refused",  from: "requested"
+        mark :terminal, "assigned", "refused"
+      end
+
+      command "Assign" do
+        role "Operator"
+        goal "Name the session that is the only one allowed to board the push train, replacing the one before it"
+
+        attribute :run,      RunKey, sets: true
+        attribute :session,  Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits AssignRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record which session was assigned as the pusher"
+
+        reference_to Pusher
+        attribute :session, Word, sets: true
+
+        emits PusherAssigned
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why an assignment could not be made"
+
+        reference_to Pusher
+        attribute :refusal, Report, sets: true
+
+        emits AssignmentDeclined
+      end
+
+      # A boarding by a session that is not the pusher: the event the coordinator reads.
+      command "Refuse" do
+        role "System"
+        goal "Record that a boarding was refused because its session is not the assigned pusher"
+
+        attribute :run,     RunKey, sets: true
+        attribute :reason,  Report, sets: true
+
+        emits BoardingRefused
+      end
+
+      query "Current" do
+        description "The assigned pusher of the repository, or that none is assigned."
+        attribute :run, RunKey, optional: true
+        returns Document
+      end
+
+      # What a coder handed off: its branch landed on local main and has not reached the remote. The
+      # coder's report and the `BranchLanded` event are the handoff; this read lists them for the pusher
+      # before it boards: the commit, who made it, the branch it landed from when the commit says, the
+      # subject and the files it touched.
+      query "Waiting" do
+        description "Commits on local main the remote lacks: sha, author, landed branch, subject and files."
+        attribute :run, RunKey, optional: true
+        returns Document
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+    end
+
+    policy "MarkTheAssignedPusher" do
+      on      "Pusher.AssignRequested"
+      ask     :mark, with: { run: :run }
+    end
+
+    policy "RecordTheAssignedPusher" do
+      on      "Pusher.PusherAnswered"
+      trigger Pusher::Record, with: { session: :session }
+    end
+
+    policy "RecordTheRefusedAssignment" do
+      on      "Pusher.PusherRefused"
+      trigger Pusher::Decline, with: { refusal: :refusal }
+    end
+
+    # A boarding the pusher lock turned away says so as an event of its own, beside the train's fault.
+    policy "RecordThePusherLockRefusal" do
+      on      "SendTrain.TrainRefused"
+      where   { refusal.value.include?("only the pusher boards") }
+      trigger Pusher::Refuse, with: { run: :run, reason: :refusal }
+    end
+
+  end
+end
