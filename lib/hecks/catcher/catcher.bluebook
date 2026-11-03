@@ -85,6 +85,8 @@ Hecks.bluebook "Catcher" do
     attribute :raised_at,      Timestamp
     attribute :decided_by,     DecidedBy, optional: true
     attribute :reason,         Reason, optional: true
+    # The detection run that raised this audit. The run concludes once the audit is recorded.
+    reference_to Detection
 
     # The subject and the moment it was raised: a pattern raised again after a dismissal is a
     # second audit, the same way a role granted again is a second assignment.
@@ -172,7 +174,10 @@ Hecks.bluebook "Catcher" do
       sets :proposal
       sets :proposed_kind
       sets :aggregate_name
+      reference_to Detection
+
       sets :raised_at
+      sets :detection
 
       emits AuditRaised
     end
@@ -313,6 +318,73 @@ Hecks.bluebook "Catcher" do
     end
   end
 
+  # One detection run: an adapter tallies the recurring patterns in the sittings and names the best
+  # candidate with no audit yet. The run raises that candidate as an audit, settles as quiet when
+  # nothing recurs enough, or is refused. One run raises at most one audit.
+  aggregate "Detection" do
+    description "One detection run: a candidate raised as an audit, settled as quiet, or refused."
+
+    attribute :run,     RunKey
+    attribute :refusal, Reason, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a refusal gives its reason") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Conclude" => "raised",  from: "requested"
+      transition "Settle"   => "quiet",   from: "requested"
+      transition "Decline"  => "refused", from: "requested"
+      mark :terminal, "raised", "quiet", "refused"
+    end
+
+    # A person asks for one detection run.
+    command "Request" do
+      role "Operator"
+      goal "Tally the recurring patterns in the sittings, so that one may be raised as an audit"
+
+      sets :run
+
+      emits DetectionRequested
+    end
+
+    # Runs once the audit it raised is recorded, so the run ends after the audit exists.
+    command "Conclude" do
+      role "System"
+      goal "Record that the run raised an audit for the pattern it found"
+
+      reference_to Detection
+
+      emits DetectionRaised
+    end
+
+    command "Settle" do
+      role "System"
+      goal "Record that no pattern recurred enough to raise an audit"
+
+      reference_to Detection
+
+      emits DetectionQuiet
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why the patterns could not be tallied"
+
+      reference_to Detection
+      attribute :refusal, Reason, sets: true
+
+      emits DetectionDeclined
+    end
+  end
+
   policy "StartWhenAccepted" do
     on      "Audit.AuditAccepted"
     trigger CorrectiveAction::Start, with: { audit: :id }
@@ -350,5 +422,42 @@ Hecks.bluebook "Catcher" do
   policy "DeclineWhenAckRefused" do
     on      "Observation.SpoolAckRefused"
     trigger Drain::Decline, with: { run: :sitting, refusal: :refusal }
+  end
+
+  # A requested run asks the Tally port for the best candidate. Each answer moves the run on.
+  policy "TallyWhenRequested" do
+    on      "Detection.DetectionRequested"
+    ask     :tally, with: { run: :run }
+  end
+
+  # A pattern that recurs enough is raised as an audit. Audit::Raise keeps its own givens, so
+  # the run concludes only after the audit is recorded. The run is passed by its id: the tallied
+  # `run` field arrives wrapped, and a reference or key takes the plain id.
+  policy "RaiseWhenRecurring" do
+    on      "Detection.Tallied"
+    where   { calls.value >= 3 && sessions.value >= 2 && success_rate.value >= 0.8 }
+    trigger Audit::Raise, with: {
+      subject: :subject, kind: { value: "opportunity_for_improvement" }, count: :calls,
+      sessions: :sessions, success_rate: :success_rate, proposal: :proposal,
+      proposed_kind: :proposed_kind, aggregate_name: :aggregate_name, raised_at: :raised_at,
+      detection: :id
+    }
+  end
+
+  # The complement of the raise rule: a run whose pattern does not recur enough settles as quiet.
+  policy "SettleWhenNothingRecurs" do
+    on      "Detection.Tallied"
+    where   { calls.value < 3 || sessions.value < 2 || success_rate.value < 0.8 }
+    trigger Detection::Settle, with: { run: :id }
+  end
+
+  policy "DeclineWhenTallyRefused" do
+    on      "Detection.TallyRefused"
+    trigger Detection::Decline, with: { run: :id, refusal: :refusal }
+  end
+
+  policy "ConcludeWhenAuditRaised" do
+    on      "Audit.AuditRaised"
+    trigger Detection::Conclude, with: { run: :detection }
   end
 end
