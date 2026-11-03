@@ -216,7 +216,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Orga
             let args = if invocation.explicit_with() {
                 let args = crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::has_many_fixture::circle::AdmitArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::has_many_fixture::circle::AdmitArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::has_many_fixture::circle::AdmitArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::has_many_fixture::circle::AdmitArgs::from_json(v)?;
 for item in &args.members { item.check_invariants()?; }
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::has_many_fixture::circle::AdmitArgs| { for item in &args.members { crate::kernel::check_reference(&store.member, &item.value, "Member", "handle")?; } Ok(()) } })?;
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::has_many_fixture::circle::AdmitArgs| Ok(()) })?;
                 if let Some(route) = route {
                     route.require_depth(0)?;
                 }
@@ -227,7 +227,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Orga
                 }
                 crate::kernel::decode_aggregate_arguments(facts_json, &crate::kernel::ArgumentGates { decode_arguments: &crate::generated::has_many_fixture::circle::AdmitArgs::decode_arguments, refuse_unknown_arguments: &crate::generated::has_many_fixture::circle::AdmitArgs::refuse_unknown_arguments, refuse_absent_arguments: &crate::generated::has_many_fixture::circle::AdmitArgs::refuse_absent_arguments, normalize_args: &|v: &crate::kernel::Json| { let args = crate::generated::has_many_fixture::circle::AdmitArgs::from_json(v)?;
 for item in &args.members { item.check_invariants()?; }
-Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::has_many_fixture::circle::AdmitArgs| { for item in &args.members { crate::kernel::check_reference(&store.member, &item.value, "Member", "handle")?; } Ok(()) } })?
+Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Organizer"), "Admit", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|_args: &crate::generated::has_many_fixture::circle::AdmitArgs| Ok(()) })?
             };
             let id = match route {
                 Some(route) => route.aggregate().to_string(),
@@ -243,7 +243,18 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Orga
                         )
                     })?,
             };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> =
+                (|| -> Result<(), crate::kernel::Refusal> {
+                    for item in &args.members {
+                        crate::kernel::check_reference(
+                            &store.member,
+                            &item.value,
+                            "Member",
+                            "handle",
+                        )?;
+                    }
+                    Ok(())
+                })();
             let owner_deref =
                 crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "HasManyFixture::Circle", &id);
             let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);

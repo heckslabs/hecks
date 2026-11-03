@@ -14,6 +14,7 @@ module Hecks
             starts_on:     [:starts_on,     :plain],
             ends_on:       [:ends_on,       :plain],
             endings:       [:endings,       :plain],
+            resumes:       [:resumes,       :plain],
             states:        [:states,        :plain]
           },
           reads: { states: :names },

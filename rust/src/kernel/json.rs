@@ -250,6 +250,39 @@ impl Json {
         }
     }
 
+    /// Refuses `TypeMismatch` when a bare scalar query argument is offered as a shape its declared
+    /// type cannot hold, worded as a command's numeric field is. Ruby's `Value::FieldChecks#mistyped?`
+    /// is the rule: an Integer must be a number, a Float a number, and a String (or boolean) must not
+    /// be a composite. A null is absent, so it passes. `owner` is the aggregate's bare name.
+    pub fn expect_scalar_shape(
+        &self,
+        owner: &str,
+        field: &str,
+        type_name: &str,
+    ) -> Result<(), Refusal> {
+        if matches!(self, Self::Null) || !self.mistyped_scalar(type_name) {
+            return Ok(());
+        }
+        Err(Refusal::TypeMismatch(
+            super::refusal_wording::TypeMismatchNumericFieldArgs {
+                r#type: owner,
+                field,
+                expected: type_name,
+                offered: &self.describe(),
+            }
+            .render_args(),
+        ))
+    }
+
+    fn mistyped_scalar(&self, type_name: &str) -> bool {
+        match type_name {
+            "Integer" => !matches!(self, Self::Num(n, _) if n.fract() == 0.0),
+            "Float" => !matches!(self, Self::Num(..)),
+            "String" => matches!(self, Self::Array(_) | Self::Object(_)),
+            _ => false,
+        }
+    }
+
     /// Refuses `TypeMismatch` when a multi-field value object is offered as a non-object.
     ///
     /// Runs at the `from_json` call site, since only the caller knows `name`.
@@ -917,5 +950,34 @@ impl Parser<'_> {
         }
         let raw = keeps_source.then_some(s);
         Ok(Json::Num(value, raw))
+    }
+}
+
+#[cfg(test)]
+mod scalar_shape_tests {
+    use super::*;
+
+    fn refused(value: &Json, type_name: &str) -> bool {
+        value
+            .expect_scalar_shape("Account", "reference", type_name)
+            .is_err()
+    }
+
+    #[test]
+    fn a_string_argument_refuses_a_composite_and_takes_a_scalar() {
+        assert!(refused(&Json::obj(vec![("cents", Json::int(0))]), "String"));
+        assert!(!refused(&Json::int(7), "String"));
+    }
+
+    #[test]
+    fn an_integer_argument_refuses_a_fraction_and_a_string() {
+        assert!(refused(&Json::Num(1.5, None), "Integer"));
+        assert!(refused(&Json::str("1"), "Integer"));
+        assert!(!refused(&Json::int(1), "Integer"));
+    }
+
+    #[test]
+    fn a_null_argument_is_absent_not_mistyped() {
+        assert!(!refused(&Json::Null, "String"));
     }
 }

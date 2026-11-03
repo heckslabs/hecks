@@ -49,8 +49,9 @@ Every decision says which side it is on.
 
 - A development run needs no environment variable and no database. `hecks config` reports where
   the database came from: a local file, or the world itself.
-- The copy that runs the push train must carry an `environments/local.hecksagon` with
-  `persisted_by "PostgresEra"` before it refreshes onto this change, or it runs in Memory.
+- The copy that runs the push train carried an `environments/local.hecksagon` with
+  `persisted_by "PostgresEra"` for a while. It no longer opts in: the train runs in Memory, and its
+  mint step reports that Memory holds no eras (2026-11-01).
 - Process managers lose their saga state on restart in Memory; the existing boot warning says so.
 - The attached-chapter default is resolved in the Ruby runtime; Rust reads the resolved bind from
   the exported IR, so the two agree without a Rust change.

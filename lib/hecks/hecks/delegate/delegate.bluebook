@@ -1,0 +1,468 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Delegate" do
+    vision "Hand work to a background session."
+
+    # Agents: handing one brief to a background Claude session (ADR 0141). A dispatch is a run like
+    # the Custodian `*Run`s: it is requested, the outside is asked, and what came back is judged by
+    # the givens and reactions below.
+    #
+    # The bluebook decides everything: a brief must say something, an agent name cannot be mistaken
+    # for a flag, the directory must be one the `Agents` port finds and the agent one it lists, and a
+    # job that reports `done`, `stopped` or `failed` has ended while `working` and `blocked` have
+    # not. The port only looks and starts: it finds the directory and the agents, starts the
+    # session, and reports the state its job is in.
+
+    aggregate "AgentRun" do
+      description "One brief handed to a background Claude session: started and tracked, or refused with the reason."
+
+      attribute :run,       RunKey
+      attribute :repo,      Path
+      attribute :brief,     Brief
+      attribute :agent,     AgentName, optional: true
+      attribute :session,   SessionId, optional: true
+      attribute :condition, Condition, optional: true
+      attribute :refusal,   Report,    optional: true
+      attribute :tidied_at, Moment,    optional: true
+      attribute :detail,    Report,    optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # The directory the session works in.
+      value_object "Path" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # What the session is asked to do. It may span lines; the dispatch refuses one that is blank.
+      value_object "Brief" do
+        attribute :value, String
+      end
+
+      # A custom agent's name. It starts with a letter or digit, so it cannot be taken for a flag.
+      value_object "AgentName" do
+        attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+      end
+
+      value_object "SessionId" do
+        attribute :value, String, matches: :present
+      end
+
+      # What a session reported about itself the last time it was asked.
+      value_object "Condition" do
+        attribute :value, String
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # When the outside removed a session, as the port reports it.
+      value_object "Moment" do
+        attribute :value, String
+      end
+
+      # The directory a session works in, written with its trailing slash, so a watch that filters
+      # on a checkout's directory matches the checkout and every worktree under it.
+      value_object "Checkout" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Begin"   => "started",  from: "requested"
+        transition "Decline" => "refused",  from: "requested"
+        transition "Finish"  => "finished", from: "started"
+        transition "Fail"    => "finished", from: "started"
+        transition "Tidied"  => "tidied",   from: "finished"
+        mark :terminal, "tidied", "refused"
+      end
+
+      command "Dispatch" do
+        role "Operator"
+        goal "Hand one brief to a background Claude session working in a directory"
+
+        attribute :run,   RunKey, sets: true
+        attribute :repo,  Path, sets: true
+        attribute :brief, Brief, sets: true
+        attribute :agent, AgentName, optional: true, sets: true
+
+        given("a brief says something") { !brief.value.to_s.strip.empty? }
+
+
+        emits AgentRunRequested
+      end
+
+      command "Begin" do
+        role "System"
+        goal "Record the session the directory's agent started"
+
+        reference_to AgentRun
+        attribute :session, SessionId, sets: true
+
+
+        emits AgentRunStarted
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why no session was started"
+
+        reference_to AgentRun
+        attribute :refusal, Report, sets: true
+
+
+        emits AgentRunDeclined
+      end
+
+      # A check reads the job's own state and records a change as one of the four session events
+      # below; a state that did not change records nothing.
+      command "Check", from: "started" do
+        role "Operator"
+        goal "Read the state a started session's job is in, and record it when it changed"
+
+        reference_to AgentRun
+
+        emits AgentCheckRequested
+      end
+
+      command "Work", from: "started" do
+        role "System"
+        goal "Record that the session is working"
+
+        reference_to AgentRun
+        attribute :condition, Condition, sets: true
+        attribute :checkout,  Checkout
+
+        emits SessionWorking
+      end
+
+      command "Block", from: "started" do
+        role "System"
+        goal "Record that the session waits on a person, and the question it waits on"
+
+        reference_to AgentRun
+        attribute :condition, Condition, sets: true
+        attribute :detail,    Report, sets: true
+        attribute :checkout,  Checkout
+
+        emits SessionBlocked
+      end
+
+      # `done` and `stopped` are a session's two ways of ending well; `failed` is `Fail`.
+      command "Finish" do
+        role "System"
+        goal "Record that the session has ended, and how it ended"
+
+        reference_to AgentRun
+        attribute :condition, Condition, sets: true
+        attribute :detail,    Report, sets: true
+        attribute :checkout,  Checkout
+
+        emits SessionFinished
+      end
+
+      command "Fail" do
+        role "System"
+        goal "Record that the session failed, and what it said"
+
+        reference_to AgentRun
+        attribute :condition, Condition, sets: true
+        attribute :detail,    Report, sets: true
+        attribute :checkout,  Checkout
+
+        emits SessionFailed
+      end
+
+      # A finished run's session is removed only when it ended `done`; a session still `working`,
+      # `blocked` or `stopped` is kept, and so is one a person has taken over (the port says so).
+      command "Tidy", from: "finished" do
+        role "Operator"
+        goal "Remove the finished session of one run, unless it is unfinished or a person took it over"
+
+        reference_to AgentRun
+
+        given("the session ended done: a working, blocked or stopped session is kept") { condition.value == "done" }
+
+        emits TidyRequested
+      end
+
+      command "Tidied" do
+        role "System"
+        goal "Record that the session was removed, and when"
+
+        reference_to AgentRun
+        attribute :tidied_at, Moment, sets: true
+
+
+        emits AgentRunTidied
+      end
+
+      command "Retain" do
+        role "System"
+        goal "Record why a finished session was kept"
+
+        reference_to AgentRun
+        attribute :refusal, Report, sets: true
+
+
+        emits AgentRunRetained
+      end
+
+      query "Tidyable" do
+        description "Every finished run, oldest key first; `Tidy` keeps those that did not end done."
+        where(status: "finished")
+        order_by :run
+      end
+
+      query "Running" do
+        description "Every run whose session was started and is not known to have ended, oldest key first."
+        where(status: "started")
+        order_by :run
+      end
+
+      query "Declined" do
+        description "Every run that no session was started for, with the reason."
+        where(status: "refused")
+        order_by :run
+      end
+    end
+
+    # One check of every run still started, for a driver that watches sessions. The launcher also
+    # answers it as `agent_run.check_all!`.
+    aggregate "SessionSweep" do
+      description "One check of every started run's session: each change of state is recorded on its run."
+
+      attribute :run, SweepKey
+      identified_by :run
+
+      value_object "SweepKey" do
+        attribute :value, String, matches: :present
+      end
+
+      command "CheckAll" do
+        role "Operator"
+        goal "Check every run whose session was started and is not known to have ended"
+
+        attribute :run, SweepKey, sets: true
+
+        emits SweepRequested
+      end
+    end
+
+    # Filling the Work queue is one run too: the Work rows that may start a session now are chosen
+    # from the queue, the machine's load and the freeze, and without `confirm` that is all it does.
+    # The choosing and the starting are the port's; whether a start is allowed stays with `Work`.
+    aggregate "Dispatch" do
+      description "One filling of the Work queue: the planned rows that start a session now, and why each other waits."
+
+      attribute :run,            DispatchKey
+      attribute :repo,           Directory
+      attribute :confirm,        Switch, optional: true
+      attribute :budget_minutes, Minutes, optional: true
+      attribute :report,         Outcome, optional: true
+      attribute :refusal,        Outcome, optional: true
+      identified_by :run
+
+      value_object "DispatchKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Directory" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Minutes" do
+        attribute :value, Integer
+        invariant("a time budget is positive") { value.positive? }
+      end
+
+      value_object "Outcome" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Record"  => "answered", from: "requested"
+        transition "Decline" => "refused",  from: "requested"
+        mark :terminal, "answered", "refused"
+      end
+
+      command "Fill" do
+        role "Operator"
+        goal "Choose the planned Work rows that start a session now and, with confirm, start them; without it, say what would start"
+
+        attribute :run,            DispatchKey, sets: true
+        attribute :repo,           Directory, sets: true
+        attribute :budget_minutes, Minutes, optional: true, sets: true
+        attribute :confirm,        Switch, optional: true, sets: true
+
+        emits FillRequested
+      end
+
+      command "Settle" do
+        role "Operator"
+        goal "Check the started sessions and finish the row of each that is done, or yield the row of one that stopped"
+
+        attribute :run,  DispatchKey, sets: true
+        attribute :repo, Directory, sets: true
+
+        emits SettleRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record what the filling or settling did"
+
+        reference_to Dispatch
+        attribute :report, Outcome, sets: true
+
+        emits DispatchAnswered
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the queue could not be read"
+
+        reference_to Dispatch
+        attribute :refusal, Outcome, sets: true
+
+        emits DispatchDeclined
+      end
+    end
+
+    policy "ChooseWhenFilling" do
+      on      "Dispatch.FillRequested"
+      ask     :choose, with: { run: :run }
+    end
+
+    policy "ConcludeWhenSettling" do
+      on      "Dispatch.SettleRequested"
+      ask     :conclude, with: { run: :run }
+    end
+
+    policy "RecordTheDispatch" do
+      on      "Dispatch.DispatchReported"
+      trigger Dispatch::Record, with: { report: :report }
+    end
+
+    policy "RecordTheDeclinedDispatch" do
+      on      "Dispatch.DispatchRefused"
+      trigger Dispatch::Decline, with: { refusal: :refusal }
+    end
+
+    # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.
+    policy "LocateTheRepo" do
+      on      "AgentRun.AgentRunRequested"
+      ask     :locate, with: { run: :run }
+    end
+
+    # Locating the directory also says whether its `claude` lists the named agent, so a name it
+    # does not know is refused before a session is started; with no agent named, the session runs
+    # `claude`'s default. One look, not two: the reactions after a start stay within the depth limit.
+    policy "StartWhenTheAgentIsListed" do
+      on      "AgentRun.RepoLocated"
+      where   { listed != false }
+      ask     :start, with: { run: :run }
+    end
+
+    policy "RecordTheUnlistedAgent" do
+      on      "AgentRun.RepoLocated"
+      where   { listed == false }
+      trigger AgentRun::Decline, with: { refusal: :note }
+    end
+
+    policy "RecordTheSession" do
+      on      "AgentRun.AgentStarted"
+      trigger AgentRun::Begin, with: { session: :session }
+    end
+
+    # A session can die within seconds of its start (an agent that fails to load). Its job is read
+    # once the port has let it settle, so a dead session is recorded failed, never left started.
+    policy "ReadTheNewSession" do
+      on      "AgentRun.AgentRunStarted"
+      ask     :await_job, with: { run: :run }
+    end
+
+    policy "RecordTheMissingRepo" do
+      on      "AgentRun.RepoMissing"
+      trigger AgentRun::Decline, with: { refusal: :refusal }
+    end
+
+    policy "RecordTheRefusedStart" do
+      on      "AgentRun.StartRefused"
+      trigger AgentRun::Decline, with: { refusal: :refusal }
+    end
+
+    policy "ReadTheJob" do
+      on      "AgentRun.AgentCheckRequested"
+      ask     :read_job, with: { run: :run }
+    end
+
+    # Each check is addressed by the row's key alone: the sweep's own `run` is not passed on.
+    policy "CheckEveryStartedRun" do
+      on       "SessionSweep.SweepRequested"
+      for_each "AgentRun.Running"
+      trigger  AgentRun::Check, with: { agent_run: :agent_run }
+    end
+
+    # A job's state becomes an event only when it differs from the state the run last recorded
+    # (`previous`), so a check that finds nothing new records nothing.
+    policy "RecordTheWorkingSession" do
+      on      "AgentRun.JobRead"
+      where   { state == "working" && previous != state }
+      trigger AgentRun::Work, with: { condition: :state, checkout: :checkout }
+    end
+
+    policy "RecordTheBlockedSession" do
+      on      "AgentRun.JobRead"
+      where   { state == "blocked" && previous != state }
+      trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout }
+    end
+
+    policy "RecordTheEndedSession" do
+      on      "AgentRun.JobRead"
+      where   { (state == "done" || state == "stopped") && previous != state }
+      trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
+    end
+
+    policy "RecordTheFailedSession" do
+      on      "AgentRun.JobRead"
+      where   { state == "failed" && previous != state }
+      trigger AgentRun::Fail, with: { condition: :state, detail: :detail, checkout: :checkout }
+    end
+
+    # The session is looked at before it is removed; the port says whether a person took it over.
+    policy "ReviewBeforeTidy" do
+      on      "AgentRun.TidyRequested"
+      ask     :review, with: { run: :run }
+    end
+
+    policy "RemoveWhenNobodyTookOver" do
+      on      "AgentRun.SessionReviewed"
+      where   { taken_over == false }
+      ask     :remove, with: { run: :run }
+    end
+
+    policy "KeepWhenAPersonTookOver" do
+      on      "AgentRun.SessionReviewed"
+      where   { taken_over != false }
+      trigger AgentRun::Retain, with: { refusal: :note }
+    end
+
+    policy "RecordTheRemoval" do
+      on      "AgentRun.SessionRemoved"
+      trigger AgentRun::Tidied, with: { tidied_at: :removed_at }
+    end
+
+    policy "RecordTheKeptSession" do
+      on      "AgentRun.RemoveRefused"
+      trigger AgentRun::Retain, with: { refusal: :refusal }
+    end
+  end
+end

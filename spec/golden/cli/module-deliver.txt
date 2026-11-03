@@ -1,0 +1,84 @@
+deliver — Take finished work into the shared line.
+
+  hecks <Aggregate.command>! [name=value …]    do something
+  hecks <Aggregate.query> [name=value …]       read something
+
+everyday:
+  Shipment.ship!    Start the gate-and-board saga for a branch: fix comment style, check…
+  Landing.land!     Merge a worktree's branch onto local main: fast-forward when it can be,…
+  SendTrain.board!  Push this checkout's branch once the push ahead of it lands, unless…
+  Workspace.status  The checkout's branch, whether it is a linked worktree, where it stands…
+
+commands:
+  Revision:
+    One commit made in a checkout, or declined with the reason: what it says and what it is on.
+    make!       Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
+  LinkedTree:
+    A linked worktree opened on a new branch from main, or declined with the reason.
+    add!        Open a linked worktree on a new branch from main, never on main itself
+    pull_main!  Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
+  Landing:
+    One branch landed on local main, or one worktree retired: done, or refused with the reason.
+    land!       Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
+    finish!     Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
+    train!      Hold the front place in the landing line and land every ready branch behind it, in ticket order
+    retire!     Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
+    discard!    Remove a worktree and delete its branch even though main lacks its commits, for a stated reason: refused for a protected branch, a worktree in use, or uncommitted work
+  SendTrain:
+    One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
+    board!      Push this checkout's branch once the push ahead of it lands, unless that push already carried it
+    survey!     List every checkout under a directory whose branch has commits its remote does not
+  PushOutcome:
+    How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
+    record!     Record how one boarding of the push train ended, in the checkout that boarded it
+  Shipment:
+    One request to fix, gate, land and board a branch: the gate-and-board saga starts on it.
+    ship!       Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
+  Integration:
+    One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended.
+    advance!    Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one
+    verify!     Verify a landed commit in a clean detached copy of local main: the quick gate, the specs its changes touch, the command names, the CI pipeline and the generated corpus
+    board!      Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval
+    observe!    Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running
+  ReviewRequest:
+    One pull request opened or squash-merged on GitHub, and what GitHub answered.
+    open!       Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
+    take!       Squash-merge an open pull request by its number; never with an admin override
+
+queries (nothing here changes anything):
+  Workspace:
+    A look at a checkout: its branch, what it changed and what it committed.
+    status    The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
+    changes   What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
+    history   The commits in a range, newest first (the last 20 when none is named).
+    settings  What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
+    doctor    Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
+    where     Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
+  Landing:
+    One branch landed on local main, or one worktree retired: done, or refused with the reason.
+    unlanded  Every branch with commits that are not on main, or with uncommitted work, and where its worktree is.
+  ReviewRequest:
+    One pull request opened or squash-merged on GitHub, and what GitHub answered.
+    status    The state of one pull request on GitHub: its number, state, URL and checks, as text.
+
+bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
+  governance       Organizational authority is explicit, reviewable, and historically explainable.
+  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
+  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
+  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
+  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
+  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
+  bluebook         The bluebook language, declared in itself.
+  hecksagon
+  world
+  adapter          The .adapter language, declared in itself.
+  port             The .port language, declared in itself.
+  translation
+  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+
+  hecks <command> --help       what one command wants, and every way it refuses
+  hecks --all                  also list the 52 internal commands and queries
+  hecks --maintainer           also list the 405 commands and queries for working on hecks itself
+  a command is called with its aggregate — Revision.make!
+  exit status: 0 answered, 1 refused or failed, 2 a line it could not read

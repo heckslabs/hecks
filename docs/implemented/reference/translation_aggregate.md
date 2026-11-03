@@ -5,7 +5,7 @@ Words available inside `aggregate do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -22,6 +22,7 @@ Hecks.data_translation("ReferenceDomain2", from: "1", to: "2") do
     retype  "OldType",   to: "NewType"
     derive  :label,      as: 'concat(upper(code), "-", lookup(tier, {"gold": "G"}, "S"))'
     backfill :standing, default: "good"
+    split   into: "AccountTier", keyed_by: :code, fields: %i[tier]
   end
   aggregate "Member" do
     derive :email, as: "lower(name.value)"
@@ -45,6 +46,24 @@ A field kept its structure and only its name changed — the smallest rule, and 
 
 ```ruby
 runtime.registry.translations.last.aggregates.first.renames  # => {old_field: :new_field}
+```
+
+## split
+
+<!-- generated:begin word=split -->
+`split into:, keyed_by:, fields:` — fills `splits`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| `into:` | text | true | into |
+| `keyed_by:` | text | true | keyed_by |
+| `fields:` | text | true | fields |
+<!-- generated:end -->
+
+One aggregate becoming two: the records of this aggregate also seed another aggregate, one row per distinct `keyed_by:` value, carrying only the listed `fields:` (a value object key is read through its `value`). Use it when a field that rode along on every record turns out to be a thing in its own right. The target's rows are derived from the source's held records, so nothing is copied by hand, and a target with no `fields:` is refused.
+
+```ruby
+runtime.registry.translations.last.aggregates.first.splits.first.to_h  # => {into: "AccountTier", keyed_by: :code, fields: [:tier]}
 ```
 
 ## move

@@ -1051,9 +1051,15 @@ pub fn emit_query_table(exemplar: &Exemplar, query_defs: &[QueryDef]) -> String 
     )
 }
 
-// One `if let` per value-object argument: built and invariant-checked, then dropped (ADR 0037).
+// The bare scalar types a query argument is shape-checked as, the types `mistyped?` names.
+const SCALAR_ARG_TYPES: [&str; 3] = ["String", "Integer", "Float"];
+
+// One `if let` per argument that is checked: a value object is built and invariant-checked, then
+// dropped (ADR 0037); a bare scalar must hold the shape its declared type names. `owner` is the
+// aggregate's bare name, which a refusal quotes as Ruby's `aggregate.hecks_name` does.
 pub fn query_arg_checks(
     query: &Json,
+    owner: &str,
     mod_path: &str,
     value_objects_by_name: &HashMap<String, &Json>,
 ) -> Vec<String> {
@@ -1067,8 +1073,20 @@ pub fn query_arg_checks(
             {
                 return None;
             }
-            let vo = value_objects_by_name.get(crate::attr::type_name(attr))?;
+            let type_name = crate::attr::type_name(attr);
             let key = naming::rust_field(crate::attr::name(attr));
+            if !value_objects_by_name.contains_key(type_name) {
+                return SCALAR_ARG_TYPES.contains(&type_name).then(|| {
+                    format!(
+                        "if let Some(x) = args.get({}) {{ x.expect_scalar_shape({}, {}, {})?; }}",
+                        naming::ruby_inspect_string(&key),
+                        naming::ruby_inspect_string(owner),
+                        naming::ruby_inspect_string(crate::attr::name(attr)),
+                        naming::ruby_inspect_string(type_name)
+                    )
+                });
+            }
+            let vo = value_objects_by_name.get(type_name)?;
             let build =
                 crate::json_codec::composite_from_json_expr(attr, value_objects_by_name, "x");
             let check = if vo.get("closed_set").is_some_and(Json::as_bool) {

@@ -5,7 +5,7 @@ Words available inside `process_manager do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -28,6 +28,41 @@ process_manager "Onboarding" do
   end
 
   transition "OnboardingDeclined" => "declined", from: "screening"
+end
+```
+
+`Onboarding` declares no `resumes`, so the example for it is a small domain of its own:
+
+```ruby bluebook
+Hecks.bluebook "ProcessManagerResumes" do
+  vision "A ticket filed in two stages, each of which can be picked up again."
+
+  aggregate "Ticket" do
+    attribute :ref, Ref
+    identified_by :ref
+    value_object("Ref") { attribute :value, String }
+
+    command "File" do
+      sets :ref
+      emits "TicketFiled"
+    end
+
+    command "Close" do
+      reference_to Ticket
+      emits "TicketClosed"
+    end
+  end
+
+  process_manager "Filing" do
+    correlates_by :"ref.value"
+    starts_on "TicketFiled"
+    ends_on "TicketClosed"
+
+    resumes "filing=Ticket.File"
+    resumes "closing=Ticket.Close"
+
+    transition "TicketFiled" => "filed", from: "filing"
+  end
 end
 ```
 
@@ -55,11 +90,12 @@ runtime.dispatch("Banking::Customer.Register", with: { reference: "pm-1",
 ## correlates_by
 
 <!-- generated:begin word=correlates_by -->
-`correlates_by correlates_by` — fills `correlates_by`
+`correlates_by correlates_by, correlates_by`
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | symbol | true | correlates_by |
+| positional 1 | constant | true | correlates_by |
 <!-- generated:end -->
 
 The dotted scalar path that ties a stream of events to one saga
@@ -125,6 +161,23 @@ carries what happened:
 
 ```ruby
 runtime.registry.saga_log.map { |row| row[:on] }.compact  # => ["OnboardingOpened", "OnboardingCleared", "AccountOpened"]
+```
+
+## resumes
+
+<!-- generated:begin word=resumes -->
+`resumes resumes`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | resumes |
+<!-- generated:end -->
+
+Names the command that resumes each stage of a saga that faulted, one `"stage=Aggregate.Command"` entry per stage. Declaring it does nothing while the saga runs; it is read afterwards by the launcher's `resume <run>`, which re-dispatches the named command with the arguments the saga saved. A stage with no entry cannot be resumed, and the resume is refused by name.
+
+```ruby
+filing = runtime.registry.bluebook("ProcessManagerResumes").process_managers.first
+filing.resumes  # => ["filing=Ticket.File", "closing=Ticket.Close"]
 ```
 
 ## transition

@@ -3,7 +3,7 @@ require "rack/test"
 require "openssl"
 require "json"
 require_relative "../lib/hecks/served_options"
-require_relative "../lib/hecks/quality_control/adapters/github_ci_webhook"
+require "hecks/adapters/driving/github_webhook"
 
 # A `.world` serves a domain through `served_by` lines: the builder takes the verb with no
 # change, the route is derived from the adapter's name, and the secret is read from the
@@ -14,14 +14,14 @@ RSpec.describe "served_by in a world" do
   let(:registry) { Hecks::Runtime::Registry.new }
   let(:secret)   { "served-by-spec-secret" }
   let(:adapters) do
-    { "GithubCiWebhook" => Hecks::Adapters::Driving::GithubCiWebhook,
-      "GithubWebhook"   => Hecks::Adapters::Driving::GithubWebhook }
+    { "PingWebhook"   => Class.new(Hecks::Adapters::Driving::GithubWebhook),
+      "GithubWebhook" => Hecks::Adapters::Driving::GithubWebhook }
   end
   let(:world) do
     Hecks.with_registry(registry) do
       Hecks.world("Served") do
         realm "Examples"
-        served_by("GithubCiWebhook") { secret "CI_WEBHOOK_SECRET" }
+        served_by("PingWebhook") { secret "CI_WEBHOOK_SECRET" }
         served_by("GithubWebhook") do
           secret "OTHER_SECRET"
           path "/hooks/github"
@@ -43,21 +43,21 @@ RSpec.describe "served_by in a world" do
 
   it "records each line under its adapter, so two lines do not overwrite each other" do
     expect(Hecks::ServedOptions.entries(world).map { |e| e[:adapter] })
-      .to contain_exactly("GithubCiWebhook", "GithubWebhook")
+      .to contain_exactly("PingWebhook", "GithubWebhook")
   end
 
   it "derives the route from the adapter's name, and lets `path` override it" do
     paths = Hecks::ServedOptions.entries(world).to_h { |e| [e[:adapter], e[:path]] }
-    expect(paths).to eq("GithubCiWebhook" => "/webhooks/github_ci_webhook", "GithubWebhook" => "/hooks/github")
+    expect(paths).to eq("PingWebhook" => "/webhooks/ping_webhook", "GithubWebhook" => "/hooks/github")
   end
 
   it "answers a correctly signed request at the derived path" do
-    signed_post("/webhooks/github_ci_webhook", "{}")
+    signed_post("/webhooks/ping_webhook", "{}")
     expect(last_response.status).to eq(200)
   end
 
   it "refuses a request signed with another secret" do
-    post "/webhooks/github_ci_webhook", "{}", "HTTP_X_HUB_SIGNATURE_256" => "sha256=bad", "HTTP_X_GITHUB_EVENT" => "ping"
+    post "/webhooks/ping_webhook", "{}", "HTTP_X_HUB_SIGNATURE_256" => "sha256=bad", "HTTP_X_GITHUB_EVENT" => "ping"
     expect(last_response.status).to eq(401)
   end
 

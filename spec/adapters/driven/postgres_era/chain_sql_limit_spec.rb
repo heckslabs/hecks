@@ -24,8 +24,15 @@ RSpec.describe "PostgresEra chain SQL over a long edge chain", :io do
     end.new
   end
 
+  def translation_without_rules
+    Struct.new(:none) do
+      def for_aggregate(_name) = nil
+      def aggregates = []
+    end.new
+  end
+
   def chain_of(count)
-    edge = { translation: Struct.new(:none) { def for_aggregate(_name) = nil }.new }
+    edge = { translation: translation_without_rules }
     host.chain_sql(Struct.new(:name).new("Item"), count + 1, Array.new(count) { edge })
   end
 

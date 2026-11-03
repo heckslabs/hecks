@@ -4788,43 +4788,48 @@ pub struct GateCheck {
     pub argv: &'static str,
     pub script: &'static str,
     pub blocked: &'static str,
+    pub runs_in: &'static str,
 }
 
 pub const GATE_CHECK: &[GateCheck] = &[
-    GateCheck { name: "rspec", id: "rspec", title: "rspec (parallel)", argv: "", script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed). CI's committed baseline leaves out the io\n# specs this run includes, so it only seeds the first run; each run then rewrites the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\n[ -f \"$log\" ] || cp .github/rspec_runtime_baseline.log \"$log\"\nbundle exec parallel_rspec spec -n {workers} --group-by runtime --runtime-log \"$log\" --allowed-missing 100 \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", blocked: "the suite is red." },
-    GateCheck { name: "fuzzing", id: "fuzzing", title: "spec/fuzzing, which the parallel run above excludes", argv: "bundle exec rspec spec/fuzzing --tag fuzzing", script: "", blocked: "spec/fuzzing is red." },
-    GateCheck { name: "query_agreement", id: "query_agreement", title: "adapter agreement, one declared query and every engine giving the same answer", argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io", script: "", blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which." },
-    GateCheck { name: "engine_agreement", id: "engine_agreement", title: "engine agreement, every declared comparator on both engines", argv: "bundle exec exe/hecks conformance_run.check_engine_agreement --wait", script: "", blocked: "a comparator is missing a shared case or a cross-engine spec." },
-    GateCheck { name: "shape_ledger", id: "shape_ledger", title: "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge", argv: "bundle exec exe/hecks conformance_run.check_shape_ledger --wait", script: "", blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first." },
-    GateCheck { name: "model_check", id: "model_check", title: "model check, unreachable states, dead transitions and orphaned handlers", argv: "bundle exec exe/hecks model_check --wait", script: "", blocked: "the model checker found something." },
-    GateCheck { name: "doc_coverage", id: "doc_coverage", title: "docs coverage, words with no running example", argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage --wait", script: "", blocked: "the language ships something undocumented; write the missing sections and examples." },
-    GateCheck { name: "rubocop", id: "rubocop", title: "rubocop, the static style and correctness gate", argv: "bundle exec rubocop -c .rubocop.yml", script: "", blocked: "rubocop found an offense." },
-    GateCheck { name: "codegen_drift", id: "codegen_drift", title: "codegen drift, rust/src/generated/ must match a fresh regeneration", argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed." },
-    GateCheck { name: "comment_style", id: "comment_style", title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", argv: "bundle exec exe/hecks style_run.check_comments paths=lib/hecks spec --wait", script: "", blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check." },
-    GateCheck { name: "comment_blocks", id: "comment_blocks", title: "comment blocks, no run of comment lines past ADR 0075's cap", argv: "bundle exec exe/hecks style_run.check_comments paths=lib,spec,examples only=long_block --wait", script: "", blocked: "a comment block ran past the cap; shorten it." },
-    GateCheck { name: "rust_fmt", id: "rust_fmt", title: "rustfmt, every Rust crate laid out as `cargo fmt` would", argv: "", script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", blocked: "a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output." },
-    GateCheck { name: "rust_io", id: "rust_io", title: "rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity", argv: "", script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait\nbundle exec exe/hecks build.project_rust domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n", blocked: "a Rust io spec failed, or skipped; the crate it built is under rust/target." },
-    GateCheck { name: "ci_codegen_drift", id: "codegen_drift", title: "codegen drift, the committed generated Rust must match the regeneration this job holds", argv: "git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed." },
-    GateCheck { name: "generated_tree", id: "generated_tree", title: "whole-tree specs, the examples tagged generated_all against every domain's generated Rust", argv: "bundle exec rspec --tag generated_all", script: "", blocked: "a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`." },
-    GateCheck { name: "rust_clippy", id: "rust_clippy", title: "clippy, every Rust crate with its warnings as errors", argv: "", script: "for crate in . parser codegen lsp host web build; do\n  cargo clippy --all-targets --manifest-path \"rust/$crate/Cargo.toml\" -- -D warnings\ndone\n", blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator." },
-    GateCheck { name: "lint_deploy_recipes", id: "lint_deploy_recipes", title: "generated deploy recipes, a command with no checked exit status or no echo", argv: "bundle exec exe/hecks deploy makefile_check.lint --wait", script: "", blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen." },
-    GateCheck { name: "fuzz_1_of_3", id: "fuzz_1_of_3", title: "fuzz, shard 1 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz shard=1/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output." },
-    GateCheck { name: "fuzz_2_of_3", id: "fuzz_2_of_3", title: "fuzz, shard 2 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz shard=2/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output." },
-    GateCheck { name: "fuzz_3_of_3", id: "fuzz_3_of_3", title: "fuzz, shard 3 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz shard=3/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output." },
-    GateCheck { name: "fuzz_sqlite_1_of_3", id: "fuzz_sqlite_1_of_3", title: "fuzz, shard 1 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats." },
-    GateCheck { name: "fuzz_sqlite_2_of_3", id: "fuzz_sqlite_2_of_3", title: "fuzz, shard 2 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats." },
-    GateCheck { name: "fuzz_sqlite_3_of_3", id: "fuzz_sqlite_3_of_3", title: "fuzz, shard 3 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=3/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats." },
-    GateCheck { name: "fuzz_shards", id: "fuzz_shards", title: "fuzz shards, the three shards together hold every domain of the sweep once", argv: "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait", script: "", blocked: "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log." },
-    GateCheck { name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2", title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=1/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD." },
-    GateCheck { name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2", title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=2/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD." },
-    GateCheck { name: "vocabulary_drift", id: "vocabulary_drift", title: "vocabulary, the reserved-name tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_vocabulary --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n", blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result." },
-    GateCheck { name: "ci_gates", id: "ci_gates", title: "ci gates, the CiGate rows must match the marked regions of the workflows", argv: "bundle exec exe/hecks regeneration_run.project_ci_gates --wait", script: "", blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`." },
-    GateCheck { name: "ci_pipeline", id: "ci_pipeline", title: "ci pipeline, the workflow rows must match the files they project", argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline --wait", script: "", blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline --confirm`." },
-    GateCheck { name: "tools_doc", id: "tools_doc", title: "tools doc, docs/tools.md must match the RetiredScript rows", argv: "bundle exec exe/hecks regeneration_run.project_tools_doc --wait", script: "", blocked: "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc --confirm`." },
-    GateCheck { name: "rust_coverage", id: "rust_coverage", title: "rust coverage, every generated module", argv: "bundle exec exe/hecks query corpus_run.corpus_rust_coverage --wait", script: "", blocked: "a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted." },
-    GateCheck { name: "rust_coverage_codegen", id: "rust_coverage_codegen", title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", argv: "", script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", blocked: "hecks-codegen generated nothing for a construct a domain declares." },
-    GateCheck { name: "kernel_coverage", id: "kernel_coverage", title: "rust kernel coverage, every capability variant has a kernel file", argv: "bundle exec exe/hecks kernel_run.measure_kernel_coverage --wait", script: "", blocked: "a capability's enum variant has no rust/src/kernel file behind it." },
-    GateCheck { name: "rust_vocabulary_drift", id: "rust_vocabulary_drift", title: "rust vocabulary, the kernel vocab tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_rust_vocabulary --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result." },
+    GateCheck { name: "rspec", id: "rspec", title: "rspec (parallel)", argv: "", script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n", blocked: "the suite is red.", runs_in: "ci" },
+    GateCheck { name: "fuzzing", id: "fuzzing", title: "spec/fuzzing, which the parallel run above excludes", argv: "bundle exec rspec spec/fuzzing --tag fuzzing", script: "", blocked: "spec/fuzzing is red.", runs_in: "" },
+    GateCheck { name: "query_agreement", id: "query_agreement", title: "adapter agreement, one declared query and every engine giving the same answer", argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io", script: "", blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which.", runs_in: "" },
+    GateCheck { name: "engine_agreement", id: "engine_agreement", title: "engine agreement, every declared comparator on both engines", argv: "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait", script: "", blocked: "a comparator is missing a shared case or a cross-engine spec.", runs_in: "" },
+    GateCheck { name: "shape_ledger", id: "shape_ledger", title: "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge", argv: "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait", script: "", blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first.", runs_in: "" },
+    GateCheck { name: "model_check", id: "model_check", title: "model check, unreachable states, dead transitions and orphaned handlers", argv: "bundle exec exe/hecks ModelCheckRun.model_check! --wait", script: "", blocked: "the model checker found something.", runs_in: "" },
+    GateCheck { name: "doc_coverage", id: "doc_coverage", title: "docs coverage, words with no running example", argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait", script: "", blocked: "the language ships something undocumented; write the missing sections and examples.", runs_in: "" },
+    GateCheck { name: "rubocop", id: "rubocop", title: "rubocop, the static style and correctness gate", argv: "bundle exec rubocop -c .rubocop.yml", script: "", blocked: "rubocop found an offense.", runs_in: "" },
+    GateCheck { name: "codegen_drift", id: "codegen_drift", title: "codegen drift, rust/src/generated/ must match a fresh regeneration", argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed.", runs_in: "" },
+    GateCheck { name: "comment_style", id: "comment_style", title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", script: "", blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.", runs_in: "" },
+    GateCheck { name: "comment_blocks", id: "comment_blocks", title: "comment blocks, no run of comment lines past ADR 0075's cap", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", script: "", blocked: "a comment block ran past the cap; shorten it.", runs_in: "" },
+    GateCheck { name: "command_names", id: "command_names", title: "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait", script: "", blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines.", runs_in: "" },
+    GateCheck { name: "workflow_pagination", id: "workflow_pagination", title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone", argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", script: "", blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=.", runs_in: "" },
+    GateCheck { name: "secret_output", id: "secret_output", title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints", argv: "bundle exec rspec spec/secret_output_spec.rb", script: "", blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream.", runs_in: "" },
+    GateCheck { name: "adapter_words", id: "adapter_words", title: "adapter words, no domain name equal to a technology word the adapters are named for", argv: "bundle exec rspec spec/adapter_words_spec.rb", script: "", blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter.", runs_in: "" },
+    GateCheck { name: "rust_fmt", id: "rust_fmt", title: "rustfmt, every Rust crate laid out as `cargo fmt` would", argv: "", script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n", blocked: "a Rust file is not laid out as rustfmt has it; run `cargo fmt` in its crate (rust/src/exemplar is exempt, it is text templates). Generated Rust is laid out by its generators, so fix the generator, not the output.", runs_in: "" },
+    GateCheck { name: "rust_io", id: "rust_io", title: "rust io specs, conformance, coercion, has_many, semantics corpus, corpus regeneration and feature exclusivity", argv: "", script: "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n", blocked: "a Rust io spec failed, or skipped; the crate it built is under rust/target.", runs_in: "" },
+    GateCheck { name: "ci_codegen_drift", id: "codegen_drift", title: "codegen drift, the committed generated Rust must match the regeneration this job holds", argv: "git diff --exit-code --stat -- rust/src/generated rust/Cargo.toml", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed.", runs_in: "" },
+    GateCheck { name: "generated_tree", id: "generated_tree", title: "whole-tree specs, the examples tagged generated_all against every domain's generated Rust", argv: "bundle exec rspec --tag generated_all", script: "", blocked: "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`.", runs_in: "" },
+    GateCheck { name: "rust_clippy", id: "rust_clippy", title: "clippy, every Rust crate with its warnings as errors", argv: "", script: "for crate in . parser codegen lsp host web build; do\n  cargo clippy --all-targets --manifest-path \"rust/$crate/Cargo.toml\" -- -D warnings\ndone\n", blocked: "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator.", runs_in: "" },
+    GateCheck { name: "lint_deploy_recipes", id: "lint_deploy_recipes", title: "generated deploy recipes, a command with no checked exit status or no echo", argv: "bundle exec exe/hecks deploy MakefileCheck.lint! --wait", script: "", blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen.", runs_in: "" },
+    GateCheck { name: "fuzz_1_of_3", id: "fuzz_1_of_3", title: "fuzz, shard 1 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=1/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
+    GateCheck { name: "fuzz_2_of_3", id: "fuzz_2_of_3", title: "fuzz, shard 2 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=2/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
+    GateCheck { name: "fuzz_3_of_3", id: "fuzz_3_of_3", title: "fuzz, shard 3 of 3 of the example domains on the Memory adapter", argv: "bundle exec exe/hecks fuzz_run.fuzz! shard=3/3 --wait", script: "", blocked: "a property, an interpreter crash or a determinism check failed on a replayed sequence; the seed is in the output.", runs_in: "" },
+    GateCheck { name: "fuzz_sqlite_1_of_3", id: "fuzz_sqlite_1_of_3", title: "fuzz, shard 1 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=1/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "" },
+    GateCheck { name: "fuzz_sqlite_2_of_3", id: "fuzz_sqlite_2_of_3", title: "fuzz, shard 2 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=2/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "" },
+    GateCheck { name: "fuzz_sqlite_3_of_3", id: "fuzz_sqlite_3_of_3", title: "fuzz, shard 3 of 3 on a real on-disk SQLite database", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=3/3 --wait", script: "", blocked: "the SQLite adapter broke a property the Memory adapter held; seeds are 1..N, so the run repeats.", runs_in: "" },
+    GateCheck { name: "fuzz_shards", id: "fuzz_shards", title: "fuzz shards, the three shards together hold every domain of the sweep once", argv: "bundle exec exe/hecks fuzz_run.fuzz! list_shards=3 --wait", script: "", blocked: "the split of the fuzz sweep into three shards drops or repeats a domain, or cannot be listed; a shard would then sweep less than the sweep it stands for. Read the refusal, and fix lib/hecks/tools/fuzz_sweep/shards.rb or the cost table spec/fuzzing/fuzz_runtime_baseline.log.", runs_in: "" },
+    GateCheck { name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2", title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "" },
+    GateCheck { name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2", title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "" },
+    GateCheck { name: "vocabulary_drift", id: "vocabulary_drift", title: "vocabulary, the reserved-name tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n", blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result.", runs_in: "" },
+    GateCheck { name: "ci_gates", id: "ci_gates", title: "ci gates, the CiGate rows must match the marked regions of the workflows", argv: "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait", script: "", blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`.", runs_in: "" },
+    GateCheck { name: "ci_pipeline", id: "ci_pipeline", title: "ci pipeline, the workflow rows must match the files they project", argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait", script: "", blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`.", runs_in: "" },
+    GateCheck { name: "tools_doc", id: "tools_doc", title: "tools doc, docs/tools.md must match the RetiredScript rows", argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait", script: "", blocked: "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`.", runs_in: "" },
+    GateCheck { name: "rust_coverage", id: "rust_coverage", title: "rust coverage, every generated module", argv: "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait", script: "", blocked: "a construct a domain declares has no generated Rust, or an entry on RUST_COVERAGE_PENDING is now fixed and must be deleted.", runs_in: "" },
+    GateCheck { name: "rust_coverage_codegen", id: "rust_coverage_codegen", title: "rust coverage against hecks-codegen's own manifest, pizzas governance identity banking meta", argv: "", script: "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n", blocked: "hecks-codegen generated nothing for a construct a domain declares.", runs_in: "" },
+    GateCheck { name: "kernel_coverage", id: "kernel_coverage", title: "rust kernel coverage, every capability variant has a kernel file", argv: "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait", script: "", blocked: "a capability's enum variant has no rust/src/kernel file behind it.", runs_in: "" },
+    GateCheck { name: "rust_vocabulary_drift", id: "rust_vocabulary_drift", title: "rust vocabulary, the kernel vocab tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n", blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result.", runs_in: "" },
 ];
 
 impl GateCheck {
@@ -4854,20 +4859,28 @@ impl GateCheck {
                 "blocked".to_string(),
                 crate::kernel::Json::Str(self.blocked.to_string()),
             ),
+            (
+                "runs_in".to_string(),
+                crate::kernel::Json::Str(self.runs_in.to_string()),
+            ),
         ])
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         // `validate!`'s order: a name the set does not declare, then a field left out, then
         // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "id", "title", "argv", "script", "blocked"]);
+        let unknown = v.unknown_keys(&[
+            "name", "id", "title", "argv", "script", "blocked", "runs_in",
+        ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "GateCheck",
                     unknown: &unknown,
-                    declared: &["name", "id", "title", "argv", "script", "blocked"],
+                    declared: &[
+                        "name", "id", "title", "argv", "script", "blocked", "runs_in",
+                    ],
                 }
                 .render_args(),
             ));
@@ -4902,6 +4915,11 @@ impl GateCheck {
                 "GateCheck.blocked expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("runs_in"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "GateCheck.runs_in expects String, got nil".to_string(),
+            ));
+        }
         for row in GATE_CHECK {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("id").and_then(crate::kernel::Json::as_str) == Some(row.id)
@@ -4909,6 +4927,7 @@ impl GateCheck {
                 && v.get("argv").and_then(crate::kernel::Json::as_str) == Some(row.argv)
                 && v.get("script").and_then(crate::kernel::Json::as_str) == Some(row.script)
                 && v.get("blocked").and_then(crate::kernel::Json::as_str) == Some(row.blocked)
+                && v.get("runs_in").and_then(crate::kernel::Json::as_str) == Some(row.runs_in)
             {
                 return Ok(row.clone());
             }
@@ -4933,6 +4952,10 @@ impl GateCheck {
                     "codegen_drift",
                     "comment_style",
                     "comment_blocks",
+                    "command_names",
+                    "workflow_pagination",
+                    "secret_output",
+                    "adapter_words",
                     "rust_fmt",
                     "rust_io",
                     "ci_codegen_drift",
@@ -4972,11 +4995,11 @@ pub struct GateStage {
 }
 
 pub const GATE_STAGE: &[GateStage] = &[
-    GateStage { name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec,fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt" },
-    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks" },
-    GateStage { name: "unguarded_push", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing" },
+    GateStage { name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt" },
+    GateStage { name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec" },
+    GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
-    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
+    GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
 ];
 
 impl GateStage {
@@ -5043,7 +5066,178 @@ impl GateStage {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "GateStage",
-                admitted: &["pre_push", "quick", "unguarded_push", "rust_io", "ci"],
+                admitted: &["pre_push", "ci_suite", "quick", "rust_io", "ci"],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RehearsalStage {
+    pub name: &'static str,
+    pub kind: &'static str,
+    pub argument: &'static str,
+}
+
+pub const REHEARSAL_STAGE: &[RehearsalStage] = &[
+    RehearsalStage {
+        name: "quick",
+        kind: "gate",
+        argument: "quick",
+    },
+    RehearsalStage {
+        name: "impacted",
+        kind: "impacted",
+        argument: "",
+    },
+];
+
+impl RehearsalStage {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.to_string()),
+            ),
+            (
+                "kind".to_string(),
+                crate::kernel::Json::Str(self.kind.to_string()),
+            ),
+            (
+                "argument".to_string(),
+                crate::kernel::Json::Str(self.argument.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["name", "kind", "argument"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "RehearsalStage",
+                    unknown: &unknown,
+                    declared: &["name", "kind", "argument"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalStage.name expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("kind"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalStage.kind expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("argument"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalStage.argument expects String, got nil".to_string(),
+            ));
+        }
+        for row in REHEARSAL_STAGE {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
+                && v.get("kind").and_then(crate::kernel::Json::as_str) == Some(row.kind)
+                && v.get("argument").and_then(crate::kernel::Json::as_str) == Some(row.argument)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("name")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "RehearsalStage",
+                admitted: &["quick", "impacted"],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct RehearsalScope {
+    pub name: &'static str,
+    pub stages: &'static str,
+}
+
+pub const REHEARSAL_SCOPE: &[RehearsalScope] = &[
+    RehearsalScope {
+        name: "quick",
+        stages: "quick",
+    },
+    RehearsalScope {
+        name: "deep",
+        stages: "quick,impacted",
+    },
+];
+
+impl RehearsalScope {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.to_string()),
+            ),
+            (
+                "stages".to_string(),
+                crate::kernel::Json::Str(self.stages.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["name", "stages"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "RehearsalScope",
+                    unknown: &unknown,
+                    declared: &["name", "stages"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalScope.name expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("stages"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalScope.stages expects String, got nil".to_string(),
+            ));
+        }
+        for row in REHEARSAL_SCOPE {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
+                && v.get("stages").and_then(crate::kernel::Json::as_str) == Some(row.stages)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("name")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "RehearsalScope",
+                admitted: &["quick", "deep"],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -5466,26 +5660,26 @@ pub struct QaDial {
 
 pub const QA_DIAL: &[QaDial] = &[
     QaDial { name: "cadence_seconds", r#type: "Integer", meaning: "Minimum gap in seconds between one tick's report and the next dispatch; 0 is immediately. Read by the `/loop hecks_qa` caller, not by any script." },
-    QaDial { name: "pr_cap_per_day", r#type: "Integer", meaning: "Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped." },
+    QaDial { name: "pr_cap_per_day", r#type: "Integer", meaning: "Most PRs (Patch plus Improvement) `hecks quality_control Patch.open!` opens per calendar day; 0 is uncapped." },
     QaDial { name: "widening_tiers", r#type: "Array", meaning: "Fuzz depth by `Target.clean_streak`, in three discrete tiers, read by `SweepDepth.for_streak`. The last row (`upto: Float::INFINITY`) is the ceiling." },
-    QaDial { name: "sweep_max_parallel", r#type: "Integer", meaning: "How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once." },
+    QaDial { name: "sweep_max_parallel", r#type: "Integer", meaning: "How many `hecks quality_control sweep.run <target>` children `--all` keeps running at once." },
     QaDial { name: "liveness_fallback_seconds", r#type: "Integer", meaning: "How long the `/loop hecks_qa` caller waits for a tick's report before assuming it stalled." },
-    QaDial { name: "draft_only", r#type: "Boolean", meaning: "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review." },
-    QaDial { name: "auto_merge", r#type: "Boolean", meaning: "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open." },
+    QaDial { name: "draft_only", r#type: "Boolean", meaning: "Whether `hecks quality_control Patch.open!` opens its PR as a draft; false opens it ready for review." },
+    QaDial { name: "auto_merge", r#type: "Boolean", meaning: "Whether `hecks quality_control Patch.open!` queues the PR for auto-merge once it is open." },
     QaDial { name: "adversarial_fraction", r#type: "Numeric", meaning: "Fraction (0.0..1.0) of generated command steps mutated adversarially; 0 turns the layer off. Higher finds refusal-ordering splits sooner but reaches deep state less often." },
     QaDial { name: "guided_generation", r#type: "Boolean", meaning: "Coverage-guided generation across one sweep's seeds (`Hecks::Fuzzing::CoverageCampaign`)." },
     QaDial { name: "corpus_splice_probability", r#type: "Numeric", meaning: "Fraction (0.0..1.0) of seeds that start from a prefix of an earlier seed's new coverage. Off by default: measured, it trades breadth for depth (banking reached 1.41x the deep-state tuples, chess lost 0.12x of all tuples), while favoring rare verbs alone never lost." },
     QaDial { name: "favor_rare_verbs", r#type: "Integer", meaning: "How many of the least-hit verbs the next seed weights up; 0 turns the lever off." },
     QaDial { name: "runtime_coverage_feedback", r#type: "Boolean", meaning: "Whether guided generation also admits a seed to the corpus for reaching a new line or branch of the Ruby runtime (`Hecks::Fuzzing::RuntimeCoverage`), not only a new (verb, kind, state, mutation, outcome) tuple. Off by default: tracing every line slows each seed." },
-    QaDial { name: "self_consistency_checks", r#type: "Boolean", meaning: "Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence." },
-    QaDial { name: "shrink_budget", r#type: "Integer", meaning: "Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand." },
+    QaDial { name: "self_consistency_checks", r#type: "Boolean", meaning: "Whether `hecks quality_control sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence." },
+    QaDial { name: "shrink_budget", r#type: "Integer", meaning: "Candidate replays `hecks quality_control sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand." },
     QaDial { name: "yield_weight_seconds", r#type: "Integer", meaning: "Seconds of staleness that one point of yield score is worth in `RotationPriority.pick`. Zero would make yield invisible, so pick a number that lets it matter." },
     QaDial { name: "yield_decay_percent", r#type: "Integer", meaning: "Percent of the prior yield score kept at each release, so recent findings dominate. Applied by the caller: the mutation language cannot express \"decay, then add\" in `Release`." },
     QaDial { name: "rotation_stale_floor_seconds", r#type: "Integer", meaning: "Once a waiting target is this stale, `RotationPriority.pick` takes it whatever its yield score, so a quiet target cannot starve." },
-    QaDial { name: "persistence_parity_seed_cap", r#type: "Integer", meaning: "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control query sweep.run` clamps down, never up, and prints a note." },
+    QaDial { name: "persistence_parity_seed_cap", r#type: "Integer", meaning: "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control sweep.run` clamps down, never up, and prints a note." },
     QaDial { name: "concurrency_seed_cap", r#type: "Integer", meaning: "Ceiling on `--seeds` for the concurrency mode, which needs two disposable schemas per seed." },
     QaDial { name: "adapter_parity_pairs", r#type: "Hash", meaning: "The two adapters each adapter-parity mode compares, by mode name; a new pairing is a new entry. `adapter_parity_sqlite` needs no `database:`/`schema:` because sqlite has no disposable database." },
-    QaDial { name: "modes", r#type: "Hash", meaning: "Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled." },
+    QaDial { name: "modes", r#type: "Hash", meaning: "Which comparison modes `hecks quality_control sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled." },
     QaDial { name: "role_draw_probability", r#type: "Numeric", meaning: "How often a generated role-gated command step carries a drawn caller (`role:`/`actor_id:`); 0 turns the draw off." },
     QaDial { name: "dry_run_fraction", r#type: "Numeric", meaning: "Fraction of generated command steps offered as a dry run instead of a real dispatch; 0 is off. Kept low: a dry run creates no state for later steps to act on." },
     QaDial { name: "generated_domains_per_tick", r#type: "Integer", meaning: "How many generated domains one `hecks quality_control sweep.tick` checks after the rotation sweep; 0 skips the step." },
@@ -5494,6 +5688,12 @@ pub const QA_DIAL: &[QaDial] = &[
     QaDial { name: "mutation_files", r#type: "Array", meaning: "Rust files `hecks quality_control target.mutate --from-dials` mutates, and so the files one `hecks quality_control sweep.tick` mutation-tests after the generated domains; empty skips the step." },
     QaDial { name: "mutation_equivalent", r#type: "Array", meaning: "Mutants that behave the same as the original code, by the name `cargo mutants --list` gives them without the file and line; never run, so they cannot be reported as survivors." },
     QaDial { name: "structural_refusal_boundary", r#type: "Array", meaning: "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest." },
+    QaDial { name: "red_main_check", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step." },
+    QaDial { name: "event_pump", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless." },
+    QaDial { name: "push_nudge", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting." },
+    QaDial { name: "quiesced", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step." },
+    QaDial { name: "main_maintenance", r#type: "Boolean", meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain." },
+    QaDial { name: "maintenance_confirm", r#type: "Boolean", meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing." },
 ];
 
 impl QaDial {
@@ -5590,6 +5790,12 @@ impl QaDial {
                     "mutation_files",
                     "mutation_equivalent",
                     "structural_refusal_boundary",
+                    "red_main_check",
+                    "event_pump",
+                    "push_nudge",
+                    "quiesced",
+                    "main_maintenance",
+                    "maintenance_confirm",
                 ],
                 offered: offered.as_str(),
             }
@@ -5637,7 +5843,7 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "heki_compact", section: "Custodian", aggregate: "Era", verb: "compact_heki", passes: "", note: "", form: "" },
     RetiredScript { script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", passes: "", note: "waits: a refusal exits 1 with its reason on stderr", form: "" },
     RetiredScript { script: "project_cli", section: "Custodian", aggregate: "Launch", verb: "project_cli", passes: "", note: "", form: "" },
-    RetiredScript { script: "hecks_mcp_door", section: "Custodian", aggregate: "Launch", verb: "serve_mcp", passes: "", note: "", form: "" },
+    RetiredScript { script: "hecks_mcp_door", section: "Custodian", aggregate: "Server", verb: "serve_mcp", passes: "", note: "", form: "" },
     RetiredScript { script: "project_rust", section: "Custodian", aggregate: "Build", verb: "project_rust", passes: "", note: "", form: "" },
     RetiredScript { script: "project_wasm", section: "Custodian", aggregate: "Build", verb: "build_wasm", passes: "", note: "", form: "" },
     RetiredScript { script: "project_host", section: "Custodian", aggregate: "Build", verb: "build_host", passes: "", note: "", form: "" },
@@ -5696,10 +5902,10 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "canonicalise", section: "Codebase", aggregate: "StyleRun", verb: "canonicalise", passes: "", note: "", form: "" },
     RetiredScript { script: "codemod_hoist_local_givens", section: "Codebase", aggregate: "CodemodRun", verb: "hoist_local_givens", passes: "", note: "", form: "" },
     RetiredScript { script: "codemod_implicit_append_fields", section: "Codebase", aggregate: "CodemodRun", verb: "drop_implicit_append_fields", passes: "", note: "", form: "" },
+    RetiredScript { script: "codemod_move_former_name", section: "Codebase", aggregate: "CodemodRun", verb: "move_former_name", passes: "", note: "", form: "" },
     RetiredScript { script: "rspec_shard_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "shard_specs", passes: "", note: "", form: "" },
     RetiredScript { script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "list_io_parallel_specs", passes: "", note: "", form: "" },
     RetiredScript { script: "rspec_io_parallel_files", section: "Codebase", aggregate: "TestSuiteRun", verb: "write_io_parallel_spec_list", passes: "", note: "", form: "" },
-    RetiredScript { script: "refresh_rspec_runtime_baseline", section: "Codebase", aggregate: "TestSuiteRun", verb: "refresh_runtime_baseline", passes: "", note: "", form: "" },
     RetiredScript { script: "spec_example", section: "Codebase", aggregate: "TestSuiteRun", verb: "run_spec_example", passes: "", note: "", form: "" },
     RetiredScript { script: "stress_concurrency_specs", section: "Codebase", aggregate: "TestSuiteRun", verb: "stress_concurrency", passes: "", note: "", form: "" },
     RetiredScript { script: "regenerate_persistence_legacy_fixtures", section: "Codebase", aggregate: "TestSuiteRun", verb: "regenerate_legacy_fixtures", passes: "", note: "", form: "" },
@@ -5711,12 +5917,13 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_constructs", passes: "", note: "", form: "" },
     RetiredScript { script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_duplicates", passes: "", note: "", form: "" },
     RetiredScript { script: "query_ir", section: "Codebase", aggregate: "CorpusRun", verb: "ir_impact", passes: "", note: "", form: "" },
-    RetiredScript { script: "hecks_query_ir_mcp", section: "Codebase", aggregate: "CorpusRun", verb: "serve_query_ir_mcp", passes: "", note: "", form: "" },
-    RetiredScript { script: "present", section: "Codebase", aggregate: "CorpusRun", verb: "present", passes: "", note: "", form: "" },
+    RetiredScript { script: "hecks_query_ir_mcp", section: "Codebase", aggregate: "Server", verb: "serve_query_ir_mcp", passes: "", note: "", form: "" },
+    RetiredScript { script: "present", section: "Codebase", aggregate: "Server", verb: "present", passes: "", note: "", form: "" },
     RetiredScript { script: "release", section: "Codebase", aggregate: "PublishingRun", verb: "publish", passes: "", note: "without --confirm, the old --dry-run", form: "" },
     RetiredScript { script: "release_gem", section: "Codebase", aggregate: "PublishingRun", verb: "publish_gem", passes: "", note: "", form: "" },
     RetiredScript { script: "(new)", section: "Codebase", aggregate: "GateRun", verb: "gate", passes: "", note: "", form: "" },
     RetiredScript { script: "qa_tick", section: "QualityControl", aggregate: "Sweep", verb: "tick", passes: "", note: "", form: "" },
+    RetiredScript { script: "qa_event_pump", section: "QualityControl", aggregate: "EventPump", verb: "pump", passes: "", note: "", form: "" },
     RetiredScript { script: "qa_sweep", section: "QualityControl", aggregate: "Sweep", verb: "run", passes: "--all --seeds N --steps N --adversarial F --role-draw F --dry-run F --self-consistency BOOL --modes a,b --persistence-parity --no-parity", note: "", form: "" },
     RetiredScript { script: "qa_sweep", section: "QualityControl", aggregate: "Target", verb: "release", passes: "", note: "", form: "" },
     RetiredScript { script: "qa_pr_check", section: "QualityControl", aggregate: "Clearance", verb: "check_pull_requests", passes: "", note: "", form: "" },
@@ -5732,6 +5939,8 @@ pub const RETIRED_SCRIPT: &[RetiredScript] = &[
     RetiredScript { script: "qa_discover_external_domains", section: "QualityControl", aggregate: "Target", verb: "discover_external_domains", passes: "--projects-dir ~/Projects --max-depth 3 --known-path PATH …", note: "", form: "" },
     RetiredScript { script: "qa_postgres_migrate", section: "QualityControl", aggregate: "Sweep", verb: "migrate_ledger_from_heki", passes: "[aggregate …] --force", note: "a dry run without --force", form: "" },
     RetiredScript { script: "qa_postgres_role", section: "QualityControl", aggregate: "Sweep", verb: "create_ledger_role", passes: "", note: "", form: "" },
+    RetiredScript { script: "qa_main_gate", section: "QualityControl", aggregate: "MainCheck", verb: "check_main", passes: "", note: "", form: "" },
+    RetiredScript { script: "qa_fix_main_bug", section: "QualityControl", aggregate: "Bug", verb: "fix_and_land", passes: "--bug BUG#n", note: "", form: "" },
     RetiredScript { script: "qa_concurrency_racer", section: "QualityControl", aggregate: "Sweep", verb: "race", passes: "", note: "not user-facing; ProcessPool starts it", form: "" },
 ];
 
@@ -5942,10 +6151,10 @@ impl RetiredScript {
                     "canonicalise",
                     "codemod_hoist_local_givens",
                     "codemod_implicit_append_fields",
+                    "codemod_move_former_name",
                     "rspec_shard_files",
                     "rspec_io_parallel_files",
                     "rspec_io_parallel_files",
-                    "refresh_rspec_runtime_baseline",
                     "spec_example",
                     "stress_concurrency_specs",
                     "regenerate_persistence_legacy_fixtures",
@@ -5963,6 +6172,7 @@ impl RetiredScript {
                     "release_gem",
                     "(new)",
                     "qa_tick",
+                    "qa_event_pump",
                     "qa_sweep",
                     "qa_sweep",
                     "qa_pr_check",
@@ -5978,6 +6188,8 @@ impl RetiredScript {
                     "qa_discover_external_domains",
                     "qa_postgres_migrate",
                     "qa_postgres_role",
+                    "qa_main_gate",
+                    "qa_fix_main_bug",
                     "qa_concurrency_racer",
                 ],
                 offered: offered.as_str(),

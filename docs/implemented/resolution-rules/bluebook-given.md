@@ -98,7 +98,7 @@ having to change.
   check that the referencing aggregate's own intent actually matches what
   it resolves to — that is a human/codemod responsibility before
   converting a declaration to a reference, the same discipline
-  `hecks codemod_run.hoist_local_givens` already exercises programmatically one
+  `hecks codemod_run.hoist_local_givens!` already exercises programmatically one
   level down.
 - **`hecks corpus_run.ir_duplicates`' own dedup cannot see this rule at all** — a
   referenced (bare) `given` write-throughs into its own aggregate's

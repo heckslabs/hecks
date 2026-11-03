@@ -1,4 +1,5 @@
 require_relative "../../../../ports/persistence/plugins/era/era_tamper"
+require_relative "../../../../ports/persistence/plugins/era/projected_bluebook"
 require_relative "../../../../runtime/registry"
 
 module Hecks
@@ -45,23 +46,27 @@ module Hecks
           end
 
           # A row with no stored digest yet is backfilled, not refused; only a mismatch raises.
-          def verify_integrity!(ordinal, text, stored_digest, stored_projection_json)
+          # `stored_hash` is the era's name, which a missing projection is backfilled against.
+          def verify_integrity!(ordinal, text, stored_digest, stored_projection_json, stored_hash = nil)
             digest = Digest::SHA256.hexdigest(text)
             store_missing_digest!(ordinal, digest) if stored_digest.nil?
             unless stored_digest.nil? || stored_digest == digest
               raise Runtime::WiringError, Runtime::EraTamper.refusal(domain: @domain, ordinal: ordinal)
             end
 
-            backfill_frozen_facts!(ordinal, text, stored_projection_json)
+            backfill_frozen_facts!(ordinal, text, stored_projection_json, stored_hash)
           end
 
-          # Call only on already-verified text; this would bless an unverified edit.
-          def backfill_frozen_facts!(ordinal, text, stored_projection_json)
+          # Call only on already-verified text; this would bless an unverified edit. A missing
+          # projection is filled from the text only when the text hashes to the era's stored hash,
+          # so it is the whole domain the era was minted from; a domain split across files whose
+          # top-level file alone was held stays without one, and reading its shape refuses by name.
+          def backfill_frozen_facts!(ordinal, text, stored_projection_json, stored_hash = nil)
             archive_text!(ordinal, text)
-            return if stored_projection_json
+            return if stored_projection_json || stored_hash.nil?
 
             projection = Runtime::EraTamper.project(text)
-            return unless projection
+            return unless projection && Runtime::ProjectedBluebook.new(projection).mint_hash == stored_hash
 
             @db.exec_params(
               "UPDATE hecks_eras SET held_projection = $3::text::jsonb " \

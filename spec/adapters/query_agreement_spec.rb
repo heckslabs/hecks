@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
+require_relative "../support/first_era_hold"
 # `pg` is required explicitly; the adapter only requires it lazily in `PostgresEra.connect_for`.
 require "pg"
 
@@ -44,12 +45,14 @@ end
 RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, " \
                "PostgresEra, plain Postgres, and D1",
                :io do
+  include FirstEraHold
+
   # Named for the process, so two runs on one Postgres (parallel sessions) never drop each
   # other's databases mid-spec.
-  AGREEMENT_DB = "hecks_query_agreement_spec_#{Process.pid}".freeze
-  # Separate from AGREEMENT_DB: one database per engine keeps `DROP SCHEMA public CASCADE`
+  QUERY_AGREEMENT_DB = "hecks_query_agreement_spec_#{Process.pid}".freeze
+  # Separate from QUERY_AGREEMENT_DB: one database per engine keeps `DROP SCHEMA public CASCADE`
   # on one from touching the other's tables.
-  PLAIN_POSTGRES_AGREEMENT_DB = "#{AGREEMENT_DB}_plain".freeze
+  PLAIN_POSTGRES_AGREEMENT_DB = "#{QUERY_AGREEMENT_DB}_plain".freeze
 
   # Instance methods over the module-level memoized probes, giving hooks a short name.
   def postgres_available? = PostgresProbe.available?
@@ -59,8 +62,8 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     next unless postgres_available?
 
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{AGREEMENT_DB} WITH (FORCE)")
-    admin.exec("CREATE DATABASE #{AGREEMENT_DB}")
+    admin.exec("DROP DATABASE IF EXISTS #{QUERY_AGREEMENT_DB} WITH (FORCE)")
+    admin.exec("CREATE DATABASE #{QUERY_AGREEMENT_DB}")
     admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_AGREEMENT_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{PLAIN_POSTGRES_AGREEMENT_DB}")
     admin.close
@@ -70,7 +73,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
     next unless postgres_available?
 
     admin = PG.connect(dbname: "postgres")
-    admin.exec("DROP DATABASE IF EXISTS #{AGREEMENT_DB} WITH (FORCE)")
+    admin.exec("DROP DATABASE IF EXISTS #{QUERY_AGREEMENT_DB} WITH (FORCE)")
     admin.exec("DROP DATABASE IF EXISTS #{PLAIN_POSTGRES_AGREEMENT_DB} WITH (FORCE)")
     admin.close
   end
@@ -78,7 +81,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
   def scrub_postgres_databases
     return unless postgres_available?
 
-    [AGREEMENT_DB, PLAIN_POSTGRES_AGREEMENT_DB].each do |database|
+    [QUERY_AGREEMENT_DB, PLAIN_POSTGRES_AGREEMENT_DB].each do |database|
       scrub = PG.connect(dbname: database)
       scrub.exec("DROP SCHEMA public CASCADE")
       scrub.exec("CREATE SCHEMA public")
@@ -290,7 +293,7 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   def build_postgres_engines
     {
-      "PostgresEra" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: AGREEMENT_DB }),
+      "PostgresEra" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: QUERY_AGREEMENT_DB }),
       "Postgres"    => Hecks::Adapters::Postgres.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_AGREEMENT_DB })
     }
   end
@@ -324,9 +327,33 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
     end
   end
 
-  # Scrubs each database first, then seeds every engine, in that order.
+  # The bluebook the PostgresEra database holds as its first era. A boot never holds an era, so
+  # the scrubbed database holds one before the engine reads it; the journal is named for the
+  # aggregate's storage name, as the bare aggregate boots under.
+  FIRST_ERA_SOURCE = <<~RUBY.freeze
+    Hecks.bluebook "Thing" do
+      aggregate "Thing" do
+        identified_by :name
+
+        attribute :name, Name
+
+        value_object "Name" do
+          attribute :value, String
+        end
+      end
+    end
+  RUBY
+
+  def hold_postgres_first_era
+    return unless postgres_available?
+
+    hold_first_era!(url: QUERY_AGREEMENT_DB, domain: aggregate.storage_name, source: FIRST_ERA_SOURCE)
+  end
+
+  # Scrubs each database first, holds the first era, then seeds every engine, in that order.
   before do
     scrub_postgres_databases
+    hold_postgres_first_era
     scrub_d1_tables
     seed_records
   end

@@ -10,6 +10,7 @@ require_relative "projector"
 require_relative "runtime/errors"
 require_relative "storehouse/callers"
 require_relative "storehouse/audit"
+require_relative "storehouse/identity"
 require_relative "storehouse/dispatching"
 require_relative "storehouse/querying"
 require_relative "storehouse/introspection"
@@ -27,6 +28,11 @@ module Hecks
     # than guessed.
     SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
 
+    # Which surface a call came in through, so the audit line says what made it: a person at a shell
+    # (`cli`), an agent over the MCP server (`mcp`), or the domain itself (`policy`, `saga`,
+    # `reaction`).
+    SURFACES = %w[cli mcp policy saga reaction].freeze
+
     # The root every domain path resolves under; HECKS_STOREHOUSE_ROOT widens it.
     # Hecks.boot Kernel.loads Ruby files here, so an unconfined path is
     # arbitrary code execution, not just a wrong-directory mistake.
@@ -34,10 +40,14 @@ module Hecks
 
     # One dispatch or query call: the booted domain, what it is asked, and who is asking.
     Request = Struct.new(:runtime, :bluebook, :name, :summary, :args, :source, :dry_run, :role, :actor_id,
-                         keyword_init: true)
+                         :surface, keyword_init: true) do
+      # @return [String, nil] the name of the bluebook the call asks, or nil when none is booted
+      def bluebook_name = bluebook&.name
+    end
 
     extend Callers
     extend Audit
+    extend Identity
     extend Dispatching
     extend Querying
     extend Introspection
@@ -80,7 +90,11 @@ module Hecks
 
     # The alias table CliRunner resolves against, for one bluebook.
     # :nodoc:
-    def cli_for(bluebook) = Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
+    def cli_for(runtime, bluebook)
+      launcher = Adapters::Driving::LauncherOptions.settings(runtime, bluebook.name)
+      options = Adapters::Driving::LauncherOptions.projection(launcher, "mcp")
+      Projector.call(:cli, bluebook: bluebook, options: options)
+    end
 
     # The same alias table CliRunner resolves against, kept here so dispatch
     # and query never drift from what a human typing hecks run sees.
@@ -116,7 +130,7 @@ module Hecks
     # @param names [Array<String, nil>] short or qualified command names
     # @return [Array<String, nil>] one verb or nil per name, in order
     def verbs_for(runtime, names)
-      cli = cli_for(bluebook_for(runtime))
+      cli = cli_for(runtime, bluebook_for(runtime))
       names.map do |name|
         resolve!(cli, name.to_s, asking: false)[:command]
       rescue Runtime::NotFound
@@ -132,19 +146,24 @@ module Hecks
     # @yieldreturn [Hash] the call's outcome
     # :nodoc:
     def audited(request, tool)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       outcome = yield
-      bluebook = request.bluebook
-      record!(bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome, **audit_fields(request))
-      outcome.except(:verb)
+      record_call!(request, tool, started, verb: outcome[:verb], outcome: outcome)
+      outcome.except(:verb).merge(ids: ids_of(request, outcome))
     rescue *refusal_classes => e
       outcome = refused(e, summary: request.summary)
-      asked_of = request.bluebook
-      record!(asked_of&.name, tool: tool, outcome: outcome, **audit_fields(request))
-      outcome
+      record_call!(request, tool, started, outcome: outcome, refusal: refusal_kind(e))
+      outcome.merge(ids: ids_of(request, outcome))
+    end
+
+    # Writes the audit line for one audited call, timed from `started`.
+    # :nodoc:
+    def record_call!(request, tool, started, **fields)
+      record!(request.bluebook_name, tool: tool, duration_ms: elapsed_ms(started), **audit_fields(request), **fields)
     end
 
     # :nodoc:
-    def audit_fields(request) = request.to_h.slice(:summary, :source, :role, :actor_id)
+    def audit_fields(request) = request.to_h.slice(:summary, :source, :role, :actor_id, :surface)
 
     # dry_run? (Runtime::Dispatcher) only understands the pre-envelope flat
     # args shape; this is the one entry point back into it from dispatch's own envelope.

@@ -112,11 +112,35 @@ module Hecks
           @ports_by_name[port.name] = port
         end
 
+        # The physical name the world gives this aggregate (`stored_as Revision: "commit"`), set
+        # when a registry applies its world's names. Nothing in the bluebook sets it.
+        attr_writer :stored_as, :prior_storage_names
+
         # Names the table, file or key persistence adapters store this aggregate
-        # under.
+        # under. A renamed aggregate keeps the name its rows were written under, so
+        # its stored records stay where they are.
         #
-        # @return [String] the aggregate's name, snake-cased
-        def storage_name = Naming.snake(@name)
+        # @return [String] the world's `stored_as` when it gives one, else the former name from
+        #   `formerly_known_as` when the bluebook declares one, else the aggregate's own name,
+        #   snake-cased
+        def storage_name = Naming.snake(@stored_as || former_name || @name)
+
+        # The physical names this aggregate's rows may sit under from an earlier name: its
+        # `formerly_known_as` and every name a translation edge renames it from. An adapter
+        # that finds rows under one while its own table is empty refuses instead of beginning anew.
+        #
+        # @return [Array<String>] snake-cased names other than the current storage name
+        def prior_storage_names = (@prior_storage_names || []).map { |name| Naming.snake(name) } - [storage_name]
+
+        # The name this aggregate carried before its rename, from `formerly_known_as`.
+        #
+        # @return [String, nil] the former name, or nil when the aggregate was never renamed
+        def former_name
+          held = formerly_known_as
+          return nil if held.nil?
+
+          (held.respond_to?(:value) ? held.value : held).to_s
+        end
       end
     end
   end

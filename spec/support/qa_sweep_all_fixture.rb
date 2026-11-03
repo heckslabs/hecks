@@ -144,6 +144,7 @@ RSpec.shared_context "with a qa_sweep_all fixture" do |database_name|
     scrub.exec("CREATE SCHEMA public")
     scrub.close
     QaLedgerRole.own_public!(@qa_sweep_all_database)
+    QaLedgerFixture.hold_eras!(@fixture_dir, @qa_sweep_all_database)
   end
 
   # Boots in-process only to write `Target` rows; sweeps run as separate `qa_sweep` processes.

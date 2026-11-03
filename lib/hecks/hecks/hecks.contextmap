@@ -18,8 +18,18 @@ Hecks.context_map "Hecks" do
   context "Tickets"
   context "Composer"
   context "QualityControl"
+  context "Coder"
+  context "Fixer"
+  context "PipelineBoard"
+  context "Pipeline"
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
   relate "Deploy" => "Tenancy", as: :anticorruption_layer
+
+  # QualityControl's hecksagon translates the migrate bluebook's `RehearsalAudited` into its own
+  # `RecordRehearsalVerdict`, so the audit's model stays out of QualityControl's Maintenance.
+  relate "Hecks" => "QualityControl", as: :anticorruption_layer
+  # Hecks attaches QualityControl as well, so the pair also shares a kernel, which has no direction.
+  relate "QualityControl" => "Hecks", as: :shared_kernel
 end

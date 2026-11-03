@@ -131,6 +131,7 @@
           ],
           "goal": "Bind one adapter in a world",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -231,6 +232,7 @@
           ],
           "goal": "Give one value the bound adapter needs",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -251,10 +253,12 @@
           "role": "Deployment"
         }
       ],
+      "created_by": null,
       "description": "One adapter binding inside a world — the verb it answers, the adapter it names, and the values that adapter needs. Its own root because a world's settings are an open map, which no value object can hold.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "world.value",
         "verb.value"
@@ -456,6 +460,7 @@
           ],
           "goal": "Open a world for a domain",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -512,10 +517,12 @@
           "role": "Deployment"
         }
       ],
+      "created_by": null,
       "description": "One .world — the per-deployment values a domain's adapters need. A sibling artifact to the bluebook, not part of it : the same domain runs in many worlds.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "domain.value"
       ],

@@ -4,10 +4,15 @@ module Hecks
       module CliRunner
         # Reads the spellings a line may give a command or query. The launcher indexes them by the
         # snake-case `aggregate.verb` the projection prints; the bluebook's own verb form, such as
-        # `Hecks::PushTrain.Board`, reaches the same one. Extended into `CliRunner`.
+        # `Hecks::SendTrain.Board`, reaches the same one. Extended into `CliRunner`.
         module VerbNames
           # A realm written before the aggregate: `Hecks::`.
           REALM = /\A(?:[A-Z]\w*::)+/
+
+          # The spelling notices this process has already printed, keyed by the spelling typed, so
+          # each
+          # prints once.
+          NOTED = Set.new
 
           # The name the projection indexes a typed name under: the name itself when it is one,
           # else its verb form read into snake case, else the name as typed, for the refusal to
@@ -20,8 +25,36 @@ module Hecks
             [typed, *verb_form_names(typed)].find { |name| indexed?(cli, name) } || typed
           end
 
+          # Says once, on standard error, that a line used an aggregate's former name and names the
+          # spelling to use. Short-name aliases stay silent.
+          #
+          # @param cli [Hash] the projection
+          # @param typed [String] the word typed, without its `!`
+          # @param name [String] the name the index resolved the word to
+          # @return [void]
+          def note_former_name(cli, typed, name)
+            spec = indexed_spec(cli, name)
+            return unless former_spelling?(spec, typed)
+            return unless NOTED.add?("spelling #{typed}")
+
+            warn "hecks: #{typed} is the former name of #{spec[:command]}; use that spelling (this notice prints once)"
+          end
+
+          # The command or query a name in the index resolves to, or nil.
+          def indexed_spec(cli, name)
+            target = cli[:names][:command][name] || cli[:names][:question][name]
+            cli[:commands][target] || cli[:questions][target]
+          end
+
+          # Whether the word typed begins with the former name of the aggregate its spec belongs to.
+          def former_spelling?(spec, typed)
+            return false unless spec && spec[:formerly]
+
+            snake_form(typed).start_with?("#{Naming.snake(spec[:formerly])}.")
+          end
+
           # A typed name as the projection spells it, to match what was typed against the names it
-          # indexes: `Hecks::PushTrain.bord` as `push_train.bord`.
+          # indexes: `Hecks::SendTrain.bord` as `send_train.bord`.
           #
           # @param typed [String] the word typed, without its `!`
           # @return [String] the realm dropped and each dotted segment in snake case
@@ -29,8 +62,8 @@ module Hecks
 
           private
 
-          # `Hecks::PushTrain.board` as `push_train.board`; a verb that names an entity's command,
-          # `PushTrain.Launcher.Refresh`, also as `push_train.refresh`, the way the projection
+          # `Hecks::SendTrain.board` as `send_train.board`; a verb that names an entity's command,
+          # `SendTrain.Launcher.Refresh`, also as `send_train.refresh`, the way the projection
           # exposes it.
           def verb_form_names(typed)
             segments = snake_segments(typed)

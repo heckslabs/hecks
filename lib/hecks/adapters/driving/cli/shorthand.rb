@@ -4,6 +4,10 @@ module Hecks
       module Cli
         # Rewrites the shorthand spellings of a command line into plain `name=value` words.
         module Shorthand
+          # The declared types a bare `--name` flag may stand for: a plain Boolean, or a `Switch`,
+          # which wraps one.
+          BOOLEAN_TYPES = %w[Boolean Switch].freeze
+
           module_function
 
           # Rewrites the short forms into `name=value`: `--name` for a Boolean (a following `yes`,
@@ -58,7 +62,7 @@ module Hecks
           def flag(name, options)
             name = name.tr("-", "_") unless options.key?(name) || options.keys.any? { |key| key.start_with?("#{name}.") }
             path = options.key?(name) ? name : Cli.expand(name, options)
-            return path if options.dig(path, :type) == "Boolean"
+            return path if BOOLEAN_TYPES.include?(options.dig(path, :type))
 
             raise Runtime::NotFound, "--#{name} is a flag, but this command has no Boolean argument #{name.inspect}"
           end

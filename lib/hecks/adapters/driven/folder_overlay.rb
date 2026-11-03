@@ -16,6 +16,18 @@ module Hecks
       # The name of a file that is local: a `.local.hecksagon` or a `.local.world`.
       LOCAL_FILE_NAME = /\.local\.(hecksagon|world)\z/
 
+      # Runs a block with no overlay loaded at all, so a domain read inside it holds only what is
+      # committed: the same on every checkout and in CI, whatever local files this one keeps.
+      #
+      # @return [Object] the block's value
+      def self.committed_only
+        held = Thread.current[:hecks_committed_only]
+        Thread.current[:hecks_committed_only] = true
+        yield
+      ensure
+        Thread.current[:hecks_committed_only] = held
+      end
+
       # Loads the copy's own overlay, then its local files (beside the domain, then in the working
       # directory), then an environment's overlay, each `.hecksagon` then `.world`, when present.
       # The environment loads last, so `memory` still wins over a local database.
@@ -24,6 +36,9 @@ module Hecks
       # @param environment [String, nil] the environment name; nil loads no named overlay
       # @return [void]
       def load_overlay(directory, environment)
+        return if Thread.current[:hecks_committed_only]
+
+        WorktreeOverlay.warn_once(directory)
         load_each(directory, overlay_files(LOCAL_OVERLAY))
         [directory, Dir.pwd].uniq.each { |where| load_each(where, LOCAL_FILES) }
         load_each(directory, overlay_files(environment)) if environment && environment != LOCAL_OVERLAY

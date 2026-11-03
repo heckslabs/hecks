@@ -1,9 +1,13 @@
+require_relative "bang_rule"
+
 module Hecks
   module Adapters
     module Driving
       module CliRunner
         # Parses a command line against the projection. Extended into `CliRunner`.
         module Resolution
+          include BangRule
+
           # The words that ask for the usage.
           HELP_WORDS = ["--help", "-h", "help"].freeze
 
@@ -14,39 +18,58 @@ module Hecks
           #   bluebook:, launcher:}` for a command to dispatch
           def resolve(runtime, argv, program)
             refused = Admission.refusal(runtime.registry, "Cli")
-            return { answer: [refused, 1] } if refused
+            return { answer: [refused, ExitStatus::REFUSED] } if refused
 
             bluebook, argv, program = bluebook_for(runtime, argv, program)
             launcher = LauncherOptions.settings(runtime, bluebook.name)
             options  = LauncherOptions.projection(launcher, program)
-            cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
+            shown = options.merge(audience(runtime, launcher))
+            cli = Projector.call(:cli, bluebook: bluebook, options: shown)
             scope = { runtime: runtime, bluebook: bluebook, launcher: launcher, options: options,
-                      cli: cli, program: program }
-            usage_answer(scope, argv.first) || command_plan(scope, argv)
+                      shown: shown, cli: cli, program: program }
+            answer_for(scope, argv) || command_plan(scope, argv)
+          end
+
+          # The answer a line gets without naming a command, or nil when it names one.
+          def answer_for(scope, argv)
+            json_answer(scope, argv) || usage_answer(scope, argv.first) || module_answer(scope, argv.first) ||
+              word_answer(scope, argv)
           end
 
           # The answer to a line that is only a request for usage, or nil.
           def usage_answer(scope, name)
-            return { answer: [scope[:cli][:usage], 0] } if name.nil? || HELP_WORDS.include?(name)
-            return { answer: [all_usage(*scope.values_at(:runtime, :bluebook, :launcher, :options)), 0] } if name == "--all"
-            return unless name == "--maintainer"
+            return { answer: [scope[:cli][:usage], ExitStatus::ANSWERED] } if name.nil? || HELP_WORDS.include?(name)
+            return unless %w[--all --maintainer].include?(name)
 
-            { answer: [maintainer_usage(*scope.values_at(:runtime, :bluebook, :launcher, :options)), 0] }
+            shown = scope.values_at(:runtime, :bluebook, :launcher, :options)
+            { answer: [name == "--all" ? all_usage(*shown) : maintainer_usage(*shown), ExitStatus::ANSWERED] }
           end
 
-          # The command a line names, or the answer when it names none or asks for its help.
+          # The help of the module a line is only the word of, or nil. A module groups aggregates of
+          # one bluebook (ADR 0163), so `hecks deliver` lists what `deliver` holds.
+          def module_answer(scope, word)
+            name = Projector::CliProjector.module_named(scope[:bluebook], word)
+            return unless name
+
+            shown = scope[:shown].merge(module: name, program: scope[:program])
+            { answer: [Projector.call(:cli, bluebook: scope[:bluebook], options: shown)[:usage], ExitStatus::ANSWERED] }
+          end
+
+          # The command a line names, or the answer when it names none or asks for its help. A
+          # line that names nothing, or something the bluebook does not declare, could not be read.
           def command_plan(scope, argv)
             cli = scope[:cli]
+            word = typed_word(argv)
             asking, name, argv = entry_word(cli, argv)
-            return { answer: [cli[:usage], 1] } if name.nil?
+            return { answer: [cli[:usage], ExitStatus::USAGE] } if name.nil?
 
             spec = find_spec(cli, asking, name)
-            return { answer: [unknown(cli, name, asking, scope[:program]), 1] } unless spec
+            return { answer: [unknown(cli, name, asking, scope[:program]), ExitStatus::USAGE] } unless spec
 
-            rest = argv[1..]
-            return { answer: [command_help(scope, name, asking), 0] } if rest.include?("--help")
+            answer = early_answer(scope, cli, { asking: asking, word: word, name: name, argv: argv })
+            return { answer: answer } if answer
 
-            { spec: spec, name: name, rest: rest, asking: asking, program: scope[:program],
+            { spec: spec, name: name, rest: argv[1..], asking: asking, program: scope[:program],
               bluebook: scope[:bluebook], launcher: scope[:launcher] }
           end
 
@@ -59,7 +82,7 @@ module Hecks
 
           # The usage of one command or question, which its `--help` asks for.
           def command_help(scope, name, asking)
-            options = scope[:options].merge(command: name, ask: asking)
+            options = scope[:options].merge(command: name, ask: asking, query_word: shared?(scope, name, asking))
             Projector.call(:cli, bluebook: scope[:bluebook], options: options)[:usage]
           end
 
@@ -116,7 +139,7 @@ module Hecks
           # declare a command and a query of one name. A trailing `!` says the word is a command and
           # is not part of the name. A query answers to its bare name too; `query` is needed only
           # when a command shares it. The name may be written in the bluebook's verb form
-          # (`Hecks::PushTrain.board!`), which reaches the same command (see `VerbNames`).
+          # (`Hecks::SendTrain.board!`), which reaches the same command (see `VerbNames`).
           #
           # @return [Array(Boolean, String, Array<String>)] `asking`, `name` (nil when absent),
           #   `argv`
@@ -126,8 +149,11 @@ module Hecks
             name   = argv.first
             return [asking, nil, argv] if name.nil?
 
-            bang = name.end_with?("!")
-            name = canonical_name(cli, name.chomp("!"))
+            bang  = name.end_with?("!")
+            typed = name.chomp("!")
+            name  = canonical_name(cli, typed)
+            note_former_name(cli, typed, name)
+            argv = renamed_line(cli, typed, name, argv)
             [asking || (!bang && query_only?(cli, name)), name, argv]
           end
 

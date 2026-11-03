@@ -58,8 +58,10 @@ module Hecks
 
       # Reads the decision's inputs from the environment `release.yml` gives it.
       #
-      # @param env [#[]] `COMMIT_MESSAGE`, or `COMMIT` (the first-parent commit that set the version,
-      #   whose message is read as {VersionCommit} reads it), `TAG_EXISTS` (true/false), `APPROVED_BY`
+      # @param env [#[]] `COMMIT_MESSAGE`, or `COMMIT` (the first-parent commit that set the
+      #   version,
+      #   whose message is read as {VersionCommit} reads it), `TAG_EXISTS` (true/false),
+      #   `APPROVED_BY`
       # @param out [#puts] where the words go
       # @return [Integer] the exit status: 0 to go ahead, 1 to refuse
       def check(env: ENV, out: $stdout)

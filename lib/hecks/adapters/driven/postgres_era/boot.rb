@@ -3,8 +3,19 @@ require_relative "../../../indifferent_key"
 module Hecks
   module Adapters
     class PostgresEra
+      # Connects a boot to its database without provisioning it: the connection selects the declared
+      # schema and creates nothing. Only the mint path opens with `PostgresEra.connect_for`, which
+      # creates the schema.
+      module ReadConnector
+        # @param name [String] the domain or aggregate name, used only in refusal messages
+        # @param settings [Hash{Symbol, String => Object}] the persistence settings of the boot
+        # @return [PG::Connection] an open connection that writes no schema
+        def self.connect_for(name, settings) = PostgresEra.connect_for(name, settings, provision: false)
+      end
+
       # The steps `PostgresEra#initialize` runs after joining the shared connection: naming the
-      # journal, resolving the era, and provisioning every table the adapter reads or writes.
+      # journal, resolving the era it reads, and reading the field caches that era holds. A boot
+      # writes nothing; the mint path provisions everything.
       module Boot
         private
 
@@ -17,28 +28,29 @@ module Hecks
           ).to_s
         end
 
-        # Coalesce instead of `setting` for the era: the factory always passes `era:`, nil until
-        # the boot gate resolves it, and nil can never be a real override.
+        # Resolves the era this boot reads. A database that holds no era has never been minted, so
+        # the boot refuses by name rather than reading an absent lineage.
+        #
+        # The era is read from the held eras, never written: the factory passes `era:` once the
+        # boot gate resolved it, and nil can never be a real override.
         def resolve_era!(settings)
           @era = IndifferentKey.read(settings, :era)
-          @era ||= @lineage.current_era
+          held = @lineage.eras
+          refuse_unminted! if held.empty?
+          @era ||= held.last[:ordinal]
           # Non-nil only for a held-but-superseded boot. `append` and `atomic_put` refuse on it
           # because a superuser walks through the RLS fence.
           @superseded_by = IndifferentKey.read(settings, :superseded_by)
+          # True only for a boot whose shape no held era matches and that carries no mint request.
+          # It reads the latest era and refuses writes until a mint runs.
+          @unminted = IndifferentKey.read(settings, :unminted) == true
         end
 
-        def provision!
-          # Idempotent self-healing against any boot-ordering surprise.
-          @lineage.ensure_head_snapshot!(table, @era)
-          # A superseded boot reads and never reshapes: era 1's head view is not its to restore,
-          # because a mint has already pointed the view at a later era.
-          @lineage.ensure_first_head!(table) if @era == 1 && !@superseded_by
-          # One row-cache table per where-field the aggregate's queries use; `query` consults it
-          # to skip the head reduction.
-          @field_caches = ensure_field_caches!
-          create_event_table!
-          create_saga_table!
-          create_outbox_table!
+        # @raise [Runtime::WiringError] always: the database holds no era for a boot to read
+        def refuse_unminted!
+          raise Runtime::WiringError,
+                "cannot boot #{@domain}: no era held; the database is unminted, so run the mint entry " \
+                "point (`hecks era.hold_first! <domain directory> --confirm`) to provision and hold the first era"
         end
       end
     end

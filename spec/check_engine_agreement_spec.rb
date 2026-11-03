@@ -4,7 +4,7 @@ require "fileutils"
 require "open3"
 require "rbconfig"
 
-# `hecks check_engine_agreement` (Hecks::CLI::CheckEngineAgreement) runs as a subprocess. The
+# `hecks check_engine_agreement` (Hecks::Tools::CheckEngineAgreement) runs as a subprocess. The
 # negative cases mutate a scratch copy of the files it reads, selected by
 # `HECKS_CHECK_ENGINE_AGREEMENT_ROOT`; the declared comparator set still comes from the real
 # `Hecks::Vocabulary`.
@@ -12,8 +12,8 @@ RSpec.describe "hecks check_engine_agreement" do
   # Namespaced because a constant assigned in a `describe` block lands on Object (see
   # load_hygiene_spec.rb). The child's whole program is the library entry point.
   CHECK_ENGINE_AGREEMENT_CHILD =
-    '$LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/cli/check_engine_agreement"; ' \
-    'exit(Hecks::CLI::CheckEngineAgreement.call(root: ENV["HECKS_CHECK_ENGINE_AGREEMENT_ROOT"] || Dir.pwd))'.freeze
+    '$LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/tools/check_engine_agreement"; ' \
+    'exit(Hecks::Tools::CheckEngineAgreement.call(root: ENV["HECKS_CHECK_ENGINE_AGREEMENT_ROOT"] || Dir.pwd))'.freeze
 
   def check_engine_agreement(env = {})
     Open3.capture3(env, RbConfig.ruby, "-e", CHECK_ENGINE_AGREEMENT_CHILD, chdir: InMemoryDomain::ROOT)

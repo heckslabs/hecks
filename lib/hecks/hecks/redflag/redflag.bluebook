@@ -1,0 +1,249 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Redflag" do
+    vision "Main red is a red flag: everyone working hears it, checks in to help, and stops landing until CI is green again."
+
+    # One request against the standing flag of the repository: raise it, note another red run on it,
+    # check in to help, or lower it. The flag itself is a marker in the repository's git directory, so
+    # Landing and SendTrain read it from every worktree. A CI run of main that completes red raises it
+    # (Integration.CiFailed, or `RedFlag.sync!`), and one that completes green lowers it. One flag
+    # stands at a time: a second red run is recorded on it. Anything can listen to the events
+    # RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn and RedFlagCleared through the ordinary journal.
+    aggregate "RedFlag" do
+      description "One request against main's red flag: raised, noted, checked in to, lowered, or refused."
+      created_by "RedFlag.raise!"
+
+      attribute :run,      RunKey
+      attribute :commit,   Word,   optional: true
+      attribute :detail,   Report, optional: true
+      attribute :rows,     Report, optional: true
+      attribute :session,  Word,   optional: true
+      attribute :taking,   Word,   optional: true
+      attribute :checkout, Word,   optional: true
+      attribute :flag,     Word,   optional: true
+      attribute :ci_run,   Report, optional: true
+      attribute :jobs,     Report, optional: true
+      attribute :output,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Record"  => "raised",     from: "requested"
+        transition "Note"    => "noted",      from: "requested"
+        transition "Welcome" => "checked_in", from: "requested"
+        transition "Lift"    => "cleared",    from: "requested"
+        transition "Settle"  => "idle",       from: "requested"
+        transition "Decline" => "refused",    from: "requested"
+        mark :terminal, "raised", "noted", "checked_in", "cleared", "idle", "refused"
+      end
+
+      command "Raise" do
+        role "System"
+        goal "Raise main's red flag for a red CI run, or record the run on the flag already standing"
+
+        attribute :run,      RunKey, sets: true
+        attribute :commit,   Word, sets: true
+        attribute :detail,   Report, optional: true, sets: true
+        attribute :rows,     Report, optional: true, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits RaiseRequested
+      end
+
+      command "CheckIn" do
+        role "Operator"
+        goal "Say who is helping with the red flag and what they take (a red-* Work row or a cause), so nobody fixes the same thing twice"
+
+        attribute :run,      RunKey, sets: true
+        attribute :session,  Word, sets: true
+        attribute :taking,   Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits CheckInRequested
+      end
+
+      command "Clear" do
+        role "System"
+        goal "Lower main's red flag for a green CI run, which lets landing and the push train resume"
+
+        attribute :run,      RunKey, sets: true
+        attribute :commit,   Word, optional: true, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits ClearRequested
+      end
+
+      command "Sync" do
+        role "Operator"
+        goal "Read main's newest CI run on GitHub and raise or lower the red flag to match it"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits SyncRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record that the red flag was raised, with the main commit, CI run, failed jobs and red Work rows"
+
+        reference_to RedFlag
+        attribute :flag,   Word, sets: true
+        attribute :commit, Word, sets: true
+        attribute :ci_run, Report, optional: true, sets: true
+        attribute :jobs,   Report, optional: true, sets: true
+        attribute :rows,   Report, optional: true, sets: true
+
+        emits RedFlagRaised
+      end
+
+      command "Note" do
+        role "System"
+        goal "Record another red run on the flag that already stands"
+
+        reference_to RedFlag
+        attribute :flag,   Word, sets: true
+        attribute :commit, Word, sets: true
+        attribute :ci_run, Report, optional: true, sets: true
+        attribute :jobs,   Report, optional: true, sets: true
+
+        emits RedFlagRunNoted
+      end
+
+      command "Welcome" do
+        role "System"
+        goal "Record that a session checked in to help, and what it takes"
+
+        reference_to RedFlag
+        attribute :flag,    Word, sets: true
+        attribute :session, Word, sets: true
+        attribute :taking,  Word, sets: true
+
+        emits RedFlagCheckedIn
+      end
+
+      command "Lift" do
+        role "System"
+        goal "Record that the red flag was lowered by a green run"
+
+        reference_to RedFlag
+        attribute :flag,   Word, sets: true
+        attribute :commit, Word, optional: true, sets: true
+
+        emits RedFlagCleared
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record that there was nothing to change: no flag stood to lower, or CI is still running"
+
+        reference_to RedFlag
+        attribute :output, Report, sets: true
+
+        emits RedFlagUnchanged
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a request against the flag was refused"
+
+        reference_to RedFlag
+        attribute :refusal, Report, sets: true
+
+        emits RedFlagDeclined
+      end
+
+      query "Status" do
+        description "Whether main is flagged: the flag, its commit, red time, failed jobs and who is helping."
+        attribute :run, RunKey, optional: true
+        returns Document
+      end
+    end
+
+    policy "HoistWhenRaised" do
+      on      "RedFlag.RaiseRequested"
+      ask     :hoist, with: { run: :run }
+    end
+
+    policy "SignInWhenCheckedIn" do
+      on      "RedFlag.CheckInRequested"
+      ask     :sign_in, with: { run: :run }
+    end
+
+    policy "LowerWhenCleared" do
+      on      "RedFlag.ClearRequested"
+      ask     :lower, with: { run: :run }
+    end
+
+    policy "SurveyWhenSynced" do
+      on      "RedFlag.SyncRequested"
+      ask     :survey, with: { run: :run }
+    end
+
+    policy "RecordTheRaisedFlag" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "raised" }
+      trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs, rows: :rows }
+    end
+
+    policy "RecordTheNotedRun" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "noted" }
+      trigger RedFlag::Note, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs }
+    end
+
+    policy "RecordTheCheckIn" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "checked_in" }
+      trigger RedFlag::Welcome, with: { flag: :flag, session: :session, taking: :taking }
+    end
+
+    policy "RecordTheClearedFlag" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "cleared" }
+      trigger RedFlag::Lift, with: { flag: :flag, commit: :commit }
+    end
+
+    policy "RecordTheUnchangedFlag" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "idle" }
+      trigger RedFlag::Settle, with: { output: :output }
+    end
+
+    policy "RecordTheRefusedFlag" do
+      on      "RedFlag.FlagRefused"
+      trigger RedFlag::Decline, with: { refusal: :refusal }
+    end
+
+    # A CI observation that ends red raises the flag; one that ends green lowers it. The policies hear
+    # the observation's answer, beside the ones that record it, so the chain stays within the
+    # reaction depth bound. The landed commit keys the request.
+    policy "RaiseTheFlagWhenCiFails" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "failed" }
+      trigger RedFlag::Raise, with: { run: :landed, commit: :landed, detail: :report, checkout: :checkout }
+    end
+
+    policy "LowerTheFlagWhenCiPasses" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "passed" }
+      trigger RedFlag::Clear, with: { run: :landed, commit: :landed, checkout: :checkout }
+    end
+  end
+end

@@ -546,14 +546,23 @@ impl IssueArgs {
         let member = {
             let x = v.get("member").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Referral.member expects String, got nil".to_string(),
+                    "Issue.member expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Referral.member expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Issue",
+                        attribute: "member",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Member is known by handle)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let code = Code::from_json(

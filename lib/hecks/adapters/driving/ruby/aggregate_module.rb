@@ -21,7 +21,8 @@ module Hecks
           # find/all/count/events, project/docs/narrate, and the port/binding hooks.
           #
           # Each concern is a helper that defines its methods on the module and closes over the same
-          # arguments. The hooks live in `AggregateModule::Hooks`, which the module's blocks call by name.
+          # arguments. The hooks live in `AggregateModule::Hooks`, which the module's blocks call by
+          # name.
           def aggregate_module(dispatcher, domain, aggregate)
             fqn = "#{domain}::#{aggregate.hecks_name}"
             mod = Module.new
@@ -47,7 +48,8 @@ module Hecks
             end
           end
 
-          # The module's everyday surface: its commands, its identity, its projections, and its reads.
+          # The module's everyday surface: its commands, its identity, its projections, and its
+          # reads.
           def define_surface(mod, dispatcher, domain, aggregate, fqn)
             define_creating_commands(mod, dispatcher, domain, aggregate, fqn)
             define_reflection(mod, dispatcher, domain, aggregate, fqn)

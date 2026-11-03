@@ -1,0 +1,165 @@
+require_relative "../../projections/context_relationships"
+
+module Hecks
+  module Tools
+    module ModelCheck
+      # Examining booted domains: each one's findings against the allowlist, then the language's
+      # own bluebooks, printed as the check goes. `ModelCheck` extends it.
+      module Examination
+        # @api private
+        def examine_all(booted, options)
+          known_domains = booted.flat_map { |_, registry| registry.bluebooks.keys + registry.hecksagons.keys }.to_set
+          owners = aggregate_owners_of(booted)
+          shared = { known_domains: known_domains, global_emitted_events: emitted_events_of(booted),
+                     aggregate_owners: owners }
+
+          domains_ok = booted.reduce(true) do |all_ok, (name, registry)|
+            domain_passes?(name, registry, options, shared) && all_ok
+          end
+          contexts_pass?(booted, owners) && domains_ok
+        end
+
+        # Each aggregate name to the contexts that declare it, across every booted registry.
+        #
+        # @api private
+        def aggregate_owners_of(booted)
+          pairs = booted.flat_map do |_, registry|
+            registry.bluebooks.values.flat_map do |declaration|
+              declaration.aggregates.map { |aggregate| [aggregate.hecks_name, declaration.name.to_s] }
+            end
+          end
+          pairs.group_by(&:first).transform_values { |rows| rows.map(&:last).uniq }
+        end
+
+        # The checks that need every context at once: cycles between contexts, and each declared
+        # context map held to the wiring of the system it covers. Prints a section only when it
+        # finds something.
+        #
+        # @api private
+        def contexts_pass?(booted, owners)
+          edges = booted.flat_map do |_, registry|
+            Projections::ContextRelationships.call(registry: registry, owners: owners)
+          end
+          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq) +
+                     classification_findings(booted, owners) + context_map_findings(booted, owners)
+          return true if findings.empty?
+
+          puts "── contexts"
+          passes?(findings, "")
+        end
+
+        # What each booted system's declared context maps say about that system's own wiring.
+        #
+        # @api private
+        # @return [Array<Bluebook::ModelCheck::Finding>] the findings of every map, none for a
+        #   system that declares no map
+        def context_map_findings(booted, owners)
+          booted.flat_map do |_, registry|
+            registry.context_maps.flat_map do |map|
+              edges = Projections::ContextRelationships.call(registry: registry, owners: owners)
+              Bluebook::ModelCheck.context_map_findings(map, edges) +
+                Bluebook::ModelCheck.core_conforms_findings(map, classifications_of(registry))
+            end
+          end
+        end
+
+        # What each booted system's classifications say about its own wiring (ADR 0172). Each system
+        # is read alone: two systems may each declare a context of the same name.
+        #
+        # @api private
+        # @return [Array<Bluebook::ModelCheck::Finding>]
+        def classification_findings(booted, owners)
+          booted.flat_map do |_, registry|
+            edges = Projections::ContextRelationships.call(registry: registry, owners: owners)
+            Bluebook::ModelCheck.generic_depends_on_core_findings(edges, classifications_of(registry))
+          end
+        end
+
+        # Each context's classification (`core`, `supporting`, `generic`), as its bluebook declares it.
+        #
+        # @api private
+        # @return [Hash{String => String}] only the contexts that declare one
+        def classifications_of(registry)
+          classified = registry.bluebooks.values.select(&:classification)
+          classified.to_h { |declaration| [declaration.name.to_s, declaration.classification.to_s] }
+        end
+
+        # @api private
+        def emitted_events_of(booted)
+          booted.flat_map do |_, registry|
+            registry.bluebooks.values.flat_map { |declaration| Bluebook::ModelCheck.emitted_events(declaration) }
+          end.to_set
+        end
+
+        def domain_passes?(name, registry, options, shared)
+          puts "── #{name}"
+
+          scope = shared.merge(rust_target: rust_target?(name, options.rust_dir), strict: options.strict,
+                               profile: options.profile)
+          declarations = registry.bluebooks.values
+          findings = declarations.flat_map do |declaration|
+            Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name), **scope)
+          end
+
+          remaining = without_allowlisted(name, findings) or return false
+          passes?(remaining, "   clean — #{declarations.size} bluebook(s), no dead states, no unreachable protocol steps")
+        end
+
+        # Prints the allowlisted findings and answers the rest.
+        #
+        # @api private
+        # @return [Array, nil] the findings the domain's allowlist does not cover, or nil when the
+        #   allowlist holds entries that match nothing
+        def without_allowlisted(name, findings)
+          allowed = Bluebook::ModelCheck::ALLOWED_FINDINGS.fetch(name, [])
+          matched, remaining = findings.partition { |f| allowed.include?([f.kind, f.subject]) }
+          matched.each { |f| puts "   ALLOWLISTED  #{f}" }
+
+          stale = allowed - matched.map { |f| [f.kind, f.subject] }
+          return remaining if stale.empty?
+
+          puts "   STALE ALLOWLIST ENTRIES (no longer found — remove them): #{stale.inspect}"
+          nil
+        end
+
+        # Checked through `MetaValidator.grammar_registry`, the judged graph its
+        # conformance specs use, because any one grammar file booted alone is a
+        # fraction of the language.
+        def examine_language(options)
+          ok = true
+          ["Bluebook", "World"].each do |name|
+            declaration = Bluebook::MetaValidator.grammar_registry.bluebook(name)
+            next unless declaration
+
+            puts "── #{name} (the language itself)"
+            findings = Bluebook::ModelCheck.call(declaration, strict: options.strict, profile: options.profile)
+            ok = passes?(findings, "   clean — no dead states, no unreachable protocol steps") && ok
+          end
+          ok
+        end
+
+        # @api private
+        def passes?(findings, clean_line)
+          if findings.empty?
+            puts clean_line
+            return true
+          end
+
+          errors, warnings = findings.partition { |f| f.severity == :error }
+          puts "   #{errors.size} error(s), #{warnings.size} warning(s)"
+          findings.each { |f| puts "     #{f}" }
+          errors.empty?
+        end
+
+        # The repository-only fuzzing tooling is loaded lazily, only when there is a
+        # `rust/` to read.
+        def rust_target?(name, rust_dir)
+          return false unless rust_dir
+
+          require_relative "../../fuzzing/target_capabilities"
+          Fuzzing::TargetCapabilities.rust_feature?(name, rust_dir)
+        end
+      end
+    end
+  end
+end

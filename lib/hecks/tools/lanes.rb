@@ -10,7 +10,7 @@ module Hecks
     # ruleset for each guarded lane (`.github/rulesets/<lane>.json`), one for the tag such a lane
     # feeds (`.github/rulesets/tag-<tag>.json`), and the workflow that promotes
     # each lane that follows another (`.github/workflows/promote.yml`). The workflow only runs
-    # `hecks promotion_run.promote`; the rule that decides a promotion is `PromotionRun.Accept`.
+    # `hecks promotion_run.promote!`; the rule that decides a promotion is `PromotionRun.Accept`.
     #
     # Without a flag the files are written. `--check` writes nothing and answers 1 for each file
     # that differs, which is the drift gate. `--live` compares the rulesets GitHub holds with the

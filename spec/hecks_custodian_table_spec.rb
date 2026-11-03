@@ -43,7 +43,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
     CustodianRow.new(script: "behaviors", aggregate: "Operation", name: "RunBehaviors",
                      verb: "run_behaviors"),
     CustodianRow.new(script: "console",                  aggregate: "Operation",     name: "OpenConsole", verb: "open_console",
-                     renamed: "the table's launcher spelling is `hecks console`; the verb is the command's snake name"),
+                     renamed: "the table's launcher spelling is `hecks console!`; the verb is the command's snake name"),
     CustodianRow.new(script: "follow",                   aggregate: "Operation",     name: "Follow",
                      verb: "follow"),
     CustodianRow.new(script: "smoke_test", aggregate: "Operation", name: "SmokeTest",
@@ -72,8 +72,8 @@ RSpec.describe "the Custodian rows of the ADR command table" do
                      verb: "vendor"),
     CustodianRow.new(script: "project_cli", aggregate: "Launch", name: "ProjectCli",
                      verb: "project_cli"),
-    CustodianRow.new(script: "hecks_mcp_door", aggregate: "Launch", name: "ServeMcp", verb: "serve_mcp",
-                     renamed: "the table's launcher spelling is `hecks mcp`, the name exe/hecks ships; it stays " \
+    CustodianRow.new(script: "hecks_mcp_door", aggregate: "Server", name: "ServeMcp", verb: "serve_mcp",
+                     renamed: "the table's launcher spelling is `hecks mcp!`, the name exe/hecks ships; it stays " \
                               "with that router until the launcher is generated"),
     CustodianRow.new(script: "project_rust", aggregate: "Build", name: "ProjectRust",
                      verb: "project_rust"),
@@ -131,7 +131,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   end
 
   it "gives every Custodian aggregate at least one row", :aggregate_failures do
-    custodian = %w[Introspection ModelCheckRun Operation Host Era Package Launch Build FuzzRun]
+    custodian = %w[Introspection ModelCheckRun Operation Host Era Package Launch Server Build FuzzRun]
 
     expect(custodian - CUSTODIAN_ROWS.map(&:aggregate)).to be_empty
     expect(CUSTODIAN_ROWS.map(&:aggregate) - custodian).to be_empty

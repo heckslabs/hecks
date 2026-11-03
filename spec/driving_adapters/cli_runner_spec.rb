@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   def status(*argv) = run(*argv).last
 
   def a_pizza(name = "Margherita")
-    run("order.create_pizza", "name=#{name}", "pizza.price_cents.cents=1200", "pizza.size.value=large")
+    run("order.create_pizza!", "name=#{name}", "pizza.price_cents.cents=1200", "pizza.size.value=large")
   end
 
   def banking_runtime
@@ -48,7 +48,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   end
 
   def annotate_argv
-    ["safe_deposit_box.visit.annotate", "to.aggregate=DOWNTOWN:12", "to.entity=2026-01-05:1", "note.text=Flagged"]
+    ["safe_deposit_box.visit.annotate!", "to.aggregate=DOWNTOWN:12", "to.entity=2026-01-05:1", "note.text=Flagged"]
   end
 
   describe "the usage" do
@@ -67,7 +67,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     end
 
     it "answers one command's help without dispatching it", :aggregate_failures do
-      expect(text("order.create_pizza", "--help")).to include("dispatches Pizzas::Order.CreatePizza")
+      expect(text("order.create_pizza!", "--help")).to include("dispatches Pizzas::Order.CreatePizza")
       expect(runtime.events).to be_empty
     end
   end
@@ -91,7 +91,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     it "refuses a bare command name, pointing at the one qualified by its aggregate", :aggregate_failures do
       output, code = run("create_pizza", "name=X", "pizza.price_cents.cents=900", "pizza.size.value=small")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("no such command: create_pizza")
       expect(output).to include("did you mean").and include("Order.create_pizza")
     end
@@ -101,11 +101,11 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     end
 
     it "refuses a bare command name even with a trailing `!`" do
-      expect(run("create_pizza!", "name=Z").last).to eq(1)
+      expect(run("create_pizza!", "name=Z").last).to eq(2)
     end
 
     it "still takes the aggregate-qualified form" do
-      expect(run("order.create_pizza", "name=Y", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(0)
+      expect(run("order.create_pizza", "name=Y", "pizza.price_cents.cents=900", "pizza.size.value=small").last).to eq(2)
     end
   end
 
@@ -121,7 +121,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
 
     it "reaches an existing record through a bare word, the command's first argument", :aggregate_failures do
       a_pizza
-      output, code = run("order.add_topping", "Margherita", "topping=Basil", "amount=3")
+      output, code = run("order.add_topping!", "Margherita", "topping=Basil", "amount=3")
 
       expect(code).to eq(0)
       expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
@@ -129,7 +129,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
 
     it "reaches an existing record through id", :aggregate_failures do
       a_pizza
-      output, code = run("order.add_topping", "id=Margherita", "topping=Basil", "amount=3")
+      output, code = run("order.add_topping!", "id=Margherita", "topping=Basil", "amount=3")
 
       expect(code).to eq(0)
       expect(JSON.parse(output).dig("state", "toppings").length).to eq(1)
@@ -240,7 +240,7 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     it "refuses a question by its bare name", :aggregate_failures do
       output, code = run("available")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("no such command: available")
     end
 
@@ -257,38 +257,38 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
   describe "refusing" do
     it "hands back the domain's own wording, and a non-zero status", :aggregate_failures do
       a_pizza
-      output, code = run("order.purchase", "id=Margherita", "customer_name=Chris", "amount.cents=1200")
+      output, code = run("order.purchase!", "id=Margherita", "customer_name=Chris", "amount.cents=1200")
 
       expect(code).to eq(1)
       expect(output).to match(/topping/i)
     end
 
     it "names an argument the command does not take, and points at its help", :aggregate_failures do
-      output, code = run("order.create_pizza", "nmae=Margherita")
+      output, code = run("order.create_pizza!", "nmae=Margherita")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include(%(no argument "nmae"))
       expect(output).to include("hecks run order.create_pizza --help")
     end
 
     it "refuses a value the declared type cannot hold", :aggregate_failures do
-      output, code = run("order.create_pizza", "name=X", "pizza.price_cents.cents=lots", "pizza.size.value=large")
+      output, code = run("order.create_pizza!", "name=X", "pizza.price_cents.cents=lots", "pizza.size.value=large")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("is not Integer")
     end
 
     it "suggests what a misspelling nearly named", :aggregate_failures do
       output, code = run("order.create_piza")
 
-      expect(code).to eq(1)
+      expect(code).to eq(2)
       expect(output).to include("no such command: order.create_piza")
       expect(output).to include("did you mean")
       expect(output).to include("Order.create_pizza")
     end
 
     it "keeps questions and commands apart when refusing" do
-      expect(text("ask", "order.create_pizza")).to include("no such query")
+      expect(text("ask", "order.create_pizza!")).to include("no such query")
     end
   end
 
@@ -299,13 +299,13 @@ RSpec.describe Hecks::Adapters::Driving::CliRunner do
     def usage(*argv) = described_class.usage(runtime: described, argv: argv, program: "hecks run")
 
     it "answers what `call` answers for help, no arguments, a command's --help and an unknown command" do
-      [[], ["--help"], ["order.create_pizza", "--help"], ["no_such_verb"]].each do |argv|
+      [[], ["--help"], ["order.create_pizza!", "--help"], ["no_such_verb"]].each do |argv|
         expect(usage(*argv)).to eq(run(*argv))
       end
     end
 
     it "answers nil for a line that would run a command" do
-      expect(usage("order.create_pizza", "name=Margherita")).to be_nil
+      expect(usage("order.create_pizza!", "name=Margherita")).to be_nil
     end
   end
 end

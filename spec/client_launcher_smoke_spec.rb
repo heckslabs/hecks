@@ -1,6 +1,5 @@
 require "spec_helper"
-require "hecks/cli"
-require "hecks/cli/project_cli"
+require "hecks/tools/project_cli"
 require "json"
 require "open3"
 require "rbconfig"
@@ -33,6 +32,8 @@ RSpec.describe "client launcher smoke" do
     $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
     require "hecks"
+    # Every secret a world hands an adapter is masked in whatever this process prints.
+    Hecks::Secrets.guard!
 
     runtime = begin
       Hecks.boot(__dir__, install_driving: false)
@@ -46,24 +47,24 @@ RSpec.describe "client launcher smoke" do
     status.zero? ? puts(text) : abort(text)
   RUBY
 
-  CREATE = %w[order.create_pizza name=Margherita pizza.price_cents=900 pizza.size=large].freeze
+  CREATE = %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large].freeze
 
   # Every call the plain and the pre-3.0 launcher answer alike.
   CALLS = {
     usage:         [],
     help:          %w[--help],
-    verb_help:     %w[order.create_pizza --help],
-    refusal_help:  %w[order.purchase --help],
+    verb_help:     %w[order.create_pizza! --help],
+    refusal_help:  %w[order.purchase! --help],
     short:         CREATE,
-    long:          %w[order.create_pizza name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
+    long:          %w[order.create_pizza! name.value=Margherita pizza.price_cents.cents=900 pizza.size.value=large],
     qualified:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=large],
     question:      %w[ask order.available],
     bare_question: %w[order.available],
-    invariant:     %w[order.create_pizza name=Margherita pizza.price_cents=900 pizza.size=huge],
-    missing:       %w[order.purchase to=nope amount=5],
+    invariant:     %w[order.create_pizza! name=Margherita pizza.price_cents=900 pizza.size=huge],
+    missing:       %w[order.purchase! to=nope amount=5],
     unknown:       %w[order.create_piza],
     bare:          %w[create_pizza name=Margherita pizza.price_cents=900 pizza.size=large],
-    bad_word:      %w[order.create_pizza nonsense=1],
+    bad_word:      %w[order.create_pizza! nonsense=1],
     wait_unset:    CREATE + %w[--wait],
     confirm_unset: CREATE + %w[--confirm]
   }.freeze
@@ -131,7 +132,7 @@ RSpec.describe "client launcher smoke" do
 
   def self.generate(root)
     ENV["HECKS_ENVIRONMENT"] ||= "memory"
-    Hecks::CLI::ProjectCli.call(%w[pizzas], program: "hecks project_cli", root: root, remove_stale_bin: false)
+    Hecks::Tools::ProjectCli.call(%w[pizzas], program: "hecks project_cli", root: root, remove_stale_bin: false)
   end
 
   before(:all) do
@@ -151,14 +152,17 @@ RSpec.describe "client launcher smoke" do
     )
     capture_stdout { self.class.generate(@opted_root) }
     opted_calls = {
-      alias:      %w[make name=A pizza.price_cents=1 pizza.size=small],
-      alias_help: %w[make --help],
+      alias:      %w[make! name=A pizza.price_cents=1 pizza.size=small],
+      alias_help: %w[make! --help],
       listed:     [],
-      plain:      %w[order.create_pizza name=B pizza.price_cents=1 pizza.size=small],
-      wait:       %w[order.create_pizza name=C pizza.price_cents=1 pizza.size=small --wait],
-      confirm:    %w[order.create_pizza name=D pizza.price_cents=1 pizza.size=small --confirm],
-      run_given:  %w[order.create_pizza name=E pizza.price_cents=1 pizza.size=small run=mine-1],
-      wait_bad:   %w[ask order.available --wait]
+      plain:      %w[order.create_pizza! name=B pizza.price_cents=1 pizza.size=small],
+      wait:       %w[order.create_pizza! name=C pizza.price_cents=1 pizza.size=small --wait],
+      confirm:    %w[order.create_pizza! name=D pizza.price_cents=1 pizza.size=small --confirm],
+      run_given:  %w[order.create_pizza! name=E pizza.price_cents=1 pizza.size=small run=mine-1],
+      wait_bad:   %w[ask order.available --wait],
+      unknown:    %w[order.create_piza],
+      bad_word:   %w[order.create_pizza! nonsense=1],
+      invariant:  %w[order.create_pizza! name=F pizza.price_cents=900 pizza.size=huge]
     }
     @opted = self.class.launch_all(@opted_root, opted_calls)
   end
@@ -221,7 +225,7 @@ RSpec.describe "client launcher smoke" do
       expect(results[:missing][:err]).to include('no Order with name.value "nope"', "purchase --help")
     end
 
-    it "suggests the near name and exits 1 for an unknown command", :aggregate_failures do
+    it "suggests the near name and exits 1 for an unknown command, as the earlier tail folds every status", :aggregate_failures do
       expect(results[:unknown][:status]).to eq(1)
       expect(results[:unknown][:err]).to include("no such command: order.create_piza", "did you mean:", "  Order.create_pizza")
     end
@@ -236,10 +240,9 @@ RSpec.describe "client launcher smoke" do
       expect(results[:bad_word][:err]).not_to be_empty
     end
 
-    it "refuses --wait and --confirm, as flags the command lacks, when the domain did not opt in", :aggregate_failures do
+    it "accepts --wait on every command, and refuses --confirm when the domain did not opt in", :aggregate_failures do
+      expect(results[:wait_unset][:status]).to eq(0)
       expect(results[:confirm_unset][:status]).to eq(1)
-      expect(results[:wait_unset][:status]).to eq(1)
-      expect(results[:wait_unset][:err]).to include("--wait is a flag, but this command has no Boolean argument")
     end
   end
 
@@ -297,6 +300,13 @@ RSpec.describe "client launcher smoke" do
 
     it "takes --wait out of a question's words too, and answers it" do
       expect(created(@opted[:wait_bad])).to eq([])
+    end
+
+    it "exits 2 for a line it could not read and 1 for a refusal, as the runner answered them", :aggregate_failures do
+      expect(@opted[:unknown][:status]).to eq(2)
+      expect(@opted[:bad_word][:status]).to eq(2)
+      expect(@opted[:invariant][:status]).to eq(1)
+      expect(@opted[:unknown][:err]).to include("no such command: order.create_piza")
     end
   end
 end

@@ -4,12 +4,16 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/era_app_role"
 require_relative "../../../support/thread_parking"
+require_relative "../../../support/mint_request_support"
+require_relative "../../../support/first_era_hold"
 
 # Lineage in the PostgresEra adapter: partitioned journal, era rows, the one-transaction mint,
 # and the head compiled as a chain of edges. Needs a reachable Postgres (see postgres_probe.rb).
 RSpec.describe "lineage in the PostgresEra adapter", :io do
   include EraRegistryLoading
   include EraAppRole
+  include MintRequestSupport
+  include FirstEraHold
 
   LINEAGE_DB = "hecks_lineage_spec".freeze
 
@@ -181,15 +185,39 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
   # Boots the source as a copy that owns the database, so it may mint; `mint_eras: false` boots it
   # as one told not to, and `nil` leaves the world saying nothing.
   def check!(source, translation_source: nil, role: nil, mint_eras: true)
+    hold_first_unless_held!(source, role: role)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
+    settings = boot_settings(role: role, mint_eras: mint_eras)
+    Hecks::Adapters::PostgresEra::LineageManager.check!(
+      registry: registry, bluebook: bluebook, current_text: source,
+      settings: with_mint_request(settings, domain: bluebook.name)
+    )
+    registry
+  end
+
+  def boot_settings(role:, mint_eras:)
     settings = { database: owner_url }
     settings[:mint_eras] = mint_eras unless mint_eras.nil?
     settings[:role] = role if role
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: source, settings: settings
-    )
-    registry
+    settings
+  end
+
+  # A boot never holds an era, so the first boot of a fresh database is preceded by the hold the
+  # mint entry point makes, freezing `source` as era 1.
+  def hold_first_unless_held!(source, url: owner_url, role: nil)
+    domain = load_registry(source).bluebooks.values.first.name
+    return if first_era_held?(domain)
+
+    hold_first_era!(url: url, domain: domain, source: source, role: role)
+  end
+
+  def first_era_held?(domain)
+    with_db do |db|
+      next false unless db.exec("SELECT to_regclass('hecks_eras') AS t")[0]["t"]
+
+      db.exec_params("SELECT 1 FROM hecks_eras WHERE domain = $1 LIMIT 1", [domain]).ntuples.positive?
+    end
   end
 
   # A deployment's app role: a non-owner, the only kind of connection the era fence acts on.
@@ -237,9 +265,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   # Checks an already loaded registry against the database as the owner.
   def check_loaded!(registry, text)
+    hold_first_unless_held!(text)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: text,
-      settings: { database: owner_url, mint_eras: true }
+      settings: with_mint_request({ database: owner_url, mint_eras: true },
+                                  domain: registry.bluebooks.values.first.name)
     )
   end
 
@@ -347,10 +377,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect(attestation["attested_at"]).not_to be_nil
     end
 
-    it "boots the edited text once it is attested" do
+    # The held era is its stored projection and the text is audit-only, so attesting the edit
+    # changes no shape: the era still speaks V1, and V2 is still a drift needing an edge.
+    it "boots the held shape once the edit is attested, and still sees V2 as drift", :aggregate_failures do
       reattest_era_one!
 
-      expect { check!(V2_SOURCE) }.not_to raise_error
+      expect { check!(V1_SOURCE) }.not_to raise_error
+      expect { check!(V2_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, NO_EDGE_REFUSAL)
     end
   end
 
@@ -370,20 +403,20 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect { check!(V2_SOURCE) }.to raise_error(Hecks::Runtime::WiringError, NO_EDGE_REFUSAL)
     end
 
-    it "refuses a stale edge whose target hash no longer matches the current shape" do
-      stale = edge_source(from: label_of(V1_SOURCE), to: "000000")
+    # The era is its stored projection, so an edge to some other shape is not on this path.
+    it "ignores a stray edge from the held shape to another shape" do
+      from = label_of(V1_SOURCE)
+      stray = edge_source(from: from, to: label_of(V2_SOURCE)) + edge_source(from: from, to: "000000")
 
-      expect { check!(V2_SOURCE, translation_source: stale) }.to raise_error(
-        Hecks::Runtime::WiringError, /the edge is stale; re-run hecks scaffold_translation/
-      )
+      expect { check!(V2_SOURCE, translation_source: stray) }.not_to raise_error
     end
 
-    it "refuses a mechanical fork — two edges leaving one source shape" do
+    it "refuses two edges for one pair, by name" do
       from = label_of(V1_SOURCE)
-      forked = edge_source(from: from, to: label_of(V2_SOURCE)) + edge_source(from: from, to: "111111")
+      twice = edge_source(from: from, to: label_of(V2_SOURCE)) * 2
 
-      expect { check!(V2_SOURCE, translation_source: forked) }.to raise_error(
-        Hecks::Runtime::WiringError, /eras fork mechanically; keep one edge per source shape/
+      expect { check!(V2_SOURCE, translation_source: twice) }.to raise_error(
+        Hecks::Runtime::WiringError, /2 translation edges lead era 1 .* to the current shape .*; keep one/
       )
     end
 
@@ -736,14 +769,24 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       end
     end
 
+    # A mint whose rehearsal read the ledger before the writer started is refused by name: the
+    # watermark moved, so the mint never reaches its lock. The writer must keep writing through it.
     def mint_while_probing
       probe = LineageWriterProbe.new(0, 0, 0, false)
       writer = probing_writer(probe)
       ThreadParking.wait_for { probe.ok >= 3 } # a few writes in before the mint starts
-      mint_v2!
-      probe.stop = true
-      writer.join
+      @refusal = mint_refusal
       probe
+    ensure
+      probe.stop = true
+      writer&.join
+    end
+
+    def mint_refusal
+      mint_v2!
+      nil
+    rescue Hecks::Runtime::WiringError => e
+      e.message
     end
 
     before do
@@ -756,7 +799,11 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       expect(@probe.ok).to be > 0
     end
 
-    it "never waits on advance_era!'s AccessExclusiveLock, held for the commit and not the matview build" do
+    it "refuses the mint by name, since the watermark moved after the rehearsal" do
+      expect(@refusal).to match(/watermark moved from \d+ to \d+ since the rehearsal/)
+    end
+
+    it "never waits on a lock while the mint is refused" do
       expect(@probe.lock_blocked).to eq(0)
     end
   end
@@ -790,7 +837,10 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
 
   def merge_tail!(registry, **extra)
     Hecks::Adapters::PostgresEra::LineageManager.merge!(
-      registry: registry, bluebook: registry.bluebooks.values.first, settings: { database: LINEAGE_DB, mint_eras: true }, **extra
+      registry: registry, bluebook: registry.bluebooks.values.first,
+      settings: with_mint_request({ database: LINEAGE_DB, mint_eras: true },
+                                  domain: registry.bluebooks.values.first.name),
+      **extra
     )
   end
 
@@ -1177,28 +1227,22 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
-  # A copy whose world does not say `mint_eras true` does not migrate the database: it is refused,
-  # and the database is left on the era it holds.
+  # A copy whose world does not say `mint_eras true` does not migrate the database: a boot reads the
+  # era it holds, read-only, and the database is left on that era.
   context "with a copy told not to mint" do
-    def boot_without_permission
+    def boot_without_permission(mint_eras: false)
       check!(V1_SOURCE)
-      check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: false)
+      check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: mint_eras)
     end
 
-    it "refuses to mint, and says how to allow it" do
-      expect { boot_without_permission }
-        .to raise_error(Hecks::Runtime::WiringError, /may not mint.*mint_eras true/m)
-    end
-
-    it "leaves the database on the era it holds", :aggregate_failures do
-      expect { boot_without_permission }.to raise_error(Hecks::Runtime::WiringError)
+    it "boots read-only on the era it holds, and does not mint", :aggregate_failures do
+      expect { boot_without_permission }.not_to raise_error
       expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
     end
 
-    it "refuses when the world says nothing", :aggregate_failures do
+    it "does not mint when the world says nothing", :aggregate_failures do
       check!(V1_SOURCE)
-      expect { check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: nil) }
-        .to raise_error(Hecks::Runtime::WiringError, /may not mint/)
+      expect { check!(V2_SOURCE, translation_source: v1_to_v2_edge, mint_eras: nil) }.not_to raise_error
       expect(count_of("hecks_eras", "domain = 'Ledger'")).to eq("1")
     end
 
@@ -1250,11 +1294,13 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
   end
 
-  def check_as_ambient!(source, **extra_settings)
+  def check_as_ambient!(source, held: true, **extra_settings)
+    hold_first_unless_held!(source, url: LINEAGE_DB) if held
     registry = load_registry(source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
-      settings: { database: LINEAGE_DB, mint_eras: true }.merge(extra_settings)
+      settings: with_mint_request({ database: LINEAGE_DB, mint_eras: true }.merge(extra_settings),
+                                  domain: registry.bluebooks.values.first.name)
     )
     registry
   end
@@ -1285,7 +1331,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     end
 
     it "refuses before provisioning anything — a refused boot holds no era", :aggregate_failures do
-      expect { check_as_ambient!(V1_SOURCE) }.to raise_error(Hecks::Runtime::WiringError)
+      expect { check_as_ambient!(V1_SOURCE, held: false) }.to raise_error(Hecks::Runtime::WiringError)
       expect(with_db { |db| db.exec("SELECT to_regclass('hecks_eras') IS NULL AS absent")[0]["absent"] }).to eq("t")
     end
 

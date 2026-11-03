@@ -1,0 +1,7 @@
+# Binds the `PumpTools` port to `PumpTools`, which runs the event pump once for a requested `EventPump.Pump`.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/quality_control/adapters/pump_tools"
+
+Hecks.adapter "PumpTools" do
+  port "PumpTools"
+end

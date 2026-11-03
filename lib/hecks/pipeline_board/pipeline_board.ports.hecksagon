@@ -1,0 +1,47 @@
+# The ports PipelineBoard declares, for every hecksagon that attaches the bluebook. Each names the
+# question it asks of the outside and never says how it is answered; an adapter binds each. Every
+# port but `Web` only reads.
+Hecks.hecksagon "PipelineBoard" do
+  attaches "Governance"
+
+  # CI as GitHub reports it, read with the `gh` CLI.
+  PipelineBoard::PipelineBoard.port "GitHub" do
+    answers_query "CiRuns"
+    answers_query "SlowestJobs"
+  end
+
+  # The Work items, read through the Tickets domain.
+  PipelineBoard::PipelineBoard.port "Tickets" do
+    answers_query "OpenWork"
+  end
+
+  # The dispatched sessions: each job's state file and `claude agents --json`.
+  PipelineBoard::PipelineBoard.port "Jobs" do
+    answers_query "Sessions"
+  end
+
+  # The events the tooling recorded, read from the journal store without writing to it.
+  PipelineBoard::PipelineBoard.port "Journal" do
+    answers_query "Events"
+  end
+
+  # The wiring of the booted domains, read from the registry, for the diagram.
+  PipelineBoard::PipelineBoard.port "Wiring" do
+    answers_query "Wiring"
+  end
+
+  # Every stage, composed from the readings above and from this checkout's git state.
+  PipelineBoard::PipelineBoard.port "Pipeline" do
+    answers_query "Stages"
+  end
+
+  # The page. The adapter opens a server on 127.0.0.1 and answers `GET /` and `GET /api/state`;
+  # it is the only effect the board has.
+  PipelineBoard::PipelineBoard.port "Web" do
+    asks "Listen", to: PipelineBoard do
+      attribute :port, Port
+      answers "ServerEnded"
+      refuses "ServerRefused"
+    end
+  end
+end

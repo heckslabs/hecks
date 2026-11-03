@@ -100,6 +100,7 @@ fn refuse_unspelt(declaration: &ir::Bluebook) -> Result<(), String> {
         (!declaration.process_managers.is_empty(), "process managers"),
         (!declaration.provides.is_empty(), "provided capabilities"),
         (!declaration.attaches_to.is_empty(), "attaches"),
+        (!declaration.modules.is_empty(), "modules"),
         (declaration.version.is_some(), "a version"),
     ];
     match held.iter().find(|(present, _)| *present) {
@@ -296,6 +297,14 @@ fn command_text(out: &mut String, command: &ir::Command) -> Result<(), String> {
         out.push_str(&format!("      role {}\n", roles.join(", ")));
     } else if let Some(role) = &command.role {
         out.push_str(&format!("      role {}\n", string(role)));
+    }
+    if !command.audience.is_empty() {
+        let names: Vec<String> = command
+            .audience
+            .iter()
+            .map(|name| format!(":{name}"))
+            .collect();
+        out.push_str(&format!("      audience {}\n", names.join(", ")));
     }
     if let Some(goal) = &command.goal {
         out.push_str(&format!("      goal {}\n", string(goal)));

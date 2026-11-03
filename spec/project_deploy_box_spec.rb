@@ -382,7 +382,7 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
     it "deploys through box_roll.run too, so every deploy leaves a record", :aggregate_failures do
       makefile = cached("default", BOX_WORLDS.fetch("default")).first.fetch("Makefile")
 
-      expect(makefile).to include("HECKS ?= hecks", "$(HECKS) deploy box_roll.run project=\"$(CURDIR)\"",
+      expect(makefile).to include("HECKS ?= hecks", "$(HECKS) deploy box_roll.run! project=\"$(CURDIR)\"",
                                   "bash ./deploy-box.sh $(TAGS); rc=$$?")
       expect(makefile).not_to include("smoke-after-deploy")
     end
@@ -395,8 +395,8 @@ RSpec.describe "hecks deploy project — a deployed_to(\"AwsBox\") stack", :io d
 
     it "adds the four hosting files and makes `make deploy` the box_roll.run command", :aggregate_failures do
       expect(files.keys).to include("deploy-service.sh", "smoke-after-deploy.sh", "expected-era", "hosting.mk")
-      expect(files["Makefile"]).to include("$(HECKS) deploy box_roll.run project=\"$(CURDIR)\"")
-      expect(files["hosting.mk"]).to include("deploy service_roll.run project=\"$(CURDIR)\"")
+      expect(files["Makefile"]).to include("$(HECKS) deploy box_roll.run! project=\"$(CURDIR)\"")
+      expect(files["hosting.mk"]).to include("deploy service_roll.run! project=\"$(CURDIR)\"")
     end
 
     it "includes hosting.mk and takes its url, service and era from the world", :aggregate_failures do

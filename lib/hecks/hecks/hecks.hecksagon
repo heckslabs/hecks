@@ -2,8 +2,10 @@ Hecks.hecksagon "Hecks" do
   attaches "Governance"
 
   # The bluebooks the gem carries: the language declared in itself (Paging comes with Bluebook),
-  # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring their own ports).
-  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl]
+  # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
+  # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
+  %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
+     Coder Fixer PipelineBoard Pipeline]
     .each { |declaration| attaches declaration }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
@@ -80,43 +82,123 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::PushTrain.port "Train" do
-    asks "Carry", to: PushTrain do
+  Hecks::SendTrain.port "Train" do
+    asks "Carry", to: SendTrain do
       attribute :run, RunKey
       answers "TrainAnswered"
       refuses "TrainRefused"
     end
 
-    asks "Tally", to: PushTrain do
+    asks "Tally", to: SendTrain do
       attribute :run, RunKey
       answers "SurveyAnswered"
       refuses "SurveyRefused"
     end
   end
 
-  Hecks::PushTrain.port "Alerts" do
-    asks "Announce", to: PushTrain do
+  # Where a boarding's outcome is recorded: the boarded checkout's own launcher records it in that
+  # checkout's store. The train's own store stays Memory.
+  Hecks::SendTrain.port "PushRecords" do
+    asks "RecordOutcome", to: SendTrain do
       attribute :run, RunKey
+      answers "OutcomeRecorded"
+      refuses "OutcomeUnrecorded"
+    end
+  end
+
+  Hecks::PushRehearsal.port "Rehearsing" do
+    asks "Trial", to: PushRehearsal do
+      attribute :run, RunKey
+      answers "PushRehearsalAnswered"
+      refuses "PushRehearsalRefused"
+    end
+
+    answers_query "Due"
+  end
+
+  Hecks::RedFlag.port "Flagging" do
+    %w[Hoist SignIn Lower Survey].each do |step|
+      asks step, to: RedFlag do
+        attribute :run, RunKey
+        answers "FlagAnswered"
+        refuses "FlagRefused"
+      end
+    end
+
+    answers_query "Status"
+  end
+
+  Hecks::QaQuiesce.port "Quiescing" do
+    asks "Mark", to: QaQuiesce do
+      attribute :run, RunKey
+      answers "QuiesceAnswered"
+      refuses "QuiesceRefused"
+    end
+
+    asks "Clear", to: QaQuiesce do
+      attribute :run, RunKey
+      answers "QuiesceAnswered"
+      refuses "QuiesceRefused"
+    end
+
+    answers_query "Status"
+  end
+
+  Hecks::SendTrain.port "Alerts" do
+    asks "Announce", to: SendTrain do
+      attribute :run, RunKey
+      attribute :pushed, Word
       answers "DeployReadyAnnounced"
       refuses "AnnouncementRefused"
     end
   end
 
-  Hecks::Checkout.port "Reading" do
-    answers_query "Status"
-    answers_query "Changes"
-    answers_query "Log"
+  Hecks::SendTrain.port "Leftovers" do
+    asks "Leftovers", to: SendTrain do
+      attribute :run, RunKey
+      attribute :pushed, Word
+      answers "LeftoversListed"
+      refuses "LeftoversRefused"
+    end
   end
 
-  Hecks::Checkout.port "Settings" do
+  Hecks::Workspace.port "Reading" do
+    answers_query "Status"
+    answers_query "Changes"
+    answers_query "History"
+  end
+
+  Hecks::Workspace.port "Settings" do
     answers_query "Settings"
   end
 
-  Hecks::Commit.port "Committing" do
-    asks "Commit", to: Commit do
+  Hecks::Workspace.port "Doctor" do
+    answers_query "Doctor"
+  end
+
+  Hecks::Workspace.port "Where" do
+    answers_query "Where"
+  end
+
+  Hecks::Revision.port "Committing" do
+    asks "Commit", to: Revision do
       attribute :run, RunKey
       answers "CommitAnswered"
       refuses "CommitRefused"
+    end
+  end
+
+  Hecks::LinkedTree.port "WorktreeAdding" do
+    asks "Create", to: LinkedTree do
+      attribute :run, RunKey
+      answers "CreateAnswered"
+      refuses "CreateRefused"
+    end
+
+    asks "Pull", to: LinkedTree do
+      attribute :run, RunKey
+      answers "PullAnswered"
+      refuses "PullRefused"
     end
   end
 
@@ -127,23 +209,88 @@ Hecks.hecksagon "Hecks" do
       refuses "MergeRefused"
     end
 
+    asks "FinishBranch", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "MergeRefused"
+    end
+
+    asks "Convene", to: Landing do
+      attribute :run, RunKey
+      answers "ConveneAnswered"
+      refuses "ConveneRefused"
+    end
+
     asks "Remove", to: Landing do
       attribute :run, RunKey
       answers "RemovalAnswered"
       refuses "RemovalRefused"
     end
 
+    asks "DropBranch", to: Landing do
+      attribute :run, RunKey
+      answers "DiscardAnswered"
+      refuses "DiscardRefused"
+    end
+
     answers_query "Unlanded"
   end
 
-  Hecks::PullRequest.port "GitHubPullRequests" do
-    asks "Create", to: PullRequest do
+  # The Tickets row a landed branch was cut for: the port reads the Work rows and answers the open
+  # one the branch names, refusing when there is none.
+  Hecks::Landing.port "LandedWork" do
+    asks "FindLandedWork", to: Landing do
+      attribute :branch, Word
+      answers "LandedWorkFound"
+      refuses "NoLandedWork"
+    end
+  end
+
+  # The outside an integration of main reaches: the open runs an advance steps, a clean copy of
+  # main for a verification, the push train's own copy for a boarding, and GitHub's CI runs.
+  Hecks::Integration.port "Integrating" do
+    asks "Step", to: Integration do
+      attribute :run, RunKey
+      answers "AdvanceAnswered"
+      refuses "AdvanceRefused"
+    end
+  end
+
+  Hecks::Integration.port "MainVerifying" do
+    asks "Check", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      answers "VerifyAnswered"
+      refuses "VerifyRefused"
+    end
+  end
+
+  Hecks::Integration.port "MainBoarding" do
+    asks "Embark", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      answers "BoardAnswered"
+      refuses "BoardRefused"
+    end
+  end
+
+  Hecks::Integration.port "CiRuns" do
+    asks "Watch", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      answers "ObserveAnswered"
+      refuses "ObserveRefused"
+    end
+  end
+
+  Hecks::ReviewRequest.port "GitHubPullRequests" do
+    asks "Create", to: ReviewRequest do
       attribute :run, RunKey
       answers "OpenAnswered"
       refuses "OpenRefused"
     end
 
-    asks "Squash", to: PullRequest do
+    asks "Squash", to: ReviewRequest do
       attribute :run, RunKey
       answers "SquashAnswered"
       refuses "SquashRefused"
@@ -152,8 +299,23 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
-  # The outside an agent run reaches: it finds the directory, starts the background session, and
-  # reports the state the session is in. The state is judged in the bluebook, not here.
+  # The outside a filling of the queue reaches: the Work rows, the machine's load and the freeze.
+  Hecks::Dispatch.port "Dispatching" do
+    asks "Choose", to: Dispatch do
+      attribute :run, DispatchKey
+      answers "DispatchReported"
+      refuses "DispatchRefused"
+    end
+
+    asks "Conclude", to: Dispatch do
+      attribute :run, DispatchKey
+      answers "DispatchReported"
+      refuses "DispatchRefused"
+    end
+  end
+
+  # The outside an agent run reaches: it finds the directory and the agents, starts the background
+  # session, and reports the state its job is in. The state is judged in the bluebook, not here.
   Hecks::AgentRun.port "Agents" do
     asks "Locate", to: AgentRun do
       attribute :run, RunKey
@@ -167,10 +329,18 @@ Hecks.hecksagon "Hecks" do
       refuses "StartRefused"
     end
 
-    asks "Examine", to: AgentRun do
+    # The state a session's job is in, with the state the run last recorded beside it.
+    asks "ReadJob", to: AgentRun do
       attribute :run, RunKey
-      answers "SessionChecked"
-      refuses "CheckRefused"
+      answers "JobRead"
+      refuses "JobUnread"
+    end
+
+    # The same reading, taken once a just-started session has had a few seconds to fail.
+    asks "AwaitJob", to: AgentRun do
+      attribute :run, RunKey
+      answers "JobRead"
+      refuses "JobUnread"
     end
 
     # Whether a person took the session over is a fact about its transcript; the bluebook judges it.
@@ -187,9 +357,10 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::PushTrain.port "Launcher" do
-    asks "Refresh", to: PushTrain do
+  Hecks::SendTrain.port "Launcher" do
+    asks "Refresh", to: SendTrain do
       attribute :run, RunKey
+      attribute :pushed, Word
       answers "LauncherRefreshed"
       refuses "LauncherRefreshRefused"
     end
@@ -208,10 +379,24 @@ Hecks.hecksagon "Hecks" do
       refuses "EraRefused"
     end
 
+    asks "Mint", to: Era do
+      attribute :run, RunKey
+      answers "Minted"
+      refuses "MintRefused"
+    end
+
     answers_query "ScaffoldTranslation"
     answers_query "AuditTranslation"
+    answers_query "ComposeTranslation"
+    answers_query "ReconcilePlan"
     answers_query "Attestation"
     answers_query "Compaction"
+    answers_query "BootStatus"
+    answers_query "SqliteStatus"
+    answers_query "EventTrace"
+    answers_query "MintPlan"
+    answers_query "BootResolution"
+    answers_query "ProjectionAudit"
   end
 
   Hecks::Era.port "Ledger" do
@@ -271,13 +456,15 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::Launch.port "Terminal" do
-    asks "Serve", to: Launch do
-      attribute :run, LaunchKey
-      answers "LaunchAnswered"
-      refuses "LaunchRefused"
+  Hecks::Server.port "Terminal" do
+    asks "Serve", to: Server do
+      attribute :run, RunKey
+      answers "ServerAnswered"
+      refuses "ServerRefused"
     end
+  end
 
+  Hecks::Launch.port "Terminal" do
     asks "Converse", to: Launch do
       attribute :run, LaunchKey
       answers "LaunchAnswered"
@@ -485,6 +672,9 @@ Hecks.hecksagon "Hecks" do
       refuses "InspectionRefused"
     end
 
+  end
+
+  Hecks::Codebase.port "SourceTree" do
     answers_query "Search"
     answers_query "ReadSource"
     answers_query "Outline"
@@ -524,18 +714,6 @@ Hecks.hecksagon "Hecks" do
   end
 
   Hecks::CorpusRun.port "SourceTree" do
-    asks "Examine", to: CorpusRun do
-      attribute :run, RunKey
-      answers "CorpusExamined"
-      refuses "CorpusRefused"
-    end
-
-    asks "Perform", to: CorpusRun do
-      attribute :run, RunKey
-      answers "CorpusAnswered"
-      refuses "CorpusRefused"
-    end
-
     answers_query "RustDomains"
     answers_query "RegenOrder"
     answers_query "CorpusRustCoverage"
@@ -543,6 +721,20 @@ Hecks.hecksagon "Hecks" do
     answers_query "IrConstructs"
     answers_query "IrDuplicates"
     answers_query "IrImpact"
+  end
+
+  Hecks::Server.port "SourceTree" do
+    asks "Examine", to: Server do
+      attribute :run, RunKey
+      answers "ServerExamined"
+      refuses "ServerRefused"
+    end
+
+    asks "Perform", to: Server do
+      attribute :run, RunKey
+      answers "ServerAnswered"
+      refuses "ServerRefused"
+    end
   end
 
   Hecks::PublishingRun.port "SourceTree" do
@@ -732,6 +924,7 @@ Hecks.hecksagon "Hecks" do
     answers_query "Stores"
     answers_query "History"
     answers_query "Statements"
+    answers_query "Undo"
     answers_query "Narrate"
     answers_query "Relationships"
     answers_query "ContextMap"
@@ -753,5 +946,23 @@ Hecks.hecksagon "Tenancy" do
   translates "RegisterProvisionedTenant" do
     on Tenant::TenantProvisioned
     trigger Tenant::Register, with: { slug: :slug, domain: :domain, realm: :realm, schema: :schema }
+  end
+end
+
+# A rehearsal that would mint is the record a mint reads: QualityControl's Maintenance keeps the verdict and
+# the watermark the copy held, so Maintenance.MintEra finds it by this run (the mint plan's watermark guard).
+# QualityControl is attached here, so the seam is its translation of the migrate bluebook's audit, not an
+# `across` dispatch. It listens beside Judge, on the same audit and the same condition, because the rehearsal
+# is already five reactions deep at Judge and a reaction to RehearsalJudged would pass the dispatcher's depth bound.
+Hecks.hecksagon "QualityControl" do
+  subscribe "Hecks.RehearsalAudited"
+
+  translates "RecordVerdictWhenNothingWouldStopTheMint" do
+    on RehearsalRun::RehearsalAudited
+    where do
+      (minting.value != "next" || edge_present.value) && refusal_total.value == 0
+    end
+    trigger Maintenance::RecordRehearsalVerdict, with: { run: :run, domain: :rehearsed_domain,
+                                                          watermark: :watermark, rehearsal_verdict: "would_mint" }
   end
 end

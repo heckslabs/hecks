@@ -3,7 +3,8 @@
 module Hecks
   module Adapters
     module Codebase
-      # What a spec run's arguments become: the variables the specs read, and the flags a stress run takes.
+      # What a spec run's arguments become: the variables the specs read, and the flags a stress run
+      # takes.
       # A person names them in a request, so they never set them in a shell.
       module RunOptions
         module_function

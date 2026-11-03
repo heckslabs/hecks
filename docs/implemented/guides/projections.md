@@ -13,7 +13,7 @@ generated, not hand-maintained a second time.
 ## The canonical IR
 
 Every projection starts from the same data: the canonical IR a booted
-domain exports. `hecks build.project_rust` reads exactly this export (through a
+domain exports. `hecks build.project_rust!` reads exactly this export (through a
 JSON round-trip) before it writes a line of Rust.
 
 <!-- doctest:boot
@@ -40,7 +40,7 @@ field.
 
 ## From IR to Rust
 
-`hecks build.project_rust <domain>` reads a booted domain's canonical IR and
+`hecks build.project_rust! <domain>` reads a booted domain's canonical IR and
 generates typed Rust structs and enums for every value object, entity,
 and aggregate record. `given`/`ensures`/mutation logic stays data,
 interpreted at runtime by one small, hand-written kernel
@@ -48,11 +48,11 @@ interpreted at runtime by one small, hand-written kernel
 `CommandInterpreter#call` does in Ruby — so extending the language
 means extending one interpreter twice, not maintaining a second
 hand-written implementation that silently drifts. The parser is
-generated too (`hecks language_run.project_parser_table`, from the language's own
+generated too (`hecks language_run.project_parser_table!`, from the language's own
 `Syntax` bluebook), not hand-written a second time either.
 
 Ruby is the reference implementation; Rust is checked against it
-continuously, not just at release time: `hecks regeneration_run.regenerate_corpus --check`
+continuously, not just at release time: `hecks regeneration_run.regenerate_corpus! --check`
 regenerates every corpus domain's Rust and fails on any difference from the committed tree, and
 `spec/rust_conformance_spec.rb` replays every pinned fixture script in
 `spec/corpus/rust_conformance/` through the compiled binary, diffing instances, events, refusals,
@@ -63,10 +63,10 @@ directly in this repository, generating and building the `pizzas`
 domain from a clean `rust/src/generated/`:
 
 ```sh
-$ hecks build.project_rust examples/pizzas      # canonical IR → Rust source
+$ hecks build.project_rust! examples/pizzas      # canonical IR → Rust source
 # ~4s
 
-$ hecks build.build_wasm examples/pizzas      # cross-compiles the SAME binary to wasm32-wasip1
+$ hecks build.build_wasm! examples/pizzas      # cross-compiles the SAME binary to wasm32-wasip1
 # ~13s cargo build --release; produces rust/dist/pizzas.wasm (551 KB)
 
 $ wasmtime run rust/dist/pizzas.wasm < spec/corpus/pizzas.json
@@ -103,14 +103,14 @@ carries `where`/`order_by`/`limit`/`offset` — including ADR 0055's
 `on:` naming which of *several* many-side heads each option applies to
 (`Banking.ComplianceDashboard`) — all execute for real and match Ruby
 byte-for-byte; as of this writing every read model and query in the
-real corpus generates and runs (`hecks build.check_coverage_allowlist`
+real corpus generates and runs (`hecks build.check_coverage_allowlist!`
 finds no allowlisted gap left to justify). A query or read model this
 generator genuinely can't compile — a multi-hop reference chain, a
 where clause on a field whose kind can't be resolved from the exported
 IR, `cursor`/`consistency`/`inspection` — refuses with an explicit "is
 not generated for this domain" error in Rust instead of running; both
 sides are documented, allowlisted gaps (`rust/codegen/src/queries.rs`,
-`rust/codegen/src/read_models.rs`, `hecks build.check_coverage_allowlist`'s own allowlist), not
+`rust/codegen/src/read_models.rs`, `hecks build.check_coverage_allowlist!`'s own allowlist), not
 silent wrong answers.
 
 ## WebAssembly
@@ -124,7 +124,7 @@ shape the native binary and Ruby both produce, so a runtime built for a
 browser tab, an edge function, or a sandboxed plugin host runs the
 *same checked semantics* — no server, no Ruby, no database — as the
 one CI holds equal to the reference implementation. A separate
-`wasm-bindgen` build (`hecks build.build_browser_wasm`) targets an ES module
+`wasm-bindgen` build (`hecks build.build_browser_wasm!`) targets an ES module
 for the browser specifically.
 
 ## What this buys, and what it does not yet claim
@@ -135,16 +135,16 @@ hecks validates it against the same semantics regardless of target,
 then projects it to whichever execution form the deployment actually
 needs — a Ruby process talking to Postgres, or a portable binary with
 no runtime dependencies at all. Deployment (SAM/Lambda templates via
-`hecks deploy recipe.project`, an OIDC manifest via `hecks deploy oidc_manifest.project_oidc`, a
-standalone CLI via `hecks project_cli`) is downstream of that same
+`hecks deploy Recipe.project!`, an OIDC manifest via `hecks deploy OidcManifest.project_oidc!`, a
+standalone CLI via `hecks Launch.project_cli!`) is downstream of that same
 projection step, not a separate hand-authored artifact.
 
 What this does *not* yet claim: throughput and latency are measured only
-by a single-machine harness (`hecks fuzz_run.bench`; the [baseline and its
+by a single-machine harness (`hecks fuzz_run.bench!`; the [baseline and its
 caveats](../../benchmarks.md)), not under a production-like load,
 `read_model` queries outside the proven subset above are refused in Rust
 rather than run, and the WASM projector is one command away
-(`hecks build.build_wasm`), and the deployed Rust host runs the domain's WASI module. See
+(`hecks build.build_wasm!`), and the deployed Rust host runs the domain's WASI module. See
 [Running a runtime](running-a-runtime.md) for
 the exact field-by-field contract a third dispatch runtime would need,
 and [the retired first Rust
@@ -171,7 +171,7 @@ launcher "Launcher", run_keys: true,
   failure state, and says why on standard error (the record's `refusal`, when it keeps one).
   A verb that declares its own `wait` argument keeps it.
 - `settled` lists commands (`aggregate.command`) that always behave as if `--wait` were given,
-  for a verb a script runs for its outcome: `package.vendor`, `package.revendor` and `package.release` exit 1 with
+  for a verb a script runs for its outcome: `package.vendor!`, `package.revendor!` and `package.release!` exit 1 with
   the reason when the package is refused, with no flag.
 
 A policy reaction the domain refused does not undo the command that fired it. The answer lists

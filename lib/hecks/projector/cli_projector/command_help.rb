@@ -5,9 +5,9 @@ module Hecks
       module CommandHelp
         # Four independent blocks, concatenated in fixed order: meta, invocation,
         # arguments, refusals.
-        def command_help(program, name, spec, ask: false)
+        def command_help(program, name, spec, ask: false, qualified: false)
           out = command_help_meta_lines(name, spec)
-          out.concat(command_help_invocation_lines(program, name, spec, ask))
+          out.concat(command_help_invocation_lines(program, name, spec, [ask, qualified]))
           out.concat(command_help_argument_lines(spec))
           out.concat(command_help_refusal_lines(spec))
           out.join("\n")
@@ -19,12 +19,18 @@ module Hecks
           out << "dispatches #{spec[:command]}" if spec[:kind] == :command
           out << "reads #{spec[:command]}"      if spec[:kind] == :query
           out << "issued by #{spec[:role]}" if spec[:role]
-          out
+          out.concat(command_help_audience_lines(spec))
+        end
+
+        # The audiences a command declares it is listed for, or nothing when it declares none.
+        def command_help_audience_lines(spec)
+          Array(spec[:audience]).any? ? ["listed for #{spec[:audience].join(", ")}"] : []
         end
 
         # The example call with every argument as `path=…`.
-        def command_help_invocation_lines(program, name, spec, ask)
-          invocation = ask ? "#{program} query #{name}" : "#{program} #{name}!"
+        def command_help_invocation_lines(program, name, spec, asking)
+          ask, qualified = asking
+          invocation = ask ? [program, ("query" if qualified), name].compact.join(" ") : "#{program} #{name}!"
           ["", "  #{invocation}#{spec[:arguments].map { |a| " #{a[:path]}=…" }.join}", ""]
         end
 

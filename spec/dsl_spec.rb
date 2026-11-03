@@ -12,6 +12,17 @@ RSpec.describe "the DSL surface" do
     registry
   end
 
+  def renamed_aggregate
+    build_bluebook("Renamed") do
+      aggregate("Pizza") do
+        formerly_known_as "Pie"
+        value_object("Name") { attribute :value, String }
+        attribute :name, Name
+        identified_by :name
+      end
+    end.aggregates.first
+  end
+
   def build_bluebook(name, &block)
     in_registry { Hecks.bluebook(name, &block) }.bluebook(name)
   end
@@ -273,6 +284,16 @@ RSpec.describe "the DSL surface" do
       backfilled = translation.for_aggregate("Thing").backfills.first
 
       expect([backfilled.name, backfilled.default]).to eq([:tier, "standard"])
+    end
+
+    it ".data_translation registers a split naming its target, key and fields" do
+      translation = translating { aggregate("Thing") { split into: "Part", keyed_by: :code, fields: [:size] } }
+
+      expect(translation.for_aggregate("Thing").splits.first.to_a).to eq(["Part", :code, [:size]])
+    end
+
+    it ".data_translation refuses a split with no target" do
+      expect_translation_refusal(/needs a target aggregate/) { aggregate("Thing") { split keyed_by: :code, fields: [:size] } }
     end
 
     it ".data_translation refuses a backfill with no default:" do
@@ -1191,6 +1212,10 @@ RSpec.describe "the DSL surface" do
       expect(build_bluebook("Visioned") { vision "sell pizza" }.vision).to eq("sell pizza")
     end
 
+    it "formerly_known_as on an aggregate records the name it held before" do
+      expect(renamed_aggregate.formerly_known_as.value).to eq("Pie")
+    end
+
     it "formerly_known_as records what a domain's own identity used to be" do
       expect(build_bluebook("Renamed") { formerly_known_as "OldName" }.formerly_known_as).to eq("OldName")
     end
@@ -1287,6 +1312,28 @@ RSpec.describe "the DSL surface" do
       expect(several_endings_process_manager.ends_on).to eq("OrderCompleted")
     end
 
+    # The checkout saga with a stage map: each stage names the command that resumes it.
+    def resumable_process_manager
+      transition = checkout_transition
+      build_bluebook("Converse") do
+        process_manager "Checkout" do
+          correlates_by :"order.id"
+          starts_on "OrderPlaced"
+          resumes "gated=GateRun.Gate"
+          resumes "checking=ConformanceRun.CheckShapeLedger"
+          instance_eval(&transition)
+        end
+      end.process_managers.first
+    end
+
+    it "process_manager carries its stage map in declaration order" do
+      expect(resumable_process_manager.resumes).to eq(["gated=GateRun.Gate", "checking=ConformanceRun.CheckShapeLedger"])
+    end
+
+    it "process_manager without resumes carries an empty stage map" do
+      expect(checkout_process_manager.resumes).to eq([])
+    end
+
     it "process_manager keeps what a transition dispatches", :aggregate_failures do
       handler = checkout_process_manager.handler_for("PaymentAuthorized")
 
@@ -1374,6 +1421,78 @@ RSpec.describe "the DSL surface" do
         starts_on "Started"
         transition("Started" => "b", from: "a") { dispatch Thing::Start }
       end
+    end
+
+    # The command that takes a sighting's code and emits the event the process manager starts on.
+    def raise_with_code
+      proc do
+        attribute :code, Code
+        emits "Started"
+      end
+    end
+
+    # A sighting identified by a value object, raised by a command that takes its code.
+    def sighting_declaration
+      raise_code = raise_with_code
+      proc do
+        aggregate "Sighting" do
+          value_object("Code") { attribute :value, String }
+          identified_by :code
+          attribute :code, Code
+          command("Raise") { instance_eval(&raise_code) }
+        end
+      end
+    end
+
+    def bare_identity_process_manager
+      sighting = sighting_declaration
+      build_bluebook("BareIdentity") do
+        instance_eval(&sighting)
+        process_manager("Keyed") do
+          correlates_by Sighting
+          starts_on "Started"
+          transition("Started" => "b", from: "a") { dispatch Sighting::Raise }
+        end
+      end.process_managers.first
+    end
+
+    # A bare aggregate name (`correlates_by Thing`) means that aggregate's identity.
+    def bare_key_process_manager(domain_name, &declaration)
+      thing = ref_amount_declaration
+      build_bluebook(domain_name) do
+        instance_eval(&thing)
+        process_manager("Keyed") do
+          instance_eval(&declaration)
+          starts_on "Started"
+          transition("Started" => "b", from: "a") { dispatch Thing::Start }
+        end
+      end.process_managers.first
+    end
+
+    it "process_manager expands a bare aggregate name to its identity field", :aggregate_failures do
+      keyed = bare_key_process_manager("BareAggregate") { correlates_by Thing }
+
+      expect(keyed.correlates_by).to eq(:"Thing.id")
+      expect(keyed.correlation_head).to eq(:Thing)
+    end
+
+    it "process_manager expands a bare aggregate name to the identity it declares, not id" do
+      keyed = bare_identity_process_manager
+
+      expect(keyed.correlates_by).to eq(:"Sighting.code")
+    end
+
+    it "process_manager refuses a bare name that names no aggregate of its bluebook" do
+      expect do
+        bare_key_process_manager("BareValueObject") { correlates_by ThingId }
+      end.to raise_error(Hecks::Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager,
+                         /Keyed correlates_by ThingId, which names a whole field/)
+    end
+
+    it "process_manager leaves a dotted correlates_by unchanged" do
+      keyed = bare_key_process_manager("DottedKey") { correlates_by "Thing.ref.amount" }
+
+      expect(keyed.correlates_by).to eq(:"Thing.ref.amount")
     end
 
     # `identified_by` reads its own source line via Prism, so it needs a
@@ -2910,8 +3029,39 @@ RSpec.describe "the DSL surface" do
       expect(build_command("CmdIdempotent") { idempotent }.idempotent?).to be(true)
     end
 
+    it "mints_era true lets the command write through a boot no era holds" do
+      expect(build_command("CmdMints") { mints_era true }.mints_era?).to be(true)
+    end
+
+    it "mints no era unless it says so" do
+      expect(build_command("CmdNoMint") { goal "feed people" }.mints_era?).to be(false)
+    end
+
     it "is not idempotent unless it says so" do
       expect(build_command("CmdPlain") { goal "feed people" }.idempotent?).to be(false)
+    end
+
+    it "audience names who a launcher lists the command for" do
+      expect(build_command("CmdAudience") { audience :agent, :ci }.audience).to eq(%w[agent ci])
+    end
+
+    it "names no audience unless it says so" do
+      expect(build_command("CmdUnlisted") { goal "feed people" }.audience).to eq([])
+    end
+
+    it "refuses an audience the language does not know" do
+      expect_refusal(:command, "CmdBadAudience", /names robot as an audience/) { audience :robot }
+    end
+
+    it "refuses an audience named twice" do
+      expect_refusal(:command, "CmdTwiceAudience", /names an audience twice/) { audience :ci, :ci }
+    end
+
+    it "refuses a second audience declaration" do
+      expect_refusal(:command, "CmdAudienceAgain", /declares its audience twice/) do
+        audience :ci
+        audience :agent
+      end
     end
 
     it "attribute adds a payload field" do
@@ -3234,6 +3384,19 @@ RSpec.describe "the DSL surface" do
       expect(occurrences_plugin).to be_plugin
       expect(build_adapter { port "post" }).not_to be_plugin
     end
+
+    def inside_clock_adapter
+      build_adapter do
+        port "clock"
+        stays_inside
+      end
+    end
+
+    # ADR 0171: the one claim an adapter makes about its reach, false until it says the word.
+    it "stays_inside says the adapter reaches nothing outside the process and the checkout", :aggregate_failures do
+      expect(inside_clock_adapter).to be_stays_inside
+      expect(build_adapter { port "clock" }).not_to be_stays_inside
+    end
   end
 
   describe "a domain port" do
@@ -3395,6 +3558,15 @@ RSpec.describe "the DSL surface" do
       end
 
       expect(operation.emits).to eq(["Done"])
+    end
+
+    it "handles records one value of a command the operation handles" do
+      operation = build_operation do
+        handles "Build.build!", value: "wasm"
+        emits "Done"
+      end
+
+      expect(operation.handles).to eq([{ command: "Build.build!", value: "wasm" }])
     end
 
     it "allows an operation with no payload when routing supplies the receiver" do

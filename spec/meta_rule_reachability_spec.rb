@@ -108,6 +108,12 @@ RSpec.describe "reachability of the meta-domain's own given/invariant/ensures ru
     [["given", "Command.Allow", "a role is named"],
      "presence check on an extra role of a command; spec/multi_role_spec.rb dispatches Allow with real roles, none with " \
      "a blank one"],
+    [["invariant", "Aggregate::AggregateFormerlyKnownAs (declared)", "an aggregate's formerly_known_as says something"],
+     "presence invariant on an aggregate's former name; no spec dispatches one blank"],
+    [["invariant", "Aggregate::AggregateCreatedBy (declared)", "an aggregate's created_by says something"],
+     "presence invariant on the command that creates an aggregate's records; no spec dispatches one blank"],
+    [["given", "Command.Address", "an audience is named"],
+     "presence check on an audience a command is listed for; no spec dispatches Address with a blank audience"],
     [["given", "Command.Change", "a mutation does something"],
      "distinct from \"a mutation names a target\" (proven) — no spec dispatches Command.Change with a target but no actual " \
      "operation"],

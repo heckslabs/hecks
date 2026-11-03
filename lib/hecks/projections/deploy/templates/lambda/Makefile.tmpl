@@ -27,7 +27,7 @@ build-@@logical_id@@:
 # field). `hecks build_wasm` recompiles fast enough that "always
 # rebuild" is the safe default, matching rust/host's own bootstrap
 # build just below, which was never guarded this way to begin with.
-	cd @@root@@ && HECKS_ENVIRONMENT=memory ruby exe/hecks build.build_wasm domain=@@domain@@ --wait
+	cd @@root@@ && HECKS_ENVIRONMENT=memory ruby exe/hecks build.build_wasm! domain=@@domain@@ --wait
 	@rustup target list --installed 2>/dev/null | grep -qx aarch64-unknown-linux-gnu || rustup target add aarch64-unknown-linux-gnu
 # `rustup run stable`, not a bare `cargo lambda` — same reasoning
 # `hecks build_wasm`'s own Makefile-equivalent line holds itself to: a
@@ -129,12 +129,12 @@ restore-@@logical_id@@-build:
 .PHONY: verify-parity-@@logical_id@@
 verify-parity-@@logical_id@@:
 	@if [ -f @@root@@/spec/corpus/@@domain_name@@.json ]; then \
-		cd @@root@@ && HECKS_ENVIRONMENT=memory ruby exe/hecks build.check_conformance domain=@@domain@@ script=spec/corpus/@@domain_name@@.json artifact=$(WASM) --wait; \
+		cd @@root@@ && HECKS_ENVIRONMENT=memory ruby exe/hecks build.check_conformance! domain=@@domain@@ script=spec/corpus/@@domain_name@@.json artifact=$(WASM) --wait; \
 	else \
 		echo "verify-parity-@@logical_id@@: no spec/corpus/@@domain_name@@.json -- SKIPPING the pre-deploy Ruby/Rust parity check, nothing to compare $(WASM) against. Write one (hecks fuzz/hecks run's own script shape) before this domain's next deploy."; \
 	fi
 	@echo "verify-parity-@@logical_id@@: fuzzing $(WASM) against generated sequences (ADR 0037's bridge, WARN-ONLY -- see this target's own comment)..."
-	-@cd @@root@@ && HECKS_ENVIRONMENT=memory ruby exe/hecks build.fuzz_conformance domain=@@domain@@ artifact=$(WASM) --wait
+	-@cd @@root@@ && HECKS_ENVIRONMENT=memory ruby exe/hecks build.fuzz_conformance! domain=@@domain@@ artifact=$(WASM) --wait
 
 # `make mint-era` — takes @@stack_name@@'s RDS instance from freshly
 # created to "era 1 minted, ready for HECKS_DOMAIN/HECKS_ERA to

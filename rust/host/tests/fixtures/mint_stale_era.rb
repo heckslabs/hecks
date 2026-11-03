@@ -9,6 +9,7 @@ $LOAD_PATH.unshift File.expand_path("../../../../lib", __dir__)
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require "tempfile"
+require_relative "../../../../spec/support/first_era_hold"
 
 db_name, owner_role, app_role = ARGV
 unless db_name && owner_role && app_role
@@ -91,11 +92,22 @@ ensure
   file&.close!
 end
 
+# A boot never mints; a mint carries the confirmed would_mint request the Maintenance mint
+# command makes, at the watermark the database holds when it asks.
+def mint_request_for(owner_url)
+  db = PG.connect(owner_url)
+  watermark = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger").last_ordinal
+  { confirm: true, verdict: "would_mint", watermark: watermark }
+ensure
+  db&.close
+end
+
 def check!(source, owner_url:, translation_source: nil, role: nil)
   registry = load_registry(source, translation_source: translation_source)
   bluebook = registry.bluebooks.values.first
   settings = { database: owner_url, mint_eras: true }
   settings[:role] = role if role
+  settings[:mint_request] = mint_request_for(owner_url)
   Hecks::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
@@ -115,6 +127,8 @@ def edge_source(from:, to:)
   RUBY
 end
 
+# A boot never holds era 1: hold it as the mint entry point does, then mint era 2 over it.
+Object.new.extend(FirstEraHold).hold_first_era!(url: owner_url, domain: "Ledger", source: v1)
 check!(v1, owner_url: owner_url)
 from = label_of(v1)
 to = label_of(v2)

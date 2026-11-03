@@ -1,6 +1,7 @@
 require_relative "fuzzing/target_capabilities"
 require_relative "corpus/adapters"
 require_relative "corpus/generated_key"
+require_relative "corpus/listing"
 require_relative "corpus/routes"
 require_relative "corpus/rust"
 require_relative "corpus/sources"
@@ -24,6 +25,13 @@ module Hecks
       # The Hecks domain (ADR 0080): its bluebooks share one namespace and one hecksagon, so
       # they load together, as a directory, never file by file.
       hecks:     "lib/hecks/hecks",
+      # The Coder and Fixer domains keep their bluebook beside their hecksagon in their own folder.
+      coder:     "lib/hecks/coder",
+      fixer:     "lib/hecks/fixer",
+      # The PipelineBoard domain keeps its bluebook beside its hecksagon and adapters.
+      board:     "lib/hecks/pipeline_board",
+      # The Pipeline domain: one passage per change, moved by the other domains' events.
+      pipeline:  "lib/hecks/pipeline",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
@@ -57,6 +65,7 @@ module Hecks
     KINDS = (DIRECTORY_KINDS.keys + FILE_KINDS.keys).freeze
 
     extend Adapters
+    extend Listing
     extend Rust
     extend Sources
     extend Worlds
@@ -73,33 +82,6 @@ module Hecks
     def members(*kinds, root: ROOT)
       kinds = KINDS if kinds.empty?
       kinds.flat_map { |kind| kind_members(kind, root) }
-    end
-
-    # @return [Array<Member>] the members of one kind: a directory each, or a file each
-    # @raise [ArgumentError] if `kind` is not in `KINDS`
-    def kind_members(kind, root)
-      if (glob = DIRECTORY_KINDS[kind])
-        directory_members(kind, root, glob)
-      elsif (glob = FILE_KINDS[kind])
-        file_members(kind, root, glob)
-      else
-        raise ArgumentError, "unknown corpus kind #{kind.inspect} — known: #{KINDS.join(", ")}"
-      end
-    end
-
-    def directory_members(kind, root, glob)
-      directories(root, glob).map { |dir| Member.new(File.basename(dir), kind, dir) }
-    end
-
-    def directories(root, glob) = Dir.glob(File.join(root, glob)).select { |path| File.directory?(path) }.sort
-
-    # The part of a glob before its first wildcard.
-    GLOB_FIXED_PREFIX = /\A[^*]*/
-
-    def file_members(kind, root, glob)
-      prefix = File.join(root, glob[GLOB_FIXED_PREFIX].chomp("/"))
-      Dir.glob(File.join(root, glob))
-         .map { |file| Member.new(file.delete_prefix("#{prefix}/").delete_suffix(".bluebook"), kind, file) }
     end
 
     # What a boot loads for a member — a directory kind's bluebook
@@ -151,13 +133,14 @@ module Hecks
     end
 
     # Every bootable domain in the project — any directory holding a
-    # `.bluebook` no route sends elsewhere (a `bluebook/` folder stands for its parent).
+    # `.bluebook` no route sends elsewhere (a `bluebook/` folder stands for its parent),
+    # less module folders, which their parent's bluebook stands for.
     #
     # @param root [String] repository root to search under
     # @return [Array<String>] absolute paths of every sweepable domain directory
     def sweepable_domains(root = ROOT)
       Dir.chdir(root) do
-        swept = Dir.glob("**/*.bluebook").reject { |path| route_for(path) }
+        swept = Dir.glob("**/*.bluebook").reject { |path| route_for(path) || module_bluebook?(path) }
         dirs = swept.map { |path| owning_dir(File.dirname(path)) }
         dirs.uniq.sort.map { |dir| File.join(root, dir) }
       end
@@ -165,6 +148,15 @@ module Hecks
 
     # The domain directory a bluebook directory stands for: a `bluebook/` folder is its parent.
     def owning_dir(dir) = File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
+
+    # A bluebook line that opens a `domain_module`.
+    MODULE_OPENING = /^\s*domain_module\b/
+
+    # Whether a bluebook is a module folder's (ADR 0163): it opens a `domain_module` of the parent's
+    # bluebook, so its folder is no domain on its own and cannot boot alone.
+    def module_bluebook?(path)
+      File.basename(path, ".bluebook") == File.basename(File.dirname(path)) && File.read(path).match?(MODULE_OPENING)
+    end
 
     # Sweepable domains a fuzz cannot boot from its copy, by repo-relative directory, each with
     # the reason. A fuzz boots a tmpdir copy of a domain to isolate its state.

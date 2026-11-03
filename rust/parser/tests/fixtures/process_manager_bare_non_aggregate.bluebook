@@ -1,0 +1,24 @@
+# A bare name that names no aggregate (here a value object) is refused, as the Ruby builder refuses it.
+Hecks.bluebook "FixtureBareNonAggregate" do
+  aggregate "Message" do
+    identified_by :id
+    attribute :id, MessageId
+
+    value_object "MessageId" do
+      attribute :value, String
+    end
+
+    command "Schedule" do
+      emits "Scheduled"
+    end
+  end
+
+  process_manager "ScheduledSend" do
+    correlates_by MessageId
+    starts_on "Message.Scheduled"
+
+    transition "Message.Scheduled" => "scheduled", from: "start" do
+      dispatch Message::Schedule
+    end
+  end
+end

@@ -11,7 +11,7 @@ RSpec.describe "the generated parser table" do
     Hecks::RustFormat.call(text)
   end
 
-  it "is exactly what `hecks project_parser_table` would regenerate " \
+  it "is exactly what `hecks LanguageRun.project_parser_table!` would regenerate " \
      "from the aggregate-local syntax tables right now", :aggregate_failures do
     expect(File).to exist(committed_path), "rust/parser/src/keywords.rs is missing — run hecks project_parser_table"
     expect(File.read(committed_path))

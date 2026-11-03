@@ -718,14 +718,23 @@ impl OpenArgs {
         let parcel = {
             let x = v.get("parcel").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Desk.parcel expects String, got nil".to_string(),
+                    "Open.parcel expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Desk.parcel expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Open",
+                        attribute: "parcel",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Parcel is known by code)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let code = DeskCode::from_json(

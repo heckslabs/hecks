@@ -105,7 +105,7 @@ RSpec.describe "the Checkout and Landing adapters", :io do
 
   it "refuses to retire the primary worktree" do
     expect { landing.remove(checkout: { value: main_tree }, branch: "main") }
-      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /primary worktree/)
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /its worktree is the main checkout/)
   end
 
   it "lists the branches whose commits are not on main", :aggregate_failures do
@@ -136,7 +136,7 @@ RSpec.describe "the Checkout and Landing adapters", :io do
   it "reports the commits of a range, and refuses what is not one", :aggregate_failures do
     commit("second", dir: feature_tree)
 
-    expect(checkout.log(checkout: { value: feature_tree }, range: "main..HEAD")[:text]).to match(/\A\h+ second\n\z/)
-    expect { checkout.log(checkout: { value: feature_tree }, range: "--all") }.to raise_error(Hecks::Runtime::NotFound)
+    expect(checkout.history(checkout: { value: feature_tree }, range: "main..HEAD")[:text]).to match(/\A\h+ second\n\z/)
+    expect { checkout.history(checkout: { value: feature_tree }, range: "--all") }.to raise_error(Hecks::Runtime::NotFound)
   end
 end

@@ -1,0 +1,100 @@
+{
+  "domain": "qa/stress_domains/generated_revalued_shape",
+  "note": "BUG#155 — a command that re-points a reference through a plain value object is checked against settled state at save, so the acted-on Hangar is looked up (and refused) before the new Venue. Ruby's resolve_state_references runs at save; the Rust router used to check the reference with the argument gates.",
+  "steps": [
+    {
+      "verb": "GeneratedRevaluedShape::Venue.Open",
+      "args": {
+        "code": {
+          "value": "juliet"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedRevaluedShape::Hangar.Open",
+      "args": {
+        "venue": "juliet",
+        "code": {
+          "value": "golf"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedRevaluedShape::Hangar.Repoint",
+      "args": {
+        "venue": {
+          "value": "nowhere"
+        },
+        "code": {
+          "value": "no-such-hangar"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedRevaluedShape::Hangar.Repoint",
+      "args": {
+        "venue": {
+          "value": "nowhere"
+        },
+        "code": {
+          "value": "golf"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "instances": {
+      "GeneratedRevaluedShape::Hangar#golf": {
+        "code": {
+          "value": "golf"
+        },
+        "venue": "juliet",
+        "status": "open"
+      },
+      "GeneratedRevaluedShape::Venue#juliet": {
+        "code": {
+          "value": "juliet"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "VenueOpened",
+        "aggregate": "GeneratedRevaluedShape::Venue",
+        "id": "juliet",
+        "payload": {
+          "code": {
+            "value": "juliet"
+          }
+        }
+      },
+      {
+        "name": "HangarOpened",
+        "aggregate": "GeneratedRevaluedShape::Hangar",
+        "id": "golf",
+        "payload": {
+          "venue": "juliet",
+          "code": {
+            "value": "golf"
+          }
+        }
+      }
+    ],
+    "refusals": [
+      {
+        "verb": "GeneratedRevaluedShape::Hangar.Repoint",
+        "error": "no Hangar with code.value \"no-such-hangar\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "GeneratedRevaluedShape::Hangar.Repoint",
+        "error": "no Venue with code \"nowhere\"",
+        "kind": "NotFound"
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}

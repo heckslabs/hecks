@@ -30,14 +30,23 @@ module Hecks
         end
 
         # @param subject [Subject] the loaded domain
-        # @param _edge [Bluebook::Translation] the edge leading to the shape
+        # @return [Integer] the ledger watermark the copy holds: zero when it holds no lineage
+        def watermark(subject)
+          return 0 unless census(subject).present
+
+          reading(subject, &:last_ordinal)
+        end
+
+        # @param subject [Subject] the loaded domain
+        # @param subject [Subject] the loaded domain
+        # @param edge [Object] the edge `Subject#decide` named for the shape, the one the mint takes
         # @return [Array(Array<String>, Hash)] what the audit's layers refuse over the stored
         #   records, and the records as translated, by aggregate name and id
-        def audit(subject, _edge)
+        def audit(subject, edge)
           return [[], {}] unless census(subject).present
 
           reading(subject) do |lineage|
-            finding = JournalStore::EdgeAudit.call(subject.held, lineage, subject.held.held_eras(lineage))
+            finding = JournalStore::EdgeAudit.call(subject.held, lineage, subject.held.held_eras(lineage), edge: edge)
             finding ? [finding.refusals, finding.after] : [[], {}]
           end
         end
@@ -53,12 +62,26 @@ module Hecks
 
         def reading(subject)
           subject.held.read_from(url)
-          db = PostgresEra.connect_for(subject.bluebook_name, subject.settings)
-          db.exec("SET default_transaction_read_only = on") if @declaration.mode == "readonly_copy"
-          yield PostgresEra::Lineage.new(db, subject.bluebook_name)
+          db = connect(subject)
+          yield PostgresEra::Lineage.new(db, subject.bluebook_name, reading: reads_only?)
         ensure
           db&.close
         end
+
+        # A copy somebody else made is opened read-only before any statement runs: the schema is
+        # selected, never created, and a digest the copy lacks is left unwritten. A database the run
+        # made is its own to touch, so it is opened as a PostgresEra boot opens it.
+        def connect(subject)
+          return PostgresEra.connect_for(subject.bluebook_name, subject.settings) unless reads_only?
+
+          require "pg"
+          PG.connect(url).tap do |db|
+            db.exec("SET default_transaction_read_only = on")
+            db.exec("SET search_path TO #{db.quote_ident(subject.settings[:schema])}") if subject.settings[:schema]
+          end
+        end
+
+        def reads_only? = @declaration.mode == "readonly_copy"
       end
     end
   end

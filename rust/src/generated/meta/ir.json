@@ -56,6 +56,26 @@
           "relationship": null
         },
         {
+          "name": "formerly_known_as",
+          "type": "AggregateFormerlyKnownAs",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "created_by",
+          "type": "AggregateCreatedBy",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "identified_by",
           "type": "IdentityPath",
           "list": true,
@@ -234,6 +254,86 @@
           "invariants": [
             {
               "description": "a description says something",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "AggregateFormerlyKnownAs",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an aggregate's formerly_known_as says something",
+              "canonical": "!value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "AggregateCreatedBy",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+            {
+              "description": "an aggregate's created_by says something",
               "canonical": "!value.to_s.empty?",
               "ast": {
                 "op": "not",
@@ -962,6 +1062,66 @@
               [
                 "calls",
                 "provenance_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ],
+              [
+                "calls",
+                "formerly_known_as_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "created_by"
+              ],
+              [
+                "calls",
+                "created_by_impl"
               ]
             ],
             [
@@ -1797,6 +1957,66 @@
               [
                 "fills",
                 "provenance"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "created_by"
               ]
             ],
             [
@@ -3198,6 +3418,26 @@
               "relationship": null
             },
             {
+              "name": "formerly_known_as",
+              "type": "AggregateFormerlyKnownAs",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "created_by",
+              "type": "AggregateCreatedBy",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "position",
               "type": "Position",
               "list": false,
@@ -3255,6 +3495,24 @@
               }
             },
             {
+              "target": "formerly_known_as",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "formerly_known_as"
+              }
+            },
+            {
+              "target": "created_by",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "created_by"
+              }
+            },
+            {
               "target": "position",
               "op": "set",
               "sign": "",
@@ -3269,7 +3527,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Identify",
@@ -3331,7 +3590,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Attribute",
@@ -3451,7 +3711,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Reference",
@@ -3571,7 +3832,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Holds",
@@ -3691,7 +3953,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Lifecycle",
@@ -3754,7 +4017,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Transition",
@@ -3819,7 +4083,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Mark",
@@ -3873,7 +4138,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Seal",
@@ -3915,7 +4181,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Value",
@@ -3958,7 +4225,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Invariant",
@@ -4051,7 +4319,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Precondition",
@@ -4144,7 +4413,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Acknowledges",
@@ -4228,7 +4498,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Projects",
@@ -4352,7 +4623,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -4402,6 +4674,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -4502,9 +4776,83 @@
           "pattern": null,
           "admits": null,
           "relationship": null
+        },
+        {
+          "name": "modules",
+          "type": "ModuleMembership",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
         }
       ],
       "value_objects": [
+        {
+          "name": "ModuleMembership",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "ModuleText",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
         {
           "name": "Provision",
           "attributes": [
@@ -5443,6 +5791,32 @@
               [
                 "opens",
                 "ProcessManager"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Bluebook"
+              ],
+              [
+                "opens",
+                "Bluebook"
               ],
               [
                 "fills",
@@ -6401,6 +6775,66 @@
                 "fills",
                 "provides"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "aggregate"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "kind"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "kind"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
             ]
           ]
         }
@@ -6543,7 +6977,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Attach",
@@ -6623,7 +7058,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Provide",
@@ -6688,7 +7124,74 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Group",
+          "role": "Language",
+          "goal": "Declare that an aggregate belongs to a module",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "vision",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "aggregate",
+              "type": "ModuleText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "modules",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":name",
+                "vision": ":vision",
+                "aggregate": ":aggregate"
+              }
+            }
+          ],
+          "emits": [
+            "AggregateGrouped"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Normalise",
@@ -6775,7 +7278,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -6822,6 +7326,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -6877,6 +7383,16 @@
         {
           "name": "roles",
           "type": "Permission",
+          "list": true,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "audience",
+          "type": "Audience",
           "list": true,
           "default": null,
           "optional": false,
@@ -6976,6 +7492,16 @@
         },
         {
           "name": "idempotent",
+          "type": "CommandText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "mints_era",
           "type": "CommandText",
           "list": false,
           "default": null,
@@ -7136,6 +7662,28 @@
         },
         {
           "name": "Permission",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "Audience",
           "attributes": [
             {
               "name": "name",
@@ -7559,6 +8107,28 @@
           ]
         },
         {
+          "name": "AudienceName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
           "name": "FactName",
           "attributes": [
             {
@@ -7748,6 +8318,36 @@
             [
               [
                 "word",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "calls",
+                "audience_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "provenance"
               ],
               [
@@ -7803,6 +8403,36 @@
               [
                 "calls",
                 "idempotent_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "mints_era"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "mints_era"
+              ],
+              [
+                "calls",
+                "mints_era_impl"
               ]
             ],
             [
@@ -8358,6 +8988,40 @@
               [
                 "coerce",
                 "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -9765,6 +10429,16 @@
               "relationship": null
             },
             {
+              "name": "mints_era",
+              "type": "CommandText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "from",
               "type": "CommandText",
               "list": false,
@@ -9859,6 +10533,15 @@
               }
             },
             {
+              "target": "mints_era",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "mints_era"
+              }
+            },
+            {
               "target": "from",
               "op": "set",
               "sign": "",
@@ -9882,7 +10565,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Argument",
@@ -10002,7 +10686,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Reference",
@@ -10122,7 +10807,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Rule",
@@ -10215,7 +10901,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Ensure",
@@ -10308,7 +10995,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Change",
@@ -10434,7 +11122,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "ActsOn",
@@ -10514,7 +11203,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Announce",
@@ -10576,7 +11266,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Allow",
@@ -10638,7 +11329,71 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
+        },
+        {
+          "name": "Address",
+          "role": "Language",
+          "goal": "Name an audience this command is listed for",
+          "references": null,
+          "attributes": [
+            {
+              "name": "addressed",
+              "type": "AudienceName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+            {
+              "description": "an audience is named",
+              "canonical": "!addressed.value.to_s.empty?",
+              "ast": {
+                "op": "not",
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "addressed",
+                        "value"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "audience",
+              "op": "append",
+              "sign": "",
+              "fields": {
+                "name": ":addressed"
+              }
+            }
+          ],
+          "emits": [
+            "AudienceAddressed"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Need",
@@ -10700,7 +11455,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -10750,6 +11506,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -12996,7 +13754,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Identify",
@@ -13058,7 +13817,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Seal",
@@ -13100,7 +13860,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Attribute",
@@ -13220,7 +13981,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Reference",
@@ -13340,7 +14102,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Holds",
@@ -13460,7 +14223,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Precondition",
@@ -13553,7 +14317,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Invariant",
@@ -13646,7 +14411,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Lifecycle",
@@ -13709,7 +14475,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Transition",
@@ -13774,7 +14541,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Mark",
@@ -13828,7 +14596,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -13878,6 +14647,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -15114,7 +15885,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Bind",
@@ -15168,7 +15940,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -15218,6 +15991,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -15282,6 +16057,16 @@
         },
         {
           "name": "endings",
+          "type": "ProcessManagerText",
+          "list": true,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "resumes",
           "type": "ProcessManagerText",
           "list": true,
           "default": null,
@@ -15658,7 +16443,11 @@
               ],
               [
                 "fills",
-                "correlates_by"
+                ""
+              ],
+              [
+                "calls",
+                "correlates_by_impl"
               ]
             ],
             [
@@ -15719,6 +16508,36 @@
               [
                 "calls",
                 "ends_on_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "resumes_impl"
               ]
             ],
             [
@@ -16065,6 +16884,36 @@
             [
               [
                 "keyword",
+                "correlates_by"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "correlates_by"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "starts_on"
               ],
               [
@@ -16180,6 +17029,36 @@
               [
                 "fills",
                 "ends_on"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "resumes"
               ]
             ],
             [
@@ -16543,6 +17422,16 @@
               "relationship": null
             },
             {
+              "name": "resumes",
+              "type": "ProcessManagerText",
+              "list": true,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "position",
               "type": "Position",
               "list": false,
@@ -16618,6 +17507,15 @@
               }
             },
             {
+              "target": "resumes",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "resumes"
+              }
+            },
+            {
               "target": "position",
               "op": "set",
               "sign": "",
@@ -16632,7 +17530,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "State",
@@ -16675,7 +17574,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Handler",
@@ -16740,7 +17640,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -16856,7 +17757,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -16975,7 +17877,8 @@
                   ],
                   "from": null,
                   "provenance": null,
-                  "idempotent": false
+                  "idempotent": false,
+                  "mints_era": false
                 },
                 {
                   "name": "Compensates",
@@ -17019,7 +17922,8 @@
                   ],
                   "from": null,
                   "provenance": null,
-                  "idempotent": false
+                  "idempotent": false,
+                  "mints_era": false
                 },
                 {
                   "name": "BindCompensation",
@@ -17073,7 +17977,8 @@
                   ],
                   "from": null,
                   "provenance": null,
-                  "idempotent": false
+                  "idempotent": false,
+                  "mints_era": false
                 }
               ],
               "queries": [
@@ -17134,6 +18039,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -19234,7 +20141,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Gather",
@@ -19299,7 +20207,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "GroupBy",
@@ -19361,7 +20270,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Count",
@@ -19405,7 +20315,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Median",
@@ -19468,7 +20379,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Sum",
@@ -19531,7 +20443,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Avg",
@@ -19594,7 +20507,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Min",
@@ -19657,7 +20571,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Max",
@@ -19720,7 +20635,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Percentile",
@@ -19802,7 +20718,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Any",
@@ -19865,7 +20782,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "All",
@@ -19928,7 +20846,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Option",
@@ -20023,7 +20942,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -20073,6 +20993,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -21903,7 +22825,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Filter",
@@ -21968,7 +22891,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Option",
@@ -22063,7 +22987,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Need",
@@ -22125,7 +23050,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Argument",
@@ -22245,7 +23171,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -22295,6 +23222,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -23762,7 +24691,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Field",
@@ -23882,7 +24812,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Close",
@@ -23948,7 +24879,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Assert",
@@ -24041,7 +24973,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Member",
@@ -24084,7 +25017,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -24198,7 +25132,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -24250,6 +25185,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -24929,7 +25866,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Keyword",
@@ -25082,7 +26020,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Argument",
@@ -25290,7 +26229,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -25448,7 +26388,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             },
             {
               "name": "Retire",
@@ -25475,7 +26416,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -25711,7 +26653,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             },
             {
               "name": "Retire",
@@ -25738,7 +26681,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -25788,6 +26732,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -33423,6 +34369,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "runs_in",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -33444,12 +34400,16 @@
                 "rspec (parallel)"
               ],
               [
+                "runs_in",
+                "ci"
+              ],
+              [
                 "argv",
                 ""
               ],
               [
                 "script",
-                "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed). CI's committed baseline leaves out the io\n# specs this run includes, so it only seeds the first run; each run then rewrites the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\n[ -f \"$log\" ] || cp .github/rspec_runtime_baseline.log \"$log\"\nbundle exec parallel_rspec spec -n {workers} --group-by runtime --runtime-log \"$log\" --allowed-missing 100 \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n"
+                "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n"
               ],
               [
                 "blocked",
@@ -33523,7 +34483,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.check_engine_agreement --wait"
+                "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait"
               ],
               [
                 "script",
@@ -33549,7 +34509,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.check_shape_ledger --wait"
+                "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait"
               ],
               [
                 "script",
@@ -33557,7 +34517,7 @@
               ],
               [
                 "blocked",
-                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
+                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
               ]
             ],
             [
@@ -33575,7 +34535,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks model_check --wait"
+                "bundle exec exe/hecks ModelCheckRun.model_check! --wait"
               ],
               [
                 "script",
@@ -33601,7 +34561,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.measure_doc_coverage --wait"
+                "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait"
               ],
               [
                 "script",
@@ -33653,7 +34613,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait"
+                "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait"
               ],
               [
                 "script",
@@ -33661,7 +34621,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
               ]
             ],
             [
@@ -33679,7 +34639,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments paths=lib/hecks spec --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait"
               ],
               [
                 "script",
@@ -33687,7 +34647,7 @@
               ],
               [
                 "blocked",
-                "a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
+                "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
               ]
             ],
             [
@@ -33705,7 +34665,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments paths=lib,spec,examples only=long_block --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait"
               ],
               [
                 "script",
@@ -33714,6 +34674,110 @@
               [
                 "blocked",
                 "a comment block ran past the cap; shorten it."
+              ]
+            ],
+            [
+              [
+                "name",
+                "command_names"
+              ],
+              [
+                "id",
+                "command_names"
+              ],
+              [
+                "title",
+                "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_command_names! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines."
+              ]
+            ],
+            [
+              [
+                "name",
+                "workflow_pagination"
+              ],
+              [
+                "id",
+                "workflow_pagination"
+              ],
+              [
+                "title",
+                "workflow pagination, no step counts or waits for GitHub list items from the first page alone"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."
+              ]
+            ],
+            [
+              [
+                "name",
+                "secret_output"
+              ],
+              [
+                "id",
+                "secret_output"
+              ],
+              [
+                "title",
+                "secret output, no value a world hands an adapter as a secret reaches what a launcher prints"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/secret_output_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
+              ]
+            ],
+            [
+              [
+                "name",
+                "adapter_words"
+              ],
+              [
+                "id",
+                "adapter_words"
+              ],
+              [
+                "title",
+                "adapter words, no domain name equal to a technology word the adapters are named for"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/adapter_words_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
               ]
             ],
             [
@@ -33761,7 +34825,7 @@
               ],
               [
                 "script",
-                "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait\nbundle exec exe/hecks build.project_rust domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n"
+                "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n"
               ],
               [
                 "blocked",
@@ -33791,7 +34855,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
               ]
             ],
             [
@@ -33817,7 +34881,7 @@
               ],
               [
                 "blocked",
-                "a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
+                "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
               ]
             ],
             [
@@ -33843,7 +34907,7 @@
               ],
               [
                 "blocked",
-                "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
+                "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
               ]
             ],
             [
@@ -33861,7 +34925,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks deploy makefile_check.lint --wait"
+                "bundle exec exe/hecks deploy MakefileCheck.lint! --wait"
               ],
               [
                 "script",
@@ -33887,7 +34951,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=1/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=1/3 --wait"
               ],
               [
                 "script",
@@ -33913,7 +34977,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=2/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=2/3 --wait"
               ],
               [
                 "script",
@@ -33939,7 +35003,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=3/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=3/3 --wait"
               ],
               [
                 "script",
@@ -33965,7 +35029,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=1/3 --wait"
               ],
               [
                 "script",
@@ -33991,7 +35055,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=2/3 --wait"
               ],
               [
                 "script",
@@ -34017,7 +35081,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=3/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=3/3 --wait"
               ],
               [
                 "script",
@@ -34043,7 +35107,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! list_shards=3 --wait"
               ],
               [
                 "script",
@@ -34069,7 +35133,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=1/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait"
               ],
               [
                 "script",
@@ -34095,7 +35159,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=2/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait"
               ],
               [
                 "script",
@@ -34125,7 +35189,7 @@
               ],
               [
                 "script",
-                "bundle exec exe/hecks language_run.project_vocabulary --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n"
+                "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n"
               ],
               [
                 "blocked",
@@ -34147,7 +35211,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_ci_gates --wait"
+                "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait"
               ],
               [
                 "script",
@@ -34155,7 +35219,7 @@
               ],
               [
                 "blocked",
-                "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`."
+                "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`."
               ]
             ],
             [
@@ -34173,7 +35237,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_ci_pipeline --wait"
+                "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait"
               ],
               [
                 "script",
@@ -34181,7 +35245,7 @@
               ],
               [
                 "blocked",
-                "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline --confirm`."
+                "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`."
               ]
             ],
             [
@@ -34199,7 +35263,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_tools_doc --wait"
+                "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait"
               ],
               [
                 "script",
@@ -34207,7 +35271,7 @@
               ],
               [
                 "blocked",
-                "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc --confirm`."
+                "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`."
               ]
             ],
             [
@@ -34225,7 +35289,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks query corpus_run.corpus_rust_coverage --wait"
+                "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait"
               ],
               [
                 "script",
@@ -34255,7 +35319,7 @@
               ],
               [
                 "script",
-                "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait\ndone\n"
+                "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n"
               ],
               [
                 "blocked",
@@ -34277,7 +35341,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks kernel_run.measure_kernel_coverage --wait"
+                "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait"
               ],
               [
                 "script",
@@ -34307,7 +35371,7 @@
               ],
               [
                 "script",
-                "bundle exec exe/hecks language_run.project_rust_vocabulary --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n"
+                "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n"
               ],
               [
                 "blocked",
@@ -34366,7 +35430,21 @@
               ],
               [
                 "checks",
-                "rspec,fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+                "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ci_suite"
+              ],
+              [
+                "env",
+                "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1"
+              ],
+              [
+                "checks",
+                "rspec"
               ]
             ],
             [
@@ -34380,21 +35458,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks"
-              ]
-            ],
-            [
-              [
-                "name",
-                "unguarded_push"
-              ],
-              [
-                "env",
-                "HECKS_ENVIRONMENT=memory"
-              ],
-              [
-                "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
               ]
             ],
             [
@@ -34422,7 +35486,127 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "RehearsalStage",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "kind",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "argument",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "kind",
+                "gate"
+              ],
+              [
+                "argument",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "impacted"
+              ],
+              [
+                "kind",
+                "impacted"
+              ],
+              [
+                "argument",
+                ""
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "RehearsalScope",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "stages",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "stages",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "deep"
+              ],
+              [
+                "stages",
+                "quick,impacted"
               ]
             ]
           ]
@@ -34832,7 +36016,7 @@
               ],
               [
                 "meaning",
-                "Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped."
+                "Most PRs (Patch plus Improvement) `hecks quality_control Patch.open!` opens per calendar day; 0 is uncapped."
               ]
             ],
             [
@@ -34860,7 +36044,7 @@
               ],
               [
                 "meaning",
-                "How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once."
+                "How many `hecks quality_control sweep.run <target>` children `--all` keeps running at once."
               ]
             ],
             [
@@ -34888,7 +36072,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review."
+                "Whether `hecks quality_control Patch.open!` opens its PR as a draft; false opens it ready for review."
               ]
             ],
             [
@@ -34902,7 +36086,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open."
+                "Whether `hecks quality_control Patch.open!` queues the PR for auto-merge once it is open."
               ]
             ],
             [
@@ -34986,7 +36170,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
+                "Whether `hecks quality_control sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
               ]
             ],
             [
@@ -35000,7 +36184,7 @@
               ],
               [
                 "meaning",
-                "Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
+                "Candidate replays `hecks quality_control sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
               ]
             ],
             [
@@ -35056,7 +36240,7 @@
               ],
               [
                 "meaning",
-                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control query sweep.run` clamps down, never up, and prints a note."
+                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control sweep.run` clamps down, never up, and prints a note."
               ]
             ],
             [
@@ -35098,7 +36282,7 @@
               ],
               [
                 "meaning",
-                "Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
+                "Which comparison modes `hecks quality_control sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
               ]
             ],
             [
@@ -35211,6 +36395,90 @@
               [
                 "meaning",
                 "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."
+              ]
+            ],
+            [
+              [
+                "name",
+                "red_main_check"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
+              ]
+            ],
+            [
+              [
+                "name",
+                "event_pump"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."
+              ]
+            ],
+            [
+              [
+                "name",
+                "push_nudge"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+              ]
+            ],
+            [
+              [
+                "name",
+                "quiesced"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step."
+              ]
+            ],
+            [
+              [
+                "name",
+                "main_maintenance"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
+              ]
+            ],
+            [
+              [
+                "name",
+                "maintenance_confirm"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."
               ]
             ]
           ]
@@ -35799,7 +37067,7 @@
               ],
               [
                 "aggregate",
-                "Launch"
+                "Server"
               ],
               [
                 "verb",
@@ -36853,6 +38121,24 @@
             [
               [
                 "script",
+                "codemod_move_former_name"
+              ],
+              [
+                "section",
+                "Codebase"
+              ],
+              [
+                "aggregate",
+                "CodemodRun"
+              ],
+              [
+                "verb",
+                "move_former_name"
+              ]
+            ],
+            [
+              [
+                "script",
                 "rspec_shard_files"
               ],
               [
@@ -36902,24 +38188,6 @@
               [
                 "verb",
                 "write_io_parallel_spec_list"
-              ]
-            ],
-            [
-              [
-                "script",
-                "refresh_rspec_runtime_baseline"
-              ],
-              [
-                "section",
-                "Codebase"
-              ],
-              [
-                "aggregate",
-                "TestSuiteRun"
-              ],
-              [
-                "verb",
-                "refresh_runtime_baseline"
               ]
             ],
             [
@@ -37131,7 +38399,7 @@
               ],
               [
                 "aggregate",
-                "CorpusRun"
+                "Server"
               ],
               [
                 "verb",
@@ -37149,7 +38417,7 @@
               ],
               [
                 "aggregate",
-                "CorpusRun"
+                "Server"
               ],
               [
                 "verb",
@@ -37230,6 +38498,24 @@
               [
                 "verb",
                 "tick"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_event_pump"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "EventPump"
+              ],
+              [
+                "verb",
+                "pump"
               ]
             ],
             [
@@ -37532,6 +38818,46 @@
               [
                 "verb",
                 "create_ledger_role"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_main_gate"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "MainCheck"
+              ],
+              [
+                "verb",
+                "check_main"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_fix_main_bug"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "Bug"
+              ],
+              [
+                "verb",
+                "fix_and_land"
+              ],
+              [
+                "passes",
+                "--bug BUG#n"
               ]
             ],
             [
@@ -38026,6 +39352,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
         {
           "finding": "no_command_surface",

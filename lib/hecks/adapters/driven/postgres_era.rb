@@ -63,22 +63,22 @@ module Hecks
       def self.tenant_capable? = true
 
       # Joins the process's shared connection for the declared database and schema, so every
-      # aggregate of a domain runs on one connection, then provisions the journal, this
-      # aggregate's head and field caches, and the event, saga and outbox tables. Every step is
-      # idempotent.
+      # aggregate of a domain runs on one connection, then resolves the era it reads and the field
+      # caches that era holds. Reads only: the lineage, head and cache tables are provisioned by the
+      # mint path, and a database no mint has provisioned refuses by name.
       #
       # @param settings [Hash{Symbol, String => Object}] world settings plus what
       #   `RepositoryFactory.build` merges in: `domain`, `era` and `superseded_by`
-      # @raise [Runtime::WiringError] if `database` is missing or the connection is refused
+      # @raise [Runtime::WiringError] if `database` is missing, the connection is refused, or the
+      #   database holds no era
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
-        @db = PostgresSharedConnection.for(aggregate.name, settings, connector: self.class)
+        @db = PostgresSharedConnection.for(aggregate.name, settings, connector: ReadConnector)
         @domain = journal_domain(aggregate, settings)
-        @lineage = Lineage.new(@db, @domain)
-        @lineage.ensure_base!
+        @lineage = Lineage.new(@db, @domain, reading: true)
         resolve_era!(settings)
-        provision!
+        @field_caches = existing_field_caches
       end
 
       # Names this aggregate in storage: the journal's `aggregate` value and the stem of its
@@ -86,6 +86,16 @@ module Hecks
       #
       # @return [String] the aggregate's snake_case storage name
       def table = @aggregate.storage_name
+
+      # Whether this binding's `mints_era` names the command: its own record may be journaled
+      # through a boot whose shape no era holds yet.
+      #
+      # @param aggregate_name [String] the aggregate the command belongs to
+      # @param command_name [String] the command
+      # @return [Boolean]
+      def mints_era_declared?(aggregate_name, command_name)
+        Ports::Persistence::MintDoor.declared?(@settings, aggregate_name, command_name)
+      end
 
       # Reads one record's current state through the head view, translated to the current shape.
       #

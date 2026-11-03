@@ -2,6 +2,7 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/postgres_probe"
 require_relative "../support/scratch_postgres"
+require_relative "../support/first_era_hold"
 
 # `spec/runtime/outbox_spec.rb`'s crash cases, against the two Postgres
 # adapters — the enqueue shares the save's transaction (`Adapters::
@@ -10,6 +11,8 @@ require_relative "../support/scratch_postgres"
 # boot, a claimed row is surfaced and left alone.
 RSpec.describe "the transactional outbox, against Postgres", :io do
   OUTBOX_SPEC_DB = "hecks_outbox_spec".freeze
+
+  include FirstEraHold
 
   scratch_postgres OUTBOX_SPEC_DB
 
@@ -58,6 +61,7 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
     Hecks.with_registry(registry) do
       load_postgres_stack
       Hecks.bluebook("Shop", &OUTBOX_PG_SHOP_DOMAIN)
+      hold_declared_era!(registry.bluebook("Shop"), url: OUTBOX_SPEC_DB) if adapter == "PostgresEra"
       Hecks.hecksagon("Shop") { persisted_by adapter }
       Hecks.world("Shop") { persisted_by(adapter) { database(OUTBOX_SPEC_DB) } }
     end

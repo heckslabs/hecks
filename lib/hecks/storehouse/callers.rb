@@ -21,6 +21,7 @@ module Hecks
       def validate_caller_fields!(request)
         require_summary!(request.summary)
         valid_source!(request.source)
+        valid_surface!(request.surface)
         valid_caller!(request.role, request.actor_id)
       end
 
@@ -31,6 +32,13 @@ module Hecks
 
         raise Runtime::TypeMismatch,
               "a one-line summary: is required on dispatch/query/state — it is what makes an audit row legible later"
+      end
+
+      # :nodoc:
+      def valid_surface!(surface)
+        return if surface.nil? || SURFACES.include?(surface.to_s)
+
+        raise Runtime::TypeMismatch, "surface: #{surface.inspect} is not one of #{SURFACES.join(", ")}"
       end
 
       # :nodoc:

@@ -13,6 +13,8 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
   PLUGIN_PARITY_KEYS   = (ADAPTER_PARITY_KEYS + %w[answers runs]).freeze
   # An adapter that `provides` a capability adds the capabilities it names, after the defaults.
   PROVIDING_PARITY_KEYS = (ADAPTER_PARITY_KEYS + %w[provides]).freeze
+  # An adapter that says `stays_inside` adds the key, true, after the defaults (ADR 0171).
+  STAYING_PARITY_KEYS = (ADAPTER_PARITY_KEYS + %w[stays_inside]).freeze unless defined?(STAYING_PARITY_KEYS)
 
   def exported(path) = Hecks::Projector::Exporter.adapters_in_files([path])
 
@@ -37,7 +39,7 @@ RSpec.describe "Rust adapter parity (hecks-parse adapter)" do
 
   it "exports every real adapter file in the contract's keys, order and types" do
     shapes = ADAPTER_PARITY_FILES.flat_map { |path| exported(path).map { |adapter| contract_shape(adapter) } }
-    extras = [PLUGIN_PARITY_KEYS, PROVIDING_PARITY_KEYS].map { |keys| [keys, true, true, true, true] }
+    extras = [PLUGIN_PARITY_KEYS, PROVIDING_PARITY_KEYS, STAYING_PARITY_KEYS].map { |keys| [keys, true, true, true, true] }
     expect(shapes.uniq - extras).to eq([[ADAPTER_PARITY_KEYS, true, true, true, true]])
   end
 

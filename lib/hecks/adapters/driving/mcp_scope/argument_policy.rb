@@ -13,10 +13,11 @@ module Hecks
           # Checks every argument in `args`, nested or not, and refuses the first one the policy
           # forbids.
           #
-          # Read-only questions whose `path` names one file of the checkout. `path` is denied by name
+          # Read-only questions whose `path` names one file of the checkout. `path` is denied by
+          # name
           # for every other command, since it can name a place to write; these reads are allowed it,
           # and admit_path! still confines it to the checkout.
-          READ_PATH_QUESTIONS = %w[inspection_run.read_source inspection_run.outline].freeze
+          READ_PATH_QUESTIONS = %w[codebase.read_source codebase.outline].freeze
 
           # The line window those reads take: plain numbers that name no place, so they pass.
           READ_WINDOW_ARGUMENTS = %w[from to top].freeze

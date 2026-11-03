@@ -60,7 +60,7 @@ module Hecks
             args = "service=$(SERVICE) $(if $(EXISTING_TAG),existing_tag=$(EXISTING_TAG)) " \
                    "$(if $(LOCAL_IMAGE),local_image=$(LOCAL_IMAGE))"
             direct = "bash ./deploy-service.sh $(SERVICE)"
-            Box::RollRecipe.call(command: "service_roll.run", args: args, direct: direct)
+            Box::RollRecipe.call(command: "service_roll.run!", args: args, direct: direct)
           end
 
           # @param plan [Settings::Plan] the resolved settings

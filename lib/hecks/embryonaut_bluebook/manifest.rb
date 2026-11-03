@@ -74,7 +74,7 @@ module Hecks
         dir  = File.join(vendor_dir, name)
         path = File.join(dir, "bluebook.lock")
         unless File.exist?(path)
-          problems << "#{name}: no bluebook.lock (hecks package.vendor #{name}@<version>)"
+          problems << "#{name}: no bluebook.lock (hecks package.vendor! #{name}@<version>)"
           return nil
         end
 

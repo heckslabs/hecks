@@ -52,8 +52,18 @@ module Hecks
         # What the command declares about itself, apart from its arguments.
         def command_facts(aggregate, command)
           { summary: command.goal, role: command.role, role_gated: !command.role.to_s.empty?,
-            group: aggregate.hecks_name, internal: command.role.to_s == "System",
+            group: aggregate.hecks_name, internal: internal?(command), audience: command.audience,
+            formerly: aggregate.former_name,
             creates: command.creates? }
+        end
+
+        # Whether the default listing leaves the command out. A declared audience decides: the
+        # listing is for a person. A command that declares none is a run's own bookkeeping when
+        # its role is `System`, else listed.
+        def internal?(command)
+          return command.role.to_s == "System" if command.audience.empty?
+
+          !command.audience.include?("person")
         end
 
         # The receiver entries of a spec. `id=...` is still accepted for aggregate receivers but

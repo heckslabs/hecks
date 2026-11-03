@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Wiring</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10);
+  --series1: #2a78d6; --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+h1 { font-size: 20px; margin: 0; font-weight: 600; }
+a { color: var(--series1); }
+.meta { color: var(--ink2); font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--series1); outline-offset: 2px; }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
+.legend b { color: var(--ink); font-weight: 600; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+canvas { width: 100%; height: 720px; display: block; touch-action: none; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); }
+.log { list-style: none; margin: 0; padding: 0; font-size: 13px; max-height: 260px; overflow: auto; }
+.log li { padding: 4px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
+.log .mark { font-weight: 600; margin-left: 6px; }
+h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--grid); }
+th { color: var(--ink2); font-size: 12px; }
+.scroll { overflow: auto; max-height: 420px; }
+.tables-only canvas { display: none; } body:not(.tables-only) #edgetable { display: none; }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 10; display: none; max-width: 300px; }
+.unknown-note { color: var(--ink2); font-style: italic; }
+.panel { position: fixed; top: 0; right: 0; width: 400px; max-width: 100vw; height: 100vh; overflow: auto; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(0,0,0,.18); padding: 14px 16px 24px; z-index: 20; }
+.panel[hidden] { display: none; }
+.panel .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.panel h2 { font-size: 16px; margin: 0; color: var(--ink); text-transform: none; letter-spacing: 0; }
+.panel h3 { font-size: 12px; margin: 16px 0 6px; color: var(--ink2); text-transform: uppercase; letter-spacing: .04em; }
+.panel .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink2); margin-right: 6px; }
+.panel .desc { color: var(--ink2); font-size: 13px; }
+.panel .stat { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+.panel .stat b { font-size: 20px; font-weight: 600; display: block; }
+.panel ul { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.panel li { padding: 4px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
+.panel li small { color: var(--muted); }
+.panel .ev time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; font-size: 12px; }
+.panel .ev .re { display: block; color: var(--ink2); font-size: 12px; padding-left: 14px; }
+.panel .mark { font-weight: 600; }
+.panel .states span { display: inline-block; border: 1px solid var(--axis); border-radius: 4px; padding: 1px 6px; margin: 2px 4px 2px 0; font-size: 12px; }
+.panel .link { background: none; border: none; color: var(--series1); padding: 0; cursor: pointer; text-decoration: underline; }
+@media (max-width: 700px) { canvas { height: 460px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Pipeline Wiring</h1>
+    <div class="meta">
+      <a href="/">Board</a><a href="/sequence">Sequence</a>
+      <span id="count">loading the wiring</span>
+      <span id="live">stream: connecting</span>
+      <button id="zout" type="button" aria-label="Zoom out">&minus;</button>
+      <button id="zin" type="button" aria-label="Zoom in">+</button>
+      <button id="fit" type="button">Fit</button>
+      <button id="all" type="button">Expand all</button>
+      <button id="bounds" type="button" aria-pressed="true">Hide boundaries</button>
+      <button id="replay" type="button">Replay recent</button>
+      <button id="toggle" type="button" aria-pressed="false">Show table</button>
+    </div>
+  </header>
+  <section aria-labelledby="h-map">
+    <h2 id="h-map">Aggregates, ports and adapters, with messages as they move</h2>
+    <div class="legend" id="legend">
+      <span><b>&#9645;</b> aggregate</span><span><b>&#9671;</b> port</span><span><b>&#11042;</b> adapter</span>
+      <span><b style="color:var(--good)">&#10003;</b> delivered</span>
+      <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
+      <span><b style="color:var(--critical)">&#10005;</b> refused</span>
+      <span>a line rests in its domain's colour, lights in the outcome's colour when a message crosses it, and fades over 20 s</span>
+      <span>each context is one block with its aggregate count; click a block to open it, click its name to close it; scroll to zoom (zooming in opens everything), drag to pan; packed shapes move aside under the pointer, and a click opens the sidebar</span>
+    </div>
+    <div class="legend" id="domains"></div>
+    <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
+    <div class="scroll" id="edgetable"></div>
+  </section>
+  <section aria-labelledby="h-log"><h2 id="h-log">Messages</h2><ul class="log" id="log" aria-live="polite"></ul></section>
+</main>
+<div class="tip" id="tip" role="tooltip"></div>
+<aside class="panel" id="panel" hidden aria-label="Selected node">
+  <div class="top"><h2 id="ptitle"></h2><span><button id="focus" type="button" aria-pressed="false">Focus</button> <button id="pclose" type="button" aria-label="Close">&#10005;</button></span></div>
+  <div id="pbody"></div>
+</aside>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const canvas = $("map"), ctx = canvas.getContext("2d"), tip = $("tip");
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let nodes = [], edges = [], byId = new Map(), view = { s: 1, x: 0, y: 0 }, hover = null;
+const pulses = new Map(), particles = [], seen = new Map();
+/* Categorical slots from the reference palette, in their fixed order; a 9th domain folds to muted. */
+const SLOTS = { light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
+                dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] };
+let domains = [], domainColour = new Map(), showBounds = true;
+/* A lit line or node stays at full for LINGER - LINGER_FADE ms, then fades over LINGER_FADE ms. */
+const LINGER = 22000, LINGER_FADE = 14000;
+const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+function colourOf(domain) { const i = domainColour.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+}
+function clock(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+
+/* ---- domains: an adapter belongs to the domain of the port it answers, but sits outside its hull ---- */
+/* A context is a bluebook's domain module when it declares one, else the bluebook itself. */
+const keyOf = (n) => n.context ? n.domain + " / " + n.context : n.domain;
+let contexts = [];
+function assignDomains() {
+  for (const e of edges) if (e.kind === "adapter") { const p = byId.get(e.from), a = byId.get(e.to); if (p && a) { a.domain = p.domain; a.context = p.context; } }
+  const count = new Map(), ctx = new Map();
+  for (const n of nodes) if (n.kind !== "adapter") { count.set(n.domain, (count.get(n.domain) || 0) + 1); ctx.set(keyOf(n), (ctx.get(keyOf(n)) || 0) + 1); }
+  domains = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
+  domainColour = new Map(domains.map((d, i) => [d, i]));
+  contexts = [...ctx.keys()].sort((a, b) => ctx.get(b) - ctx.get(a));
+}
+/* ---- layout: domains on a ring, their contexts on a ring around each, aggregates inside, ports on the rim, adapters outside ---- */
+let centre = new Map();
+function layout() {
+  centre = new Map();
+  domains.forEach((d, i) => {
+    const mine = contexts.filter((k) => k === d || k.startsWith(d + " / ")), size = nodes.filter((n) => n.domain === d).length;
+    const c = { x: Math.cos(i / domains.length * 6.283) * (640 + size * 3), y: Math.sin(i / domains.length * 6.283) * (460 + size * 2) };
+    const r = mine.length > 1 ? 90 + mine.length * 16 : 0;
+    mine.forEach((k, j) => centre.set(k, { x: c.x + Math.cos(j / mine.length * 6.283) * r, y: c.y + Math.sin(j / mine.length * 6.283) * r }));
+  });
+  nodes.forEach((n, i) => { const c = centre.get(keyOf(n)) || { x: 0, y: 0 }; n.x = c.x + Math.cos(i * 2.4) * 30; n.y = c.y + Math.sin(i * 2.4) * 30; n.vx = 0; n.vy = 0; });
+  for (let step = 0; step < 400; step++) tick(1 - step / 420);
+}
+function tick(heat) {
+  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+    const a = nodes[i], b = nodes[j]; let dx = a.x - b.x, dy = a.y - b.y; const d2 = Math.max(dx * dx + dy * dy, 36);
+    const f = (keyOf(a) === keyOf(b) ? 1800 : a.domain === b.domain ? 7000 : 5200) / d2, d = Math.sqrt(d2); dx /= d; dy /= d;
+    a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+  }
+  for (const e of edges) {
+    const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
+    const rest = e.kind === "adapter" ? 30 : 60, dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1);
+    const f = (d - rest) * (a.domain === b.domain && keyOf(a) !== keyOf(b) ? 0.004 : 0.01);
+    a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
+  }
+  for (const n of nodes) {
+    const c = centre.get(keyOf(n)) || { x: 0, y: 0 }, dx = n.x - c.x, dy = n.y - c.y, d = Math.max(Math.hypot(dx, dy), 1);
+    const pull = n.kind === "aggregate" ? 0.02 : n.kind === "port" ? 0.01 : 0.005;
+    n.vx += (c.x - n.x) * pull; n.vy += (c.y - n.y) * pull;
+    if (n.kind !== "aggregate") { const out = n.kind === "port" ? 0.9 : 1.6; n.vx += dx / d * out; n.vy += dy / d * out; }
+    n.x += n.vx * 0.5 * heat; n.y += n.vy * 0.5 * heat; n.vx *= 0.82; n.vy *= 0.82;
+  }
+}
+/* ---- boundaries: a padded convex hull around each domain's aggregates and ports ---- */
+function hull(points) {
+  const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = []; for (const q of p) { while (lower.length > 1 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+  const upper = []; for (const q of p.slice().reverse()) { while (upper.length > 1 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  return lower.slice(0, -1).concat(upper.slice(0, -1));
+}
+function outline(members, pad) {
+  const cx = members.reduce((s, q) => s + q[0], 0) / members.length, cy = members.reduce((s, q) => s + q[1], 0) / members.length;
+  const ring = hull(members).map(([x, y]) => { const dx = x - cx, dy = y - cy, l = Math.max(Math.hypot(dx, dy), 1); return [x + dx / l * pad, y + dy / l * pad]; });
+  ctx.beginPath();
+  if (ring.length === 1) ctx.arc(cx, cy, pad, 0, 6.283);
+  else if (ring.length === 2) ctx.ellipse(cx, cy, Math.hypot(ring[0][0] - ring[1][0], ring[0][1] - ring[1][1]) / 2 + pad, pad, Math.atan2(ring[1][1] - ring[0][1], ring[1][0] - ring[0][0]), 0, 6.283);
+  else { const m = (i) => [(ring[i][0] + ring[(i + 1) % ring.length][0]) / 2, (ring[i][1] + ring[(i + 1) % ring.length][1]) / 2];
+    ctx.moveTo(...m(ring.length - 1)); for (let i = 0; i < ring.length; i++) ctx.quadraticCurveTo(ring[i][0], ring[i][1], ...m(i)); }
+  ctx.closePath();
+  return { cx, top: Math.min(...members.map((q) => q[1])) - pad - 4 };
+}
+function paint(colour, fillAlpha, strokeAlpha, dash) {
+  ctx.globalAlpha = fillAlpha; ctx.fillStyle = colour; ctx.fill();
+  ctx.globalAlpha = strokeAlpha; ctx.lineWidth = 1.5; ctx.strokeStyle = colour; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+}
+function caption(text, x, y, weight, active, now) {
+  ctx.font = weight + " 12px system-ui, sans-serif"; ctx.fillStyle = active ? css("--series1") : css("--ink"); ctx.textAlign = "center";
+  ctx.globalAlpha = active && !blink(now) ? 0.25 : 1; ctx.fillText(text, x, y); ctx.globalAlpha = 1; ctx.textAlign = "start";
+}
+function corners(b) { return [[b.x - b.w / 2, b.y - b.hgt / 2], [b.x + b.w / 2, b.y - b.hgt / 2], [b.x + b.w / 2, b.y + b.hgt / 2], [b.x - b.w / 2, b.y + b.hgt / 2]]; }
+function drawBounds(now) {
+  const inside = (n) => n.kind !== "adapter";
+  const active = (test) => nodes.some((n) => test(n) && heatOf(n.id, now) > 0);
+  for (const d of domains) {
+    const split = contexts.filter((k) => k.startsWith(d + " / ")).length > 1; if (!split) continue;
+    const members = contexts.filter((k) => k === d || k.startsWith(d + " / ")).flatMap((k) => blocks.has(k) ? corners(blocks.get(k)) : nodes.filter((n) => keyOf(n) === k && inside(n)).map((n) => [sx(n), sy(n)]));
+    if (!members.length) continue;
+    const at = outline(members, 36); paint(colourOf(d), 0.04, 0.35, [2, 6]); caption(d, at.cx, at.top, "700", active((n) => n.domain === d), now);
+  }
+  for (const k of contexts) {
+    if (blocks.has(k)) continue;
+    const members = nodes.filter((n) => keyOf(n) === k && inside(n)).map((n) => [sx(n), sy(n)]);
+    if (!members.length) continue;
+    const d = k.split(" / ")[0], name = k.split(" / ")[1] || d;
+    const at = outline(members, 20); paint(colourOf(d), 0.09, 0.7, [6, 4]); caption(name + "  −", at.cx, at.top, "600", active((n) => keyOf(n) === k), now);
+    ctx.font = "600 12px system-ui, sans-serif"; const w = ctx.measureText(name + "  −").width;
+    captions.push({ k, x: at.cx - w / 2, y: at.top - 12, w, hgt: 16 });
+  }
+}
+let touched = false, fitScale = 1;
+function size() {
+  const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  canvas.width = r.width * dpr; canvas.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function fit() {
+  size(); touched = false;
+  const r = canvas.getBoundingClientRect();
+  if (!nodes.length) return;
+  const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y);
+  const w = Math.max(...xs) - Math.min(...xs) + 120, hgt = Math.max(...ys) - Math.min(...ys) + 120;
+  view.s = Math.min(r.width / w, r.height / hgt); fitScale = view.s;
+  view.x = r.width / 2 - (Math.max(...xs) + Math.min(...xs)) / 2 * view.s;
+  view.y = r.height / 2 - (Math.max(...ys) + Math.min(...ys)) / 2 * view.s;
+}
+/* A node's place on screen, plus the scoot: nodes within reach of the cursor ease away from it radially,
+   so a packed cluster opens under the pointer and closes when it leaves. The lines follow. */
+const sx = (n) => n.x * view.s + view.x + (n.ox || 0), sy = (n) => n.y * view.s + view.y + (n.oy || 0);
+const SCOOT_REACH = 90, SCOOT_PUSH = 0.6;
+let cursor = null;
+const base = (n) => ({ x: n.x * view.s + view.x, y: n.y * view.s + view.y });
+function scoot() {
+  /* Nothing moves until the pointer is on a shape; then that shape stays and its neighbours make room. */
+  let pinned = null, nearest = 14;
+  if (cursor) for (const n of nodes) { if (blocks.has(keyOf(n))) continue; const b = base(n), d = Math.hypot(b.x - cursor.x, b.y - cursor.y); if (d < nearest) { nearest = d; pinned = n; } }
+  for (const n of nodes) {
+    let tx = 0, ty = 0;
+    if (pinned && n !== pinned && !blocks.has(keyOf(n)) && !reduceMotion) {
+      const b = base(n), dx = b.x - cursor.x, dy = b.y - cursor.y, d = Math.hypot(dx, dy);
+      if (d < SCOOT_REACH && d > 0.5) { const push = (SCOOT_REACH - d) * SCOOT_PUSH; tx = dx / d * push; ty = dy / d * push; }
+    }
+    n.ox = (n.ox || 0) + (tx - (n.ox || 0)) * 0.22; n.oy = (n.oy || 0) + (ty - (n.oy || 0)) * 0.22;
+  }
+}
+const scooted = (n) => Math.hypot(n.ox || 0, n.oy || 0) > 6;
+/* ---- zoom with the wheel around the cursor, pan by dragging, or use the buttons ---- */
+function zoomAt(mx, my, k) { view.x = mx - (mx - view.x) * k; view.y = my - (my - view.y) * k; view.s *= k; touched = true; }
+function zoomCentre(k) { const r = canvas.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, k); }
+let drag = null;
+canvas.addEventListener("wheel", (e) => { e.preventDefault(); const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+canvas.addEventListener("mousedown", (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; });
+addEventListener("mousemove", (e) => { if (!drag) return; drag.moved = true; view.x = drag.vx + e.clientX - drag.x; view.y = drag.vy + e.clientY - drag.y; touched = true; });
+addEventListener("mouseup", (e) => {
+  const was = drag; drag = null; if (!was || was.moved || e.target !== canvas) return;
+  const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const hit = [...blocks.values()].find((b) => Math.abs(mx - b.x) < b.w / 2 && Math.abs(my - b.y) < b.hgt / 2);
+  if (hit) { expanded.add(hit.k); return; }
+  const cap = captions.find((c) => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.hgt);
+  if (cap) { expanded.delete(cap.k); allOpen = false; $("all").textContent = "Expand all"; return; }
+  if (hover) openPanel(hover);
+});
+
+/* ---- the sidebar: what a node declares, and what it is doing right now ---- */
+const recent = [];
+let selected = null, focusId = null, panelTimer = null;
+/* The stream sends an event again when its reactions settle, so a key is kept once, at its newest. */
+function remember(ev) {
+  const i = recent.findIndex((held) => held.key === ev.key);
+  if (i >= 0) recent[i] = ev; else { recent.push(ev); if (recent.length > 800) recent.shift(); }
+}
+function touches(ev, n) {
+  if (n.kind === "aggregate") return ev.aggregate === n.id || (ev.reactions || []).some((r) => String(r.command).startsWith(n.id + "."));
+  const stem = n.kind === "port" ? "::" + n.label + "." : null;
+  return stem ? (ev.reactions || []).some((r) => String(r.command).includes(stem)) : false;
+}
+function openPanel(n) {
+  selected = n; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
+  clearInterval(panelTimer); panelTimer = setInterval(renderPanel, 2000);
+  try { history.replaceState(null, "", "#" + encodeURIComponent(n.id)); } catch (e) { /* history may be unavailable */ }
+}
+function closePanel() { selected = null; focusId = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); clearInterval(panelTimer); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
+function section(title, ...kids) { return [h("h3", {}, title), ...kids]; }
+function nodeLink(id) { const n = byId.get(id); return h("button", { class: "link", type: "button", "data-id": id }, n ? n.label : id); }
+function renderPanel() {
+  const n = selected; if (!n) return;
+  const d = n.details || {}, now = Date.now(), mine = recent.filter((ev) => touches(ev, n)), tenMin = mine.filter((ev) => now - Date.parse(ev.at) < 600000);
+  const outcomes = mine.flatMap((ev) => ev.reactions || []), refused = outcomes.filter((r) => /refus|fail/.test(r.outcome || "")).length;
+  const last = mine.map((ev) => ev.at).sort().pop();
+  const body = [
+    h("div", {}, h("span", { class: "chip", style: "border-color:" + colourOf(n.domain) + ";color:" + colourOf(n.domain) }, keyOf(n)), h("span", { class: "chip" }, n.kind)),
+    d.description ? h("p", { class: "desc" }, d.description) : null,
+    d.vision ? h("p", { class: "desc" }, h("i", {}, d.vision)) : null,
+    ...section("Live", h("div", { class: "stat" },
+      h("span", {}, h("b", {}, String(tenMin.length)), "events, 10 min"),
+      h("span", {}, h("b", {}, String(outcomes.length - refused)), "delivered"),
+      h("span", {}, h("b", { style: refused ? "color:var(--critical)" : "" }, String(refused)), "refused"),
+      h("span", {}, h("b", {}, last ? clock(last) : "—"), "last seen")),
+      h("ul", {}, mine.slice(-12).reverse().map((ev) => h("li", { class: "ev" }, h("time", {}, clock(ev.at)), h("b", {}, ev.name), " ", h("small", {}, ev.aggregate.split("::").pop() + "#" + String(ev.id).slice(0, 8)),
+        (ev.reactions || []).map((r) => { const k = outcomeKind(r.outcome || ""); return h("span", { class: "re" }, h("span", { class: "mark", style: "color:var(" + OUTCOME[k][0] + ")" }, OUTCOME[k][1].slice(0, 1)), " " + String(r.policy).split("::").pop() + (r.command ? " → " + String(r.command).split("::").pop() : "")); }))))),
+  ];
+  if (n.kind === "aggregate") body.push(...declaredAggregate(d));
+  if (n.kind === "port") body.push(...section("Operations", h("ul", {}, (d.operations || []).map((o) => h("li", {}, h("b", {}, o.name), " ", h("small", {}, o.direction), o.answers ? " answers " + o.answers : "", o.refuses ? ", refuses " + o.refuses : "")))));
+  if (n.kind === "adapter") body.push(...section("Binds", h("ul", {}, h("li", {}, "port ", h("b", {}, d.port || "")), (d.fields || []).length ? h("li", {}, "settings: " + d.fields.join(", ")) : null)));
+  body.push(...wiringOf(n));
+  $("pbody").replaceChildren(...body.flat().filter(Boolean));
+}
+function declaredAggregate(d) {
+  const out = [];
+  if (d.lifecycle) out.push(...section("Lifecycle: " + d.lifecycle.field, h("div", { class: "states" }, d.lifecycle.states.map((s) => h("span", { style: s === d.lifecycle.default ? "border-color:var(--series1)" : "" }, s)))));
+  if ((d.commands || []).length) out.push(...section("Commands", h("ul", {}, d.commands.map((c) => h("li", {}, h("b", {}, c.name), " ", c.goal, c.emits.length ? h("small", {}, " → " + c.emits.join(", ")) : null)))));
+  if ((d.queries || []).length) out.push(...section("Queries", h("ul", {}, d.queries.map((q) => h("li", {}, h("b", {}, q.name), " ", h("small", {}, q.description))))));
+  return out;
+}
+function wiringOf(n) {
+  const into = edges.filter((e) => e.to === n.id && e.kind !== "adapter"), out = edges.filter((e) => e.from === n.id && e.kind !== "adapter"), bound = edges.filter((e) => e.kind === "adapter" && (e.from === n.id || e.to === n.id));
+  return [
+    ...(into.length ? section("Triggered by", h("ul", {}, into.map((e) => h("li", {}, nodeLink(e.from), " → ", h("b", {}, e.label))))) : []),
+    ...(out.length ? section("Reacts to its events", h("ul", {}, out.map((e) => h("li", {}, h("b", {}, e.label), " → ", nodeLink(e.to), e.kind === "ask" ? h("small", {}, " (ask)") : null)))) : []),
+    ...(bound.length ? section("Bound", h("ul", {}, bound.map((e) => h("li", {}, nodeLink(e.from), " ↔ ", nodeLink(e.to))))) : []),
+  ];
+}
+$("pbody").addEventListener("click", (e) => { const id = e.target.dataset && e.target.dataset.id; if (!id) return; const n = byId.get(id); if (!n) return; expanded.add(keyOf(n)); openPanel(n); });
+$("pclose").addEventListener("click", closePanel);
+$("focus").addEventListener("click", () => { focusId = focusId ? null : selected && selected.id; $("focus").setAttribute("aria-pressed", String(!!focusId)); });
+addEventListener("keydown", (e) => { if (e.key === "Escape") closePanel(); });
+canvas.addEventListener("dblclick", (e) => { const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 1.6); });
+let placed = [];
+function free(x, y, w, hgt) {
+  if (placed.some((p) => x < p.x + p.w && x + w > p.x && y < p.y + p.hgt && y + hgt > p.y)) return false;
+  placed.push({ x, y, w, hgt }); return true;
+}
+
+/* ---- drawing ---- */
+function shape(n, x, y, r) {
+  ctx.beginPath();
+  if (n.kind === "port") { ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }
+  else if (n.kind === "adapter") { for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); }
+  else ctx.roundRect(x - r, y - r * 0.7, r * 2, r * 1.4, 3);
+}
+/* ---- level of detail: a context is one block until it is opened by a click, "Expand all", or zooming in ---- */
+const expanded = new Set();
+let blocks = new Map(), captions = [], allOpen = false;
+const open = (k) => allOpen || expanded.has(k) || view.s >= fitScale * 2.2;
+function blockOf(k) {
+  const members = nodes.filter((n) => keyOf(n) === k && n.kind !== "adapter");
+  if (!members.length) return null;
+  const x = members.reduce((s, n) => s + sx(n), 0) / members.length, y = members.reduce((s, n) => s + sy(n), 0) / members.length;
+  const d = k.split(" / ")[0], name = k.split(" / ")[1] || d, count = members.filter((n) => n.kind === "aggregate").length;
+  ctx.font = "600 12px system-ui, sans-serif";
+  const w = Math.max(ctx.measureText(name).width + 34, 64), hgt = 30;
+  return { k, d, name, count, x, y, w, hgt, members };
+}
+const anchor = (n) => { const b = blocks.get(keyOf(n)); return b ? { x: b.x, y: b.y } : { x: sx(n), y: sy(n) }; };
+/* Blocks are pixel-sized, so two neighbouring contexts can collide at the fitted scale: push them apart. */
+function separate(list) {
+  for (let pass = 0; pass < 12; pass++) for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j], gapX = (a.w + b.w) / 2 + 10 - Math.abs(a.x - b.x), gapY = (a.hgt + b.hgt) / 2 + 8 - Math.abs(a.y - b.y);
+    if (gapX <= 0 || gapY <= 0) continue;
+    if (gapX < gapY) { const s = Math.sign(a.x - b.x) || 1; a.x += s * gapX / 2; b.x -= s * gapX / 2; }
+    else { const s = Math.sign(a.y - b.y) || 1; a.y += s * gapY / 2; b.y -= s * gapY / 2; }
+  }
+}
+const blink = (now) => reduceMotion || Math.sin(now / 140) > -0.3;
+function heatOf(id, now) { const p = pulses.get(id); return p && p > now ? Math.min(1, (p - now) / LINGER_FADE) : 0; }
+function drawBlock(b, now) {
+  const heat = Math.max(0, ...b.members.map((n) => heatOf(n.id, now))), colour = colourOf(b.d);
+  ctx.beginPath(); ctx.roundRect(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt, 8);
+  ctx.globalAlpha = 0.18 + 0.5 * heat; ctx.fillStyle = heat ? css("--series1") : colour; ctx.fill();
+  ctx.globalAlpha = 1; ctx.lineWidth = heat ? 2 : 1.2; ctx.strokeStyle = heat ? css("--series1") : colour; ctx.stroke();
+  ctx.font = "600 12px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "center";
+  ctx.globalAlpha = heat && !blink(now) ? 0.25 : 1; ctx.fillText(b.name, b.x - 8, b.y + 4); ctx.globalAlpha = 1; ctx.textAlign = "start";
+  ctx.font = "10px system-ui, sans-serif"; ctx.fillStyle = css("--ink2"); ctx.fillText(String(b.count), b.x + b.w / 2 - 16, b.y + 4);
+  free(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt);
+}
+function drawEdges(now) {
+  const bundles = new Map();
+  for (const e of edges) {
+    const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
+    const ca = blocks.get(keyOf(a)), cb = blocks.get(keyOf(b));
+    if (ca && ca === cb) continue;
+    if (!ca && !cb) { strokeEdge(anchor(a), anchor(b), a === b, e.lit, 1, colourOf(a.domain), now, focusId && e.from !== focusId && e.to !== focusId); continue; }
+    if (e.kind === "adapter" && cb) continue;
+    const key = (ca ? ca.k : a.id) + "|" + (cb ? cb.k : b.id), held = bundles.get(key) || { from: anchor(a), to: anchor(b), count: 0, lit: null, colour: colourOf(a.domain) };
+    held.count++; if (e.lit && e.lit.until > now && (!held.lit || e.lit.until > held.lit.until)) held.lit = e.lit;
+    bundles.set(key, held);
+  }
+  for (const b of bundles.values()) {
+    strokeEdge(b.from, b.to, false, b.lit, 1 + Math.log2(b.count), b.colour, now);
+    if (b.count > 1) { const mx = (b.from.x + b.to.x) / 2, my = (b.from.y + b.to.y) / 2; ctx.font = "10px system-ui, sans-serif";
+      if (free(mx - 8, my - 8, 16, 14)) { ctx.fillStyle = css("--ink2"); ctx.textAlign = "center"; ctx.fillText(String(b.count), mx, my + 3); ctx.textAlign = "start"; } }
+  }
+}
+function strokeEdge(from, to, own, litAt, width, colour, now, dim) {
+  const lit = litAt && litAt.until > now ? litAt : null, heat = lit ? Math.min(1, (lit.until - now) / LINGER_FADE) : 0;
+  ctx.globalAlpha = (dim ? 0.08 : 0.35) + 0.65 * heat; ctx.lineWidth = width + 1.5 * heat;
+  ctx.strokeStyle = lit ? css(lit.token) : (showBounds ? colour : css("--axis"));
+  ctx.beginPath();
+  if (own) ctx.arc(from.x + 9, from.y - 9, 7, 0, 6.283); else { ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); }
+  ctx.stroke(); ctx.globalAlpha = 1;
+}
+function draw(now) {
+  const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); placed = []; captions = [];
+  blocks = new Map(); for (const k of contexts) if (!open(k)) { const b = blockOf(k); if (b) blocks.set(k, b); }
+  scoot();
+  separate([...blocks.values()]);
+  if (showBounds) drawBounds(now);
+  drawEdges(now);
+  for (const b of blocks.values()) drawBlock(b, now);
+  for (const n of nodes) if (!blocks.has(keyOf(n))) drawNode(n, now);
+  drawParticles(now);
+  const named = view.s >= fitScale * 2.2;
+  for (const n of nodes) if (!blocks.has(keyOf(n)) && !(pulses.get(n.id) > now) && (named || scooted(n))) label(n, false, true);
+  if (hover && !blocks.has(keyOf(hover))) label(hover, true);
+  requestAnimationFrame(draw);
+}
+function drawNode(n, now) {
+  const x = sx(n), y = sy(n), r = n.kind === "aggregate" ? 6 : 7, pulse = pulses.get(n.id);
+  const live = pulse && pulse > now, heat = live ? Math.min(1, (pulse - now) / LINGER_FADE) : 0;
+  shape(n, x, y, r + (live && !reduceMotion ? 3 * heat : 0));
+  ctx.fillStyle = live ? css("--series1") : css("--surface"); ctx.globalAlpha = live ? 0.4 + 0.6 * heat : 1; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : (showBounds ? colourOf(n.domain) : css("--ink2")); ctx.stroke();
+  if (live && heat > 0.6) label(n, false);
+}
+function label(n, boxed, quiet) {
+  const x = sx(n) + 10, y = sy(n) - 8, text = quiet ? n.label : n.label + (n.domain ? "  " + keyOf(n) : "");
+  ctx.font = (quiet ? "11px" : "12px") + " system-ui, sans-serif";
+  const w = ctx.measureText(text).width + 8;
+  if (!boxed && !free(x - 4, y - 12, w, 18)) return;
+  if (boxed) { ctx.fillStyle = css("--surface"); ctx.fillRect(x - 4, y - 12, w, 18); ctx.strokeStyle = css("--axis"); ctx.strokeRect(x - 4, y - 12, w, 18); }
+  ctx.fillStyle = quiet ? css("--ink2") : css("--ink"); ctx.fillText(text, x, y);
+}
+const OUTCOME = { ok: ["--good", "✓ delivered"], wait: ["--warning", "▲ waiting"], bad: ["--critical", "✕ refused"] };
+function drawParticles(now) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i], t = (now - p.start) / p.ms;
+    if (t >= 1) { pulses.set(p.to.id, now + LINGER); particles.splice(i, 1); continue; }
+    if (t < 0) continue;
+    const from = anchor(p.from), to = anchor(p.to), own = from.x === to.x && from.y === to.y, angle = t * 6.283 + 1.57;
+    const x = own ? from.x + 9 + Math.cos(angle) * 7 : from.x + (to.x - from.x) * t;
+    const y = own ? from.y - 9 + Math.sin(angle) * 7 : from.y + (to.y - from.y) * t, [token, word] = OUTCOME[p.kind];
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 6.283); ctx.fillStyle = css(token); ctx.fill(); ctx.strokeStyle = css("--surface"); ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = "11px system-ui, sans-serif"; const text = word.slice(0, 1) + " " + p.text;
+    if (free(x + 8, y - 16, ctx.measureText(text).width + 4, 14)) { ctx.fillStyle = css("--ink"); ctx.fillText(text, x + 8, y - 6); }
+  }
+}
+
+/* ---- messages ---- */
+function outcomeKind(text) { return /deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait"; }
+function fire(ev, animate) {
+  const now = performance.now(), node = byId.get(ev.aggregate);
+  if (node && animate) pulses.set(node.id, now + LINGER);
+  for (const r of ev.reactions || []) {
+    const bare = String(r.policy).split("::").pop(), kind = outcomeKind(r.outcome || "");
+    const token = ev.key + "|" + bare + "|" + kind;
+    if (seen.has(token)) continue; seen.set(token, true);
+    for (const e of edges.filter((x) => x.label === bare)) {
+      const a = byId.get(e.from), b = byId.get(e.to);
+      if (a && b && animate) { particles.push({ from: a, to: b, kind, text: ev.name, start: now + 150, ms: reduceMotion ? 1 : 1400 }); e.lit = { until: now + LINGER, token: OUTCOME[kind][0] }; }
+    }
+    logLine(ev, r, kind);
+  }
+  if (!(ev.reactions || []).length) logLine(ev, null, null);
+}
+function logLine(ev, reaction, kind) {
+  const li = h("li", {}, h("time", {}, clock(ev.at)), (ev.aggregate || "") + " ", h("b", {}, ev.name));
+  if (reaction) li.append(" → " + String(reaction.policy).split("::").pop() + (reaction.command ? " → " + reaction.command : ""),
+    h("span", { class: "mark", style: "color:var(" + OUTCOME[kind][0] + ")" }, OUTCOME[kind][1]));
+  const log = $("log"); log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
+}
+let backlog = [], liveStarted = false;
+function listen() {
+  const es = new EventSource("/api/events");
+  es.onopen = () => { $("live").textContent = "stream: live"; };
+  es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
+  es.addEventListener("board", (m) => {
+    const ev = JSON.parse(m.data); if (!ev.key) return;
+    remember(ev);
+    if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else fire(ev, true);
+  });
+}
+function startLive() { liveStarted = true; replay(backlog.slice(-12), true); }
+function replay(list, first) {
+  if (!first) seen.clear();
+  list.forEach((ev, i) => setTimeout(() => fire(ev, true), i * 450));
+}
+
+/* ---- table view, hover, boot ---- */
+function renderTable() {
+  $("edgetable").replaceChildren(h("table", {}, h("thead", {}, h("tr", {}, ["From", "Policy", "To", "Kind"].map((t) => h("th", {}, t)))),
+    h("tbody", {}, edges.map((e) => h("tr", {}, [e.from, e.label || "(bound adapter)", e.to, e.kind].map((t) => h("td", {}, t)))))));
+}
+canvas.addEventListener("mousemove", (e) => {
+  const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  cursor = drag ? null : { x: mx, y: my };
+  hover = nodes.find((n) => !blocks.has(keyOf(n)) && Math.hypot(sx(n) - mx, sy(n) - my) < 10) || null;
+  const onBlock = [...blocks.values()].some((b) => Math.abs(mx - b.x) < b.w / 2 && Math.abs(my - b.y) < b.hgt / 2);
+  canvas.style.cursor = drag ? "grabbing" : hover || onBlock ? "pointer" : "grab";
+});
+$("all").addEventListener("click", () => { allOpen = !allOpen; if (!allOpen) expanded.clear(); $("all").textContent = allOpen ? "Collapse all" : "Expand all"; });
+$("fit").addEventListener("click", fit);
+$("zin").addEventListener("click", () => zoomCentre(1.4));
+$("zout").addEventListener("click", () => zoomCentre(1 / 1.4));
+canvas.addEventListener("mouseleave", () => { hover = null; cursor = null; });
+$("toggle").addEventListener("click", () => { const on = document.body.classList.toggle("tables-only"); $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show diagram" : "Show table"; });
+$("replay").addEventListener("click", () => replay(backlog.slice(-12), false));
+$("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
+addEventListener("resize", () => { if (touched) size(); else fit(); });
+
+fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
+  if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; return; }
+  nodes = g.nodes; edges = g.edges; byId = new Map(nodes.map((n) => [n.id, n]));
+  assignDomains();
+  $("count").textContent = domains.length + " domains, " + contexts.length + " contexts, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + edges.filter((e) => e.kind !== "adapter").length + " policies";
+  $("domains").replaceChildren(...domains.map((d) => h("span", {}, h("i", { class: "swatch", style: "background:" + colourOf(d) }), d)));
+  layout(); fit(); renderTable(); requestAnimationFrame(draw); listen();
+  const wanted = decodeURIComponent(location.hash.slice(1)); if (wanted && byId.has(wanted)) { expanded.add(keyOf(byId.get(wanted))); openPanel(byId.get(wanted)); }
+}).catch((e) => { $("count").textContent = "unknown: " + e.message; });
+</script>
+</body>
+</html>

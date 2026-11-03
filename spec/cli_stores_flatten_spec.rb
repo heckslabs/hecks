@@ -1,8 +1,8 @@
 require "spec_helper"
-require "hecks/cli/stores"
+require "hecks/tools/stores"
 
 # `flat` unwraps the value objects a record serializes as, so it reads as plain fields.
-RSpec.describe Hecks::CLI::Stores, ".flatten" do
+RSpec.describe Hecks::Tools::Stores, ".flatten" do
   it "unwraps a value object to its value" do
     expect(described_class.flatten("status" => { "value" => "concluded" })).to eq("status" => "concluded")
   end

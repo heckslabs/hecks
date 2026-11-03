@@ -8,13 +8,17 @@ require "tempfile"
 require_relative "child"
 require_relative "qa_tick/preflight"
 require_relative "qa_tick/output"
+require_relative "qa_main_gate"
+require_relative "qa_event_pump"
+require_relative "qa_tick/event_pump_step"
+require_relative "qa_tick/quiesce_guard"
 
 module Hecks
   module QualityControlCli
     # The command behind `hecks quality_control sweep.tick`: one QA tick. It needs a clean tree,
     # rebases on `origin/main`, then runs `QaPrCheck`, `QaSweep --all`, `QaGeneratedDomains
-    # --from-dials` and `QaMutate --from-dials` and prints one report. The dials can turn the last
-    # two off.
+    # --from-dials` and `QaMutate --from-dials`, then `QaMainGate` for the quick gate on main, and prints
+    # one report. The dials can turn the last three off.
     #
     # It exits 2 if any step found something, 1 if none did but a step errored or it refused, 0 if
     # all are clean. The step order is enforced here, not in prose. `QA_REPO_DIR` picks the
@@ -23,6 +27,8 @@ module Hecks
     class QaTick
       include Preflight
       include Output
+      include EventPumpStep
+      include QuiesceGuard
 
       EXIT_OK = 0
       EXIT_ERROR = 1
@@ -112,13 +118,20 @@ module Hecks
       Step = Struct.new(:name, :output, :exit_code)
 
       def run_steps
-        steps = [
-          Step.new("check_pull_requests", *run_pr_check),
-          Step.new("ask run --all", *run_sweep),
-          Step.new("check_generated_domains --from-dials", *run_generated_domains),
-          Step.new("mutate --from-dials", *run_mutation)
-        ]
+        steps = finding_steps
         report(steps, reclaimed_holds(steps[1].output), write_tick_log!(steps))
+      end
+
+      # The steps that look for findings, in the order the report prints them. The event pump is
+      # last.
+      def finding_steps
+        [
+          guarded("check_pull_requests") { run_pr_check },
+          guarded("ask run --all") { run_sweep },
+          guarded("check_generated_domains --from-dials") { run_generated_domains },
+          guarded("mutate --from-dials") { run_mutation },
+          (guarded("check_main") { run_main_check } if dial(:RED_MAIN_CHECK, false))
+        ].compact + watch_steps
       end
 
       def run_pr_check
@@ -147,6 +160,24 @@ module Hecks
         output, exit_code = run_step(->(argv) { QaMutate.call(argv, root: @root) }, "--from-dials")
         puts output
         [output, exit_code]
+      end
+
+      # The quick gate on local main, last: each red check it finds becomes a bug and a
+      # self-contained one
+      # is fixed, landed and pushed by `QaMainGate`.
+      def run_main_check
+        banner "hecks quality_control check_main"
+        output, exit_code = run_step(->(argv) { QaMainGate.call(argv, root: @root) })
+        puts output
+        [output, exit_code]
+      end
+
+      # @return [Object] the dial's value from `qa/settings.yml`, or the fallback when it is not
+      #   loaded
+      def dial(name, fallback)
+        return fallback unless defined?(::QualityControlDials) && ::QualityControlDials.const_defined?(name)
+
+        ::QualityControlDials.const_get(name)
       end
 
       def reclaimed_holds(sweep_output)

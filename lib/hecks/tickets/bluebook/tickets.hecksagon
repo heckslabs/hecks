@@ -3,6 +3,13 @@
 Hecks.hecksagon "Tickets" do
   attaches "Governance"
   persisted_by "Memory"
+
+  # The coder's submitted branch, which finishes its work step. Declarative: the Coder domain
+  # emits it, and the FinishWhenWorkSubmitted policy reacts.
+  subscribe "Coder.WorkSubmitted"
+
+  # The Hecks domain's landing found the step a landed branch was cut for: FinishWorkWhenBranchLanded reacts.
+  subscribe "Hecks.LandedWorkFound"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

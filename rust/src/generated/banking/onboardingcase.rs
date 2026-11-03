@@ -610,14 +610,23 @@ impl OpenArgs {
         let customer = {
             let x = v.get("customer").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "OnboardingCase.customer expects String, got nil".to_string(),
+                    "Open.customer expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "OnboardingCase.customer expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Open",
+                        attribute: "customer",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Customer is known by reference)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let reference = OnboardingReference::from_json(

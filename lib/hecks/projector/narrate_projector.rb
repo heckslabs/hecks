@@ -11,8 +11,9 @@ module Hecks
       # Projects `bluebook` as prose; `options[:heading]` sets the top heading level.
       #
       # @param bluebook [Bluebook::Behaviour::Bluebook] the bluebook to narrate
-      # @param options [Hash] `:heading` (Integer, default 1) and `:aggregate` (narrows to one
-      #   aggregate, omitting the bluebook intro and reactions)
+      # @param options [Hash] `:heading` (Integer, default 1), `:aggregate` (narrows to one
+      #   aggregate, omitting the bluebook intro and reactions) and `:examples` (`.examples` files
+      #   whose goals are told as use cases, ADR 0173)
       # @return [String] Markdown prose ending in a newline
       # @raise [Runtime::NotFound] if `options[:aggregate]` names no declared aggregate
       def call(bluebook:, options: {})
@@ -22,8 +23,13 @@ module Hecks
         sections = []
         sections << bluebook_intro(bluebook, depth) unless only
         sections.concat(aggregate_narratives(bluebook, only, only ? depth : depth + 1))
-        sections << Reactions.narrative(bluebook, depth + 1) unless only
+        sections.concat(closing_sections(bluebook, options[:examples], depth + 1)) unless only
         "#{sections.compact.join("\n\n").rstrip}\n"
+      end
+
+      # What the bluebook causes on its own, then the use cases its examples declare.
+      def closing_sections(bluebook, examples, depth)
+        [Reactions.narrative(bluebook, depth), UseCases.narrative(examples, depth)]
       end
 
       # One narrative per aggregate, at heading level `depth`.
@@ -140,3 +146,4 @@ end
 
 require_relative "narrate_projector/commands"
 require_relative "narrate_projector/reactions"
+require_relative "narrate_projector/use_cases"

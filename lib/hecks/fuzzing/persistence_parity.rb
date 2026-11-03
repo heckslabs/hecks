@@ -11,7 +11,7 @@ module Hecks
 
       # Replays `steps` on both adapters and lists where the results differ.
       #
-      # Compares the same six fields as `hecks quality_control query sweep.run`'s Ruby-vs-Rust mode.
+      # Compares the same six fields as `hecks quality_control sweep.run`'s Ruby-vs-Rust mode.
       # Both results are JSON-round-tripped so plain data compares equal on both sides.
       #
       # @param left [Symbol] an `IsolatedBoot` adapter: `:memory`, `:sqlite`, `:postgres`,

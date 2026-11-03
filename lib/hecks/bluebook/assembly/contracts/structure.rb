@@ -14,7 +14,8 @@ module Hecks
             formerly_known_as: [:formerly_known_as, :plain],
             namespace:         [:namespace, :plain],
             attaches_to:       [:attaches_to, :plain],
-            provides:          [:provides, :plain]
+            provides:          [:provides, :plain],
+            modules:           [:modules, :plain]
           },
           rows: { normalisations: :normalisation_table },
           derived: { normalisations: :elsewhere }
@@ -23,17 +24,19 @@ module Hecks
         "Aggregate"   => Contract.new(
           holder: Aggregate, make: :new,
           fields: {
-            name:             [:name,          :plain],
-            description:      [:description,   :plain],
-            identified_by:    [:identified_by, :plain],
-            attributes:       [:attributes,    [:each, :attribute]],
+            name:              [:name,          :plain],
+            description:       [:description,   :plain],
+            identified_by:     [:identified_by, :plain],
+            attributes:        [:attributes,    [:each, :attribute]],
             # Aggregate's own precondition, referenced by name from a command (ADR 0025).
-            invariants:       [:invariants,    [:each, :invariant]],
-            preconditions:    [:preconditions, [:each, :given]],
+            invariants:        [:invariants,    [:each, :invariant]],
+            preconditions:     [:preconditions, [:each, :given]],
             # The local half of `projects :name, from: "reference.remote_field"` (ADR 0025).
-            projected_fields: [:projected_fields, [:each, :projected_field]],
-            provenance:       [:provenance, :plain],
-            acknowledgements: [:acknowledgements, [:each, :acknowledgement]]
+            projected_fields:  [:projected_fields, [:each, :projected_field]],
+            provenance:        [:provenance, :plain],
+            formerly_known_as: [:formerly_known_as, :plain],
+            created_by:        [:created_by, :plain],
+            acknowledgements:  [:acknowledgements, [:each, :acknowledgement]]
           },
           rows: { transitions: :transition_rows, marks: :mark_rows, value_objects: :value_object_names,
                   identified_by: :identity_rows },
@@ -56,6 +59,7 @@ module Hecks
             name:       [:name,       :plain],
             role:       [:role,       :plain],
             roles:      [:roles,      :plain],
+            audience:   [:audience,   :plain],
             goal:       [:goal,       :plain],
             references: [:references, :plain],
             attributes: [:attributes, [:each, :shape_field]],
@@ -67,13 +71,14 @@ module Hecks
             # Lifecycle state as a command guard: one state, an array, or nil (ADR 0025).
             from:       [:from,       :plain],
             provenance: [:provenance, :plain],
-            idempotent: [:idempotent, :plain]
+            idempotent: [:idempotent, :plain],
+            mints_era:  [:mints_era, :plain]
           },
           rows: { mutations: :mutation_rows },
           reads: { attributes: [:each, :shape_field], givens: [:each, :rule], ensures: [:each, :rule],
-                  needs: [:each, :need], mutations: [:call, :mutations], emits: :names, roles: :names,
+                  needs: [:each, :need], mutations: [:call, :mutations], emits: :names, roles: :names, audience: :names,
                   provenance: :provenance,
-                  from: :from, idempotent: :idempotent? },
+                  from: :from, idempotent: :idempotent?, mints_era: :mints_era? },
           derived: { position: :walk }
         ),
 

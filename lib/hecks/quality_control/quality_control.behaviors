@@ -1,0 +1,65 @@
+Hecks.behaviors "QualityControl" do
+  vision "A green verdict is the only one announced, and a roll is requested once for a commit."
+
+  # The quality control bluebook bound as its own hecksagon binds it, for a behaviors boot. Its
+  # ports are declared in quality_control.ports.hecksagon; no adapter is needed for these tests,
+  # which never ask.
+  loads "quality_control.bluebook", "quality_control.hecksagon", "quality_control.ports.hecksagon"
+
+  test "Green announces a green verdict on main" do
+    tests "Green", on: "Head"
+    input commit: { value: "c" * 40 }, branch: { value: "main" }, repo: { value: "heckslabs/embryonaut_platform" },
+          color: { value: "green" }
+    # The chain goes on: no adapter answers the classifier in this boot, so it refuses.
+    expect emits: ["CiGreen", "RollConsidered", "ClassifyRefused"]
+  end
+
+  test "A red verdict on embryonaut_platform's main starts no image roll" do
+    tests "Red", on: "Head"
+    input commit: { value: "c" * 40 }, repo: { value: "heckslabs/embryonaut_platform" }, color: { value: "red" },
+          failing_jobs: { value: "rspec" }
+    expect emits: ["CiRed"]
+  end
+
+  test "Green refuses a red verdict" do
+    tests "Green", on: "Head"
+    input commit: { value: "c" * 40 }, branch: { value: "main" }, repo: { value: "heckslabs/embryonaut_platform" },
+          color: { value: "red" }
+    expect refused: "only a green verdict is announced"
+  end
+
+  test "Red names the failing jobs of a red verdict" do
+    tests "Red", on: "Head"
+    input commit: { value: "c" * 40 }, repo: { value: "heckslabs/embryonaut_platform" }, color: { value: "red" },
+          failing_jobs: { value: "rspec" }
+    expect emits: ["CiRed"]
+  end
+
+  test "Request refuses a commit on a branch other than main" do
+    tests "Request", on: "Head"
+    input commit: { value: "c" * 40 }, branch: { value: "feature" }, repo: { value: "heckslabs/embryonaut_platform" }
+    expect refused: "only main is judged"
+  end
+
+  test "Request starts an idle roll once" do
+    tests "Request", on: "ImageRoll"
+    input commit: { value: "d" * 40 }, app: { value: "console" }
+    # The chain runs through the roll's ask and its finish in this boot. The commit is no real
+    # embryonaut_platform commit, so its change set is unreadable and the roll is refused before
+    # any build; the refusal still finishes the roll.
+    expect emits: ["RollRequested", "RollRefused", "RollDone"]
+  end
+
+  test "A second Request for a commit already requested does nothing" do
+    tests "Request", on: "ImageRoll"
+    setup "QualityControl::ImageRoll.Request", commit: { value: "e" * 40 }, app: { value: "console" }
+    input commit: { value: "e" * 40 }, app: { value: "console" }
+    expect refused: "already exists"
+  end
+
+  test "NeedsApproval holds a commit that reaches past the container" do
+    tests "NeedsApproval", on: "ImageRoll"
+    input commit: { value: "f" * 40 }, paths: { value: "deploy-aws/box-generated/Makefile" }
+    expect emits: ["RollNeedsApproval"]
+  end
+end

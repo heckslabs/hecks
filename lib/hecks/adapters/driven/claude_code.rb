@@ -84,8 +84,8 @@ module Hecks
 
       def unwrap(stdout)
         envelope = JSON.parse(stdout)
-        result = envelope["result"]
-        raise Ports::Agent::ValidationError, "no \"result\" in the claude envelope: #{stdout}" unless result
+        result = envelope["result"] if envelope.is_a?(Hash)
+        raise Ports::Agent::ValidationError, "no \"result\" in the claude envelope: #{stdout}" unless result.is_a?(String)
 
         JSON.parse(result)
       rescue JSON::ParserError => e

@@ -2,6 +2,7 @@ require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_role"
+require_relative "support/qa_ledger_fixture"
 require "tmpdir"
 require "fileutils"
 require_relative "support/qa_lib_cli"
@@ -16,6 +17,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
   # A constant assigned in a describe block lands at top level, and
   # spec/oidc_manifest_spec.rb already owns the bare name `ROOT`.
   HECKSAGON_SOURCE = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.hecksagon")
+  TRANSLATIONS_SOURCE = File.join(InMemoryDomain::ROOT, "qa/bluebook/quality_control.translations.hecksagon")
   SCRATCH_DB       = "hecks_qa_migration_spec".freeze
 
   # Heki-backed wiring, inlined so it stays fixed whatever the real file says. Same as the
@@ -61,7 +63,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     FileUtils.mkdir_p(heki_bluebook_dir)
     FileUtils.mkdir_p(@pg_dir)
 
-    FileUtils.cp(HECKSAGON_SOURCE, @pg_dir)
+    FileUtils.cp([HECKSAGON_SOURCE, TRANSLATIONS_SOURCE], @pg_dir)
     File.write(File.join(heki_bluebook_dir, "quality_control.hecksagon"), HEKI_HECKSAGON)
     File.write(File.join(heki_bluebook_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     File.write(File.join(@pg_dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
@@ -75,6 +77,11 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
       end
     WORLD
     File.write(File.join(@pg_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
+    File.write(File.join(@pg_dir, "fixer.world"), <<~WORLD)
+      Hecks.world "Fixer" do
+        persisted_by("PostgresEra") { database "#{url}" }
+      end
+    WORLD
 
     admin = PG.connect(dbname: "postgres")
     admin.exec("DROP DATABASE IF EXISTS #{SCRATCH_DB} WITH (FORCE)")
@@ -82,6 +89,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     admin.close
     # Same URL shape and `create_ledger_role` step as the real ledger's `.world`.
     QaLedgerRole.provision!(SCRATCH_DB)
+    QaLedgerFixture.hold_eras!(@pg_dir, SCRATCH_DB)
 
     @heki_runtime = Hecks.boot(heki_bluebook_dir)
 

@@ -31,6 +31,7 @@ Hecks.bluebook "Translation" do
     attribute :retypes,   list_of(TranslationRetype)
     attribute :derives,   list_of(TranslationDerive)
     attribute :rekeys,    list_of(TranslationRekey)
+    attribute :splits,    list_of(TranslationSplit)
     attribute :backfills, list_of(TranslationBackfill)
 
     # Field names mirror the Struct records in lib/hecks/bluebook/translation.rb, not the
@@ -63,6 +64,12 @@ Hecks.bluebook "Translation" do
 
     value_object "TranslationRekey" do
       attribute :to, TranslationName
+    end
+
+    value_object "TranslationSplit" do
+      attribute :into,     TranslationName
+      attribute :keyed_by, TranslationName
+      attribute :fields,   list_of(TranslationName)
     end
 
     value_object "TranslationBackfill" do
@@ -168,6 +175,19 @@ Hecks.bluebook "Translation" do
       emits "TranslationRekeyToAdded"
     end
 
+    command "AddSplit" do
+      role "Deployment"
+      goal "Write rows into another aggregate from this one's rows, keyed by a field both share"
+
+      attribute :into,     TranslationName
+      attribute :keyed_by, TranslationName
+      attribute :fields,   list_of(TranslationName)
+
+      sets :splits, append: { into: :into, keyed_by: :keyed_by, fields: :fields }
+
+      emits "TranslationSplitAdded"
+    end
+
     command "AddBackfill" do
       role "Deployment"
       goal "Name a newly required attribute and the value an existing record reads until written for real"
@@ -194,6 +214,7 @@ Hecks.bluebook "Translation" do
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
 
       member word: "rename",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "renames", calls: "rename_impl"
+      member word: "split",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "splits", calls: "split_impl"
       member word: "move",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "moves", calls: "move_impl"
       member word: "convert",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "converts", calls: "convert_impl"
       member word: "drop",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "drops"
@@ -224,6 +245,9 @@ Hecks.bluebook "Translation" do
 
       member keyword: "rename",          context: "TranslationAggregate", at: "1", named: "", kind: "symbol", required: "true", fills: "old_name"
       member keyword: "rename",          context: "TranslationAggregate", at: "",  named: "to", kind: "symbol", required: "true", fills: "to"
+      member keyword: "split",            context: "TranslationAggregate", at: "",  named: "into", kind: "text", required: "true", fills: "into"
+      member keyword: "split",            context: "TranslationAggregate", at: "",  named: "keyed_by", kind: "text", required: "true", fills: "keyed_by"
+      member keyword: "split",            context: "TranslationAggregate", at: "",  named: "fields", kind: "text", required: "true", fills: "fields"
       member keyword: "move",            context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"
       member keyword: "move",            context: "TranslationAggregate", at: "",  named: "to", kind: "text", required: "true", fills: "to"
       member keyword: "convert",         context: "TranslationAggregate", at: "1", named: "", kind: "text", required: "true", fills: "old_path"

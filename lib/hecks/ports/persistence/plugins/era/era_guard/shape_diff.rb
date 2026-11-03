@@ -68,10 +68,14 @@ module Hecks
           paths.reject { |path| lineage.explains?(path) }
         end
 
-        # Compares one path's held and current types, recursing into shared members.
+        # Compares one path's held and current types, recursing into shared members. A type is
+        # compared by its name: a stored shape holds every type as its string
+        # (`"Reference<Target>"`), a declared bluebook may hold an object that prints the same.
         # A `list_of` entity is diffed only for member drift; no per-element translation exists, so
         # only a top-level `drop` of the whole list satisfies it.
         def diff_type(path, held_type, current_type, sides, seen = [])
+          held_type = held_type.to_s
+          current_type = current_type.to_s
           return [path] if retype_drift?(held_type, current_type, sides.lineage)
           return [] if seen.include?(current_type)
 

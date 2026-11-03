@@ -2,6 +2,7 @@
 //! one submodule per Ruby source (`attribute_collector.rb` and its siblings).
 
 pub mod closed_sets;
+pub mod correlation_keys;
 pub mod identity;
 pub mod named_pattern;
 pub mod naming;

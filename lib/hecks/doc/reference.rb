@@ -10,7 +10,7 @@ module Hecks
   module Doc
     # The DSL reference, projected from the language's own Syntax bluebook so
     # its tables can never drift from the live builders. Regenerate with
-    # `hecks language_run.project_reference`.
+    # `hecks language_run.project_reference!`.
     #
     # README's regions are in `Readme` and the coverage gates in `Coverage`, both extended onto
     # this module; `Harvester` reads committed prose back.

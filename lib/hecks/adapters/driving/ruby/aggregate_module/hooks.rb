@@ -3,15 +3,19 @@ module Hecks
     module Driving
       module Ruby
         module AggregateModule
-          # The hooks an aggregate module lands on: a port declared inside a repeat boot, the bare and
-          # qualified binding calls a `.hecksagon` and a `.world` make, and constant lookup. Each is a
-          # module function, called as `Hooks.name` from the blocks that define the module's methods, since
+          # The hooks an aggregate module lands on: a port declared inside a repeat boot, the bare
+          # and
+          # qualified binding calls a `.hecksagon` and a `.world` make, and constant lookup. Each is
+          # a
+          # module function, called as `Hooks.name` from the blocks that define the module's
+          # methods, since
           # a block defined with `define_singleton_method` runs with the module as `self`.
           module Hooks
             # What `bound_outcome` answers for a call that is not a binding, so `super` handles it.
             UNBOUND = Object.new.freeze
 
-            # What `bound_outcome` answers for a call that recorded a binding, so the module answers itself.
+            # What `bound_outcome` answers for a call that recorded a binding, so the module answers
+            # itself.
             BOUND = Object.new.freeze
 
             module_function
@@ -59,7 +63,8 @@ module Hecks
               end
             end
 
-            # Defines `respond_to_missing?`, answering true while a `.hecksagon` or `.world` is being declared.
+            # Defines `respond_to_missing?`, answering true while a `.hecksagon` or `.world` is
+            # being declared.
             #
             # @param mod [Module] the aggregate module
             # @return [void]
@@ -70,8 +75,10 @@ module Hecks
               end
             end
 
-            # Defines `const_missing`. It uses `aggregate.hecks_name`, not the qualified name: qualifying it
-            # would make `Account::Debit`'s meaning depend on whether a stale module from an earlier boot is
+            # Defines `const_missing`. It uses `aggregate.hecks_name`, not the qualified name:
+            # qualifying it
+            # would make `Account::Debit`'s meaning depend on whether a stale module from an earlier
+            # boot is
             # still on this process.
             #
             # @param mod [Module] the aggregate module
@@ -86,8 +93,10 @@ module Hecks
               end
             end
 
-            # Declares a port on an aggregate during a repeat boot, and registers it with the live registry.
-            # Re-resolves the aggregate via `Hecks.current_registry` rather than the closed-over `aggregate`,
+            # Declares a port on an aggregate during a repeat boot, and registers it with the live
+            # registry.
+            # Re-resolves the aggregate via `Hecks.current_registry` rather than the closed-over
+            # `aggregate`,
             # which can be stale from an earlier boot.
             #
             # @raise [Bluebook::DSL::Malformed] when called outside a boot
@@ -96,8 +105,10 @@ module Hecks
               built = Bluebook::DSL::ConstShim.with(->(const) { const }) do
                 Bluebook::DSL::DomainPortBuilder.build(name, owner: current.hecks_name, &block)
               end
-              # A `verb`-shaped port is a plain `Port`, the same struct `Hecks.port` registers. It belongs to
-              # no aggregate IR, so it takes the registry's `add_port` directly. Mirrors `DSL::BindingProxy#port`,
+              # A `verb`-shaped port is a plain `Port`, the same struct `Hecks.port` registers. It
+              # belongs to
+              # no aggregate IR, so it takes the registry's `add_port` directly. Mirrors
+              # `DSL::BindingProxy#port`,
               # which handles the identical shape on a domain's first in-process boot.
               return Hecks.current_registry.add_port(built) if built.is_a?(Bluebook::Port)
 
@@ -112,14 +123,16 @@ module Hecks
                 raise Bluebook::DSL::Malformed, "#{fqn}.port(#{name.inspect}) called outside a boot"
             end
 
-            # Points each reference attribute of a port's operations at the aggregate that declares it.
+            # Points each reference attribute of a port's operations at the aggregate that declares
+            # it.
             def reference_operations(built, current)
               built.operations.each do |operation|
                 operation.attributes.select(&:reference?).each { |attribute| attribute.type.declared_in = current }
               end
             end
 
-            # Answers what a method-missing call means: a bare call's attribute path, the world's record of
+            # Answers what a method-missing call means: a bare call's attribute path, the world's
+            # record of
             # a setting, a recorded binding (BOUND), or nothing to bind (UNBOUND).
             #
             # @return [Object] the answer, or BOUND or UNBOUND
@@ -137,7 +150,8 @@ module Hecks
               BOUND
             end
 
-            # @return [Boolean] whether the call names no arguments and no block, so it is a bare attribute path
+            # @return [Boolean] whether the call names no arguments and no block, so it is a bare
+            #   attribute path
             def bare_call?(args, kwargs, block)
               args.empty? && kwargs.empty? && !block
             end

@@ -125,7 +125,7 @@ module Hecks
       def job_footer(gate, name)
         ["        name: #{quoted(gate.fetch("label"))}",
          *job_env(gate),
-         "        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=#{name} --wait",
+         "        run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=#{name} --wait",
          "  # END GENERATED ci_gate #{name}"]
       end
 

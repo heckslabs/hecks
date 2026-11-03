@@ -989,6 +989,21 @@ fn a_multi_line_keyword_call_records_its_keyword_names_in_order() {
 }
 
 #[test]
+fn a_binding_with_keywords_and_no_adapter_binds_under_the_empty_adapter() {
+    let (code, out, err) = run_world(&["world_no_adapter.world"]);
+    assert_eq!(code, 0, "{err}");
+    let flat = squash(&out);
+    assert!(
+        flat.contains("\"verb\": \"stored_as\", \"adapter\": \"\", \"settings\": [ \"Revision\", \"Workspace\" ]"),
+        "got: {out}"
+    );
+    assert!(
+        flat.contains("\"verb\": \"minting\", \"adapter\": \"\", \"settings\": [ \"commands\" ]"),
+        "got: {out}"
+    );
+}
+
+#[test]
 fn default_database_accepts_an_env_fetch_expression_without_printing_it() {
     let (code, out, _) = run_world(&["world_env_database.world"]);
     assert_eq!(code, 0);
@@ -1104,4 +1119,48 @@ fn every_real_world_file_parses_and_prints_no_setting_value() {
     assert!(out.contains("\"dir\""));
     assert!(!out.contains("data/banking"), "a value leaked: {out}");
     assert!(!out.contains("postgres://"), "a value leaked: {out}");
+}
+
+#[test]
+fn a_bare_aggregate_correlates_by_resolves_to_its_identity_and_a_dotted_key_stays() {
+    // `correlates_by Message` means the aggregate's identity (`Message.id`, the field its `id`
+    // attribute names); the dotted `:"Message.id"` beside it is kept as written.
+    let path = fixture("process_manager_bare_correlation.bluebook");
+    let output = run(&[
+        "bluebook",
+        "--bluebook",
+        "FixtureBareCorrelation",
+        path.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "bare correlates_by fixture should parse cleanly: {stderr}"
+    );
+
+    let compact: String = stdout.split_whitespace().collect();
+    let expected = r#""correlates_by":"Message.id""#;
+    assert!(compact.contains(expected), "missing {expected}: {stdout}");
+}
+
+#[test]
+fn a_bare_correlates_by_naming_no_aggregate_is_refused() {
+    // A bare value object is not an aggregate, so it gets the whole-field refusal the Ruby builder gives.
+    let path = fixture("process_manager_bare_non_aggregate.bluebook");
+    let output = run(&[
+        "bluebook",
+        "--bluebook",
+        "FixtureBareNonAggregate",
+        path.to_str().unwrap(),
+    ]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "a bare value object should be refused"
+    );
+    assert!(
+        stderr.contains("ScheduledSend correlates_by MessageId, which names a whole field"),
+        "expected the whole-field refusal, got: {stderr}"
+    );
 }

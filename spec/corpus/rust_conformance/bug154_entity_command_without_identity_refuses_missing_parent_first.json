@@ -1,0 +1,76 @@
+{
+  "domain": "qa/stress_domains/generated_entity_no_identity",
+  "note": "BUG#154 — an entity command that names no element identity refuses the missing parent first (Ruby hydrates the parent before it locates the element), and an `id` argument does not stand in for a composite element identity.",
+  "steps": [
+    {
+      "verb": "GeneratedEntityNoIdentity::Kiosk.Open",
+      "args": {
+        "code": {
+          "value": "juliet"
+        }
+      }
+    },
+    {
+      "verb": "GeneratedEntityNoIdentity::Kiosk.Line.Label",
+      "args": {
+        "label": {
+          "value": "golf juliet"
+        },
+        "code": {
+          "value": "no-such-kiosk"
+        },
+        "id": "gen-1"
+      }
+    },
+    {
+      "verb": "GeneratedEntityNoIdentity::Kiosk.Line.Label",
+      "args": {
+        "label": {
+          "value": "golf juliet"
+        },
+        "code": {
+          "value": "juliet"
+        },
+        "id": "gen-1"
+      }
+    }
+  ],
+  "expect": {
+    "instances": {
+      "GeneratedEntityNoIdentity::Kiosk#juliet": {
+        "code": {
+          "value": "juliet"
+        },
+        "lines": []
+      }
+    },
+    "events": [
+      {
+        "name": "KioskOpened",
+        "aggregate": "GeneratedEntityNoIdentity::Kiosk",
+        "id": "juliet",
+        "payload": {
+          "code": {
+            "value": "juliet"
+          }
+        }
+      }
+    ],
+    "refusals": [
+      {
+        "verb": "GeneratedEntityNoIdentity::Kiosk.Line.Label",
+        "error": "no Kiosk with code.value \"no-such-kiosk\"",
+        "kind": "NotFound"
+      },
+      {
+        "verb": "GeneratedEntityNoIdentity::Kiosk.Line.Label",
+        "error": "Label acts on one Line — pass batch.value, sequence.value:",
+        "kind": "NotFound"
+      }
+    ],
+    "queries": [],
+    "sagas": [],
+    "dry_runs": [],
+    "reactions": []
+  }
+}

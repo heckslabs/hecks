@@ -1,6 +1,7 @@
 # A journal proves it was not rewritten
 
-**Status:** Accepted. Built: the Ledger chapter (`lib/hecks/hecks/ledger.bluebook`), its adapter
+**Status:** Accepted. Built: the `Seal` aggregate (`lib/hecks/hecks/migrate/migrate.bluebook`) and the `Audit` aggregate
+(`lib/hecks/hecks/check/check.bluebook`), their adapter
 (`lib/hecks/hecks/adapters/ledger.rb`) and the Rust host's seals (`rust/host/src/ledger.rs`).
 On local `main`, not released. Date: 2026-10-26.
 

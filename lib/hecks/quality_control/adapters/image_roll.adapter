@@ -1,0 +1,9 @@
+# Binds the `ImageRoll` port to `ImageRoll`, which classifies a green commit of embryonaut_platform
+# and rolls its
+# console image. Required by name, not relative, so a copy of this directory shares the one
+# implementation loaded.
+require "hecks/quality_control/adapters/image_roll"
+
+Hecks.adapter "ImageRoll" do
+  port "ImageRoll"
+end

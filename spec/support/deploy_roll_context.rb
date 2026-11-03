@@ -69,7 +69,7 @@ RSpec.shared_context "with the deploy roll stand-ins" do
 
   # Rolls the cms service to a tag that is already in ECR; `env` adds to the stand-in environment.
   def roll_cms_existing(**env)
-    command("service_roll.run", "service=cms", "existing_tag=cms-old", env: { "STUB_ECR_HAS_TAG" => "1" }.merge(env))
+    command("service_roll.run!", "service=cms", "existing_tag=cms-old", env: { "STUB_ECR_HAS_TAG" => "1" }.merge(env))
   end
 
   # The status of the SmokeRun that the roll's policy requested under the roll's own run key.

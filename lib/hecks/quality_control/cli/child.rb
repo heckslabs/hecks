@@ -12,6 +12,7 @@ module Hecks
       # `hecks/quality_control/cli/<command>`.
       COMMANDS = {
         "qa_tick"                      => ["QaTick", :argv_root],
+        "qa_event_pump"                => ["QaEventPump", :argv_root],
         "qa_sweep"                     => ["QaSweep", :argv_root],
         "qa_pr_check"                  => ["QaPrCheck", :argv_root],
         "qa_generated_domains"         => ["QaGeneratedDomains", :argv_root],

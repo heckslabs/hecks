@@ -7,6 +7,7 @@ require_relative "registry/read_repository"
 require_relative "registry/verification"
 require_relative "registry/saga_persistence"
 require_relative "registry/world_defaults"
+require_relative "registry/world_names"
 require_relative "registry/context_maps"
 require_relative "registry/adapter_capabilities"
 require_relative "outbox"
@@ -26,6 +27,7 @@ module Hecks
       include Verification
       include SagaPersistence
       include WorldDefaults
+      include WorldNames
       include AdapterCapabilities
       include Providers
       include Merging
@@ -35,8 +37,9 @@ module Hecks
       # The thread-local key under which open reaction collections are kept.
       REACTION_SINKS = :hecks_reaction_sinks
 
-      # Guards every registry's reaction log and its outcome index, which dispatching threads all append
-      # to. One lock serves every registry: each hold is a single append, so the contention is negligible.
+      # Guards every registry's reaction log and its outcome index, which dispatching threads all
+      # append to. One lock serves every registry: each hold is a single append, so the contention
+      # is negligible.
       REACTION_LOCK = Mutex.new
 
       attr_reader :root, :saga_mutex
@@ -55,7 +58,8 @@ module Hecks
         @root         = root
         # Recorded at hecksagon-build time (AggregateModule#mark_sensitive), Loader.boot's
         # post-dispatch step turns each pending privacy marking into a real Privacy::Marking.Mark,
-        # idempotently. `resolved_eras` and `superseded_eras` are eager, not lazy, so no two
+        # idempotently. `resolved_eras`, `superseded_eras` and `unminted_eras` are eager, not lazy,
+        # so no two
         # dispatching threads race to create them; all writes still happen at boot,
         # single-threaded (EraResolver.check!).
         @declared     = Declarations.empty
@@ -214,8 +218,11 @@ module Hecks
 
       # `resolved_eras` is {domain name => era ordinal} resolved by the boot-time era gate;
       # `superseded_eras` is the domain name -> the ordinal that superseded this boot's own era,
-      # for an old checkout only. Stood up eagerly; plain readers, not memoizers.
-      def_delegators :@declared, :resolved_eras, :superseded_eras
+      # for an old checkout only. `unminted_eras` is the domain name -> the latest held ordinal, set
+      # when this boot's shape matches no held era and no mint was requested: the copy reads and
+      # refuses writes. `behind_eras` is the same, for a shape a recorded move or edge leads to from
+      # the latest held era. Stood up eagerly; plain readers, not memoizers.
+      def_delegators :@declared, :resolved_eras, :superseded_eras, :unminted_eras, :behind_eras
 
       # Finds a loaded bluebook by name.
       #

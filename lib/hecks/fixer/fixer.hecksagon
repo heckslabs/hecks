@@ -1,0 +1,17 @@
+# The Fixer domain, bound so it boots standing alone (a fuzz or model_check boot of this
+# directory). The attempts are held in Memory here; the ledger's own store is wired by the
+# QualityControl hecksagon.
+Hecks.hecksagon "Fixer" do
+  attaches "Governance"
+  persisted_by "Memory"
+
+  # The ledger's bug being logged, which opens the attempt at it, and a merged patch, which records
+  # the fix. Declarative: QualityControl emits both, and the policies above react.
+  subscribe "QualityControl.BugLogged"
+  subscribe "QualityControl.PatchMerged"
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

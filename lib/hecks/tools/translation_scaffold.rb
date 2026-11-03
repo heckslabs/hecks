@@ -115,7 +115,7 @@ module Hecks
       # @return [Array] the journal's latest era and the bluebook it held
       def held_era(lineage)
         latest = lineage.eras.last
-        [latest, lineage_manager.shadow(latest[:held_text])]
+        [latest, lineage_manager.held_bluebook(latest)]
       end
 
       # A journal with no era yet holds the bluebook as its first, so there is nothing to scaffold.

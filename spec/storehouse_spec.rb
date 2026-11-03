@@ -118,6 +118,21 @@ RSpec.describe Hecks::Storehouse do
       expect(sold[:ok]).to be true
       expect(purchase_again).to include(ok: false, error: be_a(String))
     end
+
+    it "logs each call with its duration, and a refusal's kind", :aggregate_failures do
+      created, refused = logged_create_and_refusal
+
+      expect(created).to include(duration_ms: be_a(Integer), tool: "dispatch")
+      expect(created).not_to have_key(:refusal)
+      expect(refused).to include(refusal: "not_found", duration_ms: be_a(Integer))
+    end
+
+    # The audit entries of one successful create and one refused unknown command, in that order.
+    def logged_create_and_refusal
+      create_pizza
+      described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec")
+      described_class.follow(runtime: runtime)[:entries]
+    end
   end
 
   describe ".query" do
@@ -151,6 +166,11 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:ok]).to be true
       expect(result[:count]).to eq(1)
       expect(result[:records].first[:id]).to eq("Margherita")
+    end
+
+    it "names the record it read in its ids" do
+      expect(described_class.state(runtime: runtime, aggregate: "Order", id: "Margherita", summary: "spec")[:ids])
+        .to eq(id: "Margherita")
     end
 
     it "answers one record when id is given", :aggregate_failures do
@@ -243,7 +263,7 @@ RSpec.describe Hecks::Storehouse do
       result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
                                         args: pizza_args, dry_run: true, role: "Chef")
 
-      expect(result).to eq(ok: true, summary: "spec", would_succeed: true)
+      expect(result).to include(ok: true, summary: "spec", would_succeed: true)
       expect(described_class.state(runtime: runtime, aggregate: "Order", summary: "spec")[:count]).to eq(0)
     end
 
@@ -279,6 +299,36 @@ RSpec.describe Hecks::Storehouse do
       expect(result[:ok]).to be false
       expect(result[:error]).to include("source")
       expect(runtime.events).to be_empty
+    end
+  end
+
+  describe ".dispatch names the ids a call used" do
+    it "answers the record a dispatch addressed" do
+      expect(create_pizza[:ids]).to include(id: "Margherita")
+    end
+
+    it "answers the references a refused call named, even when nothing was written", :aggregate_failures do
+      result = described_class.dispatch(runtime: runtime, command: "no_such_command", summary: "spec",
+                                        args: { run: { value: "r1" } })
+
+      expect(result[:ids]).to eq(run: "r1")
+    end
+  end
+
+  describe ".dispatch with surface:" do
+    it "records the surface a call came through on its audit line" do
+      described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec", args: pizza_args,
+                               role: "Chef", surface: "mcp")
+
+      expect(described_class.follow(runtime: runtime)[:entries].last[:surface]).to eq("mcp")
+    end
+
+    it "refuses a surface outside the closed set", :aggregate_failures do
+      result = described_class.dispatch(runtime: runtime, command: "order.create_pizza", summary: "spec",
+                                        args: pizza_args, role: "Chef", surface: "api")
+
+      expect(result[:ok]).to be false
+      expect(result[:error]).to include("surface")
     end
   end
 

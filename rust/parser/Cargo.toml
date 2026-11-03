@@ -21,7 +21,7 @@ path = "src/main.rs"
 debug = 0
 
 # Clippy beyond its defaults: pedantic and nursery, plus the restriction lints that keep a panic
-# out of library code. `hecks gate_run.gate stage=ci only=rust_clippy` makes each of these an error.
+# out of library code. `hecks gate_run.gate! stage=ci only=rust_clippy` makes each of these an error.
 # The same table is in every crate's Cargo.toml; change them together.
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

@@ -49,5 +49,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          bundle exec exe/hecks promotion_run.promote lane=stable
+          bundle exec exe/hecks promotion_run.promote! lane=stable
           run=stable-${{ github.event.workflow_run.head_sha || github.run_id }} --confirm --wait

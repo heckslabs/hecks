@@ -4,6 +4,7 @@ require "hecks"
 # --adapter=PostgresEra needs the era persistence plugin (ADR 0033).
 require "hecks/ports/persistence/plugins/era"
 require "optparse"
+require "hecks/hecks/adapters/journal_store"
 require_relative "../tools"
 
 module Hecks
@@ -85,6 +86,7 @@ module Hecks
         refuse_if_refused(dispatcher, slug)
 
         puts "wrote #{File.join(domain_directory, "environments", "#{slug}.world")}"
+        hold_first_eras(domain_directory, slug)
         dispatcher
       end
 
@@ -137,6 +139,27 @@ module Hecks
                                                   "check registry.reaction_log for a silently refused Register"
 
         puts "#{options[:domain]} is tenant_capable? for #{slug.inspect} — registered under realm #{options[:realm].inspect}"
+      end
+
+      # Holds era 1 of each era-keeping bluebook in the tenant's schema before the boot reads it:
+      # a boot only reads (ADR 0168), and `hold_first` is the one writer. A bluebook whose lineage
+      # already holds an era is left untouched, so a re-provision mints nothing and an existing
+      # schema's eras and rows are never read as new.
+      def hold_first_eras(domain_directory, slug)
+        held = Hecks::Adapters::JournalStore::HeldDomain.open(domain_directory, mode: :bare, environment: slug)
+        held.bluebook_names.each do |name|
+          domain = Hecks::Adapters::JournalStore::HeldDomain.new(held.registry, held.directory, name)
+          hold_first_era(domain) if domain.capable?
+        end
+      end
+
+      def hold_first_era(domain)
+        text = Hecks::Runtime::EraCheck.source_text_for(domain.bluebook, domain.directory, registry: domain.registry)
+        domain.writing do |lineage|
+          next if lineage.eras.any?
+
+          lineage.hold_first_era!(text, projection: domain.shape, aggregates: domain.aggregates, role: domain.app_role)
+        end
       end
 
       # @raise [SystemExit] when a bluebook of the registry is not tenant capable

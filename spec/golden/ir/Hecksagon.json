@@ -161,6 +161,7 @@
           ],
           "goal": "Name the adapter one aggregate answers one verb through",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -226,10 +227,12 @@
           "role": "Deployment"
         }
       ],
+      "created_by": null,
       "description": "One aggregate-to-adapter binding inside a hecksagon — the verb it answers, the adapter it names. Its own root because a hecksagon's binds are an open set of verbs (one per declared port), which no value object can hold — the same reasoning Wiring carries for a world's settings.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "hecksagon.value",
         "aggregate.value",
@@ -341,10 +344,12 @@
       "commands": [
 
       ],
+      "created_by": null,
       "description": "A primary port — the boundary between a domain and its adapters, in hexagonal terms, is exactly what a hecksagon already IS for every other port. Root-level (belongs to the bluebook) or aggregate-scoped (reached the same way persisted_by is, through the open Const.verb(...) entry point). One of two shapes, never both: a list of operations translating an inbound fact into this domain's own events, or a bare verb naming a swappable resource port (the same Hecks.port a project's own .port file declares, reached from inside the hecksagon instead).",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -1404,6 +1409,7 @@
           ],
           "goal": "Open a hecksagon for a domain",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -1448,6 +1454,7 @@
           ],
           "goal": "Take a hecksagon's own event, from outside the domain's own bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1501,6 +1508,7 @@
           ],
           "goal": "Attach a bluebook to this hecksagon, from the gem or from vendor",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1545,6 +1553,7 @@
           ],
           "goal": "Admit a driving adapter to reach this hecksagon's domain; adapters left out refuse it",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1564,10 +1573,12 @@
           "role": "Deployment"
         }
       ],
+      "created_by": null,
       "description": "One .hecksagon — the events a domain subscribes to, and the root every binding hangs off. A sibling artifact to the bluebook, not part of it.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "domain.value"
       ],
@@ -2555,6 +2566,16 @@
         {
           "admits": null,
           "default": null,
+          "list": true,
+          "name": "handles",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "CommandValueHandling"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": false,
           "name": "answers",
           "optional": false,
@@ -2576,10 +2597,12 @@
       "commands": [
 
       ],
+      "created_by": null,
       "description": "One operation a port exposes — the same shape a command's payload has (attributes in, an event out) with none of a command's given/ensures/sets : a port operation is the translation boundary itself, not a second place business rules live. Those stay on whichever command a policy triggers in reaction to the event it emits.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -2713,6 +2736,75 @@
 
           ],
           "name": "EmittedEvent"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "command",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "command"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!command.to_s.empty?",
+              "description": "a handled command is named"
+            },
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "a handled value is named"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "CommandValueHandling"
         },
         {
           "attributes": [
@@ -3002,6 +3094,36 @@
               [
                 "fills",
                 "refuses"
+              ]
+            ],
+            [
+              [
+                "word",
+                "handles"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "handles"
+              ],
+              [
+                "calls",
+                "handles_impl"
               ]
             ]
           ],
@@ -3553,6 +3675,66 @@
               [
                 "fills",
                 "refuses"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "handles"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "command"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "handles"
+              ],
+              [
+                "context",
+                "PortOperation"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "value"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "value"
               ]
             ]
           ],

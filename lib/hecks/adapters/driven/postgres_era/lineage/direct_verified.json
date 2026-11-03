@@ -1,0 +1,10 @@
+{
+  "chains": [
+    {
+      "domain": "Pizzas",
+      "from": "e3f3d7",
+      "to": "77625c",
+      "fingerprint": "cddf5d0e5867f849eff61a9cce6751bbfd221f173a9573673fac3963fb21af26"
+    }
+  ]
+}

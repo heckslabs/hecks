@@ -10,13 +10,14 @@
 # core.hooksPath makes every worktree run this one file. The checks themselves, and why each
 # one blocks, are the `pre_push` stage in the Vocabulary gate rows; every check is reported
 # even if an earlier one failed. Among them, `codegen_drift` catches a Bluebook `given` changing
-# with nobody rerunning `hecks build.project_rust` (ADR 0057): CI's own `checks_codegen_drift` runs
+# with nobody rerunning `hecks build.project_rust!` (ADR 0057): CI's own `checks_codegen_drift` runs
 # on `pull_request` and on a push to main, after the push has landed, so this is the one local
 # backstop before it.
 #
-# The suite is opt-in. By default a push runs only the `unguarded_push` stage (rubocop, the
-# comment-style checks and spec/fuzzing); `hecks.fullGate` (git config) runs the whole `pre_push` stage,
-# suite included. A hook takes no arguments, so `hecks push_train.board! full_gate.value=true` is how a
+# The suite is opt-in. By default a push runs only the `quick` stage (seconds: shape ledger, rubocop,
+# the comment-style checks, secret output, adapter words); CI and the nightly run hold everything slower
+# and gate `stable`, not `main`. `hecks.fullGate` (git config) runs the whole `pre_push` stage,
+# suite included. A hook takes no arguments, so `hecks send_train.board! --confirm full_gate.value=true` is how a
 # person asks for it: the train pushes with `git -c hecks.fullGate=true` for that push only. A repository
 # can also keep it on with `git config hecks.fullGate true`. No commit hook runs anything: a commit is instant, and a push is where checks run.
 
@@ -63,33 +64,43 @@ if [ -n "$PUSHED_REFS" ]; then
   fi
 fi
 
-# The slow suite is opt-in: a push runs only the `unguarded_push` stage (rubocop, the comment-style
-# checks and spec/fuzzing, a couple of minutes), since CI runs every other check on the pushed commit. hecks.fullGate runs
-# the whole `pre_push` stage and, when green, writes the attestation note that lets CI skip its checks.
-# A stub (`hecks-stub: <finding>`) in a file this push touches blocks it: the finding is still open
-# or its marker was never removed. It runs on every main push, whatever the suite setting, so a
-# stub cannot slip past by skipping the suite.
+# Main is pushed through the push train: any agent boards it, and the train's
+# own `git push` carries `-c hecks.trainCarry=<commit>` (git config, like `hecks.fullGate`, for
+# that push only). A push of main without it is refused, unless the owner sets HECKS_OWNER_PUSH
+# to a reason (ADR 0132): the reason is printed here and the push goes on to the checks. The
+# gate cannot see the pushed refs, so this check lives in the hook.
+if [ -z "$(git config --get hecks.trainCarry)" ]; then
+  if [ -n "$HECKS_OWNER_PUSH" ]; then
+    printf '[pre-push] owner push of main outside the train: %s\n\n' "$HECKS_OWNER_PUSH" >&2
+  else
+    printf '[pre-push] main is pushed through the push train (send_train.board! checkout=%s --confirm); a plain git push of main is refused  (owner override: HECKS_OWNER_PUSH=<reason>)\n' "$ROOT" >&2
+    exit 1
+  fi
+fi
+
+# A stub (`hecks-stub: <finding>`) in a file this push touches blocks it until the finding is fixed
+# and its marker removed. It runs on every main push, whatever the suite setting.
 if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("stub_scope", ARGV)'; then
   printf '\n[pre-push] BLOCKED by a stub. Fix the finding and remove its marker, or push with --no-verify and say why.\n\n'
   exit 1
 fi
 
+# The slow suite is opt-in: a push runs only the `quick` stage, seconds long, since CI runs every other
+# check on the pushed commit. hecks.fullGate runs the whole `pre_push` stage and, when green, writes the
+# attestation note that lets CI skip its checks.
 FULL_GATE=$(git config --type=bool --get hecks.fullGate 2>/dev/null)
 if [ "$FULL_GATE" != "true" ]; then
-  printf '[pre-push] running the style checks and spec/fuzzing; CI runs the suite (`hecks push_train.board! full_gate.value=true` runs it here).\n\n'
-  # The quick checks first: an offense they find fails in seconds, before spec/fuzzing starts.
-  if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick ||
-     ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' unguarded_push only=fuzzing; then
+  if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick; then
     printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
     exit 1
   fi
   exit 0
 fi
 
-# The checks are data in the Vocabulary gate rows. `hecks gate_run.gate` runs a stage's checks together and
+# The checks are data in the Vocabulary gate rows. `hecks gate_run.gate!` runs a stage's checks together and
 # prints every red one, so a failure does not hide the others. The tool is called directly, not
 # through the launcher, so a red check's output arrives as text and not inside a journal record
-# (`hecks gate_run.gate pre_push --wait` is the recorded form).
+# (`hecks gate_run.gate! stage=pre_push --wait` is the recorded form).
 if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' pre_push; then
   printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
   exit 1
@@ -113,7 +124,7 @@ if [ -n "$ATTEST_DIRTY" ]; then
   printf '[pre-push] the working tree has uncommitted changes, so the checks did not run on HEAD alone — no CI attestation note written\n\n'
 elif [ -n "$ATTEST_KEY" ]; then
   ATTEST_TREE=$(git rev-parse HEAD^{tree})
-  ATTEST_CHECKS="doc_coverage,engine_agreement,model_check,rspec,rubocop"
+  ATTEST_CHECKS="doc_coverage,engine_agreement,model_check,rubocop"
   ATTEST_HMAC=$(printf '%s:%s' "$ATTEST_TREE" "$ATTEST_CHECKS" | openssl dgst -sha256 -hmac "$ATTEST_KEY" -r | awk '{print $1}')
 
   if git notes --ref=ci add -f -m "checks=$ATTEST_CHECKS

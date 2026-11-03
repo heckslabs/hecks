@@ -2,6 +2,8 @@
 
 require "hecks"
 require "hecks/ports/persistence/plugins/era"
+require "hecks/indifferent_key"
+require_relative "held_domain/renaming"
 
 module Hecks
   module Adapters
@@ -14,12 +16,17 @@ module Hecks
       # text from being attested; `scaffold` loads everything but the edges, since an unresolved
       # edge file refuses to load and writing it is the point.
       class HeldDomain
+        include Renaming
+
         MODES = %i[translated bare scaffold].freeze
 
         attr_reader :registry, :bluebook, :directory, :adapter_name
 
         # @return [String] the held domain's name
         def domain_name = bluebook.name
+
+        # @return [Array<String>] the names of every bluebook the registry loaded
+        def bluebook_names = registry.bluebooks.keys
 
         # @return [Array<Bluebook::Aggregate>] the held domain's aggregates
         def aggregates = bluebook.aggregates
@@ -79,11 +86,15 @@ module Hecks
 
         # @param registry [Runtime::Registry] the loaded registry
         # @param directory [String] the domain's bluebook directory
+        # @param name [String, nil] the bluebook to hold, by name; the registry's first when absent
         # @raise [Runtime::NotFound] if the registry holds no bluebook, or a bluebook no aggregate
-        def initialize(registry, directory)
+        def initialize(registry, directory, name = nil)
           @registry = registry
           @directory = directory
-          @bluebook = registry.first_bluebook or raise Runtime::NotFound, "no bluebook in #{directory}"
+          @bluebook = name ? registry.bluebooks[name] : registry.first_bluebook
+
+          raise Runtime::NotFound, "no bluebook in #{directory}" unless @bluebook
+
           first = @bluebook.aggregates.first or raise Runtime::NotFound, "#{@bluebook.name} declares no aggregates"
           @adapter_name = Ports::Persistence::BindingPolicy.resolve(registry, @bluebook.name, first).adapter
         end
@@ -108,6 +119,11 @@ module Hecks
           declared = declared.merge(schema: @schema) if @schema
           @database ? declared.merge(database: @database) : declared
         end
+
+        # The app role the world names, which provisioning grants what the app needs to write.
+        #
+        # @return [String, nil] the role, or nil when the world names none
+        def app_role = IndifferentKey.read(settings, :role)
 
         # Names the schema its journal store is read in, over the world's and `HECKS_SCHEMA`, so a
         # rehearsal reads the schema it reports.
@@ -146,7 +162,7 @@ module Hecks
         def named(era)
           return era if era[:hash]
 
-          hash = Runtime::StorageShape.mint_hash(PostgresEra::LineageManager.shadow(era[:held_text]))
+          hash = PostgresEra::LineageManager.held_hash(era)
           era.merge(hash: hash, label: hash[0, Runtime::StorageShape::LABEL_LENGTH])
         end
 
@@ -161,8 +177,8 @@ module Hecks
         # @yield [Lineage] the domain's lineage
         # @return [Object] the block's value
         def reading
-          db = PostgresEra.connect_for(bluebook.name, settings)
-          yield PostgresEra::Lineage.new(db, bluebook.name)
+          db = PostgresEra.connect_for(bluebook.name, settings, provision: false)
+          yield PostgresEra::Lineage.new(db, bluebook.name, reading: true)
         ensure
           db&.close
         end
@@ -181,6 +197,16 @@ module Hecks
           yield lineage
         ensure
           db&.close
+        end
+
+        # What a boot of the held bluebook would resolve, read from its database over a connection
+        # that only reads: the resolution the boot records (`LineageManager::EraResolution`).
+        #
+        # @return [PostgresEra::LineageManager::EraResolution::Answer]
+        # @raise [Runtime::WiringError] if the connection is refused or a held text was altered
+        def resolution
+          PostgresEra::LineageManager::EraResolution.read(bluebook: bluebook, settings: settings,
+                                                          translations: translations, directory: directory)
         end
 
         # The eras a lineage holds, without provisioning anything: none when the lineage tables do

@@ -20,6 +20,7 @@ module Hecks
 
           if ctx.dry_run
             step(:save) { check_dry_run_creates_duplicate(ctx) }
+            DryRunPlan.write(ctx.aggregate, ctx.instance)
           else
             step(:save) { persist_and_check(ctx) }
           end
@@ -47,13 +48,20 @@ module Hecks
             # this interpreter reading the record first to check — a
             # `repository.find` before every atomic_put would be exactly the
             # read this strategy exists to skip.
-            ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?)
+            ctx.repository.atomic_put(ctx.instance, insert_only: ctx.command.creates?, mints_era: mints_era?(ctx))
           else
             # `expected_version:` is nil for a brand-new record or a
             # non-CAS repository, either of which falls through to a
-            # plain, unconditional save inside `AppendOnly#save`.
-            ctx.repository.save(ctx.instance, expected_version: ctx.instance_version)
+            # plain, unconditional save inside `AppendOnly#save`. `mints_era:`
+            # reaches the journal entry only when this command declares it.
+            ctx.repository.save(ctx.instance, expected_version: ctx.instance_version, mints_era: mints_era?(ctx))
           end
+        end
+
+        # The one-write allowance this command's record holds through an unminted boot: the
+        # binding names it (`mints_era` in the world), or the command still says `mints_era true`.
+        def mints_era?(ctx)
+          ctx.command.mints_era? || ctx.repository.mints_era_declared?(ctx.aggregate_hecks_name, ctx.command_hecks_name)
         end
 
         def raise_for_persistence_outcome!(ctx)

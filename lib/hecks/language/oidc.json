@@ -82,6 +82,11 @@
       "role": "Language"
     },
     {
+      "scope": "bluebook:bluebook.group",
+      "verb": "Bluebook::Bluebook.Group",
+      "role": "Language"
+    },
+    {
       "scope": "bluebook:bluebook.normalise",
       "verb": "Bluebook::Bluebook.Normalise",
       "role": "Language"
@@ -94,6 +99,11 @@
     {
       "scope": "bluebook:command.acts_on",
       "verb": "Bluebook::Command.ActsOn",
+      "role": "Language"
+    },
+    {
+      "scope": "bluebook:command.address",
+      "verb": "Bluebook::Command.Address",
       "role": "Language"
     },
     {

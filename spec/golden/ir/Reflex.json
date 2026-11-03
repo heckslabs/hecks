@@ -52,6 +52,7 @@
           ],
           "goal": "Turn the light on",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -89,6 +90,7 @@
           ],
           "goal": "Record that the flip was noticed",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -111,10 +113,12 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A light that logs its own flip",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -268,6 +272,7 @@
           ],
           "goal": "Hang a bell that can be rung",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -295,6 +300,7 @@
           ],
           "goal": "Ring the bell, which rings the bell",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -307,10 +313,12 @@
           "role": "Operator"
         }
       ],
+      "created_by": null,
       "description": "A bell whose ring makes it ring",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -412,6 +420,7 @@
           ],
           "goal": "Raise the beacon and announce it outward",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -424,10 +433,12 @@
           "role": "Operator"
         }
       ],
+      "created_by": null,
       "description": "A beacon that signals a domain which is not loaded — the undeliverable reaction, which must be recorded rather than swallowed",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "signal.value"
       ],

@@ -1,10 +1,10 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/cli/run"
+require "hecks/tools/run"
 
 # `hecks run` saves through whatever the domain binds, and `HECKS_ENVIRONMENT` only changes that
 # for a domain that ships the overlay. A name with no overlay must be said, not ignored.
-RSpec.describe Hecks::CLI::Run, ".warn_unmatched_environment" do
+RSpec.describe Hecks::Tools::Run, ".warn_unmatched_environment" do
   let(:dir) { Dir.mktmpdir }
 
   around do |example|

@@ -41,6 +41,19 @@ Hecks.bluebook "Bluebook", version: "1" do
     # Capabilities this bluebook answers for other domains, one row per (capability, key, verb).
     # Absent is not empty: most bluebooks provide nothing.
     attribute :provides, list_of(Provision)
+    # The modules grouping this bluebook's aggregates by task (ADR 0163), one row per aggregate.
+    # Absent is not empty: most bluebooks group nothing.
+    attribute :modules, list_of(ModuleMembership)
+
+    value_object "ModuleMembership" do
+      attribute :name,      String
+      attribute :vision,    String
+      attribute :aggregate, String
+    end
+
+    value_object "ModuleText" do
+      attribute :value, String
+    end
 
     value_object "Provision" do
       attribute :capability, String
@@ -154,6 +167,21 @@ Hecks.bluebook "Bluebook", version: "1" do
       emits CapabilityProvided
     end
 
+    # One aggregate's place in a module: `domain_module "Deliver"` offers one row per aggregate its
+    # block declares, each carrying the module's vision.
+    command "Group" do
+      role "Language"
+      goal "Declare that an aggregate belongs to a module"
+
+      attribute :name,      ModuleText
+      attribute :vision,    ModuleText
+      attribute :aggregate, ModuleText
+
+      sets :modules, append: { name: :name, vision: :vision, aggregate: :aggregate }
+
+      emits AggregateGrouped
+    end
+
     # Reads a bluebook back out, not only in.
     # Named to finish a sentence: the bluebook CALLED "Pizzas".
     query "Called" do
@@ -206,6 +234,8 @@ Hecks.bluebook "Bluebook", version: "1" do
       member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
       member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
 
+
+      member word: "domain_module", context: "Bluebook", body: "keywords", inner: "Bluebook", opens: "Bluebook", fills: ""
     end
 
     value_object "ArgumentSeed" do
@@ -254,6 +284,10 @@ Hecks.bluebook "Bluebook", version: "1" do
       member keyword: "provides", context: "Bluebook", at: "", named: "live_assignments", kind: "text", required: "false", fills: "provides"
 
       member keyword: "provides", context: "Bluebook", at: "", named: "live_transitions", kind: "text", required: "false", fills: "provides"
+
+      member keyword: "aggregate", context: "Bluebook", at: "", named: "kind", kind: "text", required: "false", fills: "kind"
+
+      member keyword: "domain_module", context: "Bluebook", at: "1", named: "", kind: "text", required: "true", fills: "name"
     end
   end
 end

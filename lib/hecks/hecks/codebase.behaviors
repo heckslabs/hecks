@@ -1,7 +1,7 @@
 Hecks.behaviors "Codebase" do
   vision "A request to work on this repository is recorded, the tree is examined, and only a hecks checkout lets it through."
 
-  loads "hecks.bluebook", "custodian.bluebook", "tooling.bluebook", "rehearsal.bluebook", "agents.bluebook", "codebase.bluebook", "ledger.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world"
+  loads "hecks.bluebook", "context_map.hecksagon", "hecks.hecksagon", "environments/memory.world", modules: :all
 
   test "ProjectModel reports what the language projects, and keeps the answer" do
     tests "ProjectModel", on: "LanguageRun"
@@ -183,6 +183,18 @@ Hecks.behaviors "Codebase" do
     expect emits: %w[RunSpecExampleRequested TestSuiteExamined TestSuiteAccepted TestSuiteRefused TestSuiteFaulted]
   end
 
+  test "RunSpecFiles refuses an isolation that is neither process nor shared" do
+    tests "RunSpecFiles", on: "TestSuiteRun"
+    input files: { value: "spec/a_spec.rb" }, isolation: { value: "fork" }, run: { value: "files" }
+    expect refused: "must match"
+  end
+
+  test "RunImpactedSpecs refuses a cap of zero files" do
+    tests "RunImpactedSpecs", on: "TestSuiteRun"
+    input cap: { value: 0 }, run: { value: "impacted" }
+    expect refused: "a count is positive"
+  end
+
   test "StressConcurrency refuses a count of zero runs" do
     tests "StressConcurrency", on: "TestSuiteRun"
     input runs: { value: 0 }, run: { value: "stress" }
@@ -193,12 +205,6 @@ Hecks.behaviors "Codebase" do
     tests "ClearCaches", on: "TestSuiteRun"
     input run: { value: "clear" }
     expect emits: %w[ClearCachesRequested TestSuiteExamined TestSuiteAccepted TestSuiteAnswered TestSuiteCompleted]
-  end
-
-  test "RefreshRuntimeBaseline refuses a run that is not a number" do
-    tests "RefreshRuntimeBaseline", on: "TestSuiteRun"
-    input from_run: { value: "latest" }, run: { value: "baseline" }
-    expect refused: "must match"
   end
 
   test "RegenerateLegacyFixtures reports what it would rewrite, and rewrites nothing, without confirm" do
@@ -215,25 +221,25 @@ Hecks.behaviors "Codebase" do
   end
 
   test "Present refuses a port that is not one" do
-    tests "Present", on: "CorpusRun"
+    tests "Present", on: "Server"
     input port: { value: 70_000 }, run: { value: "present" }
     expect refused: "a port is 1 to 65535"
   end
 
   test "Compose refuses a port that is not one" do
-    tests "Compose", on: "CorpusRun"
+    tests "Compose", on: "Server"
     input port: { value: 70_000 }, run: { value: "compose" }
     expect refused: "a port is 1 to 65535"
   end
 
   test "Preview refuses a port that is not one" do
-    tests "Preview", on: "CorpusRun"
+    tests "Preview", on: "Server"
     input directory: { value: "site" }, port: { value: 70_000 }, run: { value: "preview" }
     expect refused: "a port is 1 to 65535"
   end
 
   test "ServeQueryIrMcp refuses a run that is not named" do
-    tests "ServeQueryIrMcp", on: "CorpusRun"
+    tests "ServeQueryIrMcp", on: "Server"
     input run: { value: "" }
     expect refused: "must match"
   end

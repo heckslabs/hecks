@@ -92,6 +92,7 @@
           ],
           "goal": "Take on a new customer",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -154,6 +155,7 @@
           ],
           "goal": "Stop a customer transacting while something is investigated",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -189,6 +191,7 @@
           ],
           "goal": "Let a cleared customer transact again",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -229,6 +232,7 @@
           ],
           "goal": "End the relationship",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -241,10 +245,12 @@
           "role": "Branch clerk"
         }
       ],
+      "created_by": null,
       "description": "A person the bank holds a relationship with. Suspended rather than deleted — a bank forgets nothing.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -697,6 +703,7 @@
           ],
           "goal": "Give a customer somewhere to keep money",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -799,6 +806,7 @@
           ],
           "goal": "Put money in",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "increment",
@@ -1014,6 +1022,7 @@
           ],
           "goal": "Take money out, if it is there to take",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "decrement",
@@ -1080,6 +1089,7 @@
           ],
           "goal": "Stop an account moving while something is investigated",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -1128,6 +1138,7 @@
           ],
           "goal": "Release a cleared account",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -1198,6 +1209,7 @@
           ],
           "goal": "Close an account that has been emptied",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -1291,6 +1303,7 @@
           ],
           "goal": "Charge the account a fee",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "decrement",
@@ -1391,6 +1404,7 @@
           ],
           "goal": "Reverse a fee that was applied in error",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1475,6 +1489,7 @@
           ],
           "goal": "Credit the account with interest earned",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "increment",
@@ -1601,6 +1616,7 @@
           ],
           "goal": "Reverse interest that was accrued in error",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "decrement",
@@ -1630,6 +1646,7 @@
           "role": "Back office"
         }
       ],
+      "created_by": null,
       "description": "A balance belonging to one customer, and the ledger that explains how it got there.",
       "entities": [
         {
@@ -1811,6 +1828,7 @@
               ],
               "goal": "Correct a movement posted for the wrong amount",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
                 {
                   "op": "increment",
@@ -1931,6 +1949,7 @@
               ],
               "goal": "Undo a movement that should not have been posted",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
                 {
                   "op": "set",
@@ -2073,6 +2092,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "number.value"
       ],
@@ -2883,6 +2903,7 @@
           ],
           "goal": "Stop an account or a card while something is looked into",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -2939,6 +2960,7 @@
           ],
           "goal": "Take a hold off once the matter is settled",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -2988,6 +3010,7 @@
           ],
           "goal": "Send a hold on an account to the account review desk",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -3037,6 +3060,7 @@
           ],
           "goal": "Send a hold on a card to the card review desk",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -3049,10 +3073,12 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A stop the bank puts on an account or on a card while something is looked into.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -3356,6 +3382,7 @@
           ],
           "goal": "Open a KYC case for a newly registered customer, naming the account it will become",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -3430,6 +3457,7 @@
           ],
           "goal": "Pass a customer's identity and screening checks",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -3478,6 +3506,7 @@
           ],
           "goal": "Refuse a customer who does not clear screening — no account was ever opened, so nothing is undone",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -3490,10 +3519,12 @@
           "role": "Compliance officer"
         }
       ],
+      "created_by": null,
       "description": "The KYC check a newly registered customer clears before an account exists for them — screened once, and if it does not clear there is nothing to undo, because nothing was ever opened.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -3832,6 +3863,7 @@
           ],
           "goal": "Put a card in a customer's hand",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -3918,6 +3950,7 @@
           ],
           "goal": "Name a card so it is recognisable",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -4015,6 +4048,7 @@
           ],
           "goal": "Take cash out at a machine",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -4071,6 +4105,7 @@
           ],
           "goal": "Start using a card",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -4122,6 +4157,7 @@
           ],
           "goal": "Take a card out of service",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -4134,6 +4170,7 @@
           "role": "Back office"
         }
       ],
+      "created_by": null,
       "description": "A card issued against an account, and the cash taken with it.",
       "entities": [
         {
@@ -4263,6 +4300,7 @@
               ],
               "goal": "Challenge a withdrawal that was not mine",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
                 {
                   "op": "set",
@@ -4298,6 +4336,7 @@
               ],
               "goal": "Give the customer back a withdrawal the bank agrees was not theirs",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
 
               ],
@@ -4325,6 +4364,7 @@
               ],
               "goal": "Turn down a dispute the bank finds was the customer's own withdrawal",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
 
               ],
@@ -4399,6 +4439,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "serial.value"
       ],
@@ -5022,6 +5063,7 @@
           ],
           "goal": "Put a hold on funds for a purchase",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -5136,6 +5178,7 @@
           ],
           "goal": "Turn an authorization into an actual charge",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -5206,6 +5249,7 @@
           ],
           "goal": "Cancel an authorization before it settles",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -5276,6 +5320,7 @@
           ],
           "goal": "Give the money back after a charge settled",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -5346,6 +5391,7 @@
           ],
           "goal": "Undo a captured charge with no customer dispute involved",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -5429,6 +5475,7 @@
           ],
           "goal": "Challenge a payment that already settled",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -5507,6 +5554,7 @@
           ],
           "goal": "Uphold a customer's dispute and claw the charge back",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -5577,6 +5625,7 @@
           ],
           "goal": "Uphold the charge and close a customer's dispute",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -5589,10 +5638,12 @@
           "role": "Compliance officer"
         }
       ],
+      "created_by": null,
       "description": "A card authorisation that either settles, is voided before settlement, or becomes a post-settlement dispute.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "authorisation.value"
       ],
@@ -6121,6 +6172,7 @@
           ],
           "goal": "Assign the box to a customer",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -6205,6 +6257,7 @@
           ],
           "goal": "Give the box back and take the keys off the account",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -6282,6 +6335,7 @@
           ],
           "goal": "Record that the box was opened",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -6348,6 +6402,7 @@
           ],
           "goal": "Cut a key for the box",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -6367,6 +6422,7 @@
           "role": "Vault officer"
         }
       ],
+      "created_by": null,
       "description": "A steel box in the vault, held under one customer's name and opened only against the branch and number stamped on its face.",
       "entities": [
         {
@@ -6473,6 +6529,7 @@
               ],
               "goal": "Note something unusual about a visit after the fact",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
                 {
                   "op": "set",
@@ -6700,6 +6757,7 @@
               ],
               "goal": "Take a key back when a holder is done with it",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
 
               ],
@@ -6747,6 +6805,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "branch_code.value",
         "box_number.value"
@@ -7281,6 +7340,7 @@
           ],
           "goal": "Close out one period's activity into a permanent record",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -7346,10 +7406,12 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A snapshot of one account's activity over one period, generated once and never revised.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "account",
         "period.value"
@@ -7784,6 +7846,7 @@
           ],
           "goal": "Send money to another account",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -7898,6 +7961,7 @@
           ],
           "goal": "Record that the source account has given up the money",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -7968,6 +8032,7 @@
           ],
           "goal": "Record that the destination has received it",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -8038,6 +8103,7 @@
           ],
           "goal": "Record that the destination credit committed",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -8108,6 +8174,7 @@
           ],
           "goal": "Put the money back when the credit could not be made",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -8178,6 +8245,7 @@
           ],
           "goal": "Refuse a transfer before any money moved",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -8190,10 +8258,12 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "Money leaving one account for another. Two movements that must both happen, or neither.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "reference.value"
       ],
@@ -8710,6 +8780,7 @@
           ],
           "goal": "Send money to an account outside the bank",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -8824,6 +8895,7 @@
           ],
           "goal": "Release the transfer to the external network",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -8894,6 +8966,7 @@
           ],
           "goal": "Ask the external network to stop a transfer already sent",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -8964,6 +9037,7 @@
           ],
           "goal": "Record that the external network sent the money back",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -8976,10 +9050,12 @@
           "role": "System"
         }
       ],
+      "created_by": null,
       "description": "A transfer sent beyond the bank, where a recall is an instruction and a return is the external network's outcome.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "end_to_end.value"
       ],
@@ -9452,6 +9528,7 @@
           ],
           "goal": "Set up a payment to collect on a future date",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -9566,6 +9643,7 @@
           ],
           "goal": "Collect a payment on its due date",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -9636,6 +9714,7 @@
           ],
           "goal": "Call off a payment before its due date",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -9706,6 +9785,7 @@
           ],
           "goal": "Record that today's presentment could not be collected",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -9835,6 +9915,7 @@
           ],
           "goal": "Re-present a failed payment, up to the limit the schedule names",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "increment",
@@ -9941,6 +10022,7 @@
           ],
           "goal": "Give up on a payment that could not be collected after every retry",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -9953,10 +10035,12 @@
           "role": "Back office"
         }
       ],
+      "created_by": null,
       "description": "An instruction held for a future date, which may execute once or be cancelled before it does.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "instruction.value"
       ],
@@ -10560,6 +10644,9 @@
         }
       ],
       "name": "Onboarding",
+      "resumes": [
+
+      ],
       "starts_on": "OnboardingOpened",
       "states": [
         "screening",
@@ -10712,6 +10799,9 @@
         }
       ],
       "name": "Settlement",
+      "resumes": [
+
+      ],
       "starts_on": "TransferRequested",
       "states": [
         "requested",
@@ -10763,6 +10853,9 @@
         }
       ],
       "name": "ExternalSettlement",
+      "resumes": [
+
+      ],
       "starts_on": "ExternalTransferRequested",
       "states": [
         "requested",

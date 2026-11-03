@@ -36,7 +36,12 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     git("push", "-q", "origin", "main", dir: other)
   end
 
-  def carry = described_class.new.carry(checkout: { value: work })
+  # The Hecks mint a boarding runs first, answering that the shape did not move.
+  def still_mint = instance_double(described_class::MintStep, run: "the Hecks shape f30dcb did not move")
+
+  def train = described_class.new(mint: still_mint)
+
+  def carry = train.carry(checkout: { value: work })
 
   before do
     git("init", "-q", "--bare", "-b", "main", "origin.git", dir: scratch)
@@ -75,6 +80,89 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect(git("rev-parse", "HEAD", dir: work)).to eq(git("rev-parse", "origin/main", dir: work))
   end
 
+  describe "the boarded branch only" do
+    let(:git_adapter) { Hecks::Adapters::Git.new }
+
+    def settlement = described_class::Settlement.new(git_adapter, work, branch: "main", remote: "origin")
+
+    # A branch that diverged from its remote, and the commit it named at boarding.
+    def diverged
+      commit("local-only")
+      push_elsewhere("remote-only")
+      git("rev-parse", "main")
+    end
+
+    it "refuses a checkout that has another branch checked out, and moves nothing", :aggregate_failures do
+      main = diverged
+      git("checkout", "-q", "-b", "feature")
+
+      expect { settlement.run(main) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /feature checked out, not main/)
+      expect(git("rev-parse", "main")).to eq(main)
+    end
+
+    it "refuses a detached checkout" do
+      main = diverged
+      git("checkout", "-q", "--detach")
+
+      expect { settlement.run(main) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /detached HEAD/)
+    end
+
+    it "refuses a checkout with staged files before it rebases", :aggregate_failures do
+      main = diverged
+      File.write(File.join(work, "first"), "edited")
+      git("add", "first")
+
+      expect { settlement.run(main) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /staged or modified/)
+      expect(git("rev-parse", "main")).to eq(main)
+    end
+
+    it "refuses a branch that moved since boarding" do
+      boarded = git("rev-parse", "main")
+      commit("late")
+
+      expect { settlement.run(boarded) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /main moved since boarding/)
+    end
+
+    it "answers the rebased commit the carriage then carries" do
+      commit("local-only")
+      push_elsewhere("remote-only")
+
+      expect(settlement.run(git("rev-parse", "main"))).to eq(git("rev-parse", "main"))
+    end
+
+    context "with a shape ledger to settle" do
+      let(:ledger) { File.join(work, described_class::Settlement::LEDGER) }
+
+      before do
+        FileUtils.mkdir_p(File.dirname(ledger))
+        File.write(ledger, "old")
+        git("add", ".")
+        git("commit", "-q", "-m", "ledger")
+        script = File.join(scratch, "settle.sh")
+        File.write(script, "#!/bin/sh\nprintf changed > #{ledger}\n")
+        FileUtils.chmod("+x", script)
+        stub_const("Hecks::Adapters::GitTrain::Settlement::SETTLE", [script].freeze)
+      end
+
+      it "refuses rather than sweep other staged files into the ledger commit", :aggregate_failures do
+        git("config", "core.hooksPath", File::NULL)
+        File.write(File.join(work, "other"), "staged")
+        git("add", "other")
+
+        expect { settlement.run(git("rev-parse", "main")) }
+          .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /staged or modified/)
+      end
+
+      it "names the ledger path in its commit and sweeps in nothing else", :aggregate_failures do
+        boarded = git("rev-parse", "main")
+        settled = settlement.run(boarded)
+
+        expect(settled).not_to eq(boarded)
+        expect(git("show", "--name-only", "--format=", settled).lines.map(&:strip)).to eq([described_class::Settlement::LEDGER])
+      end
+    end
+  end
+
   describe "the drift checks" do
     let(:git_adapter) { Hecks::Adapters::Git.new }
     let(:drift_checks) { [] }
@@ -85,7 +173,8 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     end
 
     def settle(checks)
-      Hecks::Adapters::GitTrain::Settlement.new(git_adapter, work, branch: "main", remote: "origin", drift: checks).run
+      Hecks::Adapters::GitTrain::Settlement.new(git_adapter, work, branch: "main", remote: "origin", drift: checks)
+                                           .run(git("rev-parse", "main"))
     end
 
     it "refuses the boarding when a drift check finds drift, and names the check" do

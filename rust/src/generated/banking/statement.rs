@@ -934,14 +934,23 @@ impl GenerateArgs {
         let account = {
             let x = v.get("account").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Statement.account expects String, got nil".to_string(),
+                    "Generate.account expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Statement.account expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Generate",
+                        attribute: "account",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Account is known by number)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         Ok(Self {

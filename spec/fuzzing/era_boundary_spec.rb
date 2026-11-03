@@ -6,10 +6,15 @@ require "fileutils"
 require "tempfile"
 require "pg"
 require "json"
+require_relative "../support/mint_request_support"
+require_relative "../support/first_era_hold"
 
 # `Hecks::Fuzzing::EraBoundary` against a real diverged write: file-based domain loading,
 # `BindingPolicy` resolution and `.world` settings reach the answer `hecks merge_tail` reports.
 RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
+  include MintRequestSupport
+  include FirstEraHold
+
   ERA_BOUNDARY_SPEC_DATABASE = "hecks_era_boundary_spec".freeze
 
   # Prefixed names: constants assigned inside `RSpec.describe` land on `Object`, so a
@@ -85,7 +90,8 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
     load_bluebook(registry, source, translation_source)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
-      settings: { database: database_url, allow_superuser: true, mint_eras: true }
+      settings: with_mint_request({ database: database_url, allow_superuser: true, mint_eras: true },
+                                  domain: registry.bluebooks.values.first.name)
     )
     registry
   end
@@ -117,8 +123,14 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
 
   def label_of(source) = hash_of(source)[0, 6]
 
+  # Holds era 1 from the V1 source, as the mint entry point does, then verifies it by a boot.
+  def hold_v1!
+    hold_first_era!(url: database_url, domain: "EraBoundaryFixture", source: ERA_BOUNDARY_V1_SOURCE)
+    check!(ERA_BOUNDARY_V1_SOURCE)
+  end
+
   def write_v1_record(id)
-    registry = check!(ERA_BOUNDARY_V1_SOURCE)
+    registry = hold_v1!
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate,
                                                settings:  { database: database_url, domain: "EraBoundaryFixture" })
@@ -216,7 +228,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
   end
 
   it "reports checked: true, diverged_total: 0 for a domain on its very first era" do
-    check!(ERA_BOUNDARY_V1_SOURCE)
+    hold_v1!
     write_fixture_files!(@fixture_root, ERA_BOUNDARY_V1_SOURCE)
 
     result = described_class.diverged_ancestor_writes(@fixture_root)

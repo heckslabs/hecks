@@ -1,5 +1,4 @@
 require "spec_helper"
-require "hecks/cli"
 require "open3"
 require_relative "doc_banners_spec"
 
@@ -38,10 +37,11 @@ end
 module DocReferences
   ROOT = File.expand_path("..", __dir__)
 
-  HISTORICAL = %w[docs/migrating-2-to-3.md].freeze
+  HISTORICAL = %w[docs/migrating-2-to-3.md docs/migrating-6-to-7.md].freeze
 
-  # Words exe/hecks hands to Hecks::CLI before the launcher; they are not qualified names.
-  UNQUALIFIED = (Hecks::CLI::COMMANDS.keys.map(&:to_s) + %w[console init interview version help]).freeze
+  # Words the launcher took unqualified before it retired them; they are not qualified names.
+  RETIRED = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
+  UNQUALIFIED = (RETIRED + %w[console init interview version help]).freeze
 
   # Launchers that take a verb of their own after them: `hecks deploy recipe.project`.
   BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control].freeze
@@ -147,7 +147,7 @@ module DocReferences
 
   # Every module and class name some Ruby file under lib/ declares, for constants that load lazily
   # and so are not defined until something requires them, and every aggregate some bluebook there
-  # declares, which the launcher's verb form names as `Hecks::PushTrain.board!`.
+  # declares, which the launcher's verb form names as `Hecks::SendTrain.board!`.
   def declared_names
     @declared_names ||= Dir[File.join(ROOT, "lib/**/*.{rb,bluebook}")].flat_map { |file| names_in(file) }.to_set
   end

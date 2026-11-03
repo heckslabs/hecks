@@ -1,8 +1,9 @@
 require "json"
 require_relative "../.."
-require_relative "../../cli/mcp"
+require_relative "../../tools/mcp"
 require_relative "mcp/tool_definitions"
 require_relative "mcp/tool_calls"
+require_relative "mcp/progress_sink"
 
 module Hecks
   module Adapters
@@ -42,7 +43,7 @@ module Hecks
         # Read once, so a bad setting refuses to start the server before anything is
         # written to stdout.
         def scope
-          @scope ||= McpScope.start!(server: CLI::Mcp::SERVER)
+          @scope ||= McpScope.start!(server: Tools::Mcp::SERVER)
         end
 
         # The standing notes, then what this server's scope says about `domain:`.
@@ -51,7 +52,7 @@ module Hecks
         end
 
         def serve
-          McpStdioGuard.warn!(server: CLI::Mcp::SERVER, notes: warning_notes)
+          McpStdioGuard.warn!(server: Tools::Mcp::SERVER, notes: warning_notes)
           $stdout.sync = true
 
           $stdin.each_line { |line| answer_line(line.strip) }
@@ -138,7 +139,7 @@ module Hecks
 
         def initialize_result(_params)
           { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} },
-            serverInfo: { name: CLI::Mcp::SERVER, version: "1.1.0" } }
+            serverInfo: { name: Tools::Mcp::SERVER, version: "1.1.0" } }
         end
 
         # The tools this server's scope permits, each presented with the command guide.
@@ -149,8 +150,28 @@ module Hecks
         end
 
         def tools_call(params)
-          tool_result(answer_tool(params["name"], params["arguments"] || {}))
+          token = params.dig("_meta", "progressToken")
+          return tool_result(answer_tool(params["name"], params["arguments"] || {})) if token.nil?
+
+          with_progress(token) { tool_result(answer_tool(params["name"], params["arguments"] || {})) }
         end
+
+        # Runs the block with a progress seam for this call's stages, so their lines reach the
+        # client as
+        # notifications. The seam is per thread and removed when the call ends.
+        # @param token [Object] the client's progress token
+        # @return [Object] the block's value
+        def with_progress(token)
+          previous = Thread.current[:mcp_progress]
+          Thread.current[:mcp_progress] = Tools::StageProgress.new(ProgressSink.new(token, out: $stdout))
+          yield
+        ensure
+          Thread.current[:mcp_progress] = previous
+        end
+
+        # The progress seam of the call on this thread: nil when the client sent no progress token.
+        # @return [Tools::StageProgress, nil]
+        def progress = Thread.current[:mcp_progress]
 
         def ping_result(_params) = {}
       end

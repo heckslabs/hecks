@@ -365,6 +365,10 @@ pub async fn ensure_base<C: GenericClient>(client: &C, domain: &str) -> anyhow::
     client
         .batch_execute("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS canon_form int")
         .await?;
+    // Ruby's era reader selects `edge`; the Rust mint leaves it NULL (no implicit-edge record).
+    client
+        .batch_execute("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS edge jsonb")
+        .await?;
     client
         .batch_execute(
             "CREATE TABLE IF NOT EXISTS hecks_era_texts (\
@@ -1124,13 +1128,14 @@ async fn hold_first_body<C: GenericClient>(
 ) -> anyhow::Result<()> {
     let hash = storage_shape::mint_hash(ir);
     let label = storage_shape::mint_label(ir);
+    let projection = storage_shape::canonical(ir);
     let digest = format!("{:x}", Sha256::digest(held_text.as_bytes()));
 
     client
         .execute(
-            "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, canon_form) \
-             VALUES ($1, 1, $2, $3, $4, 0, $5, $6) ON CONFLICT DO NOTHING",
-            &[&domain, &hash, &label, &held_text, &digest, &storage_shape::FORM_VERSION],
+            "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, canon_form, \
+             held_projection) VALUES ($1, 1, $2, $3, $4, 0, $5, $6, $7::text::jsonb) ON CONFLICT DO NOTHING",
+            &[&domain, &hash, &label, &held_text, &digest, &storage_shape::FORM_VERSION, &projection],
         )
         .await?;
     archive_text(client, domain, 1, held_text, &digest).await?;
@@ -1268,6 +1273,7 @@ pub async fn mint_era<C: GenericClient>(
     ordinal: i32,
     hash: &str,
     label: &str,
+    projection: &str,
     held_text: &str,
     aggregates: &[Aggregate],
     edges: &[&Edge],
@@ -1281,6 +1287,7 @@ pub async fn mint_era<C: GenericClient>(
         ordinal,
         hash,
         label,
+        projection,
         held_text,
         aggregates,
         edges,
@@ -1308,6 +1315,7 @@ async fn mint_era_body<C: GenericClient>(
     ordinal: i32,
     hash: &str,
     label: &str,
+    projection: &str,
     held_text: &str,
     aggregates: &[Aggregate],
     edges: &[&Edge],
@@ -1341,9 +1349,9 @@ async fn mint_era_body<C: GenericClient>(
     let digest = format!("{:x}", Sha256::digest(held_text.as_bytes()));
     client
         .execute(
-            "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, canon_form) \
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            &[&domain, &ordinal, &hash, &label, &held_text, &watermark, &digest, &storage_shape::FORM_VERSION],
+            "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, canon_form, \
+             held_projection) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text::jsonb)",
+            &[&domain, &ordinal, &hash, &label, &held_text, &watermark, &digest, &storage_shape::FORM_VERSION, &projection],
         )
         .await?;
     archive_text(client, domain, ordinal, held_text, &digest).await?;
@@ -1895,6 +1903,7 @@ mod tests {
             2,
             &storage_shape::mint_hash(&v2_ir),
             &to_label,
+            &storage_shape::canonical(&v2_ir),
             "v2 source text",
             &[aggregate],
             &[&edge],
@@ -1923,6 +1932,29 @@ mod tests {
                 ),
             ]
         );
+        assert_projections_stored(&client, domain, &[(1, &v1_ir), (2, &v2_ir)]).await;
+    }
+
+    // Each era's `held_projection` is the parsed canonical shape of the IR it was minted from.
+    async fn assert_projections_stored(
+        client: &tokio_postgres::Client,
+        domain: &str,
+        expected: &[(i32, &Value)],
+    ) {
+        for (ordinal, ir) in expected {
+            let row = client
+                .query_one(
+                    "SELECT held_projection::text FROM hecks_eras WHERE domain = $1 AND ordinal = $2",
+                    &[&domain, ordinal],
+                )
+                .await
+                .expect("era row");
+            let stored: Option<String> = row.get(0);
+            let stored: Value =
+                serde_json::from_str(&stored.expect("held_projection set")).expect("json");
+            let wanted: Value = serde_json::from_str(&storage_shape::canonical(ir)).expect("json");
+            assert_eq!(stored, wanted, "era {ordinal} held_projection");
+        }
     }
 
     fn registration_default() -> LifecycleDefault {
@@ -2130,6 +2162,7 @@ mod tests {
             2,
             &storage_shape::mint_hash(&v2_ir),
             &to_label,
+            &storage_shape::canonical(&v2_ir),
             "v2 source",
             &[aggregate],
             &[&edge],
@@ -2436,6 +2469,7 @@ mod tests {
                     era + 1,
                     &"h".repeat(64),
                     &format!("e{}", era + 1),
+                    "{}",
                     "text",
                     &aggregates,
                     &chain,

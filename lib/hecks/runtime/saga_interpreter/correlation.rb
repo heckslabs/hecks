@@ -29,10 +29,19 @@ module Hecks
         # Strings respond to `[]`, so test for Hash/Value explicitly rather than
         # `respond_to?(:[])`.
         def payload_correlation(process_manager, event)
-          path = process_manager.correlates_by.to_s.split(".")
-          path.reduce(event.payload) do |held, segment|
-            held.is_a?(Hash) || held.is_a?(Value) ? held[segment.to_sym] : held
+          path = own_correlation_path(process_manager, event)
+          held = path.reduce(event.payload) do |current, segment|
+            current.is_a?(Hash) || current.is_a?(Value) ? current[segment.to_sym] : current
           end
+          sole_field_scalar(held)
+        end
+
+        # A path ending at a single-field value object reads that object's one field, so a bare
+        # `Thing.id` keys by the same scalar `Thing.id.value` does.
+        def sole_field_scalar(held)
+          return held unless held.is_a?(Value)
+
+          Value.materialize_unwrapped(held)
         end
 
         # The stamp `deliver_saga_dispatch` puts on its own event, for legs whose command
@@ -42,12 +51,29 @@ module Hecks
           event.correlation && event.correlation[process_manager.correlation_head.to_s]
         end
 
+        # `Message.id` (what a bare `correlates_by Message` resolves to) names the emitting
+        # aggregate's own id: the path is walked without its leading aggregate name.
+        def own_correlation_path(process_manager, event)
+          path = process_manager.correlates_by.to_s.split(".")
+          path.size > 1 && path.first == emitting_aggregate_name(event) ? path.drop(1) : path
+        end
+
+        # The emitting aggregate's bare name, without its domain module.
+        def emitting_aggregate_name(event)
+          _domain, bare_name = event.aggregate.to_s.split("::", 2)
+          bare_name
+        end
+
         def self_identified?(process_manager, event)
           domain, bare_name = event.aggregate.to_s.split("::", 2)
           return false unless bare_name
 
           construct = @registry.bluebook(domain)&.aggregate(bare_name)
           return false unless construct
+
+          head, *rest = process_manager.correlates_by.to_s.split(".")
+          # The emitting aggregate's own id, spelled with its name: `Message.id`.
+          return rest == ["id"] if head == bare_name
 
           construct.identity_heads.map(&:to_s).include?(process_manager.correlation_head.to_s)
         end

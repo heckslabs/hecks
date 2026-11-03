@@ -4,7 +4,7 @@ require "tmpdir"
 require "hecks/tools"
 
 # ADR 0080, section 7: the Site row of the command table. The Site bluebook is attached to the
-# Hecks domain, so the row is `hecks site site_projection.project_site`. This spec checks that the
+# Hecks domain, so the row is `hecks site site_projection.project_site!`. This spec checks that the
 # command is declared in the Site bluebook, that its verb answers `--help` through the launcher,
 # and then runs it against the sample project in spec/fixtures/site/studio: a projection written
 # to a temporary directory, a `--check` that finds the file absent, then current, and a project
@@ -33,7 +33,7 @@ RSpec.describe "the Site row of the ADR command table" do
   end
 
   # Projects the sample project into `dir` under --wait, with any extra flags.
-  def project_to(dir, *flags) = answer(["site_projection.project_site", PROJECT, "out=#{dir}", *flags, "--wait"])
+  def project_to(dir, *flags) = answer(["site_projection.project_site!", PROJECT, "out=#{dir}", *flags, "--wait"])
 
   # The committed output the projection of the sample project must equal.
   def golden(name) = File.read(File.join(PROJECT, "..", name))
@@ -41,7 +41,7 @@ RSpec.describe "the Site row of the ADR command table" do
   # Projects with the template in `dir` and the routes in `dir/web`, as an .mts module.
   def project_beside(dir)
     FileUtils.cp(File.join(PROJECT, "deploy/template.yaml"), File.join(dir, "infra.yaml"))
-    answer(["site_projection.project_site", PROJECT, "out=#{dir}/web", "template=#{dir}/infra.yaml",
+    answer(["site_projection.project_site!", PROJECT, "out=#{dir}/web", "template=#{dir}/infra.yaml",
             "extension=mts", "--wait"])
   end
 
@@ -51,16 +51,16 @@ RSpec.describe "the Site row of the ADR command table" do
     FileUtils.rm_rf(File.join(dir, "client/generated"))
     FileUtils.mkdir_p(File.join(dir, "infra"))
     FileUtils.cp(File.join(PROJECT, "deploy/template.yaml"), File.join(dir, "infra/stack.yaml"))
-    argv = ["site_projection.project_site", "client", "out=client/web", "template=infra/stack.yaml", "--wait"]
+    argv = ["site_projection.project_site!", "client", "out=client/web", "template=infra/stack.yaml", "--wait"]
     Dir.chdir(dir) { answer(argv).last }
   end
 
-  it "answers (new) as SiteProjection.ProjectSite, `hecks site site_projection.project_site`", :aggregate_failures do
+  it "answers (new) as SiteProjection.ProjectSite, `hecks site site_projection.project_site!`", :aggregate_failures do
     aggregate = @bluebook.aggregate("SiteProjection")
 
     expect(aggregate.commands.map(&:hecks_name)).to include("ProjectSite", "Complete", "Fault")
 
-    out, status = launch(["site_projection.project_site", "--help"])
+    out, status = launch(["site_projection.project_site!", "--help"])
 
     expect(status).to eq(0)
     expect(out).to start_with("SiteProjection.project_site")
@@ -117,7 +117,7 @@ RSpec.describe "the Site row of the ADR command table" do
 
   it "records a project with no route table as faulted, with the reason", :aggregate_failures do
     FileUtils.mkdir_p(File.join(@dir, "bluebook"))
-    json, status = answer(["site_projection.project_site", @dir, "--wait"])
+    json, status = answer(["site_projection.project_site!", @dir, "--wait"])
 
     expect(status).to eq(1)
     expect(json.dig("state", "status")).to eq("faulted")
@@ -156,13 +156,13 @@ RSpec.describe "the Site row of the ADR command table" do
   end
 
   it "refuses an extension outside the set, naming the set", :aggregate_failures do
-    out, status = launch(["site_projection.project_site", PROJECT, "extension=cjs", "--wait"])
+    out, status = launch(["site_projection.project_site!", PROJECT, "extension=cjs", "--wait"])
 
     expect(status).to eq(1)
     expect(out).to include('Extension admits "ts", "mts"')
   end
 
-  describe "site_projection.check_live" do
+  describe "site_projection.check_live!" do
     require_relative "support/live_distribution"
 
     let(:edge) do
@@ -180,7 +180,7 @@ RSpec.describe "the Site row of the ADR command table" do
       Dir.mktmpdir("site_live") do |dir|
         file = File.join(dir, "live.json")
         File.write(file, JSON.generate(config))
-        return launch(["site_projection.check_live", PROJECT, "live=#{file}", "refs=#{words}", *flags])
+        return launch(["site_projection.check_live!", PROJECT, "live=#{file}", "refs=#{words}", *flags])
       end
     end
 
@@ -200,7 +200,7 @@ RSpec.describe "the Site row of the ADR command table" do
       copy_project_naming_no_template(dir)
       file = File.join(dir, "live.json")
       File.write(file, JSON.generate(config))
-      ["site_projection.check_live", dir, "live=#{file}", "refs=#{words}"]
+      ["site_projection.check_live!", dir, "live=#{file}", "refs=#{words}"]
     end
 
     def aws_result(out, err, success)
@@ -213,7 +213,7 @@ RSpec.describe "the Site row of the ADR command table" do
     end
 
     it "answers --help", :aggregate_failures do
-      out, status = launch(["site_projection.check_live", "--help"])
+      out, status = launch(["site_projection.check_live!", "--help"])
 
       expect(status).to eq(0)
       expect(out).to start_with("SiteProjection.check_live")
@@ -271,14 +271,14 @@ RSpec.describe "the Site row of the ADR command table" do
     end
 
     it "exits 1 when neither of a saved configuration and a distribution is named", :aggregate_failures do
-      out, status = launch(["site_projection.check_live", PROJECT])
+      out, status = launch(["site_projection.check_live!", PROJECT])
 
       expect(status).to eq(1)
       expect(out).to include("exactly one of a saved configuration and a distribution")
     end
 
     it "exits 1 when both a saved configuration and a distribution are named" do
-      _out, status = launch(["site_projection.check_live", PROJECT, "live=x.json", "distribution=E123"])
+      _out, status = launch(["site_projection.check_live!", PROJECT, "live=x.json", "distribution=E123"])
 
       expect(status).to eq(1)
     end
@@ -287,19 +287,19 @@ RSpec.describe "the Site row of the ADR command table" do
       allow(stubbed_shell).to receive(:capture).with("aws", "cloudfront", "get-distribution-config", "--id", "E36ACSIVZJAKNV")
                                                .and_return(aws_result(JSON.generate(config), "", true))
 
-      expect(launch(["site_projection.check_live", PROJECT, "distribution=E36ACSIVZJAKNV", "refs=#{words}"]).last).to eq(0)
+      expect(launch(["site_projection.check_live!", PROJECT, "distribution=E36ACSIVZJAKNV", "refs=#{words}"]).last).to eq(0)
     end
 
     it "exits 1 with the reason when aws fails", :aggregate_failures do
       stubbed_shell(capture: aws_result("", "AccessDenied", false))
-      reason, status = launch(["site_projection.check_live", PROJECT, "distribution=E1"])
+      reason, status = launch(["site_projection.check_live!", PROJECT, "distribution=E1"])
 
       expect(status).to eq(1)
       expect(reason).to include("get-distribution-config failed: AccessDenied")
     end
 
     it "exits 1 with the reason when the saved file is missing", :aggregate_failures do
-      reason, status = launch(["site_projection.check_live", PROJECT, "live=/nonexistent/live.json"])
+      reason, status = launch(["site_projection.check_live!", PROJECT, "live=/nonexistent/live.json"])
 
       expect(status).to eq(1)
       expect(reason).to include("cannot read the live configuration")
@@ -307,7 +307,7 @@ RSpec.describe "the Site row of the ADR command table" do
 
     it "exits 1 for a project with no edge", :aggregate_failures do
       FileUtils.mkdir_p(File.join(@dir, "bluebook"))
-      reason, status = launch(["site_projection.check_live", @dir, "live=#{@dir}/x.json"])
+      reason, status = launch(["site_projection.check_live!", @dir, "live=#{@dir}/x.json"])
 
       expect(status).to eq(1)
       expect(reason).to include("no bluebook declares a value_object")

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Starts a commands-scope MCP door (ADR 0089) for one agent's checkout, under the sandbox profile.
+# An MCP client runs this as the server command; the agent gets typed tools and no shell.
+#   HECKS_CHECKOUT=<checkout>            required
+#   HECKS_SERVER_COMMANDS=<a,b,...>        optional; default is the read-and-verify set below
+#   HECKS_ENVIRONMENT=memory|<unset>     default memory: the door keeps its state in-process
+#   HECKS_DOOR_ALL=1                     every command, every argument, no OS sandbox, env inherited
+#                                        (deploy and publish work if their credentials are in the env)
+set -euo pipefail
+: "${HECKS_CHECKOUT:?set HECKS_CHECKOUT to the agent checkout}"
+CHECKOUT_REAL="$(cd "$HECKS_CHECKOUT" && pwd -P)"
+[ -x "$CHECKOUT_REAL/exe/hecks" ] || { echo "hecks-door: no exe/hecks in $CHECKOUT_REAL" >&2; exit 78; }
+
+# Tier 0 and Tier 1 commands, by their qualified names (the launcher qualifies them by aggregate).
+DEFAULT_COMMANDS="style_run.check_comments,style_run.check_comments_unchanged,model_check_run.model_check,\
+test_suite_run.run_spec_example,test_suite_run.stress_concurrency,conformance_run.check_engine_agreement,\
+conformance_run.measure_doc_coverage,kernel_run.measure_kernel_coverage,build.build_parser,test_suite_run.run_suite,\
+swarm_run.start_run,swarm_run.file_brief,swarm_run.submit_proposal,swarm_run.submit_critique,\
+swarm_run.cast_score,swarm_run.declare_winner,swarm_run.record_build,swarm_run.close_run"
+
+# An unrestricted door sets no HECKS_DOOR_* variable: it serves every tool and every command, and
+# passes every argument (the restricted door always refuses host, url, confirm, output and others).
+# All mode is switched off. It serves deploy and publish with no argument checks, so it starts only
+# while this file exists: touch .claude/hecks-door/ALL_ENABLED (in the checkout) to turn it back on.
+if [ "${HECKS_DOOR_ALL:-}" = 1 ] && [ ! -e "$(dirname "$0")/ALL_ENABLED" ]; then
+  echo "hecks-door: all mode is switched off (no $(dirname "$0")/ALL_ENABLED); deploy is not available" >&2
+  exit 77
+fi
+if [ "${HECKS_DOOR_ALL:-}" = 1 ]; then
+  unset HECKS_DOOR_ALL HECKS_SERVER_TOOLS HECKS_SERVER_DOMAINS HECKS_SERVER_COMMANDS
+else
+  export HECKS_SERVER_TOOLS=commands
+  export HECKS_SERVER_DOMAINS="${HECKS_SERVER_DOMAINS:-$CHECKOUT_REAL/lib/hecks/hecks}"
+  export HECKS_SERVER_COMMANDS="${HECKS_SERVER_COMMANDS:-$DEFAULT_COMMANDS}"
+  RESTRICTED=1
+fi
+export HECKS_STOREHOUSE_ROOT="${HECKS_STOREHOUSE_ROOT:-$CHECKOUT_REAL}"
+export HECKS_ENVIRONMENT="${HECKS_ENVIRONMENT-memory}"
+export BUNDLE_GEMFILE="$CHECKOUT_REAL/Gemfile"
+[ -n "$HECKS_ENVIRONMENT" ] || unset HECKS_ENVIRONMENT
+cd "$CHECKOUT_REAL"
+
+if [ -z "${RESTRICTED:-}" ]; then
+  exec bundle exec exe/hecks mcp!
+fi
+
+SCRUB=(env -u GEM_HOST_API_KEY -u GITHUB_TOKEN -u GH_TOKEN -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY
+       -u AWS_SESSION_TOKEN -u AWS_PROFILE)
+
+# Inside the sandbox the cache directory under HOME is not writable, so the door keeps its verdict
+# and guide caches under the temp directory instead. The first start after any change to lib/ is
+# therefore cold (about half a minute); later starts are not. new-checkout starts it once.
+TMP_REAL="$(python3 -c 'import os,tempfile;print(os.path.realpath(tempfile.gettempdir()))')"
+exec /usr/bin/sandbox-exec -f "$(dirname "$0")/hecks-helper.sb" -D HOME="$HOME" -D CHECKOUT="$CHECKOUT_REAL" -D TMP="$TMP_REAL" \
+  "${SCRUB[@]}" bundle exec exe/hecks mcp!

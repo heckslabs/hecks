@@ -24,8 +24,8 @@ RSpec.describe "every list the language declares, filled more than once" do
     "endings"          =>
                           "A process manager that declares several ends_on fills endings with each; " \
                           "no corpus domain declares one, so the walk sees one per saga.",
-    # Filled with three in `PublishingRun` (lib/hecks/hecks/codebase.bluebook), which is not a
-    # golden IR fixture: `Hecks.json` holds the root bluebook only.
+    # Filled with three in `PublishingRun` (lib/hecks/hecks/release/release.bluebook), which is
+    # not a golden IR fixture: `Hecks.json` holds the root bluebook only.
     "acknowledgements" =>
                           "PublishingRun acknowledges :key_by_value three times (version, " \
                           "client_version, ir_version) — a Hecks-family member, so no golden " \
@@ -45,7 +45,13 @@ RSpec.describe "every list the language declares, filled more than once" do
     # twice, so no bluebook can fill the list with more than one until a second fact exists.
     "needs"            =>
                           "The runtime supplies one fact, `now`, and a repeat is refused, so a command's " \
-                          "needs hold at most one row until a second fact is admitted."
+                          "needs hold at most one row until a second fact is admitted.",
+    # Filled with two in spec/dsl_spec.rb and spec/runtime/resume_words_spec.rb, which build their
+    # own process manager; no corpus domain declares a stage map of more than one stage.
+    "resumes"          =>
+                          "A process manager's stage map fills resumes with one stage=command entry per " \
+                          "stage; dsl_spec and resume_words_spec fill it twice, but no golden IR " \
+                          "fixture declares a saga with more than one resumable stage."
   }.freeze
 
   UNMEASURED_WHY = <<~WHY.freeze

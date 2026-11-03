@@ -2569,23 +2569,41 @@ impl DeclareArgs {
         let aggregate = {
             let x = v.get("aggregate").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Query.aggregate expects String, got nil".to_string(),
+                    "Declare.aggregate expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Query.aggregate expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "aggregate",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Aggregate is known by bluebook, name)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let entity_id = match v.get("entity_id") {
             Some(crate::kernel::Json::Null) | None => None,
             Some(x) => Some(x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Query.entity_id expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Declare",
+                        attribute: "entity_id",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Entity is known by aggregate, name)",
+                    }
+                    .render_args(),
+                )
             })?),
         };
         let name = QueryName::from_json(

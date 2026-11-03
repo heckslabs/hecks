@@ -24,6 +24,9 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Called by nightly-main.yml, which runs this same job set with attestation ignored
+  # (.github/actions/check-attestation) and must write nothing (`github.workflow` below).
+  workflow_call:
 
 # Cancels a superseded PR run. Never cancels a push to main: promotion reads the checks of
 # every main commit, and a cancelled run reports none.
@@ -85,14 +88,14 @@ jobs:
         name: 'is this change only a release bump on a certified base?'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=release_only --wait
+        run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=release_only --wait
   # END GENERATED ci_gate release_only
 
   inherit_certification:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: release_only
-    if: needs.release_only.outputs.touched == 'false'
+    if: needs.release_only.outputs.touched == 'false' && github.workflow != 'Nightly main'
     permissions:
       contents: write
     steps:
@@ -123,6 +126,11 @@ jobs:
   rspec_impl:
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-rspec.yml
+    # The calling job's permissions cap the reusable workflow's; `actions: read` is for the plan
+    # job to read the newest successful main run's timing artifacts.
+    permissions:
+      contents: read
+      actions: read
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
       HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
@@ -194,7 +202,7 @@ jobs:
     # checks_fuzz_sqlite/checks_codegen_drift need no entry of their own here: they're not
     # independently required, so needs.checks_impl.result already covers them.
     if: >-
-      github.event_name == 'pull_request' &&
+      github.event_name == 'pull_request' && github.workflow != 'Nightly main' &&
       needs.rspec_impl.result == 'success' && needs.checks_impl.result == 'success' &&
       needs.rspec_rust_io_impl.result == 'success' && needs.rspec_rust_parser_impl.result == 'success' &&
       needs.rspec_rust_codegen_impl.result == 'success' && needs.rspec_rust_host_impl.result == 'success' &&
@@ -271,6 +279,10 @@ jobs:
   rspec_postgres_io_parallel_impl:
     if: ${{ !cancelled() }}
     uses: ./.github/workflows/ci-postgres-io-parallel.yml
+    # See rspec_impl: `actions: read` is for the plan job's timings.
+    permissions:
+      contents: read
+      actions: read
     secrets:
       HECKS_CI_ATTEST_KEY: ${{ secrets.HECKS_CI_ATTEST_KEY }}
       HECKS_JOURNAL_DATABASE: ${{ secrets.HECKS_JOURNAL_DATABASE }}
@@ -341,7 +353,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # No generated-rust step: the spec runs `hecks project_rust` for each domain it compares, in
+      # No generated-rust step: the spec runs `hecks Build.project_rust!` for each domain it compares, in
       # the checkout, and puts rust/src/generated back as it found it; rust/build's own tests read
       # no generated module.
 
@@ -380,7 +392,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
 
-      # No generated-rust step: `hecks build_wasm` regenerates the domain it builds in a scratch copy
+      # No generated-rust step: `hecks Build.build_wasm!` regenerates the domain it builds in a scratch copy
       # of rust/, so the spec reads nothing the checkout holds beyond the committed mod.rs and pizzas.
 
       # Restore only, as in rspec_rust_io_build.
@@ -569,7 +581,7 @@ jobs:
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch lib/hecks/runtime/**?'
-        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=runtime_changed --wait
+        run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=runtime_changed --wait
   # END GENERATED ci_gate runtime_changed
 
   stress_concurrency:
@@ -603,4 +615,4 @@ jobs:
       # No arguments: the command's defaults are its recommended CI settings. It sets `CI=true` on
       # its child rspec runs, so the `io: true` Postgres spec is included.
       - name: hecks stress_concurrency
-        run: bundle exec exe/hecks test_suite_run.stress_concurrency --wait
+        run: bundle exec exe/hecks test_suite_run.stress_concurrency! --wait

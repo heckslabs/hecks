@@ -1,6 +1,6 @@
 # Hecks bluebooks sit in four modules
 
-**Status:** Proposed. Date: 2026-10-09. Every bluebook the gem carries serves one of four purposes, and nothing said so. The directories and the `"Hecks"` chapter mixed them. This names the four as DDD modules, a grouping above chapters, and splits the one place where two were mixed. Builds on ADR 0063 and ADR 0080 (sections 2 and 4).
+**Status:** Superseded by [ADR 0163](0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md) (2026-10-30): modules group aggregates inside the one `"Hecks"` bluebook by task, and the maintenance line is an audience. Proposed 2026-10-09. Every bluebook the gem carries serves one of four purposes, and nothing said so. The directories and the `"Hecks"` chapter mixed them. This names the four as DDD modules, a grouping above chapters, and splits the one place where two were mixed. Builds on ADR 0063 and ADR 0080 (sections 2 and 4).
 
 ## Context
 

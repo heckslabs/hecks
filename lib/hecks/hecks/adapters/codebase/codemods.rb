@@ -16,11 +16,12 @@ module Hecks
       # when the request is confirmed.
       module Codemods
         # Every operation this family carries out.
-        OPERATIONS = %w[hoist_local_givens drop_implicit_append_fields].freeze
+        OPERATIONS = %w[hoist_local_givens drop_implicit_append_fields move_former_name].freeze
 
         # The script each operation runs.
         SCRIPTS = { "hoist_local_givens"          => "codemod_hoist_local_givens",
-                    "drop_implicit_append_fields" => "codemod_implicit_append_fields" }.freeze
+                    "drop_implicit_append_fields" => "codemod_implicit_append_fields",
+                    "move_former_name"            => "codemod_move_former_name" }.freeze
 
         module_function
 

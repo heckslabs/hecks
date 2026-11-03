@@ -1,5 +1,6 @@
 require_relative "base_sql"
 require_relative "domain_rename"
+require_relative "../shared_tables"
 
 module Hecks
   module Adapters
@@ -12,16 +13,18 @@ module Hecks
           include DomainRename
 
           # Builds or tops up this domain's lineage schema when the connected role owns the
-          # journal (or none exists yet); any other role only attempts the rename bridge.
+          # journal (or none exists yet); any other role skips it. Also
+          # creates the event, saga and outbox tables the database shares.
           #
-          # ALTER TABLE and REVOKE are owner-only, so a non-owner app role must skip them to boot.
+          # Only the mint path and the owner-only tools call it; a boot never does. ALTER TABLE and
+          # REVOKE are owner-only, so a non-owner app role must skip them.
           #
           # @return [void]
-          # @raise [Runtime::WiringError] if the `formerly_known_as` rename cannot take
-          #   its locks within 10s or Postgres refuses one of its statements
+          # @raise [Runtime::WiringError] if the domain's `formerly_known_as` rename is still
+          #   pending
           # @raise [PG::Error] if Postgres refuses a provisioning statement
           def ensure_base!
-            rename_domain! if @formerly_known_as
+            refuse_pending_rename!
             return unless provisioner?
 
             create_lineage_tables!
@@ -30,6 +33,7 @@ module Hecks
             revoke_journal_mutation!
             force_row_security!
             install_transforms!
+            SharedTables.new(@db).provision!
           end
 
           # Refuses to boot on a connection whose role Postgres exempts from row-level security
@@ -117,6 +121,10 @@ module Hecks
             # Canonical-form version that minted the name (Runtime::StorageShape::FORM_VERSION);
             # NULL reads as 1.
             @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS canon_form int")
+            # The edge an era was minted under when no edge file wrote it, as
+            # `Translation::ImplicitEdge::RECORD`;
+            # NULL for every era a written edge reached.
+            @db.exec("ALTER TABLE hecks_eras ADD COLUMN IF NOT EXISTS edge jsonb")
             @db.exec(ERA_TEXTS_SQL)
           end
 

@@ -11,12 +11,14 @@
 # or not GitHub answers: each lifecycle event asks the port, and a refused ask is recorded on the
 # finding as a sync failure that a later run retries.
 #
-# An Adr is a decision record with its own lifecycle, linked to the finding it settles.
+# An Adr is a decision record with its own lifecycle, linked to the finding it settles. A Work is a
+# step of the plan a decision carries, and stays inside Hecks.
 Hecks.bluebook "Tickets" do
   vision "Track what Hecks needs, decide it, ship it, and drive GitHub from the record."
 
   aggregate "Finding" do
     description "One thing observed about Hecks that needs a decision or a fix: reported, triaged, then resolved or dismissed."
+    created_by "Finding.report!"
 
     attribute :finding,         FindingKey
     attribute :title,          Title
@@ -109,22 +111,6 @@ Hecks.bluebook "Tickets" do
       emits "RunFindingReported"
     end
 
-    # A lane that stood behind the lane it follows for longer than its Lane row allows reports
-    # itself. The alert key names the finding and carries the day, so a lane that stays late files
-    # one finding a day: the same key again is the same finding.
-    command "ReportLag" do
-      goal "Record a lane that has stood behind the lane it follows too long as a finding"
-
-      attribute :finding, FindingKey, sets: true
-      attribute :body,    Body, sets: true
-
-      sets :fingerprint, to: "lane-lag"
-      sets :title,  to: "A lane is behind the lane it follows"
-      sets :source, to: "qa_loop"
-
-      emits "LagFindingReported"
-    end
-
     command "Triage" do
       role "Maintainer"
       goal "Give a finding its kind and severity"
@@ -179,6 +165,7 @@ Hecks.bluebook "Tickets" do
 
     command "RecordIssue" do
       goal "Record the GitHub issue number once the issue is opened"
+      audience :record
 
       reference_to Finding
       attribute :issue_number, Number, sets: true
@@ -189,6 +176,7 @@ Hecks.bluebook "Tickets" do
 
     command "RecordSyncFailure" do
       goal "Record that GitHub could not be driven, so a later run retries"
+      audience :record
 
       reference_to Finding
       attribute :sync_failure, Body, sets: true
@@ -206,6 +194,7 @@ Hecks.bluebook "Tickets" do
 
   aggregate "Adr" do
     description "A decision record: drafted, accepted, and possibly superseded, linked to the tickets it settles."
+    created_by "Adr.draft!"
 
     attribute :adr,       AdrNumber
     attribute :title,     AdrTitle
@@ -269,6 +258,238 @@ Hecks.bluebook "Tickets" do
     end
   end
 
+  # A step of a plan, held under the decision it carries out. It drives nothing outside: planned
+  # work is the maintainer's own list, not an issue.
+  aggregate "Work" do
+    description "One step of a plan: planned, started, then done or dropped, under the decision it carries out."
+    created_by "Work.plan!"
+
+    attribute :work,   WorkKey
+    attribute :title,  WorkTitle
+    attribute :detail, WorkText, optional: true
+    attribute :step,   Step, optional: true
+    attribute :reason, WorkText, optional: true
+    attribute :claimed_by, Claimant, optional: true
+    attribute :claimed_at, ClaimedAt, optional: true
+    attribute :area,   list_of(Word), optional: true
+    attribute :budget_minutes, Minutes, optional: true
+    reference_to Adr, as: :decision, optional: true
+    identified_by :work
+
+    # A path prefix or glob a claim covers. Two areas overlap by `Hecks::Adapters::AreaOverlap`;
+    # a row with no area claims nothing.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # The session that claimed a started step, named as the session names itself. A step back in the
+    # plan holds the empty claimant; `Start` refuses one that names nobody.
+    value_object "Claimant" do
+      attribute :value, String, default: ""
+    end
+
+    # When the claim was taken, as the caller reads the clock: an ISO 8601 instant. Empty while the
+    # step is unclaimed.
+    value_object "ClaimedAt" do
+      attribute :value, String, default: ""
+    end
+
+    # How long a claim may run, in whole minutes. A row with none, or zero, has no budget; a step
+    # back in the plan holds zero.
+    value_object "Minutes" do
+      attribute :value, Integer
+
+      invariant("a time budget is not negative") { !value.negative? }
+    end
+
+    # What a query answered from outside the domain returns: its lines.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    value_object "WorkKey" do
+      attribute :value, String, matches: :present
+
+      invariant("a piece of work is named") { !value.to_s.empty? }
+    end
+
+    value_object "WorkTitle" do
+      attribute :value, String
+
+      invariant("a piece of work has a title") { !value.to_s.empty? }
+    end
+
+    value_object "WorkText" do
+      attribute :value, String
+    end
+
+    # Where the work stands in its plan: step 0 comes first.
+    value_object "Step" do
+      attribute :value, Integer
+
+      invariant("a step is not negative") { !value.negative? }
+    end
+
+    lifecycle :status, default: "planned" do
+      transition "Start"   => "started", from: "planned"
+      transition "Release" => "planned", from: "started"
+      transition "Yield"   => "planned", from: "started"
+      transition "Finish" => "done",    from: %w[planned started]
+      transition "Drop"   => "dropped", from: %w[planned started]
+      transition "Lapse"  => "dropped", from: %w[planned started]
+      transition "Reopen" => "planned", from: %w[done dropped]
+    end
+
+    command "Plan" do
+      role "Maintainer"
+      goal "Enter a step of a plan, optionally under the decision it carries out"
+
+      attribute :work,   WorkKey, sets: true
+      attribute :title,  WorkTitle, sets: true
+      # The detail and area default to none, so the event always carries them and
+      # ComposeBriefWhenPlanned in Coder can read them from any plan.
+      attribute :detail, WorkText, optional: true, sets: true, default: { value: "" }
+      attribute :step,   Step, optional: true, sets: true
+      attribute :area,   list_of(Word), optional: true, sets: true, default: []
+      reference_to Adr, as: :decision, optional: true
+
+      sets :decision
+
+      emits "WorkPlanned"
+    end
+
+    # A step still open takes what a later look at it found: the row stays one, its title and
+    # detail move.
+    command "Revise" do
+      goal "Replace an open step's title and detail with what a later look found"
+
+      reference_to Work
+      attribute :title,  WorkTitle, sets: true
+      attribute :detail, WorkText, sets: true
+
+      emits "WorkRevised"
+    end
+
+    # A started step is claimed: the second Start on it is refused, since only a planned step starts.
+    command "Start" do
+      role "Maintainer"
+      goal "Claim a planned step for one session, recording who claimed it and when"
+
+      reference_to Work
+      attribute :claimed_by, Claimant, sets: true
+      attribute :claimed_at, ClaimedAt, sets: true
+      attribute :area,       list_of(Word), optional: true, sets: true
+      attribute :budget_minutes, Minutes, optional: true, sets: true
+
+      given("a claim names its claimant") { !claimed_by.value.to_s.empty? }
+      given("a claim records when it was taken") { !claimed_at.value.to_s.empty? }
+
+      emits "WorkStarted"
+    end
+
+    # A started step that may not go on goes back to the plan with the refusal as its reason: its
+    # area overlapped another started step's, it would start more steps than the cap allows (the
+    # WorkAreas or WorkLimits port refuses it by name), or the architect's review of its plan said
+    # rethink and the coder session handed it back.
+    command "Yield" do
+      goal "Return a started step to the plan, with the refusal that sent it back"
+
+      reference_to Work
+      attribute :reason, WorkText, sets: true
+
+      sets :claimed_by, to: ""
+      sets :claimed_at, to: ""
+      sets :area, to: []
+      sets :budget_minutes, to: 0
+
+      emits "WorkYielded"
+    end
+
+    # A claim gone stale returns its step to the plan, so the next session can claim it.
+    command "Release" do
+      goal "Return a started step to planned, releasing its claim"
+
+      reference_to Work
+
+      sets :claimed_by, to: ""
+      sets :claimed_at, to: ""
+      sets :area, to: []
+      sets :budget_minutes, to: 0
+
+      emits "WorkReleased"
+    end
+
+    command "Finish" do
+      role "Maintainer"
+      goal "Record that a step is done"
+
+      reference_to Work
+
+      emits "WorkFinished"
+    end
+
+    command "Drop" do
+      role "Maintainer"
+      goal "Set a step aside without doing it, with the reason"
+
+      reference_to Work
+      attribute :reason, WorkText, sets: true
+
+      emits "WorkDropped"
+    end
+
+    # A step whose cause came back (a spec red again after it was cleared) is planned again, with
+    # the new title and detail.
+    command "Reopen" do
+      goal "Return a finished or dropped step to planned because its cause returned"
+
+      reference_to Work
+      attribute :title,  WorkTitle, sets: true
+      attribute :detail, WorkText, optional: true, sets: true
+
+      emits "WorkReopened"
+    end
+
+    # A superseded decision's plan no longer stands, so its undone steps are dropped with it.
+    command "Lapse" do
+      goal "Drop a step whose decision was superseded"
+
+      reference_to Work
+
+      sets :reason, to: "its decision was superseded"
+
+      emits "WorkLapsed"
+    end
+
+    query "Undone" do
+      description "Every step not yet done or dropped, in plan order."
+      where(status: { in: "planned,started" })
+      order_by :step
+    end
+
+    # The first step still planned in plan order: the next one a coder session claims.
+    query "NextPlanned" do
+      description "The oldest step not yet claimed, in plan order: the brief a coder session reads next."
+      where(status: "planned")
+      order_by :step
+      limit 1
+    end
+
+    query "Under" do
+      description "Every step of the plan one decision carries, in plan order."
+      attribute :adr, String
+      where(decision: :adr)
+      order_by :step
+    end
+
+    query "UndoneUnder" do
+      description "The steps of one decision's plan not yet done or dropped: the ones its superseding drops."
+      attribute :adr, String
+      where(decision: :adr, status: { in: "planned,started" })
+      order_by :step
+    end
+  end
+
   # Each lifecycle event drives GitHub. A finding's own state never waits on the answer.
   policy "OpenIssueWhenReported" do
     on      "Finding.FindingReported"
@@ -277,11 +498,6 @@ Hecks.bluebook "Tickets" do
 
   policy "OpenIssueWhenRunReported" do
     on      "Finding.RunFindingReported"
-    ask     :open_issue, with: { finding: :finding }
-  end
-
-  policy "OpenIssueWhenLagReported" do
-    on      "Finding.LagFindingReported"
     ask     :open_issue, with: { finding: :finding }
   end
 
@@ -310,21 +526,101 @@ Hecks.bluebook "Tickets" do
     ask     :reopen_issue, with: { finding: :finding }
   end
 
+  # A started step with an area asks the WorkAreas port whether another started step holds any of it.
+  policy "CheckAreaWhenStarted" do
+    on      "Work.WorkStarted"
+    ask     :check_area, with: { work: :work }
+  end
+
+  policy "YieldWhenAreaTaken" do
+    on      "Work.AreaRefused"
+    trigger Work::Yield, with: { reason: :refusal }
+  end
+
+  # A started step asks the WorkLimits port whether it is one too many for the concurrency cap. It is
+  # declared after the area check, so a step that clashes is already back in the plan when the cap
+  # looks, and the cap yields only a step still started.
+  policy "CheckCapWhenStarted" do
+    on      "Work.WorkStarted"
+    ask     :check_cap, with: { work: :work }
+  end
+
+  policy "YieldWhenCapReached" do
+    on      "Work.CapRefused"
+    trigger Work::Yield, with: { reason: :refusal }
+  end
+
+  # A superseded decision takes its undone steps with it.
+  policy "LapseWorkWhenSuperseded" do
+    on       "Adr.AdrSuperseded"
+    for_each "Work.UndoneUnder"
+    trigger  Work::Lapse, with: { work: :work }
+  end
+
+  # A coder's submitted branch is named for its work step, so the branch is the step's key and the
+  # policy routes it with no parsing (`with:` only routes fields). A branch naming no step is refused
+  # by the Finish command: the refusal names Work.
+  policy "FinishWhenWorkSubmitted" do
+    on      "Submission.WorkSubmitted"
+    trigger Work::Finish, with: { work: :branch }
+  end
+
+  # A branch that landed on local main finishes the step it was cut for. The Landing's LandedWork
+  # port found the open step the branch names (the whole branch name, else the name without a leading
+  # `qa/`) and answered its key; a branch with no open step is refused there and never reaches here.
+  policy "FinishWorkWhenBranchLanded" do
+    on      "Landing.LandedWorkFound"
+    trigger Work::Finish, with: { work: :branch }
+  end
+
   # A conformance or gate run that faults files its own finding.
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 
-  # A watch that finds a lane late faults it, and the fault files its finding.
-  policy "ReportWhenLaneLags" do
-    on      "PromotionRun.LaneLagged"
-    trigger Finding::ReportLag, with: { finding: :alert_key, body: :refusal }
-  end
-
   policy "ReportWhenGateFaulted" do
     on      "GateRun.GateFaulted"
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+  end
+
+  # A spec file that went red on main is a step QA picks up: `Work.undone` lists it. The spec's own key is
+  # the step's key, so a second red run, which only updates the spec, plans nothing twice.
+  policy "PlanWorkWhenSpecWentRed" do
+    on      "RedSpec.SpecWentRed"
+    trigger Work::Plan, with: { work: :spec, title: :title, detail: :detail }
+  end
+
+  # A file that fails again after it was cleared plans its finished step again.
+  policy "ReopenWorkWhenSpecWentRedAgain" do
+    on      "RedSpec.SpecWentRedAgain"
+    trigger Work::Reopen, with: { work: :spec, title: :title, detail: :detail }
+  end
+
+  # The run that no longer fails the file closes its step.
+  policy "FinishWorkWhenSpecWentGreen" do
+    on      "RedSpec.SpecWentGreen"
+    trigger Work::Finish, with: { work: :spec }
+  end
+
+  # QA's push check: a push that is due beyond the world's thresholds is one step, `push-due`. A look
+  # that finds it already open revises its detail; a look that finds it no longer due finishes it.
+  policy "PlanWorkWhenPushDue" do
+    on      "PushNudge.PushDueRead"
+    where   { due.value == "yes" && raised.value == "no" }
+    trigger Work::Plan, with: { work: :work, title: :title, detail: :detail }
+  end
+
+  policy "ReviseWorkWhenPushStillDue" do
+    on      "PushNudge.PushDueRead"
+    where   { due.value == "yes" && raised.value == "yes" }
+    trigger Work::Revise, with: { work: :work, title: :title, detail: :detail }
+  end
+
+  policy "FinishWorkWhenPushSettled" do
+    on      "PushNudge.PushDueRead"
+    where   { due.value == "no" && raised.value == "yes" }
+    trigger Work::Finish, with: { work: :work }
   end
 
   policy "RecordTheIssue" do

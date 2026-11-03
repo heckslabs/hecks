@@ -425,14 +425,23 @@ impl JoinArgs {
         let sponsor = {
             let x = v.get("sponsor").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Member.sponsor expects String, got nil".to_string(),
+                    "Join.sponsor expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Member.sponsor expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Join",
+                        attribute: "sponsor",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Sponsor is known by handle)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         let handle = Handle::from_json(

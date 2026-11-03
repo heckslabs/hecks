@@ -1,5 +1,6 @@
 require_relative "word_gate"
 require_relative "need_word"
+require_relative "audience_word"
 require_relative "command_builder/owner"
 require_relative "command_builder/rules"
 require_relative "command_builder/mutations"
@@ -22,6 +23,7 @@ module Hecks
         include RuleReference
         include WordGate
         include NeedWord
+        include AudienceWord
         include ImplicitAttributes
         include Operands
         include FoldedSets
@@ -81,6 +83,14 @@ module Hecks
         #
         # @return [true]
         def idempotent_impl = @idempotent = true
+
+        # Declares that this command's own record may be written through a boot whose shape no era
+        # holds yet, so the command that mints the held era can persist its request. Every other
+        # write from such a boot stays refused.
+        #
+        # @param value [Boolean] `true` to allow the write; any other value declares nothing
+        # @return [Boolean] the flag as stored
+        def mints_era_impl(value) = @mints_era = value == true
 
         # Declares the aggregate this command acts on (with no `as:`), or a cross-reference to
         # another aggregate (with `as:`).
@@ -203,13 +213,13 @@ module Hecks
         end
 
         def declared_rules
-          { name: @name, role: @role, roles: @roles || [], goal: @goal, attributes: attributes, givens: @givens,
-            ensures: @ensures, needs: @needs }
+          { name: @name, role: @role, roles: @roles || [], audience: @audience || [], goal: @goal,
+            attributes: attributes, givens: @givens, ensures: @ensures, needs: @needs }
         end
 
         def declared_effects
           { mutations: @mutations, emits: @emits, references: @references, from: @from,
-            provenance: @provenance, idempotent: @idempotent || false }
+            provenance: @provenance, idempotent: @idempotent || false, mints_era: @mints_era || false }
         end
       end
     end

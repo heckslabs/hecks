@@ -2,6 +2,7 @@ require "json"
 
 require_relative "sql_query_builder"
 require_relative "postgres/schema_builder"
+require_relative "postgres/name_guard"
 require_relative "postgres/codec"
 require_relative "postgres/dialect"
 require_relative "postgres/events"
@@ -29,6 +30,7 @@ module Hecks
     class Postgres
       include SqlQueryBuilder
       include SchemaBuilder
+      include NameGuard
       include Codec
       include Repository
       include Journal
@@ -125,6 +127,7 @@ module Hecks
         # Scopes saga rows; falls back to the aggregate's storage name when
         # settings gives no domain (e.g. a directly-instantiated adapter).
         @domain = settings.fetch(:domain) { aggregate.storage_name }.to_s
+        refuse_orphaned_rows!
         create_tables!
       end
 

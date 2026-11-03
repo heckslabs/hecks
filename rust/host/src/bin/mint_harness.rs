@@ -127,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
                 ordinal,
                 &my_hash,
                 &my_label,
+                &storage_shape::canonical(&ir),
                 held_text,
                 &aggregates,
                 &chain,

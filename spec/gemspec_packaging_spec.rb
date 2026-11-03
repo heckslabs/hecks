@@ -2,7 +2,7 @@ require "hecks"
 require "fileutils"
 require "open3"
 require "tmpdir"
-require "hecks/cli/console"
+require "hecks/tools/console"
 require_relative "../lib/hecks/hecks/adapters/rust_workspace"
 
 # Both checks below walk the same glob-derived sources `Hecks::Framework.members`
@@ -115,6 +115,24 @@ RSpec.describe "gem packaging" do
     expect(symlinked).to be_empty, "symlink(s) under lib/: #{names.join(", ")} — #{SYMLINK_NOTE}"
   end
 
+  # Runs `exe/hecks --help` where the `pg` and `sqlite3` gems cannot load, as on a machine that
+  # installed only the gem's own dependency; a shim directory on the load path raises for each.
+  def help_without_database_gems
+    Dir.mktmpdir("hecks-gem-shim") do |shim|
+      %w[pg sqlite3].each do |gem|
+        File.write(File.join(shim, "#{gem}.rb"), "raise LoadError, \"cannot load such file -- #{gem}\"\n")
+      end
+      unbundled_ruby("-I", shim, File.join(root, "exe/hecks"), "--help", chdir: root)
+    end
+  end
+
+  it "answers --help without the pg or sqlite3 gem, which load only when a database opens", :aggregate_failures do
+    out, err, status = help_without_database_gems
+
+    expect(status).to be_success, err
+    expect(out).to include("hecks <command>! [name=value")
+  end
+
   # Copies the packaged files into `into`, creating the directories they need.
   def install_gem_files(into)
     gemspec.files.each do |file|
@@ -144,7 +162,7 @@ RSpec.describe "gem packaging" do
   # The program that requires the framework and every packaged subcommand, then names any feature
   # that loaded from outside `dir`.
   def packaged_load_script(dir)
-    requires = PACKAGED_SUBCOMMANDS.map { |name| "require \"hecks/cli/#{name}\"" }.join("\n")
+    requires = PACKAGED_SUBCOMMANDS.map { |name| "require \"hecks/tools/#{name}\"" }.join("\n")
     <<~RUBY
       require "hecks"
       #{requires}
@@ -176,9 +194,9 @@ RSpec.describe "gem packaging" do
       expect(gemspec.files).to include("qa/settings.yml")
     end
 
-    it "ships the pizzas example `hecks console` opens when given no domain, and not its glossary", :aggregate_failures,
+    it "ships the pizzas example `hecks console!` opens when given no domain, and not its glossary", :aggregate_failures,
        :process do
-      opened = Hecks::CLI::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
+      opened = Hecks::Tools::Console::DEFAULT_FILES.map { |file| file.delete_prefix("#{root}/") }
 
       expect(gemspec.files).to include(*opened)
       expect(gemspec.files.grep(%r{\Aexamples/pizzas/glossary/})).to be_empty

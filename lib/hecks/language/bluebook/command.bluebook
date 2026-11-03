@@ -16,6 +16,9 @@ Hecks.bluebook "Bluebook" do
     attribute :role,       Actor
     # Every role that may run the command, when more than one may; `role` is then the first.
     attribute :roles,      list_of(Permission)
+    # Who the command is listed for: person, agent, ci or record (ADR 0163). Empty lists it for
+    # a person and an agent; it decides what a launcher shows, never who may run the command.
+    attribute :audience,   list_of(Audience)
     attribute :goal,       Goal
     attribute :emits,      list_of(Announcement)
     attribute :references, EventName, optional: true
@@ -30,6 +33,9 @@ Hecks.bluebook "Bluebook" do
     # `idempotent`: delivering the command twice leaves the same state as delivering it once, so a
     # saga redrive may deliver it again after a crash that left its outcome unknown.
     attribute :idempotent, CommandText, optional: true
+    # `mints_era true`: this command's own record may be written through an unminted boot, so the
+    # command that mints the Hecks domain's held era can persist its request.
+    attribute :mints_era, CommandText, optional: true
     # Lifecycle guard as a literal (`from: "open"` or `from: ["open", "frozen"]`); ADR 0025.
     attribute :from,       CommandText, optional: true
 
@@ -57,6 +63,11 @@ Hecks.bluebook "Bluebook" do
 
     # One role that may run the command, as a row of `roles`.
     value_object "Permission" do
+      attribute :name, String
+    end
+
+    # One audience the command is listed for, as a row of `audience`.
+    value_object "Audience" do
       attribute :name, String
     end
 
@@ -118,6 +129,7 @@ Hecks.bluebook "Bluebook" do
       attribute :goal,  Goal, optional: true
       attribute :provenance, CommandText, optional: true
       attribute :idempotent, CommandText, optional: true
+      attribute :mints_era,  CommandText, optional: true
       attribute :from,       CommandText, optional: true
 
       attribute :position, Position, optional: true
@@ -128,6 +140,7 @@ Hecks.bluebook "Bluebook" do
       sets :goal
       sets :provenance
       sets :idempotent
+      sets :mints_era
       sets :from
       sets :position
       emits VerbDeclared
@@ -289,6 +302,23 @@ Hecks.bluebook "Bluebook" do
       attribute :value, String
     end
 
+    command "Address" do
+      role "Language"
+      goal "Name an audience this command is listed for"
+
+      attribute :addressed, AudienceName
+
+      given("an audience is named") { !addressed.value.to_s.empty? }
+
+      sets :audience, append: { name: :addressed }
+
+      emits AudienceAddressed
+    end
+
+    value_object "AudienceName" do
+      attribute :value, String
+    end
+
     command "Need" do
       role "Language"
       goal "Name an outside fact the runtime supplies before any given runs"
@@ -321,9 +351,13 @@ Hecks.bluebook "Bluebook" do
 
       member word: "role",            context: "Command", body: "none",   inner: "", opens: "", fills: "role", calls: "role_impl"
       member word: "goal",            context: "Command", body: "none",   inner: "", opens: "", fills: "goal"
+      # Names who a launcher lists the command for (CommandBuilder#audience_impl; ADR 0163).
+      member word: "audience",        context: "Command", body: "none",   inner: "", opens: "", fills: "audience", calls: "audience_impl"
       member word: "provenance",      context: "Command", body: "none",   inner: "", opens: "", fills: "provenance", calls: "provenance_impl"
       # Declares the command safe to deliver twice (CommandBuilder#idempotent_impl).
       member word: "idempotent",      context: "Command", body: "none",   inner: "", opens: "", fills: "idempotent", calls: "idempotent_impl"
+      # Lets this command's own record through an unminted boot (CommandBuilder#mints_era_impl).
+      member word: "mints_era",       context: "Command", body: "none",   inner: "", opens: "", fills: "mints_era", calls: "mints_era_impl"
       member word: "reference_to",    context: "Command", body: "none",   inner: "", opens: "", fills: "references", calls: "reference_to_impl"
       member word: "given",           context: "Command", body: "source", inner: "", opens: "", fills: "givens", resolves_via: "hash_chain", calls: "given_impl"
       member word: "sets",            context: "Command", body: "none",   inner: "", opens: "", fills: "mutations", calls: "sets_impl"
@@ -364,6 +398,7 @@ Hecks.bluebook "Bluebook" do
 
       member keyword: "role",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "role", variadic: "true"
       member keyword: "goal",            context: "Command", at: "1", named: "",          kind: "text",     required: "true",  fills: "goal", coerce: "false"
+      member keyword: "audience",        context: "Command", at: "1", named: "",          kind: "symbol",   required: "true",  fills: "audience", variadic: "true"
       member keyword: "provenance",      context: "Command", at: "",  named: "from",      kind: "literal",  required: "true",  fills: "provenance"
       member keyword: "reference_to",    context: "Command", at: "1", named: "",          kind: "constant", required: "true",  fills: "type"
       member keyword: "reference_to",    context: "Command", at: "",  named: "as",        kind: "symbol",   required: "false", fills: "name"

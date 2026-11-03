@@ -6,6 +6,7 @@ require_relative "query_verification"
 require_relative "plugin_query_verification"
 require_relative "bluebook_verification"
 require_relative "durability_warnings"
+require_relative "saga_durability_rule"
 
 module Hecks
   module Runtime
@@ -19,6 +20,7 @@ module Hecks
         include PluginQueryVerification
         include BluebookVerification
         include DurabilityWarnings
+        include SagaDurabilityRule
 
         # Runs every wiring check against this registry's loaded bluebooks, hecksagons, ports
         # and adapters.
@@ -31,9 +33,8 @@ module Hecks
           refuse_membership_without_identity!
           refuse_unresolved_ports!
           refuse_unanswerable_queries!
-
-          @declared.hecksagons.each_value { |hecksagon| verify_hecksagon!(hecksagon) }
-          self
+          refuse_forgetful_sagas!
+          verify_hecksagons!
         end
 
         # Checks that the framework-wide default persistence adapter is itself wired correctly.
@@ -126,6 +127,9 @@ module Hecks
         end
 
         private
+
+        # Every loaded hecksagon's checks, answering the registry.
+        def verify_hecksagons! = tap { @declared.hecksagons.each_value { |hecksagon| verify_hecksagon!(hecksagon) } }
 
         # One hecksagon's checks: its roles, attachments and ACL, every bind, and the durability
         # warnings for its bluebook.

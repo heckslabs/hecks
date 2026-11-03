@@ -59,7 +59,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
       appends = plan.category("Command").appends
       verbs = appends.to_h { |name, append| [name, append.verb] }
 
-      expect(appends.keys).to match_array(%w[attributes givens ensures needs mutations emits roles])
+      expect(appends.keys).to match_array(%w[attributes audience givens ensures needs mutations emits roles])
       expect(verbs).to include("attributes" => "Argument", "givens" => "Rule", "ensures" => "Ensure",
                                "needs" => "Need", "mutations" => "Change", "roles" => "Allow")
     end
@@ -105,7 +105,7 @@ RSpec.describe Hecks::Bluebook::MetaValidator::Plan do
     it "lists them without the parent link", :aggregate_failures do
       # `position` is carried like any other declared field, and spent on ordering
       # rather than on building — see Judge#declare and each DeclaredIn's order_by.
-      expect(plan.category("Command").fields).to eq(%w[name role goal provenance idempotent from position])
+      expect(plan.category("Command").fields).to eq(%w[name role goal provenance idempotent mints_era from position])
       expect(plan.category("Command").parent_key).to eq("aggregate")
     end
   end

@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "held_domain"
+require_relative "../../../adapters/driven/postgres_era/lineage_manager/mint_decision"
 
 module Hecks
   module Adapters
@@ -22,29 +23,33 @@ module Hecks
         # @param held [HeldDomain] the loaded domain, translation edges included
         # @param lineage [Lineage] the domain's lineage
         # @param eras [Array<Hash>] the eras the lineage holds, at least one
+        # @param edge [Object, nil] the edge the shared decision named for the pending shape, when
+        #   the caller decided it already; nil makes the audit decide it
         # @return [Finding, nil] the finding; nil when the domain stands at era 1, with no edge
-        # @raise [Runtime::NotFound] if no edge leads the latest era to the current shape, or a
+        # @raise [Runtime::NotFound] if the shared decision names no edge to the current shape, or a
         #   preview query is refused by Postgres
-        def self.call(held, lineage, eras)
-          new(held, lineage, eras).call
+        def self.call(held, lineage, eras, edge: nil)
+          new(held, lineage, eras, edge: edge).call
         end
 
         # @param held [HeldDomain] the loaded domain
         # @param lineage [Lineage] the domain's lineage
         # @param eras [Array<Hash>] the held eras
-        def initialize(held, lineage, eras)
+        # @param edge [Object, nil] see `EdgeAudit.call`
+        def initialize(held, lineage, eras, edge: nil)
           @held = held
           @bluebook = held.bluebook
           @registry = held.registry
           @lineage = lineage
           @eras = eras
+          @edge = edge
           @manager = PostgresEra::LineageManager
         end
 
         # @return [Finding, nil] see `EdgeAudit.call`
         def call
           latest = @held.named(@eras.last)
-          if @held.shape == Runtime::StorageShape.project(@manager.shadow(latest[:held_text]))
+          if @held.shape == @manager.held_shape(latest)
             return nil if latest[:ordinal] == 1
 
             settled(latest)
@@ -57,7 +62,7 @@ module Hecks
 
         # The shape already minted: the edge that arrives at the latest era.
         def settled(latest)
-          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2], latest[:label])
+          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2], latest[:label], target: latest)
           finding(chain, latest[:ordinal], 1)
         end
 
@@ -65,16 +70,23 @@ module Hecks
         def pending(latest)
           label = Runtime::StorageShape.mint_hash(@bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
           leaving = leaving_edges(latest)
-          edge = edge_to(leaving, latest, label)
-          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2] + [latest], label)
+          edge = @edge || decided_edge(latest, label)
+          chain = @manager.edge_chain(@registry, @bluebook, @eras[0..-2] + [latest], label,
+                                      target: edge.is_a?(Translation::ImplicitEdge) ? edge.record : nil)
           finding(chain, latest[:ordinal] + 1, leaving.size, edge)
         end
 
-        # The leaving edge that arrives at the current shape.
-        def edge_to(leaving, latest, label)
-          leaving.find { |t| t.to == label } or
-            raise Runtime::NotFound, "no translation edge leads #{latest[:label]} to #{label} — " \
-                                     "run `hecks scaffold_translation` first"
+        # The edge the shared decision leads the latest era by. A decision that does not mint names
+        # the refusal, so the audit raises rather than audit an edge a mint would not take.
+        def decided_edge(latest, label)
+          verdict = PostgresEra::LineageManager::MintDecision.decide_latest(
+            latest, bluebook: @bluebook, translations: @registry.translations, directory: @held.directory,
+            watermark: @lineage.last_ordinal
+          )
+          return verdict.edge if verdict.verdict == "would_mint"
+
+          raise Runtime::NotFound, "no translation edge leads #{latest[:label]} to #{label} " \
+                                   "(the decision is #{verdict.verdict}) — run `hecks era.scaffold_translation` first"
         end
 
         # The registered translations that leave the latest era.
@@ -93,8 +105,9 @@ module Hecks
 
         def verdict_for(aggregate, edge, era, chain)
           after = translated(aggregate, era, chain)
-          before = if chain.size > 1
-                     translated(aggregate, era, chain[0..-2])
+          before = @lineage.split_latest(aggregate, chain) ||
+                   if chain.size > 1
+                     @lineage.received_latest(aggregate, era, chain)
                    else
                      @lineage.ancestor_latest(aggregate, era, chain)
                    end

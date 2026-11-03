@@ -130,9 +130,9 @@ RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
     end
   end
 
-  def restore(*flags, **options) = command("data_copy.restore", *COPY_ARGS, *flags, **options)
+  def restore(*flags, **options) = command("data_copy.restore!", *COPY_ARGS, *flags, **options)
 
-  def verify(**options) = command("data_copy.verify", *COPY_ARGS, **options)
+  def verify(**options) = command("data_copy.verify!", *COPY_ARGS, **options)
 
   def verification_status(json)
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
@@ -154,7 +154,7 @@ RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
     expect(declaration.aggregate("CopyVerification").commands.map(&:hecks_name)).to eq(%w[Run Match Differ Flag])
   end
 
-  describe "data_copy.restore" do
+  describe "data_copy.restore!" do
     it "refuses without confirm=true and exits 1", :aggregate_failures do
       json, status = restore
 
@@ -286,7 +286,7 @@ RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
     end
 
     it "refuses a bastion that is not an instance id", :aggregate_failures do
-      argv = ["deploy", "data_copy.restore", scratch.project, *COPY_ARGS.drop(1), "bastion=not-one", "--wait"]
+      argv = ["deploy", "data_copy.restore!", scratch.project, *COPY_ARGS.drop(1), "bastion=not-one", "--wait"]
       out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: argv)
 
       expect(status).not_to eq(0)
@@ -294,7 +294,7 @@ RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
     end
   end
 
-  describe "data_copy.verify" do
+  describe "data_copy.verify!" do
     it "compares the databases on its own and records a match", :aggregate_failures do
       json, status = verify
 

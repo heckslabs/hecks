@@ -441,7 +441,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "AddTopping",
@@ -519,7 +520,8 @@
           ],
           "from": "available",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Purchase",
@@ -639,7 +641,8 @@
           ],
           "from": "available",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -858,12 +861,17 @@
               ],
               "emits": [
                 "PizzaPaymentReceived"
+              ],
+              "handles": [
+
               ]
             }
           ]
         }
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]

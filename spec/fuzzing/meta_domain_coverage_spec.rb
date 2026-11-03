@@ -136,7 +136,27 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
     "Argument#pairs_shape"              => "same as Syntax#arguments, one level in",
     "Argument#variadic"                 => "same as Syntax#arguments, one level in",
     "Argument#coerce"                   => "same as Syntax#arguments, one level in",
-    "Argument#blank_message"            => "same as Syntax#arguments, one level in"
+    "Argument#blank_message"            => "same as Syntax#arguments, one level in",
+    "Aggregate#formerly_known_as"       => "a rename marker on an aggregate's declaration, read by the parser and the " \
+                                           "renamed-name lookups; spec/round_trip_spec.rb and spec/word_coverage_spec.rb " \
+                                           "hold it. A fuzzed sequence runs commands, not declarations, so no property " \
+                                           "changes what a rename marker does at runtime",
+    "Aggregate#created_by"              => "who created an aggregate, a declaration read by the refusal wording; " \
+                                           "spec/created_by_refusal_spec.rb holds the refusal. A fuzzed sequence " \
+                                           "dispatches commands and does not vary the declared author",
+    "Bluebook#modules"                  => "the task modules a bluebook groups its aggregates into (ADR 0163); " \
+                                           "spec/domain_module_spec.rb holds the grouping, and the parser parity corpus " \
+                                           "holds its shape. Grouping changes listing, not behaviour, so no property draws it",
+    "Command#audience"                  => "who a launcher lists a command for, read by the listing and not by the " \
+                                           "runtime; spec/driving_adapters/launcher_audience_spec.rb holds the listing. " \
+                                           "No fuzzed sequence depends on which audience a command names",
+    "Command#mints_era"                 => "lets the one mint command's own record through a PostgresEra boot whose " \
+                                           "shape no era holds yet; spec/adapters/driven/postgres_era/" \
+                                           "mints_era_write_spec.rb holds it. The fuzzer runs in Memory, which has no " \
+                                           "eras, so no fuzzed sequence can reach what the flag changes",
+    "ProcessManager#resumes"            => "the command that resumes each stage of a process manager, read by the saga " \
+                                           "recovery path; spec/dsl_spec.rb and spec/syntax_conformance_spec.rb hold its " \
+                                           "declaration and parse. The crash-recovery specs drive the resume path itself"
   }.freeze
 
   def claimed_features = META_DOMAIN_PROPERTY_COVERAGE.values.flatten.to_set

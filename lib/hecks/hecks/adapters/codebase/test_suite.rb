@@ -6,6 +6,7 @@ require_relative "minitest_runs"
 require_relative "run_options"
 require_relative "test_runner"
 require_relative "changed_specs"
+require_relative "batch_runs"
 require_relative "sqlite_fixture"
 require_relative "cargo_tests"
 require_relative "cache_clearing"
@@ -16,20 +17,20 @@ module Hecks
       # What Codebase's `TestSuiteRun` asks of the working tree: the tooling around this
       # repository's specs.
       #
-      # The tooling owns its options, so each ask runs one of the `Hecks::CLI` commands in this
+      # The tooling owns its options, so each ask runs one of the `Hecks::Tools` commands in this
       # process from the checkout's root, except a single example (the `TestRunner` adapter runs it)
       # and the persistence fixtures (the `SqliteFixture` adapter). A listing is a pure read.
-      # Refreshing the committed timings, regenerating the fixtures and writing the committed spec
-      # list change tracked files, so unconfirmed they report what they would do and write nothing.
+      # Regenerating the fixtures and writing the committed spec list change tracked files, so
+      # unconfirmed they report what they would do and write nothing.
       module TestSuite
         # Every operation this family carries out.
-        OPERATIONS = %w[refresh_runtime_baseline run_spec_example run_suite run_changed stress_concurrency
-                        run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
+        OPERATIONS = %w[run_spec_example run_spec_files run_impacted_specs run_suite run_changed
+                        stress_concurrency run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
                         write_io_parallel_spec_list].freeze
 
-        # The operations that run specs in a folder of their own: they need that folder to hold specs,
-        # not to be this checkout, so any project's suite runs through them.
-        FOLDER_OPERATIONS = %w[run_spec_example run_suite run_changed].freeze
+        # The operations that run specs in a folder of their own: they need that folder to hold
+        # specs, not to be this checkout, so any project's suite runs through them.
+        FOLDER_OPERATIONS = %w[run_spec_example run_spec_files run_impacted_specs run_suite run_changed].freeze
 
         # The spec directory a folder's whole suite lives in.
         SPEC_DIRECTORY = "spec"
@@ -37,19 +38,16 @@ module Hecks
         # The tag filter the postgres job lists its specs by when none is named.
         DEFAULT_TAGS = "--tag io --tag ~fuzzing"
 
-        # The committed files a baseline refresh writes.
-        BASELINES = %w[.github/rspec_runtime_baseline.log .github/postgres_io_runtime_baseline.log].freeze
-
         module_function
 
-        # Loads the command a `Hecks::CLI` file defines, the first time an ask needs it: several
+        # Loads the command a `Hecks::Tools` file defines, the first time an ask needs it: several
         # read the checkout's specs or need a development gem, which an installed gem lacks.
         #
-        # @param file [String] the command's file under `lib/hecks/cli/`, without the extension
+        # @param file [String] the command's file under `lib/hecks/tools/`, without the extension
         # @return [Module] the command, named as the file is, in camel case
         def command(file)
-          require "hecks/cli/#{file}"
-          Hecks::CLI.const_get(file.split("_").map(&:capitalize).join)
+          require "hecks/tools/#{file}"
+          Hecks::Tools.const_get(file.split("_").map(&:capitalize).join)
         end
 
         # Carries out one operation.
@@ -63,7 +61,7 @@ module Hecks
         def call(operation, held, tree, shell: nil)
           args = plain(held)
           case operation
-          when "run_spec_example" then spec_example(args, tree)
+          when *BatchRuns::OPERATIONS then BatchRuns.call(operation, args, tree)
           when "run_suite" then suite(args, tree)
           when "run_changed" then changed(args, tree)
           when "run_cargo_tests" then CargoTests.run(args, tree, shell)
@@ -78,19 +76,11 @@ module Hecks
         # @return [String] what the tool printed
         def tooling(operation, args, tree, shell)
           case operation
-          when "refresh_runtime_baseline" then refresh(args, tree)
           when "stress_concurrency" then stress(args, tree)
           when "regenerate_legacy_fixtures" then regenerate_fixtures(args, tree, shell)
           when "seed_semantics_corpus" then seed(args, tree)
           else write_list(args, tree)
           end
-        end
-
-        # @param args [Hash] `file`, `example`, and the arguments that set the specs' variables
-        # @param tree [Tree] the checkout
-        # @return [String] what the runner printed
-        def spec_example(args, tree)
-          TestRunner.new(tree).run(file: args[:file], example: args[:example], env: RunOptions.spec_env(args), tags: args[:tags])
         end
 
         # Runs every spec of the folder's spec directory in one process.
@@ -209,18 +199,6 @@ module Hecks
         # @param args [Hash] `tags`, perhaps absent
         # @return [Array<String>] the tag filter, one word each
         def tag_words(args) = (args[:tags] || DEFAULT_TAGS).split
-
-        # @param args [Hash] `workers` and `from_run`
-        # @param tree [Tree] the checkout whose baselines are rewritten
-        # @return [String] what was written, or (unconfirmed) what would be
-        # @raise [ConsoleCapture::Failure] when the refresh ends badly
-        def refresh(args, tree)
-          source = args[:from_run] ? ["--from-run", args[:from_run]] : [*args[:workers]&.to_s]
-          return answer { command("refresh_rspec_runtime_baseline").call(source, root: tree.root) } if args[:confirm] == true
-
-          "dry run, would #{args[:from_run] ? "read CI run #{args[:from_run]}'s timings" : "time a local run"} " \
-            "and rewrite #{BASELINES.join(", ")} (add --confirm)"
-        end
 
         # @param args [Hash] `exclude`, `tags`, `write` and `confirm`
         # @param tree [Tree] the checkout whose spec list is written

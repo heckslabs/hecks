@@ -1,0 +1,15 @@
+# Connection for the Fixer's attempts, bound to PostgresEra by quality_control.hecksagon. Boot reads
+# a world named after the bound domain, so this file names the Fixer's own database rather than the
+# QualityControl ledger's; the two are separate eras with separate lineages.
+# The database is created once before the first boot: `createdb -O hecks_qa hecks_fixer`.
+Hecks.world "Fixer" do
+  # Connects as the ordinary role hecks_qa, which owns the database: a superuser bypasses the era
+  # write-fence (row-level security), so the boot refuses one.
+  # `mint_eras` is off and `disposable_ledger` is on: a changed shape is applied by the boot itself
+  # (additive in place, breaking archived), with no era, mint or edge. See quality_control.world.
+  persisted_by("PostgresEra") do
+    database "postgres://hecks_qa@localhost/hecks_fixer"
+    mint_eras false
+    disposable_ledger true
+  end
+end

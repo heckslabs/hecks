@@ -7,6 +7,9 @@ Hecks.bluebook "Hecksagon" do
 
     attribute :attributes, list_of(PortOperationField)
     attribute :emits,      list_of(EmittedEvent)
+    # Which value of which command this operation handles, declared beside the port that serves it.
+    # Recorded here only: nothing routes on it until the dispatch step reads it.
+    attribute :handles,    list_of(CommandValueHandling)
 
     # The two endings of an `asks`: what the adapter answered, or what it refused with.
     # Singular because an ask has exactly one of each; empty on every `tells`, so no invariant.
@@ -26,6 +29,13 @@ Hecks.bluebook "Hecksagon" do
     value_object "EmittedEvent" do
       attribute :value, String
       invariant("an emitted event is named") { !value.to_s.empty? }
+    end
+
+    value_object "CommandValueHandling" do
+      attribute :command, String
+      attribute :value,   String
+      invariant("a handled command is named") { !command.to_s.empty? }
+      invariant("a handled value is named") { !value.to_s.empty? }
     end
 
     value_object "AnsweringEvent" do
@@ -54,6 +64,7 @@ Hecks.bluebook "Hecksagon" do
       member word: "emits",           context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "emits"
       member word: "answers",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "answers"
       member word: "refuses",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "refuses"
+      member word: "handles",         context: "PortOperation", body: "none",     inner: "",              opens: "",              fills: "handles", calls: "handles_impl"
 
     end
 
@@ -87,6 +98,8 @@ Hecks.bluebook "Hecksagon" do
       member keyword: "emits",           context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "emits"
       member keyword: "answers",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "answers"
       member keyword: "refuses",         context: "PortOperation", at: "1", named: "", kind: "text", required: "true", fills: "refuses"
+      member keyword: "handles",         context: "PortOperation", at: "1", named: "",      kind: "text", required: "true",  fills: "command"
+      member keyword: "handles",         context: "PortOperation", at: "",  named: "value", kind: "text", required: "true",  fills: "value"
 
     end
   end

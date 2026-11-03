@@ -36,6 +36,31 @@ module Hecks
           end
         end
 
+        # Flags a query the hecksagon binds to a port's adapter. Only the Ruby runtime asks an
+        # adapter for an answer; a Rust host would find nothing behind the query.
+        #
+        # @param bluebook [Bluebook::Declaration] the assembled bluebook, its hecksagon's ports
+        #   attached
+        # @param rust_target [Boolean] whether this domain has a real Rust target; a domain without
+        #   one is not checked, since nothing but the Ruby runtime serves it
+        # @return [Array<Finding>] one :external_query error per bound query, none off a Rust target
+        def external_query_findings(bluebook, rust_target: false)
+          return [] unless rust_target
+
+          bluebook.aggregates.flat_map do |aggregate|
+            aggregate.ports.flat_map do |port|
+              port.answered_queries.map { |answer| external_query_finding(aggregate, port, answer) }
+            end
+          end
+        end
+
+        def external_query_finding(aggregate, port, answer)
+          Finding.new(kind: :external_query, severity: :error,
+                      subject: "#{aggregate.hecks_name}.#{answer.name}",
+                      message: "the #{port.name} port's adapter answers this query, and only the Ruby " \
+                               "runtime asks an adapter — the Rust host cannot serve it")
+        end
+
         private
 
         def port_trigger_finding(bluebook, policy)

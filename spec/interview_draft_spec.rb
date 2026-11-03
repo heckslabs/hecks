@@ -3,11 +3,11 @@ require "open3"
 require "rbconfig"
 require "tmpdir"
 require "fileutils"
-require "hecks/cli/interview_draft"
+require "hecks/tools/interview_draft"
 
 # The generator from an interview's accepted findings to a first domain (ADR 0088): what reaches
 # the bluebook, what is only recorded, and that the result boots and runs.
-RSpec.describe Hecks::CLI::InterviewDraft do
+RSpec.describe Hecks::Tools::InterviewDraft do
   def interview(**overrides)
     { reference: "INT-1", subject: "Lending", expert: "Maria",
       exchanges: [{ question: "What do you keep?", answer: "Books, each with an ISBN.", topic: "catalogue" },
@@ -223,7 +223,8 @@ status: "accepted" }])
     files = described_class.files(interview, adapter: "Postgres")
 
     expect(files.keys).to include("bluebook/lending.world", "bluebook/environments/memory.world", "interviews/INT-1.md")
-    expect(files.fetch("bluebook/lending.world")).to eq(Hecks::CLI::DomainStub.support_files(name: "Lending", adapter: "Postgres")
+    expect(files.fetch("bluebook/lending.world")).to eq(Hecks::Tools::DomainStub.support_files(name:    "Lending",
+                                                                                               adapter: "Postgres")
                                                           .fetch("bluebook/lending.world"))
   end
 
@@ -252,7 +253,7 @@ status: "accepted" }])
   # process.
   DRAFT_TRIP = <<~RUBY.freeze
     require "hecks"
-    require "hecks/cli/interview_draft"
+    require "hecks/tools/interview_draft"
     require "fileutils"
     rt = Hecks.boot("lib/hecks/sme")
     i = Interview.plan!(reference: "INT-1", subject: "Lending", expert: "Maria")
@@ -278,7 +279,7 @@ status: "accepted" }])
     decide.("TransitionFinding", "AcceptTransition", 6)
     decide.("TransitionFinding", "AcceptTransition", 7)
     Interview.find("INT-1").conclude!
-    draft = Hecks::CLI::InterviewDraft.files(Hecks::CLI::InterviewDraft.from_record(Interview.find("INT-1")), adapter: "Memory")
+    draft = Hecks::Tools::InterviewDraft.files(Hecks::Tools::InterviewDraft.from_record(Interview.find("INT-1")), adapter: "Memory")
     draft.each do |path, text|
       full = File.join(ARGV.first, path)
       FileUtils.mkdir_p(File.dirname(full))

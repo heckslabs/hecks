@@ -582,6 +582,70 @@
       "verb": "Translation::Rule.Propose",
       "args": {
         "kind": {
+          "value": "split"
+        },
+        "source": {
+          "value": "split"
+        },
+        "destination": {
+          "value": ""
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "split"
+        },
+        "target": {
+          "value": "postgres"
+        },
+        "form": {
+          "value": "fan-out: the source is chained through the edges before the split, then each row becomes one row per keyed_by value, carrying the named fields; a delete carries through"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "split"
+        },
+        "target": {
+          "value": "sqlite"
+        },
+        "form": {
+          "value": "fan-out: the source is chained through the edges before the split, then each row becomes one row per keyed_by value, carrying the named fields; a delete carries through"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Execute",
+      "args": {
+        "source": {
+          "value": "split"
+        },
+        "target": {
+          "value": "in_process"
+        },
+        "form": {
+          "value": "every source row that carries the keyed_by field yields one target row under that value, holding the named fields; a delete removes the target row"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Admit",
+      "args": {
+        "source": {
+          "value": "split"
+        }
+      }
+    },
+    {
+      "verb": "Translation::Rule.Propose",
+      "args": {
+        "kind": {
           "value": "unresolved"
         },
         "source": {

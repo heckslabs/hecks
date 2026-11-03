@@ -5,6 +5,17 @@
 Hecks.hecksagon "QualityControl" do
   attaches "Governance"
   persisted_by "Memory"
+
+  # The fixer's steps, which the ledger records as the bug's state. Declarative: the Fixer domain
+  # emits them, and the Record policies above react.
+  subscribe "Fixer.AttemptClaimed"
+  subscribe "Fixer.AttemptInvestigated"
+  subscribe "Fixer.FixReady"
+  subscribe "Fixer.FixVerified"
+
+  # The coder's submitted branch, which starts the main maintenance run. Declarative: the Coder domain
+  # emits it, and the StartOnSubmission policy reacts.
+  subscribe "Coder.WorkSubmitted"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

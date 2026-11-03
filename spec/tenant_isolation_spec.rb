@@ -3,11 +3,13 @@ require "tmpdir"
 require_relative "support/postgres_probe"
 require_relative "support/fenced_owner"
 require_relative "support/tenant_scratch_database"
+require_relative "support/first_era_hold"
 
 # Multitenancy needs no ambient tenant: one boot per tenant, each registered into a shared
 # ProjectRegister, keeps data apart. TenantCheck refuses adapters that do not.
 RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   include TenantScratchDatabase
+  include FirstEraHold
 
   TENANT_ISOLATION_BLUEBOOK = <<~BLUEBOOK.freeze
     Hecks.bluebook "Tenanted" do
@@ -196,6 +198,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
                             "acme"  => { database: url, schema: "tenant_acme" },
                             "bloom" => { database: url, schema: "tenant_bloom" }
                           })
+      hold_tenant_eras!(directory: dir, url: url, schemas: %w[tenant_acme tenant_bloom])
     end
 
     # The aggregate's table in tenant_bloom's own schema, found by its `_head` suffix

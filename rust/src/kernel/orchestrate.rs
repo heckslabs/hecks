@@ -783,7 +783,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 Json::obj(fields)
             };
 
-            if depth + 1 >= MAX_REACTION_DEPTH {
+            if depth >= MAX_REACTION_DEPTH {
                 self.reaction_log.push(record(vec![
                     ("delivered", Json::Bool(false)),
                     (
@@ -1055,7 +1055,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
             Json::obj(fields)
         };
 
-        if depth + 1 >= MAX_REACTION_DEPTH {
+        if depth >= MAX_REACTION_DEPTH {
             self.saga_log.push(record(vec![
                 ("delivered", Json::Bool(false)),
                 (
@@ -1126,7 +1126,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
             Json::obj(fields)
         };
 
-        if depth + 1 >= MAX_REACTION_DEPTH {
+        if depth >= MAX_REACTION_DEPTH {
             self.saga_log.push(record(vec![
                 ("delivered", Json::Bool(false)),
                 (
@@ -1304,6 +1304,31 @@ mod tests {
 
     fn no_reference_key(_aggregate: &str) -> Option<&'static str> {
         None
+    }
+
+    // The emitting record's id is offered once, and an empty id is never offered: offering on
+    // either condition alone duplicates the field or invents an empty one.
+    #[test]
+    fn offer_emitter_id_adds_the_id_once_and_never_an_empty_one() {
+        let event = |id: &str| Event {
+            name: "SomeEvent".to_string(),
+            aggregate: "Domain::Thing".to_string(),
+            id: id.to_string(),
+            payload: Json::Object(vec![]),
+            occurred_at: None,
+            correlation: None,
+        };
+        let mut fresh = vec![];
+        offer_emitter_id(&mut fresh, &event("thing-1"));
+        assert_eq!(fresh, vec![("id".to_string(), Json::str("thing-1"))]);
+
+        let mut held = vec![("id".to_string(), Json::str("given"))];
+        offer_emitter_id(&mut held, &event("thing-1"));
+        assert_eq!(held, vec![("id".to_string(), Json::str("given"))]);
+
+        let mut empty = vec![];
+        offer_emitter_id(&mut empty, &event(""));
+        assert!(empty.is_empty());
     }
 
     // Tier 2 alone: tier 1 finds nothing and tier 3 is unconfigured, so only the stamp can

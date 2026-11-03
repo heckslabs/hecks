@@ -32,21 +32,35 @@ module Hecks
                                        "persisted_by block of its world", minting: false)
           end
 
-          private
+          # Refuses a mint that the rehearsal does not back: not confirmed, not a would_mint
+          # verdict, or a
+          # ledger watermark that moved since the rehearsal read it.
+          def refuse_unrehearsed_mint!(context)
+            request = context.mint_request
+            raise era_refusal(context, "the mint was not confirmed") unless request.confirm
+            unless request.verdict == "would_mint"
+              raise era_refusal(context, "the rehearsal's verdict was #{request.verdict}, not would_mint; " \
+                                         "rehearse again")
+            end
 
-          def refuse_forked_eras!(context, edges)
-            latest = context.latest
-            raise era_refusal(context, "#{edges.size} translation edges leave era #{latest[:ordinal]} " \
-                                       "(#{latest[:label]}) — eras fork mechanically; keep one edge per source shape",
-                              minting: false)
+            refuse_moved_watermark!(context, request.watermark)
           end
 
-          def refuse_stale_edge!(context, edge)
-            return if edge.to == context.label
+          private
 
-            raise era_refusal(context, "the translation edge from #{context.latest[:label]} targets " \
-                                       "#{edge.to}, but the current shape is #{context.label} — the edge is stale; " \
-                                       "re-run hecks scaffold_translation", minting: false)
+          def refuse_moved_watermark!(context, watermark)
+            current = context.watermark
+            return if current == watermark
+
+            raise era_refusal(context, "the ledger watermark moved from #{watermark} to #{current} since the " \
+                                       "rehearsal; rehearse again")
+          end
+
+          def refuse_duplicate_edges!(context, edges)
+            latest = context.latest
+            raise era_refusal(context, "#{edges.size} translation edges lead era #{latest[:ordinal]} " \
+                                       "(#{latest[:label]}) to the current shape #{context.label}; keep one",
+                              minting: false)
           end
 
           # Builds the refusal; a mint's own refusals say "cannot mint era N of X", the

@@ -191,7 +191,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "AddSlip",
@@ -245,7 +246,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -330,7 +332,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -355,6 +358,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]

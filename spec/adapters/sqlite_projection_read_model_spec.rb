@@ -7,7 +7,7 @@ require "tempfile"
 # - a chained include (a head referencing another included head, not the root): its rows
 #   must still resolve.
 RSpec.describe "Adapters::SqliteProjection#query_read_model" do
-  SOURCE = <<~BLUEBOOK.freeze
+  PROJECTION_SOURCE = <<~BLUEBOOK.freeze
     Hecks.bluebook "ChainProjectionGrowth" do
       aggregate "Root" do
         identified_by :ref
@@ -68,7 +68,7 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
 
   def boot(dir)
     file = Tempfile.new(["chain-projection-growth-", ".bluebook"])
-    file.write(SOURCE)
+    file.write(PROJECTION_SOURCE)
     file.flush
     register_and_bind(dir, file.path)
   ensure
@@ -88,7 +88,7 @@ RSpec.describe "Adapters::SqliteProjection#query_read_model" do
 
   def declare_chain(source_path, dir)
     load_chain_ports
-    Kernel.eval(SOURCE, TOPLEVEL_BINDING, source_path, 1)
+    Kernel.eval(PROJECTION_SOURCE, TOPLEVEL_BINDING, source_path, 1)
     declare_chain_bindings
     Hecks.world("ChainProjectionGrowth") do
       persisted_by("SqlitePersistence") { database(File.join(dir, "chain-authoritative.db")) }

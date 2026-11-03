@@ -51,7 +51,7 @@ RSpec.describe "the installed hecks gem", :io do
   #
   # @return [Array(Hash, Integer)] the parsed record and the exit status
   def wasm_build
-    out, err, code = hecks("build.build_wasm", "domain.value=#{@project}/", "run.value=smoke", "--wait")
+    out, err, code = hecks("build.build_wasm!", "domain.value=#{@project}/", "run.value=smoke", "--wait")
     [JSON.parse(out[/^\{.*?^\}$/m] || raise("no record on stdout (exit #{code}):\n#{out}\n#{err}")), code]
   end
 
@@ -83,36 +83,36 @@ RSpec.describe "the installed hecks gem", :io do
   end
 
   it "prints a domain's IR as JSON for `ir`", :aggregate_failures do
-    out, err, code = hecks("ir", ".")
+    out, err, code = hecks("introspection.ir", ".")
 
     expect(code).to eq(0), err
     expect(JSON.parse(out)).to have_key("Banking")
   end
 
   it "prints a domain's stores as JSON for `stores`", :aggregate_failures do
-    out, err, code = hecks("stores", ".")
+    out, err, code = hecks("introspection.stores", ".")
 
     expect(code).to eq(0), err
     expect(JSON.parse(out)).to have_key("customer")
   end
 
   it "answers `stores` without a domain with a usage line, not a backtrace", :aggregate_failures do
-    _out, err, code = hecks("stores")
+    _out, err, code = hecks("introspection.stores")
 
     expect(code).not_to eq(0)
-    expect(err).to include("usage:")
+    expect(err).to include("was not given domain")
     expect(err).not_to include("IndexError")
   end
 
   it "refuses `build_wasm` without its arguments by name", :aggregate_failures do
-    _out, err, code = hecks("build.build_wasm")
+    _out, err, code = hecks("build.build_wasm!")
 
     expect(code).to eq(1)
     expect(err).to include("BuildWasm was not given domain")
   end
 
   it "answers `build_wasm --help` with the command's shape", :aggregate_failures do
-    out, err, code = hecks("build.build_wasm", "--help")
+    out, err, code = hecks("build.build_wasm!", "--help")
 
     expect(code).to eq(0), err
     expect(out).to include("dispatches Hecks::Build.BuildWasm", "domain.value")
@@ -126,7 +126,7 @@ RSpec.describe "the installed hecks gem", :io do
   end
 
   it "refuses a Codebase command with 'needs a hecks checkout'", :aggregate_failures do
-    out, err, code = hecks("regeneration_run.regenerate_corpus")
+    out, err, code = hecks("regeneration_run.regenerate_corpus!")
 
     expect(code).to eq(0), err
     expect(JSON.parse(out).fetch("refused_reactions").map { |r| r.fetch("reason") })

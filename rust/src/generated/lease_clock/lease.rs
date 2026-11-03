@@ -1472,7 +1472,7 @@ impl ReapArgs {
                 .render_args(),
             ));
         }
-        let required: &[&str] = &["grace", "now"];
+        let required: &[&str] = &["now"];
         let absent: Vec<&str> = required
             .iter()
             .copied()
@@ -1500,17 +1500,10 @@ impl ReapArgs {
             .coerce_single_field("value"),
         )?;
         now.check_invariants()?;
-        let grace = LeaseInstant::from_json(
-            &(match v.get("grace").ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Reap.grace expects LeaseInstant, got nil".to_string(),
-                )
-            })? {
-                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
-                other => other.clone(),
-            })
-            .coerce_single_field("value"),
-        )?;
+        let grace = match v.get("grace") {
+            None => LeaseInstant { value: 0 },
+            Some(x) => LeaseInstant::from_json(&x.coerce_single_field("value"))?,
+        };
         grace.check_invariants()?;
         Ok(Self { now, grace })
     }
@@ -1546,7 +1539,7 @@ impl ReapArgs {
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let required: &[&str] = &["grace", "now"];
+        let required: &[&str] = &["now"];
         let absent: Vec<&str> = required
             .iter()
             .copied()

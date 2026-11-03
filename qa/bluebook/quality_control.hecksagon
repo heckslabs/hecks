@@ -6,6 +6,8 @@ Hecks::FrameworkBluebooks.load!("QualityControl")
 
 Hecks.hecksagon "QualityControl" do
   attaches "Governance"
+  attaches "Coder"
+  attaches "Fixer"
 
   QualityControl::Target.persisted_by("PostgresEra")
   QualityControl::Sweep.persisted_by("PostgresEra")
@@ -16,4 +18,16 @@ Hecks.hecksagon "QualityControl" do
   QualityControl::Improvement.persisted_by("PostgresEra")
   QualityControl::DailyQuota.persisted_by("PostgresEra")
   QualityControl::Clearance.persisted_by("PostgresEra")
+  QualityControl::MainCheck.persisted_by("PostgresEra")
+  QualityControl::EventCursor.persisted_by("PostgresEra")
+  QualityControl::EventReaction.persisted_by("PostgresEra")
+  QualityControl::Maintenance.persisted_by("PostgresEra")
+end
+
+# The Fixer's wiring, declared in the Fixer's own block. Its attempts persist through PostgresEra,
+# so the event pump reads them across processes; fixer.world names the database they land in.
+Hecks.hecksagon "Fixer" do
+  attaches "Governance"
+  persisted_by "Memory"
+  Fixer::Attempt.persisted_by("PostgresEra")
 end

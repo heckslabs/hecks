@@ -12,13 +12,30 @@ module Hecks
         # @param settings [Hash{Symbol, String => Object}] persistence settings; needs `database`
         # @param directory [String, nil] where `HECKS_SCAFFOLD=1` writes a translation edge
         # @return [Integer, nil] the ordinal of the era this boot minted, or nil when none
-        # @raise [Runtime::WiringError] if the database is unreachable or the mint refuses
+        # @raise [Runtime::WiringError] if the database is unreachable or the mint refuses, or the
+        #   binding's `mints_era` and the bluebook's command words disagree
         # @raise [Bluebook::DSL::Malformed] if a held era's text parses under no grammar
         def era_check!(registry:, bluebook:, current_text:, settings:, directory: nil)
+          Ports::Persistence::MintDoor.check!(bluebook, settings)
           LineageManager.check!(
             registry: registry, bluebook: bluebook, current_text: current_text,
             settings: settings, directory: directory
           )
+        end
+
+        # What a boot of this bluebook would resolve, read from its own database over a connection
+        # that can only read. The boot's `era_check!` records the same answer. See
+        # `LineageManager::EraResolution`.
+        #
+        # @param registry [Runtime::Registry] the loaded registry, for its translation edges
+        # @param bluebook [Bluebook::Declaration] the bluebook as it stands
+        # @param settings [Hash{Symbol, String => Object}] persistence settings; needs `database`
+        # @param directory [String, nil] the domain's bluebook directory
+        # @return [LineageManager::EraResolution::Answer]
+        # @raise [Runtime::WiringError] if the database is unreachable or a held text was altered
+        def era_status(registry:, bluebook:, settings:, directory: nil)
+          LineageManager::EraResolution.read(bluebook: bluebook, settings: settings,
+                                             translations: registry.translations, directory: directory)
         end
 
         # Reads one setting under either its Symbol or String spelling.
@@ -40,13 +57,15 @@ module Hecks
         #
         # @param name [String] the domain or aggregate name, used only in refusal messages
         # @param settings [Hash{Symbol, String => Object}] `database` is a name or `postgres://` URL
+        # @param provision [Boolean] whether a declared `schema` that does not exist yet is created;
+        #   a mint or an owner write passes true, a boot passes false and reads what is there
         # @return [PG::Connection] an open connection
         # @raise [Runtime::WiringError] if `database` is missing or Postgres refuses a statement
-        def connect_for(name, settings)
+        def connect_for(name, settings, provision: true)
           require_pg!(name)
           declared = declared_database(name, settings)
           connection = open_connection(declared)
-          prepare_session!(connection, setting(settings, :schema))
+          prepare_session!(connection, setting(settings, :schema), provision: provision)
           connection
         rescue StandardError => e
           # PG is only defined once the gem loads, so the clause cannot name it.
@@ -81,14 +100,15 @@ module Hecks
 
         # A declared `schema` means the instance is shared; search_path makes every unqualified
         # name this adapter and its lineage classes build resolve inside that schema.
-        def prepare_session!(connection, schema)
+        def prepare_session!(connection, schema, provision:)
           if schema.to_s != ""
-            # Idempotent: the schema may not exist yet on the first boot.
-            connection.exec("CREATE SCHEMA IF NOT EXISTS #{connection.quote_ident(schema)}")
+            # A mint creates the schema, idempotently; a read leaves it uncreated. An unknown
+            # search_path names no relation, so the lineage reads as unminted.
+            connection.exec("CREATE SCHEMA IF NOT EXISTS #{connection.quote_ident(schema)}") if provision
             connection.exec("SET search_path TO #{connection.quote_ident(schema)}")
           end
 
-          # Provisioning re-runs CREATE ... IF NOT EXISTS on every boot; silence the notices.
+          # Provisioning runs CREATE ... IF NOT EXISTS on every mint; silence the notices.
           # Warnings and above still surface.
           connection.exec("SET client_min_messages = warning")
         end

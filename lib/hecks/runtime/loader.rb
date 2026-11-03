@@ -2,6 +2,7 @@ require_relative "../ports/loading"
 require_relative "../ports/persistence"
 require_relative "../ports/dispatch"
 require_relative "dispatcher"
+require_relative "event_tap"
 require_relative "boot_gates"
 require_relative "registry"
 require_relative "loader/boot_steps"
@@ -23,23 +24,26 @@ module Hecks
       # @param path [String] a domain directory to boot
       # @param shared [String, nil] shared ports/adapters root; nil walks up from `path`
       # @param environment [String, nil] environment overlay loaded after the domain; nil loads none
+      # @param event_tap [String, nil] a path in place of the Hecks world's event tap; empty
+      #   switches the tap off, nil leaves the world's where it is
       # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Errno::ENOENT] if `path` names no domain directory
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot(path, shared: nil, environment: nil)
-        boot_described(describe(path, shared: shared, environment: environment))
+      def self.boot(path, shared: nil, environment: nil, event_tap: nil)
+        boot_described(describe(path, shared: shared, environment: environment), event_tap: event_tap)
       end
 
       # Finishes a boot from declarations `describe` already loaded: runs every boot gate and builds
       # the dispatcher, without reading the domain's files again.
       #
       # @param described [Described] what `describe` answered for the domain to boot
+      # @param event_tap [String, nil] a path in place of the Hecks world's event tap; see `boot`
       # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_described(described)
+      def self.boot_described(described, event_tap: nil)
         registry = described.registry
         run_boot_gates!(registry, described.directory)
-        dispatcher = dispatcher_for(registry)
+        dispatcher = dispatcher_for(registry, event_tap)
         redrive_outbox!(dispatcher)
         redrive_sagas!(dispatcher)
         seed_privacy_markings!(dispatcher, registry)
@@ -95,39 +99,41 @@ module Hecks
         dispatcher.redrive_sagas!
       end
 
-      # Boots the exact bluebook/hecksagon/world files in `paths`, in place —
-      # unlike `boot`, no directory globbing and no copying into a temp dir
-      # (a `persisted_by` path must resolve against the real project root,
-      # not a copy's).
+      # Boots the exact bluebook/hecksagon/world files in `paths`, in place: unlike `boot`, no
+      # directory globbing and no copying into a temp dir (a `persisted_by` path must resolve
+      # against the real project root, not a copy's).
       #
       # @param paths [Array<String>, String] the exact file paths to boot, in load order
       # @param shared [String, nil] shared ports/adapters root; nil walks up from the first path
-      # @param environment [String, nil] environment overlay loaded after the named files; nil
-      #   loads none
+      # @param environment [String, nil] overlay loaded after the named files; nil loads none
+      # @param adapters [Array<String>, nil] exactly the `.adapter` files to load, the project's own
+      #   left unloaded even when this is empty; nil leaves the choice to `load_files`
+      # @param event_tap [String, nil] a path in place of the Hecks world's event tap; see `boot`
       # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
-      def self.boot_files(paths, shared: nil, environment: nil)
+      def self.boot_files(paths, shared: nil, environment: nil, adapters: nil, event_tap: nil)
         loading   = Ports::Loading.bootstrap
         files     = Array(paths).map { |path| File.expand_path(path) }
         directory = File.dirname(files.first)
-        registry  = load_files(loading, files, shared, environment)
+        registry  = load_files(loading, files + Array(adapters), shared, environment, chosen: !adapters.nil?)
 
         run_boot_gates!(registry, directory)
-        dispatcher_for(registry)
+        dispatcher_for(registry, event_tap)
       end
 
       # Loads exactly `files` into a fresh Registry rooted beside their directory, answering it. An
       # `.adapter` among them stands in for the shared root's adapters, which are then left
-      # unloaded, so a
-      # test can answer a port with its own adapter and never construct the domain's real one.
-      def self.load_files(loading, files, shared, overlay)
+      # unloaded, so a test can answer a port with its own adapter and never construct the domain's
+      # real one. `chosen` says the caller chose the adapters itself (a behaviors suite, ADR 0171),
+      # so the shared root's stay unloaded even when it chose none.
+      def self.load_files(loading, files, shared, overlay, chosen: false)
         directory = File.dirname(files.first)
         root      = loading.shared_root(shared, directory)
         registry  = Registry.new(root: File.dirname(directory))
 
         Hecks.with_registry(registry) do
           loading.load_library
-          loading.load_project(root, adapters: files.none? { |file| file.end_with?(".adapter") })
+          loading.load_project(root, adapters: !chosen && files.none? { |file| file.end_with?(".adapter") })
           loading.load_selected(files, environment: overlay)
         end
         registry
@@ -139,13 +145,23 @@ module Hecks
       # means a deploy target exists.
       #
       # @param registry [Runtime::Registry] the booted registry
+      # @param event_tap [String, nil] a path in place of the Hecks world's event tap; see `boot`
       # @return [Runtime::Dispatcher, Object] the dispatcher the boot hands back
       # @raise [Runtime::WiringError] if the bound adapter cannot build a dispatcher
-      def self.dispatcher_for(registry)
+      def self.dispatcher_for(registry, event_tap = nil)
         settings = registry.world(registry.bluebooks.keys.first)&.for_verb(Ports::Dispatch::VERB) || {}
-        return Dispatcher.new(registry) unless settings[:adapter]
+        return local_dispatcher(registry, event_tap) unless settings[:adapter]
 
         Ports::Dispatch.dispatcher(registry, settings)
+      end
+
+      # The local `Dispatcher`, with the opt-in event log tapped when the Hecks world asks for it.
+      #
+      # @param registry [Runtime::Registry] the booted registry
+      # @param event_tap [String, nil] a path in place of the Hecks world's event tap; see `boot`
+      # @return [Runtime::Dispatcher]
+      def self.local_dispatcher(registry, event_tap = nil)
+        Dispatcher.new(registry).tap { EventTap.install(registry, override: event_tap) }
       end
 
       # Installs the Ruby facade over a dispatcher built by hand. See `Hecks.bind_runtime`.

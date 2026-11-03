@@ -124,7 +124,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     end
 
     def diff_answer(before, after, *flags)
-      answer(["template_comparison.diff", File.join(dir, before), "after=#{File.join(dir, after)}", *flags, "--wait"])
+      answer(["template_comparison.diff!", File.join(dir, before), "after=#{File.join(dir, after)}", *flags, "--wait"])
     end
 
     it "records two templates that agree as matching, and exits 0 under --wait", :aggregate_failures do
@@ -153,14 +153,14 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     end
 
     it "writes the report as JSON with --json" do
-      json, = diff_answer("a.yaml", "b.yaml", "--json")
+      json, = diff_answer("a.yaml", "b.yaml", "json.value=true")
       report = JSON.parse(json.dig("state", "report"))
 
       expect(report.fetch("different")).to be(true)
     end
 
     it "records a template that is not there as refused, and exits 1 under --wait", :aggregate_failures do
-      json, status = answer(["template_comparison.diff", "/no/such/before.yaml", "after=/no/such/after.yaml", "--wait"])
+      json, status = answer(["template_comparison.diff!", "/no/such/before.yaml", "after=/no/such/after.yaml", "--wait"])
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("refused")
@@ -170,7 +170,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
   describe "hecks deploy provision" do
     def tenant_args(slug, realm:, schema: slug, database: "hecks_tenants", extra: [])
-      ["tenant.provision", dir, "slug=#{slug}", "domain=Scratch", "realm=#{realm}", "schema=#{schema}",
+      ["tenant.provision!", dir, "slug=#{slug}", "domain=Scratch", "realm=#{realm}", "schema=#{schema}",
        "database=#{database}", *extra]
     end
 
@@ -239,7 +239,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
 
     it "writes the overlay again for a tenant that was provisioned, under `reprovision`", :aggregate_failures do
       answer(tenant_args("again", realm: "Again", database: "hecks_first", extra: ["--wait"]))
-      json, status = answer(["tenant.reprovision", "to=again", "directory=#{dir}", "database=hecks_second", "--wait"])
+      json, status = answer(["tenant.reprovision!", "to=again", "directory=#{dir}", "database=hecks_second", "--wait"])
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("provisioned")
@@ -248,7 +248,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
   end
 
   describe "hecks deploy project, lint and project_oidc" do
-    def project_pizzas(*flags) = answer(["recipe.project", "examples/pizzas", *flags, "--wait"])
+    def project_pizzas(*flags) = answer(["recipe.project!", "examples/pizzas", *flags, "--wait"])
 
     it "asks the generator for a domain, with each flag it was given", :aggregate_failures do
       shell = stubbed_shell("wrote deploy/pizzas/template.yaml\n")
@@ -281,7 +281,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "keeps a Makefile that hides a failure as a flagged lint, and exits 1 under --wait", :aggregate_failures do
       stubbed_shell(["1 violation(s) found", 1])
 
-      json, status = answer(["makefile_check.lint", "makefiles=deploy/pizzas/Makefile", "--wait"])
+      json, status = answer(["makefile_check.lint!", "makefiles=deploy/pizzas/Makefile", "--wait"])
 
       expect(status).to eq(1)
       expect(json.dig("state", "status")).to eq("flagged")
@@ -290,7 +290,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "records clean Makefiles as a clean lint", :aggregate_failures do
       shell = stubbed_shell("hecks deploy lint: no violations found.\n")
 
-      json, status = answer(["makefile_check.lint", "makefiles=a/Makefile,b/Makefile", "--wait"])
+      json, status = answer(["makefile_check.lint!", "makefiles=a/Makefile,b/Makefile", "--wait"])
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("clean")
@@ -300,7 +300,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     it "projects the manifests of the domains it is named", :aggregate_failures do
       shell = stubbed_shell("  examples/banking/oidc.json  <-  Banking\n")
 
-      json, status = answer(["oidc_manifest.project_oidc", "examples/banking", "--wait"])
+      json, status = answer(["oidc_manifest.project_oidc!", "examples/banking", "--wait"])
 
       expect(status).to eq(0)
       expect(json.dig("state", "status")).to eq("projected")
@@ -311,7 +311,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
       Dir.mkdir(File.join(dir, "lib"))
       Hecks::Adapters::Codebase::Tree.root = dir
 
-      json, status = answer(["makefile_check.lint", "makefiles=deploy/pizzas/Makefile", "--wait"])
+      json, status = answer(["makefile_check.lint!", "makefiles=deploy/pizzas/Makefile", "--wait"])
 
       expect(status).to eq(1)
       expect(json.dig("state", "refusal")).to include("needs a hecks checkout")
@@ -329,7 +329,7 @@ RSpec.describe "the Deploy rows of the ADR command table" do
     end
 
     def generate_recipe(project)
-      Dir.chdir(dir) { answer(["recipe.project", File.basename(project), "out=generated_recipe", "--wait"]) }
+      Dir.chdir(dir) { answer(["recipe.project!", File.basename(project), "out=generated_recipe", "--wait"]) }
     end
 
     it "generates a recipe for a project beside the cwd, from an installed gem with no checkout", :aggregate_failures do

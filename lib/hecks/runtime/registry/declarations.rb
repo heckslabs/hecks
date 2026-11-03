@@ -3,15 +3,16 @@ module Hecks
     class Registry
       # What a boot gathers while the `.bluebook`, `.hecksagon`, `.world` and `.contextmap` files
       # load: the bluebooks and their builders, the wiring, ports, adapters, worlds, translations,
-      # context maps, the eras the boot gate resolved, and the privacy markings still to be
-      # dispatched.
+      # context maps, the eras the boot gate resolved, the domains whose booted shape no era holds
+      # yet, the domains whose unheld shape one recorded move leads to, and the privacy markings
+      # still to be dispatched.
       Declarations = Struct.new(:bluebooks, :bluebook_sources, :hecksagons, :bounded_bluebooks, :ports,
                                 :adapters, :worlds, :translations, :bluebook_builders,
                                 :pending_privacy_markings, :resolved_eras, :superseded_eras,
-                                :context_maps) do
+                                :context_maps, :unminted_eras, :behind_eras) do
         # @return [Declarations] every collection empty
         def self.empty
-          new({}, {}, {}, {}, {}, {}, {}, [], {}, [], {}, {}, {})
+          new({}, {}, {}, {}, {}, {}, {}, [], {}, [], {}, {}, {}, {}, {})
         end
 
         # Stores a value under a key in a keyed collection, and answers the value.

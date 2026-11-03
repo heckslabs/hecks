@@ -15,7 +15,7 @@ Every planned, proposed, and not-yet-built feature collected across hecks's impl
 The clearest signal in the whole tree is the survey's own closing pick — an explicit "if we build three." Everything else here ranks by how concretely it's scoped and how much else depends on it.
 
 1. ~~**A universal dispatch MCP server**~~ — **Shipped.** `lib/hecks/adapters/driving/mcp/tool_definitions/{calling,reading,auditing}.rb` define dispatch, query, state, catalog, describe, validate and follow; `hecks launch.serve_mcp!` serves the storehouse bus.
-2. ~~**`follow`**~~ **shipped** (`hecks query operation.follow`, a persisted event log past a cursor, and an MCP `follow` tool); **`SourceTag`** (the caller kind on each persisted dispatch) is still open.
+2. ~~**`follow`**~~ **shipped** (`hecks operation.follow`, a persisted event log past a cursor, and an MCP `follow` tool); **`SourceTag`** (the caller kind on each persisted dispatch) is still open.
 3. **Drivers** — `driving on interval | cron | clock` in the hecksagon DSL, projected to a Makefile/Procfile target. An older, separate project that is also called hecks (see the editor's note in the survey linked below) was blocked on this.
 
 ### Highest-signal items from the rest of the corpus
@@ -36,7 +36,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 ### Storehouse, ranked
 
 1. **Universal MCP server, three zoom levels.** Ten tools (`dispatch, query, state, catalog, describe_aggregate, list_aggregates, validate, macrophage_check, behaviors, conceive_behaviors`), no per-command wrappers. **Shipped:** the storehouse MCP now serves dispatch, query, state, catalog, describe, validate and follow (see Top priorities).
-2. **`follow`.** A live, cross-process tail of every dispatch, feeding both an MCP resource and a queryable `StorehouseEntry` domain. **Shipped as `hecks query operation.follow` and the MCP `follow` tool;** the queryable `StorehouseEntry` domain is not built.
+2. **`follow`.** A live, cross-process tail of every dispatch, feeding both an MCP resource and a queryable `StorehouseEntry` domain. **Shipped as `hecks operation.follow` and the MCP `follow` tool;** the queryable `StorehouseEntry` domain is not built.
 3. **Drivers.** Inbound clocks (`interval | cron | clock`) declared in the hecksagon, projected to a Procfile — out-of-process by construction, so a dead clock stalls only its own task. hecks's DSL has no inbound-scheduling concept at all.
 4. **`SourceTag`.** A closed enum of dispatcher provenance. Cheap to add.
 5. **Gates.** Inbound middleware as bluebook records — `before/after` phase, a check that can be any bluebook query run read-only as a veto, ordered, hydrated at boot. hecks's authz today is one hardcoded file with no query-as-veto, ordering, or after-phase observers.
@@ -74,7 +74,7 @@ The clearest signal in the whole tree is the survey's own closing pick — an ex
 - A **Constraint Engine** that models rules as constraints and can explain blocked work by walking the dependency chain.
 - Explainability — a rendered explanation tree for every runtime decision, adjustable by audience.
 - Extend `hecks verify` past reachability/consistency to dead-command/event/policy detection, cycle detection, impossible transitions, conflicting invariants, duplicate rules, unreachable states, unused roles and value objects.
-- ~~Diagram generation straight from canonical IR, no hand-maintained diagrams.~~ **Shipped** (`hecks query introspection.project_diagrams`, `lib/hecks/projections/diagrams/`).
+- ~~Diagram generation straight from canonical IR, no hand-maintained diagrams.~~ **Shipped** (`hecks introspection.project_diagrams`, `lib/hecks/projections/diagrams/`).
 - An AI-assistant layer for ontology discovery, corpus evolution, role mapping, upgrade suggestions, and drift explanation.
 - Capture every architectural invariant as an ADR.
 

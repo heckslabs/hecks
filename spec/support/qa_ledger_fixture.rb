@@ -4,10 +4,23 @@ require "open3"
 require "hecks/quality_control/cli/child"
 require_relative "postgres_probe"
 require_relative "qa_ledger_role"
+require_relative "first_era_hold"
 
 # A disposable Postgres-backed `QualityControl` ledger for specs that run the `qa_*` commands
 # as subprocesses; one database per spec file so parallel_rspec workers do not scrub each other.
 module QaLedgerFixture
+  extend FirstEraHold
+
+  # Holds era 1 of every bluebook the fixture directory loads, in `database`, as the app role.
+  # A spec that drops and recreates the schema calls it again, as the held era goes with it.
+  #
+  # @param directory [String] the fixture bluebook directory
+  # @param database [String] the ledger database
+  # @return [void]
+  def self.hold_eras!(directory, database)
+    hold_domain_eras!(directory: directory, url: QaLedgerRole.url(database))
+  end
+
   # Mirrors the ledger wiring in `qa/bluebook/quality_control.hecksagon`, bluebook ports included.
   HECKSAGON = <<~RUBY.freeze
     Hecks::FrameworkBluebooks.load!("QualityControl")
@@ -24,6 +37,7 @@ module QaLedgerFixture
       QualityControl::Improvement.persisted_by("PostgresEra")
       QualityControl::DailyQuota.persisted_by("PostgresEra")
       QualityControl::Clearance.persisted_by("PostgresEra")
+      QualityControl::MainCheck.persisted_by("PostgresEra")
     end
   RUBY
 
@@ -64,6 +78,7 @@ module QaLedgerFixture
       write_fixture_files
       create_database
       QaLedgerRole.provision!(@database)
+      QaLedgerFixture.hold_eras!(@dir, @database)
       self
     end
 
@@ -73,6 +88,9 @@ module QaLedgerFixture
       admin.close
       FileUtils.remove_entry(@root) if @root
     end
+
+    # The held-era tables `stand_up!` fills; `reset!` leaves them, or the next boot finds no era.
+    HELD_ERA_TABLES = %w[hecks_eras hecks_era_texts hecks_attestations].freeze
 
     # Clears rows before every example so none leak between examples, via `truncate`
     # rather than dropping and recreating the schema: dropping it would invalidate
@@ -84,7 +102,7 @@ module QaLedgerFixture
     # any tables yet.
     def reset!
       scrub = PG.connect(dbname: @database)
-      tables = scrub.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'").map { |row| row["tablename"] }
+      tables = scrubbable_tables(scrub)
       unless tables.empty?
         quoted = tables.map { |table| scrub.quote_ident(table) }.join(", ")
         scrub.exec("TRUNCATE #{quoted} RESTART IDENTITY CASCADE")
@@ -111,6 +129,11 @@ module QaLedgerFixture
     end
 
     private
+
+    def scrubbable_tables(scrub)
+      rows = scrub.exec("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+      rows.map { |row| row["tablename"] } - HELD_ERA_TABLES
+    end
 
     def write_fixture_files
       QaLedgerFixture.write_files(@dir, @database)

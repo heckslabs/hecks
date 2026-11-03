@@ -45,13 +45,13 @@ Hecks.bluebook "QualityControl" do
     attribute :last_swept, SweptIn
     # Recency-decayed count of how often this bluebook was worth sweeping; see `YieldScore`.
     attribute :yield_score, YieldScore
-    # Consecutive `Release`s that came back clean; `hecks quality_control query sweep.run` reads it to choose sweep depth.
+    # Consecutive `Release`s that came back clean; `hecks quality_control sweep.run` reads it to choose sweep depth.
     # Zero means no streak yet, shared on purpose by a never-swept target and a just-surprised one.
     attribute :clean_streak, CleanStreak
     # Comma-joined mode names recorded at release from what the runner inferred. Stored so
     # `EligibleFor` can answer why a mode never ran; inference at sweep time still decides.
     attribute :capabilities, Capabilities
-    attribute :reason,     TargetReason
+    attribute :reason,     TargetReason, optional: true
 
     value_object "TargetReference" do
       attribute :value, String, matches: :present
@@ -267,7 +267,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     query "Suspended" do
-      description "Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control query sweep.run <target> --release --notes is how one comes back."
+      description "Bluebooks a check surprised, waiting for a person — each with the reason the policy wrote. Nothing automatic touches these; hecks quality_control sweep.run <target> --release --notes is how one comes back."
       where(status: "suspended")
       order_by :reference
     end
@@ -352,7 +352,7 @@ Hecks.bluebook "QualityControl" do
     attribute :reference, SweepReference
     attribute :engineer,  Engineer
     attribute :made,      CheckCount
-    attribute :notes,     SweepNotes
+    attribute :notes,     SweepNotes, optional: true
     # A counter, not a flag (a sweep can bend several gates) or a list (`where` cannot test
     # emptiness).
     attribute :waived,    WaiverCount
@@ -747,12 +747,12 @@ Hecks.bluebook "QualityControl" do
     attribute :submitter,     Submitter
     attribute :order,         BugOrder
     attribute :tags,          list_of(Tag)
-    attribute :site,          BugSite
-    attribute :cause,         BugCause
-    attribute :commit,        CommitRef
-    attribute :verification,  Verification
-    attribute :reason,        BugReason
-    attribute :next_step,     NextStep
+    attribute :site,          BugSite, optional: true
+    attribute :cause,         BugCause, optional: true
+    attribute :commit,        CommitRef, optional: true
+    attribute :verification,  Verification, optional: true
+    attribute :reason,        BugReason, optional: true
+    attribute :next_step,     NextStep, optional: true
     attribute :waived,        WaiverCount
     # The same signature as `Sweep.waived_by`; absent until a person waives.
     attribute :waived_by,     WaivedBy, optional: true
@@ -1207,6 +1207,14 @@ Hecks.bluebook "QualityControl" do
       order_by :sequence
     end
 
+    # `hecks quality_control bug.fix_and_land --bug BUG#n` is the script. It is a query because the
+    # records it writes are the Bug commands above, and the branch, commit, landing and push live
+    # outside the ledger. It stops, and writes nothing, on a bug triaged bigger.
+    query "FixAndLand" do
+      description "Takes one self-contained bug through a fix on a fresh branch, the quick gate on that exact commit, a landing on local main and a push through the push train. A bigger bug stops here, untouched."
+      order_by :sequence
+    end
+
     query "All" do
       description "Every bug ever logged — what a runner mints the next reference from."
       order_by :sequence
@@ -1225,8 +1233,8 @@ Hecks.bluebook "QualityControl" do
     attribute :citation,    AngleCitation
     attribute :proposer,    Proposer
     attribute :proposed_at, Instant
-    attribute :resolution,  AngleResolution
-    attribute :reason,      AngleReason
+    attribute :resolution,  AngleResolution, optional: true
+    attribute :reason,      AngleReason, optional: true
 
     value_object "AngleReference" do
       attribute :value, String, matches: :present
@@ -1825,7 +1833,7 @@ Hecks.bluebook "QualityControl" do
     attribute :number, ImprovementNumber
     attribute :url,    ImprovementUrl
     attribute :branch, ImprovementBranch
-    attribute :commit, CommitRef
+    attribute :commit, CommitRef, optional: true
     attribute :title,  ImprovementTitle
     # See `Patch.opened_at`.
     attribute :opened_at, Instant
@@ -1967,6 +1975,822 @@ Hecks.bluebook "QualityControl" do
     end
   end
 
+  # The quick gate run on local main, in a temporary worktree of it. One record per commit checked, so a
+  # tick that finds the same commit again does not log the same red checks twice.
+  aggregate "MainCheck" do
+    description "One run of the quick gate on local main at one commit, and whether every one of its checks came back green."
+
+    identified_by :reference
+
+    attribute :reference,  MainCommit
+    attribute :verdict,    one_of("green", "red")
+    attribute :red_checks, RedCount
+
+    value_object "MainCommit" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    value_object "RedCount" do
+      attribute :value, Integer, default: 0
+      invariant("a count of red checks is not negative") { !value.negative? }
+    end
+
+    # Written as soon as the gate has answered, before any red check is logged or fixed, so the record
+    # says what the gate said even when what follows fails.
+    command "Record" do
+      role "QA engineer"
+      goal "Write down what the quick gate said about one commit of main"
+
+      attribute :reference,  MainCommit
+      attribute :verdict,    one_of("green", "red")
+      attribute :red_checks, RedCount
+
+      given("a red verdict names a red check, and a green one names none") do
+        (verdict.value == "red" && red_checks.value.positive?) || (verdict.value == "green" && red_checks.value == 0)
+      end
+
+      emits "MainCheckRecorded"
+    end
+
+    # `hecks quality_control main_check.check_main` is the tick's step. It answers from the record when the
+    # commit has one; otherwise it runs the gate, logs each red check as a bug and fixes the self-contained
+    # ones. It is a query because it reads the commit and runs the gate; every write it makes is a
+    # command of the Bug and Sweep aggregates.
+    query "CheckMain" do
+      description "Runs the quick gate on local main in a temporary worktree of it and records the verdict, logging each red check as a bug."
+      order_by :reference
+    end
+
+    query "All" do
+      description "Every commit of main the quick gate has been run on, with its verdict."
+      order_by :reference
+    end
+  end
+
+  # The event pump: each attached domain's policies read the events past their cursors and react to
+  # them. The pump's own writes are the cursors below; it appends to no domain's event log.
+  aggregate "EventCursor" do
+    description "How far one consumer has read one domain's event log, as the count of entries it has reacted to. One row per (log, consumer)."
+
+    identified_by :key
+
+    attribute :key,      CursorKey
+    attribute :log,      CursorDomain
+    attribute :consumer, CursorDomain
+    attribute :position, CursorPosition
+    attribute :read_at,  CursorReadAt, optional: true
+
+    value_object "CursorKey" do
+      attribute :value, String, matches: :present
+      invariant("a cursor is keyed by its log and consumer") { !value.to_s.empty? }
+    end
+
+    value_object "CursorReadAt" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "CursorDomain" do
+      attribute :value, String, matches: :present
+      invariant("a cursor names its domain") { !value.to_s.empty? }
+    end
+
+    value_object "CursorPosition" do
+      attribute :value, Integer, default: 0
+      invariant("a position is not negative") { !value.negative? }
+    end
+
+    command "Start" do
+      role "QA engineer"
+      goal "Open a consumer's cursor on one domain's event log, at the start of the log"
+
+      attribute :key,      CursorKey
+      attribute :log,      CursorDomain
+      attribute :consumer, CursorDomain
+
+      emits "CursorStarted"
+    end
+
+    # The pump passes only the position it has just reacted to, so a cursor moves forward in practice.
+    command "Advance" do
+      role "QA engineer"
+      goal "Move one consumer's cursor past the entries it has reacted to"
+
+      attribute :position, CursorPosition, sets: true
+
+      emits "CursorAdvanced"
+    end
+
+    query "All" do
+      description "Every cursor the event pump holds, with the position each consumer has read to."
+      order_by :key
+    end
+  end
+
+  # One policy's reaction to one event, recorded once the policy's command has answered: delivered or
+  # refused. The pump checks a row before it runs the policy, so a reaction already on the ledger is not
+  # run again, whatever the cursor says. Keyed by (consumer, event, policy), so the event's other policies
+  # for the same consumer still run.
+  aggregate "EventReaction" do
+    description "A policy's reaction to one event, once its command has answered. One row per (consumer, event, policy)."
+
+    identified_by :key
+
+    attribute :key,      ReactionKey
+    attribute :consumer, ReactionConsumer
+    attribute :event_id, ReactionEvent
+    attribute :policy,   ReactionPolicy
+
+    value_object "ReactionKey" do
+      attribute :value, String, matches: :present
+      invariant("a reaction is keyed by its consumer, event and policy") { !value.to_s.empty? }
+    end
+
+    value_object "ReactionConsumer" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names its consumer") { !value.to_s.empty? }
+    end
+
+    value_object "ReactionEvent" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names the event it answered") { !value.to_s.empty? }
+    end
+
+    value_object "ReactionPolicy" do
+      attribute :value, String, matches: :present
+      invariant("a reaction names its policy") { !value.to_s.empty? }
+    end
+
+    command "Record" do
+      role "QA engineer"
+      goal "Record that one consumer's policy has answered one event, so the pump does not run it again"
+
+      attribute :key,      ReactionKey
+      attribute :consumer, ReactionConsumer
+      attribute :event_id, ReactionEvent
+      attribute :policy,   ReactionPolicy
+
+      emits "EventReacted"
+    end
+
+    query "All" do
+      description "Every reaction the event pump has recorded, by its key."
+      order_by :key
+    end
+  end
+
+  # One run of the event pump, requested as a command and answered by the `PumpTools` port, which runs
+  # `hecks quality_control qa_event_pump`. The QA tick runs the same pump as its last step.
+  aggregate "EventPump" do
+    description "One run of the event pump: every attached domain's policies reacting to the events past their cursors, and what each reaction answered."
+
+    identified_by :run
+
+    attribute :run, PumpRun
+
+    value_object "PumpRun" do
+      attribute :value, String, matches: :present
+      invariant("a pump run is named") { !value.to_s.empty? }
+    end
+
+    command "Pump" do
+      role "QA engineer"
+      goal "Run the event pump once: each attached domain's policies react to the events past their cursors, and every refusal is named"
+
+      attribute :run, PumpRun
+
+      emits "PumpRequested"
+    end
+  end
+
+  policy "PumpOnRequest" do
+    on      "EventPump.PumpRequested"
+    ask     :execute, with: { run: :run }
+  end
+
+  # The maintenance of local main as events and policies. A coder's `Submission.WorkSubmitted` starts
+  # a run. Each step's body is an `ask` of a port the `MainMaintenance` adapter answers: the quick gate,
+  # the reconcile, the push through the train. The answer is an event, and a policy turns each event into
+  # the next step. A refusal is a named event, and nothing follows it.
+  aggregate "Maintenance" do
+    description "One run of local main's maintenance: the quick gate on a submitted commit, the reconcile, and the push through the train."
+
+    identified_by :run
+
+    attribute :run,     MaintenanceRun
+    attribute :sha,     MaintenanceSha
+    # The gate's colour and the reconcile's verdict. A run opened only to mint an era (`MintEra`) never
+    # runs the gate or the reconcile, so its row holds neither.
+    attribute :color,   one_of("green", "red"), optional: true
+    attribute :verdict, one_of("reported", "written", "refused"), optional: true
+
+    value_object "MaintenanceRun" do
+      attribute :value, String, matches: :present
+      invariant("a run names its branch") { !value.to_s.empty? }
+    end
+
+    value_object "MaintenanceSha" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    # The era a mint created, as the Minted event carries it.
+    value_object "MintedEra" do
+      attribute :value, Integer
+    end
+
+    # Opens a run for a submitted commit of main; the gate is the first step it asks for.
+    command "Start" do
+      role "QA engineer"
+      goal "Open the maintenance of main for one submitted commit"
+
+      attribute :run, MaintenanceRun
+      attribute :sha, MaintenanceSha
+
+      emits "RunStarted"
+    end
+
+    # Refuses a red gate: the policy that reads `GateVerdict` red calls it, and nothing reconciles or pushes.
+    command "RefuseGate" do
+      role "QA engineer"
+      goal "Stop a run whose quick gate on main is red"
+
+      attribute :run,   MaintenanceRun
+      attribute :color, one_of("green", "red")
+
+      given("only a red verdict is refused") { color.value == "red" }
+
+      emits "GateRefused"
+    end
+
+    # Asks for the reconcile once the gate is green.
+    command "RequestReconcile" do
+      role "QA engineer"
+      goal "Ask for the reconcile of a commit whose quick gate is green"
+
+      attribute :run,   MaintenanceRun
+      attribute :sha,   MaintenanceSha
+      attribute :color, one_of("green", "red")
+
+      given("only a green gate is reconciled") { color.value == "green" }
+
+      emits "ReconcileRequested"
+    end
+
+    # Asks for the push once the reconcile has not refused and the gate is green.
+    command "RequestPush" do
+      role "QA engineer"
+      goal "Ask for the push of a commit whose gate is green and whose reconcile did not refuse"
+
+      attribute :run,     MaintenanceRun
+      attribute :sha,     MaintenanceSha
+      attribute :color,   one_of("green", "red")
+      attribute :verdict, one_of("reported", "written", "refused")
+
+      given("the reconcile did not refuse and the gate is green") do
+        verdict.value != "refused" && color.value == "green"
+      end
+
+      emits "PushRequested"
+    end
+
+    value_object "MintVerdict" do
+      attribute :value, String, one_of: ["would_mint", "would_refuse", "needs_edge", "cannot_boot", "empty_copy"]
+    end
+
+    # Records what the rehearsal of a domain's next era concluded, at the ledger watermark it read. The mint
+    # policy reads the verdict off `MintRequested`, so a mint is only ever asked for a rehearsal that said
+    # would_mint.
+    command "RecordRehearsalVerdict" do
+      role "QA engineer"
+      goal "Record what the rehearsal of a domain's next era concluded, and the watermark it read"
+
+      attribute :run,       MaintenanceRun
+      attribute :domain,    String
+      attribute :watermark, Integer
+      attribute :rehearsal_verdict, MintVerdict
+
+      emits "RehearsalVerdict"
+    end
+
+    # The confirmation of a mint: the owner's `--confirm` flag, which the launcher reads as a Boolean. A mint
+    # the auto-mint rule covers runs without it; every other mint needs it.
+    value_object "Confirmation" do
+      attribute :value, Boolean
+    end
+
+    # Why a mint was refused, as the refusal the mint entry point names. A held mint says "needs owner
+    # approval", which the approval policy reads.
+    value_object "MintRefusal" do
+      attribute :value, String
+    end
+
+    # The single entry point for a mint of a domain's next era. It is the only command that asks for a mint:
+    # a boot never mints, and the mint names the commit its landing puts on main, so the ledger and main move
+    # together. The rehearsal ref and the expected watermark are checked against the live ledger by the era check.
+    # `refusal_total` is the rehearsal's refusal count and `ledger_dir` the bluebook directory of the ledger
+    # the era belongs to (the QualityControl ledger when empty, its default, so it is always on the event). A mint with no `confirm` runs only when
+    # the auto-mint rule (`AutoMintAdditive`) holds; the mint entry point checks it.
+    command "MintEra" do
+      role "QA engineer"
+      goal "Mint a domain's next era, against the rehearsal of that same era and the watermark it read"
+      attribute :run,            MaintenanceRun
+      attribute :domain,         String
+      attribute :era,            Integer
+      attribute :sha,            MaintenanceSha
+      attribute :branch,         String
+      attribute :rehearsal_ref,  String
+      attribute :watermark,      Integer
+      attribute :rehearsal_verdict, MintVerdict
+      attribute :refusal_total,  Integer, optional: true
+      attribute :ledger_dir,     String, default: ""
+      attribute :confirm,        Confirmation, optional: true
+
+      emits "MintRequested"
+    end
+
+    # Refuses a mint whose rehearsal did not say would_mint, and nothing mints or lands after it. It also
+    # carries the refusal the mint entry point named when it held a mint for the owner.
+    command "RefuseMint" do
+      role "QA engineer"
+      goal "Stop a mint whose rehearsal did not say would_mint"
+
+      attribute :run,     MaintenanceRun
+      attribute :domain,  String
+      attribute :era,     Integer
+      attribute :rehearsal_verdict, MintVerdict
+      attribute :refusal, MintRefusal, optional: true
+
+      given("only a rehearsal that did not say would_mint is refused") { rehearsal_verdict.value != "would_mint" }
+
+      emits "MintRefused"
+    end
+  end
+
+  # One release PR: the bump of the version on main, opened as a PR and approved on GitHub by the owner. The
+  # approval is written as the release trailer on the merge, which is the line `Hecks::Release::Approval`
+  # reads. A PR is approved only when every auto-approval condition holds (see ReleaseCondition); a failed
+  # condition is a named refusal and nothing is approved.
+  aggregate "ReleasePR" do
+    description "One release PR: the version bump opened on GitHub, approved by the owner only when every auto-approval condition holds."
+
+    identified_by :release
+
+    attribute :release,   ReleaseVersion
+    attribute :branch,    ReleaseBranch
+    attribute :sha,       MaintenanceSha
+    attribute :verdict,   one_of("open", "approved", "refused")
+
+    value_object "ReleaseBranch" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "ReleaseVersion" do
+      attribute :value, String
+      invariant("a release names a semantic version") { value.to_s.match?(/\A[0-9]+\.[0-9]+\.[0-9]+\z/) }
+    end
+
+    # The four conditions an approval needs, each named so a refusal says which one failed. `met` is the only
+    # value an approval accepts; the Ruby judge (`Hecks::Release::Conditions.judge`) answers the first failure
+    # in this order: the commit is on stable's head, the required checks passed on it, the CHANGELOG has a
+    # dated `## [<version>]` heading, and every version file names the same version.
+    value_object "ReleaseCondition" do
+      attribute :value, String, one_of: ["met", "not_on_stable_head", "checks_not_green",
+                                         "changelog_undated", "version_mismatch"]
+    end
+
+    # The owner who approves each release PR. The trailer line names this person; no other name is approved.
+    value_object "ReleaseApprover" do
+      attribute :value, String, one_of: ["Chris Young"]
+    end
+
+    # The commit-message trailer an approval writes. It is the `release_trailer` of the stable `Lane` row
+    # (Vocabulary), which `Hecks::Release::Approval` reads, so the check accepts what the policy writes.
+    value_object "ReleaseTrailer" do
+      attribute :value, String, one_of: ["Release-Approved-By"]
+    end
+
+    # Opens the release PR for a version bump on a branch. The open is answered by the `ReleaseGh` port.
+    command "Open" do
+      role "Release owner"
+      goal "Open the release PR for a version bump on main, so the owner can approve it on GitHub"
+
+      attribute :release, ReleaseVersion
+      attribute :branch,  ReleaseBranch
+      attribute :sha,     MaintenanceSha
+
+      emits "ReleaseOpenRequested"
+    end
+
+    # Records the result of the four auto-approval conditions for one release PR. The caller names the approver
+    # and the trailer, which the approval policy passes on to the approval.
+    command "Check" do
+      role "Release owner"
+      goal "Record which auto-approval condition held for a release PR, naming the first one that failed"
+
+      attribute :release,   ReleaseVersion
+      attribute :sha,       MaintenanceSha
+      attribute :condition, ReleaseCondition
+      attribute :approver,  ReleaseApprover
+      attribute :trailer,   ReleaseTrailer
+
+      emits "ReleaseChecked"
+    end
+
+    # Approves a release PR whose conditions all held. Only a condition of `met` is approved; the trailer
+    # is then written on the merge by the `ReleaseGh` port.
+    command "Approve" do
+      role "Release owner"
+      goal "Approve a release PR once every auto-approval condition holds, writing the release trailer for the owner"
+
+      attribute :release,   ReleaseVersion
+      attribute :sha,       MaintenanceSha
+      attribute :condition, ReleaseCondition
+      attribute :approver,  ReleaseApprover
+      attribute :trailer,   ReleaseTrailer
+
+      given("only a release whose conditions all held is approved") { condition.value == "met" }
+
+      emits "ReleaseApproved"
+    end
+
+    # Refuses a release PR one of whose conditions failed, and names that condition.
+    command "Refuse" do
+      role "Release owner"
+      goal "Refuse a release PR, naming the auto-approval condition that failed"
+
+      attribute :release,   ReleaseVersion
+      attribute :condition, ReleaseCondition
+
+      given("only a release with a failed condition is refused") { condition.value != "met" }
+
+      emits "ReleaseRefused"
+    end
+  end
+
+  # What remote CI said about one commit of a repository's main, once every job it ran for that
+  # commit
+  # settled. The Runner adapter answers `Check`; a green verdict is announced as `CiGreen`, and a
+  # red one
+  # as `CiRed` with the failing jobs. Lives here, beside the roll it feeds: a policy reads only
+  # events
+  # its own bluebook emits.
+  aggregate "Head" do
+    description "One commit of a repository's main, and whether remote CI passed every job it ran for that commit."
+
+    identified_by :commit
+
+    attribute :commit,       HeadCommit
+    attribute :branch,       HeadBranch
+    attribute :repo,         HeadRepo
+    attribute :color,        one_of("green", "red")
+    attribute :failing_jobs, FailingJobs
+
+    value_object "HeadCommit" do
+      attribute :value, String, pattern: '^[0-9a-f]{40}$'
+    end
+
+    value_object "HeadBranch" do
+      attribute :value, String, matches: :present
+      invariant("a head names its branch") { !value.to_s.empty? }
+    end
+
+    value_object "HeadRepo" do
+      # GitHub's `owner/name`.
+      attribute :value, String, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+    end
+
+    # The failing jobs of a red run, comma-separated; empty for a green one.
+    value_object "FailingJobs" do
+      attribute :value, String, default: ""
+    end
+
+    # Asks remote CI about one commit. Only main is judged: a commit on a branch says nothing about
+    # main.
+    command "Request" do
+      role "CI engineer"
+      goal "Ask remote CI what it said about one commit of a repository's main"
+
+      attribute :commit, HeadCommit
+      attribute :branch, HeadBranch
+      attribute :repo,   HeadRepo
+
+      given("only main is judged") { branch.value == "main" }
+
+      emits "HeadRequested"
+    end
+
+    # Records a green verdict. Refused for any other colour: a red head is never announced as
+    # green.
+    command "Green" do
+      role "System"
+      goal "Announce that remote CI passed every job it ran for one commit of main"
+
+      attribute :commit, HeadCommit
+      attribute :branch, HeadBranch
+      attribute :repo,   HeadRepo
+      attribute :color,  one_of("green", "red")
+
+      given("only a green verdict is announced") { color.value == "green" }
+
+      emits "CiGreen"
+    end
+
+    # Records a red verdict, naming the jobs that failed. Refused for any other colour.
+    command "Red" do
+      role "System"
+      goal "Announce that remote CI refused one commit of main, and which jobs failed"
+
+      attribute :commit,       HeadCommit
+      attribute :repo,         HeadRepo
+      attribute :color,        one_of("green", "red")
+      attribute :failing_jobs, FailingJobs
+
+      given("only a red verdict names the jobs that failed") do
+        color.value == "red" && !failing_jobs.value.to_s.empty?
+      end
+
+      emits "CiRed"
+    end
+  end
+
+  # One spec file that is red on main, keyed `red-<spec path slug>`. A red run reports each failing
+  # spec file; the first report opens the row and a later one only updates what it knew, so a spec
+  # red for days is one row, and `since` is the day it first went red. A settled run that no longer
+  # fails the file clears it. Tickets mirrors it as a Work row for QA (`PlanWorkWhenSpecWentRed`, `FinishWorkWhenSpecWentGreen`).
+  aggregate "RedSpec" do
+    description "One spec file that is red on main: how many examples fail, the first failure, the run that saw it last, and the day it first went red."
+
+    identified_by :spec
+
+    attribute :spec,          SpecKey
+    attribute :path,          SpecPath
+    attribute :failures,      FailureCount
+    attribute :first_failure, FailureLine, optional: true
+    attribute :examples,      FailureLine, optional: true
+    attribute :last_run,      RunId
+    attribute :commit,        SpecCommit
+    attribute :since,         SeenOn
+    attribute :title,         WorkLine
+    attribute :detail,        WorkLine
+    attribute :cleared_by,    RunId, optional: true
+
+    value_object "SpecKey" do
+      attribute :value, String, pattern: '^red-[a-z0-9_-]+$'
+    end
+
+    value_object "SpecPath" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "FailureCount" do
+      attribute :value, Integer
+      invariant("a red spec has failing examples") { value.positive? }
+    end
+
+    # Text as the failing run printed it, shortened by the reader.
+    value_object "FailureLine" do
+      attribute :value, String, default: ""
+    end
+
+    # A line of the Work row the spec mirrors into.
+    value_object "WorkLine" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "RunId" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SpecCommit" do
+      attribute :value, String, matches: :present
+    end
+
+    # An ISO 8601 date, read from the clock by the run reader, never by the bluebook.
+    value_object "SeenOn" do
+      attribute :value, String, matches: :present
+    end
+
+    # A cleared file that fails again goes back to red: the row reopens, it is never filed twice.
+    lifecycle :status, default: "red" do
+      mark :failure, "red"
+      transition "Clear"  => "green", from: "red"
+      transition "Reopen" => "red",   from: "green"
+    end
+
+    # Opens the row for a spec file. A spec already red is not reported twice: see `Update`.
+    command "Open" do
+      role "System"
+      goal "Record that a spec file is red on main"
+
+      attribute :spec,          SpecKey, sets: true
+      attribute :path,          SpecPath, sets: true
+      attribute :failures,      FailureCount, sets: true
+      attribute :first_failure, FailureLine, optional: true, sets: true
+      attribute :examples,      FailureLine, optional: true, sets: true
+      attribute :last_run,      RunId, sets: true
+      attribute :commit,        SpecCommit, sets: true
+      attribute :since,         SeenOn, sets: true
+      attribute :title,         WorkLine, sets: true
+      attribute :detail,        WorkLine, sets: true
+
+      emits "SpecWentRed"
+    end
+
+    # A spec still red in a later run: what the latest run saw replaces what the row knew; `since` stays.
+    command "Update" do
+      role "System"
+      goal "Record what a later red run saw of a spec file that was already red"
+
+      reference_to RedSpec
+      attribute :failures,      FailureCount, sets: true
+      attribute :first_failure, FailureLine, optional: true, sets: true
+      attribute :examples,      FailureLine, optional: true, sets: true
+      attribute :last_run,      RunId, sets: true
+      attribute :commit,        SpecCommit, sets: true
+      attribute :detail,        WorkLine, sets: true
+
+      emits "SpecStillRed"
+    end
+
+    # A spec that was cleared and failed again: what the new red run saw replaces what the row knew,
+    # and `since` is the day it went red this time.
+    command "Reopen" do
+      role "System"
+      goal "Record that a spec file cleared earlier is red on main again"
+
+      reference_to RedSpec
+      attribute :failures,      FailureCount, sets: true
+      attribute :first_failure, FailureLine, optional: true, sets: true
+      attribute :examples,      FailureLine, optional: true, sets: true
+      attribute :last_run,      RunId, sets: true
+      attribute :commit,        SpecCommit, sets: true
+      attribute :since,         SeenOn, sets: true
+      attribute :title,         WorkLine, sets: true
+      attribute :detail,        WorkLine, sets: true
+
+      emits "SpecWentRedAgain"
+    end
+
+    # `seen_in` is the run that last saw the file fail; a run that did see it fails to clear it.
+    command "Clear" do
+      role "System"
+      goal "Record that a settled run of main no longer fails a spec file"
+
+      reference_to RedSpec
+      attribute :run,     RunId
+      attribute :seen_in, RunId
+
+      given("a run that still saw the file fail does not clear it") { run.value != seen_in.value }
+
+      sets :cleared_by, to: :run
+
+      emits "SpecWentGreen"
+    end
+
+    query "OnMain" do
+      description "The red specs on main: every spec file still red, with the day it first went red and the run that last saw it fail."
+      where(status: "red")
+      order_by :since
+    end
+  end
+
+  # One CI run of main read for its failing spec files. The Reader port reports each failing file
+  # to `RedSpec` and answers what the run settled to.
+  aggregate "MainRun" do
+    description "One CI run of main, read for the spec files it failed."
+
+    identified_by :run
+
+    attribute :run,     MainRunId
+    attribute :repo,    HeadRepo
+    attribute :commit,  SpecCommit, optional: true
+    attribute :settled, SettledFlag, optional: true
+
+    value_object "MainRunId" do
+      attribute :value, String, matches: :present
+    end
+
+    # "yes" once every job that runs specs finished, so a spec absent from the failures passed.
+    value_object "SettledFlag" do
+      attribute :value, String, default: ""
+    end
+
+    command "Request" do
+      role "CI engineer"
+      goal "Ask for one CI run of main to be read for the spec files it failed"
+
+      attribute :run,  MainRunId, sets: true
+      attribute :repo, HeadRepo, sets: true
+
+      emits "MainRunReadRequested"
+    end
+
+    command "Record" do
+      role "System"
+      goal "Keep how a read run settled"
+
+      reference_to MainRun
+      attribute :commit,  SpecCommit, sets: true
+      attribute :settled, SettledFlag, sets: true
+
+      emits "MainRunRecorded"
+    end
+  end
+
+  # The image roll of one commit of embryonaut_platform's main. A commit whose remote CI is green
+  # is
+  # classified by the paths it changed: only the console container's inputs roll by themselves, and
+  # anything else waits for a person. A commit rolls once; a second request finds the roll under
+  # way.
+  aggregate "ImageRoll" do
+    description "One commit of embryonaut_platform's main: whether its container image was rolled, or waits for a person."
+
+    identified_by :commit
+
+    attribute :commit, CommitRef
+    attribute :app,    AppName
+    attribute :paths,  ChangedPaths
+    attribute :outcome, one_of("done", "failed")
+
+    lifecycle :roll, default: "idle" do
+      transition "Request"       => "requested",         from: "idle"
+      transition "NeedsApproval" => "awaiting_approval", from: "idle"
+      transition "Finish"        => "finished",          from: "requested"
+      mark :terminal, "awaiting_approval", "finished"
+    end
+
+    value_object "CommitRef" do
+      attribute :value, String, pattern: '^[0-9a-f]{40}$'
+    end
+
+    value_object "AppName" do
+      attribute :value, String, matches: :present
+      invariant("an app is named") { !value.to_s.empty? }
+    end
+
+    value_object "RollBranch" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "RollRepo" do
+      # GitHub's `owner/name`.
+      attribute :value, String, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+    end
+
+    # The changed paths of the commit, newline-separated, as the classifier read them.
+    value_object "ChangedPaths" do
+      attribute :value, String, default: ""
+    end
+
+    # Takes a green commit of the platform's main into the roll's chain; the classifier answers
+    # next.
+    command "Consider" do
+      role "System"
+      goal "Take one green commit of embryonaut_platform's main into the image roll's chain"
+
+      attribute :commit, CommitRef
+      attribute :branch, RollBranch
+      attribute :repo,   RollRepo
+
+      emits "RollConsidered"
+    end
+
+    # Opens the roll of one classified commit; only an idle one may be requested.
+    command "Request" do
+      role "System"
+      goal "Start the image roll of one commit whose changes touch only the console container's inputs"
+
+      attribute :commit, CommitRef
+      attribute :app,    AppName
+
+      emits "RollRequested"
+    end
+
+    # Holds a commit whose changes reach past the container: a person releases it.
+    command "NeedsApproval" do
+      role "System"
+      goal "Hold one commit whose changes reach past the container's inputs for a person to approve"
+
+      attribute :commit, CommitRef
+      attribute :paths,  ChangedPaths
+
+      emits "RollNeedsApproval"
+    end
+
+    # Records how a requested roll ended, done or failed.
+    command "Finish" do
+      role "System"
+      goal "Record how the image roll of one commit ended"
+
+      reference_to ImageRoll
+      attribute :app,     AppName
+      attribute :status,  one_of("done", "failed")
+
+      sets :outcome, to: :status
+
+      emits "RollDone"
+    end
+  end
+
   # One CI run against one commit. A clearance is minted per commit, so a later commit is stale
   # by simply having none.
   aggregate "Clearance" do
@@ -2000,6 +2824,17 @@ Hecks.bluebook "QualityControl" do
       attribute :commit, CommitRef
 
       emits "ClearanceStarted"
+    end
+
+    # Start and ask CI in one step: the verdict comes back as `SuitePassed` or `SuiteFailed`, and
+    # `ClearOnPass` and `RefuseOnFail` settle the record. `Start` alone records a verdict CI gave elsewhere.
+    command "Check" do
+      role "QA engineer"
+      goal "Put a commit through CI and record the verdict it gives"
+
+      attribute :commit, CommitRef
+
+      emits "ClearanceChecked"
     end
 
     command "Passed" do
@@ -2126,11 +2961,41 @@ Hecks.bluebook "QualityControl" do
     group_by :status, :number
   end
 
+  # The fixer does the work of a fix; the ledger records each step it reports, so only these policies
+  # write a bug's state after logging. Each names the fixer event it reacts to, and the Bug command
+  # it records.
+  policy "RecordClaimOnAttemptClaimed" do
+    on      "Attempt.AttemptClaimed"
+    trigger Bug::Claim, with: { bug: :reference, held_by: :held_by, now: :now }
+  end
+
+  policy "RecordInvestigationOnAttemptInvestigated" do
+    on      "Attempt.AttemptInvestigated"
+    trigger Bug::Investigate, with: { bug: :reference, site: :site, cause: :cause }
+  end
+
+  # The fix commit is recorded as the bug's fixed state; `BugCiWatch` starts on the `BugFixed` it emits.
+  policy "RecordFixOnFixReady" do
+    on      "Attempt.FixReady"
+    trigger Bug::Fix, with: { reference: :reference, commit: :commit }
+  end
+
+  # A verified fix is the ledger's verified state, recorded with the evidence the fixer names.
+  policy "RecordVerifyOnFixVerified" do
+    on      "Attempt.FixVerified"
+    trigger Bug::Verify, with: { bug: :reference, evidence: :evidence }
+  end
+
   # `Ticket.Close` is the only way a ticket leaves `filed`, and only the outside can know it
   # happened, so the fact arrives by whichever route reaches us first.
   policy "CloseWhenClosedUpstream" do
     on      "Ticket.IssueClosedUpstream"
     trigger Ticket::Close
+  end
+
+  policy "RunWhenChecked" do
+    on      "Clearance.ClearanceChecked"
+    ask     :run, with: { commit: :commit }
   end
 
   # The adapter decides by answering or refusing, the only branch a policy can express.
@@ -2174,14 +3039,269 @@ Hecks.bluebook "QualityControl" do
   # Nothing reacts to `TicketRaised` on purpose: a ticket waits until somebody submits it.
 
   # The rotation's one automatic reaction. Releasing on `SweepConcluded` cannot work: that event
-  # carries no target id, `next_streak` or yield score, so `hecks quality_control query sweep.run` still releases.
+  # carries no target id, `next_streak` or yield score, so `hecks quality_control sweep.run` still releases.
   # `on Sweep::CheckSurprised`, not `Sweep::Check::...`: an entity command's event is stamped with
   # its parent aggregate. `Check.Surprised` restates `target` so the id rides in.
   policy "SuspendOnSurprise" do
     on      Sweep::CheckSurprised
     trigger Target::Suspend, with: {
       target: :target,
-      reason: { value: "a check surprised — a person releases with hecks quality_control query sweep.run <target> --release --notes" }
+      reason: { value: "a check surprised — a person releases with hecks quality_control sweep.run <target> --release --notes" }
     }
+  end
+
+  # A requested head is read from remote CI by the CiHead port; the answer is the verdict's event.
+  policy "CheckHeadOnRequest" do
+    on      "Head.HeadRequested"
+    ask     :check, with: { commit: :commit, branch: :branch, repo: :repo }
+  end
+
+  policy "GreenOnHeadChecked" do
+    on      "Head.HeadChecked"
+    where   { color.value == "green" }
+    trigger Head::Green, with: { commit: :commit, branch: :branch, repo: :repo, color: :color }
+  end
+
+  policy "RedOnHeadChecked" do
+    on      "Head.HeadChecked"
+    where   { color.value == "red" }
+    trigger Head::Red, with: { commit: :commit, repo: :repo, color: :color, failing_jobs: :failing_jobs }
+  end
+
+  # A run of main read for its failing spec files. The reader reports each failing file to RedSpec
+  # (opening a row or updating it) before it answers.
+  policy "ReadRunOnRequest" do
+    on      "MainRun.MainRunReadRequested"
+    ask     :read, with: { run: :run, repo: :repo }
+  end
+
+  policy "RecordTheRunRead" do
+    on      "MainRun.MainRunRead"
+    trigger MainRun::Record, with: { commit: :commit, settled: :settled }
+  end
+
+  # A settled run clears every red spec it did not see fail; `Clear` refuses one it did, which stays open.
+  policy "ClearSpecsOnSettledRun" do
+    on       "MainRun.MainRunRead"
+    where    { settled.value == "yes" }
+    for_each "RedSpec.OnMain"
+    trigger  RedSpec::Clear, with: { spec: :spec, run: :run, seen_in: :last_run }
+  end
+
+  # The image roll's chain. A green remote CI on embryonaut_platform's main is classified by the
+  # `ImageRoll` port: the answer is `ImageClassified`, and a refusal (the change set unreadable)
+  # ends the chain. Only the classifier's verdict decides; an infra commit is held, and its roll
+  # needs a green quick gate on record.
+  policy "RollImages" do
+    on      "Head.CiGreen"
+    where   { repo.value == "heckslabs/embryonaut_platform" }
+    trigger ImageRoll::Consider, with: { commit: :commit, branch: :branch, repo: :repo }
+  end
+
+  policy "ClassifyConsidered" do
+    on      "ImageRoll.RollConsidered"
+    ask     :classify, with: { commit: :commit, branch: :branch, repo: :repo }
+  end
+
+  policy "RollWhenImageOnly" do
+    on      "ImageRoll.ImageClassified"
+    where   { kind.value == "image" }
+    trigger ImageRoll::Request, with: { commit: :commit, app: :app }
+  end
+
+  policy "HoldWhenInfra" do
+    on      "ImageRoll.ImageClassified"
+    where   { kind.value == "infra" }
+    trigger ImageRoll::NeedsApproval, with: { commit: :commit, paths: :paths }
+  end
+
+  policy "RunRollOnRequest" do
+    on      "ImageRoll.RollRequested"
+    ask     :roll, with: { commit: :commit, app: :app }
+  end
+
+  policy "FinishOnRollAnswered" do
+    on      "ImageRoll.RollAnswered"
+    trigger ImageRoll::Finish, with: { commit: :commit, app: :app, status: :status }
+  end
+
+  policy "FinishOnRollRefused" do
+    on      "ImageRoll.RollRefused"
+    trigger ImageRoll::Finish, with: { commit: :commit, app: :app, status: { value: "failed" } }
+  end
+
+  # The main-maintenance chain, one policy per event. Each `ask` is answered by the `MainMaintenance` port;
+  # each `trigger` is a command above. The events are the contract: `WorkSubmitted(branch, sha)` from the
+  # coder side, `GateVerdict(run, sha, color)`, `ReconcileRequested`, `ReconcileDone(run, sha, color,
+  # verdict)`, `PushRequested`, `Pushed(run, sha, origin_sha)`, and the refusals `GateRefused`,
+  # `ReconcileRefused`, `PushRefused`.
+  policy "StartOnSubmission" do
+    on      "Submission.WorkSubmitted"
+    trigger Maintenance::Start, with: { run: :branch, sha: :sha }
+  end
+
+  policy "GateOnStart" do
+    on      "Maintenance.RunStarted"
+    ask     :gate, with: { run: :run, sha: :sha }
+  end
+
+  policy "RefuseOnRedGate" do
+    on      "Maintenance.GateVerdict"
+    where   { color.value == "red" }
+    trigger Maintenance::RefuseGate, with: { run: :run, color: :color }
+  end
+
+  policy "ReconcileOnGreenGate" do
+    on      "Maintenance.GateVerdict"
+    where   { color.value == "green" }
+    trigger Maintenance::RequestReconcile, with: { run: :run, sha: :sha, color: :color }
+  end
+
+  policy "ReconcileOnRequest" do
+    on      "Maintenance.ReconcileRequested"
+    ask     :reconcile, with: { run: :run, sha: :sha, color: :color }
+  end
+
+  policy "PushOnReconciled" do
+    on      "Maintenance.ReconcileDone"
+    where   { verdict.value != "refused" && color.value == "green" }
+    trigger Maintenance::RequestPush, with: { run: :run, sha: :sha, color: :color, verdict: :verdict }
+  end
+
+  policy "PushOnRequest" do
+    on      "Maintenance.PushRequested"
+    ask     :push, with: { run: :run, sha: :sha }
+  end
+
+  # The mint chain. `MintRequested` carries the rehearsal's verdict and the watermark it read; the mint is
+  # asked only for a would_mint verdict, and the refusal is the same named event as every other refusal.
+  # A mint's landing follows it in the same step; a failed landing is `MintStranded`, the event a refused
+  # `Land` ask names.
+  policy "RefuseMintWithoutVerdict" do
+    on      "Maintenance.MintRequested"
+    where   { rehearsal_verdict.value != "would_mint" }
+    trigger Maintenance::RefuseMint, with: { run: :run, domain: :domain, era: :era, rehearsal_verdict: :rehearsal_verdict }
+  end
+
+  # The auto-mint rule, declared. A mint without the owner's confirm runs only when all four hold, and the
+  # mint entry point (`Adapters::MainMaintenance#mint`, checked by `Adapters::QaAutoMint`) enforces it:
+  #   (a) the translation edge leaving the held era is empty: no aggregate block, derive, drop, rename,
+  #       convert, retype or rekey;
+  #   (b) every change in the shape diff is additive: an attribute an existing aggregate gained is optional,
+  #       and a new aggregate, required attributes included, adds no field to an existing one;
+  #   (c) the rehearsal said would_mint with a refusal total of 0, at the live watermark;
+  #   (d) no stranded marker exists.
+  # Otherwise the mint is held: the entry point refuses it as "needs owner approval", and the policy below
+  # asks for the approval, which answers `MintNeedsApproval` and stops. A stale watermark or a stranded
+  # marker is a refusal, never a held mint. The ask forwards `ledger_dir`, empty for the QualityControl
+  # ledger, so a mint of another domain's ledger reaches that ledger.
+  policy "AutoMintAdditive" do
+    on      "Maintenance.MintRequested"
+    where   { rehearsal_verdict.value == "would_mint" }
+    ask     :mint, with: { run: :run, domain: :domain, era: :era, sha: :sha, branch: :branch,
+                           watermark: :watermark, rehearsal_verdict: :rehearsal_verdict,
+                           refusal_total: :refusal_total, ledger_dir: :ledger_dir, confirm: :confirm }
+  end
+
+  # Holds a mint the auto-mint rule does not cover for the owner. Reads the refusal the entry point named.
+  policy "AskOwnerApprovalOnHeldMint" do
+    on      "Maintenance.MintRefused"
+    where   { refusal && refusal.value.start_with?("needs owner approval") }
+    ask     :approval, with: { domain: :domain, era: :era, reason: :refusal }
+  end
+
+  policy "LandOnMinted" do
+    on      "Maintenance.Minted"
+    where   { branch != "" }
+    ask     :land, with: { run: :run, era: :era, sha: :sha, branch: :branch, ledger_dir: :ledger_dir }
+  end
+
+  # The release PR chain. A version bump opens its PR; the conditions judged on `ReleaseChecked` either
+  # approve it (every condition `met`) or refuse it by the name of the condition that failed. An approval
+  # writes the release trailer on the merge through the `ReleaseGh` port.
+  policy "OpenOnReleaseRequest" do
+    on      "ReleasePR.ReleaseOpenRequested"
+    ask     :open_pull_request, with: { release: :release, branch: :branch, sha: :sha }
+  end
+
+  policy "ApproveOnConditionsMet" do
+    on      "ReleasePR.ReleaseChecked"
+    where   { condition.value == "met" }
+    trigger ReleasePR::Approve, with: { release: :release, sha: :sha, condition: :condition,
+                                        approver: :approver, trailer: :trailer }
+  end
+
+  policy "RefuseOnFailedCondition" do
+    on      "ReleasePR.ReleaseChecked"
+    where   { condition.value != "met" }
+    trigger ReleasePR::Refuse, with: { release: :release, condition: :condition }
+  end
+
+  policy "WriteTrailerOnApproved" do
+    on      "ReleasePR.ReleaseApproved"
+    ask     :write_trailer, with: { approver: :approver, trailer: :trailer }
+  end
+
+  # ---- The push nudge ----------------------------------------------------------------------------
+  # Local main drifting ahead of origin/main is red that nobody sees. Each tick checks once whether a
+  # push is due and keeps ONE Work row, `push-due`, for QA: filed when the push is due beyond the
+  # world's thresholds, updated while it stays due, finished when it no longer is. The check reads
+  # refs git already holds (`PushRehearsal.Due`); it never fetches, pushes or merges. Tickets turns the
+  # answer into the row (`PlanWorkWhenPushDue`, `ReviseWorkWhenPushStillDue`, `FinishWorkWhenPushSettled`).
+  aggregate "PushNudge" do
+    description "One check of whether a push of local main is due: whether it is, whether the push-due Work row is already open, and the numbers."
+
+    identified_by :nudge
+
+    attribute :nudge,  NudgeKey
+    attribute :due,    NudgeFlag, optional: true
+    attribute :raised, NudgeFlag, optional: true
+    attribute :work,   NudgeLine, optional: true
+    attribute :title,  NudgeLine, optional: true
+    attribute :detail, NudgeLine, optional: true
+
+    value_object "NudgeKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # "yes" or "no".
+    value_object "NudgeFlag" do
+      attribute :value, String, default: ""
+    end
+
+    value_object "NudgeLine" do
+      attribute :value, String, default: ""
+    end
+
+    command "Check" do
+      role "QA engineer"
+      goal "Ask whether a push of local main is due, from the refs git already holds"
+
+      attribute :nudge, NudgeKey, sets: true
+
+      emits "PushDueCheckRequested"
+    end
+
+    command "Record" do
+      role "System"
+      goal "Keep what a check found"
+
+      reference_to PushNudge
+      attribute :due,    NudgeFlag, sets: true
+      attribute :raised, NudgeFlag, sets: true
+      attribute :detail, NudgeLine, sets: true
+
+      emits "PushDueRecorded"
+    end
+  end
+
+  policy "ReadPushDueOnCheck" do
+    on      "PushNudge.PushDueCheckRequested"
+    ask     :read, with: { nudge: :nudge }
+  end
+
+  policy "RecordThePushDueRead" do
+    on      "PushNudge.PushDueRead"
+    trigger PushNudge::Record, with: { due: :due, raised: :raised, detail: :detail }
   end
 end

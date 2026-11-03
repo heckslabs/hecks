@@ -444,9 +444,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Audi
                             facts_json,
                         )
                         .map_err(|_| {
-                            crate::kernel::Refusal::NotFound(
-                                "Amend acts on one Entry — pass sequence.value:".to_string(),
-                            )
+                            if store.ledger.find(&parent_id).is_none() {
+                                crate::kernel::Refusal::NotFound(
+                                    crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                        aggregate: "Ledger",
+                                        identity: "reference.value",
+                                        offered: &format!("{parent_id:?}"),
+                                    }
+                                    .render_args(),
+                                )
+                            } else {
+                                crate::kernel::Refusal::NotFound(
+                                    "Amend acts on one Entry — pass sequence.value:".to_string(),
+                                )
+                            }
                         })?;
                     let element_wants =
                         crate::generated::corrections::ledger::Entry::extract_wants(facts_json);

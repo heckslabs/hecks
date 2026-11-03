@@ -10,6 +10,8 @@ require_relative "lineage/resumable_backfill"
 require_relative "lineage/head_compiler"
 require_relative "lineage/field_cache"
 require_relative "lineage/transform_installer"
+require_relative "lineage/mint_provisioning"
+require_relative "lineage/ledger_reset"
 require_relative "../../../naming"
 
 module Hecks
@@ -27,6 +29,8 @@ module Hecks
         include HeadCompiler
         include FieldCache
         include TransformInstaller
+        include MintProvisioning
+        include LedgerReset
 
         # Longer identifiers are silently truncated by Postgres, so `qualified_name` hashes them.
         POSTGRES_IDENTIFIER_LIMIT = 63
@@ -37,11 +41,15 @@ module Hecks
         # @param domain [String, Symbol] the domain's declared name; every relation name and
         #   advisory-lock key derives from it
         # @param formerly_known_as [String, Symbol, nil] the domain's prior name, which makes
-        #   `ensure_base!` rename its relations and rows first; nil when there is no prior name
-        def initialize(db, domain, formerly_known_as: nil)
+        #   `ensure_base!` and a read refuse while the history sits under it; `rename_domain!` moves
+        #   the history; nil when there is no prior name
+        # @param reading [Boolean] true for a read: the held eras are verified in memory and never
+        #   archived or backfilled, so the connection needs only SELECT
+        def initialize(db, domain, formerly_known_as: nil, reading: false)
           @db = db
           @domain = domain.to_s
           @formerly_known_as = formerly_known_as&.to_s
+          @reading = reading
         end
 
         # Names the domain's one journal table, the partitioned parent of every era's rows.

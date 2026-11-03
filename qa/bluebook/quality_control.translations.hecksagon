@@ -1,0 +1,20 @@
+# The anti-corruption layer between QualityControl and Coder. Named to load after
+# quality_control.hecksagon (hecksagons load in filename order), which loads the QualityControl
+# bluebook a `translates` names and attaches Coder.
+
+# Coder receives the bugs it works: a logged bug is offered to the queue, a regressed one goes
+# back on it. Each translation names the QA event it listens to.
+Hecks.hecksagon "Coder" do
+  attaches "QualityControl"
+  attaches "Governance"
+
+  translates "OfferLoggedBug" do
+    on Bug::BugLogged
+    trigger Assignment::Offer, with: { bug: :reference }
+  end
+
+  translates "ReturnRegressedBug" do
+    on Bug::BugRegressed
+    trigger Assignment::Release, with: { assignment: :reference, held_by: { value: "nobody" } }
+  end
+end

@@ -18,31 +18,32 @@ module Hecks
           # @param out [IO] where each entry's line goes
           # @param err [IO] where a refusal goes
           # @param max_polls [Integer, nil] stop after this many asks; unbounded when nil
-          # @return [Integer, nil] 0 or 1 for a stream, nil when `call` should run the line
+          # @return [Integer, nil] the stream's `ExitStatus`, nil when `call` should run the line
           def stream(runtime:, argv:, program: "hecks run", out: $stdout, err: $stderr, max_polls: nil)
-            plan  = resolve(runtime, argv, program)
+            plan  = resolve(runtime, split_verbosity(argv).last, program)
             words = stream_words(plan)
             return unless words
 
             run_stream(runtime, plan[:spec], words, out, max_polls)
           rescue Interrupt, Errno::EPIPE
-            0
+            ExitStatus::ANSWERED
           rescue Runtime::NotFound, Runtime::TypeMismatch => e
-            refuse(err, "#{e.message}\n\n  #{program} #{plan[:name]} --help")
+            refuse(err, "#{e.message}\n\n  #{program} #{plan[:name]} --help", ExitStatus::USAGE)
           rescue *Runtime::DOMAIN_REFUSALS => e
             refuse(err, e.message)
           end
 
-          # Tails the question the line names and answers 0, the status of a stream that ended.
+          # Tails the question the line names and answers `ANSWERED`, the status of a stream that
+          # ended.
           def run_stream(runtime, spec, words, out, max_polls)
             tail(runtime, spec, Cli.arguments(spec, words), out, max_polls)
-            0
+            ExitStatus::ANSWERED
           end
 
-          # Prints a refusal and answers status 1.
-          def refuse(err, text)
+          # Prints a refusal and answers its status, `REFUSED` unless told otherwise.
+          def refuse(err, text, status = ExitStatus::REFUSED)
             err.puts(text)
-            1
+            status
           end
 
           # One ask after another, each from the cursor the last gave.

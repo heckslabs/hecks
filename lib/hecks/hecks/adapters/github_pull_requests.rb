@@ -27,7 +27,8 @@ module Hecks
 
       # Opens a pull request from a branch onto a base, its title and body taken from the commits.
       #
-      # @param held [Hash] the `PullRequest` record: `branch` (required), `base` (`main` when absent)
+      # @param held [Hash] the `PullRequest` record: `branch` (required), `base` (`main` when
+      #   absent)
       # @return [Hash{Symbol => Hash}] `outcome:` (`opened`), `number:`, `url:` and `report:`
       # @raise [ConsoleCapture::Failure] when no branch is named, or GitHub refuses
       def create(**held)
