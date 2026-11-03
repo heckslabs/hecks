@@ -9,14 +9,15 @@ RSpec.describe "the Tickets bluebook" do
     @bluebook = @hecks.registry.bluebook("Tickets")
   end
 
-  it "declares Finding, Adr and Work, and leaves Release to the Hecks domain and Ticket to QualityControl" do
-    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
+  it "declares Finding, Adr, Work, Lesson and Sighting, and leaves Release to the Hecks domain and Ticket to QualityControl" do
+    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work", "Lesson", "Sighting")
   end
 
   it "boots standing alone, as a fuzz or model_check boot of its directory does" do
     standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_driving: false)
 
-    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly("Finding", "Adr", "Work")
+    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name))
+      .to contain_exactly("Finding", "Adr", "Work", "Lesson", "Sighting")
   end
 
   it "gives a Finding the commands of its lifecycle" do

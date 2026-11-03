@@ -970,9 +970,8 @@ end
 # A decision record is its file in the checkout (ADR 0175): the launcher reads and writes
 # `docs/decisions` through AdrFiles, whatever the domain's default store. Specs and gates run in the
 # memory environment, whose world says `writes false`: they read the records and write none.
-# Findings and work stay in Memory unless a local hecksagon binds them (ADR 0136).
+# Findings and work are not bound here: they take a local hecksagon's bind or the store the domain
+# inherits, and Memory otherwise (tickets.world's `default_adapter`, ADR 0136).
 Hecks.hecksagon "Tickets" do
   Tickets::Adr.persisted_by("AdrFiles")
-  Tickets::Finding.persisted_by("Memory")
-  Tickets::Work.persisted_by("Memory")
 end
