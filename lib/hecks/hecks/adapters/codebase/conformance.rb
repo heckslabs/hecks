@@ -21,7 +21,7 @@ module Hecks
       module Conformance
         # Every operation this family carries out.
         OPERATIONS = %w[check_engine_agreement measure_doc_coverage check_shape_ledger check_command_names
-                        check_workflow_pagination argument_gate_matrix].freeze
+                        check_doc_staleness check_workflow_pagination argument_gate_matrix].freeze
 
         module_function
 
@@ -38,6 +38,7 @@ module Hecks
           when "measure_doc_coverage" then doc_coverage(tree)
           when "check_shape_ledger" then shape_ledger(held, tree)
           when "check_command_names" then LauncherText.command_names(tree)
+          when "check_doc_staleness" then LauncherText.doc_staleness(tree, held)
           when "check_workflow_pagination" then LauncherText.workflow_pagination(tree)
           else gate_matrix(held, tree)
           end

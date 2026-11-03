@@ -130,7 +130,7 @@ module Hecks
 
       # Says whether this hecksagon attaches a bluebook, whatever its source.
       #
-      # @param bluebook [String, Symbol] a bluebook's name as the registry holds it
+      # @param declaration [String, Symbol] a bluebook's name as the registry holds it
       # @return [Boolean] whether that bluebook is attached here
       def attaches?(declaration) = member_bluebooks.include?(declaration.to_s)
 

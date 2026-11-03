@@ -1,6 +1,6 @@
 # The roles that manage payments are a setting of the host
 
-**Status:** Proposed. Built on this branch, not released: the `HECKS_PAYMENTS_MANAGER_ROLES` setting, its boot check and the payments gate that reads it. Date: 2026-10-17.
+**Status:** Accepted, built (code present in the tree). Built: the `HECKS_PAYMENTS_MANAGER_ROLES` setting, its boot check and the payments gate that reads it. Date: 2026-10-17.
 
 ## Context
 

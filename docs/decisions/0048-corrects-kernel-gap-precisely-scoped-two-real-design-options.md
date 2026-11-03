@@ -1,12 +1,14 @@
 # `corrects`'s kernel gap, precisely scoped — it's a snapshot-format decision, not just "new kernel architecture"
 
+> Historical: `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Investigated further, not implemented. ADR 0041 identified that `enforce_correction_target`'s Rust port needs "genuinely new state — either a per-instance emitted-event-name index threaded through the `Store`/dispatch pipeline... or some other mechanism not yet designed." This ADR replaces "not yet designed" with two concrete, real options, found by tracing `rust/host`'s ACTUAL production dispatch path, not just the CLI conformance harness.
 
 ## The good news, found first: the kernel already accumulates almost what's needed
 
 `kernel::cli::run` (`rust/src/kernel/cli.rs:53`) already builds `let mut events: Vec<Event> = Vec::new();`, accumulated across every step in a run — the direct structural counterpart to Ruby's own `@registry.event_log` (`lib/hecks/runtime/registry.rb:28`, confirmed: a plain in-memory `Array`, cleared on `#clear`, not a permanent external store). If a kernel run always replayed a domain's ENTIRE command history from an empty store, checking `events` for a matching `(name, aggregate, id)` triple before dispatching a `corrects`-declaring command would be a small, real, already-available check — no new accumulator needed, just a new consumer of one that already exists.
 
-## The real complication, found by reading `rust/host/src/dispatch.rs` directly, not assumed
+## The real complication, found by reading `rust/host/core/src/dispatch.rs` directly, not assumed
 
 `rust/host` — the actual production Lambda deployment path, not the CLI conformance harness — does NOT always replay the full history. `journal.rs`'s own header describes "the simplest correct answer" as full replay every time (ADR 0018), but `dispatch.rs`'s real `handle` function has since grown a snapshot optimization on top of that:
 
@@ -47,5 +49,5 @@ This is a materially different risk shape than every other Phase 10 item shipped
 ## Verification
 
 - `kernel::cli.rs`'s own `events: Vec<Event>` accumulator, and Ruby's `@registry.event_log`'s own in-memory, per-boot scoping, were both confirmed by reading the actual source, not assumed to match.
-- The snapshot-optimization finding was confirmed by reading `rust/host/src/dispatch.rs`'s real `handle` function directly (`journal::load_steps_after` vs `journal::load_steps`, the `seed`/`steps` split fed to the kernel) — not inferred from `journal.rs`'s own header comment alone, which (written before the snapshot optimization existed) is now stale on this exact point ("replaying the FULL log on every invocation is the simplest correct answer" no longer describes the common-case code path, only the fallback).
+- The snapshot-optimization finding was confirmed by reading `rust/host/core/src/dispatch.rs`'s real `handle` function directly (`journal::load_steps_after` vs `journal::load_steps`, the `seed`/`steps` split fed to the kernel) — not inferred from `journal.rs`'s own header comment alone, which (written before the snapshot optimization existed) is now stale on this exact point ("replaying the FULL log on every invocation is the simplest correct answer" no longer describes the common-case code path, only the fallback).
 - No code was changed by this investigation — this ADR converts an open, vague "needs new architecture" into two named, concrete, comparably-scoped options for a future round to choose between.

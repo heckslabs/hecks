@@ -7,6 +7,8 @@ claimed_by:
 
 # Adoption wedge: one target and one external user first
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 ## Question
 
 The roadmap spans an OIDC provider, ISO traceability, an onboarding domain, UL projections,

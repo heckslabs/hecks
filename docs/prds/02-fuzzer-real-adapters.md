@@ -50,7 +50,7 @@ single-adapter spec). Nothing analogous exists for commands/mutations.
    treatment every other real-database spec already has — excluded
    locally, included in CI and pre-push, per the pattern this session
    already extended for `spec/fuzzing` itself
-   (`.githooks/post-commit`/`pre-push`, `fuzzing: true`).
+   (`.githooks/pre-push`, `fuzzing: true`; the post-commit hook the first draft named was dropped).
 4. Expect findings, not just green — this is explicitly a bug hunt, not a
    coverage-completeness exercise. Budget time to investigate and fix
    whatever the first real Memory-vs-Sqlite divergence turns out to be,
@@ -135,7 +135,7 @@ string from.
 that exactly or the world silently never loads; cost a debugging loop the
 first time), pointing every domain at a shared `hecks_fuzz`
 database/schema that's dropped and recreated before every ephemeral boot
-(`ensure_fuzz_schema!`) — safe because `bin/fuzz` drives every boot
+(`ensure_fuzz_schema!`) — safe because `fuzz_run.fuzz!` drives every boot
 sequentially, never concurrently. A real bug surfaced live in the process:
 `Adapters::Postgres` never explicitly closes a connection, and a tight
 fuzzing loop (dozens to hundreds of ephemeral boots per run) hits
@@ -182,7 +182,7 @@ adapter mode, `adapter: :postgres_era`, alongside the three above —
 `rebind_to_postgres!` already established, but REQUIRES the caller to
 supply its own throwaway `database:`/`schema:` rather than defaulting to
 a shared, permanent scratch database — its only caller
-(`bin/qa_sweep --persistence-parity`, see `lib/hecks/fuzzing/
+(`quality_control sweep.run` with `--persistence-parity`, see `lib/hecks/fuzzing/
 persistence_parity.rb`) already owns a disposable database's whole
 lifecycle itself. A real, previously-unknown blocker surfaced live
 wiring this up against `examples/directory` (the one domain in this

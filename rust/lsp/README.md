@@ -72,12 +72,13 @@ is setup + roadmap.
   crate's `diagnostics::run` only needs to return `Vec<FileDiagnostic>`
   instead of `Option<FileDiagnostic>` — `main.rs` already publishes
   whatever list it's handed.
-- **Single-file bluebooks only.** A bluebook split across multiple
+- **Diagnostics are per file.** A bluebook split across multiple
   `.bluebook` files, or paired with a `.hecksagon` file
-  (`parse::bluebook`'s own header describes both), is only ever checked
-  one file at a time here. Fine for every example under `examples/*/`
-  today; would need this crate to also track a project's file layout
-  (which files share a bluebook name) to do better.
+  (`parse::bluebook`'s own header describes both), is only ever parsed
+  one file at a time for diagnostics. Only `textDocument/definition`
+  looks across sibling files in the same directory. Better diagnostics
+  would need this crate to also track a project's file layout
+  (which files share a bluebook name).
 
 ## Building it
 

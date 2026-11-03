@@ -3,8 +3,8 @@
 Read the code. Use it to search the checkout's text, read a file by line, or see what a file
 declares.
 
-**Status: not yet a module.** Today these are queries on `InspectionRun`. Until step 5 of
-ADR 0163 moves them, use the commands below.
+**Status: a module.** These are queries of the `Codebase` aggregate (`exe/hecks find`), moved from
+`InspectionRun` by ADR 0163 in 7.0.0.
 
 **Concept.** Reads change nothing. A query has no bang, so it cannot write. `search` matches a
 pattern across the checkout's text files; `outline` lists what a file declares, by line.

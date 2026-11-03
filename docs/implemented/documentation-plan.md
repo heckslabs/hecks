@@ -1,5 +1,7 @@
 # Doctested guides, generated DSL reference, and a generated README
 
+> Historical: the design record of a built plan; the `bin/` scripts it names are gone (see the note below and `docs/tools.md`).
+
 **Status: built.** Landed 2026-08-04 — the doctest harness
 (`spec/support/doctest.rb`, `spec/guides_spec.rb`), all twelve guides plus
 `AUTHORING.md` and `index.md` under `docs/implemented/guides/`, the generated reference

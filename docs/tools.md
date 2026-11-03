@@ -1,5 +1,7 @@
 # The commands
 
+<!-- staleness-check: skip-file (the last column names the retired `bin/` scripts, which no longer exist) -->
+
 Every job the `bin/` scripts did is a command of the `Hecks` bluebook or of a bluebook it attaches, and the
 `hecks` launcher answers it. This page covers only those retired scripts; commands that never had one
 (for example `site_projection.check_site`, `operation.bootstrap_admin`, `promotion_run.promote`) are not
@@ -10,7 +12,7 @@ checkout of this repository and refuse without one. The `bin/` script named in t
 script the command replaced: `bin/` was removed in 3.0.0. The QualityControl scripts (`bin/qa_*`) are commands
 of the attached QualityControl bluebook, spelled `hecks quality_control <verb>`.
 
-Each table below is written by `hecks regeneration_run.project_tools_doc` from the `RetiredScript` rows of
+Each table below is written by `hecks regeneration_run.project_tools_doc!` from the `RetiredScript` rows of
 `lib/hecks/language/bluebook/vocabulary.bluebook`, one row per command or query that answers a retired script. A form
 is rendered from the command's own arguments, the same projection the launcher parses against: the first argument is
 the bare word, `name=` takes the rest, a switch is `--name`, and an argument in brackets is optional or has a default.
@@ -34,7 +36,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks introspection.project_diagrams <domain> bluebook=` | `bin/project_diagrams` |
 | `hecks introspection.glossary <domain> bluebook=` | `bin/project_glossary` |
 | `hecks model_check_run.model_check! [<domains>] [profile=] [--strict]` | `bin/model_check` |
-| `hecks run [domain] <verb [name=value …] \| script.json \| - \| '{"steps":[…]}'>` | `bin/run` |
+| `hecks operation.run! [subject.value=<domain>] verb.value=<verb> [arguments.value=name=value …]; or script.value=<file>` | `bin/run` |
 | `hecks operation.refresh_projections! <subject>` | `bin/project` |
 | `hecks operation.run_behaviors! <subject>` | `bin/behaviors` |
 | `hecks console! [<subject>]` | `bin/console` |
@@ -145,7 +147,7 @@ still need a checkout.
 
 ## Releasing from CI
 
-`.github/workflows/release.yml` cuts a release, so it does not need `hecks publishing_run.publish --confirm` run
+`.github/workflows/release.yml` cuts a release, so it does not need `hecks publishing_run.publish! --confirm` run
 from a laptop. It starts when a commit on `main` changes `lib/hecks/version.rb` (the merged release PR), or by
 hand with `gh workflow run release.yml -f tag=vX.Y.Z`. It refuses unless `Hecks::VERSION`,
 `packages/hecks-client`, `rust/host/HECKS_RELEASE` and a `## [X.Y.Z]` heading in `CHANGELOG.md` agree. It then

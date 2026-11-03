@@ -1,5 +1,7 @@
 # `ReferralChain` — retention note
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 **Kept.** Built for ANGLE-2 in the QA ledger (`qa/bluebook`): reference
 HOPS, as distinct from the entity NESTING `qa/stress_domains/
 nested_pieces` already covers. The premise, quoted from the angle

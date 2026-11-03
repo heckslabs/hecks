@@ -1,5 +1,7 @@
 # `LedgerOrdering` — retention note
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 **Kept.** Targeted at re-triggering, in a new business shape, the
 divergence class ADR 0037's 2026-09-09 re-verification confirmed still
 open on `Banking::Account.LedgerEntry.Amend`: an entity command

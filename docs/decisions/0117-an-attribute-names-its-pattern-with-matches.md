@@ -1,6 +1,6 @@
 # An attribute names its pattern with `matches:`
 
-**Status:** Proposed. Built on this branch, not released. Date: 2026-10-17.
+**Status:** Accepted, built (code present in the tree). Built. Date: 2026-10-17.
 
 ## Context
 

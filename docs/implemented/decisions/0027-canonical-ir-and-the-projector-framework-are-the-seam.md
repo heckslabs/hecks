@@ -1,5 +1,7 @@
 # Canonical IR and the Projector framework are the seam; unbuilt work projects it, and the verification set protects trust in it
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/expression_projection` is `exe/hecks language_run.project_expression_tables!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted, and mechanized. Names a pattern already true of the
 done work and already implied by the unbuilt work's own names in
 [`HECKS_IMPLEMENTATION_PLAN.md`](../../HECKS_IMPLEMENTATION_PLAN.md). The

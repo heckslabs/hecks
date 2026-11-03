@@ -196,7 +196,7 @@ RSpec.describe "the translation language" do
 
   # Pins a destination colliding with an existing scalar (a reference id): it must refuse by name,
   # not raise IndexError from `"team-1"["detail"] =`. The SQL half is pinned in
-  # spec/adapters/postgres_lineage_spec.rb.
+  # spec/adapters/driven/postgres_era/lineage_spec.rb.
   describe "a move/convert whose destination collides with an existing non-object value" do
     def moving_to(destination) = lineage_for(declared_for { move "amount.cents", to: destination })
 

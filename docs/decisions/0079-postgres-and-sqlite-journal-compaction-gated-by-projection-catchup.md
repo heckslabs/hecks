@@ -1,5 +1,7 @@
 # Postgres and Sqlite journal compaction, gated by how far each bound projection has caught up
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/heki_compact` is `exe/hecks era.compact_heki!`, `bin/compact` is `exe/hecks era.compact!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Proposed. Builds on [ADR 0053](0053-transactional-outbox-for-domain-events-and-effects.md) (the outbox) and on #895, which stopped `PostgresEra`'s redundant boot-time journal replay. Nothing below is built yet.
 
 ## Context

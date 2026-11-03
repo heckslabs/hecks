@@ -5,9 +5,10 @@ require_relative "../corpus"
 
 module Hecks
   module Tools
-    # The command behind `hecks launch.project_cli!` and `hecks launch.project_cli!`: writes a
+    # The command behind `hecks project_cli` and `hecks launch.project_cli!`: writes a
     # command-line launcher beside each domain, named after its bluebook, so
-    # `Hecks.bluebook "QualityControl"` in `qa/` becomes `qa/quality_control`.
+    # `Hecks.bluebook "Pizzas"` in `examples/pizzas/bluebook` becomes
+    # `examples/pizzas/bluebook/pizzas` (staleness-check: skip, an illustration).
     #
     # Each launcher is a dozen lines pinning one directory and handing over to
     # `Adapters::Driving::CliRunner`; the surface itself is projected at the moment it runs,

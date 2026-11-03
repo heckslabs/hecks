@@ -70,6 +70,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "check_command_names", verbs: %w[check_command_names],
                note: "no bin script: it reads the launcher names a workflow, hook, gate row, spec or guide " \
                      "invokes and refuses any the launcher does not accept"),
+    AdrRow.new(script: "check_doc_staleness", verbs: %w[check_doc_staleness],
+               note: "no bin script: it reads docs and comments for a repo path, a Hecks constant or a @param " \
+                     "tag that names nothing"),
     AdrRow.new(script: "check_workflow_pagination", verbs: %w[check_workflow_pagination],
                note: "no bin script: it refuses a workflow that counts or waits on a GitHub list call " \
                      "returning only its first page"),

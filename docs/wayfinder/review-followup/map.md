@@ -116,7 +116,7 @@ it is wanted.
 
 - Whether the UL, onboarding, ISO traceability and OIDC-provider work is cut outright rather than deferred, after the adoption exit test.
 - Release-channel mechanics (a pre-release line, longer deprecation windows), when a first outside adopter appears.
-- What a Rails integration would have to look like, after one outsider has run a standalone service.
+- Rails integration exists (`packages/hecks-rails`, [docs/rails-integration.md](../../rails-integration.md)); what is open is whether an outsider who has run a standalone service finds it fits.
 - Whether to renumber the seven duplicate ADR pairs; the ADR-number lint only freezes them.
 - The open items each decided ADR carries (for example the `long_block` threshold, the banner wording, who the persistent agent identity is), which the build sessions or the maintainer settle.
 

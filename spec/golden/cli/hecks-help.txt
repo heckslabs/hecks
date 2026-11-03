@@ -55,6 +55,7 @@ commands:
     measure_doc_coverage!         Check that every live word of the language has prose and a running example in the reference
     check_shape_ledger!           Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed
     check_command_names!          Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
+    check_doc_staleness!          Check that no doc or comment cites a repo path, Hecks constant or @param that is gone
     check_workflow_pagination!    Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
     argument_gate_matrix!         Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
   StyleRun:

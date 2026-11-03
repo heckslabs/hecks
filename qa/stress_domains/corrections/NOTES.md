@@ -1,5 +1,7 @@
 # `Corrections` — retention note
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 **Kept.** Realizes ANGLE-9 (`ask backlog`, QualityControl ledger): `corrects`
 (retroactive correction) had exactly one declaration anywhere in the corpus
 (`examples/banking/bluebook/deposit_accounts.bluebook:353`, aggregate-level),

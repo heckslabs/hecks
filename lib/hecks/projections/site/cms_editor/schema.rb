@@ -27,9 +27,8 @@ module Hecks
         # A query that `returns` a value object is answered outside the domain and is left out: the
         # host refuses it, so a list cannot be built from it.
         class Schema
-          # @param bluebooks [Bluebook::Declaration, Array<Bluebook::Declaration>] the bluebook, or
-          #   the
-          #   bluebooks in the order the row names them; the first names the domain addressed
+          # @param declarations [Bluebook::Declaration, Array<Bluebook::Declaration>] the bluebook,
+          #   or the bluebooks in the order the row names them; the first names the domain addressed
           # @param skip [Array<String>] aggregates to leave out: `Name`, or `Bluebook::Name`
           # @param pictures [Bluebook::Declaration, nil] another bluebook whose picture aggregate
           #   the

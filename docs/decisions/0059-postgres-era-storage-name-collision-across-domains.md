@@ -1,6 +1,8 @@
 # PostgresEra's `head_view`/`head_snapshot`/`matview` now domain-qualify, closing a cross-domain storage_name collision
 
-**Status:** Fixed, in both Ruby (`lib/hecks/ports/persistence/plugins/era/postgres_era/lineage.rb`, `.../lineage/field_cache.rb`) and Rust (`rust/host/src/journal.rs`, `rust/host/src/mint.rs`, plus their real callers in `auth.rs`, `dispatch.rs`, `web.rs`, `bin/lineage_harness.rs`) — two domains bound to `PostgresEra` against the same Postgres database, each declaring an aggregate whose own name snake_cases to the same `storage_name`, used to derive the EXACT SAME physical relations and silently share (and, worse, clobber) each other's data.
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_wasm` is `exe/hecks build.build_wasm!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
+**Status:** Fixed, in both Ruby (`lib/hecks/ports/persistence/plugins/era/postgres_era/lineage.rb`, `.../lineage/field_cache.rb`) and Rust (`rust/host/core/src/journal.rs`, `rust/host/src/store/mint.rs`, plus their real callers in `auth.rs`, `dispatch.rs`, `web.rs`, `bin/lineage_harness.rs`) — two domains bound to `PostgresEra` against the same Postgres database, each declaring an aggregate whose own name snake_cases to the same `storage_name`, used to derive the EXACT SAME physical relations and silently share (and, worse, clobber) each other's data.
 
 ## The bug, found live
 
@@ -94,8 +96,8 @@ Already fully hashed either way, so this costs nothing readability could lose.
 
 Grepping `rust/host/src` for the same shapes (`_head`, `_head_snapshot_`, `_lineage_`) found this naming scheme reconstructed independently, NOT shared with Ruby's own computation, in **two separate places**:
 
-1. **`rust/host/src/journal.rs`** — its own `head_view`/`head_snapshot_table` functions, storage_name-only. Its two PUBLIC generic read functions, `read_lineage_head_all`/`read_lineage_head_by_id` (the functions `rust_host_lineage_conformance_spec.rb` exists to prove agree with Ruby's own writes), didn't even take a `domain` parameter before this fix.
-2. **`rust/host/src/mint.rs`** — a FULLY SEPARATE, independently duplicated copy of the whole naming family (`journal_table`, `sequence`, `partition`, `head_snapshot`, `matview`, `head_view`), deliberately not sharing code with `journal.rs`'s own copies (its own comment explains why: `journal_table`/`sequence`/`partition` already agreed with Ruby's `journal`/`sequence`/`partition`; `head_snapshot`/`matview`/`head_view` did not, until this fix).
+1. **`rust/host/core/src/journal.rs`** — its own `head_view`/`head_snapshot_table` functions, storage_name-only. Its two PUBLIC generic read functions, `read_lineage_head_all`/`read_lineage_head_by_id` (the functions `rust_host_lineage_conformance_spec.rb` exists to prove agree with Ruby's own writes), didn't even take a `domain` parameter before this fix.
+2. **`rust/host/src/store/mint.rs`** — a FULLY SEPARATE, independently duplicated copy of the whole naming family (`journal_table`, `sequence`, `partition`, `head_snapshot`, `matview`, `head_view`), deliberately not sharing code with `journal.rs`'s own copies (its own comment explains why: `journal_table`/`sequence`/`partition` already agreed with Ruby's `journal`/`sequence`/`partition`; `head_snapshot`/`matview`/`head_view` did not, until this fix).
 
 This is not optional to leave alone: `rust/host` is a real, deployed alternate dispatcher for PostgresEra-bound domains (ADR 0036's own subject — "`rust/host` dispatching against the same PostgresEra-bound tables from a separate OS process"), and `spec/rust_host_lineage_conformance_spec.rb` already proves Ruby's and Rust's writes land in, and reads come from, the exact same physical relations. Fixing only the Ruby side would have made that claim FALSE going forward — Ruby would compute a domain-qualified name while Rust kept computing the old, unqualified one, a genuine NEW Ruby/Rust physical-naming disagreement, exactly the class of bug ADR 0036's own Blocker 1 was about.
 

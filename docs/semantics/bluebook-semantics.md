@@ -127,7 +127,7 @@ it, except for one law they must uphold (C8.4).
   arrives or construction refuses `TypeMismatch`, worded
   `{type}.{field} expects {expected}, got nil` — a field never
   mentioned and a field offered as null are the same absence, and an
-  *optional* field offered as null is simply absent. Checks run in
+  *optional* field offered as null is simply absent. Checks operation.run! in
   this order: nested value objects first, then the value object's own
   field types, `admits` and `pattern`, then its invariants — so a
   field that fails its pattern is a `TypeMismatch`, never an
@@ -210,7 +210,7 @@ it, except for one law they must uphold (C8.4).
   other) — two from disjoint states are the legitimate shape, the
   current state picking between them. A `from:` naming a state no
   transition reaches is *not* a build refusal: it is a reachability
-  finding (`hecks model_check`: unreachable state, dead transition), and
+  finding (`hecks model_check_run.model_check!`: unreachable state, dead transition), and
   a bluebook may declare one on purpose.
 
 ## §6 Postconditions and invariants
@@ -348,7 +348,7 @@ A fixture (`spec/corpus/semantics/*.json`) carries `steps` (the same
 shape `spec/corpus/rust_conformance` uses), `spec` (the clauses it
 pins), and `expect`: ordered refusals with **kind**, the final
 instances, and the ordered events. Expectations were seeded from the
-Ruby runtime once (`hecks seed_semantics_corpus`), reviewed against these
+Ruby runtime once (`hecks test_suite_run.seed_semantics_corpus!`), reviewed against these
 clauses, and are frozen — a runtime change that breaks a fixture is a
 semantics change and must say so here, in the clause, first.
 `spec/semantics_corpus_spec.rb` runs every fixture against the Ruby

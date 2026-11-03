@@ -307,7 +307,7 @@ so is an extension whose `When` calls a command the main scenario never calls
 (`extension_off_path`: it is an example of another goal). Neither asks for an extension per rule.
 The person is the actor: their role is what each command checks, so a goal adds no role of its own.
 
-Run them like any behaviors file: `hecks run_behaviors target=page.examples`, or give a directory
+Run them like any behaviors file: `hecks operation.run_behaviors! target=page.examples`, or give a directory
 and every `.behaviors` and `.examples` file under it runs.
 
 ## Tools
@@ -318,7 +318,7 @@ and every `.behaviors` and `.examples` file under it runs.
 | `hecks-parse render --bluebook Cms page.bluebook` | prints the Ruby-form text for the same bluebook |
 | `hecks-parse examples --bluebook Cms --examples page.examples page.bluebook` | prints the `.behaviors` text the examples run as |
 | `hecks-lsp` | squiggles at the column a sentence went wrong, and offers the sentences legal at the cursor |
-| `hecks language_run.project_phrase_table --confirm` | regenerates the parser's table of sentences from the `Sentence` bluebook |
+| `hecks language_run.project_phrase_table! --confirm` | regenerates the parser's table of sentences from the `Sentence` bluebook |
 
 `hecks-parse` is built with `cargo build --release --manifest-path rust/parser/Cargo.toml`; a
 sentence file needs it to boot, found at `HECKS_PARSE_BIN`, in `rust/parser/target/`, or on the

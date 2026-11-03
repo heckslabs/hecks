@@ -226,7 +226,8 @@ and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Wo
 branch finishes the Work item of the same name (or the same name without a leading `qa/`). The Tickets
 world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
 CI checks `command_names` and `workflow_pagination` keep the names in docs, workflows and guides
-resolvable and lists paged; the spec suite holds the meta-domain covered.
+resolvable and lists paged, and `doc_staleness` (`conformance_run.check_doc_staleness! paths=...`) keeps the
+repo paths, `Hecks::` constants and `@param` tags that docs and comments cite real; the spec suite holds the meta-domain covered.
 
 ## RuboCop is strict: it runs at its defaults
 

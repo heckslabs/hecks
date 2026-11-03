@@ -71,7 +71,7 @@ RSpec.describe "the per-deploy Ruby/Rust parity gate (Phase 8)", :io do
 
     it "warns loudly, rather than silently skipping, when this domain has no spec/corpus/<name>.json fixture yet",
        :aggregate_failures do
-      # This fixture has no spec/corpus/parity_gate_spec_fixture.json, so the recipe
+      # This fixture has no corpus JSON of its own, so the recipe
       # must name what is missing rather than no-op.
       target_body = @makefile[/^verify-parity-\w+:\n(?:\t.*\n?)+/]
       expect(target_body).to include("SKIPPING")

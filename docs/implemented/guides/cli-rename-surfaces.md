@@ -69,6 +69,9 @@ Hecks::Composer::Toolbox::SAFE_COMMANDS.reject { |verb| page.include?(verb) }   
 
 ## Consumers outside the searched repositories
 
+Every path in this section (`deploy/sync/preflight.sh`, `bin/chess_native` and the rest) is a path inside the
+named project, not in this repository, which has no `deploy/` or `bin/` directory.
+
 The first search covered `~/Projects/hecks`, `lifeadelics`, `emaho`, `miette2`, `~/bin` and
 `~/.claude`. This search covered every other directory one level under `~/Projects`, the shell
 start-up files, `~/.config`, `~/Library/LaunchAgents` and `~/.claude.json`. Hecks checkouts

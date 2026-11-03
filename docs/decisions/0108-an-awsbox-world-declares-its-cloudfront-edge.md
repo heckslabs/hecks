@@ -1,6 +1,6 @@
 # An AwsBox world declares its CloudFront edge
 
-**Status:** Proposed. Built: the `cdn` setting, `BoxTarget.Declare`'s `cdn_aliases`, the `edge.yaml` and `edge.mk` projection and the
+**Status:** Accepted, built (code present in the tree). Built: the `cdn` setting, `BoxTarget.Declare`'s `cdn_aliases`, the `edge.yaml` and `edge.mk` projection and the
 prefix-list lookup in `make stacks`. Date: 2026-10-15.
 
 ## Context

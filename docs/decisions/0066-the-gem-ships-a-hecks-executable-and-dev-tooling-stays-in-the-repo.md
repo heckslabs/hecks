@@ -1,6 +1,8 @@
 # The gem ships a `hecks` executable, and development tooling stays in the repo
 
-**Status:** Accepted — implemented in 2.8.0. Date: 2026-09-27. Step 1 (the syntax-boot cache and the Storehouse log live under `Hecks::CacheDir`) and step 2 (`exe/hecks`, and a packaged file list without the repository-only tooling) both shipped. The open items below still stand.
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/run` is `exe/hecks run`, `bin/project_cli` is `exe/hecks launch.project_cli!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
+**Status:** Accepted — implemented in 2.8.0. Date: 2026-09-27. Step 1 (the syntax-boot cache and the Storehouse log live under `Hecks::CacheDir`) and step 2 (`exe/hecks`, and a packaged file list without the repository-only tooling) both shipped. The open items below still stand, except that [ADR 0080](0080-bin-scripts-become-adapters-on-a-hecks-bluebook.md) amended this record: `bin/` is gone and the `dev_tooling` filter is no longer in `hecks.gemspec`.
 
 ## Context
 

@@ -10,7 +10,7 @@ path = "src/lib.rs"
 # The expression evaluator: `Expr`, `Value`, the operators and shapes it dispatches to, and the
 # `Refusal` it fails with. One copy, shared by the kernel (compiled into every domain's wasm) and
 # the host. std-only apart from `regex`, which `expression_operators/pattern_match.rs` needs for
-# `.match?` (ADR 0012's one dependency exception); `default-features = false` keeps out the SIMD
+# `.match?` (the one exception to ADR 0012's std-only rule); `default-features = false` keeps out the SIMD
 # `perf` feature.
 [dependencies]
 regex = { version = "1", default-features = false, features = ["std", "unicode"] }

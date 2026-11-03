@@ -1,5 +1,7 @@
 # `Value::Coercion#hydrate_entity_list` widened to value-object lists — ADR 0047's root cause fixed; `remove:`'s own Rust port still deliberately not attempted
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/fuzz` is `exe/hecks fuzz_run.fuzz!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Root cause fixed and regression-tested, in Ruby only. `remove:` mutation op is still not ported to Rust this round — closing ADR 0047's own item 4 needs its own scoped round, same as `multiply`/`clamp` (ADR 0042/0046) each got.
 
 ## What ADR 0047 found, restated briefly

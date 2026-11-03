@@ -1,5 +1,7 @@
 # `uses_embryonaut_bluebook` proven Rust-conformant via a minimal vendoring demo domain
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/model_check` is `exe/hecks model_check_run.model_check!`, `bin/project_deploy` is `exe/hecks deploy recipe.project!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Shipped. New example corpus member `examples/embryonaut_vendoring_demo` (a
 consuming domain, `Gadget`) plus a vendored package
 `examples/embryonaut_vendoring_demo/vendor/embryonaut_bluebooks/widgets` (a `Widget`

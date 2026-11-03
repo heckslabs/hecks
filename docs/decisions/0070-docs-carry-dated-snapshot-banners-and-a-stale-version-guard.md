@@ -1,5 +1,7 @@
 # Docs that are dated snapshots say so in a banner, an archive holds the ones that should not be read as current, and a scan catches stale versions
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/hecks_mcp_door` is `exe/hecks mcp!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented in 2.8.0 (2026-09-27). The banner spec, the stale-version scan and `docs/archive/` (holding the survey and the adoption-readiness audit) shipped, after the "Historical snapshot" banner on `docs/adoption-readiness.md` landed.
 
 ## Context

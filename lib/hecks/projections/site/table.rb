@@ -53,7 +53,7 @@ module Hecks
 
         # Reads and checks one bluebook's route table.
         #
-        # @param bluebook [Bluebook::Declaration] the bluebook that declares the rows
+        # @param declaration [Bluebook::Declaration] the bluebook that declares the rows
         # @param registry [Runtime::Registry] the registry the project booted into: it holds the
         #   Site bluebook and, for a `command:` or `query:` source, the command or query
         # @return [Table] the checked table
@@ -80,7 +80,7 @@ module Hecks
           closed.merge(http_method: members.call("HttpMethod"), edge_function_kind: members.call("EdgeFunctionKind"))
         end
 
-        # @param bluebook [Bluebook::Declaration] a bluebook to search
+        # @param declaration [Bluebook::Declaration] a bluebook to search
         # @param object [String] the name of the value object whose rows are wanted
         # @return [Array<Hash{Symbol => Object}>] the member rows of its value objects of that name
         def self.rows_of(declaration, object = ROW_OBJECT)

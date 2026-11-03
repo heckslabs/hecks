@@ -1,5 +1,7 @@
 # `corrects` mutation op — ported for real, including its admissibility check
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/rust_conformance` is `exe/hecks build.check_conformance!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Shipped, with explicit user authorization for the design tradeoff below. ADR 0041/0048 identified that `corrects`'s own admissibility check (`CommandRules::Admissibility#enforce_correction_target`) needed either a production snapshot-format extension or a change to `dispatch()`'s own signature affecting every command in every domain — real, cross-cutting kernel work this session's own established discipline (never land a change with this blast radius, unreviewed, in an autonomous session) had declined to make unilaterally. The user was asked directly and chose "extend snapshot format." This ADR ships that.
 
 ## The design that made this tractable: a derived record field, not new dispatch plumbing

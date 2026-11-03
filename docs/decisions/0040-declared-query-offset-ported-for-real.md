@@ -1,5 +1,7 @@
 # Phase 10's first shipped capabilities — `offset`, `nulls`, and `authorize`/TenantScope, ported for real
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/rust_conformance` is `exe/hecks build.check_conformance!`, `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/project_wasm` is `exe/hecks build.build_wasm!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Shipped, both generators, each verified against a real (or, for one item, purpose-built) fixture. This closes five items of Phase 10's own "long-tail feature-completeness backlog" — the backlog itself stays open; see "What Phase 10 still leaves open," below, and `docs/decisions/0041` for the honest accounting of everything still open, investigated directly rather than guessed at.
 
 ## What shipped

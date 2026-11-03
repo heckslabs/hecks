@@ -1,12 +1,14 @@
 # `hecks-codegen` is the only Rust generator — 0054b's rejection lifted
 
-**Status:** Proposed. SUPERSEDES [0054b](0054b-the-ruby-generator-stays-primary.md)
+> Historical: `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
+**Status:** Accepted, carried out: `rust/project/` and `rust/project.rb` are deleted and `rust/codegen` is the only Rust generator. SUPERSEDES [0054b](0054b-the-ruby-generator-stays-primary.md)
 Decision items 1, 2, 4, 5 and 6 (Ruby generator stays primary; generator work
 targets `rust/project` first; "not to be re-proposed"), and re-adopts the
 direction of [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md) with
 its migration order updated to what is on `main` now. The maintainer lifted
 0054b's rejection on 2026-10-02 ("single source rust generator is back on").
-Nothing is deleted by this document; the deletion is step 6 below.
+Nothing was deleted by this document when it was written; the deletion is step 6 below, since done.
 
 ## Context
 

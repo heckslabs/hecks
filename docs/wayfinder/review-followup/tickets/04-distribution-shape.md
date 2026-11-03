@@ -7,6 +7,8 @@ claimed_by:
 
 # Distribution shape: what `gem install hecks` ships
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 ## Question
 
 Today the installed gem is far less than the repo: no executables, and dev tooling in `lib/`

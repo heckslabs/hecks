@@ -1,6 +1,6 @@
 # A live box keeps the image it runs
 
-**Status:** Proposed. Built: the plain `AmiId` parameter in `box.yaml` and the image lookup in `make stacks`. Date: 2026-10-15.
+**Status:** Accepted, built (code present in the tree). Built: the plain `AmiId` parameter in `box.yaml` and the image lookup in `make stacks`. Date: 2026-10-15.
 
 ## Context
 

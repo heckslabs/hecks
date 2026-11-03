@@ -1,12 +1,12 @@
 # A translation edge declares its own rollback
 
-**Status:** Proposed. Date: 2026-10-02. Builds on [ADR 0033](0033-eras-become-a-loadable-persistence-plugin.md) (eras) and [ADR 0082](0082-the-two-translation-chapters-become-one.md) (one Translation chapter).
+**Status:** Proposed; still not built: `lib/hecks/grammar/translation.bluebook` and the `spec/translation` specs declare no rollback. Date: 2026-10-02. Builds on [ADR 0033](0033-eras-become-a-loadable-persistence-plugin.md) (eras) and [ADR 0082](0082-the-two-translation-chapters-become-one.md) (one Translation chapter).
 
 ## Context
 
 A mint that changes a domain's shape cannot be undone today.
 
-- One append-only journal per domain holds every era. Each row carries an `era` column, and a mint creates that era's partition, its per-aggregate lineage views and head snapshots, and then recreates the unqualified `<aggregate>_head` view so it points at the newest era (`rust/host/src/mint.rs`).
+- One append-only journal per domain holds every era. Each row carries an `era` column, and a mint creates that era's partition, its per-aggregate lineage views and head snapshots, and then recreates the unqualified `<aggregate>_head` view so it points at the newest era (`rust/host/src/store/mint.rs`).
 - The write fence moves with the head: row-level security accepts only `era = N`. An image built for an older era that boots against a newer head finds its own era, serves it (`decide_boot_action`, `UseExisting`), then has every write refused by the fence and every read answered from the head view, which has the newer shape. The Ruby runtime has an explicit read-only mode for a superseded era (`PostgresEra#refuse_superseded_write!`); the Rust host has none.
 - An edge is forward only. The rule kinds are rename, move, convert, drop, retype, compute, rekey and backfill, compiled by `translation/rule_compiler.rb` and `lineage.rb` and re-read by the host (`parse_edges`). Nothing declares how to go back, and several kinds cannot be inverted mechanically: a drop loses values, a compute loses its inputs' provenance, a backfill overwrites nulls, a rekey needs its mapping, a narrowing retype loses range.
 - A database snapshot restore is the only recovery. It discards every write since the snapshot and, on a cluster shared by many domains, rolls all of them back.

@@ -1,5 +1,7 @@
 # Migrating from Hecks 2.x to 3.0
 
+<!-- dead-name-check: skip-file -->
+
 3.0.0 turned every `bin/` script into a command on the Hecks domain (ADR 0080). Most of what
 breaks is a call spelled `bin/<name>`. Each item below says what changed and what to do. The
 CHANGELOG entry for 3.0.0 has the full wording.

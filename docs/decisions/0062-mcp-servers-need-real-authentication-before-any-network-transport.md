@@ -1,5 +1,7 @@
 # The MCP servers stay stdio-only, and a network transport needs real authentication first
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/hecks_query_ir_mcp` is `exe/hecks server.serve_query_ir_mcp!`, `bin/hecks_mcp_door` is `exe/hecks mcp!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Proposed (draft). The stdio gate described under "What is enforced today" shipped with this ADR. Nothing under "Decision" is built, and this ADR does not authorize building a network transport; it says what has to be true before anyone does.
 
 ## Context

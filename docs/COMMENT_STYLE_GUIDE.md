@@ -1,7 +1,7 @@
 # Comment style guide
 
 The standard for comments in this repository's Ruby: `lib/`, `spec/`
-and `examples/`. `hecks style_run.check_comments` checks the parts of it a machine
+and `examples/`. `hecks style_run.check_comments!` checks the parts of it a machine
 can check. The rest is a checklist for whoever reads the diff.
 
 CI runs this check as the `comment_style` and `comment_blocks` gates of
@@ -186,7 +186,7 @@ block to its length:
   and rewrite the baseline in the same change, or keep the line.
 
 Rewrite the baseline over the gated tree with
-`hecks style_run.write_comment_baseline --confirm`, and commit the result. A trimmed
+`hecks style_run.write_comment_baseline! --confirm`, and commit the result. A trimmed
 block should leave the file. A block that must be longer is a deliberate baseline change,
 which the diff shows to the reviewer.
 
@@ -194,17 +194,17 @@ which the diff shows to the reviewer.
 
 ```
 hecks style_run.report_comments paths=lib/hecks             # summary tables
-hecks style_run.check_comments paths=lib/hecks              # one line per violation
-hecks style_run.fix_comments paths=lib/hecks --confirm      # all_caps and long_line only
-hecks style_run.write_comment_baseline --confirm            # rewrite the long-block baseline
-hecks style_run.check_comments_unchanged ref=main           # prove an edit was comment-only
+hecks style_run.check_comments! paths=lib/hecks              # one line per violation
+hecks style_run.fix_comments! paths=lib/hecks --confirm      # all_caps and long_line only
+hecks style_run.write_comment_baseline! --confirm            # rewrite the long-block baseline
+hecks style_run.check_comments_unchanged! ref=main           # prove an edit was comment-only
 ```
 
-`fix_comments` rewrites only the two mechanical categories. Do not run it over doc
+`fix_comments!` rewrites only the two mechanical categories. Do not run it over doc
 comments written by hand without reading the result. Everything else needs
-someone to read the code. `check_comments_unchanged ref=REF` compares each file's
+someone to read the code. `check_comments_unchanged! ref=REF` compares each file's
 non-comment tokens with `REF` and fails if any differ, which is how a
 comment-only change is shown to be one.
 
 Whether documented behaviour is backed by a running example is a separate
-concern with its own gate: see `hecks conformance_run.measure_doc_coverage`.
+concern with its own gate: see `hecks conformance_run.measure_doc_coverage!`.

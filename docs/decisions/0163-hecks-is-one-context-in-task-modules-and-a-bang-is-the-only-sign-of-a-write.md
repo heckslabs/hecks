@@ -1,6 +1,8 @@
 # Hecks is one context in task modules, and a bang is the only sign of a write
 
-**Status:** Proposed. Date: 2026-10-30. Supersedes [ADR 0096](0096-hecks-bluebooks-sit-in-four-modules.md).
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now, see `docs/tools.md`); paths below name what existed when this was decided.
+
+**Status:** Accepted, shipped in 7.0.0 (`domain_module`, `audience` and the bang rule are in CHANGELOG 7.0.0 and `docs/migrating-6-to-7.md`). Date: 2026-10-30. Supersedes [ADR 0096](0096-hecks-bluebooks-sit-in-four-modules.md).
 Planned for 7.0.0. The `hecks-rust` split of [ADR 0164](0164-hecks-distills-to-a-core-that-no-satellite-is-needed-to-build.md)
 ships in 7.1.0, not with this record.
 

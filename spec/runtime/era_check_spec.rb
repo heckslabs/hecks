@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 
 # The boot-time era gate: only lineage-capable adapters hold eras (Postgres side in
-# spec/adapters/postgres_lineage_spec.rb).
+# spec/adapters/driven/postgres_era/lineage_spec.rb).
 RSpec.describe "the era check at boot" do
   ERA_FIXTURES = File.join(InMemoryDomain::ROOT, "spec", "fixtures", "eras")
 

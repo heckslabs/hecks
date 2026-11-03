@@ -1,5 +1,7 @@
 # Map: a Hecks with no client material, and a right home for each piece that leaves it
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/check_era` is `exe/hecks host.check_era!`, `bin/deploy_template_diff` is `exe/hecks deploy template_comparison.diff!`, `bin/release` is `exe/hecks publishing_run.publish!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Executed (wayfinder). Every ticket under `0064-client-boundary/` is Accepted or Resolved, the work they decided shipped in Hecks 2.7.0, and the client site runs it in production. The map is an index: a decision lives in exactly one place, its ticket. "Shipped" and "Follow-ups" below record what is done and what is left.
 
 **Charted:** 2026-09-26. **Executed:** 2026-09-27.

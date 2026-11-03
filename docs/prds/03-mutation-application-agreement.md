@@ -1,6 +1,6 @@
 # PRD 03 — Cross-adapter differential testing for mutation application
 
-**Status:** Not started. Two viable build orders — see below.
+**Status:** Not started. Two viable build orders — see below. A spec named `mutation_agreement_spec.rb` under `spec/adapters/` is the proposed name; the file does not exist yet.
 
 ## The problem
 
@@ -22,7 +22,7 @@ the harness.
 ## Two ways to build this — pick one, both are complete answers
 
 **Path A — hand-written, ships independently, no prerequisites.** A new
-`spec/adapters/mutation_agreement_spec.rb`, same shape as
+the proposed `mutation_agreement_spec.rb` under `spec/adapters/`, same shape as
 `query_agreement_spec.rb`: pick a handful of real declared mutations
 (an entity `append` with a composite identity, a `remove` by value equality,
 a VO-typed `multiply`/`clamp` pair — real corpus sites, not synthetic ones),

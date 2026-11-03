@@ -36,14 +36,14 @@ lifecycle checks of a bluebook) answer over HTTP or a JSON payload to a
 client that knows nothing about Ruby. Four pieces are involved:
 
 1. **A bluebook** (`.bluebook`, `.hecksagon`, `.world`) that you write.
-2. **Two build artifacts** made from it by `hecks build.build_wasm`: a
+2. **Two build artifacts** made from it by `hecks build.build_wasm!`: a
    `<name>.wasm` module holding the compiled rules and a `<name>.ir.json`
    description of the domain.
 3. **The host**, `rust/host`, one binary named `bootstrap`. It loads the
    `.wasm` module inside wasmtime, keeps a journal of every accepted
    command in Postgres, and replays it to answer each request. The rules
    run inside the sandbox; the host holds the database connection.
-4. **A deploy recipe** made by `hecks deploy recipe.project`: a CloudFormation
+4. **A deploy recipe** made by `hecks deploy recipe.project!`: a CloudFormation
    template, a Makefile, and (for Fargate) a Dockerfile, all generated
    from the `deployed_to(...)` block of your `.world` file.
 
@@ -71,7 +71,7 @@ You also need:
 
 | For | What |
 | --- | --- |
-| Ruby tools (`hecks docs`, `hecks deploy recipe.project`, `hecks build.build_wasm`) | Ruby and Bundler, as `bundle install` above |
+| Ruby tools (`hecks introspection.docs`, `hecks deploy recipe.project!`, `hecks build.build_wasm!`) | Ruby and Bundler, as `bundle install` above |
 | Building the host | `rustup`. `rust-toolchain.toml` pins Rust 1.98.0 and rustup installs it on first use. Add the WebAssembly target once: `rustup target add wasm32-wasip1` |
 | Running locally | A Postgres you can create a database in, reachable over TCP on `localhost` (see [step 5](#5-configure-the-environment) for why not a socket) |
 | Deploying to Lambda | An AWS account and credentials, the `aws` and `sam` CLIs, and `cargo-lambda` |
@@ -87,7 +87,7 @@ machine.
 
 ## 1. Choose a deploy target
 
-`hecks deploy recipe.project` knows two targets, selected by the adapter your
+`hecks deploy recipe.project!` knows two targets, selected by the adapter your
 `.world` file names in `deployed_to(...)`: `"AwsLambda"` and
 `"AwsFargate"`. They differ in the one way that matters for a service other
 people call, which is how a caller is authenticated.
@@ -125,7 +125,7 @@ Nothing was invoked on either target (not verified here).
 ## 2. Define a bluebook
 
 Make a directory that is **not** inside the clone, laid out the way
-`hecks deploy recipe.project` looks for it: `<domain>/bluebook/<name>.bluebook`, and
+`hecks deploy recipe.project!` looks for it: `<domain>/bluebook/<name>.bluebook`, and
 `.hecksagon` and `.world` beside it, all sharing one basename.
 
 ```sh
@@ -215,9 +215,9 @@ end
 ```
 
 `$DOMAIN/bluebook/underwriting.world`, the per-deployment values. The
-`persisted_by` block is what the Ruby tools (`hecks docs`, `hecks run`) connect
+`persisted_by` block is what the Ruby tools (`hecks introspection.docs`, `hecks operation.run!`) connect
 to; the host ignores it and reads `DATABASE_URL` instead. `deployed_to` is
-what `hecks deploy recipe.project` reads (step 3). This one selects Fargate because
+what `hecks deploy recipe.project!` reads (step 3). This one selects Fargate because
 that is the shape the local run in step 6 exercises; step 3 shows the
 Lambda variant:
 
@@ -247,11 +247,11 @@ you:
   persisted_by bind. ... say Application.persisted_by("Memory") to keep it
   in memory on purpose.` Binding it to `Memory` is fine for the Ruby tools
   but the host cannot serve it: `SUPPORTED_PERSISTENCE_ADAPTERS` in
-  `rust/host/src/ir.rs` is `Postgres` and `PostgresEra`, and the host
+  `rust/host/core/src/ir.rs` is `Postgres` and `PostgresEra`, and the host
   refuses to boot a domain that binds any of your aggregates to anything
   else. (The Governance aggregates above are bound to `Memory` and the host
   booted fine; only the aggregates in your own domain's IR are checked.)
-- **A world with no `database` cannot boot in Ruby.** `hecks run` fails with
+- **A world with no `database` cannot boot in Ruby.** `hecks operation.run!` fails with
   `its world declares no "database"` if the `persisted_by("Postgres")` block
   is missing.
 - **The Rust rules reader does not take `_` in integer literals.** The
@@ -271,15 +271,15 @@ Check that the declaration boots and read back what it says:
 
 ```sh
 psql -h 127.0.0.1 -d postgres -c "CREATE DATABASE underwriting_local"
-hecks docs "$DOMAIN/bluebook"
-hecks run "$DOMAIN" --help
+hecks introspection.docs domain.value="$DOMAIN/bluebook"
+hecks operation.run! --help
 ```
 
-`hecks docs` prints each verb's arguments, who may issue it, and every
-refusal it can produce. `hecks run <domain> --help` lists the verbs.
+`hecks introspection.docs` prints each verb's arguments, who may issue it, and every
+refusal it can produce. `hecks operation.run! --help` lists the verbs.
 
 Status: all three files, the two boot errors and the `_` literal problem
-are verified here. `hecks docs` and `hecks run --help` were run against them.
+are verified here. `hecks introspection.docs` and `hecks operation.run! --help` were run against them.
 The refusal for a role with no governing bluebook is quoted from the
 comment in `lib/hecks/runtime/command_rules/authorization.rb` and was not
 triggered here.
@@ -287,28 +287,27 @@ triggered here.
 ## 3. Project the deploy target
 
 ```sh
-hecks deploy recipe.project "$DOMAIN" --out="$HOME/services/underwriting-deploy"
+hecks deploy recipe.project! domain.value="$DOMAIN" out.value="$HOME/services/underwriting-deploy"
 ```
 
-`hecks deploy recipe.project --help` prints the option list. The full usage
-line is `hecks deploy recipe.project <domain> [--tenant=<slug>] [--schema=<name>]
-[--out=<dir>] [--environment=<name>] [--target=<adapter>]`.
+`hecks deploy recipe.project! --help` prints the option list. The full usage
+line is `hecks deploy recipe.project! domain.value=<domain> [tenant.value=<slug>] [schema.value=<name>]
+[out.value=<dir>] [environment.value=<name>]`.
 
 - `<domain>` is the directory from step 2. The script finds
   `<domain>/bluebook/<basename>.world`, or the single `*.world` file in that
   directory if the basename does not match.
-- `--out=<dir>` says where to write. Without it the output goes to
+- `out.value=<dir>` says where to write. Without it the output goes to
   `deploy/<name>/` inside the clone (`<name>` is the `stack_name` setting if
-  the `.world` has one, else the directory's basename). Prefer `--out` so the
+  the `.world` has one, else the directory's basename). Prefer `out.value` so the
   clone stays clean.
-- `--environment=<name>` layers `<domain>/bluebook/environments/<name>.world`
+- `environment.value=<name>` layers `<domain>/bluebook/environments/<name>.world`
   over the base `.world`. Use it to keep real stack names out of the base
   file. A missing overlay is an error, not a silent no-op.
 - A `.world` may declare more than one `deployed_to` block, such as `Vercel`
   and `AwsBox`. Each is generated into `<out>/<adapter>/` (for example
-  `<out>/vercel/`); `--target=<adapter>` generates only that one, straight
-  into `<out>`.
-- `--tenant=<slug>` generates a per-tenant stack of the same domain. You do
+  `<out>/vercel/`). The launcher command takes no target argument.
+- `tenant.value=<slug>` generates a per-tenant stack of the same domain. You do
   not need it for a first service.
 
 For the Fargate `.world` above the run printed:
@@ -378,11 +377,11 @@ for the local target, to see each one work:
 
 ```sh
 rustup target add wasm32-wasip1
-hecks build.build_wasm "$DOMAIN"
+hecks build.build_wasm! domain.value="$DOMAIN"
 (cd rust/host && cargo build --release --bin bootstrap)
 ```
 
-- `hecks build.build_wasm "$DOMAIN"` regenerates Rust from your bluebook in a
+- `hecks build.build_wasm! domain.value="$DOMAIN"` regenerates Rust from your bluebook in a
   scratch copy under `tmp/`, compiles it to WebAssembly, and writes
   `rust/dist/underwriting.wasm` and `rust/dist/underwriting.ir.json`. The
   name comes from the directory's basename. Tracked files in the clone are
@@ -394,18 +393,18 @@ hecks build.build_wasm "$DOMAIN"
 
 On the machine used here the wasm build took under a minute and a cold host
 build took several minutes (dependencies include wasmtime and the AWS SDK).
-A rebuild after changing only the bluebook needs `hecks build.build_wasm` again and
+A rebuild after changing only the bluebook needs `hecks build.build_wasm!` again and
 not the host build.
 
-`hecks build.build_host` runs both steps and stages the result. It builds the module as
-`build.build_wasm` does, compiles `rust/host` from the workspace of the installed gem (no clone, no tag
+`hecks build.build_host!` runs both steps and stages the result. It builds the module as
+`build.build_wasm!` does, compiles `rust/host` from the workspace of the installed gem (no clone, no tag
 to match: the host is always the release you have installed), and copies `underwriting-host`,
 `underwriting.wasm` and `underwriting.ir.json` into `.hecks/host/<target>/`, the files an image
 copies in:
 
 ```sh
-hecks build.build_host domain="$DOMAIN" --wait                                  # this machine
-hecks build.build_host domain="$DOMAIN" target=aarch64-unknown-linux-gnu \
+hecks build.build_host! domain.value="$DOMAIN" --wait                                  # this machine
+hecks build.build_host! domain.value="$DOMAIN" target=aarch64-unknown-linux-gnu \
   stage_dir=build/domain --wait                                                    # an arm64 image
 ```
 
@@ -422,7 +421,7 @@ copies `underwriting-host`, `underwriting.wasm` and `underwriting.ir.json`
 next to the Dockerfile, and `docker-build` bakes them into a
 `debian:bookworm-slim` image.
 
-Status: `hecks build.build_wasm` and the native host build are verified here. So
+Status: `hecks build.build_wasm!` and the native host build are verified here. So
 is the Fargate `build` target: `make build` in the generated directory ran to
 completion and left `underwriting-host` (an arm64 Linux binary),
 `underwriting.wasm` and `underwriting.ir.json` beside the Dockerfile, and
@@ -746,7 +745,7 @@ not usable from this repository alone, for three reasons.
    active `Admin` or `Owner` in the membership records. The host does not
    write the first membership row. The Ruby runtime writes it, because it owns the era-managed head tables `auth.rs` reads,
    by dispatching the membership bluebook's `Admit` and `GrantAccess` against the
-   same database. `hecks operation.bootstrap_admin <domain>
+   same database. `hecks operation.bootstrap_admin! <domain>
    email=<email> [name=<name>] [role=<role>]` does exactly that, once: it
    reads the verbs from the bluebook's `provides "membership"`, dispatches
    them as a caller that names the role the grant is gated to and binds no
@@ -837,7 +836,7 @@ session-cookie API instead. The `curl` examples in this step that target
 | Body | Meaning |
 | --- | --- |
 | `{"read": true}` | The whole current state: `instances`, keyed `"<Domain>::<Aggregate>#<id>"`. |
-| `{"verb": "<Domain>::<Aggregate>.<Command>", "with": {...}, "role": "..."}` | A command that creates a record. `with` holds the command's facts, in the same shape `hecks docs` prints; a value object with one field may be given as its bare value (`"name": "Yoga"` for `{"value": "Yoga"}`). |
+| `{"verb": "<Domain>::<Aggregate>.<Command>", "with": {...}, "role": "..."}` | A command that creates a record. `with` holds the command's facts, in the same shape `hecks introspection.docs` prints; a value object with one field may be given as its bare value (`"name": "Yoga"` for `{"value": "Yoga"}`). |
 | `{"verb": "...", "to": "<id>", "with": {...}, "role": "..."}` | A command on an existing record; `to` is its id. |
 | `{"verb": "...", "args": {...}}` | The older shape, still accepted. Combining it with `to` or `with` answers `500` with `{"error":"cannot combine to/with with legacy args"}`. |
 | any of the above plus `"bare": true` | The same outcome, with each single-field value object in `instances`, event payloads and query rows answered as its bare field (`"name": "Yoga"`). What is stored does not change; `@hecks/client` sends it by default. |
@@ -940,7 +939,7 @@ names.
 ### Lambda
 
 ```sh
-cd "$HOME/services/underwriting-deploy"      # the --out directory from step 3
+cd "$HOME/services/underwriting-deploy"      # the out.value directory from step 3
 make deploy
 ```
 
@@ -990,8 +989,8 @@ an outside team would meet it.
 
 1. **The path starts from a clone.** ADR 0066 decides that the gem ships a
    `hecks` executable and that dev tooling stays in the repository; the gem also
-   ships `rust/`, so `hecks build.build_wasm` runs from an installed gem, but the host
-   binary is built from `rust/host`. `hecks deploy recipe.project <domain>`
+   ships `rust/`, so `hecks build.build_wasm!` runs from an installed gem, but the host
+   binary is built from `rust/host`. `hecks deploy recipe.project! <domain>`
    needs neither: it reads the project it is given, a path absolute or relative to where you run it, and
    writes `deploy/<stack>/` there (or `out=<dir>`), from the installed gem. The generated Makefiles
    name that directory as their root.
@@ -1005,7 +1004,7 @@ an outside team would meet it.
    time out. The comment at the top of the template says the function needs
    no outbound access at all, which the password fetch contradicts. Not
    verified here. A fix, also not verified: add an interface VPC endpoint for
-   Secrets Manager to the template by hand (re-running `hecks deploy recipe.project`
+   Secrets Manager to the template by hand (re-running `hecks deploy recipe.project!`
    into the same directory overwrites hand edits). The Fargate template has a
    NAT gateway and does not have this problem.
 3. **Fargate's first deploy is likely to fail at the image push.** The
@@ -1031,16 +1030,16 @@ an outside team would meet it.
    created, the stack is already up; the step is a separate target
    (`make mint-era`).
 6. **No shipped way to sign in interactively** (7.3): no membership bluebook
-   is shipped (the first administrator is made with `hecks operation.bootstrap_admin`
+   is shipped (the first administrator is made with `hecks operation.bootstrap_admin!`
    once you write one), and the account cookie does not open `/api/`.
 7. **Roles on the invoke path are self-asserted** (7.1), and so is
    `actor_id`: the host trusts the same-host peer that sends it. Closing
    this is deferred to ADR 0072's token work.
 8. **`_` in integer literals** fails in the host (step 2), and whether Ruby
    accepts it was not checked. Run the compiled host against your rules
-   before deploying, not only `hecks run`.
+   before deploying, not only `hecks operation.run!`.
 9. **The Ruby tools and the host keep separate stores** (step 2), so
-   `hecks run` against your database does not show what the service holds.
+   `hecks operation.run!` against your database does not show what the service holds.
 10. **`/<Domain>/<Aggregate>/<Command>.json` cannot be posted to from a plain
     client** (step 8).
 11. **A missing `SESSION_SECRET` crashes the request instead of refusing it.**
@@ -1058,9 +1057,9 @@ no `aws`, `sam` or `docker push` command was run.
 
 | Step | Checked | How |
 | --- | --- | --- |
-| 2. Bluebook files | Yes | `hecks docs`, `hecks run --help`; two boot errors reproduced |
-| 3. `hecks deploy recipe.project` | Yes, both targets | Run to completion into a scratch `--out`; generated files read; `--help`, missing-world and missing-region errors reproduced; `desired_count 0` regenerated |
-| 4. `hecks build.build_wasm`, host build | Yes | Run; binary started |
+| 2. Bluebook files | Yes | `hecks introspection.docs`, `hecks operation.run! --help`; two boot errors reproduced |
+| 3. `hecks deploy recipe.project!` | Yes, both targets | Run to completion into a scratch `out.value`; generated files read; `--help`, missing-world and missing-region errors reproduced; `desired_count 0` regenerated |
+| 4. `hecks build.build_wasm!`, host build | Yes | Run; binary started |
 | 4. Fargate `build` recipe and image | Yes | `make build` to completion, then `docker build --platform linux/arm64` on the output directory; container not started, nothing pushed |
 | 5. Environment variables | Partly | Three boot errors reproduced; secret-manager, TLS and Lambda-mode paths read from code only |
 | 6. Local run | Yes | Every `curl` in step 6 |

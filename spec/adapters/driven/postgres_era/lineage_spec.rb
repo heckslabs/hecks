@@ -640,7 +640,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
     /cannot move amount\.cents to: team_ref\.detail: team_ref already holds "team-1", not a value this can nest under/
 
   # A move destination that collides with an existing scalar (a reference_to field, a bare id)
-  # must refuse by name instead of overwriting it; mirrors spec/translation_language_spec.rb.
+  # must refuse by name instead of overwriting it; mirrors spec/translation/language_spec.rb.
   # Bare `reference_to Team` (no `as:`) is deliberate: shadow_parse (era_guard.rb) must try a
   # normal parse first, or shadow mode's default mints `team_id` and breaks the edge lookup.
   context "with a move whose destination collides with an existing scalar" do

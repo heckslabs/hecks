@@ -1,5 +1,7 @@
 # Make `hecks-codegen` the only Rust generator — 0054 reopened, option 2 adopted
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/project_wasm` is `exe/hecks build.build_wasm!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Decided — the maintainer reopened [0054](0054-keep-one-rust-generator.md)
 and adopted its option 2. DECISION SUPERSEDED by
 [0054b](0054b-the-ruby-generator-stays-primary.md): the Ruby generator stays

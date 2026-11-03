@@ -9,8 +9,8 @@ module Hecks
     module Site
       # The files at a project's root that are written from rows beside its route table: the
       # local-stack settings template (`.env.tpl`, from `Secrets` and `Env` rows) and the workflow
-      # that
-      # keeps the generated files current (`.github/workflows/site-routes.yml`, from a `Ci` row).
+      # that keeps the generated files current (a file under `.github/workflows`, from a `Ci`
+      # row).
       #
       # Each file is written only when its rows are declared. Settings that are secrets are
       # references

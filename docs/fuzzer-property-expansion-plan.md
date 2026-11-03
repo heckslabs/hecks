@@ -217,7 +217,7 @@ went looking:
 - **No real corpus entity anywhere uses `append`/`remove`/`multiply`/`clamp`.** Every real
   aggregate-owned mutation is aggregate-scoped (`Account.Credit`'s `:ledger`, `LogVisit`'s
   `:visits`, etc.) — the only entity-owned use of these ops in the whole repository is
-  `spec/fixtures/entity_list_mutations.bluebook`, a dedicated test fixture.
+  `spec/fixtures/entity_list_mutations/entity_list_mutations.bluebook`, a dedicated test fixture.
 - **That fixture isn't packaged as a bootable domain** — no `.hecksagon`, not laid out under
   `examples/`, so `Replay.call`/`SequenceGenerator.generate` can't point at it as-is.
 - **`Replay` has no per-step before/after mutation trace.** Every other property reads final

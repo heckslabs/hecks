@@ -1,5 +1,7 @@
 # `LeaseClock` — retention note
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 **Kept.** Targets the differential fuzz harness's own no-clock premise:
 `spec/rust_conformance_fuzz_spec.rb` (and every stress domain's own
 out-of-band `bin/rust_conformance_fuzz` run) generates ONE sequence and

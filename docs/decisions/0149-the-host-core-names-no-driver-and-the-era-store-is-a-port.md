@@ -1,5 +1,7 @@
 # The host core names no driver, and the era store is a port
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now, see `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted. Built: the Postgres journal and era SQL under `store/`, the
 `tokio_postgres` entry in the boundary scan, `dispatch.port`, the era store's heads, `Store` as a
 handle over a `Backend` trait, and the split of `rust/host` into a core crate and the adapters.
