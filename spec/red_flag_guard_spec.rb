@@ -10,7 +10,7 @@ RSpec.describe Hecks::Adapters::RedFlagGuard do
   let(:marker) { Hecks::Adapters::RedFlagMarker.new(dir) }
   let(:guard) { described_class.new(dir) }
 
-  after { FileUtils.remove_entry(dir) }
+  after { FileUtils.rm_rf(dir) }
 
   def flagged = marker.raise!(commit: "aaaaaaaaaaaa", run: {})
 
