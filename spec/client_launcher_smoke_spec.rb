@@ -31,6 +31,17 @@ RSpec.describe "client launcher smoke" do
 
     $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
+    # Where the project's Gemfile pins its gems (a local Hecks among them), this runs on them.
+    gemfile = File.expand_path("../Gemfile", __dir__)
+    if File.exist?(gemfile)
+      ENV["BUNDLE_GEMFILE"] ||= gemfile
+      begin
+        require "bundler/setup"
+      rescue LoadError, StandardError
+        nil
+      end
+    end
+
     require "hecks"
     # Every secret a world hands an adapter is masked in whatever this process prints.
     Hecks::Secrets.guard!
@@ -247,7 +258,7 @@ RSpec.describe "client launcher smoke" do
   end
 
   describe "a launcher the current generator wrote for a domain that did not opt in" do
-    it "is the launcher the 2.9 generator wrote, byte for byte", :aggregate_failures do
+    it "is the launcher the 2.9 generator wrote, plus the project-Gemfile block, byte for byte", :aggregate_failures do
       expect(File.read(File.join(@plain_root, "pizzas/pizzas"))).to eq(PRE_3_0_LAUNCHER)
       expect(@out).to include("pizzas/pizzas  ->  Pizzas")
       expect(File.executable?(File.join(@plain_root, "pizzas/pizzas"))).to be(true)
