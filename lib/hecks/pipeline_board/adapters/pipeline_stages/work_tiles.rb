@@ -27,17 +27,30 @@ module Hecks
         def working(data)
           return unknown_tile("working", "Sessions busy", data[:sessions]) unless data[:sessions].is_a?(Array)
 
-          busy = data[:sessions].count { |session| session[:status] == "busy" }
+          busy, blocked = counted(data[:sessions])
           fill = readable?(data[:fill]) ? data[:fill] : {}
           cap = fill[:cap] || DEFAULT_CAP
-          tile("working", "Sessions busy", busy, "of #{cap}", state: busy >= cap ? "attention" : "ok", detail: load_note(fill))
+          note = "#{blocked} blocked on you; #{load_note(fill)}"
+          tile("working", "Sessions busy", busy, "of #{cap}", state: pressure(busy, cap, blocked), detail: note)
         end
 
-        def throughput(history, now)
-          return unknown_tile("throughput", "Work finished", history) unless history.is_a?(Array)
+        # @return [Array(Integer, Integer)] the sessions holding a seat (busy or blocked), and the
+        #   blocked ones among them
+        def counted(sessions)
+          [sessions.count { |session| %w[busy blocked].include?(session[:status]) },
+           sessions.count { |session| session[:status] == "blocked" }]
+        end
 
-          done = history.count { |event| event[:name] == "WorkFinished" && now - Time.parse(event[:at]) < DAY }
-          tile("throughput", "Work finished", done, "items / 24 h", detail: "Work.WorkFinished events in the journal")
+        # Attention when the cap is reached or anyone is waiting on a person.
+        def pressure(busy, cap, blocked) = busy >= cap || blocked.positive? ? "attention" : "ok"
+
+        # @param finished [Array<Hash>, Hash] the newest `WorkFinished` events, read by name from
+        #   the journal, so a flood of other events cannot push them out of the window
+        def throughput(finished, now)
+          return unknown_tile("throughput", "Work finished", finished) unless finished.is_a?(Array)
+
+          done = finished.count { |event| now - Time.parse(event[:at]) < DAY }
+          tile("throughput", "Work finished", done, "items / 24 h", detail: "Work.WorkFinished events in the Tickets journal")
         end
 
         def release(release, now)

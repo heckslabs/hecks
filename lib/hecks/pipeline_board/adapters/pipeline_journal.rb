@@ -22,8 +22,8 @@ module Hecks
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `trace:` stands in for the reader (a callable taking the row
-      #   count and answering its report), `tap:` the event log's path, `ttl:` how long a read
-      #   is kept
+      #   count and an event name or nil, answering its report), `tap:` the event log's path,
+      #   `ttl:` how long a read is kept
       # @param root [String, nil] the checkout whose domain directory is read
       def initialize(aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
@@ -50,19 +50,29 @@ module Hecks
         found.sort_by { |row| row[:at].to_s }.reverse.first(count)
       end
 
-      private
-
-      def journal(count)
-        @cache.fetch([:trace, count]) { chained(@trace.call(count)) }
+      # @param event [String] a bare event name, such as `WorkFinished`
+      # @param count [Integer] how many of the newest to read
+      # @return [Array<Hash>] the newest events of that name in the journal stores, newest first;
+      #   empty when no store can be read
+      def named(event, count)
+        @cache.fetch([:named, event, count]) { chained(@trace.call(count, event)).sort_by { |row| row[:at].to_s }.reverse }
       rescue PipelineBoard::Unavailable
         []
       end
 
-      def trace(count)
+      private
+
+      def journal(count)
+        @cache.fetch([:trace, count]) { chained(@trace.call(count, nil)) }
+      rescue PipelineBoard::Unavailable
+        []
+      end
+
+      def trace(count, event)
         require "hecks"
         require "hecks/hecks/adapters/journal_store"
         reading = Adapters::JournalStore::Readings::EventTrace
-        selection = reading::Selection.new(nil, nil, count, nil)
+        selection = reading::Selection.new(event, nil, count, nil)
         reading::Report.new(registry, selection).to_h
       rescue StandardError => e
         raise PipelineBoard::Unavailable, "journal: #{e.message[0, 80]}"

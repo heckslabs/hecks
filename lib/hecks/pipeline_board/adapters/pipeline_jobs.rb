@@ -61,16 +61,21 @@ module Hecks
         status = status_of(state, agent, age)
         { id: id, name: name_of(id, agent), status: status, state: state["state"].to_s,
           detail: state["detail"].to_s.slice(0, 140), started: stamp(agent, edges),
-          ended: status == "busy" ? nil : edges.last, row: @runs.call.dig(id, :row).to_s }
+          ended: %w[busy blocked].include?(status) ? nil : edges.last, row: @runs.call.dig(id, :row).to_s }
       end
 
       def name_of(id, agent) = (agent && agent["name"]) || id
 
+      # A session is `blocked` when its job says so and it is still alive: it waits on a person.
       def status_of(state, agent, age)
-        return "busy" if (agent && agent["status"] == "busy") || (state["state"] == "working" && age < FRESH_SECONDS)
+        fresh = age < FRESH_SECONDS
+        return "blocked" if state["state"] == "blocked" && (agent || fresh)
+        return "busy" if busy?(state, agent, fresh)
 
         %w[failed error].include?(state["state"]) ? "failed" : "done"
       end
+
+      def busy?(state, agent, fresh) = (agent && agent["status"] == "busy") || (state["state"] == "working" && fresh)
 
       def stamp(agent, edges)
         agent ? Time.at(agent["startedAt"].to_i / 1000).utc.iso8601 : edges.first

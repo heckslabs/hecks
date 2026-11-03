@@ -22,7 +22,7 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
   def names = ["Work items", "Sessions", "Local main", "Train", "CI", "Promote", "Release"]
 
   def board
-    journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: ->(_) { { events: [] } }, tap: log, ttl: 0 })
+    journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: ->(*) { { events: [] } }, tap: log, ttl: 0 })
     rows = names.map { |name| { name: name, state: "ok", count: "1", detail: "d" } }
     stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: rows })
     allow(stages).to receive(:feed) { journal.recent(40) }
