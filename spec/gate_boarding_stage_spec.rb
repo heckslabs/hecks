@@ -8,7 +8,7 @@ RSpec.describe "the boarding GateStage" do
   let(:stage) { Hecks::Vocabulary.rows("GateStage").find { |row| row["name"] == "boarding" } }
   let(:checks) { Hecks::Vocabulary.rows("GateCheck") }
 
-  it "is a stage row that the settlement runs before a boarding pushes" do
+  it "is a stage row that the settlement runs before a boarding pushes", :aggregate_failures do
     expect(stage).not_to be_nil
     expect(Hecks::Adapters::GitTrain::Settlement::DRIFT)
       .to eq([%w[bundle exec exe/hecks gate_run.gate! stage=boarding --wait]])
