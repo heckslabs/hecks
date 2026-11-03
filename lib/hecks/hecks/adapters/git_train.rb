@@ -120,9 +120,18 @@ module Hecks
       # What the push is, said before it is made: how many commits go and, past the world's
       # threshold, the size sentence. It only says; a push of any size is carried.
       def push_size(held)
-        ahead = read("rev-list", "--count", "#{remote_of(held)}/#{branch_of(held)}..#{branch_of(held)}").to_i
+        ahead = read("rev-list", "--count", "#{push_base(held)}..#{branch_of(held)}").to_i
         sentence = PushSize.sentence(ahead, PushSize.thresholds(@registry))
         [ahead, sentence.empty? ? "pushing #{ahead} commits" : "pushing #{ahead} commits; #{sentence}"]
+      end
+
+      # What the commits to push are counted from: the branch's remote tip, or, for a branch the
+      # remote has never had, `main`, so a first push of a new branch is counted rather than faulting.
+      def push_base(held)
+        remote_tip = "#{remote_of(held)}/#{branch_of(held)}"
+        return remote_tip if @git.capture("rev-parse", "--verify", "--quiet", remote_tip, chdir: @checkout).ok?
+
+        "main"
       end
 
       def branch_of(held) = plain(held[:branch]) || "main"
