@@ -9,6 +9,13 @@ module Hecks
       # A commit range as git writes one: names joined by `..` or `...`, never an option.
       RANGE = %r{\A[0-9A-Za-z_][0-9A-Za-z_./^~@{}-]*\z}
 
+      # A line break or a NUL: text that is not one plain line.
+      NOT_ONE_LINE = /[\n\0]/
+
+      # A path that starts at the root or with an option, starts with `./`, steps up with `..`, or
+      # is not one line.
+      OUTSIDE_THE_REPOSITORY = %r{\A[/-]|\A\./|(\A|/)\.\.(/|\z)|#{NOT_ONE_LINE}}
+
       private
 
       def checked_range(range)
@@ -28,7 +35,7 @@ module Hecks
       # path is the top level itself, which git lists.
       def checked_path(path)
         text = path.to_s
-        return text unless text.match?(%r{\A[/-]|\A\./|(\A|/)\.\.(/|\z)|[\n\0]})
+        return text unless text.match?(OUTSIDE_THE_REPOSITORY)
 
         raise ConsoleCapture::Failure, "#{path.inspect} is not a path from the repository's top level"
       end
