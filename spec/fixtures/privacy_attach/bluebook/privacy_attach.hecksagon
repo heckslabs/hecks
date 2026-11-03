@@ -1,0 +1,5 @@
+# Attaches Privacy, whose Deployment-role command needs Governance wired in the merged hecksagon.
+Hecks.hecksagon "PrivacyAttach" do
+  attaches "Privacy"
+  persisted_by "Memory"
+end
