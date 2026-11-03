@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "git_names"
 require_relative "git_worktrees"
 
 module Hecks
@@ -10,13 +11,11 @@ module Hecks
     # Every query takes `checkout`, a directory inside the repository (the current directory when
     # absent), and answers `text:`; a refusal is a `Runtime::NotFound`.
     class GitCheckout
+      include GitNames
       include GitWorktrees
 
       # How many commits `log` prints when it is given no range.
       RECENT = 20
-
-      # A commit range as git writes one: names joined by `..` or `...`, never an option.
-      RANGE = %r{\A[0-9A-Za-z_][0-9A-Za-z_./^~@{}-]*\z}
 
       # How many characters `show` returns before it cuts a file and says so.
       SHOWN = 200_000
@@ -112,12 +111,6 @@ module Hecks
         "#{other}: ahead #{ahead}, behind #{behind}"
       end
 
-      def checked_range(range)
-        return range if range.match?(RANGE)
-
-        raise ConsoleCapture::Failure, "#{range.inspect} is not a commit range"
-      end
-
       # The pickaxe argument for the commits that add or remove `text`, none when no text is named.
       def containing(text)
         return [] if text.nil?
@@ -129,22 +122,6 @@ module Hecks
       # The pathspec that limits a log to one path, none when no path is named.
       def within(path)
         path.nil? ? [] : ["--", checked_path(path)]
-      end
-
-      # One revision: a range's characters, but no `..` and so no range.
-      def checked_revision(revision)
-        return revision if revision.to_s.match?(RANGE) && !revision.include?("..")
-
-        raise ConsoleCapture::Failure, "#{revision.inspect} is not a single revision"
-      end
-
-      # A path inside the repository: relative to its top level, one line, no `..` step. The empty
-      # path is the top level itself, which git lists.
-      def checked_path(path)
-        text = path.to_s
-        return text unless text.match?(%r{\A[/-]|\A\./|(\A|/)\.\.(/|\z)|[\n\0]})
-
-        raise ConsoleCapture::Failure, "#{path.inspect} is not a path from the repository's top level"
       end
 
       def clipped(text)
