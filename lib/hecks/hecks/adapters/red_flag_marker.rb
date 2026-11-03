@@ -17,11 +17,23 @@ module Hecks
       # The marker's file name, in the common git directory.
       FILE = "hecks-red-flag.json"
 
+      # @return [String] the absolute path of the marker file
+      attr_reader :path
+
       # @param git_dir [String] the repository's common git directory
       # @param clock [#call] answers the current Time
       def initialize(git_dir, clock: -> { Time.now })
         @path = File.join(git_dir, FILE)
         @clock = clock
+      end
+
+      # @param commit [String] a main commit
+      # @return [Boolean] whether the standing flag already holds a red run of that commit
+      def recorded?(commit)
+        flag = read
+        return false unless flag
+
+        flag["commit"] == commit || flag["runs"].to_a.any? { |run| run["commit"] == commit }
       end
 
       # @return [Hash, nil] the standing flag, or nil when main is not flagged

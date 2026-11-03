@@ -28,9 +28,12 @@ module Hecks
       # @param held [Hash] the `RedFlag` record: `commit`, `detail`, `work_items`, `checkout`
       # @return [Hash{Symbol => Hash}] `outcome:` (`raised` or `noted`) and the flag's facts
       def hoist(**held)
+        commit = pick(held, :commit, :landed).to_s
+        return settled(commit) if marker(held).recorded?(commit)
+
         detail = pick(held, :detail, :report).to_s
         facts = { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], work_items: plain(held[:work_items]) }
-        state, flag = marker(held).raise!(commit: pick(held, :commit, :landed).to_s, run: facts)
+        state, flag = marker(held).raise!(commit: commit, run: facts)
         answer(state.to_s, flag, facts)
       end
 
@@ -67,11 +70,17 @@ module Hecks
       # @param held [Hash] `checkout`
       # @return [Hash{Symbol => String}] `text:` the flag in words, or that none stands
       def status(**held)
-        flag = marker(held).read
-        { text: flag ? "#{RedFlagReport.new(flag).text}\n" : "main is not flagged\n" }
+        store = marker(held)
+        flag = store.read
+        { text: flag ? "#{RedFlagReport.new(flag).text}\nmarker: #{store.path}\n" : "main is not flagged\n" }
       end
 
       private
+
+      # A red run of a head the flag already holds changes nothing: the head is answered idle.
+      def settled(commit)
+        { outcome: { value: "idle" }, output: { value: "#{commit[0, 10]} is already on the red flag" } }
+      end
 
       def answer(outcome, flag, facts)
         { outcome: { value: outcome }, flag: { value: flag["id"] }, commit: { value: flag["commit"].to_s },
