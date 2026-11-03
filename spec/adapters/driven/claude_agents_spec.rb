@@ -19,7 +19,8 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
   let(:scratch) { File.realpath(Dir.mktmpdir("claude-agents")) }
   let(:stand_in) { File.join(scratch, "claude") }
-  let(:adapter) { described_class.new(settings: { command: stand_in }) }
+  let(:starts) { File.join(scratch, "starts") }
+  let(:adapter) { described_class.new(settings: { command: stand_in, starts: starts }) }
 
   def install(script)
     File.write(stand_in, script)
@@ -30,7 +31,9 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
   def asked = File.read(File.join(scratch, "argv")).split("\n")
 
-  def start(**held) = adapter.start(repo: { value: scratch }, brief: { value: "say ok" }, **held)
+  def start(**held) = adapter.start(repo: { value: scratch }, brief: { value: "say ok" }, run: { value: "run-1" }, **held)
+
+  def launches = File.exist?(File.join(scratch, "launches")) ? File.readlines(File.join(scratch, "launches")).size : 0
 
   before { install(STAND_IN) }
 
@@ -100,6 +103,38 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       install("#!/bin/sh\nexit 0\n")
 
       expect { start }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /named no session/)
+    end
+
+    it "launches a run once: a redelivered start is refused before claude runs again", :aggregate_failures do
+      install("#!/bin/sh\necho launched >> #{scratch}/launches\necho backgrounded · session-id-abc123\n")
+
+      start
+      expect { start }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /run run-1 was already started/)
+      expect(launches).to eq(1)
+    end
+
+    it "starts each run separately" do
+      install("#!/bin/sh\necho launched >> #{scratch}/launches\necho backgrounded · session-id-abc123\n")
+
+      start(run: { value: "run-1" })
+      start(run: { value: "run-2" })
+      expect(launches).to eq(2)
+    end
+
+    it "releases the claim when the command fails outright, so a retry can start", :aggregate_failures do
+      install("#!/bin/sh\necho no login >&2\nexit 3\n")
+      expect { start }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /did not start a session/)
+
+      install(STAND_IN)
+      expect(start).to eq(session: { value: "session-id-abc123" })
+    end
+
+    it "keeps the claim when the command names no session, since its outcome is unknown", :aggregate_failures do
+      install("#!/bin/sh\nexit 0\n")
+      expect { start }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /stays claimed/)
+
+      install(STAND_IN)
+      expect { start }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /already started/)
     end
   end
 

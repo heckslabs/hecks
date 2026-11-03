@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+require "fileutils"
 require "json"
 require_relative "shell"
 require "time"
@@ -33,7 +35,8 @@ module Hecks
       #
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `command:` the program that starts sessions (default `claude`),
-      #   `jobs:` the jobs directory, `settle:` the seconds a new session is given to fail
+      #   `jobs:` the jobs directory, `settle:` the seconds a new session is given to fail,
+      #   `starts:` the directory of start claims (default `~/.claude/hecks-dev/agent-starts`)
       # @param root [String, nil] unused
       # @param registry [Runtime::Registry, nil] whose Tickets world names the session environment
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
@@ -44,6 +47,7 @@ module Hecks
         @jobs = ClaudeJobs.new(directory: settings[:jobs])
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
+        @starts = settings.fetch(:starts, File.join(Dir.home, ".claude", "hecks-dev", "agent-starts"))
       end
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
@@ -65,15 +69,18 @@ module Hecks
       #
       # @param held [Hash] the `AgentRun` record: `repo`, `brief`, and `agent` when one is named
       # @return [Hash{Symbol => Hash}] `session:` the id the session is known by
-      # @raise [ConsoleCapture::Failure] when the command fails or names no session
+      # A run is started at most once: the first call claims it, and a call for a claimed run is
+      # refused before `claude` runs, so a redelivered start cannot launch a second session. A claim
+      # is released only when `claude` failed outright; a claim whose outcome is unknown stays for a
+      # person to settle.
+      #
+      # @raise [ConsoleCapture::Failure] when the run was already started, the command fails, or it
+      #   names no session
       def start(**held)
-        result = @shell.capture(*start_arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
-        raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}" unless result.ok?
+        run = plain(held[:run]).to_s
+        raise ConsoleCapture::Failure, "run #{run} was already started" unless claim_start(run)
 
-        id = result.out[SESSION_ID, 1]
-        raise ConsoleCapture::Failure, "#{@command} named no session: #{result.out.strip}" unless id
-
-        { session: { value: id } }
+        { session: { value: launch(run, held) } }
       end
 
       # Reads the state a started session's job is in, beside the state the run last recorded.
@@ -126,6 +133,38 @@ module Hecks
       end
 
       private
+
+      # Runs `claude` for a claimed run and returns the session id it printed. A failed command
+      # releases the claim; a command that printed no session keeps it.
+      def launch(run, held)
+        result = @shell.capture(*start_arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
+        unless result.ok?
+          release_start(run)
+          raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}"
+        end
+
+        id = result.out[SESSION_ID, 1]
+        raise ConsoleCapture::Failure, "#{@command} named no session, run #{run} stays claimed: #{result.out.strip}" unless id
+
+        id
+      end
+
+      # Creates the run's claim file exclusively; false when it already exists.
+      def claim_start(run)
+        FileUtils.mkdir_p(@starts)
+        File.open(start_marker(run), File::WRONLY | File::CREAT | File::EXCL) { |file| file.write(Time.now.utc.iso8601) }
+        true
+      rescue Errno::EEXIST
+        false
+      end
+
+      def release_start(run)
+        FileUtils.rm_f(start_marker(run))
+      end
+
+      def start_marker(run)
+        File.join(@starts, Digest::SHA256.hexdigest(run))
+      end
 
       def agent_listing(repo, agent)
         return { listed: true, note: "no agent named: the session runs the default agent" } unless agent

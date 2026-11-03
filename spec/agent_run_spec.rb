@@ -38,7 +38,7 @@ RSpec.describe "AgentRun through the Agents port" do
 
   before do
     allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
-      original.call(**context, settings: { jobs: jobs, settle: 0 })
+      original.call(**context, settings: { jobs: jobs, settle: 0, starts: File.join(scratch, "starts") })
     end)
   end
 
