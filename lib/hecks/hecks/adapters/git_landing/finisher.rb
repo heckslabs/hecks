@@ -44,7 +44,7 @@ module Hecks
         #   gate red
         def prepare
           refuse_unsaved
-          pull_main if @onto == "main"
+          pull_main if @onto == LandingLane.name
           rebase
           run_gate
         end

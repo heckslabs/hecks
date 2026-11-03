@@ -5,6 +5,7 @@ require_relative "console_capture"
 require_relative "push_size"
 require_relative "red_flag_guard"
 require_relative "git_train/reading"
+require_relative "landing_lane"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
@@ -112,7 +113,7 @@ module Hecks
         [ahead, sentence.empty? ? "pushing #{ahead} commits" : "pushing #{ahead} commits; #{sentence}"]
       end
 
-      def branch_of(held) = plain(held[:branch]) || "main"
+      def branch_of(held) = plain(held[:branch]) || LandingLane.name
 
       def remote_of(held) = plain(held[:remote]) || "origin"
 

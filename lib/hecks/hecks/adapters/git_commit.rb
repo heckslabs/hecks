@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "landing_lane"
 
 module Hecks
   module Adapters
@@ -34,8 +35,7 @@ module Hecks
         raise ConsoleCapture::Failure, "a commit needs a message" if message.empty?
 
         branch = current_branch
-        raise ConsoleCapture::Failure, "a commit onto main goes through Landing" if branch == "main"
-
+        refuse_landing_lane(branch)
         stage(plain(held[:paths]))
         refuse_nothing_staged
         read("commit", "-m", message)
@@ -44,6 +44,13 @@ module Hecks
       end
 
       private
+
+      # A commit onto the lane that lands here goes through `Landing`, never a direct commit.
+      def refuse_landing_lane(branch)
+        return unless branch == LandingLane.name
+
+        raise ConsoleCapture::Failure, "a commit onto #{LandingLane.name} goes through Landing"
+      end
 
       # Stages each named path; `--` keeps a path from being read as an option.
       def stage(paths)

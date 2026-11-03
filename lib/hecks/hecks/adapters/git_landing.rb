@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "landing_lane"
 require_relative "git_main_pull"
 require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
@@ -46,7 +47,7 @@ module Hecks
       def merge(**held)
         settle(held)
         branch = plain(held[:branch]) || current_branch
-        onto = plain(held[:onto]) || "main"
+        onto = plain(held[:onto]) || LandingLane.name
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
         lineup.stand(branch, onto: onto, checkout: @checkout) { |note| land_alone(branch, onto, note) }
@@ -64,7 +65,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository or the wait runs out
       def convene(**held)
         settle(held)
-        onto = plain(held[:onto]) || "main"
+        onto = plain(held[:onto]) || LandingLane.name
         land = ->(checkout, branch, target) { land_for(checkout, branch, target) }
         said = lineup.convoy(@git, @checkout, onto: onto, land: land)
         { outcome: { value: "trained" }, checkout: { value: primary.path }, branch: { value: "train" }, report: { value: said } }
@@ -81,7 +82,7 @@ module Hecks
       def finish_branch(**held)
         settle(held)
         branch = plain(held[:branch]) || current_branch
-        onto = plain(held[:onto]) || "main"
+        onto = plain(held[:onto]) || LandingLane.name
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
         Finisher.new(@git, @checkout, branch: branch, onto: onto, gate: held[:gate]).prepare
@@ -122,7 +123,7 @@ module Hecks
       # @raise [Runtime::NotFound] when the checkout is not a repository
       def unlanded(**held)
         settle(held)
-        onto = ref(plain(held[:onto]) || "main")
+        onto = ref(plain(held[:onto]) || LandingLane.name)
         lines = branches.reject { |name| name == onto }.filter_map { |name| unlanded_line(name, onto) }
         { text: lines.empty? ? "everything is on #{onto}\n" : "#{lines.join("\n")}\n" }
       rescue ConsoleCapture::Failure => e
@@ -135,7 +136,7 @@ module Hecks
         settle(held)
         branch = plain(held[:branch]) || current_branch
         gone = @checkout
-        kept, said = Tidy.new(@git, @checkout, branch: branch, onto: plain(held[:onto]) || "main", mode: mode).retire
+        kept, said = Tidy.new(@git, @checkout, branch: branch, onto: plain(held[:onto]) || LandingLane.name, mode: mode).retire
         raise ConsoleCapture::Failure, "#{gone} is kept: #{said}" if kept
 
         { outcome: { value: outcome }, checkout: { value: gone }, branch: { value: branch },

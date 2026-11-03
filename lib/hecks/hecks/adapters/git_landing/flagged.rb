@@ -15,7 +15,7 @@ module Hecks
 
         # @return [Object] what the block answers, run only after main's checks pass
         def on_main(branch, onto)
-          return yield unless onto == "main"
+          return yield unless onto == LandingLane.name
 
           refuse_stale_base(branch)
           git_dir = common_git_dir
@@ -26,7 +26,7 @@ module Hecks
 
         # Main's commit, read against the git directory: the worktree a finish lands from is gone
         # by now.
-        def tip(git_dir) = @git.capture("--git-dir=#{git_dir}", "rev-parse", "main").out.strip
+        def tip(git_dir) = @git.capture("--git-dir=#{git_dir}", "rev-parse", LandingLane.name).out.strip
       end
     end
   end

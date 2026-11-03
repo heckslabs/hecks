@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "landing_lane"
 require_relative "git_main_pull"
 
 module Hecks
@@ -40,7 +41,7 @@ module Hecks
         path = plain(held[:path]).to_s.strip
         path = File.join(repo, ".claude", "worktrees", branch) if path.empty?
         pulled = pull_main
-        read("worktree", "add", "-b", branch, path, "main")
+        read("worktree", "add", "-b", branch, path, LandingLane.name)
         sha = read("rev-parse", "--short", "HEAD", dir: path)
         { path: { value: path }, sha: { value: sha }, report: { value: "opened #{path} on #{branch}; #{pulled}" } }
       end
@@ -54,7 +55,7 @@ module Hecks
       def pull(**held)
         settle(held)
         said = pull_main
-        { sha: { value: read("rev-parse", "--short", "main") }, report: { value: said } }
+        { sha: { value: read("rev-parse", "--short", LandingLane.name) }, report: { value: said } }
       end
 
       private
@@ -63,7 +64,7 @@ module Hecks
       def branch_named(held)
         branch = plain(held[:branch]).to_s.strip
         raise ConsoleCapture::Failure, "a worktree needs a branch" if branch.empty?
-        raise ConsoleCapture::Failure, "a worktree is not opened on main" if branch == "main"
+        raise ConsoleCapture::Failure, "a worktree is not opened on #{LandingLane.name}" if branch == LandingLane.name
 
         branch
       end
