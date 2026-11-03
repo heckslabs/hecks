@@ -155,6 +155,7 @@ Hecks.bluebook "Hecks" do
       attribute :sha,      Word,   optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
+      attribute :confirm,  Switch, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -170,13 +171,19 @@ Hecks.bluebook "Hecks" do
         attribute :value, String
       end
 
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
         transition "Record"  => "opened",   from: "requested"
         transition "Decline" => "declined", from: "requested"
         transition "Pulled"  => "pulled",   from: "requested"
         transition "PullDeclined" => "declined", from: "requested"
-        mark :terminal, "opened", "declined", "pulled"
+        transition "Published"    => "published", from: "requested"
+        transition "PublishDeclined" => "declined", from: "requested"
+        mark :terminal, "opened", "declined", "pulled", "published"
       end
 
       command "Add" do
@@ -247,6 +254,47 @@ Hecks.bluebook "Hecks" do
 
         emits AddDeclined
       end
+
+      # A push of a worktree's branch to origin, under its own name, so a pull request can be opened from it. It
+      # never pushes main and never forces; a branch with no commits to publish is refused by the git port.
+      command "Publish" do
+        role "Operator"
+        goal "Push a worktree's branch to origin, so a pull request can be opened from it; never main, never forced"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("publishes a branch other than main, never main") do
+          branch.value != "main"
+        end
+
+        given("pushes the branch to origin needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits BranchPublishRequested
+      end
+
+      command "Published" do
+        role "System"
+        goal "Record the branch a worktree published to origin, by the sha it stands on"
+
+        reference_to LinkedTree
+        attribute :sha,    Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits BranchPublished
+      end
+
+      command "PublishDeclined" do
+        role "System"
+        goal "Record why a branch could not be published to origin"
+
+        reference_to LinkedTree
+        attribute :refusal, Report, sets: true
+
+        emits BranchPublishDeclined
+      end
     end
 
     policy "AddWorktreeWhenRequested" do
@@ -257,6 +305,21 @@ Hecks.bluebook "Hecks" do
     policy "PullMainWhenRequested" do
       on      "LinkedTree.PullRequested"
       ask     :pull, with: { run: :run }
+    end
+
+    policy "PublishBranchWhenRequested" do
+      on      "LinkedTree.BranchPublishRequested"
+      ask     :push, with: { run: :run }
+    end
+
+    policy "RecordThePublish" do
+      on      "LinkedTree.BranchPublishAnswered"
+      trigger LinkedTree::Published, with: { sha: :sha, report: :report }
+    end
+
+    policy "DeclineThePublish" do
+      on      "LinkedTree.BranchPublishRefused"
+      trigger LinkedTree::PublishDeclined, with: { refusal: :refusal }
     end
 
     policy "RecordThePull" do

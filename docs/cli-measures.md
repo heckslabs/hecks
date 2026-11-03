@@ -51,10 +51,18 @@ runs of `ruby -I lib` that loads `hecks` and answers bare `hecks` from the help 
 seconds. A cold run (caches cleared) takes about 7.5 seconds, nearly all of it the grammar boot,
 which is not measured by the budget.
 
-The budget is a ceiling of three times that baseline, 1.5 seconds on the same machine. The check
+The baseline is kept as a ratio to the machine's own floor: the warm median of five fresh
+processes that only `require "bundler/setup"`. On the maintainer's machine (2026-11-03) the warm
+bare `hecks` median is 0.38 seconds and the floor 0.14 seconds, a ratio of 2.8 across three runs
+(2.76 to 2.84). The budget is a ceiling of three times that ratio, 8.4, so a load of `hecks` three
+times slower fails it on any machine.
+
+The ratio, not a time in seconds, is what the check compares, because a shared CI runner is about
+four times slower than the maintainer's machine: a fixed ceiling of 1.47 seconds read 1.51 there on
+an unchanged startup, while the same tree measured 0.38 seconds here. The check
 `spec/cli_cold_start_budget_spec.rb` runs in the default test job, not the Postgres io shards,
-takes the median of five warm runs, and fails above the ceiling. A slower machine changes the
-baseline and the ceiling together, so the check compares a machine with itself.
+takes the median of five warm runs of each program, and fails above the ceiling; the failure
+names both medians and the ratio.
 
 The first in-process help call after a cache clear costs about one second. The 0.66-second
 shell figure earlier was a warm run; the breakdown that suggested a larger figure ran straight
